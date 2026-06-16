@@ -1,0 +1,52 @@
+CLOUD AGENT TASK BRIEF - Agentic Online Education Platform
+==========================================================
+
+You are implementing the platform described in docs/plan.txt, end to end, phase by
+phase (phase0 -> phase10). This repo is the single source of truth.
+
+HARD RULES
+- Do NOT create markdown (.md) files. Use code, comments, and plain-text (.txt) only.
+- Always use python3, never python.
+- Dual-mode: the SAME code must run local (docker compose) and cloud (k8s), chosen by
+  config/env (DEPLOY_MODE=local|cloud + per-component overrides). No code forks.
+- Pin dependency versions via the package manager; do not invent versions.
+- Update CHANGELOG.txt with every meaningful change.
+- Keep large model weights OUT of the repo (config + stubs; download at runtime).
+
+WORKING AGREEMENT
+- Implement one phase at a time. After each phase: run available verifications,
+  update CHANGELOG.txt, and commit with a clear message (e.g. "phase1: live teacher").
+- Where the runtime/GPU/keys are unavailable, ship working code + skeletons wired via
+  config and clearly-marked stubs, plus tests that run without network/GPU.
+
+PHASES (see docs/plan.txt for full detail)
+phase0  Foundations: monorepo, provider abstraction (LLM/Speech/Vision/Media/ObjectStore/
+        PaymentProvider with local+cloud impls + factory), local docker compose
+        (web, services, LiveKit, Postgres+pgvector, Redis, MinIO), cloud k8s manifests,
+        config/local.env + config/cloud.env, db/migrations (consent/compliance +
+        billing/entitlements), vLLM serving config, RAG skeleton over sample-curriculum/,
+        CI (.gitlab-ci.yml or GitHub Actions), Makefile, per-service Dockerfiles.
+phase1  Live AI teacher in apps/web on LiveKit; agent-runtime running Director + Lesson
+        Delivery + Tutor; slide presentation + TTS narration; text chat Q&A via RAG.
+phase2  Multilingual + voice: streaming ASR, language ID, NLLB translation, multilingual
+        TTS across 26 languages (TTS fallback where needed).
+phase3  Perception (consent-gated): face recognition + attention/gaze; Director reacts;
+        consent + retention enforcement.
+phase4  Memory & adaptive learning: per-student profiles, mastery graph, cross-class
+        context, learning-behavior features; solo vs group policies.
+phase5  Assessment: pop quizzes, definition checks, polls; mastery feedback loop.
+phase6  Curriculum suite/CMS: author/import/manage decks + videos; teacher dashboard.
+phase6b Monetization & billing: services/billing, entitlements API, Stripe (cloud) /
+        sandbox (local), Connect payouts, certifications, B2B seat licensing.
+phase7  Zoom bridge -> LiveKit.
+phase8  Teams bridge (.NET Graph Communications) -> agent runtime.
+phase9  Google Meet/Chat bridge.
+phase10 Hardening & scale: latency, GPU batching/pooling/autoscale, observability,
+        security review, fine-tuning the base education LLM.
+
+VERIFICATION TARGETS
+- packages/shared factory unit test: local vs cloud selection by env.
+- Each Python service imports cleanly and FastAPI app exposes /health.
+- apps/web installs + typechecks/builds.
+- docker compose config validates.
+- Phase-specific tests added as features land.

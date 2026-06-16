@@ -1,0 +1,10 @@
+CHANGELOG - Agentic Online Education Platform
+=============================================
+Format: newest first. No markdown per project convention.
+
+[unreleased] - 2026-06-16
+- seed: initialize repository for Cursor Cloud Agent execution.
+- add docs/plan.txt (architecture + phased roadmap, plain text).
+- add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
+- add .gitignore, .editorconfig, .python-version.
+- next: phase0 foundations to be implemented by the Cloud Agent.

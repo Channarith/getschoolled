@@ -1,0 +1,144 @@
+AGENTIC ONLINE EDUCATION PLATFORM - ARCHITECTURE & PHASED ROADMAP
+=================================================================
+
+A multi-agent AI instructor that teaches live classes (group and 1:1), perceives
+the room over webcam, remembers every student across sessions, and adapts pedagogy
+in real time. Built own-platform first (full control), then bridged into Zoom /
+Teams / Meet.
+
+GUIDING DECISIONS
+- Scope: full production architecture, phased delivery (ship value each phase).
+- Platforms: all three eventually; sequence Own web app -> Zoom -> Teams -> Meet/Chat.
+- AI: own agentic orchestration layer over a base education LLM (open-weight, served
+  by us, RAG now, fine-tune later). Biometrics processed self-hosted for privacy.
+- Stack: Python AI/agents backend, TypeScript/Next.js frontend, LiveKit (WebRTC) as
+  the real-time media backbone, GPU model-serving with vLLM, Go/Node only where
+  real-time media bridging needs it.
+- Deployment: MUST run both fully local (single machine / on-prem) and against a
+  cloud backend, from the same codebase, switched by config/env only.
+
+WHY LIVEKIT
+LiveKit is open-source WebRTC infra with a first-class realtime "Agents" framework:
+an AI agent can join a room, subscribe to audio/video tracks, run STT -> LLM -> TTS,
+and publish audio + screen-share back. Becomes the internal media bus that platform
+bots (Zoom/Teams/Meet) bridge into - so the teaching brain is written once.
+
+DUAL-MODE DEPLOYMENT (local AND cloud, same codebase)
+Hard requirement: the exact same code runs in two modes, selected purely by config/env
+(DEPLOY_MODE=local|cloud, plus per-component overrides). No code forks.
+Provider abstraction: every heavy capability sits behind a narrow interface in
+packages/shared, with a local and a cloud implementation chosen at startup by a
+config-driven factory.
+- LLM: LLMProvider -> local = vLLM/Ollama; cloud = managed vLLM/Triton or hosted API.
+- ASR/Translation/TTS: SpeechProvider -> local = Whisper + NLLB + XTTS; cloud = GPU pods.
+- Vision: VisionProvider -> local = InsightFace + MediaPipe; cloud = GPU pods.
+  Biometrics stay inside whichever boundary is configured (key compliance lever).
+- Media: MediaProvider -> local = self-hosted LiveKit container; cloud = LiveKit cluster.
+- Relational+vector: local = Postgres + pgvector; cloud = managed Postgres + pgvector.
+- Object store: ObjectStore -> local = MinIO/filesystem; cloud = S3-compatible.
+- Bus/state: local = single Redis; cloud = managed Redis/queue.
+
+THE AGENTS
+- Teaching Director (orchestrator): lesson state machine; balances teach vs answer vs
+  quiz vs re-engage. LangGraph stateful graph.
+- Lesson Delivery Agent: walks the deck, narrates slides via TTS, plays videos.
+- Q&A / Tutor Agent: chat + voice questions, RAG over lesson/curriculum, answers in
+  the asker's language.
+- Assessment Agent: pop quizzes, definition/key-point checks, polls, mastery.
+- Perception Agent: face recognition (identity) + attention/gaze scoring.
+- Speech Agent: streaming multilingual ASR, language ID, translation, TTS.
+- Memory / Profile Agent: long-term per-student profile (name, face embedding w/
+  consent, mastery graph, learning-behavior signals, cross-class history).
+- Consent / Compliance Agent: gates biometric features behind explicit consent,
+  enforces retention/deletion, regional policy (FERPA/GDPR/BIPA).
+
+GROUP VS SOLO & ADAPTIVE LEARNING
+- Class types in Postgres (solo vs group), each with a pacing/personalization policy.
+- Solo: personalize aggressively from mastery graph + learning style.
+- Group: optimize for the cohort with targeted callouts to recognized students.
+- Learning behavior = features over time (response latency, quiz accuracy by topic,
+  attention trends, question types) feeding the Director's pacing/difficulty.
+
+MONETIZATION
+- Tiered B2C subscriptions (Free -> Basic -> Pro -> Premium): higher tiers unlock 1:1
+  solo, all 26 languages, cross-class memory, recordings/transcripts, analytics.
+- Pay-per-class / credit packs; premium pricing for solo vs group.
+- Metered add-ons: extra languages, recordings, hours, GPU-heavy live minutes.
+- B2B / institutional seat & site licensing; paid admin/cohort analytics.
+- White-label / API licensing for other edtech.
+- Curriculum marketplace with creator revenue share + platform fee.
+- Paid certifications & proctored assessments.
+- Premium personalization upsell.
+Billing: services/billing owns plans, subscriptions, credits, metered usage, and a
+single entitlements API canStart(classType, language, features). PaymentProvider:
+cloud = Stripe (Billing, metered, Checkout, Tax, Connect); local = sandbox stub.
+
+TECH STACK
+- Frontend: Next.js + React + LiveKit JS SDK.
+- Agents/Backend: Python, FastAPI, LiveKit Agents, LangGraph.
+- LLM serving: open-weight base model via vLLM; RAG first, fine-tune later.
+- Speech: Whisper large-v3, NLLB-200, XTTS-v2 (cloud TTS fallback for some langs).
+- Vision: InsightFace/ArcFace + MediaPipe/gaze, self-hosted.
+- Data: Postgres (+pgvector), optional Neo4j (mastery graph), S3-compatible object
+  storage, Redis bus.
+- Infra: one image set; local via docker compose, cloud via Kubernetes + GPU pool.
+
+MONOREPO STRUCTURE
+- apps/web                 Next.js app (live class, dashboards, consent)
+- apps/agent-runtime       Python LiveKit Agents worker (teaching brain)
+- services/orchestrator    Director + agent graph (FastAPI)
+- services/perception      vision (face + attention)
+- services/speech          ASR/MT/TTS gateway
+- services/memory          profiles, mastery graph, vector store API
+- services/curriculum      content/CMS API + slide/video pipeline + RAG
+- services/billing         plans, subs, credits, metered usage, entitlements
+- bridges/{zoom,teams,meet} platform media bridge bots
+- packages/shared          provider interfaces + local/cloud impls + schemas
+- infra/compose            local docker compose (full stack)
+- infra/k8s                cloud Kubernetes manifests + GPU model-serving
+- config/                  per-mode env contracts (local, cloud)
+- models/                  serving configs + fine-tune pipelines
+- db/migrations            SQL schema (consent/compliance + billing/entitlements)
+- sample-curriculum/       sample lessons for the RAG skeleton
+
+COMPLIANCE (must-have)
+- Biometric consent gate before any face data is captured; per-region policy engine
+  (FERPA / GDPR / BIPA - written consent + retention schedule).
+- Face embeddings stored encrypted, deletable on request, never leave the configured
+  boundary; "recognize me" is opt-in with a name-only fallback.
+- Recording + data-retention disclosures surfaced in app and bridged meetings.
+
+KEY RISKS / CONSTRAINTS
+- MS Teams real-time media bots are .NET-centric (Graph Communications SDK).
+- TTS language coverage: ASR/translation cover 26 langs; open TTS voices do not -
+  expect a cloud-TTS fallback for some languages.
+- Real-time latency budget (speech-in -> think -> speech-out) is the hardest constraint.
+- GPU cost: multiple concurrent models per class; needs batching/pooling.
+- Platform ToS: automated bots/recording have policy limits per platform.
+
+PHASED ROADMAP (todos)
+- phase0  Foundations: monorepo, provider abstraction, local compose + cloud k8s,
+          Postgres/pgvector/Redis/object store, CI, vLLM+RAG skeleton, consent model.
+- phase1  Live AI teacher in our web app (single language): Next.js + LiveKit;
+          Director + Lesson Delivery + Tutor; slides + TTS; text chat Q&A via RAG.
+- phase2  Multilingual + voice: streaming ASR, language ID, NLLB translation,
+          multilingual TTS across 26 languages (with TTS fallback).
+- phase3  Perception (consent-gated): face recognition + attention/gaze; Director
+          reacts to engagement; consent + retention enforcement.
+- phase4  Memory & adaptive learning: per-student profiles, mastery graph, cross-class
+          context, learning-behavior features; solo vs group policies.
+- phase5  Assessment: pop quizzes, definition/key-point checks, polls; mastery feedback.
+- phase6  Curriculum suite/CMS: author/import/manage slide decks + videos; teacher
+          dashboard; presentation pipeline.
+- phase6b Monetization & billing: services/billing, entitlements API, Stripe (cloud) /
+          sandbox (local), Connect payouts, certifications, B2B seat licensing.
+- phase7  Zoom bridge: bot joins Zoom, bridges audio/video/chat/screen-share to LiveKit.
+- phase8  Teams bridge: .NET real-time media bot via Graph Communications.
+- phase9  Google Meet/Chat bridge.
+- phase10 Hardening & scale: latency, GPU batching/pooling/autoscale, observability,
+          security review, fine-tuning the base education LLM.
+
+PERSONAS (avatar styles, seed into a persona registry)
+friendly, cartoony, realistic, strict instructor, scientific trainer, language tutor.
+Each persona = avatar asset + teaching tone/voice profile (TTS voice, pacing,
+strictness, encouragement), selectable per class or per student preference.

@@ -1,0 +1,66 @@
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+.turbo/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.so
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!config/local.env
+!config/cloud.env
+*.local
+
+# ---- Models / large artifacts (kept OUT of the repo) ----
+models/weights/
+models/cache/
+*.safetensors
+*.bin
+*.gguf
+*.onnx
+*.pt
+*.pth
+*.ckpt
+
+# ---- Data stores / volumes ----
+infra/compose/data/
+*.sqlite
+*.db
+
+# ---- Object store / media ----
+minio-data/
+recordings/
+
+# ---- Build / OS / editor ----
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+coverage/
+
+# ---- Root design assets (not source) ----
+/Generated_image*.png
