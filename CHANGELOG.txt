@@ -74,4 +74,8 @@ Format: newest first. No markdown per project convention.
 - (no changes yet)
 
 [0.2.4] - 2026-06-17
+[unreleased]
+- (no changes yet)
+
+[0.2.5] - 2026-06-17
 - release build (no itemized changes)
