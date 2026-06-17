@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased] - 2026-06-17
+- docs: add comprehensive README.md (overview, screenshots, per-phase build
+  status, architecture, quickstart, run/test instructions, dual-mode config) with
+  brand/design imagery and real app screenshots under docs/images/.
 - phase0/phase1: scaffold runnable dev environment for the platform.
 - packages/shared: provider abstraction (LLM/Speech/Vision/Media/ObjectStore/
   Payment) with local + cloud implementations and a config-driven factory;
