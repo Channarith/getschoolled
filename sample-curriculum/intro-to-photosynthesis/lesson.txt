@@ -1,0 +1,27 @@
+LESSON: Intro to Photosynthesis
+LANGUAGE: en
+
+SLIDE 1 | What is Photosynthesis?
+Photosynthesis is the process by which green plants, algae, and some bacteria
+convert light energy into chemical energy stored in sugars.
+NARRATION: Welcome! Today we learn how plants make their own food using sunlight.
+
+SLIDE 2 | The Inputs
+Photosynthesis needs three inputs: carbon dioxide from the air, water from the
+roots, and light energy from the sun. Chlorophyll, the green pigment, captures
+the light.
+NARRATION: Plants take in carbon dioxide and water, and capture sunlight with chlorophyll.
+
+SLIDE 3 | The Outputs
+The outputs of photosynthesis are glucose, a sugar the plant uses for energy,
+and oxygen, which is released into the air for us to breathe.
+NARRATION: The plant produces glucose for energy and releases oxygen we breathe.
+
+SLIDE 4 | The Equation
+The balanced equation is: six carbon dioxide plus six water, using light energy,
+yields one glucose plus six oxygen. This happens mainly in the leaves.
+NARRATION: Six CO2 plus six water, with light, makes glucose and six oxygen.
+
+FACT: Chlorophyll is the green pigment that absorbs light for photosynthesis.
+FACT: Photosynthesis occurs in the chloroplasts of plant cells.
+FACT: Oxygen is a byproduct of photosynthesis and is essential for animal life.
