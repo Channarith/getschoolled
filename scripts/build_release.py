@@ -33,6 +33,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = REPO_ROOT / "VERSION"
 CHANGELOG_FILE = REPO_ROOT / "CHANGELOG.txt"
 BUILD_INFO_FILE = REPO_ROOT / "build-info.txt"
+WEB_VERSION_FILE = REPO_ROOT / "apps" / "web" / "app" / "lib" / "version.ts"
+WEB_PACKAGE_JSON = REPO_ROOT / "apps" / "web" / "package.json"
 
 # More than this many unreleased entries triggers a MINOR bump instead of PATCH.
 FEATURE_BUMP_THRESHOLD = 8
@@ -181,6 +183,32 @@ def write_changelog(
     CHANGELOG_FILE.write_text(text, encoding="utf-8")
 
 
+def write_web_version(new_version: str) -> None:
+    """Keep the web app's displayed version in sync with VERSION.
+
+    Updates the ``GENERATED_VERSION`` constant in app/lib/version.ts and the
+    ``version`` field in package.json. No-ops gracefully if the web app is
+    absent (e.g. before it is scaffolded).
+    """
+    if WEB_VERSION_FILE.exists():
+        text = WEB_VERSION_FILE.read_text(encoding="utf-8")
+        text = re.sub(
+            r'const GENERATED_VERSION = "[^"]*";',
+            f'const GENERATED_VERSION = "{new_version}";',
+            text,
+        )
+        WEB_VERSION_FILE.write_text(text, encoding="utf-8")
+    if WEB_PACKAGE_JSON.exists():
+        text = WEB_PACKAGE_JSON.read_text(encoding="utf-8")
+        text = re.sub(
+            r'("version"\s*:\s*")[^"]*(")',
+            rf'\g<1>{new_version}\g<2>',
+            text,
+            count=1,
+        )
+        WEB_PACKAGE_JSON.write_text(text, encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -227,8 +255,9 @@ def main(argv: list[str] | None = None) -> int:
         render_build_info(new_version, sha, components), encoding="utf-8"
     )
     write_changelog(header, unreleased, rest, new_version)
+    write_web_version(new_version)
 
-    print("wrote VERSION, build-info.txt, CHANGELOG.txt")
+    print("wrote VERSION, build-info.txt, CHANGELOG.txt, web version")
     return 0
 
 

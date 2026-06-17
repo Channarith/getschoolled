@@ -7,6 +7,7 @@ cross-service pydantic schemas, and a dependency-free RAG skeleton.
 
 from .config import AppConfig, ComponentMode, DeployMode, load_config
 from .factory import ProviderFactory, build_factory
+from .version import get_version
 
 __all__ = [
     "AppConfig",
@@ -15,6 +16,7 @@ __all__ = [
     "load_config",
     "ProviderFactory",
     "build_factory",
+    "get_version",
 ]
 
-__version__ = "0.1.0"
+__version__ = get_version()

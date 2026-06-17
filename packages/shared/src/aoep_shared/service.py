@@ -16,6 +16,7 @@ from typing import Optional
 from .config import AppConfig, load_config
 from .factory import ProviderFactory
 from .schemas import HealthStatus
+from .version import get_version
 
 
 def create_service(
@@ -30,7 +31,7 @@ def create_service(
     cfg = config or load_config()
     fac = factory or ProviderFactory(cfg)
 
-    app = FastAPI(title=f"AOEP {name}", version="0.1.0")
+    app = FastAPI(title=f"AOEP {name}", version=get_version())
     app.state.config = cfg
     app.state.factory = fac
 
@@ -58,6 +59,7 @@ def create_service(
             status="ok",
             deploy_mode=cfg.deploy_mode.value,
             components=fac.component_summary(),
+            version=get_version(),
         )
 
     return app

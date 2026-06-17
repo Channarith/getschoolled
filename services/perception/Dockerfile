@@ -6,6 +6,7 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 COPY packages/shared /app/packages/shared
+COPY VERSION /app/VERSION
 COPY services/perception/requirements.txt /app/services/perception/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/perception/requirements.txt

@@ -3,6 +3,15 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- version: surface a single source-of-truth version in the running app.
+  aoep_shared.version.get_version() resolves AOEP_VERSION env -> repo VERSION
+  file -> package metadata; every FastAPI service reports it in /health (and the
+  OpenAPI version), and the web nav shows it. Dockerfiles COPY VERSION into the
+  image. scripts/build_release.py now also syncs apps/web (version.ts +
+  package.json) and the auto-push-build workflow commits those.
+- ci: add Release workflow (.github/workflows/release.yml) that cuts a GitHub
+  Release (tag vX.Y.Z + notes from CHANGELOG) when VERSION advances, via
+  workflow_run after Auto Push Build; idempotent (skips if the tag exists).
 - docs: update README build-status table and descriptions to reflect reality -
   phases 0/3/4/5/6/6b implemented & tested; 1/2/10 partial (offline logic done,
   infra pending); 7-9 scaffolded behind interfaces. Refresh repo-layout,
