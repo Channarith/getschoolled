@@ -1,0 +1,15 @@
+ZOOM BRIDGE (phase7)
+====================
+
+A bot that joins a Zoom meeting and bridges its audio/video/chat/screen-share
+into a LiveKit room, where the teaching brain (apps/agent-runtime) is already
+running. The brain is written once; this bridge only moves media.
+
+CONTRACT
+- Join via Zoom Meeting SDK / raw media; publish remote participants' audio and
+  active screen-share into the LiveKit room.
+- Subscribe to the agent's published audio + screen-share and render back into
+  Zoom.
+- Surface recording + data-retention disclosures in the meeting.
+
+STATUS: scaffold only. Implemented in phase7.

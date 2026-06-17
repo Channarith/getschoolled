@@ -1,0 +1,67 @@
+# GPU model-serving for the open-weight base education LLM (vLLM), exposing an
+# OpenAI-compatible API. Scheduled onto the GPU pool. Phase10 adds batching/
+# pooling/autoscale on top of this.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: llm }
+  template:
+    metadata:
+      labels: { app: llm }
+    spec:
+      nodeSelector:
+        aoep.gpu/pool: "true"
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "$(LLM_MODEL_PATH)"
+            - "--served-model-name"
+            - "aoep-base-edu"
+            - "--port"
+            - "8000"
+          env:
+            - name: LLM_MODEL_PATH
+              value: "/models/aoep-base-edu"
+          ports: [{ containerPort: 8000 }]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: model-weights
+              mountPath: /models
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: aoep-model-weights
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm
+  namespace: aoep
+spec:
+  selector: { app: llm }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+# Weights live on a PVC (kept OUT of the repo); populated by an init job.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aoep-model-weights
+  namespace: aoep
+spec:
+  accessModes: ["ReadOnlyMany"]
+  resources:
+    requests:
+      storage: 100Gi

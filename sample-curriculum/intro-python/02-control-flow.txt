@@ -1,0 +1,20 @@
+Control Flow in Python
+
+Control flow determines the order in which statements execute. The main tools
+are conditionals (if / elif / else) and loops (for, while).
+
+  if score >= 90:
+      grade = "A"
+  elif score >= 80:
+      grade = "B"
+  else:
+      grade = "C"
+
+For-loops iterate over any iterable, such as a list or a range. While-loops
+repeat as long as a condition stays true. Use break to exit a loop early and
+continue to skip to the next iteration.
+
+Key points:
+- Indentation defines blocks in Python; be consistent (4 spaces).
+- Prefer for-loops over while-loops when iterating a known collection.
+- Guard against infinite loops by ensuring the while condition can become false.

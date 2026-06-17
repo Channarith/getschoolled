@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python packages (editable)
+        run: |
+          python3 -m pip install --upgrade pip
+          for pkg in packages/shared services/orchestrator services/speech \
+            services/perception services/memory services/curriculum \
+            services/billing apps/agent-runtime; do
+            python3 -m pip install -e "$pkg[test]"
+          done
+      - name: Run tests
+        run: python3 -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker compose
+        run: docker compose -f infra/compose/docker-compose.yml config >/dev/null
+
+  k8s:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render kustomize manifests
+        run: kubectl kustomize infra/k8s >/dev/null

@@ -1,0 +1,12 @@
+GOOGLE MEET / CHAT BRIDGE (phase9)
+==================================
+
+A bot that bridges Google Meet (and Chat) media into the LiveKit room consumed
+by the teaching brain.
+
+CONTRACT
+- Join Meet and bridge audio/video/screen-share <-> LiveKit.
+- Integrate Chat for text Q&A routed to the Tutor agent.
+- Honor platform ToS and surface recording/retention disclosures.
+
+STATUS: scaffold only. Implemented in phase9.

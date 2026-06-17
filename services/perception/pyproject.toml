@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-perception"
+version = "0.1.0"
+description = "Vision service (face identity + attention/gaze), consent-gated."
+requires-python = ">=3.11"
+dependencies = [
+  "aoep-shared",
+  "fastapi>=0.111,<0.116",
+  "uvicorn[standard]>=0.30,<0.35",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

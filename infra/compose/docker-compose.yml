@@ -1,0 +1,139 @@
+# AOEP full local stack (DEPLOY_MODE=local).
+# Brings up data stores, the LiveKit media backbone, all Python services, the
+# agent runtime, and the web app. The same images run in cloud via infra/k8s.
+
+name: aoep
+
+x-env: &default-env
+  env_file:
+    - ../../config/local.env
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: aoep
+      POSTGRES_PASSWORD: aoep
+      POSTGRES_DB: aoep
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ../../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aoep"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: aoep
+      MINIO_ROOT_PASSWORD: aoep-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev --bind 0.0.0.0
+    environment:
+      LIVEKIT_KEYS: "devkey: devsecret"
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+
+  orchestrator:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/orchestrator/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  speech:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/speech/Dockerfile
+    ports:
+      - "8100:8100"
+
+  perception:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/perception/Dockerfile
+    ports:
+      - "8200:8200"
+
+  memory:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/memory/Dockerfile
+    ports:
+      - "8400:8400"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  curriculum:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/curriculum/Dockerfile
+    ports:
+      - "8500:8500"
+
+  billing:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: services/billing/Dockerfile
+    ports:
+      - "8600:8600"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  agent-runtime:
+    <<: *default-env
+    build:
+      context: ../..
+      dockerfile: apps/agent-runtime/Dockerfile
+    depends_on:
+      - orchestrator
+      - livekit
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      ORCHESTRATOR_URL: http://localhost:8000
+      DEPLOY_MODE: local
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orchestrator

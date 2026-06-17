@@ -2,9 +2,28 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased] - 2026-06-16
-- seed: initialize repository for Cursor Cloud Agent execution.
-- add docs/plan.txt (architecture + phased roadmap, plain text).
-- add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
-- add .gitignore, .editorconfig, .python-version.
-- next: phase0 foundations to be implemented by the Cloud Agent.
+[unreleased] - 2026-06-17
+- phase0: implement foundations end to end (monorepo, dual-mode, CI).
+- packages/shared: AppConfig dual-mode loader (DEPLOY_MODE + per-component
+  *_MODE overrides), provider interfaces (LLM/Speech/Vision/Media/ObjectStore/
+  Payment) with local+cloud impls, config-driven ProviderFactory, cross-service
+  pydantic schemas, 26-language coverage + TTS fallback policy, entitlements
+  can_start gate, dependency-free RAG skeleton, shared FastAPI /health + CORS.
+- services: orchestrator (Teaching Director state machine + class/join/token),
+  speech (languages + TTS engine routing), perception (consent-gated identity),
+  memory (profiles/consent/mastery), curriculum (RAG search), billing
+  (plans/entitlements/checkout). Each exposes /health and has a Dockerfile.
+- apps/agent-runtime: provider-driven TeachingBrain + LiveKit worker entrypoint.
+- apps/web: Next.js (app router) dashboard, live-class join, consent UI.
+- config/local.env + config/cloud.env (single dual-mode contract).
+- db/migrations/0001_init.sql: identity, classes, consent/compliance (FERPA/
+  GDPR/BIPA), face embeddings, mastery, curriculum vectors, billing tables
+  (pgvector + pgcrypto).
+- infra/compose: full local stack; infra/k8s: namespace/config/services/web +
+  GPU vLLM serving; models/serving + models/finetune configs.
+- bridges/{zoom,teams,meet}: phase7-9 scaffolds.
+- CI: GitHub Actions (python tests, web typecheck/build, compose + k8s render);
+  Makefile.
+- verified: 49 Python tests pass; web typechecks + builds; live local-mode
+  endpoints and the local/cloud provider switch exercised over HTTP.
+- next: phase1 live AI teacher (LiveKit JS SDK connect + agent loop in-room).

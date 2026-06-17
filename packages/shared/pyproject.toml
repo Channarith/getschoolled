@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-shared"
+version = "0.1.0"
+description = "Shared provider interfaces, config-driven factory, schemas, and RAG skeleton for the Agentic Online Education Platform."
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3,<3",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.2,<9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
