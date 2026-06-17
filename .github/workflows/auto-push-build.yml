@@ -8,8 +8,6 @@ on:
   push:
     branches:
       - main
-      # TEMP (testing auto-push end-to-end on the feature branch; removed before final).
-      - cursor/auto-push-build-changes-3357
   workflow_dispatch:
 
 permissions:
