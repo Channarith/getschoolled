@@ -3,18 +3,24 @@ requires = ["setuptools>=69.5.1", "wheel>=0.43.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eduplatform-shared"
-version = "0.1.0"
-description = "Shared provider interfaces, local/cloud implementations, config factory, and schemas for the Agentic Online Education Platform."
+name = "aoep-shared"
+version = "0.2.0"
+description = "Shared provider interfaces, local/cloud implementations, config factory, schemas, RAG, adaptive learning, assessment, and vision for the Agentic Online Education Platform."
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic==2.7.4",
-    "pydantic-settings==2.3.4",
+    "pydantic>=2.7,<3",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest==8.2.2",
+]
+# Self-hosted face recognition (perception service). Heavy/optional; not pulled
+# in by services that don't need vision.
+vision = [
+    "opencv-contrib-python-headless==4.10.0.84",
+    "onnxruntime==1.18.1",
+    "numpy==1.26.4",
 ]
 
 [tool.setuptools.packages.find]

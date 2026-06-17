@@ -1,29 +1,43 @@
-"""Curriculum loader.
+"""Curriculum loader for the live-class teaching loop.
 
 Parses the plain-text lessons under ``sample-curriculum/`` into structured
-``Lesson`` objects plus a flat list of knowledge passages used by the RAG
-retriever. Real curriculum/CMS ingestion lands in services/curriculum later;
-this keeps phase1 self-contained.
+lessons (slides) plus a flat list of knowledge passages used by the Tutor's RAG
+retrieval. Full CMS ingestion lives in services/curriculum; this keeps the
+phase-1 teaching loop self-contained.
 """
 
 from __future__ import annotations
 
 import os
 import re
-from typing import Dict, List, Tuple
+from typing import List, Optional, Tuple
 
-from eduplatform_shared.schemas import Lesson, Slide
+from pydantic import BaseModel, Field
 
 _SLIDE_RE = re.compile(r"^SLIDE\s+(\d+)\s*\|\s*(.+)$")
 
 
-def _curriculum_root() -> str:
+class Slide(BaseModel):
+    index: int
+    title: str
+    body: str
+    narration: str
+
+
+class Lesson(BaseModel):
+    lesson_id: str
+    title: str
+    language: str = "en"
+    slides: List[Slide] = Field(default_factory=list)
+
+
+def curriculum_root() -> str:
     env = os.environ.get("CURRICULUM_DIR")
     if env:
         return env
-    # repo_root/sample-curriculum  (this file is services/orchestrator/app/curriculum.py)
     here = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.abspath(os.path.join(here, "..", "..", ".."))
+    # src/orchestrator -> src -> orchestrator(service) -> services -> repo root
+    repo_root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
     return os.path.join(repo_root, "sample-curriculum")
 
 
@@ -33,12 +47,12 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     slides: List[Slide] = []
     passages: List[str] = []
 
-    cur_idx = None
+    cur_idx: Optional[int] = None
     cur_title = ""
     cur_body: List[str] = []
     cur_narration = ""
 
-    def flush():
+    def flush() -> None:
         nonlocal cur_idx, cur_title, cur_body, cur_narration
         if cur_idx is not None:
             body = " ".join(" ".join(cur_body).split())
@@ -83,24 +97,24 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
             cur_body.append(line)
     flush()
 
-    return Lesson(lesson_id=lesson_id, title=title, language=language, slides=slides), passages
+    return (
+        Lesson(lesson_id=lesson_id, title=title, language=language, slides=slides),
+        passages,
+    )
 
 
 class CurriculumStore:
-    """Loads all lessons once and exposes lookups + passages for RAG."""
-
-    def __init__(self, root: str | None = None) -> None:
-        self.root = root or _curriculum_root()
-        self.lessons: Dict[str, Lesson] = {}
-        self.passages: Dict[str, List[str]] = {}
+    def __init__(self, root: Optional[str] = None) -> None:
+        self.root = root or curriculum_root()
+        self.lessons: dict[str, Lesson] = {}
+        self.passages: dict[str, List[str]] = {}
         self._load()
 
     def _load(self) -> None:
         if not os.path.isdir(self.root):
             return
         for entry in sorted(os.listdir(self.root)):
-            lesson_dir = os.path.join(self.root, entry)
-            lesson_file = os.path.join(lesson_dir, "lesson.txt")
+            lesson_file = os.path.join(self.root, entry, "lesson.txt")
             if not os.path.isfile(lesson_file):
                 continue
             with open(lesson_file, "r", encoding="utf-8") as fh:
@@ -111,7 +125,7 @@ class CurriculumStore:
     def list_lessons(self) -> List[Lesson]:
         return list(self.lessons.values())
 
-    def get(self, lesson_id: str) -> Lesson | None:
+    def get(self, lesson_id: str) -> Optional[Lesson]:
         return self.lessons.get(lesson_id)
 
     def passages_for(self, lesson_id: str) -> List[str]:

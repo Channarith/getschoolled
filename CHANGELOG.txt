@@ -3,6 +3,15 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- refactor: consolidate to a single stack. Remove the duplicate
+  eduplatform_shared package and all services/*/app/ layouts; the canonical
+  stack is aoep_shared (dist renamed eduplatform-shared -> aoep-shared) with the
+  services/*/src layout. Port the web-facing teaching loop (GET /api/lessons,
+  POST /api/sessions, /api/sessions/{id}/advance, /api/sessions/{id}/ask) into
+  the aoep orchestrator (RAG via aoep_shared.rag + LLM provider, with a
+  deterministic offline fallback so the demo works without a model server), so
+  apps/web is unchanged. Update Dockerfiles to the src layout, requirements-dev,
+  and AGENTS.md. Full suite: 101 tests passing.
 - phase4: adaptive learning policy (aoep_shared.adaptive). Turns per-student
   learning-behavior signals (mastery, quiz accuracy, response latency, attention
   trend, question rate) into a pacing/difficulty/re-teach plan; solo personalizes

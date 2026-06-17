@@ -1,18 +1,12 @@
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+# Build context = repo root (needs packages/shared).
+FROM python:3.11-slim
 WORKDIR /app
-
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY packages/shared /app/packages/shared
-COPY services/orchestrator /app/services/orchestrator
+COPY apps/agent-runtime/requirements.txt /app/apps/agent-runtime/requirements.txt
+RUN pip install --no-cache-dir -e /app/packages/shared \
+    && pip install --no-cache-dir -r /app/apps/agent-runtime/requirements.txt
 COPY apps/agent-runtime /app/apps/agent-runtime
-
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install /app/packages/shared \
-    && python3 -m pip install /app/services/orchestrator \
-    && python3 -m pip install /app/apps/agent-runtime
-
-CMD ["python3", "-m", "agent_runtime.worker"]
+ENV PYTHONPATH=/app/apps/agent-runtime/src
+WORKDIR /app/apps/agent-runtime
+CMD ["python", "-m", "agent_runtime.worker"]
