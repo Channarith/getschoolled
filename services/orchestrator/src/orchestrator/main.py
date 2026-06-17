@@ -18,11 +18,25 @@ from aoep_shared.assessment import (
 )
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
+from fastapi import HTTPException
 from pydantic import BaseModel
 
+from .curriculum import Lesson, Slide
 from .director import ClassContext, Director, LessonState
+from .teaching import Answer, SessionView, TeachingSessions
 
 app = create_service("orchestrator")
+
+# Live-class teaching loop (web-facing). Built lazily so /health and the other
+# endpoints don't pay curriculum/RAG load cost unless a class is used.
+_sessions: TeachingSessions | None = None
+
+
+def get_sessions() -> TeachingSessions:
+    global _sessions
+    if _sessions is None:
+        _sessions = TeachingSessions(app.state.factory)
+    return _sessions
 
 
 class CreateClassRequest(BaseModel):
@@ -82,6 +96,69 @@ def join_class(room: str, identity: str) -> JoinResponse:
     return JoinResponse(
         room=token.room, identity=token.identity, token=token.token, url=token.url
     )
+
+
+# --------------------------------------------------------------------------- #
+# Live-class teaching loop (consumed by apps/web)
+# --------------------------------------------------------------------------- #
+class StartSessionRequest(BaseModel):
+    lesson_id: str
+    class_type: ClassType = ClassType.GROUP
+
+
+class AskRequest(BaseModel):
+    text: str
+    language: str = "en"
+
+
+@app.get("/api/lessons", response_model=list[Lesson])
+def api_lessons() -> list[Lesson]:
+    return get_sessions().list_lessons()
+
+
+@app.post("/api/sessions", response_model=SessionView)
+def api_start_session(req: StartSessionRequest) -> SessionView:
+    sessions = get_sessions()
+    try:
+        state = sessions.start_session(req.lesson_id, req.class_type.value)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
+    return SessionView(
+        session=state,
+        lesson=sessions.lesson_for(state.session_id),
+        slide=sessions.current_slide(state.session_id),
+    )
+
+
+@app.get("/api/sessions/{session_id}", response_model=SessionView)
+def api_get_session(session_id: str) -> SessionView:
+    sessions = get_sessions()
+    try:
+        state = sessions.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+    return SessionView(
+        session=state,
+        lesson=sessions.lesson_for(session_id),
+        slide=sessions.current_slide(session_id),
+    )
+
+
+@app.post("/api/sessions/{session_id}/advance", response_model=Slide)
+def api_advance(session_id: str) -> Slide:
+    try:
+        return get_sessions().advance(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+
+
+@app.post("/api/sessions/{session_id}/ask", response_model=Answer)
+def api_ask(session_id: str, req: AskRequest) -> Answer:
+    sessions = get_sessions()
+    try:
+        return sessions.ask(session_id, req.text, language=req.language)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
 
 
 @app.post("/director/tick", response_model=DirectorTickResponse)

@@ -13,4 +13,4 @@ gpu_memory_utilization: 0.90
 tensor_parallel_size: 1
 port: 8000
 # RAG embeddings can be served by the same or a sidecar model; the provider
-# abstraction (eduplatform_shared) hides this from callers.
+# abstraction (aoep_shared) hides this from callers.

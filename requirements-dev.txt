@@ -1,13 +1,18 @@
-# Consolidated backend dev dependencies for the whole monorepo.
-# Installs the shared package editable, plus the libraries every Python service
-# needs to run and be tested locally (no GPU/model weights). Heavy, network- or
-# GPU-bound packages (livekit-agents, vLLM, Whisper/XTTS, InsightFace) are NOT
-# here; they live in per-service requirements and are pulled in their own images.
+# Consolidated backend dev dependencies for the whole monorepo (single stack).
+# Installs the shared package editable, plus everything the Python services need
+# to run and be tested locally. Heavy GPU/network packages (livekit-agents,
+# vLLM, Whisper/XTTS) stay in per-service extras; the face-recognition CPU deps
+# are included so the perception suite runs after a fresh setup.
 -e packages/shared
 
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
 pydantic==2.7.4
-pydantic-settings==2.3.4
 httpx==0.27.0
+python-multipart==0.0.32
 pytest==8.2.2
+
+# Perception (face recognition) - CPU only; model weights downloaded at runtime.
+opencv-contrib-python-headless==4.10.0.84
+onnxruntime==1.18.1
+numpy==1.26.4

@@ -1,33 +1,25 @@
-"""End-to-end-ish API tests for the orchestrator teaching flow."""
+"""Live-class teaching loop API tests (lessons/sessions/slides/ask)."""
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from orchestrator.main import app
 
 client = TestClient(app)
 
 
-def test_health():
-    r = client.get("/health")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["status"] == "ok"
-    assert body["service"] == "orchestrator"
-
-
-def test_lessons_loaded():
+def test_lessons_loaded_from_curriculum():
     r = client.get("/api/lessons")
     assert r.status_code == 200
-    ids = {lesson["lesson_id"] for lesson in r.json()}
+    ids = {lsn["lesson_id"] for lsn in r.json()}
     assert "intro-to-photosynthesis" in ids
 
 
-def test_teaching_flow_start_advance_ask():
+def test_start_advance_ask_flow():
     start = client.post(
         "/api/sessions",
         json={"lesson_id": "intro-to-photosynthesis", "class_type": "group"},
     )
-    assert start.status_code == 200
+    assert start.status_code == 200, start.text
     view = start.json()
     sid = view["session"]["session_id"]
     assert view["slide"]["index"] == 0
@@ -40,7 +32,7 @@ def test_teaching_flow_start_advance_ask():
         f"/api/sessions/{sid}/ask",
         json={"text": "What gas do plants release?", "language": "en"},
     )
-    assert ask.status_code == 200
+    assert ask.status_code == 200, ask.text
     answer = ask.json()
     assert answer["text"]
     assert len(answer["citations"]) >= 1

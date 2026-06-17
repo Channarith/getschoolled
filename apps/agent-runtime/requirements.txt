@@ -1,7 +1,7 @@
-# Agent runtime worker. LiveKit Agents pinned; model weights downloaded at runtime.
-livekit==0.17.5
-livekit-agents==0.11.3
-pydantic==2.7.4
-pydantic-settings==2.3.4
+# Agent runtime worker. The teaching brain runs without the media stack; the
+# LiveKit Agents dependency is the optional 'livekit' extra in pyproject.toml
+# (installed only where the real-time media worker runs). Model weights are
+# downloaded at runtime, never committed.
+pydantic>=2.7,<3
 pytest==8.2.2
-# Installed editable in dev: ../../packages/shared (eduplatform-shared)
+# Installed editable in dev: ../../packages/shared (aoep-shared)

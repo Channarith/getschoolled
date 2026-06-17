@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -e /app/packages/shared \
 COPY services/orchestrator /app/services/orchestrator
 COPY sample-curriculum /app/sample-curriculum
 
+ENV PYTHONPATH=/app/services/orchestrator/src
 WORKDIR /app/services/orchestrator
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000"]
