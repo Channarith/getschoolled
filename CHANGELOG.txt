@@ -3,7 +3,16 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- perception: implement real, self-hosted face recognition (OpenCV YuNet
+  detection + SFace 128-d embeddings, CPU). New aoep_shared.vision package
+  (FaceRecognitionEngine, FaceGallery, runtime model fetch; weights kept out of
+  repo). VisionProvider now enrolls + matches (1:N) with the SFace cosine
+  threshold, restricted to the consented set (unconsented = anonymous).
+- perception API: POST /enroll/{student_id}, POST /identify (consent-gated),
+  GET /gallery; consent-check remains a pure policy endpoint.
+- tests: extensive face-recognition suite on a real multi-image dataset -
+  detection, same-vs-different separation, 1:N accuracy, open-set rejection,
+  multi-face frames, consent gating, plus pure gallery unit tests (18 passing).
 
 [0.2.2] - 2026-06-17
 - ci: add auto-merge workflow (.github/workflows/automerge.yml) that merges PRs
