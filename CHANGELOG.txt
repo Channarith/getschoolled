@@ -3,6 +3,19 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- format: add AOEPLX, our own layered live-teaching scene format
+  (aoep_shared.scene + docs/aoeplx-format.txt). Scenes are lightweight
+  asset-by-reference manifests of ordered layers (video/audio/image/whiteboard/
+  text/note/quiz/poll) with normalized transforms, time ranges, and anchored
+  attachments (attach a note/audio/video to a specific drawing). Live broadcast
+  via small SceneDeltas (add/update/remove layer, append stroke). extract_region
+  lifts a bbox/time slice into a new multilayer object (instant=image,
+  range=clip) - e.g. pause a video, draw, and lift the drawing out. Tamper-
+  evident container: SHA-256 content hash + HMAC-SHA256 signature
+  (sign/verify/serialize/deserialize), versioned. Curriculum service exposes
+  POST /scenes, GET /scenes/{id}, /scenes/{id}/delta, /scenes/{id}/extract,
+  /scenes/{id}/sign, /scenes/verify. The browser canvas renderer + realtime
+  delta transport are the next (frontend/runtime) step.
 - scraper: content ingestion -> presentation decks (curriculum.ingest). Extracts
   from textbook PDFs (pypdf), web articles/HTML (BeautifulSoup), and video/YouTube
   transcripts; generates slide decks tagged by class genre (lecture, hands_on,

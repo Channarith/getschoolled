@@ -1,0 +1,66 @@
+AOEPLX - Agentic Online Education Platform: Layered eXperience format
+====================================================================
+
+A unique, lightweight, broadcast-friendly format for live, layered teaching
+content. Implemented in packages/shared/src/aoep_shared/scene.py and exposed by
+the curriculum service. Pure/serializable, so it is testable without a browser.
+
+WHY A NEW FORMAT
+Standard slide/video formats can't express "draw on a paused video and lift that
+drawing out as its own object", or "attach an audio note to a specific whiteboard
+stroke". AOEPLX models the class as a stack of independent LAYERS plus operations
+to compose, broadcast, extract, and verify them.
+
+CORE MODEL
+- Scene: one broadcastable unit. width/height, created_at, and ordered layers.
+  Media are referenced by object-store key (asset_key), NOT embedded, so scenes
+  are tiny and broadcast fast.
+- Layer: { id, type, z, transform, time, asset_key?, strokes?, text?, ref?,
+  anchor_to?, meta }. Types: video, audio, image, whiteboard, text, note, quiz,
+  poll.
+  - transform: normalized [0,1] box (x,y,w,h) + rotation + opacity ->
+    resolution-independent.
+  - time: { start, end? } -> when the layer is live.
+  - anchor_to: id of another layer this layer is attached to (the "layering on
+    top of content" feature). E.g. a NOTE/AUDIO/VIDEO layer anchored to a
+    whiteboard drawing.
+
+LAYERING / ATTACHMENTS
+Scene.attach(target_layer_id, annotation) anchors an annotation layer above a
+target (e.g. highlight a drawing, attach an audio explanation). annotations_of()
+lists everything attached to a layer.
+
+LIVE BROADCAST (DELTAS)
+Instead of resending whole scenes, broadcast small SceneDelta ops applied on top
+of a base scene:
+  - add_layer / update_layer / remove_layer / append_stroke
+apply_delta(scene, delta) applies one op. This is what the realtime transport
+(LiveKit data channel) ships during a live class; the browser applies them to its
+local scene.
+
+EXTRACTION (MULTILAYER OBJECTS)
+extract_region(scene, bbox?, layer_ids?, time?) lifts a region and/or time slice
+into a NEW Scene (a reusable multilayer object):
+  - instant time (start == end) -> kind "image"
+  - time range               -> kind "clip" (video trim)
+Selected layers (and their annotations) are copied and time-rebased to 0. This is
+"pause the video, draw, extract the drawing+frame as its own object".
+
+SECURITY (INTEGRITY / AUTHENTICITY)
+A scene is wrapped in a tamper-evident container:
+  - content_hash = SHA-256 over the canonical (sorted, compact) JSON.
+  - signature    = HMAC-SHA256(content) with a server key.
+  - sign_scene / verify_scene / serialize / deserialize.
+verify_scene returns False if either the hash or signature does not match, so any
+modification in transit/storage is detected. Confidentiality is provided by TLS
+in transit and object-store encryption at rest; this layer adds integrity +
+authenticity. Keys come from config (SCENE_SIGNING_KEY); rotate per environment.
+
+VERSIONING
+format = "aoeplx", version = 1. The version travels in every Scene and signed
+container so future changes stay backward-compatible.
+
+NOT YET (frontend / runtime, next step)
+- The browser canvas renderer (draw-on-video, render layers, capture an extract).
+- The realtime delta transport over the LiveKit data channel.
+The data model + server operations above are the stable contract those build on.
