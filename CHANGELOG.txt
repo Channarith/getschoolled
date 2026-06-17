@@ -3,6 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- tutor: culture-aware slang & idiom understanding (aoep_shared.slang). A
+  data-driven lexicon keyed by language + region (US/UK English, Mexican Spanish,
+  French, Khmer, ...) with a normalizer that detects idioms/slang and expands
+  them to plain meaning (longest-match, no overlap). The Tutor normalizes a
+  question before RAG/LLM so "it's a piece of cake" is understood as "very easy",
+  surfaces recognized expressions in the answer (understood[]), and a new
+  POST /api/slang/normalize endpoint exposes it. Tests: 169 passing.
 - perception: machine-vision engagement + cross-session student memory.
   - Cross-session memory: FaceGallery now persists embeddings (save_json/
     load_json); VisionProvider loads/saves at VISION_GALLERY_PATH so enrolled

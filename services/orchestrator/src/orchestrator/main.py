@@ -161,6 +161,36 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
         raise HTTPException(status_code=404, detail="unknown session")
 
 
+# --------------------------------------------------------------------------- #
+# Slang / idiom understanding
+# --------------------------------------------------------------------------- #
+class SlangRequest(BaseModel):
+    text: str
+    language: str = "en"
+    region: str | None = None
+
+
+class SlangResponse(BaseModel):
+    original: str
+    plain: str
+    detections: list[dict]
+
+
+@app.post("/api/slang/normalize", response_model=SlangResponse)
+def slang_normalize(req: SlangRequest) -> SlangResponse:
+    from aoep_shared.slang import default_lexicon
+
+    norm = default_lexicon().normalize(req.text, language=req.language, region=req.region)
+    return SlangResponse(
+        original=norm.original,
+        plain=norm.plain,
+        detections=[
+            {"phrase": d.phrase, "meaning": d.meaning, "region": d.region, "kind": d.kind}
+            for d in norm.detections
+        ],
+    )
+
+
 @app.post("/director/tick", response_model=DirectorTickResponse)
 def director_tick(req: DirectorTickRequest) -> DirectorTickResponse:
     director = Director()

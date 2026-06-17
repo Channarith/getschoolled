@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 
 from aoep_shared.providers.base import ChatMessage
 from aoep_shared.rag import Document, RagIndex
+from aoep_shared.slang import default_lexicon
 from pydantic import BaseModel, Field
 
 from .curriculum import CurriculumStore, Lesson, Slide
@@ -35,6 +36,8 @@ class Answer(BaseModel):
     text: str
     citations: List[str] = Field(default_factory=list)
     language: str = "en"
+    # Slang/idioms recognized in the question (e.g. "piece of cake = very easy").
+    understood: List[str] = Field(default_factory=list)
 
 
 class SessionView(BaseModel):
@@ -107,12 +110,20 @@ class TeachingSessions:
 
     def ask(self, session_id: str, question: str, language: str = "en") -> Answer:
         session = self.sessions[session_id]
-        retrieved = self._index_for(session.lesson_id).retrieve(question, top_k=2)
+        # Understand culture-specific slang/idioms before retrieval/answering, so
+        # "it's a piece of cake" is treated as "very easy".
+        norm = default_lexicon().normalize(question, language=language)
+        retrieval_query = norm.plain
+        retrieved = self._index_for(session.lesson_id).retrieve(retrieval_query, top_k=2)
         context = [r.document.text for r in retrieved]
+        gloss = (
+            f"\nSTUDENT_SLANG: {'; '.join(norm.glossed)}" if norm.detections else ""
+        )
         prompt = (
             "You are a patient teacher. Answer the student's question using only "
-            "the lesson context.\n"
-            f"QUESTION: {question}\nCONTEXT: {' '.join(context)}"
+            "the lesson context. If the student used slang/idioms, interpret them "
+            "by their meaning.\n"
+            f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
         try:
             text = self.llm.complete(
@@ -126,4 +137,6 @@ class TeachingSessions:
             text = _offline_answer(question, context)
         session.history.append(ChatTurn(role="student", text=question))
         session.history.append(ChatTurn(role="teacher", text=text))
-        return Answer(text=text, citations=context, language=language)
+        return Answer(
+            text=text, citations=context, language=language, understood=norm.glossed
+        )
