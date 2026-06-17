@@ -3,6 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY packages/shared /app/packages/shared
+COPY VERSION /app/VERSION
 COPY services/billing/requirements.txt /app/services/billing/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/billing/requirements.txt

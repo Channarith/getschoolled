@@ -1,0 +1,65 @@
+name: Release
+
+# Creates a GitHub Release (tag vX.Y.Z + notes from CHANGELOG) whenever the
+# version in VERSION advances. Runs after "Auto Push Build" finishes (the job
+# that bumps VERSION), and is also manually dispatchable. Idempotent: it skips
+# if a release for the current VERSION already exists. Using workflow_run means
+# the [skip ci] auto-bump commit still results in a release.
+
+on:
+  workflow_run:
+    workflows: ["Auto Push Build"]
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    steps:
+      - name: Checkout main (latest, with the bumped VERSION)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create release if VERSION is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION | tr -d '[:space:]')"
+          tag="v${version}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; nothing to do."
+            exit 0
+          fi
+
+          # Extract this version's section from the CHANGELOG as release notes.
+          notes="$(awk -v v="$version" '
+            $0 ~ ("^\\[" v "\\]") { grab=1; next }
+            /^\[/ && grab { grab=0 }
+            grab { print }
+          ' CHANGELOG.txt)"
+          if [ -z "$(printf "%s" "$notes" | tr -d '[:space:]')" ]; then
+            notes="Release ${tag}. See CHANGELOG.txt for details."
+          fi
+
+          printf "%s\n" "$notes" > /tmp/release_notes.md
+          echo "Creating release $tag"
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes-file /tmp/release_notes.md \
+            --target main

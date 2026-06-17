@@ -71,12 +71,13 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- VERSION CHANGELOG.txt build-info.txt; then
+          paths="VERSION CHANGELOG.txt build-info.txt apps/web/app/lib/version.ts apps/web/package.json"
+          if git diff --quiet -- $paths; then
             echo "No build changes to push."
             exit 0
           fi
           version_str="$(cat VERSION)"
-          git add VERSION CHANGELOG.txt build-info.txt
+          git add $paths
           git commit -m "build: auto-push build changes for v${version_str} [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "Pushed build changes for v${version_str} to ${GITHUB_REF_NAME}"

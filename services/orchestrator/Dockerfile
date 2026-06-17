@@ -5,6 +5,7 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
 COPY packages/shared /app/packages/shared
+COPY VERSION /app/VERSION
 COPY services/orchestrator/requirements.txt /app/services/orchestrator/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/orchestrator/requirements.txt
