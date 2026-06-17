@@ -3,6 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- docs: update README build-status table and descriptions to reflect reality -
+  phases 0/3/4/5/6/6b implemented & tested; 1/2/10 partial (offline logic done,
+  infra pending); 7-9 scaffolded behind interfaces. Refresh repo-layout,
+  tech-stack, and testing notes (120+ tests).
 - phase6: curriculum CMS. Deck authoring/import/management - SlideSpec/Deck
   models + DeckStore CRUD + plain-text import parser (curriculum.decks), with
   endpoints POST /decks, POST /decks/import, GET /decks, GET /decks/{id},
