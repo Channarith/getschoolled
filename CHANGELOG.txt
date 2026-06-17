@@ -33,4 +33,8 @@ Format: newest first. No markdown per project convention.
   Makefile.
 - verified: 49 Python tests pass; web typechecks + builds; live local-mode
   endpoints and the local/cloud provider switch exercised over HTTP.
-- next: phase1 live AI teacher (LiveKit JS SDK connect + agent loop in-room).
+[unreleased]
+- (no changes yet)
+
+[0.2.1] - 2026-06-17
+- release build (no itemized changes)
