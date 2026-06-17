@@ -50,9 +50,14 @@ configuration &mdash; there are no code forks. Every heavy capability (LLM, spee
 vision, media, object store, payments) sits behind a narrow interface with a
 local and a cloud implementation, chosen at startup by a config-driven factory.
 
-The current build runs the **Phase&nbsp;1 teaching loop end to end** in the web app:
-start a class, the Teaching Director presents slides with narration, and you can
-ask the AI tutor questions that are answered with RAG over the lesson material.
+The current build runs the **live teaching loop end to end** in the web app
+(start a class, the Teaching Director presents slides, ask the AI tutor questions
+answered with RAG), plus working **face recognition**, **adaptive
+pacing/difficulty**, **assessment** (quizzes/polls), a **curriculum CMS**,
+**entitlements + multiple payment methods**, and **multilingual delivery
+routing** &mdash; all testable offline. Real-time voice/video, GPU model serving,
+and the external platform bridges (Zoom/Teams/Meet) are wired behind config and
+need infra/credentials to run. See the status table below.
 
 ## Screenshots
 
@@ -69,26 +74,29 @@ ask the AI tutor questions that are answered with RAG over the lesson material.
 The roadmap (`docs/plan.txt`) spans phase0 &rarr; phase10. This is the honest
 current state of the repository:
 
+Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs GPU/media/external infra) · ⬜ scaffolded behind interfaces/config.
+
 | Phase | Scope | Status |
 | --- | --- | --- |
 | **phase0** | Foundations: monorepo, provider abstraction (local+cloud + factory), config contracts, db migrations, sample-curriculum RAG skeleton, vLLM serving config, local docker compose, per-service Dockerfiles, Makefile, CI | ✅ Implemented |
-| **phase1** | Live AI teacher in the web app: Director + Lesson Delivery + Tutor; slide presentation + (text) narration; text-chat Q&amp;A via RAG | ◑ Core loop working (text); real-time LiveKit audio/agent-runtime room wiring is stubbed |
-| **phase2** | Multilingual + voice: streaming ASR, language ID, NLLB translation, multilingual TTS | ⬜ Planned (interfaces stubbed) |
-| **phase3** | Perception (consent-gated): face recognition + attention/gaze | ⬜ Planned (interfaces + consent gate stubbed) |
-| **phase4** | Memory &amp; adaptive learning: profiles, mastery graph, cross-class context | ⬜ Planned (service skeleton + schema) |
-| **phase5** | Assessment: quizzes, definition checks, polls, mastery loop | ⬜ Planned |
-| **phase6** | Curriculum suite / CMS + teacher dashboard | ⬜ Planned (service skeleton) |
-| **phase6b** | Monetization &amp; billing: entitlements API, Stripe (cloud) / sandbox (local) | ⬜ Planned (service skeleton + schema + provider) |
-| **phase7** | Zoom bridge &rarr; LiveKit | ⬜ Planned |
-| **phase8** | Teams bridge (.NET Graph Communications) | ⬜ Planned |
-| **phase9** | Google Meet / Chat bridge | ⬜ Planned |
-| **phase10** | Hardening &amp; scale: latency, GPU batching/pooling, observability, fine-tuning | ⬜ Planned |
+| **phase1** | Live AI teacher in the web app: Director + Lesson Delivery + Tutor; slide presentation + (text) narration; text-chat Q&amp;A via RAG | ◑ Text teaching loop works end to end; real-time LiveKit audio / agent-runtime room wiring still needs media infra |
+| **phase2** | Multilingual + voice: language coverage (26 langs), per-student delivery routing (translate? pair supported? native XTTS vs cloud-TTS fallback) | ◑ Routing/coverage logic implemented &amp; tested; real streaming ASR / NLLB / XTTS need GPU model serving |
+| **phase3** | Perception (consent-gated): face recognition + attention | ✅ Real self-hosted face recognition (OpenCV YuNet + SFace), consent-gated, enroll/identify, extensively tested |
+| **phase4** | Memory &amp; adaptive learning: profiles, mastery, learning-behavior signals, pacing/difficulty policy (solo vs group) | ✅ Implemented &amp; tested (adaptive policy + behavior tracking) |
+| **phase5** | Assessment: quizzes, definition checks, polls, mastery feedback loop | ✅ Implemented &amp; tested (MCQ generation, grading, polls) |
+| **phase6** | Curriculum suite / CMS: author/import/manage decks | ✅ Implemented &amp; tested (deck CRUD + text import + presentation view) |
+| **phase6b** | Monetization &amp; billing: entitlements API + payment methods (card, Apple/Google Pay, Cash App, PayPal, Venmo, Zelle); Stripe (cloud) / sandbox (local) | ✅ Implemented &amp; tested (sandbox simulates all methods offline) |
+| **phase7** | Zoom bridge &rarr; LiveKit | ⬜ Scaffolded: `MediaBridge` interface + capability registry + credential checks; needs Zoom SDK + creds |
+| **phase8** | Teams bridge (.NET Graph Communications) | ⬜ Scaffolded; needs Azure/Graph creds + a .NET media bot |
+| **phase9** | Google Meet / Chat bridge | ⬜ Scaffolded; needs Google Workspace creds |
+| **phase10** | Hardening &amp; scale: latency, GPU batching/pooling, observability, fine-tuning | ◑ Latency budget + recorder implemented &amp; tested; GPU/autoscale/observability stack needs infra |
 
-> **In short:** phase0 foundations are in place and a working phase1 slice runs
-> end to end. Phases 2&ndash;10 are not built yet &mdash; their interfaces, service
-> skeletons, schemas, and config are scaffolded so they can be filled in without
-> reworking the architecture. (Cloud k8s manifests under `infra/k8s` are also not
-> created yet.)
+> **In short:** phases 0, 3, 4, 5, 6, and 6b are implemented and tested; phases 1,
+> 2, and 10 have their offline logic done but need GPU/media infra for the
+> remaining pieces; phases 7&ndash;9 (platform bridges) are scaffolded behind a
+> stable interface and need external SDKs/credentials to run. The whole backend
+> suite is green (120+ tests). Cloud k8s manifests under `infra/k8s` ship from the
+> phase0 foundations; real model serving and platform bots require credentials/GPU.
 
 ## Architecture
 
@@ -120,8 +128,9 @@ example, keep biometrics local even in cloud for compliance) without forking cod
 - **Frontend:** Next.js 14 + React 18 + TypeScript (LiveKit JS SDK to come).
 - **Backend / agents:** Python, FastAPI, LiveKit Agents, LangGraph (Director).
 - **LLM serving:** open-weight base model via vLLM; RAG now, fine-tune later.
-- **Speech / Vision (planned):** Whisper large-v3, NLLB-200, XTTS-v2;
-  InsightFace/ArcFace + MediaPipe, self-hosted.
+- **Vision (implemented):** self-hosted OpenCV YuNet + SFace face recognition (CPU).
+- **Speech (provider-wired):** Whisper large-v3 (ASR), NLLB-200 (translation),
+  XTTS-v2 (TTS) behind the SpeechProvider; need GPU model serving to run.
 - **Data:** Postgres (+pgvector), Redis, S3-compatible object storage (MinIO local).
 - **Infra:** docker compose (local) / Kubernetes + GPU pool (cloud); GitHub Actions CI.
 
@@ -131,11 +140,11 @@ example, keep biometrics local even in cloud for compliance) without forking cod
 apps/web                 Next.js app (live class, dashboards, consent)
 apps/agent-runtime       Python LiveKit Agents worker (teaching brain)
 services/orchestrator    Director + lesson/slide/RAG Q&A API (FastAPI)
-services/memory          profiles, mastery graph (skeleton)
-services/speech          ASR/MT/TTS gateway (skeleton)
-services/perception      vision: face + attention, consent-gated (skeleton)
-services/curriculum      content/CMS API (skeleton)
-services/billing         plans, entitlements API (skeleton)
+services/memory          profiles, mastery, learning-behavior signals
+services/speech          language coverage + delivery routing (ASR/MT/TTS behind provider)
+services/perception      vision: face recognition + attention, consent-gated
+services/curriculum      content/CMS API: deck authoring/import + RAG search
+services/billing         plans, entitlements + payment methods (Stripe/sandbox)
 packages/shared          provider interfaces + local/cloud impls + factory + schemas
 config/                  per-mode env contracts (local.env, cloud.env)
 db/migrations            SQL schema (consent/compliance + billing/entitlements)
@@ -205,9 +214,10 @@ curl http://localhost:8000/api/lessons
 | Web production build | `make build-web` |
 | Validate compose | `make compose-config` (requires Docker) |
 
-The shared factory test proves local-vs-cloud provider selection by env; the
-orchestrator tests exercise the full start &rarr; advance &rarr; ask teaching flow; each
-service skeleton verifies `/health` plus its domain stub.
+The full backend suite (120+ tests) is green: provider local-vs-cloud selection,
+the orchestrator teaching flow (start &rarr; advance &rarr; ask) plus adaptive/assessment
+APIs, real face-recognition accuracy on a labeled dataset, CMS deck CRUD/import,
+multilingual delivery routing, payment methods, and bridge/latency scaffolds.
 
 ## Configuration &amp; dual-mode
 
