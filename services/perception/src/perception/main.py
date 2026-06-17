@@ -59,6 +59,8 @@ class FaceResult(BaseModel):
     track_id: str
     matched_student_id: str | None
     attention: float
+    gaze_frontal: float
+    expression: str
     identified: bool
 
 
@@ -84,6 +86,8 @@ async def identify(
             track_id=o.track_id,
             matched_student_id=o.matched_student_id,
             attention=o.attention_score,
+            gaze_frontal=o.gaze_frontal,
+            expression=o.expression,
             identified=o.matched_student_id is not None,
         )
         for o in observations

@@ -12,6 +12,8 @@ on top, which keeps it fully unit-testable.
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -55,6 +57,40 @@ class FaceGallery:
                 proto[i] += e[i]
         n = len(embs)
         return [v / n for v in proto]
+
+    # --- persistence (cross-session student memory) ----------------------- #
+    def to_dict(self) -> Dict[str, object]:
+        return {"match_threshold": self.match_threshold, "embeddings": self._embeddings}
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, object]) -> "FaceGallery":
+        gallery = cls(match_threshold=float(data.get("match_threshold", DEFAULT_MATCH_THRESHOLD)))
+        gallery._embeddings = {
+            str(k): [list(map(float, v)) for v in vs]
+            for k, vs in dict(data.get("embeddings", {})).items()
+        }
+        return gallery
+
+    def save_json(self, path: str) -> None:
+        """Persist enrolled embeddings so students are remembered across sessions.
+
+        In production these are the encrypted face_embeddings rows; this file
+        backend keeps the same recognition behavior durable for local/dev.
+        """
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(self.to_dict(), fh)
+        os.replace(tmp, path)
+
+    @classmethod
+    def load_json(cls, path: str) -> "FaceGallery":
+        if not os.path.isfile(path):
+            return cls()
+        with open(path, "r", encoding="utf-8") as fh:
+            return cls.from_dict(json.load(fh))
 
     def identify(
         self,

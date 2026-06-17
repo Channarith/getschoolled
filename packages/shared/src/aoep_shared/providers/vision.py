@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Iterable, List, Optional
 
 from ..config import AppConfig
-from ..vision import FaceGallery, FaceRecognitionEngine
+from ..vision import FaceGallery, FaceRecognitionEngine, estimate_engagement
 from .base import FaceObservation, ProviderInfo, VisionProvider
 
 
@@ -27,7 +27,13 @@ class _BaseVisionProvider(VisionProvider):
         self._base_url = config.vision_base_url
         self._consented: frozenset[str] = frozenset()
         self._engine: Optional[FaceRecognitionEngine] = None
-        self._gallery = FaceGallery(match_threshold=config.vision_match_threshold)
+        # Cross-session student memory: load persisted embeddings if configured.
+        self._gallery_path = config.vision_gallery_path or None
+        if self._gallery_path:
+            self._gallery = FaceGallery.load_json(self._gallery_path)
+            self._gallery.match_threshold = config.vision_match_threshold
+        else:
+            self._gallery = FaceGallery(match_threshold=config.vision_match_threshold)
 
     def info(self) -> ProviderInfo:
         return ProviderInfo(
@@ -59,7 +65,11 @@ class _BaseVisionProvider(VisionProvider):
         faces = self.engine().detect_faces(image)
         if not faces:
             raise ValueError("no face detected in enrollment image")
-        return self._gallery.enroll(student_id, faces[0].embedding)
+        count = self._gallery.enroll(student_id, faces[0].embedding)
+        # Persist so the student is remembered across sessions.
+        if self._gallery_path:
+            self._gallery.save_json(self._gallery_path)
+        return count
 
     def gallery(self) -> FaceGallery:
         return self._gallery
@@ -74,13 +84,15 @@ class _BaseVisionProvider(VisionProvider):
             match = self._gallery.identify(
                 face.embedding, allowed_ids=self._consented
             )
+            # Real engagement signals from face geometry (gaze + expression).
+            eng = estimate_engagement(face.landmarks, face.bbox, face.frame_size)
             observations.append(
                 FaceObservation(
                     track_id=f"face-{idx}",
                     embedding_ref=None,  # never expose raw biometrics
-                    # Attention/gaze model is phase3; use detection confidence as
-                    # an interim presence proxy until MediaPipe gaze lands.
-                    attention_score=round(face.det_score, 4),
+                    attention_score=eng.attention,
+                    gaze_frontal=eng.gaze_frontal,
+                    expression=eng.expression,
                     matched_student_id=match.student_id if match.matched else None,
                 )
             )

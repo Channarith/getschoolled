@@ -116,6 +116,9 @@ class FaceObservation:
     embedding_ref: Optional[str] = None  # encrypted ref, never raw biometrics
     attention_score: float = 0.0
     matched_student_id: Optional[str] = None
+    # Engagement signals (machine vision) used to adapt teaching in real time.
+    gaze_frontal: float = 0.0
+    expression: str = "unknown"
 
 
 class VisionProvider(Provider):
