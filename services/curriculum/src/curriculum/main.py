@@ -11,7 +11,23 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import os
+
 from aoep_shared.rag import RagIndex
+from aoep_shared.scene import (
+    ExtractedObject,
+    Layer,
+    Scene,
+    SceneDelta,
+    SignedScene,
+    TimeRange,
+    Transform,
+    apply_delta,
+    extract_region,
+    serialize,
+    sign_scene,
+    verify_scene,
+)
 from aoep_shared.service import create_service
 from fastapi import Body, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -28,6 +44,11 @@ from .ingest import (
 
 app = create_service("curriculum")
 app.state.decks = DeckStore()
+app.state.scenes = {}
+
+
+def _signing_key() -> bytes:
+    return os.environ.get("SCENE_SIGNING_KEY", "dev-scene-signing-key").encode()
 
 
 def _curriculum_dir() -> Path:
@@ -239,6 +260,75 @@ class IngestYouTubeRequest(BaseModel):
     video_id: str
     title: str = ""
     fmt: str = "video"
+
+
+# --------------------------------------------------------------------------- #
+# AOEPLX layered scene format (live broadcast content)
+# --------------------------------------------------------------------------- #
+class CreateSceneRequest(BaseModel):
+    title: str = ""
+    width: int = 1280
+    height: int = 720
+    layers: list[Layer] = []
+
+
+@app.post("/scenes", response_model=Scene)
+def create_scene(req: CreateSceneRequest) -> Scene:
+    scene = Scene(title=req.title, width=req.width, height=req.height, layers=req.layers)
+    app.state.scenes[scene.id] = scene
+    return scene
+
+
+@app.get("/scenes/{scene_id}", response_model=Scene)
+def get_scene(scene_id: str) -> Scene:
+    scene = app.state.scenes.get(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="unknown scene")
+    return scene
+
+
+@app.post("/scenes/{scene_id}/delta", response_model=Scene)
+def scene_delta(scene_id: str, delta: SceneDelta) -> Scene:
+    scene = app.state.scenes.get(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="unknown scene")
+    try:
+        return apply_delta(scene, delta)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+class ExtractRequest(BaseModel):
+    bbox: Transform | None = None
+    layer_ids: list[str] | None = None
+    time: TimeRange | None = None
+    title: str = ""
+
+
+@app.post("/scenes/{scene_id}/extract", response_model=ExtractedObject)
+def scene_extract(scene_id: str, req: ExtractRequest) -> ExtractedObject:
+    scene = app.state.scenes.get(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="unknown scene")
+    obj = extract_region(
+        scene, bbox=req.bbox, layer_ids=req.layer_ids, time=req.time, title=req.title
+    )
+    # The extracted multilayer object is itself a reusable scene.
+    app.state.scenes[obj.scene.id] = obj.scene
+    return obj
+
+
+@app.post("/scenes/{scene_id}/sign", response_model=SignedScene)
+def scene_sign(scene_id: str) -> SignedScene:
+    scene = app.state.scenes.get(scene_id)
+    if scene is None:
+        raise HTTPException(status_code=404, detail="unknown scene")
+    return sign_scene(scene, _signing_key())
+
+
+@app.post("/scenes/verify")
+def scene_verify(signed: SignedScene) -> dict:
+    return {"valid": verify_scene(signed, _signing_key())}
 
 
 @app.post("/ingest/youtube", response_model=Deck)
