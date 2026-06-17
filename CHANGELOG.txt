@@ -2,8 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased]
-- (no changes yet)
+[unreleased] - 2026-06-17
+- ci: add auto-merge workflow (.github/workflows/automerge.yml) that merges PRs
+  into main automatically after the CI workflow passes (no human review).
+- docs: add comprehensive README.md (overview, screenshots, per-phase build
+  status, architecture, quickstart, run/test instructions, dual-mode config) with
+  brand/design imagery and real app screenshots under docs/images/.
 
 [0.2.0] - 2026-06-17
 - phase0: implement foundations end to end (monorepo, dual-mode, CI).

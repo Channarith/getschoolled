@@ -1,0 +1,71 @@
+name: Auto-merge
+
+# Automatically merges pull requests into main without requiring a human review.
+# It runs AFTER the CI workflow finishes, and only merges when CI succeeded, so
+# changes still have to pass tests/lint/build before landing.
+#
+# Requirements (one-time, in repo Settings):
+#  - Settings > Actions > General > Workflow permissions: "Read and write
+#    permissions" must be enabled (so the workflow token can merge).
+#  - If branch protection on `main` requires reviews, either remove that
+#    requirement or this job cannot merge (it would need an approval).
+#
+# To auto-merge ONLY your own / agent branches instead of every PR, narrow the
+# `if:` condition in the `automerge` job (see the commented example below).
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    # Only act on CI runs that (a) came from a pull request and (b) passed.
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Merge the associated pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "CI succeeded for branch: $HEAD_BRANCH"
+
+          # Find the open PR whose head is this branch.
+          PR_NUMBER=$(gh pr list \
+            --repo "$REPO" \
+            --head "$HEAD_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No open PR found for $HEAD_BRANCH; nothing to merge."
+            exit 0
+          fi
+
+          # Optional: restrict auto-merge to specific branches (uncomment).
+          # case "$HEAD_BRANCH" in
+          #   cursor/*) : ;;
+          #   *) echo "Branch $HEAD_BRANCH not in auto-merge allowlist; skipping."; exit 0 ;;
+          # esac
+
+          echo "Auto-merging PR #$PR_NUMBER (squash) ..."
+          gh pr merge "$PR_NUMBER" \
+            --repo "$REPO" \
+            --squash \
+            --delete-branch \
+            --admin
