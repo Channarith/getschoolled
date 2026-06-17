@@ -16,3 +16,9 @@ pytest==8.2.2
 opencv-contrib-python-headless==4.10.0.84
 onnxruntime==1.18.1
 numpy==1.26.4
+
+# Content scraper (curriculum ingestion: textbooks / web / video transcripts).
+pypdf==4.2.0
+beautifulsoup4==4.12.3
+requests==2.32.3
+fpdf2==2.7.9  # test-only: generates PDF fixtures for the scraper tests

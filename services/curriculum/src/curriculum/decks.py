@@ -30,6 +30,10 @@ class Deck(BaseModel):
     title: str
     language: str = "en"
     slides: List[SlideSpec] = Field(default_factory=list)
+    # Class genre/format (lecture, hands_on, tutorial, video, article) and where
+    # the content was scraped from (filename / url / video id).
+    format: str = "lecture"
+    source: str = ""
 
 
 def parse_deck_text(text: str, *, default_title: str = "Untitled") -> Deck:

@@ -32,7 +32,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests -q
 
 web-install:
 	cd apps/web && npm install

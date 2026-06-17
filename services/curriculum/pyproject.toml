@@ -11,10 +11,17 @@ dependencies = [
   "aoep-shared",
   "fastapi>=0.111,<0.116",
   "uvicorn[standard]>=0.30,<0.35",
+  "python-multipart==0.0.32",
+  # Content scraper (textbooks / web / video transcripts) -> decks.
+  "pypdf==4.2.0",
+  "beautifulsoup4==4.12.3",
+  "requests==2.32.3",
 ]
 
 [project.optional-dependencies]
 test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+# Optional runtime dep for /ingest/youtube (import-guarded; not needed for tests).
+youtube = ["youtube-transcript-api>=0.6,<1"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
