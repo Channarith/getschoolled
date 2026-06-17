@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-agent-runtime"
+version = "0.1.0"
+description = "LiveKit Agents worker hosting the AOEP teaching brain."
+requires-python = ">=3.11"
+dependencies = [
+  "aoep-shared",
+  "aoep-orchestrator",
+]
+
+[project.optional-dependencies]
+# LiveKit Agents + plugins are pulled in only where the media stack runs; the
+# brain logic itself is testable without them.
+livekit = [
+  "livekit-agents>=0.11,<2",
+]
+test = ["pytest>=8.2,<9"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

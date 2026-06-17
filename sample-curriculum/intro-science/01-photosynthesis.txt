@@ -1,0 +1,17 @@
+Photosynthesis
+
+Photosynthesis is the process by which green plants, algae, and some bacteria
+convert light energy into chemical energy stored in glucose. It takes place in
+the chloroplasts, primarily using the pigment chlorophyll.
+
+The simplified reaction:
+  carbon dioxide + water + light energy -> glucose + oxygen
+
+There are two main stages: the light-dependent reactions, which capture sunlight
+and produce ATP and NADPH, and the light-independent reactions (the Calvin
+cycle), which use that energy to fix carbon dioxide into sugars.
+
+Key points:
+- Sunlight, water, and carbon dioxide are the inputs.
+- Glucose and oxygen are the outputs.
+- Chlorophyll absorbs light most strongly in the blue and red wavelengths.

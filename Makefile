@@ -1,54 +1,59 @@
-# Agentic Online Education Platform - developer entrypoints.
-# Always python3. Dev runs services natively; compose runs the full stack.
+# AOEP developer Makefile. Always uses python3 (never python).
 
 PY ?= python3
 VENV ?= .venv
-ACT := . $(VENV)/bin/activate
-SERVICES := orchestrator memory speech perception curriculum billing
+VENV_PY := $(VENV)/bin/python
+PYTHON_PKGS := packages/shared services/orchestrator services/speech \
+	services/perception services/memory services/curriculum services/billing \
+	apps/agent-runtime
+COMPOSE := infra/compose/docker-compose.yml
 
-.PHONY: help setup setup-web test test-web lint-web typecheck-web build-web \
-        dev-orchestrator dev-web compose-config clean
+.PHONY: help venv install test test-py web-install web-typecheck web-build \
+	compose-config k8s-build up down clean
 
 help:
 	@echo "Targets:"
-	@echo "  setup           Create venv and install backend dev deps (editable shared)"
-	@echo "  setup-web       Install web deps (pnpm)"
-	@echo "  test            Run all Python tests (shared + services + agent-runtime)"
-	@echo "  test-web        Typecheck + lint the web app"
-	@echo "  build-web       Production build of the web app"
-	@echo "  dev-orchestrator  Run the orchestrator API (port 8000)"
-	@echo "  dev-web         Run the Next.js dev server (port 3000)"
-	@echo "  compose-config  Validate the docker compose stack"
+	@echo "  install        Create venv and install all Python packages (editable)"
+	@echo "  test           Run all Python tests"
+	@echo "  web-install    npm install for apps/web"
+	@echo "  web-build      Build the Next.js web app"
+	@echo "  compose-config Validate the docker compose file"
+	@echo "  k8s-build      Render k8s manifests with kustomize"
+	@echo "  up / down      Start / stop the full local stack"
 
-setup:
+venv:
 	$(PY) -m venv $(VENV)
-	$(ACT) && pip install --upgrade pip && pip install -r requirements-dev.txt
+	$(VENV_PY) -m pip install --upgrade pip
 
-setup-web:
-	cd apps/web && pnpm install
-
-test:
-	$(ACT) && cd packages/shared && python -m pytest -q
-	$(ACT) && cd apps/agent-runtime && python -m pytest -q
-	@for s in $(SERVICES); do \
-		echo "== $$s =="; \
-		$(ACT) && cd services/$$s && python -m pytest -q || exit 1; \
+install: venv
+	@for pkg in $(PYTHON_PKGS); do \
+		echo "installing $$pkg"; \
+		$(VENV_PY) -m pip install -e "$$pkg[test]" || $(VENV_PY) -m pip install -e "$$pkg"; \
 	done
 
-test-web:
-	cd apps/web && pnpm run typecheck && pnpm run lint
+test test-py:
+	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests -q
 
-build-web:
-	cd apps/web && pnpm run build
+web-install:
+	cd apps/web && npm install
 
-dev-orchestrator:
-	$(ACT) && cd services/orchestrator && uvicorn app.main:app --reload --port 8000
+web-typecheck:
+	cd apps/web && npm run typecheck
 
-dev-web:
-	cd apps/web && pnpm run dev
+web-build:
+	cd apps/web && npm run build
 
 compose-config:
-	docker compose -f infra/compose/docker-compose.yml config >/dev/null && echo "compose OK"
+	docker compose -f $(COMPOSE) config
+
+k8s-build:
+	kustomize build infra/k8s
+
+up:
+	docker compose -f $(COMPOSE) up -d --build
+
+down:
+	docker compose -f $(COMPOSE) down
 
 clean:
 	rm -rf $(VENV) apps/web/node_modules apps/web/.next

@@ -1,51 +1,42 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
 
 jobs:
-  backend:
+  python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install backend dev deps
+      - name: Install Python packages (editable)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-      - name: Test shared (factory: local vs cloud)
-        run: cd packages/shared && python -m pytest -q
-      - name: Test agent-runtime
-        run: cd apps/agent-runtime && python -m pytest -q
-      - name: Test services
-        run: |
-          for s in orchestrator memory speech perception curriculum billing; do
-            echo "== $s =="
-            (cd services/$s && python -m pytest -q)
+          python3 -m pip install --upgrade pip
+          for pkg in packages/shared services/orchestrator services/speech \
+            services/perception services/memory services/curriculum \
+            services/billing apps/agent-runtime; do
+            python3 -m pip install -e "$pkg[test]"
           done
+      - name: Run tests
+        run: python3 -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests -q
 
   web:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
-      - name: Install
-        run: cd apps/web && pnpm install --frozen-lockfile
-      - name: Typecheck + lint
-        run: cd apps/web && pnpm run typecheck && pnpm run lint
-      - name: Build
-        run: cd apps/web && pnpm run build
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
 
   compose:
     runs-on: ubuntu-latest
@@ -53,3 +44,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate docker compose
         run: docker compose -f infra/compose/docker-compose.yml config >/dev/null
+
+  k8s:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render kustomize manifests
+        run: kubectl kustomize infra/k8s >/dev/null

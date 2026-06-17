@@ -1,0 +1,12 @@
+{
+  "served_model_name": "aoep-base-edu",
+  "model_path": "/models/aoep-base-edu",
+  "engine": "vllm",
+  "openai_compatible": true,
+  "port": 8000,
+  "dtype": "bfloat16",
+  "max_model_len": 8192,
+  "gpu_memory_utilization": 0.9,
+  "tensor_parallel_size": 1,
+  "notes": "Open-weight base education LLM served by us. Weights are kept OUT of the repo and downloaded to the mount/PVC at deploy time. RAG now; fine-tune later (see models/finetune)."
+}

@@ -1,0 +1,14 @@
+TEAMS BRIDGE (phase8)
+=====================
+
+A Microsoft Teams real-time media bot (Graph Communications SDK, .NET-centric)
+that bridges Teams meeting media into the LiveKit room consumed by the teaching
+brain.
+
+CONTRACT
+- .NET service using the Graph Communications Calling/Media SDK to access raw
+  audio/video.
+- Bridge Teams <-> LiveKit both directions; honor platform ToS for automated
+  bots and recording.
+
+STATUS: scaffold only. Implemented in phase8 (note: .NET, not Python).
