@@ -3,6 +3,19 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- phase6: curriculum CMS. Deck authoring/import/management - SlideSpec/Deck
+  models + DeckStore CRUD + plain-text import parser (curriculum.decks), with
+  endpoints POST /decks, POST /decks/import, GET /decks, GET /decks/{id},
+  GET /decks/{id}/presentation, DELETE /decks/{id}.
+- phase2: multilingual delivery routing (aoep_shared.translation). Per-student
+  plan (translate? pair supported? TTS engine native-vs-fallback) across the 26
+  languages; speech endpoints POST /delivery/plan and POST /translate (validates
+  the pair, then needs the NLLB model).
+- phases7-9: media bridge scaffold (aoep_shared.bridges) - MediaBridge interface
+  + Zoom/Teams(.NET)/Meet capability registry + credential-readiness checks;
+  concrete connect raises BridgeUnavailable until SDKs/creds are configured.
+- phase10: latency budget + recorder (aoep_shared.observability) for the
+  speech-in -> think -> speech-out loop (1100ms target). Tests: 120 passing.
 - refactor: consolidate to a single stack. Remove the duplicate
   eduplatform_shared package and all services/*/app/ layouts; the canonical
   stack is aoep_shared (dist renamed eduplatform-shared -> aoep-shared) with the
