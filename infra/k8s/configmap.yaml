@@ -1,0 +1,34 @@
+# Non-secret cloud configuration. Secrets (LIVEKIT_API_SECRET, PAYMENT_API_KEY,
+# DB password, object-store keys) come from a separate Secret, not this file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aoep-config
+  namespace: aoep
+data:
+  DEPLOY_MODE: "cloud"
+  LLM_BASE_URL: "http://llm:8000/v1"
+  LLM_MODEL: "aoep-base-edu"
+  SPEECH_BASE_URL: "http://speech:8100"
+  VISION_BASE_URL: "http://perception:8200"
+  LIVEKIT_URL: "wss://livekit.aoep.example"
+  OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
+  OBJECT_STORE_BUCKET: "aoep-prod"
+  REDIS_URL: "redis://redis.aoep.internal:6379/0"
+  CURRICULUM_DIR: "/app/sample-curriculum"
+  ORCHESTRATOR_URL: "https://api.aoep.example"
+---
+# Placeholder secret. Replace values via your cluster's secret manager / CI.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aoep-secrets
+  namespace: aoep
+type: Opaque
+stringData:
+  LIVEKIT_API_KEY: "__INJECT__"
+  LIVEKIT_API_SECRET: "__INJECT__"
+  OBJECT_STORE_ACCESS_KEY: "__INJECT__"
+  OBJECT_STORE_SECRET_KEY: "__INJECT__"
+  DATABASE_URL: "postgresql://aoep:__INJECT__@postgres.aoep.internal:5432/aoep"
+  PAYMENT_API_KEY: "__INJECT__"

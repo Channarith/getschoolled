@@ -1,0 +1,20 @@
+Variables and Data Types in Python
+
+A variable is a name that refers to a value stored in memory. In Python you do
+not declare a type explicitly; the type is inferred from the value you assign.
+
+  age = 30            # int
+  price = 9.99        # float
+  name = "Ada"        # str
+  is_active = True    # bool
+
+Core built-in data types include integers, floating-point numbers, strings,
+booleans, lists, tuples, dictionaries, and sets. Strings are sequences of
+characters and support indexing and slicing. Lists are ordered, mutable
+collections, while tuples are ordered but immutable. Dictionaries map keys to
+values for fast lookup.
+
+Key points:
+- Variables are dynamically typed in Python.
+- Use descriptive names; prefer snake_case for variable names.
+- The type() function reveals an object's type at runtime.

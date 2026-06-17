@@ -1,0 +1,26 @@
+AOEP FINE-TUNE PIPELINE (phase10)
+=================================
+
+The platform ships with RAG over the curriculum first; fine-tuning the base
+education LLM is a phase10 hardening step. This file is the contract for that
+pipeline so the wiring exists from phase0.
+
+INPUTS
+- Base open-weight model (downloaded to the model PVC; never committed).
+- Curated instruction dataset built from anonymized lesson transcripts, tutor
+  Q&A pairs, and assessment rationales (consent-respecting, PII-stripped).
+
+STAGES
+1. data-prep   : export + anonymize transcripts, dedupe, format to chat schema.
+2. sft         : supervised fine-tune (LoRA/QLoRA) on the instruction dataset.
+3. eval        : pedagogy + safety eval suite; regression vs the RAG baseline.
+4. merge       : merge adapters, quantize, export to the serving format.
+5. publish     : push weights to the model store; bump LLM_MODEL; canary deploy.
+
+ARTIFACTS
+- Adapters + merged weights -> model store (object store / PVC), NOT the repo.
+- Eval reports -> object store.
+
+This is intentionally a stub: no training runs in CI. It documents the inputs,
+stages, and artifact destinations so the serving config (models/serving) and the
+LLMProvider stay decoupled from how the weights were produced.

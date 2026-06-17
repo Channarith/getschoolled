@@ -2,29 +2,31 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased] - 2026-06-17
-- docs: add comprehensive README.md (overview, screenshots, per-phase build
-  status, architecture, quickstart, run/test instructions, dual-mode config) with
-  brand/design imagery and real app screenshots under docs/images/.
-- phase0/phase1: scaffold runnable dev environment for the platform.
-- packages/shared: provider abstraction (LLM/Speech/Vision/Media/ObjectStore/
-  Payment) with local + cloud implementations and a config-driven factory;
-  dual-mode Settings (DEPLOY_MODE + per-component overrides; blank override
-  resolves to inherit); shared schemas; service health helper; factory tests.
-- services/orchestrator: FastAPI Teaching Director - lessons, sessions, slide
-  delivery, and RAG-grounded Q&A via the LLM provider; API tests.
-- services/{memory,speech,perception,curriculum,billing}: FastAPI skeletons with
-  /health plus a domain stub each (consent-gated attention, entitlements, etc.).
-- apps/agent-runtime: importable LiveKit Agents worker skeleton + tests.
-- apps/web: Next.js live-class UI (home, live class, dashboard, consent) that
-  drives the orchestrator teaching loop; lint/typecheck/build clean.
-- config/local.env + config/cloud.env; db/migrations (consent/compliance +
-  billing/entitlements); models/serving/vllm.yaml; sample-curriculum for RAG.
-- infra/compose docker-compose (web, services, LiveKit, Postgres+pgvector,
-  Redis, MinIO); per-service Dockerfiles; root Makefile; GitHub Actions CI.
+[unreleased]
+- (no changes yet)
 
-[seed] - 2026-06-16
-- seed: initialize repository for Cursor Cloud Agent execution.
-- add docs/plan.txt (architecture + phased roadmap, plain text).
-- add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
-- add .gitignore, .editorconfig, .python-version.
+[0.2.0] - 2026-06-17
+- phase0: implement foundations end to end (monorepo, dual-mode, CI).
+- packages/shared: AppConfig dual-mode loader (DEPLOY_MODE + per-component
+  *_MODE overrides), provider interfaces (LLM/Speech/Vision/Media/ObjectStore/
+  Payment) with local+cloud impls, config-driven ProviderFactory, cross-service
+  pydantic schemas, 26-language coverage + TTS fallback policy, entitlements
+  can_start gate, dependency-free RAG skeleton, shared FastAPI /health + CORS.
+- services: orchestrator (Teaching Director state machine + class/join/token),
+  speech (languages + TTS engine routing), perception (consent-gated identity),
+  memory (profiles/consent/mastery), curriculum (RAG search), billing
+  (plans/entitlements/checkout). Each exposes /health and has a Dockerfile.
+- apps/agent-runtime: provider-driven TeachingBrain + LiveKit worker entrypoint.
+- apps/web: Next.js (app router) dashboard, live-class join, consent UI.
+- config/local.env + config/cloud.env (single dual-mode contract).
+- db/migrations/0001_init.sql: identity, classes, consent/compliance (FERPA/
+  GDPR/BIPA), face embeddings, mastery, curriculum vectors, billing tables
+  (pgvector + pgcrypto).
+- infra/compose: full local stack; infra/k8s: namespace/config/services/web +
+  GPU vLLM serving; models/serving + models/finetune configs.
+- bridges/{zoom,teams,meet}: phase7-9 scaffolds.
+- CI: GitHub Actions (python tests, web typecheck/build, compose + k8s render);
+  Makefile.
+- verified: 49 Python tests pass; web typechecks + builds; live local-mode
+  endpoints and the local/cloud provider switch exercised over HTTP.
+- next: phase1 live AI teacher (LiveKit JS SDK connect + agent loop in-room).

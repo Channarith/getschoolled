@@ -1,0 +1,229 @@
+# Stateless Python services. Each loads config from the shared ConfigMap +
+# Secret (envFrom), so the local/cloud split is config-only -- no image forks.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: aoep
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: orchestrator }
+  template:
+    metadata:
+      labels: { app: orchestrator }
+    spec:
+      containers:
+        - name: orchestrator
+          image: ghcr.io/aoep/orchestrator:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: aoep
+spec:
+  selector: { app: orchestrator }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speech
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: speech }
+  template:
+    metadata:
+      labels: { app: speech }
+    spec:
+      containers:
+        - name: speech
+          image: ghcr.io/aoep/speech:latest
+          ports: [{ containerPort: 8100 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8100 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: speech
+  namespace: aoep
+spec:
+  selector: { app: speech }
+  ports: [{ port: 8100, targetPort: 8100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: perception
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: perception }
+  template:
+    metadata:
+      labels: { app: perception }
+    spec:
+      containers:
+        - name: perception
+          image: ghcr.io/aoep/perception:latest
+          ports: [{ containerPort: 8200 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8200 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: perception
+  namespace: aoep
+spec:
+  selector: { app: perception }
+  ports: [{ port: 8200, targetPort: 8200 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: memory }
+  template:
+    metadata:
+      labels: { app: memory }
+    spec:
+      containers:
+        - name: memory
+          image: ghcr.io/aoep/memory:latest
+          ports: [{ containerPort: 8400 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8400 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory
+  namespace: aoep
+spec:
+  selector: { app: memory }
+  ports: [{ port: 8400, targetPort: 8400 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curriculum
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: curriculum }
+  template:
+    metadata:
+      labels: { app: curriculum }
+    spec:
+      containers:
+        - name: curriculum
+          image: ghcr.io/aoep/curriculum:latest
+          ports: [{ containerPort: 8500 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8500 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: curriculum
+  namespace: aoep
+spec:
+  selector: { app: curriculum }
+  ports: [{ port: 8500, targetPort: 8500 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: billing }
+  template:
+    metadata:
+      labels: { app: billing }
+    spec:
+      containers:
+        - name: billing
+          image: ghcr.io/aoep/billing:latest
+          ports: [{ containerPort: 8600 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 8600 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing
+  namespace: aoep
+spec:
+  selector: { app: billing }
+  ports: [{ port: 8600, targetPort: 8600 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: aoep
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/aoep/web:latest
+          ports: [{ containerPort: 3000 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: aoep
+spec:
+  selector: { app: web }
+  ports: [{ port: 80, targetPort: 3000 }]
