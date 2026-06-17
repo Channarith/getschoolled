@@ -3,6 +3,20 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- scraper: content ingestion -> presentation decks (curriculum.ingest). Extracts
+  from textbook PDFs (pypdf), web articles/HTML (BeautifulSoup), and video/YouTube
+  transcripts; generates slide decks tagged by class genre (lecture, hands_on,
+  tutorial, video, article) and stores them in the CMS. New endpoints:
+  POST /ingest/pdf, /ingest/html, /ingest/url, /ingest/transcript, /ingest/youtube
+  (url/youtube are runtime/network; youtube dep is optional + import-guarded).
+- training: scaffold the education-LLM training subsystem (training/). Real,
+  tested data pipeline (pipeline.dataset/feedback): turns class transcripts +
+  audience context + user feedback into reward-weighted JSONL training examples;
+  finetune config (QLoRA, continuous schedule). FAIRNESS GUARDRAIL: protected
+  attributes (race, ethnicity) are excluded from model conditioning by design
+  (allowlisted pedagogical features only); enforced + tested. Actual 24/7
+  fine-tuning runs on a separate GPU cloud agent (see training/README.txt).
+- ci: include training/tests in the test matrix.
 - version: surface a single source-of-truth version in the running app.
   aoep_shared.version.get_version() resolves AOEP_VERSION env -> repo VERSION
   file -> package metadata; every FastAPI service reports it in /health (and the

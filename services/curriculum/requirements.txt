@@ -3,5 +3,12 @@ uvicorn[standard]==0.30.1
 pydantic==2.7.4
 pydantic-settings==2.3.4
 httpx==0.27.0
+python-multipart==0.0.32
 pytest==8.2.2
-# Installed editable in dev: ../../packages/shared (eduplatform-shared)
+# Content scraper -> presentation decks.
+pypdf==4.2.0
+beautifulsoup4==4.12.3
+requests==2.32.3
+# Optional runtime dep for YouTube ingestion (import-guarded):
+#   youtube-transcript-api
+# Installed editable in dev: ../../packages/shared (aoep-shared)

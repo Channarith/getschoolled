@@ -1,0 +1,42 @@
+# Education LLM fine-tune config (continuous training on the separate GPU agent).
+# Weights are NOT in the repo; base_model is pulled at runtime on the training
+# host. This file is the stable contract the training agent consumes.
+
+base_model: education-base            # open-weight base; served by us via vLLM
+method: qlora                         # LoRA/QLoRA for cheap, frequent updates
+precision: bf16
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+data:
+  # JSONL produced by pipeline.dataset; lives in the object store, not the repo.
+  train: s3://aoep-training/datasets/train.jsonl
+  eval: s3://aoep-training/datasets/eval.jsonl
+  # Only these conditioning features may appear in example context (enforced in
+  # code). Protected attributes (race, ethnicity) must never be present.
+  conditioning_features: [age_band, language, reading_level, learning_style, professionalism, prior_mastery]
+
+optim:
+  lr: 0.0002
+  epochs_per_cycle: 1
+  batch_size: 16
+  grad_accum: 4
+
+schedule:
+  mode: continuous          # run 24/7; one cycle per fresh batch of data
+  min_new_examples: 200     # don't fine-tune on trivially small deltas
+
+evaluation:
+  promote_if:
+    accuracy_gain_min: 0.0      # must not regress accuracy
+    fairness_regression_max: 0.0  # must not regress per-group fairness
+  fairness_groups_for_monitoring_only: [language, reading_level]
+
+serving:
+  # Promoted checkpoints are loaded by the cloud vLLM LLMProvider.
+  provider: vllm
+  rollout: canary
