@@ -2,25 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased] - 2026-06-17
-- phase0/phase1: scaffold runnable dev environment for the platform.
-- packages/shared: provider abstraction (LLM/Speech/Vision/Media/ObjectStore/
-  Payment) with local + cloud implementations and a config-driven factory;
-  dual-mode Settings (DEPLOY_MODE + per-component overrides; blank override
-  resolves to inherit); shared schemas; service health helper; factory tests.
-- services/orchestrator: FastAPI Teaching Director - lessons, sessions, slide
-  delivery, and RAG-grounded Q&A via the LLM provider; API tests.
-- services/{memory,speech,perception,curriculum,billing}: FastAPI skeletons with
-  /health plus a domain stub each (consent-gated attention, entitlements, etc.).
-- apps/agent-runtime: importable LiveKit Agents worker skeleton + tests.
-- apps/web: Next.js live-class UI (home, live class, dashboard, consent) that
-  drives the orchestrator teaching loop; lint/typecheck/build clean.
-- config/local.env + config/cloud.env; db/migrations (consent/compliance +
-  billing/entitlements); models/serving/vllm.yaml; sample-curriculum for RAG.
-- infra/compose docker-compose (web, services, LiveKit, Postgres+pgvector,
-  Redis, MinIO); per-service Dockerfiles; root Makefile; GitHub Actions CI.
-
-[seed] - 2026-06-16
+[unreleased] - 2026-06-16
+- ci: add Auto Push Build workflow that auto-commits and pushes build changes
+  (version bump, changelog roll, build-info.txt) back to GitHub after a fresh build.
+- build: add scripts/build_release.py (semver bump; minor when > 8 unreleased
+  features, else patch) and a tracked VERSION file (starts at 0.1.0).
 - seed: initialize repository for Cursor Cloud Agent execution.
 - add docs/plan.txt (architecture + phased roadmap, plain text).
 - add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
