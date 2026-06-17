@@ -1,0 +1,27 @@
+LESSON: Intro to Fractions
+LANGUAGE: en
+
+SLIDE 1 | What is a Fraction?
+A fraction represents a part of a whole. It is written as a numerator over a
+denominator, for example one half is written 1/2.
+NARRATION: A fraction shows part of a whole, like one half of a pizza.
+
+SLIDE 2 | Numerator and Denominator
+The denominator is the bottom number and tells how many equal parts the whole is
+divided into. The numerator is the top number and tells how many parts we have.
+NARRATION: The bottom number counts the total parts; the top number counts what we have.
+
+SLIDE 3 | Equivalent Fractions
+Two fractions are equivalent if they represent the same value, like 1/2 and 2/4.
+You can find them by multiplying or dividing numerator and denominator by the
+same number.
+NARRATION: One half equals two quarters; equivalent fractions name the same amount.
+
+SLIDE 4 | Adding Fractions
+To add fractions with the same denominator, add the numerators and keep the
+denominator. For different denominators, first find a common denominator.
+NARRATION: With the same bottom number, just add the top numbers.
+
+FACT: The denominator of a fraction can never be zero.
+FACT: A fraction equals one whole when the numerator equals the denominator.
+FACT: Equivalent fractions have the same value but different numbers.

@@ -11,4 +11,3 @@ Format: newest first. No markdown per project convention.
 - add docs/plan.txt (architecture + phased roadmap, plain text).
 - add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
 - add .gitignore, .editorconfig, .python-version.
-- next: phase0 foundations to be implemented by the Cloud Agent.

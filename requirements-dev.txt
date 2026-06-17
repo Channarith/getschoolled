@@ -1,0 +1,13 @@
+# Consolidated backend dev dependencies for the whole monorepo.
+# Installs the shared package editable, plus the libraries every Python service
+# needs to run and be tested locally (no GPU/model weights). Heavy, network- or
+# GPU-bound packages (livekit-agents, vLLM, Whisper/XTTS, InsightFace) are NOT
+# here; they live in per-service requirements and are pulled in their own images.
+-e packages/shared
+
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+httpx==0.27.0
+pytest==8.2.2

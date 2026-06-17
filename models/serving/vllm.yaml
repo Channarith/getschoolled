@@ -1,0 +1,16 @@
+# vLLM serving config for the base education LLM.
+# Weights are NOT committed (see .gitignore); they are downloaded at runtime into
+# models/weights/. This config is consumed by the local compose `vllm` service
+# and the cloud GPU model-serving deployment (same image, different resources).
+
+model: education-base
+served_model_name: education-base
+# Point to an open-weight base model; override per environment.
+download_dir: /models/weights
+dtype: auto
+max_model_len: 8192
+gpu_memory_utilization: 0.90
+tensor_parallel_size: 1
+port: 8000
+# RAG embeddings can be served by the same or a sidecar model; the provider
+# abstraction (eduplatform_shared) hides this from callers.
