@@ -2,7 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased] - 2026-06-17
+[unreleased]
+- (no changes yet)
+
+[0.2.0] - 2026-06-17
 - phase0: implement foundations end to end (monorepo, dual-mode, CI).
 - packages/shared: AppConfig dual-mode loader (DEPLOY_MODE + per-component
   *_MODE overrides), provider interfaces (LLM/Speech/Vision/Media/ObjectStore/
