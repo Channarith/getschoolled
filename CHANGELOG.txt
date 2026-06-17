@@ -3,6 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased] - 2026-06-16
+- ci: add Auto Push Build workflow that auto-commits and pushes build changes
+  (version bump, changelog roll, build-info.txt) back to GitHub after a fresh build.
+- build: add scripts/build_release.py (semver bump; minor when > 8 unreleased
+  features, else patch) and a tracked VERSION file (starts at 0.1.0).
 - seed: initialize repository for Cursor Cloud Agent execution.
 - add docs/plan.txt (architecture + phased roadmap, plain text).
 - add docs/cloud-agent-task.txt (phase-by-phase implementation brief for the agent).
