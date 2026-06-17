@@ -3,5 +3,11 @@ uvicorn[standard]==0.30.1
 pydantic==2.7.4
 pydantic-settings==2.3.4
 httpx==0.27.0
+python-multipart==0.0.32
 pytest==8.2.2
-# Installed editable in dev: ../../packages/shared (eduplatform-shared)
+# Self-hosted face recognition (CPU): YuNet detection + SFace embeddings.
+# Model weights are downloaded at runtime and kept OUT of the repo.
+opencv-contrib-python-headless==4.10.0.84
+onnxruntime==1.18.1
+numpy==1.26.4
+# Installed editable in dev: ../../packages/shared (aoep-shared / eduplatform-shared)

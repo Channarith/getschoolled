@@ -7,6 +7,17 @@ changes.
 
 ## Cursor Cloud specific instructions
 
+Face recognition (perception service): real, self-hosted via OpenCV YuNet +
+SFace (CPU; `aoep_shared.vision`). Model weights are NOT in the repo — they
+download at runtime to `VISION_MODEL_DIR` (default `~/.cache/aoep/models`) from
+the OpenCV Zoo on GitHub. The face-recognition tests fetch a small real dataset
+(`ageitgey/face_recognition` knn examples) into a cache and **skip** cleanly if
+that network is blocked, so a green run may mean "skipped" — check the summary.
+Perception needs `opencv-contrib-python-headless`, `onnxruntime`, `numpy`
+(in its requirements). NOTE: `main` currently has two parallel stacks
+(`aoep_shared`+`services/*/src/` and `eduplatform_shared`+`services/*/app/`);
+face recognition lives in the `aoep_shared`/`src` stack.
+
 Monorepo for the Agentic Online Education Platform. Backend = Python/FastAPI
 behind a provider abstraction (`packages/shared`); frontend = Next.js
 (`apps/web`). The dev loop runs services natively; `infra/compose` is for the

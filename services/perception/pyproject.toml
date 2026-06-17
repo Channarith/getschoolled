@@ -11,6 +11,11 @@ dependencies = [
   "aoep-shared",
   "fastapi>=0.111,<0.116",
   "uvicorn[standard]>=0.30,<0.35",
+  "python-multipart==0.0.32",
+  # Self-hosted face recognition (CPU): YuNet detection + SFace embeddings.
+  "opencv-contrib-python-headless==4.10.0.84",
+  "onnxruntime==1.18.1",
+  "numpy==1.26.4",
 ]
 
 [project.optional-dependencies]
