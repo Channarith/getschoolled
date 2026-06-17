@@ -2,7 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased] - 2026-06-16
+[unreleased]
+- (no changes yet)
+
+[0.1.1] - 2026-06-17
 - ci: add Auto Push Build workflow that auto-commits and pushes build changes
   (version bump, changelog roll, build-info.txt) back to GitHub after a fresh build.
 - build: add scripts/build_release.py (semver bump; minor when > 8 unreleased
