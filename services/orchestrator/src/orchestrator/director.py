@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional, Tuple
 
+from aoep_shared.adaptive import AdaptivePolicy, LearnerSignals, PacingPlan
 from aoep_shared.schemas import ClassType
 
 
@@ -64,3 +66,20 @@ class Director:
         self.state = nxt
         self.history.append(nxt)
         return nxt
+
+    def plan(
+        self,
+        ctx: ClassContext,
+        signals: Optional[LearnerSignals] = None,
+        *,
+        policy: Optional[AdaptivePolicy] = None,
+    ) -> Tuple[LessonState, Optional[PacingPlan]]:
+        """Decide the next state AND, when learner signals are available, an
+        adaptive pacing/difficulty plan (phase 4). Backwards compatible with
+        :meth:`decide` (state-only) when no signals are supplied.
+        """
+        state = self.decide(ctx)
+        if signals is None:
+            return state, None
+        plan = (policy or AdaptivePolicy()).plan(signals, class_type=ctx.class_type)
+        return state, plan

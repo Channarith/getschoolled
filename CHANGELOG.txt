@@ -3,6 +3,16 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- phase4: adaptive learning policy (aoep_shared.adaptive). Turns per-student
+  learning-behavior signals (mastery, quiz accuracy, response latency, attention
+  trend, question rate) into a pacing/difficulty/re-teach plan; solo personalizes
+  aggressively while group caps extremes. Wired into the Director (plan()) and a
+  new orchestrator POST /director/plan. Memory service records behavior events
+  (POST /behavior) and aggregates them (GET /learner/{id}/{topic}).
+- phase5: assessment (aoep_shared.assessment). Definition-check MCQ generation
+  from curriculum passages, difficulty-weighted grading -> mastery target, and
+  polls (vote/tally/leader). New orchestrator POST /assessment/quiz and
+  /assessment/grade. Extensive tests (orchestrator 22, memory 11 passing).
 - billing: add multiple consumer payment methods behind PaymentProvider -
   card, Apple Pay, Google Pay, Cash App Pay (Stripe), PayPal + Venmo (PayPal),
   and Zelle (manual bank transfer). New aoep_shared.payments registry maps each

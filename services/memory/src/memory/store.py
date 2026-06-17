@@ -9,7 +9,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from aoep_shared.adaptive import LearnerSignals, signals_from_events
 from aoep_shared.schemas import ConsentRecord, ConsentScope
+
+
+@dataclass
+class TopicBehavior:
+    """Learning-behavior events for one student on one topic (phase 4)."""
+
+    quiz_outcomes: list[bool] = field(default_factory=list)
+    response_latencies_s: list[float] = field(default_factory=list)
+    attention_samples: list[float] = field(default_factory=list)
+    questions_asked: int = 0
+    slides_seen: int = 0
 
 
 @dataclass
@@ -20,6 +32,8 @@ class StudentMemory:
     mastery: dict[str, float] = field(default_factory=dict)
     # scope -> granted?
     consents: dict[ConsentScope, bool] = field(default_factory=dict)
+    # topic -> behavior events
+    behavior: dict[str, TopicBehavior] = field(default_factory=dict)
 
 
 class MemoryStore:
@@ -61,3 +75,44 @@ class MemoryStore:
         updated = (1 - alpha) * prior + alpha * target
         mem.mastery[topic] = updated
         return updated
+
+    def record_behavior(
+        self,
+        student_id: str,
+        topic: str,
+        *,
+        quiz_correct: bool | None = None,
+        response_latency_s: float | None = None,
+        attention: float | None = None,
+        asked_question: bool = False,
+        saw_slide: bool = False,
+    ) -> None:
+        """Record raw learning-behavior events that feed the adaptive policy."""
+        mem = self._students.get(student_id) or self.upsert_student(
+            student_id, student_id
+        )
+        beh = mem.behavior.setdefault(topic, TopicBehavior())
+        if quiz_correct is not None:
+            beh.quiz_outcomes.append(quiz_correct)
+        if response_latency_s is not None:
+            beh.response_latencies_s.append(response_latency_s)
+        if attention is not None:
+            beh.attention_samples.append(attention)
+        if asked_question:
+            beh.questions_asked += 1
+        if saw_slide:
+            beh.slides_seen += 1
+
+    def learner_signals(self, student_id: str, topic: str) -> LearnerSignals:
+        """Aggregate this student's behavior on ``topic`` into adaptive signals."""
+        mem = self._students.get(student_id)
+        beh = mem.behavior.get(topic, TopicBehavior()) if mem else TopicBehavior()
+        mastery = mem.mastery.get(topic, 0.5) if mem else 0.5
+        return signals_from_events(
+            quiz_outcomes=beh.quiz_outcomes,
+            response_latencies_s=beh.response_latencies_s,
+            attention_samples=beh.attention_samples,
+            questions_asked=beh.questions_asked,
+            slides_seen=max(1, beh.slides_seen),
+            topic_mastery=mastery,
+        )

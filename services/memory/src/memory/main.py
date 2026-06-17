@@ -65,3 +65,43 @@ def has_consent(student_id: str, scope: ConsentScope) -> dict:
 def update_mastery(req: MasteryUpdate) -> dict:
     score = app.state.store.update_mastery(req.student_id, req.topic, req.correct)
     return {"student_id": req.student_id, "topic": req.topic, "mastery": score}
+
+
+class BehaviorEvent(BaseModel):
+    student_id: str
+    topic: str
+    quiz_correct: bool | None = None
+    response_latency_s: float | None = None
+    attention: float | None = None
+    asked_question: bool = False
+    saw_slide: bool = False
+
+
+@app.post("/behavior")
+def record_behavior(req: BehaviorEvent) -> dict:
+    app.state.store.record_behavior(
+        req.student_id,
+        req.topic,
+        quiz_correct=req.quiz_correct,
+        response_latency_s=req.response_latency_s,
+        attention=req.attention,
+        asked_question=req.asked_question,
+        saw_slide=req.saw_slide,
+    )
+    return {"student_id": req.student_id, "topic": req.topic, "recorded": True}
+
+
+@app.get("/learner/{student_id}/{topic}")
+def learner_signals(student_id: str, topic: str) -> dict:
+    """Aggregated learning-behavior signals used by the adaptive policy."""
+    s = app.state.store.learner_signals(student_id, topic)
+    return {
+        "student_id": student_id,
+        "topic": topic,
+        "topic_mastery": s.topic_mastery,
+        "quiz_accuracy": s.quiz_accuracy,
+        "avg_response_latency_s": s.avg_response_latency_s,
+        "attention_trend": s.attention_trend,
+        "question_rate": s.question_rate,
+        "skill": s.skill(),
+    }
