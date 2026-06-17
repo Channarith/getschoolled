@@ -8,7 +8,7 @@ and dependency-free.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Tuple, Union
 
 ImageLike = Union[bytes, bytearray, str, "object"]  # bytes | path | ndarray
@@ -22,11 +22,18 @@ DEFAULT_DET_SCORE_THRESHOLD = 0.7
 
 @dataclass
 class DetectedFace:
-    """A detected face with its embedding."""
+    """A detected face with its embedding and 5 facial landmarks.
+
+    landmarks order (YuNet): right eye, left eye, nose tip, right mouth corner,
+    left mouth corner - each an (x, y) pixel coordinate. frame_size is (w, h) of
+    the source image so landmarks/bbox can be normalized for engagement analysis.
+    """
 
     bbox: Tuple[int, int, int, int]  # (x, y, w, h)
     det_score: float
     embedding: List[float]  # 128-d SFace feature (unnormalized; use cosine)
+    landmarks: List[Tuple[float, float]] = field(default_factory=list)
+    frame_size: Tuple[int, int] = (0, 0)
 
     @property
     def area(self) -> int:
@@ -108,11 +115,17 @@ class FaceRecognitionEngine:
             aligned = self._recognizer.alignCrop(img, row)
             feat = self._recognizer.feature(aligned).flatten().astype("float32")
             x, y, bw, bh = (int(v) for v in row[:4])
+            # YuNet emits 5 landmarks at indices 4..13 (x, y pairs).
+            landmarks = [
+                (float(row[4 + 2 * i]), float(row[5 + 2 * i])) for i in range(5)
+            ]
             faces.append(
                 DetectedFace(
                     bbox=(x, y, bw, bh),
                     det_score=float(row[-1]),
                     embedding=feat.tolist(),
+                    landmarks=landmarks,
+                    frame_size=(w, h),
                 )
             )
         faces.sort(key=lambda f: f.area, reverse=True)

@@ -11,7 +11,16 @@ Public surface:
 - model helpers in ``aoep_shared.vision.models``.
 """
 
+from .engagement import EngagementSignals, GestureRecognizer, estimate_engagement
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
 
-__all__ = ["DetectedFace", "FaceRecognitionEngine", "FaceGallery", "Match"]
+__all__ = [
+    "DetectedFace",
+    "FaceRecognitionEngine",
+    "FaceGallery",
+    "Match",
+    "EngagementSignals",
+    "GestureRecognizer",
+    "estimate_engagement",
+]

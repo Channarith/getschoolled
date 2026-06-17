@@ -79,6 +79,8 @@ class AppConfig(BaseModel):
     # threshold for SFace embeddings (0.363 is OpenCV's calibrated default).
     vision_model_dir: str = ""
     vision_match_threshold: float = 0.363
+    # Persisted face gallery (cross-session student memory). Empty => in-memory.
+    vision_gallery_path: str = ""
     livekit_url: str = "ws://livekit:7880"
     livekit_api_key: str = "devkey"
     livekit_api_secret: str = "devsecret"
@@ -136,6 +138,7 @@ def load_config(
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
         vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
+        vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get("LIVEKIT_URL", "ws://livekit:7880"),
         livekit_api_key=get("LIVEKIT_API_KEY", "devkey"),
         livekit_api_secret=get("LIVEKIT_API_SECRET", "devsecret"),

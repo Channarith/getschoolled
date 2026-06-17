@@ -3,6 +3,19 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- perception: machine-vision engagement + cross-session student memory.
+  - Cross-session memory: FaceGallery now persists embeddings (save_json/
+    load_json); VisionProvider loads/saves at VISION_GALLERY_PATH so enrolled
+    students are remembered across sessions/restarts.
+  - Engagement (aoep_shared.vision.engagement): real gaze/attention + a coarse
+    expression proxy (neutral/smiling/surprised) computed from the detector's 5
+    facial landmarks; DetectedFace now carries landmarks + frame size.
+    analyze_image returns attention/gaze_frontal/expression (replacing the
+    det-score placeholder), surfaced in perception /identify.
+  - GestureRecognizer interface scaffolded (MediaPipe Hands/Pose is the real
+    backend; raises until configured).
+  - Engagement feeds the phase-4 adaptive policy so the teacher slows/re-teaches
+    for disengaged students and speeds up for engaged ones. Tests: 160 passing.
 - web: audience-tailored landing templates. The front page is now re-skinnable
   via a data-driven theme registry (apps/web/app/lib/themes.ts) + a Template
   switcher: Corporate, Khmer Heritage (Angkor Wat), Culinary, Kids & Gamified,
