@@ -1,0 +1,81 @@
+// Client for the orchestrator (Teaching Director) API.
+// Base URL is configurable so the SAME UI runs against local or cloud backends.
+
+export const ORCHESTRATOR_URL =
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
+
+export type Slide = {
+  index: number;
+  title: string;
+  body: string;
+  narration: string;
+};
+
+export type Lesson = {
+  lesson_id: string;
+  title: string;
+  language: string;
+  slides: Slide[];
+};
+
+export type SessionState = {
+  session_id: string;
+  class_type: string;
+  lesson_id: string;
+  current_slide: number;
+  history: { role: string; text: string }[];
+};
+
+export type SessionView = {
+  session: SessionState;
+  lesson: Lesson;
+  slide: Slide;
+};
+
+export type Answer = {
+  text: string;
+  citations: string[];
+  language: string;
+};
+
+async function jsonOrThrow<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
+
+export async function listLessons(): Promise<Lesson[]> {
+  return jsonOrThrow(await fetch(`${ORCHESTRATOR_URL}/api/lessons`, { cache: "no-store" }));
+}
+
+export async function startSession(
+  lessonId: string,
+  classType: string
+): Promise<SessionView> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lesson_id: lessonId, class_type: classType }),
+    })
+  );
+}
+
+export async function advance(sessionId: string): Promise<Slide> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/advance`, {
+      method: "POST",
+    })
+  );
+}
+
+export async function ask(sessionId: string, text: string): Promise<Answer> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, language: "en" }),
+    })
+  );
+}

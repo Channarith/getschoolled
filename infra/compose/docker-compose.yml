@@ -1,0 +1,122 @@
+# Local full-stack development compose for the Agentic Online Education Platform.
+# Validate with: docker compose -f infra/compose/docker-compose.yml config
+# (or `make compose-config`). Cloud uses infra/k8s with the same images/env.
+
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: edu
+      POSTGRES_PASSWORD: edu
+      POSTGRES_DB: edu
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ../../db/migrations:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+
+  orchestrator:
+    build:
+      context: ../..
+      dockerfile: services/orchestrator/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  memory:
+    build:
+      context: ../..
+      dockerfile: services/memory/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8004:8000"
+    depends_on:
+      - postgres
+
+  speech:
+    build:
+      context: ../..
+      dockerfile: services/speech/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8002:8000"
+
+  perception:
+    build:
+      context: ../..
+      dockerfile: services/perception/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8003:8000"
+
+  curriculum:
+    build:
+      context: ../..
+      dockerfile: services/curriculum/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8005:8000"
+
+  billing:
+    build:
+      context: ../..
+      dockerfile: services/billing/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8006:8000"
+
+  agent-runtime:
+    build:
+      context: ../..
+      dockerfile: apps/agent-runtime/Dockerfile
+    env_file:
+      - ../../config/local.env
+    depends_on:
+      - livekit
+      - orchestrator
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_ORCHESTRATOR_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orchestrator
