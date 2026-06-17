@@ -181,6 +181,10 @@ class CheckoutSession:
     session_id: str
     url: str
     provider: str
+    method: str = "card"
+    # For manual methods (e.g. Zelle) there is no hosted page; instructions
+    # tell the payer how to complete the transfer.
+    instructions: str = ""
 
 
 @dataclass
@@ -197,6 +201,15 @@ class PaymentProvider(Provider):
 
     capability = "payment"
 
+    def supported_methods(self) -> "frozenset":
+        """Payment methods this provider can actually process."""
+        return frozenset()
+
+    def supports(self, method) -> bool:
+        return method in self.supported_methods()
+
     @abc.abstractmethod
-    def create_checkout(self, *, customer_id: str, plan: str) -> CheckoutSession:
+    def create_checkout(
+        self, *, customer_id: str, plan: str, method=None
+    ) -> CheckoutSession:
         ...

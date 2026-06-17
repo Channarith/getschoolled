@@ -3,6 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- billing: add multiple consumer payment methods behind PaymentProvider -
+  card, Apple Pay, Google Pay, Cash App Pay (Stripe), PayPal + Venmo (PayPal),
+  and Zelle (manual bank transfer). New aoep_shared.payments registry maps each
+  method to its processor. Sandbox simulates every method (offline-testable);
+  Stripe advertises only what it can process and rejects others. Billing API
+  adds GET /payment-methods and a method-aware POST /checkout (Zelle returns
+  transfer instructions). Extensive tests (25 passing).
 - perception: implement real, self-hosted face recognition (OpenCV YuNet
   detection + SFace 128-d embeddings, CPU). New aoep_shared.vision package
   (FaceRecognitionEngine, FaceGallery, runtime model fetch; weights kept out of
