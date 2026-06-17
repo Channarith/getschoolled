@@ -3,6 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- web: audience-tailored landing templates. The front page is now re-skinnable
+  via a data-driven theme registry (apps/web/app/lib/themes.ts) + a Template
+  switcher: Corporate, Khmer Heritage (Angkor Wat), Culinary, Kids & Gamified,
+  Academic. Each template sets palette, fonts, hero copy, background art, and a
+  gamified flag; selection persists (localStorage) and is shareable via ?theme=.
+  Themed background art added under apps/web/public/themes/. Adding a new
+  audience is a config-only change.
 - format: add AOEPLX, our own layered live-teaching scene format
   (aoep_shared.scene + docs/aoeplx-format.txt). Scenes are lightweight
   asset-by-reference manifests of ordered layers (video/audio/image/whiteboard/
