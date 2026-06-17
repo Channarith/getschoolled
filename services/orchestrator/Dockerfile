@@ -1,18 +1,17 @@
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# Build context = repo root (needs packages/shared and sample-curriculum).
+FROM python:3.11-slim
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
-# Shared library first (changes least often) then the service.
 COPY packages/shared /app/packages/shared
+COPY services/orchestrator/requirements.txt /app/services/orchestrator/requirements.txt
+RUN pip install --no-cache-dir -e /app/packages/shared \
+    && pip install --no-cache-dir -r /app/services/orchestrator/requirements.txt
+
 COPY services/orchestrator /app/services/orchestrator
+COPY sample-curriculum /app/sample-curriculum
 
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install /app/packages/shared \
-    && python3 -m pip install /app/services/orchestrator
-
+WORKDIR /app/services/orchestrator
 EXPOSE 8000
-CMD ["uvicorn", "orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

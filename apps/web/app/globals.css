@@ -1,9 +1,12 @@
 :root {
   --bg: #0b1020;
-  --panel: #141b34;
-  --accent: #5b8cff;
-  --text: #e8ecf8;
-  --muted: #9aa3bf;
+  --panel: #151c34;
+  --panel-2: #1d2746;
+  --accent: #6ea8fe;
+  --accent-2: #8be9c0;
+  --text: #e8ecf6;
+  --muted: #9aa6c2;
+  --border: #2a3461;
 }
 
 * {
@@ -16,44 +19,130 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+    Arial, sans-serif;
 }
 
 a {
   color: var(--accent);
-  text-decoration: none;
 }
 
 .container {
   max-width: 960px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem;
+  padding: 32px 24px 64px;
+}
+
+.nav {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.nav .brand {
+  font-weight: 700;
+  margin-right: auto;
 }
 
 .card {
   background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
+  padding: 20px;
+  margin: 16px 0;
 }
 
-.badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(91, 140, 255, 0.15);
+.slide {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  min-height: 200px;
+}
+
+.slide h2 {
+  margin-top: 0;
   color: var(--accent);
+}
+
+button {
+  background: var(--accent);
+  color: #0b1020;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .muted {
   color: var(--muted);
 }
 
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  max-width: 80%;
+}
+
+.bubble.student {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #0b1020;
+}
+
+.bubble.teacher {
+  align-self: flex-start;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.cite {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
 .grid {
   display: grid;
-  gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
 }

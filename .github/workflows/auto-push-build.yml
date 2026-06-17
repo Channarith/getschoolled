@@ -1,0 +1,82 @@
+name: Auto Push Build
+
+# Auto-pushes build changes (version bump, changelog roll, build manifest) back
+# to the repo after a fresh build. Runs on pushes to main and on manual dispatch.
+# The auto-commit carries [skip ci] and is made with GITHUB_TOKEN, so it never
+# retriggers this workflow (no infinite loop).
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-push-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fresh web build (no cache)
+        run: |
+          if [ -f apps/web/package.json ]; then
+            echo "Building apps/web (fresh, no cache)"
+            cd apps/web
+            pnpm install --frozen-lockfile || pnpm install
+            pnpm run build
+          else
+            echo "apps/web not present yet; skipping web build"
+          fi
+
+      - name: Fresh python build (no cache)
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then
+            pip install --no-cache-dir -r requirements-dev.txt || true
+          fi
+          if [ -f packages/shared/pyproject.toml ]; then
+            pip install --no-cache-dir -e packages/shared || true
+          fi
+
+      - name: Generate build changes
+        run: python3 scripts/build_release.py
+
+      - name: Commit and push build changes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- VERSION CHANGELOG.txt build-info.txt; then
+            echo "No build changes to push."
+            exit 0
+          fi
+          version_str="$(cat VERSION)"
+          git add VERSION CHANGELOG.txt build-info.txt
+          git commit -m "build: auto-push build changes for v${version_str} [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Pushed build changes for v${version_str} to ${GITHUB_REF_NAME}"

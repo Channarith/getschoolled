@@ -1,17 +1,12 @@
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+# Build context = repo root (needs packages/shared).
+FROM python:3.11-slim
 WORKDIR /app
-
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY packages/shared /app/packages/shared
+COPY services/perception/requirements.txt /app/services/perception/requirements.txt
+RUN pip install --no-cache-dir -e /app/packages/shared \
+    && pip install --no-cache-dir -r /app/services/perception/requirements.txt
 COPY services/perception /app/services/perception
-
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install /app/packages/shared \
-    && python3 -m pip install /app/services/perception
-
-EXPOSE 8200
-CMD ["uvicorn", "perception.main:app", "--host", "0.0.0.0", "--port", "8200"]
+WORKDIR /app/services/perception
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

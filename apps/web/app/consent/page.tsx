@@ -2,39 +2,39 @@
 
 import { useState } from "react";
 
-const SCOPES = [
-  ["face_recognition", "Recognize me by face (opt-in; name-only otherwise)"],
-  ["attention_tracking", "Estimate my attention/engagement"],
-  ["recording", "Record this session"],
-  ["cross_class_memory", "Remember me across classes"],
-];
-
 export default function ConsentPage() {
-  const [granted, setGranted] = useState<Record<string, boolean>>({});
+  const [consent, setConsent] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   return (
-    <main>
+    <main className="container">
+      <h1>Biometric Consent</h1>
       <div className="card">
-        <h2>Consent &amp; privacy</h2>
-        <p className="muted">
-          Biometric features are off until you turn them on. Face embeddings are
-          stored encrypted, never leave the configured boundary, and are
-          deletable on request (FERPA / GDPR / BIPA).
+        <p>
+          To recognize you across classes and measure attention, the platform
+          processes camera frames using self-hosted vision models. Biometric data
+          never leaves the configured boundary, is stored encrypted, and is
+          deletable on request. This is opt-in, with a name-only fallback.
         </p>
-        {SCOPES.map(([scope, label]) => (
-          <div key={scope} style={{ margin: "0.5rem 0" }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={!!granted[scope]}
-                onChange={(e) =>
-                  setGranted((g) => ({ ...g, [scope]: e.target.checked }))
-                }
-              />
-              &nbsp;{label}
-            </label>
-          </div>
-        ))}
+        <label className="row">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => {
+              setConsent(e.target.checked);
+              setSaved(false);
+            }}
+          />
+          <span>I consent to consent-gated vision features for my sessions.</span>
+        </label>
+        <div className="row" style={{ marginTop: 12 }}>
+          <button onClick={() => setSaved(true)}>Save preference</button>
+          {saved && (
+            <span className="muted">
+              Saved: vision features are {consent ? "enabled" : "disabled"}.
+            </span>
+          )}
+        </div>
       </div>
     </main>
   );

@@ -1,41 +1,42 @@
 import Link from "next/link";
 
-const AGENTS = [
-  ["Teaching Director", "Balances teach / answer / quiz / re-engage."],
-  ["Lesson Delivery", "Walks the deck, narrates slides via TTS."],
-  ["Q&A / Tutor", "RAG over the curriculum, answers in your language."],
-  ["Assessment", "Pop quizzes, key-point checks, polls, mastery."],
-  ["Perception", "Face recognition + attention (consent-gated)."],
-  ["Speech", "Streaming ASR, language ID, translation, TTS."],
-  ["Memory / Profile", "Long-term per-student profile + mastery graph."],
-  ["Consent / Compliance", "Gates biometrics; FERPA / GDPR / BIPA."],
-];
-
-export default function Home() {
+export default function HomePage() {
   return (
-    <main>
-      <section className="card">
-        <h2>Live classes, taught by a team of AI agents</h2>
-        <p className="muted">
-          Group and 1:1 instruction over WebRTC. The same codebase runs fully
-          local or against a cloud backend, switched by config only.
-        </p>
-        <p>
-          <Link href="/class/demo-room">Enter the demo classroom</Link> &nbsp;·&nbsp;
-          <Link href="/consent">Manage consent</Link>
-        </p>
-      </section>
+    <main className="container">
+      <h1>Agentic Online Education Platform</h1>
+      <p className="muted">
+        A multi-agent AI instructor that teaches live classes, adapts to each
+        student, and remembers them across sessions. This dev build runs the
+        Phase&nbsp;1 teaching loop end to end against the orchestrator.
+      </p>
 
-      <h3>The teaching agents</h3>
       <div className="grid">
-        {AGENTS.map(([name, desc]) => (
-          <div className="card" key={name}>
-            <strong>{name}</strong>
-            <p className="muted" style={{ marginBottom: 0 }}>
-              {desc}
-            </p>
-          </div>
-        ))}
+        <div className="card">
+          <h3>Join a Live Class</h3>
+          <p className="muted">
+            Start a session, watch the AI teacher present slides, and ask
+            questions answered from the lesson via RAG.
+          </p>
+          <Link href="/class">
+            <button>Enter classroom</button>
+          </Link>
+        </div>
+        <div className="card">
+          <h3>Teacher Dashboard</h3>
+          <p className="muted">Overview of agents and platform capabilities.</p>
+          <Link href="/dashboard">
+            <button className="secondary">Open dashboard</button>
+          </Link>
+        </div>
+        <div className="card">
+          <h3>Biometric Consent</h3>
+          <p className="muted">
+            Vision features are opt-in and consent-gated (FERPA/GDPR/BIPA).
+          </p>
+          <Link href="/consent">
+            <button className="secondary">Manage consent</button>
+          </Link>
+        </div>
       </div>
     </main>
   );

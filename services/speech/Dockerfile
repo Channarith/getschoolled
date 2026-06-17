@@ -1,17 +1,12 @@
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim AS base
-
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+# Build context = repo root (needs packages/shared).
+FROM python:3.11-slim
 WORKDIR /app
-
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY packages/shared /app/packages/shared
+COPY services/speech/requirements.txt /app/services/speech/requirements.txt
+RUN pip install --no-cache-dir -e /app/packages/shared \
+    && pip install --no-cache-dir -r /app/services/speech/requirements.txt
 COPY services/speech /app/services/speech
-
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install /app/packages/shared \
-    && python3 -m pip install /app/services/speech
-
-EXPOSE 8100
-CMD ["uvicorn", "speech_gw.main:app", "--host", "0.0.0.0", "--port", "8100"]
+WORKDIR /app/services/speech
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
