@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P22 harvest gate + catalog upsert (aoep_shared/harvest/pipeline.py):
+  HarvestPipeline applies the license gate + an optional validation gate, then an
+  idempotent upsert (re-harvest updates, never duplicates) into a batch-versioned
+  CatalogUpsertStore; revert_batch() rolls back a bad harvest batch; BatchMetrics
+  (ingested/upserted/updated/dropped). Offline-tested.
 
 [0.3.24] - 2026-06-18
 - P19 champion promotion (training/promote.py + PROMOTE_RUNBOOK.txt): runs the
