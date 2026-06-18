@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.14] - 2026-06-18
 - training scaffold (Track A/B): RoutedLLMProvider (per-domain adapter routing,
   LLM_ROUTES) for the open-weight multi-model track; training/bakeoff.py champion-
   challenger harness (non-regressing promotion via the OptimizationLedger);
