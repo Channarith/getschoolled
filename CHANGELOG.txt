@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Accounts P2 (catalog metadata + search): Course gains browse/search metadata
+  (category, tags, audio_language, media_format, level, duration_min, hands_on,
+  preview, access_tier, price_usd, thumbnail; category/audio default from subject/
+  language). New faceted GET /courses/search (q + category/language/audio/
+  media_format/level/tag/hands_on/delivery_mode/access_tier) and GET /courses/facets
+  for the filter UI. Tests.
 
 [0.3.53] - 2026-06-18
 - Accounts P1 (identity service): aoep_shared/auth.py (PBKDF2 password hashing +
