@@ -75,6 +75,10 @@ class AppConfig(BaseModel):
     llm_model: str = "aoep-base-edu"
     # Track B routing: "category=model,category=model" -> per-domain adapters.
     llm_routes: str = ""
+    # 24/7 harvester (runs on a separate worker agent).
+    harvest_user_agent: str = "AOEP-Harvester/1.0 (+contact@example.org)"
+    harvest_max_rps: float = 1.0
+    harvest_seeds: str = ""
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
     # Face-model cache dir (empty -> ~/.cache/aoep/models) and cosine match
@@ -144,6 +148,9 @@ def load_config(
         llm_base_url=get("LLM_BASE_URL", "http://llm:8000/v1"),
         llm_model=get("LLM_MODEL", "aoep-base-edu"),
         llm_routes=get("LLM_ROUTES", ""),
+        harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
+        harvest_max_rps=float(get("HARVEST_MAX_RPS", "1.0") or "1.0"),
+        harvest_seeds=get("HARVEST_SEEDS", ""),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
         vision_model_dir=get("VISION_MODEL_DIR", ""),

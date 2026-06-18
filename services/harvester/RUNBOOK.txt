@@ -1,0 +1,37 @@
+HARVESTER RUNBOOK - 24/7 large-scale course-material ingestion (100k+)
+======================================================================
+
+Runs on a SEPARATE long-lived worker agent (its own thread/pod), independent of
+the app stack. It only ingests permissively-licensed / OER material: the license
+gate (aoep_shared.harvest.is_allowed) runs BEFORE any fetch.
+
+PIPELINE (aoep_shared/harvest)
+  seeds -> HarvestQueue (URL dedup) -> HarvestWorker.process per source:
+    license gate -> fetch (robots + rate-limit) -> extract -> content dedup ->
+    normalize to a Deck -> POST to curriculum /decks + register in the catalog.
+
+WIRING THE REAL WORKER (on the worker agent)
+  - fetcher:   httpx GET honoring robots.txt + a polite rate limit + retries.
+  - extractor: services/curriculum/.../ingest.py (extract_pdf/html/transcript ->
+               sections_to_deck) keyed off SourceSpec.source_type.
+  - sink:      POST {CURRICULUM_URL}/decks and add a catalog Course/Module.
+  Then: HarvestWorker(fetcher, extractor, sink).run(queue)  in a loop.
+
+REQUIRED SECRETS / ENV (Cursor Secrets panel or the worker agent env)
+  - CURRICULUM_URL        curriculum service base URL to post decks/catalog
+  - OBJECT_STORE_*        S3/MinIO creds for storing raw artifacts (see cloud.env)
+  - HARVEST_USER_AGENT    contact UA string for polite crawling
+  - HARVEST_MAX_RPS       global rate limit (politeness)
+  - HARVEST_SEEDS         path/URL of the seed list (OER portals, OCW, etc.)
+  - (optional) source API keys if pulling from APIs instead of crawling
+
+SCALE / DURABILITY (production swaps for the in-memory stubs)
+  - Back HarvestQueue with Redis/DB so progress survives restarts; shard by host.
+  - Dedup with persistent URL + content (minhash) stores.
+  - Batch + version ingested decks; run validation (aoep_shared.validation) and
+    only publish corroborated content; route low-confidence items to corrections.
+
+OPERATE
+  - Start N workers (one per shard). Monitor HarvestStats
+    (fetched/ingested/skipped_license/skipped_dup/errors).
+  - It is safe to stop/restart; the queue + dedup sets make it idempotent.
