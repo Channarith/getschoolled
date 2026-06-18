@@ -116,6 +116,8 @@ class AppConfig(BaseModel):
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
+    # Deployment region for the compliance policy engine (us | eu | us_il | other).
+    region: str = "us"
 
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
@@ -176,6 +178,7 @@ def load_config(
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
+        region=get("REGION", "us"),
         vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get("LIVEKIT_URL", "ws://livekit:7880"),

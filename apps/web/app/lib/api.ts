@@ -7,6 +7,9 @@ export const ORCHESTRATOR_URL =
 export const CURRICULUM_URL =
   process.env.NEXT_PUBLIC_CURRICULUM_URL ?? "http://localhost:8005";
 
+export const MEMORY_URL =
+  process.env.NEXT_PUBLIC_MEMORY_URL ?? "http://localhost:8004";
+
 export type Slide = {
   index: number;
   title: string;
@@ -75,6 +78,35 @@ export async function advance(sessionId: string): Promise<Slide> {
       method: "POST",
     })
   );
+}
+
+export type LegalNotice = {
+  id: string;
+  title: string;
+  version: string;
+  summary: string;
+  path: string;
+};
+
+export async function getLegalNotices(): Promise<{ required: string[]; notices: LegalNotice[] }> {
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/legal/notices`, { cache: "no-store" }));
+}
+
+export async function acceptLegal(userId: string, noticeIds: string[]): Promise<{
+  all_required_accepted: boolean;
+  outstanding: string[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/legal/accept`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user_id: userId, notice_ids: noticeIds }),
+    })
+  );
+}
+
+export async function getCompliance(region: string): Promise<Record<string, unknown>> {
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/compliance/${region}`, { cache: "no-store" }));
 }
 
 export type ReviewItem = {

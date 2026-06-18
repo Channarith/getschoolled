@@ -3,7 +3,14 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Compliance engine + agreement flow + EU emotion gate: aoep_shared/compliance.py
+  encodes region policy (FERPA/COPPA/GDPR/BIPA/EU AI Act) with enforceable checks
+  (feature_allowed, requires_parental_consent, requires_written_consent); the EU
+  AI Act emotion-recognition prohibition is now ENFORCED - the vision provider
+  suppresses expression where disallowed (REGION config). aoep_shared/legal.py +
+  memory endpoints GET /legal/notices, POST /legal/accept, GET /legal/acceptance/
+  {user}, GET /compliance/{region}; web /legal page (notices + recorded agreement
+  + region summary) and a site footer. Tests for policy, acceptance, and the gate.
 
 [0.3.48] - 2026-06-18
 - Legal/licensing/notices: added a proprietary LICENSE; legal/ notices (TERMS,

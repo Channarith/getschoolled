@@ -381,6 +381,13 @@ encodes FERPA/COPPA/GDPR/BIPA and the **EU AI Act** (which **prohibits emotion
 recognition in education**, so the platform disables expression/emotion inference
 in the EU). Recording and data-retention disclosures are surfaced in-app.
 
+The compliance policy is **enforced**, not just documented: set `REGION`
+(`us`/`us_il`/`eu`/`other`) and the platform applies that region's rules. Users
+record agreement to the required notices via the `/legal` page (memory service:
+`GET /legal/notices`, `POST /legal/accept`, `GET /legal/acceptance/{user}`,
+`GET /compliance/{region}`). Example enforcement: in the EU the vision provider
+suppresses expression/emotion inference (EU AI Act prohibition).
+
 > These legal documents are engineering templates and **must be reviewed by
 > qualified counsel** before any commercial/public release; they are not legal advice.
 

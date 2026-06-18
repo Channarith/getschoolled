@@ -118,7 +118,8 @@ class FaceObservation:
     matched_student_id: Optional[str] = None
     # Engagement signals (machine vision) used to adapt teaching in real time.
     gaze_frontal: float = 0.0
-    expression: str = "unknown"
+    # ``None`` where emotion recognition is prohibited by region (EU AI Act).
+    expression: Optional[str] = "unknown"
 
 
 class VisionProvider(Provider):

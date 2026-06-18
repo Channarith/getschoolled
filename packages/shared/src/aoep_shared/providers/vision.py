@@ -86,13 +86,20 @@ class _BaseVisionProvider(VisionProvider):
             )
             # Real engagement signals from face geometry (gaze + expression).
             eng = estimate_engagement(face.landmarks, face.bbox, face.frame_size)
+            # Compliance gate: the EU AI Act prohibits emotion recognition in
+            # education, so expression inference is suppressed where disallowed.
+            from ..compliance import emotion_recognition_allowed
+
+            expression = eng.expression if emotion_recognition_allowed(
+                getattr(self._config, "region", "us")
+            ) else None
             observations.append(
                 FaceObservation(
                     track_id=f"face-{idx}",
                     embedding_ref=None,  # never expose raw biometrics
                     attention_score=eng.attention,
                     gaze_frontal=eng.gaze_frontal,
-                    expression=eng.expression,
+                    expression=expression,
                     matched_student_id=match.student_id if match.matched else None,
                 )
             )
