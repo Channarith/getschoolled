@@ -44,6 +44,9 @@ NOTICES: List[Notice] = [
            "School-official exception, residency, breach notification.", "legal/DPA.txt"),
     Notice("security", "Security Policy", "1.0",
            "Vulnerability disclosure + user breach-notification policy.", "SECURITY.txt"),
+    Notice("sweepstakes", "Rewards & Sweepstakes Rules", "1.0",
+           "Points/rewards + prize sweepstakes official rules (no purchase necessary).",
+           "legal/SWEEPSTAKES.txt"),
 ]
 
 # Notices a user MUST accept before using the service. The one-time AI & consent

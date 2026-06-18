@@ -3,7 +3,14 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Rewards/points system: aoep_shared/rewards.py (points_for_completion scaled by
+  level/score/hands-on; PointsLedger; prize catalog + redeem_prize). Identity
+  awards points on first course pass (idempotent) and exposes GET /rewards,
+  GET /rewards/catalog, POST /rewards/redeem (class discount vouchers, items, or
+  raffle entries for prizes like a PS5 / gold bar). Web /rewards page (balance,
+  catalog, redeem, activity) + points shown on /account + nav link. Added
+  legal/SWEEPSTAKES.txt official rules (no purchase necessary) + a sweepstakes
+  legal notice. Tested.
 
 [0.3.55] - 2026-06-18
 - Accounts P3 (web member experience): login/signup page (token in localStorage),

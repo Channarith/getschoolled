@@ -6,6 +6,7 @@ import {
   changePassword,
   clearToken,
   getPortfolio,
+  getRewards,
   getToken,
   setMembershipTier,
   type Portfolio,
@@ -25,12 +26,18 @@ export default function AccountPage() {
   const [cur, setCur] = useState("");
   const [next, setNext] = useState("");
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [points, setPoints] = useState<number | null>(null);
 
   async function refresh() {
     try {
       setPortfolio(await getPortfolio());
     } catch (e) {
       setError(String(e));
+    }
+    try {
+      setPoints((await getRewards()).balance);
+    } catch {
+      setPoints(null);
     }
   }
 
@@ -92,6 +99,11 @@ export default function AccountPage() {
               </div>
               <button onClick={logout}>Sign out</button>
             </div>
+            {points != null && (
+              <div className="muted" style={{ marginTop: 8 }}>
+                ⭐ {points} reward points — <Link href="/rewards">redeem for discounts or prizes</Link>
+              </div>
+            )}
           </div>
 
           <div className="card">

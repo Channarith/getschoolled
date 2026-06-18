@@ -128,15 +128,56 @@ def enroll(req: EnrollRequest, acct=Depends(current_account)) -> dict:
 class StatusUpdate(BaseModel):
     status: EnrollmentStatus
     score: float | None = None
+    level: str | None = None
+    hands_on: bool | None = None
 
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
     try:
-        enr = app.state.accounts.set_status(acct.id, course_id, req.status, score=req.score)
+        enr = app.state.accounts.set_status(
+            acct.id, course_id, req.status, score=req.score, level=req.level,
+            hands_on=req.hands_on)
     except KeyError:
         raise HTTPException(status_code=404, detail="not enrolled in that course")
-    return enr.model_dump()
+    return {**enr.model_dump(), "points_balance": app.state.accounts.points_balance(acct.id)}
+
+
+# --------------------------------------------------------------------------- #
+# Rewards (points for completion -> discounts / prizes / raffle entries)
+# --------------------------------------------------------------------------- #
+@app.get("/rewards")
+def rewards(acct=Depends(current_account)) -> dict:
+    return app.state.accounts.rewards_summary(acct.id)
+
+
+@app.get("/rewards/catalog")
+def rewards_catalog() -> dict:
+    from aoep_shared.rewards import REWARDS_CATALOG
+
+    return {"prizes": [
+        {"id": p.id, "name": p.name, "kind": p.kind.value,
+         "cost_points": p.cost_points, "detail": p.detail}
+        for p in REWARDS_CATALOG
+    ]}
+
+
+class RedeemRequest(BaseModel):
+    prize_id: str
+
+
+@app.post("/rewards/redeem")
+def rewards_redeem(req: RedeemRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.rewards import prize_by_id
+
+    prize = prize_by_id(req.prize_id)
+    if prize is None:
+        raise HTTPException(status_code=404, detail="unknown prize")
+    try:
+        rec = app.state.accounts.redeem(acct.id, prize)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"redemption": rec, "balance": app.state.accounts.points_balance(acct.id)}
 
 
 @app.get("/portfolio")
