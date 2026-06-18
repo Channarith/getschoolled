@@ -131,7 +131,7 @@ workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-t
 | 6.1 | Harvest source spec + license gate (`harvest/sources.py`) | ✅ | #32 |
 | 6.2 | Harvest dedup queue (`harvest/queue.py`) | ✅ | #32 |
 | 6.3 | Harvest worker pipeline + stats (`harvest/worker.py`) | ✅ | #32 |
-| 6.4 | Worker wiring (curriculum ingest + catalog) + runbook | ◑ | #32 |
+| 6.4 | Quality+license gate -> idempotent, batch-versioned catalog upsert + metrics (`harvest/pipeline.py`) | ✅ | #32, #42 |
 | 6.5 | 24/7 scale/durability (Redis-backed queue, minhash dedup, batch versioning) | ◑ | #32 |
 
 All ✅ rows run and are tested in this repo (full suite green &mdash; 257 tests). The ◑
