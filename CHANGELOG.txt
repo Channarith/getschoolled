@@ -3,7 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- hallucination guard: aoep_shared/groundedness.py - check_grounding scores an
+  answer's claims against the retrieved context (groundedness + hallucination
+  risk + unsupported claims); guard_answer abstains/grounds an ungrounded answer
+  so unsupported content is never served. Wired into the Tutor (Answer now
+  reports grounded / hallucination_risk / unsupported and serves a context-
+  faithful fallback when risk is high) + POST /api/groundedness/check. Detected
+  hallucinations feed the corrections back-prop loop for a fast durable fix.
 
 [0.3.8] - 2026-06-18
 - corrections back-prop (P8): POST /corrections/{id}/apply (approved only) -

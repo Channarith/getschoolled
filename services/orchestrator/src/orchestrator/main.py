@@ -162,6 +162,32 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
 
 
 # --------------------------------------------------------------------------- #
+# Hallucination guard (groundedness check)
+# --------------------------------------------------------------------------- #
+class GroundingRequest(BaseModel):
+    answer: str
+    context: list[str] = []
+    support_threshold: float = 0.5
+    pass_threshold: float = 0.7
+
+
+@app.post("/api/groundedness/check")
+def groundedness_check(req: GroundingRequest) -> dict:
+    from aoep_shared.groundedness import check_grounding
+
+    report = check_grounding(
+        req.answer, req.context,
+        support_threshold=req.support_threshold, pass_threshold=req.pass_threshold,
+    )
+    return {
+        "groundedness": report.groundedness,
+        "hallucination_risk": report.hallucination_risk,
+        "grounded": report.grounded,
+        "unsupported": report.unsupported,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Slang / idiom understanding
 # --------------------------------------------------------------------------- #
 class SlangRequest(BaseModel):
