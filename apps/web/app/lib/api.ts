@@ -147,6 +147,36 @@ export async function getFacets(): Promise<Facets> {
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/courses/facets`, { cache: "no-store" }));
 }
 
+// --- rewards (points for completion -> discounts / prizes) --------------- //
+export type LedgerEntry = { delta: number; reason: string; ref: string; ts: number };
+export type Redemption = {
+  prize_id: string; kind: string; cost_points: number;
+  voucher_code: string | null; percent: number | null;
+  raffle_entry_id: string | null; detail: Record<string, unknown>;
+};
+export type RewardsSummary = { balance: number; ledger: LedgerEntry[]; redemptions: Redemption[] };
+export type RewardPrize = {
+  id: string; name: string; kind: string; cost_points: number; detail: Record<string, unknown>;
+};
+
+export async function getRewards(): Promise<RewardsSummary> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/rewards`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+export async function getRewardsCatalog(): Promise<{ prizes: RewardPrize[] }> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/rewards/catalog`, { cache: "no-store" }));
+}
+
+export async function redeemReward(prizeId: string):
+  Promise<{ redemption: Redemption; balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/rewards/redeem`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ prize_id: prizeId }),
+    })
+  );
+}
+
 export type Slide = {
   index: number;
   title: string;

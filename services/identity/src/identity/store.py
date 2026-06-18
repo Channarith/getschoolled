@@ -15,6 +15,7 @@ import uuid
 from typing import Dict, List, Optional
 
 from aoep_shared.auth import hash_password, verify_password
+from aoep_shared.rewards import PointsLedger
 from aoep_shared.schemas import PlanTier, Region
 from pydantic import BaseModel, Field
 
@@ -32,6 +33,9 @@ class Enrollment(BaseModel):
     title: str = ""
     status: EnrollmentStatus = EnrollmentStatus.ENROLLED
     score: Optional[float] = None
+    level: str = "beginner"
+    hands_on: bool = False
+    points_awarded: bool = False   # guard against double-awarding on re-pass
     enrolled_at: float = Field(default_factory=lambda: time.time())
     updated_at: float = Field(default_factory=lambda: time.time())
 
@@ -48,6 +52,11 @@ class Account(BaseModel):
     last_login_at: Optional[float] = None
     failed_logins: int = 0
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
+    # Rewards: points ledger + redemptions (pydantic-excluded; managed in-store).
+    points: PointsLedger = Field(default_factory=PointsLedger, exclude=True)
+    redemptions: List[dict] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
 
     def public(self) -> dict:
         return {
@@ -118,7 +127,8 @@ class AccountStore:
         return enrollment
 
     def set_status(self, account_id: str, course_id: str, status: EnrollmentStatus,
-                   *, score: Optional[float] = None) -> Enrollment:
+                   *, score: Optional[float] = None, level: Optional[str] = None,
+                   hands_on: Optional[bool] = None) -> Enrollment:
         acct = self._by_id[account_id]
         enr = acct.enrollments.get(course_id)
         if enr is None:
@@ -126,8 +136,47 @@ class AccountStore:
         enr.status = status
         if score is not None:
             enr.score = score
+        if level is not None:
+            enr.level = level
+        if hands_on is not None:
+            enr.hands_on = hands_on
         enr.updated_at = time.time()
+        # Reward points on the FIRST transition to passed (idempotent).
+        if status is EnrollmentStatus.PASSED and not enr.points_awarded:
+            from aoep_shared.rewards import points_for_completion
+
+            pts = points_for_completion(enr.level, passed=True, score=enr.score,
+                                        hands_on=enr.hands_on)
+            acct.points.earn(pts, reason="course_passed", ref=course_id)
+            enr.points_awarded = True
         return enr
+
+    # --- rewards ----------------------------------------------------------- #
+    def points_balance(self, account_id: str) -> int:
+        return self._by_id[account_id].points.balance
+
+    def redeem(self, account_id: str, prize) -> dict:
+        from aoep_shared.rewards import redeem_prize
+
+        acct = self._by_id[account_id]
+        redemption = redeem_prize(acct.points, prize)
+        rec = {
+            "prize_id": redemption.prize_id, "kind": redemption.kind,
+            "cost_points": redemption.cost_points, "voucher_code": redemption.voucher_code,
+            "percent": redemption.percent, "raffle_entry_id": redemption.raffle_entry_id,
+            "detail": redemption.detail, "created_at": redemption.created_at,
+        }
+        acct.redemptions.append(rec)
+        return rec
+
+    def rewards_summary(self, account_id: str) -> dict:
+        acct = self._by_id[account_id]
+        return {
+            "balance": acct.points.balance,
+            "ledger": [{"delta": e.delta, "reason": e.reason, "ref": e.ref, "ts": e.ts}
+                       for e in acct.points.entries[-25:]],
+            "redemptions": acct.redemptions,
+        }
 
     def enrollments(self, account_id: str) -> List[Enrollment]:
         return list(self._by_id[account_id].enrollments.values())
