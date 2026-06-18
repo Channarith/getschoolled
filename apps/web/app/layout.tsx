@@ -18,7 +18,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/class">Live Class</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/consent">Consent</Link>
-          <span className="version" title="App version" style={{ marginLeft: "auto", opacity: 0.7, fontSize: 12 }}>
+          <Link href="/transparency">Transparency</Link>
+          <span
+            title="This platform is AI-instructed; see the Transparency page."
+            style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px", borderRadius: 999, border: "1px solid currentColor", opacity: 0.85 }}
+          >
+            AI-instructed
+          </span>
+          <span className="version" title="App version" style={{ opacity: 0.7, fontSize: 12 }}>
             v{APP_VERSION}
           </span>
         </nav>

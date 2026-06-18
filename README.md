@@ -98,6 +98,14 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 > suite is green (257 tests). Cloud k8s manifests under `infra/k8s` ship from the
 > phase0 foundations; real model serving and platform bots require credentials/GPU.
 
+## Trust, homework, HIL, edge, and integrations (in progress)
+
+A second initiative adding a trust/transparency layer, a homework subtool, human-in-the-loop collaboration, an edge/embodiment path, and external integrations. Legend: ✅ built &amp; merged (offline-tested).
+
+| # | Phase | Status | PR |
+| --- | --- | --- | --- |
+| Trust 1 | AI disclosure: `aoep_shared/disclosure.py` + `GET /api/disclosure` + AI-instructed badge + `/transparency` page | ✅ | #44 |
+
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
 Delivered phase-by-phase (each its own version release / PR). The

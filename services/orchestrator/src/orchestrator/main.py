@@ -31,6 +31,17 @@ from aoep_shared.optimization import OptimizationLedger  # noqa: E402
 
 app.state.optimization = OptimizationLedger()
 
+
+@app.get("/api/disclosure")
+def disclosure(persona: str = "friendly", human_of_record: str | None = None) -> dict:
+    """AI-disclosure metadata for the transparency badge / page (Phase 1)."""
+    from aoep_shared.disclosure import disclosure_from_config
+
+    d = disclosure_from_config(
+        app.state.config, persona=persona, human_of_record=human_of_record
+    )
+    return {**d.model_dump(), "line": d.disclosure_line()}
+
 # Live-class teaching loop (web-facing). Built lazily so /health and the other
 # endpoints don't pay curriculum/RAG load cost unless a class is used.
 _sessions: TeachingSessions | None = None
