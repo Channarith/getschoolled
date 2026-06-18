@@ -8,10 +8,9 @@ corpus (cloud).
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
-
-import os
 
 from aoep_shared.rag import RagIndex
 from aoep_shared.scene import (
@@ -42,6 +41,7 @@ from aoep_shared.corrections import (
     Correction,
     CorrectionStatus,
     TargetKind,
+    correction_to_training_example,
     parse_bulk,
 )
 
@@ -467,6 +467,52 @@ def approve_correction(correction_id: str) -> Correction:
 @app.post("/corrections/{correction_id}/reject", response_model=Correction)
 def reject_correction(correction_id: str) -> Correction:
     return _set_status(correction_id, CorrectionStatus.REJECTED)
+
+
+@app.post("/corrections/{correction_id}/apply")
+def apply_correction(correction_id: str) -> dict:
+    """Back-propagate an APPROVED correction.
+
+    course/deck -> patch the referenced deck slide; scene -> patch the layer
+    text; model/claim -> append a gold (reward=+1) training example to the
+    corrections JSONL the trainer merges. Sets status=applied.
+    """
+    c = app.state.corrections.get(correction_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="unknown correction")
+    if c.status != CorrectionStatus.APPROVED:
+        raise HTTPException(status_code=409, detail="correction must be approved before apply")
+
+    if c.target_kind in (TargetKind.COURSE, TargetKind.DECK):
+        deck = app.state.decks.get(c.target_id)
+        if deck is None:
+            raise HTTPException(status_code=422, detail="unknown deck for correction")
+        if not c.locator.isdigit() or int(c.locator) >= len(deck.slides):
+            raise HTTPException(status_code=422, detail="locator must be a valid slide index")
+        idx = int(c.locator)
+        deck.slides[idx].body = c.corrected
+        result = {"patched": "deck", "deck_id": c.target_id, "slide": idx}
+    elif c.target_kind is TargetKind.SCENE:
+        scene = app.state.scenes.get(c.target_id)
+        if scene is None:
+            raise HTTPException(status_code=422, detail="unknown scene for correction")
+        layer = scene.get_layer(c.locator)
+        if layer is None:
+            raise HTTPException(status_code=422, detail="unknown layer for correction")
+        layer.text = c.corrected
+        result = {"patched": "scene", "scene_id": c.target_id, "layer": c.locator}
+    else:  # MODEL or CLAIM -> gold training example
+        example = correction_to_training_example(c)
+        path = os.environ.get("CORRECTIONS_JSONL", "training/data/corrections.jsonl")
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(example, ensure_ascii=False) + "\n")
+        result = {"emitted": "training_example", "path": path}
+
+    c.status = CorrectionStatus.APPLIED
+    return {"applied": True, "correction_id": correction_id, **result}
 
 
 # --------------------------------------------------------------------------- #

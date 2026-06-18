@@ -31,6 +31,21 @@ def test_export_eval_split(tmp_path):
     assert ev.exists() and train.exists()
 
 
+def test_export_merges_corrections(tmp_path):
+    out = tmp_path / "train.jsonl"
+    corr = tmp_path / "corrections.jsonl"
+    corr.write_text(json.dumps({
+        "instruction": "what gas do plants release?",
+        "context": {"language": "en"},
+        "response": "oxygen", "reward": 1.0, "tags": ["correction", "model"],
+    }) + "\n")
+    rc = export.main(["--in", str(DATA), "--out", str(out), "--corrections", str(corr)])
+    assert rc == 0
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    # Includes the gold correction row (reward 1.0) alongside session examples.
+    assert any(r.get("reward") == 1.0 and r["response"] == "oxygen" for r in rows)
+
+
 def test_run_finetune_check_is_torch_free(tmp_path):
     # Build a dataset, then validate with --check (must NOT import torch).
     out = tmp_path / "train.jsonl"

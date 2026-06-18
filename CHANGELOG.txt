@@ -3,7 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- corrections back-prop (P8): POST /corrections/{id}/apply (approved only) -
+  course/deck corrections patch the referenced deck slide; scene corrections
+  patch the layer text; model/claim corrections append a gold (reward=+1)
+  training example to the corrections JSONL. training/export.py gains
+  --corrections to merge that JSONL into the training set for the 24/7 trainer.
+- config: add CATALOG_PATH, CORRECTIONS_JSONL, and per-engine search keys to
+  config/local.env and config/cloud.env. Full suite: 216 tests passing.
 
 [0.3.7] - 2026-06-18
 - corrections API (P7): curriculum review queue - POST /corrections (single),
