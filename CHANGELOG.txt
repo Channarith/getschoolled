@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.1] - 2026-06-18
 - fix(changelog): repair changelog rolling. build_release.py only recognized a
   dated "[unreleased] - <date>" header, so the bare "[unreleased]" header was
   never rolled into a release: real notes piled up under [unreleased] while the
