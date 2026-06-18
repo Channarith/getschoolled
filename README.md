@@ -124,6 +124,7 @@ workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-t
 | 5.2 | `RoutedLLMProvider` multi-model routing + vLLM multi-LoRA serving config + per-domain adapter trainer + `routes.py` | ✅ | #31, #36 |
 | 5.3 | Track A data pipeline code (clean/quality/MinHash-dedup/decontam/shard/tokenizer) + model-ladder configs | ✅ | #31, #37 |
 | 5.3b | Track A.2 model sizing + 3D-parallelism validation + pretrain `--check` CPU smoke | ✅ | #38 |
+| 5.3c | Track A.3 scaling-law fit + staged pretrain orchestration + runbook (full run on cluster) | ◑ | #39 |
 | 5.4 | Track B per-domain QLoRA adapter training (scripts/configs) | ✅ | #31, #36 |
 | 6.1 | Harvest source spec + license gate (`harvest/sources.py`) | ✅ | #32 |
 | 6.2 | Harvest dedup queue (`harvest/queue.py`) | ✅ | #32 |

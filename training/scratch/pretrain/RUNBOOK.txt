@@ -1,0 +1,28 @@
+TRACK A.3/A.4 PRETRAIN + ALIGN RUNBOOK (lab GPU cluster)
+========================================================
+
+Executes on the cluster, not in CI. CPU smoke first, then the staged run.
+
+0. Smoke (any machine):
+   python3 training/scratch/pretrain/run_pretrain.py --check
+   python3 training/scratch/pretrain/orchestrate.py --check
+
+1. Data + tokenizer (A.1):
+   python3 training/scratch/data/data_pipeline.py --in <corpus.jsonl> \
+     --eval <eval.jsonl> --tokenizer-out "$TOKENIZER_DIR/tok.json"
+
+2. Scaling-laws ladder (A.3): run the proxy rungs (proxy-1b, mid-8b), record
+   (compute, eval_loss) per rung, then fit + extrapolate:
+     orchestrate.py picks the compute-optimal target before the full run.
+
+3. Full pretrain (A.3): launch the target rung with the configured framework
+   (Megatron/NeMo/DeepSpeed/FSDP) using the parallelism plan from --check;
+   enable checkpoint/resume (checkpoint_interval) to CHECKPOINT_DIR. -> base ckpt.
+
+4. Alignment (A.4): see training/scratch/align/ - SFT then DPO + safety/red-team.
+
+REQUIRED ENV/SECRETS: WORLD_SIZE, CHECKPOINT_DIR, TOKENIZER_DIR, CORPUS_SOURCES,
+TARGET_PARAMS, TARGET_TOKENS (and GPUs). See docs/secrets.txt.
+
+REVERT: discard checkpoints / repoint the champion to a prior base (see
+training/champion.py + training/bakeoff.py).
