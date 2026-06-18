@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.38] - 2026-06-18
 - HIL P11 (co-teaching): the orchestrator gates tutor answers through the HIL
   review queue (per HIL_AUTONOMY) - suggest/human_led hold every answer; autonomous
   escalates on high risk, low confidence, sensitive subject, or a student request
