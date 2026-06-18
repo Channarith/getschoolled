@@ -39,6 +39,10 @@ export type Answer = {
   text: string;
   citations: string[];
   language: string;
+  understood?: string[];
+  grounded?: boolean;
+  hallucination_risk?: number;
+  unsupported?: string[];
 };
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
