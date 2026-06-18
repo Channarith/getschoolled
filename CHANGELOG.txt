@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- HIL P10 (human-in-the-loop core): aoep_shared/hil.py - AutonomyLevel
+  (autonomous/suggest/human_led), ReviewItem/ReviewQueue (approve/edit/reject/
+  takeover), and should_escalate (routes to a human on high hallucination risk,
+  low confidence, sensitive subject, or student request). Pure/offline-tested.
 
 [0.3.36] - 2026-06-18
 - Homework P9 (autograder): homework/grade.py grades objective items (MCQ key

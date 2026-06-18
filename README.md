@@ -115,6 +115,8 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Homework 8 | AI-vs-human authorship: `homework/authorship.py` (burstiness/lexical + handwriting signal) + `POST /homework/authorship` (probabilistic signal) | ✅ | #51 |
 | Homework 9 | Autograder: `homework/grade.py` (objective + open-item corroboration vs catalog RAG + trusted domains like webmd/nih) + `POST /homework/grade` + public `/homework` page | ✅ | #52 |
 
+| HIL 10 | Human-in-the-loop core: `aoep_shared/hil.py` (autonomy levels + ReviewQueue + escalation policy) | ✅ | #53 |
+
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
 Delivered phase-by-phase (each its own version release / PR). The
