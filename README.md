@@ -124,6 +124,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Embodiment 15 | On-device packaging (`apps/agent-runtime/edge/*`) + `docs/edge-robot-runbook.txt` + offline `edge_smoke` | ✅ | #58 |
 
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
+| Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
