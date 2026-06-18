@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.13] - 2026-06-18
 - adaptive (P12): aoep_shared/optimization.py - OptimizationLedger of versioned
   steps with metrics; promote_if_better adopts a step only if it does not regress
   the primary metric (generalizes the finetune promote gate) and revert() rolls a
