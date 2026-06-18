@@ -119,6 +119,8 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | HIL 11 | Co-teaching: orchestrator gates answers through the queue + `/api/hil/*` + web `/console` teacher review (`HIL_AUTONOMY`) | ✅ | #54 |
 | HIL 12 | Co-grading: grades routed to a review queue + human override -> corrections back-prop + optimization ledger + console grading lane | ✅ | #55 |
 
+| Edge 13 | Local-first `DEPLOY_MODE=edge` (all-local, offline) + `aoep_shared/edge.py` conformance (assert_offline) | ✅ | #56 |
+
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
 Delivered phase-by-phase (each its own version release / PR). The

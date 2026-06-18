@@ -23,6 +23,9 @@ class DeployMode(str, Enum):
 
     LOCAL = "local"
     CLOUD = "cloud"
+    # Edge: fully on-device / offline (no cloud calls). Selects local providers
+    # everywhere; used for the embodiment/humanoid path (Phases 13-15).
+    EDGE = "edge"
 
 
 # A per-component mode is the same value space as the deploy mode; keeping a
@@ -118,10 +121,15 @@ class AppConfig(BaseModel):
         return self.component_modes.get(component, self.deploy_mode)
 
     def is_local(self, component: str) -> bool:
-        return self.mode_for(component) is DeployMode.LOCAL
+        # Edge resolves to local (on-device) implementations.
+        return self.mode_for(component) in (DeployMode.LOCAL, DeployMode.EDGE)
 
     def is_cloud(self, component: str) -> bool:
         return self.mode_for(component) is DeployMode.CLOUD
+
+    @property
+    def is_edge(self) -> bool:
+        return self.deploy_mode is DeployMode.EDGE
 
 
 def load_config(
