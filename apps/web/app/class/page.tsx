@@ -21,7 +21,16 @@ export default function ClassPage() {
   const [view, setView] = useState<SessionView | null>(null);
   const [slide, setSlide] = useState<Slide | null>(null);
   const [question, setQuestion] = useState("");
-  const [chat, setChat] = useState<{ role: string; text: string; citations?: string[] }[]>([]);
+  const [chat, setChat] = useState<
+    {
+      role: string;
+      text: string;
+      citations?: string[];
+      grounded?: boolean;
+      confidence?: number;
+      unsupported?: string[];
+    }[]
+  >([]);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
@@ -74,7 +83,20 @@ export default function ClassPage() {
     setBusy(true);
     try {
       const a: Answer = await ask(view.session.session_id, q);
-      setChat((c) => [...c, { role: "teacher", text: a.text, citations: a.citations }]);
+      setChat((c) => [
+        ...c,
+        {
+          role: "teacher",
+          text: a.text,
+          citations: a.citations,
+          grounded: a.grounded,
+          confidence:
+            a.hallucination_risk !== undefined
+              ? Math.round((1 - a.hallucination_risk) * 100)
+              : undefined,
+          unsupported: a.unsupported,
+        },
+      ]);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -143,8 +165,36 @@ export default function ClassPage() {
               {chat.map((m, i) => (
                 <div key={i} className={`bubble ${m.role}`}>
                   {m.text}
+                  {m.role === "teacher" && m.grounded !== undefined && (
+                    <div className="cite" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <span
+                        title="Whether the answer is supported by the course material"
+                        style={{
+                          padding: "1px 8px",
+                          borderRadius: 999,
+                          border: "1px solid currentColor",
+                          color: m.grounded ? "#16a34a" : "#d97706",
+                        }}
+                      >
+                        {m.grounded ? "Grounded ✓" : "Unverified ⚠"}
+                      </span>
+                      {m.confidence !== undefined && (
+                        <span title="Confidence = 1 - hallucination risk">
+                          confidence {m.confidence}%
+                        </span>
+                      )}
+                      {m.citations && m.citations.length > 0 && (
+                        <span>· verified against {m.citations.length} source{m.citations.length > 1 ? "s" : ""}</span>
+                      )}
+                    </div>
+                  )}
                   {m.citations && m.citations.length > 0 && (
                     <div className="cite">Sources: {m.citations.join(" | ")}</div>
+                  )}
+                  {m.unsupported && m.unsupported.length > 0 && (
+                    <div className="cite" style={{ color: "#d97706" }}>
+                      Unsupported claims flagged: {m.unsupported.join("; ")}
+                    </div>
                   )}
                 </div>
               ))}

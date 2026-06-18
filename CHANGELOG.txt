@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Trust P3 (citations + confidence in UI): the class Q&A now surfaces the tutor's
+  existing groundedness signals - a Grounded/Unverified chip, a confidence %
+  (1 - hallucination_risk), a "verified against N sources" count, and any flagged
+  unsupported claims - so learners see the AI shows its work.
 
 [0.3.28] - 2026-06-18
 - Trust P2 (content credentials): aoep_shared/provenance.py - C2PA-shaped
