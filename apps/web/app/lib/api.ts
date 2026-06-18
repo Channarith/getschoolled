@@ -94,6 +94,25 @@ export async function getDisclosure(): Promise<Disclosure> {
   );
 }
 
+export type ReportedCorrection = { id: string; status: string };
+
+export async function reportIssue(args: {
+  target_kind?: string;
+  target_id?: string;
+  locator?: string;
+  issue: string;
+  suggested?: string;
+  author?: string;
+}): Promise<ReportedCorrection> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    })
+  );
+}
+
 export type ProvenanceVerification = {
   valid: boolean;
   content_matches: boolean | null;

@@ -6,6 +6,7 @@ import {
   ask,
   getDisclosure,
   listLessons,
+  reportIssue,
   startSession,
   type Answer,
   type Disclosure,
@@ -72,6 +73,23 @@ export default function ClassPage() {
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onDispute(text: string) {
+    const issue = window.prompt("What seems wrong with this answer? A human will review it.");
+    if (!issue) return;
+    try {
+      const r = await reportIssue({
+        target_kind: "claim",
+        target_id: view?.session.session_id ?? "",
+        locator: text,
+        issue,
+        author: "student",
+      });
+      window.alert(`Reported for human review (id ${r.id}, status: ${r.status}).`);
+    } catch (e) {
+      setError(String(e));
     }
   }
 
@@ -194,6 +212,17 @@ export default function ClassPage() {
                   {m.unsupported && m.unsupported.length > 0 && (
                     <div className="cite" style={{ color: "#d97706" }}>
                       Unsupported claims flagged: {m.unsupported.join("; ")}
+                    </div>
+                  )}
+                  {m.role === "teacher" && (
+                    <div className="cite">
+                      <button
+                        onClick={() => onDispute(m.text)}
+                        style={{ fontSize: 12, padding: "1px 8px", background: "transparent", border: "1px solid currentColor", borderRadius: 999, cursor: "pointer" }}
+                        title="Dispute this answer; a human reviews it"
+                      >
+                        Report / dispute
+                      </button>
                     </div>
                   )}
                 </div>

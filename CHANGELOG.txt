@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Trust P4 (human-of-record + appeal loop): Course gains human_of_record/
+  reviewed_by/reviewed_at (surfaced in catalog/course endpoints); new
+  POST /report opens a learner dispute as a SUBMITTED Correction routed to a
+  human reviewer (reuses the corrections pipeline); web adds a "Report / dispute"
+  control on AI answers.
 
 [0.3.29] - 2026-06-18
 - Trust P3 (citations + confidence in UI): the class Q&A now surfaces the tutor's

@@ -35,6 +35,10 @@ class Course(BaseModel):
     modules: List[Module] = Field(default_factory=list)
     validation_status: str = "unvalidated"  # unvalidated | validated | flagged
     version: int = 1
+    # Accountability (Trust layer): a named human signs off on the content.
+    human_of_record: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[float] = None
 
 
 class Program(BaseModel):
