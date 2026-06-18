@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- validation (P2/P3): aoep_shared/validation.py - extract_claims, validate_claim,
+  and validate_course corroborate course claims across the configured search
+  engines via lexical-overlap (supported/unverified/contradicted + confidence +
+  citations). Curriculum endpoints POST /validate/claim and POST
+  /decks/{id}/validate (report with flagged claims). Offline-tested with the mock
+  engine; real engines used when keys are configured.
 
 [0.3.2] - 2026-06-18
 - search/validation (P1): add a pluggable SearchProvider abstraction for course

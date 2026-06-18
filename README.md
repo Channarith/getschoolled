@@ -102,7 +102,7 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 
 Backend capabilities being added phase-by-phase (each its own version release):
 
-- Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured.
+- Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured. Endpoints: `POST /validate/claim` and `POST /decks/{id}/validate` (per-claim supported/unverified/contradicted + confidence + citations).
 
 ## Architecture
 

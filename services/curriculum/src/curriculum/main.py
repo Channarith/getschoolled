@@ -29,6 +29,12 @@ from aoep_shared.scene import (
     verify_scene,
 )
 from aoep_shared.service import create_service
+from aoep_shared.validation import (
+    Claim,
+    extract_claims,
+    validate_claim,
+    validate_course,
+)
 from fastapi import Body, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -260,6 +266,56 @@ class IngestYouTubeRequest(BaseModel):
     video_id: str
     title: str = ""
     fmt: str = "video"
+
+
+# --------------------------------------------------------------------------- #
+# Course validation (multi-engine web corroboration)
+# --------------------------------------------------------------------------- #
+class ValidateClaimRequest(BaseModel):
+    text: str
+    max_results: int = 5
+
+
+def _verdict_dict(v) -> dict:
+    return {
+        "claim": v.claim,
+        "status": v.status,
+        "confidence": v.confidence,
+        "engines_consulted": v.engines_consulted,
+        "citations": [
+            {"title": c.title, "url": c.url, "snippet": c.snippet,
+             "engine": c.engine, "overlap": c.overlap}
+            for c in v.citations
+        ],
+    }
+
+
+@app.post("/validate/claim")
+def validate_claim_endpoint(req: ValidateClaimRequest) -> dict:
+    engines = app.state.factory.search_engines()
+    return _verdict_dict(validate_claim(req.text, engines, max_results=req.max_results))
+
+
+@app.post("/decks/{deck_id}/validate")
+def validate_deck_endpoint(deck_id: str) -> dict:
+    deck = app.state.decks.get(deck_id)
+    if deck is None:
+        raise HTTPException(status_code=404, detail="unknown deck")
+    engines = app.state.factory.search_engines()
+    claims: list[Claim] = []
+    for slide in deck.slides:
+        claims.extend(extract_claims(slide.body, topic=slide.title))
+    report = validate_course(claims, engines)
+    return {
+        "deck_id": deck_id,
+        "engines": [getattr(e, "engine", "search") for e in engines],
+        "total": report.total,
+        "supported": report.supported,
+        "unverified": report.unverified,
+        "contradicted": report.contradicted,
+        "flagged": [_verdict_dict(v) for v in report.flagged],
+        "verdicts": [_verdict_dict(v) for v in report.verdicts],
+    }
 
 
 # --------------------------------------------------------------------------- #
