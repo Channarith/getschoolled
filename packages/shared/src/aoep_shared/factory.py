@@ -94,6 +94,19 @@ class ProviderFactory:
         self._cache["ocr"] = instance
         return instance
 
+    def embodiment(self):
+        """Embodiment provider: screen avatar (default) or humanoid robot
+        (config.embodiment). Drives the same teaching actions onto either body."""
+        if "embodiment" in self._cache:
+            return self._cache["embodiment"]
+        from .providers.embodiment import RobotProvider, ScreenAvatarProvider
+
+        choice = (getattr(self._config, "embodiment", "screen") or "screen").lower()
+        cls = RobotProvider if choice == "robot" else ScreenAvatarProvider
+        instance = cls(self._config)
+        self._cache["embodiment"] = instance
+        return instance
+
     def component_summary(self) -> dict[str, str]:
         """Human-readable map of component -> 'mode:impl' for /health."""
         summary: dict[str, str] = {}

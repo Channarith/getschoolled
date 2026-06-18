@@ -267,3 +267,32 @@ class OcrProvider(Provider):
     @abc.abstractmethod
     def read(self, content: bytes, *, hint: Optional[str] = None) -> OcrResult:
         ...
+
+
+# --------------------------------------------------------------------------- #
+# Embodiment (drive a screen avatar today, a humanoid robot later)
+# --------------------------------------------------------------------------- #
+@dataclass
+class EmbodimentAction:
+    modality: str           # "speech" | "gesture" | "display"
+    payload: dict
+
+
+class EmbodimentProvider(Provider):
+    """Renders teaching actions onto a body: a screen avatar (today) or a
+    humanoid robot's speakers/actuators/cameras (later). The same Teaching
+    Director brain drives either, so porting to a robot is a provider swap."""
+
+    capability = "embodiment"
+
+    @abc.abstractmethod
+    def say(self, text: str, *, language: str = "en") -> EmbodimentAction:
+        ...
+
+    @abc.abstractmethod
+    def gesture(self, name: str) -> EmbodimentAction:
+        ...
+
+    def perceive(self) -> dict:
+        """Latest sensory snapshot (camera/audio). Empty when not embodied."""
+        return {}

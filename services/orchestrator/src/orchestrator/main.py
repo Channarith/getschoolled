@@ -216,6 +216,25 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
 
 
 # --------------------------------------------------------------------------- #
+# Embodiment: render a teaching beat onto the screen avatar or a robot (P14)
+# --------------------------------------------------------------------------- #
+class EmbodyRequest(BaseModel):
+    text: str
+    gesture: str | None = None
+    language: str = "en"
+
+
+@app.post("/api/embody")
+def embody(req: EmbodyRequest) -> dict:
+    from aoep_shared.providers.embodiment import narrate
+
+    provider = app.state.factory.embodiment()
+    actions = narrate(provider, req.text, gesture=req.gesture, language=req.language)
+    return {"embodiment": provider.info().impl,
+            "actions": [{"modality": a.modality, "payload": a.payload} for a in actions]}
+
+
+# --------------------------------------------------------------------------- #
 # Human-in-the-loop review queue (co-teaching, Phase 11)
 # --------------------------------------------------------------------------- #
 def _review_dict(it) -> dict:
