@@ -110,6 +110,8 @@ Backend capabilities being added phase-by-phase (each its own version release):
 
 - Hallucination guard - `aoep_shared/groundedness.py` checks every answer's claims against its retrieved sources (groundedness + risk score); the Tutor abstains/grounds an ungrounded answer (never serves unsupported content) and reports `grounded`/`hallucination_risk`/`unsupported`. `POST /api/groundedness/check`; detected hallucinations route into the corrections back-prop loop.
 
+- Adaptive learner modeling - Bayesian Knowledge Tracing + a prerequisite SkillGraph belief network (`aoep_shared/knowledge.py`) track per-skill mastery and gate skills by prerequisites; feeds the adaptive pacing/difficulty policy.
+
 ## Architecture
 
 ```
