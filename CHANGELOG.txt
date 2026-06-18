@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.57] - 2026-06-18
 - Foresight engine (patent-pending): aoep_shared/foresight - a portable
   multimodal prediction engine implementing the Foresight spec (scaled dot-product
   attention, encoder + pooled state, finite query-type router with per-class
