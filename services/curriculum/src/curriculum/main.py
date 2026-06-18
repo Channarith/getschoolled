@@ -31,8 +31,11 @@ from aoep_shared.homework import (
     Assignment,
     assignment_from_slides,
     detect_authorship,
+    grade_submission,
     ocr_to_submission,
+    segment_answers,
 )
+from aoep_shared.homework import Assignment as HomeworkAssignment
 from aoep_shared.provenance import (
     SignedManifest,
     build_manifest,
@@ -719,6 +722,56 @@ class GenerateHomeworkRequest(BaseModel):
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
+
+
+class GradeHomeworkRequest(BaseModel):
+    assignment: dict
+    answers: list[str] = []
+    submission_text: str | None = None
+    handwritten: bool = False
+    deck_id: str | None = None
+    course_id: str | None = None
+    subject: str | None = None
+
+
+def _context_passages(deck_id: str | None, course_id: str | None) -> list[str]:
+    passages: list[str] = []
+    decks = []
+    if deck_id and (d := app.state.decks.get(deck_id)):
+        decks = [d]
+    elif course_id and (course := app.state.catalog.get_course(course_id)):
+        decks = [app.state.decks.get(m.deck_id) for m in course.modules if m.deck_id]
+    for d in decks:
+        if d:
+            passages.extend(f"{s.title}: {s.body}" for s in d.slides)
+    return passages
+
+
+@app.post("/homework/grade")
+def homework_grade(req: GradeHomeworkRequest) -> dict:
+    """Autograde a submission against an assignment (Phase 9)."""
+    assignment = HomeworkAssignment(**req.assignment)
+    answers = req.answers
+    if req.submission_text:
+        answers = segment_answers(req.submission_text)
+    joined = req.submission_text or " ".join(answers)
+    authorship = detect_authorship(joined, handwritten=req.handwritten) if joined.strip() else None
+    grade = grade_submission(
+        assignment, answers,
+        engines=app.state.factory.search_engines(),
+        context_passages=_context_passages(req.deck_id, req.course_id),
+        subject=req.subject,
+        authorship=authorship,
+    )
+    return {
+        "score": grade.score, "max_score": grade.max_score, "percentage": grade.percentage,
+        "validity_flags": grade.validity_flags, "authorship_label": grade.authorship_label,
+        "items": [
+            {"question_id": it.question_id, "type": it.type, "correct": it.correct,
+             "score": it.score, "citations": it.citations, "rationale": it.rationale}
+            for it in grade.items
+        ],
+    }
 
 
 class AuthorshipRequest(BaseModel):
