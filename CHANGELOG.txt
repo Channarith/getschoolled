@@ -3,122 +3,78 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- fix(changelog): repair changelog rolling. build_release.py only recognized a
+  dated "[unreleased] - <date>" header, so the bare "[unreleased]" header was
+  never rolled into a release: real notes piled up under [unreleased] while the
+  bot appended empty "[0.2.x] - release build (no itemized changes)" sections.
+  The regex now matches both forms; the corrupted cascade was collapsed and the
+  accumulated notes consolidated into [0.3.0].
+- training: add offline (Linux/Ubuntu) training code. training/export.py builds
+  JSONL from class sessions/feedback; training/run_finetune.py runs QLoRA/LoRA
+  fine-tuning (transformers+peft+trl, 4-bit on CUDA, CPU/LoRA fallback, fully
+  offline via HF_HUB_OFFLINE) with a torch-free --check dry run;
+  training/evaluate.py scores a checkpoint; training/train.sh is a one-command
+  Ubuntu runner. Fairness guardrail (no protected attributes) still enforced.
+
+[0.3.0] - 2026-06-17
 - tutor: culture-aware slang & idiom understanding (aoep_shared.slang). A
   data-driven lexicon keyed by language + region (US/UK English, Mexican Spanish,
   French, Khmer, ...) with a normalizer that detects idioms/slang and expands
   them to plain meaning (longest-match, no overlap). The Tutor normalizes a
   question before RAG/LLM so "it's a piece of cake" is understood as "very easy",
   surfaces recognized expressions in the answer (understood[]), and a new
-  POST /api/slang/normalize endpoint exposes it. Tests: 169 passing.
+  POST /api/slang/normalize endpoint exposes it.
 - perception: machine-vision engagement + cross-session student memory.
-  - Cross-session memory: FaceGallery now persists embeddings (save_json/
-    load_json); VisionProvider loads/saves at VISION_GALLERY_PATH so enrolled
-    students are remembered across sessions/restarts.
-  - Engagement (aoep_shared.vision.engagement): real gaze/attention + a coarse
-    expression proxy (neutral/smiling/surprised) computed from the detector's 5
-    facial landmarks; DetectedFace now carries landmarks + frame size.
-    analyze_image returns attention/gaze_frontal/expression (replacing the
-    det-score placeholder), surfaced in perception /identify.
-  - GestureRecognizer interface scaffolded (MediaPipe Hands/Pose is the real
-    backend; raises until configured).
-  - Engagement feeds the phase-4 adaptive policy so the teacher slows/re-teaches
-    for disengaged students and speeds up for engaged ones. Tests: 160 passing.
-- web: audience-tailored landing templates. The front page is now re-skinnable
-  via a data-driven theme registry (apps/web/app/lib/themes.ts) + a Template
-  switcher: Corporate, Khmer Heritage (Angkor Wat), Culinary, Kids & Gamified,
-  Academic. Each template sets palette, fonts, hero copy, background art, and a
-  gamified flag; selection persists (localStorage) and is shareable via ?theme=.
-  Themed background art added under apps/web/public/themes/. Adding a new
-  audience is a config-only change.
-- format: add AOEPLX, our own layered live-teaching scene format
-  (aoep_shared.scene + docs/aoeplx-format.txt). Scenes are lightweight
-  asset-by-reference manifests of ordered layers (video/audio/image/whiteboard/
-  text/note/quiz/poll) with normalized transforms, time ranges, and anchored
-  attachments (attach a note/audio/video to a specific drawing). Live broadcast
-  via small SceneDeltas (add/update/remove layer, append stroke). extract_region
-  lifts a bbox/time slice into a new multilayer object (instant=image,
-  range=clip) - e.g. pause a video, draw, and lift the drawing out. Tamper-
-  evident container: SHA-256 content hash + HMAC-SHA256 signature
-  (sign/verify/serialize/deserialize), versioned. Curriculum service exposes
-  POST /scenes, GET /scenes/{id}, /scenes/{id}/delta, /scenes/{id}/extract,
-  /scenes/{id}/sign, /scenes/verify. The browser canvas renderer + realtime
-  delta transport are the next (frontend/runtime) step.
+  Cross-session memory: FaceGallery persists embeddings (save_json/load_json);
+  VisionProvider loads/saves at VISION_GALLERY_PATH so enrolled students are
+  remembered across sessions/restarts. Engagement (aoep_shared.vision.engagement):
+  real gaze/attention + a coarse expression proxy (neutral/smiling/surprised)
+  from the detector's 5 landmarks; analyze_image returns attention/gaze_frontal/
+  expression. GestureRecognizer interface scaffolded. Engagement feeds the
+  phase-4 adaptive policy.
+- web: audience-tailored landing templates. Data-driven theme registry
+  (apps/web/app/lib/themes.ts) + a Template switcher: Corporate, Khmer Heritage
+  (Angkor Wat), Culinary, Kids & Gamified, Academic. Selection persists and is
+  shareable via ?theme=. Themed art under apps/web/public/themes/.
+- format: AOEPLX layered live-teaching scene format (aoep_shared.scene +
+  docs/aoeplx-format.txt). Ordered layers (video/audio/image/whiteboard/text/
+  note/quiz/poll) with transforms, time ranges, anchored attachments; live
+  SceneDeltas; extract_region lifts a bbox/time slice into a multilayer object
+  (image/clip); tamper-evident SHA-256 + HMAC container. Curriculum exposes
+  /scenes (+delta/extract/sign) and /scenes/verify.
 - scraper: content ingestion -> presentation decks (curriculum.ingest). Extracts
-  from textbook PDFs (pypdf), web articles/HTML (BeautifulSoup), and video/YouTube
-  transcripts; generates slide decks tagged by class genre (lecture, hands_on,
-  tutorial, video, article) and stores them in the CMS. New endpoints:
-  POST /ingest/pdf, /ingest/html, /ingest/url, /ingest/transcript, /ingest/youtube
-  (url/youtube are runtime/network; youtube dep is optional + import-guarded).
-- training: scaffold the education-LLM training subsystem (training/). Real,
-  tested data pipeline (pipeline.dataset/feedback): turns class transcripts +
-  audience context + user feedback into reward-weighted JSONL training examples;
-  finetune config (QLoRA, continuous schedule). FAIRNESS GUARDRAIL: protected
-  attributes (race, ethnicity) are excluded from model conditioning by design
-  (allowlisted pedagogical features only); enforced + tested. Actual 24/7
-  fine-tuning runs on a separate GPU cloud agent (see training/README.txt).
-- ci: include training/tests in the test matrix.
-- version: surface a single source-of-truth version in the running app.
-  aoep_shared.version.get_version() resolves AOEP_VERSION env -> repo VERSION
-  file -> package metadata; every FastAPI service reports it in /health (and the
-  OpenAPI version), and the web nav shows it. Dockerfiles COPY VERSION into the
-  image. scripts/build_release.py now also syncs apps/web (version.ts +
-  package.json) and the auto-push-build workflow commits those.
-- ci: add Release workflow (.github/workflows/release.yml) that cuts a GitHub
-  Release (tag vX.Y.Z + notes from CHANGELOG) when VERSION advances, via
-  workflow_run after Auto Push Build; idempotent (skips if the tag exists).
-- docs: update README build-status table and descriptions to reflect reality -
-  phases 0/3/4/5/6/6b implemented & tested; 1/2/10 partial (offline logic done,
-  infra pending); 7-9 scaffolded behind interfaces. Refresh repo-layout,
-  tech-stack, and testing notes (120+ tests).
-- phase6: curriculum CMS. Deck authoring/import/management - SlideSpec/Deck
-  models + DeckStore CRUD + plain-text import parser (curriculum.decks), with
-  endpoints POST /decks, POST /decks/import, GET /decks, GET /decks/{id},
-  GET /decks/{id}/presentation, DELETE /decks/{id}.
-- phase2: multilingual delivery routing (aoep_shared.translation). Per-student
-  plan (translate? pair supported? TTS engine native-vs-fallback) across the 26
-  languages; speech endpoints POST /delivery/plan and POST /translate (validates
-  the pair, then needs the NLLB model).
+  from textbook PDFs (pypdf), web/HTML (BeautifulSoup), and video/YouTube
+  transcripts; generates genre-tagged decks (lecture/hands_on/tutorial/video/
+  article) stored in the CMS. Endpoints POST /ingest/pdf,/html,/url,/transcript,
+  /youtube.
+- training: scaffold the education-LLM training subsystem (training/). Tested
+  data pipeline (pipeline.dataset/feedback) turning class transcripts + audience
+  context + feedback into reward-weighted JSONL; finetune config. FAIRNESS
+  GUARDRAIL: protected attributes (race, ethnicity) excluded from conditioning.
+- version: single source-of-truth version (aoep_shared.version.get_version) in
+  every service /health + OpenAPI and the web nav; Dockerfiles COPY VERSION;
+  build_release syncs apps/web version.
+- ci: Release workflow (.github/workflows/release.yml) cuts a GitHub Release
+  (tag vX.Y.Z + CHANGELOG notes) when VERSION advances; include training/tests.
+- docs: README build-status table updated to reflect implemented phases.
+- phase6: curriculum CMS - deck authoring/import/management (SlideSpec/Deck +
+  DeckStore + plain-text import) with /decks endpoints.
+- phase2: multilingual delivery routing (aoep_shared.translation) across 26
+  languages; speech /delivery/plan + /translate.
 - phases7-9: media bridge scaffold (aoep_shared.bridges) - MediaBridge interface
-  + Zoom/Teams(.NET)/Meet capability registry + credential-readiness checks;
-  concrete connect raises BridgeUnavailable until SDKs/creds are configured.
-- phase10: latency budget + recorder (aoep_shared.observability) for the
-  speech-in -> think -> speech-out loop (1100ms target). Tests: 120 passing.
-- refactor: consolidate to a single stack. Remove the duplicate
-  eduplatform_shared package and all services/*/app/ layouts; the canonical
-  stack is aoep_shared (dist renamed eduplatform-shared -> aoep-shared) with the
-  services/*/src layout. Port the web-facing teaching loop (GET /api/lessons,
-  POST /api/sessions, /api/sessions/{id}/advance, /api/sessions/{id}/ask) into
-  the aoep orchestrator (RAG via aoep_shared.rag + LLM provider, with a
-  deterministic offline fallback so the demo works without a model server), so
-  apps/web is unchanged. Update Dockerfiles to the src layout, requirements-dev,
-  and AGENTS.md. Full suite: 101 tests passing.
-- phase4: adaptive learning policy (aoep_shared.adaptive). Turns per-student
-  learning-behavior signals (mastery, quiz accuracy, response latency, attention
-  trend, question rate) into a pacing/difficulty/re-teach plan; solo personalizes
-  aggressively while group caps extremes. Wired into the Director (plan()) and a
-  new orchestrator POST /director/plan. Memory service records behavior events
-  (POST /behavior) and aggregates them (GET /learner/{id}/{topic}).
-- phase5: assessment (aoep_shared.assessment). Definition-check MCQ generation
-  from curriculum passages, difficulty-weighted grading -> mastery target, and
-  polls (vote/tally/leader). New orchestrator POST /assessment/quiz and
-  /assessment/grade. Extensive tests (orchestrator 22, memory 11 passing).
-- billing: add multiple consumer payment methods behind PaymentProvider -
-  card, Apple Pay, Google Pay, Cash App Pay (Stripe), PayPal + Venmo (PayPal),
-  and Zelle (manual bank transfer). New aoep_shared.payments registry maps each
-  method to its processor. Sandbox simulates every method (offline-testable);
-  Stripe advertises only what it can process and rejects others. Billing API
-  adds GET /payment-methods and a method-aware POST /checkout (Zelle returns
-  transfer instructions). Extensive tests (25 passing).
-- perception: implement real, self-hosted face recognition (OpenCV YuNet
-  detection + SFace 128-d embeddings, CPU). New aoep_shared.vision package
-  (FaceRecognitionEngine, FaceGallery, runtime model fetch; weights kept out of
-  repo). VisionProvider now enrolls + matches (1:N) with the SFace cosine
-  threshold, restricted to the consented set (unconsented = anonymous).
-- perception API: POST /enroll/{student_id}, POST /identify (consent-gated),
-  GET /gallery; consent-check remains a pure policy endpoint.
-- tests: extensive face-recognition suite on a real multi-image dataset -
-  detection, same-vs-different separation, 1:N accuracy, open-set rejection,
-  multi-face frames, consent gating, plus pure gallery unit tests (18 passing).
+  + Zoom/Teams(.NET)/Meet registry + credential-readiness checks.
+- phase10: latency budget + recorder (aoep_shared.observability).
+- refactor: consolidate to a single stack (remove duplicate eduplatform_shared +
+  services/*/app/ layouts; rename dist to aoep-shared; port the web teaching loop
+  into the aoep orchestrator with an offline grounded fallback).
+- phase4: adaptive learning policy (aoep_shared.adaptive) -> pacing/difficulty/
+  re-teach; /director/plan; memory /behavior + /learner.
+- phase5: assessment (aoep_shared.assessment) - MCQ generation, difficulty-
+  weighted grading, polls; /assessment/quiz + /assessment/grade.
+- billing: multiple payment methods (card, Apple/Google Pay, Cash App, PayPal,
+  Venmo, Zelle) behind PaymentProvider; /payment-methods + method-aware /checkout.
+- perception: real self-hosted face recognition (OpenCV YuNet + SFace, CPU),
+  consent-gated enroll/identify; /enroll, /identify, /gallery.
 
 [0.2.2] - 2026-06-17
 - ci: add auto-merge workflow (.github/workflows/automerge.yml) that merges PRs
@@ -151,56 +107,13 @@ Format: newest first. No markdown per project convention.
   Makefile.
 - verified: 49 Python tests pass; web typechecks + builds; live local-mode
   endpoints and the local/cloud provider switch exercised over HTTP.
-[unreleased]
-- (no changes yet)
 
-[0.2.1] - 2026-06-17
-[unreleased]
-- (no changes yet)
+[seed] - 2026-06-16
+- seed: initialize repository for Cursor Cloud Agent execution.
+- add docs/plan.txt (architecture + phased roadmap, plain text).
+- add docs/cloud-agent-task.txt (phase-by-phase implementation brief).
+- add .gitignore, .editorconfig, .python-version.
 
-[0.2.3] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.4] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.5] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.6] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.7] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.8] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.9] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.10] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.11] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.12] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.13] - 2026-06-17
-[unreleased]
-- (no changes yet)
-
-[0.2.14] - 2026-06-17
-- release build (no itemized changes)
+Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
+were lost to the changelog-rolling bug fixed in [unreleased]; their content is
+consolidated under [0.3.0] above.
