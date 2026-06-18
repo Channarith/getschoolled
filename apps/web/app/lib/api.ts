@@ -10,6 +10,143 @@ export const CURRICULUM_URL =
 export const MEMORY_URL =
   process.env.NEXT_PUBLIC_MEMORY_URL ?? "http://localhost:8004";
 
+export const IDENTITY_URL =
+  process.env.NEXT_PUBLIC_IDENTITY_URL ?? "http://localhost:8008";
+
+// --- account / session (token in localStorage) --------------------------- //
+const TOKEN_KEY = "aoep_token";
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+export type Account = {
+  id: string;
+  email: string;
+  display_name: string;
+  tier: string;
+  region: string;
+};
+
+export async function signup(email: string, password: string, displayName: string):
+  Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/signup`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password, display_name: displayName }),
+    })
+  );
+}
+
+export async function login(email: string, password: string):
+  Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+  );
+}
+
+export async function getMe(): Promise<Account> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+export async function changePassword(current: string, next: string): Promise<{ changed: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/password`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ current_password: current, new_password: next }),
+    })
+  );
+}
+
+export async function setMembershipTier(tier: string): Promise<{ tier: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/membership/tier`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ tier }),
+    })
+  );
+}
+
+export type Enrollment = {
+  course_id: string; title: string; status: string; score: number | null;
+};
+
+export type Portfolio = {
+  account: Account;
+  tier: string;
+  enrollments: Enrollment[];
+  by_status: Record<string, Enrollment[]>;
+  counts: Record<string, number>;
+};
+
+export async function getPortfolio(): Promise<Portfolio> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/portfolio`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+export async function enrollCourse(courseId: string, title: string, status = "enrolled"):
+  Promise<Enrollment> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ course_id: courseId, title, status }),
+    })
+  );
+}
+
+// --- catalog browse / search ---------------------------------------------- //
+export type CatalogCourse = {
+  course_id: string; title: string; subject: string; category: string;
+  language: string; audio_language: string; media_format: string; level: string;
+  duration_min: number; hands_on: boolean; preview: string; description: string;
+  tags: string[]; access_tier: string; delivery_mode: string;
+};
+
+export type Facets = {
+  categories: string[]; languages: string[]; audio_languages: string[];
+  media_formats: string[]; levels: string[]; tags: string[];
+};
+
+export async function searchCourses(params: Record<string, string>): Promise<CatalogCourse[]> {
+  const qs = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== "" && v != null)
+  ).toString();
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/courses/search${qs ? `?${qs}` : ""}`, { cache: "no-store" })
+  );
+}
+
+export async function getFacets(): Promise<Facets> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/courses/facets`, { cache: "no-store" }));
+}
+
 export type Slide = {
   index: number;
   title: string;
