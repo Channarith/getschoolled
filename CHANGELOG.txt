@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- docs: docs/secrets.txt - consolidated GPU/secret reference for the main app and
+  the forked training + harvester agents (search, LLM routing/serving, training
+  checkpoints/corpus, harvester crawl + object store, payments). All integrations
+  remain env/secret-driven with offline mocks when unset.
 
 [0.3.15] - 2026-06-18
 - harvester scaffold (24/7, P20-P23): aoep_shared/harvest (SourceSpec + license
