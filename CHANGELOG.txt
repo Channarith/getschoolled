@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.56] - 2026-06-18
 - Rewards/points system: aoep_shared/rewards.py (points_for_completion scaled by
   level/score/hands-on; PointsLedger; prize catalog + redeem_prize). Identity
   awards points on first course pass (idempotent) and exposes GET /rewards,
