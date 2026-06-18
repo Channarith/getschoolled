@@ -1,0 +1,29 @@
+CHAMPION PROMOTION RUNBOOK (Phase 19) - Track A vs Track B bake-off
+==================================================================
+
+Picks the served model by competing the from-scratch (Track A, aligned) and
+open-weight (Track B, adapters) candidates on ONE held-out eval, then promotes
+the non-regressing, fairness-passing winner.
+
+1. Evaluate each candidate into metrics (accuracy + per-category + fairness_gap):
+     python3 training/evaluate.py --base-model <ckpt> [--adapter <a>] \
+       --eval training/data/eval.jsonl --offline
+   Assemble candidates.json:
+     [{"name":"trackA-aligned","track":"A","metrics":{"accuracy":0.83,"fairness_gap":0.04}},
+      {"name":"trackB-routed","track":"B","metrics":{"accuracy":0.80,"fairness_gap":0.03}}]
+
+2. Run the bake-off + promote the champion pointer:
+     python3 training/promote.py --candidates candidates.json \
+       --champion-path "$CHAMPION_PATH" --max-fairness-gap 0.1
+
+3. Point the app at the champion:
+   - Track A winner -> set LLM_MODEL to the champion (served checkpoint).
+   - Track B winner -> set LLM_ROUTES (python3 training/base/routes.py) + serve
+     adapters per models/serving/vllm-multilora.yaml.
+   The serving layer reads CHAMPION_PATH (config.champion_path / champion.served_model).
+
+REVERT: python3 -c "from training.champion import ChampionRegistry as R; \
+   R('$CHAMPION_PATH').revert()"   # repoint to the prior champion
+
+Optionally run each track on a separate forked cloud agent feeding the same
+OptimizationLedger / champion pointer. See docs/secrets.txt for GPU/secrets.

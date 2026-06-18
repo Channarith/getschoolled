@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P19 champion promotion (training/promote.py + PROMOTE_RUNBOOK.txt): runs the
+  Track A vs Track B bake-off (fairness-gated), promotes the non-regressing winner
+  into the served champion pointer, and emits the serving wiring (LLM_MODEL for a
+  from-scratch champion or LLM_ROUTES for a Track B champion). Revert = repoint the
+  ChampionRegistry. Offline-tested.
 
 [0.3.23] - 2026-06-18
 - P18 Track A.4 alignment (training/scratch/align/): SFT example + DPO preference-
