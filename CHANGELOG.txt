@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.10] - 2026-06-18
 - adaptive (P9): aoep_shared/knowledge.py - Bayesian Knowledge Tracing (2-state
   dynamic Bayes net: learn/slip/guess/forget) tracking per-skill P(known), plus a
   SkillGraph belief network that gates a skill's mastery by its prerequisites
