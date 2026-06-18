@@ -110,6 +110,8 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Trust 4 | Human-of-record on `Course` + `POST /report` dispute -> corrections review loop + web "Report / dispute" control | ✅ | #47 |
 | Trust 5 | Opt-in `delivery_mode` (ai/human/hybrid) + `/catalog` filter + `training/model_card.py` + `GET /model-cards` + public `/model-cards` page | ✅ | #48 |
 
+| Homework 6 | Homework generation: `aoep_shared/homework` (Assignment/Question) + `POST /homework/generate` from deck/course | ✅ | #50 |
+
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
 Delivered phase-by-phase (each its own version release / PR). The

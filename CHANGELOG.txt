@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Homework P6 (generation): aoep_shared/homework (models + generate) builds an
+  Assignment (MCQ + short-answer + essay, with answer keys/rubrics) from deck/
+  course passages, reusing the assessment item generator; curriculum
+  POST /homework/generate. Pure/offline-tested.
 
 [0.3.32] - 2026-06-18
 - (no changes yet)

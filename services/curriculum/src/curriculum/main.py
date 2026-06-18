@@ -27,6 +27,7 @@ from aoep_shared.scene import (
     sign_scene,
     verify_scene,
 )
+from aoep_shared.homework import Assignment, assignment_from_slides
 from aoep_shared.provenance import (
     SignedManifest,
     build_manifest,
@@ -702,6 +703,45 @@ def scene_sign(scene_id: str) -> SignedScene:
 @app.post("/scenes/verify")
 def scene_verify(signed: SignedScene) -> dict:
     return {"valid": verify_scene(signed, _signing_key())}
+
+
+# --------------------------------------------------------------------------- #
+# Homework subtool - generation (Phase 6)
+# --------------------------------------------------------------------------- #
+class GenerateHomeworkRequest(BaseModel):
+    deck_id: str | None = None
+    course_id: str | None = None
+    title: str = "Homework"
+    subject: str = "general"
+    num_questions: int = 4
+
+
+@app.post("/homework/generate", response_model=Assignment)
+def homework_generate(req: GenerateHomeworkRequest) -> Assignment:
+    slides: list = []
+    source = ""
+    if req.deck_id:
+        deck = app.state.decks.get(req.deck_id)
+        if deck is None:
+            raise HTTPException(status_code=404, detail="unknown deck")
+        slides = deck.slides
+        source = f"deck:{req.deck_id}"
+    elif req.course_id:
+        course = app.state.catalog.get_course(req.course_id)
+        if course is None:
+            raise HTTPException(status_code=404, detail="unknown course")
+        for m in course.modules:
+            if m.deck_id and (deck := app.state.decks.get(m.deck_id)):
+                slides.extend(deck.slides)
+        source = f"course:{req.course_id}"
+    else:
+        raise HTTPException(status_code=422, detail="provide deck_id or course_id")
+    if not slides:
+        raise HTTPException(status_code=422, detail="no slide content to generate from")
+    return assignment_from_slides(
+        slides, title=req.title, subject=req.subject, source=source,
+        num_questions=req.num_questions,
+    )
 
 
 # --------------------------------------------------------------------------- #
