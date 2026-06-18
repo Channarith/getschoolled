@@ -8,7 +8,7 @@ a FinanceConnector abstraction for payouts/accounting export with an offline Moc
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 # Event types that grant vs revoke access.
 _GRANT_TYPES = {"checkout.session.completed", "invoice.paid", "invoice.payment_succeeded"}

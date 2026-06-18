@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
+from aoep_shared.adaptive import Difficulty, LearnerSignals, Pacing
 from aoep_shared.assessment import (
     GradeResult,
     QuizItem,

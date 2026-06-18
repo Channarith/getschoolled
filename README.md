@@ -95,7 +95,7 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 > 2, and 10 have their offline logic done but need GPU/media infra for the
 > remaining pieces; phases 7&ndash;9 (platform bridges) are scaffolded behind a
 > stable interface and need external SDKs/credentials to run. The whole backend
-> suite is green (257 tests). Cloud k8s manifests under `infra/k8s` ship from the
+> suite is green (412 tests). Cloud k8s manifests under `infra/k8s` ship from the
 > phase0 foundations; real model serving and platform bots require credentials/GPU.
 
 ## Trust, homework, HIL, edge, and integrations
@@ -286,20 +286,39 @@ curl http://localhost:8000/health
 curl http://localhost:8000/api/lessons
 ```
 
-## Testing &amp; linting
+## Testing, QA &amp; stress
 
 | Target | Command |
 | --- | --- |
-| All Python tests | `make test` |
+| All Python tests (412) | `make test` |
 | Single package/service | `cd <path> && python -m pytest -q` |
-| Web typecheck + lint | `make test-web` |
-| Web production build | `make build-web` |
+| Coverage | `make coverage` (needs `pytest-cov`) |
+| Ruff lint | `make lint` (needs `ruff`) |
+| Web typecheck | `make web-typecheck` |
+| Web production build | `make web-build` |
 | Validate compose | `make compose-config` (requires Docker) |
+| **API stress / perf** | `make stress` (start services first) |
+| **Comprehensive gate** | `make qa` ( = `python3 qa/regression.py` ) |
 
-The full backend suite (257 tests) is green: provider local-vs-cloud selection,
-the orchestrator teaching flow (start &rarr; advance &rarr; ask) plus adaptive/assessment
-APIs, real face-recognition accuracy on a labeled dataset, CMS deck CRUD/import,
-multilingual delivery routing, payment methods, and bridge/latency scaffolds.
+The full backend suite (**412 tests**) is green across `packages/shared`, every
+service, `training`, `scripts`, and the QA harness self-tests: provider
+local-vs-cloud selection, the orchestrator teaching flow (start &rarr; advance &rarr;
+ask), adaptive/assessment APIs, face-recognition accuracy, CMS deck CRUD/import,
+homework generate/scan/authorship/grade, HIL review queues, edge/embodiment, and
+the integrations gateway/connectors. Core `aoep_shared` line coverage is ~86%.
+
+**Regression + stress system** (`qa/`, see `qa/RUNBOOK.txt`):
+
+- `qa/regression.py` &mdash; one command that runs the backend matrix (+coverage),
+  web typecheck/lint, and an API stress smoke, with a single pass/fail report.
+- `qa/stress.py` &mdash; concurrency load test that probes each service's `/health`
+  and reports **functional pass-rate (quality)**, **p50/p95/p99 latency (speed)**,
+  and **RPS + error-rate (performance)** per endpoint, with tunable SLA gates
+  (`--max-error-rate`, `--max-p95-ms`, `--min-functional`). Unreachable services
+  are skipped, so it runs against local dev, compose, or a staging URL.
+
+CI: `ci.yml` gates every PR (full pytest + web typecheck/build + compose/k8s);
+`qa.yml` runs nightly with coverage + ruff lint.
 
 ## Configuration &amp; dual-mode
 

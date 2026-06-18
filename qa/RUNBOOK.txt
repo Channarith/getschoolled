@@ -1,0 +1,44 @@
+QA / REGRESSION / STRESS RUNBOOK
+================================
+
+Three layers of automated quality, all runnable locally and in CI.
+
+1) REGRESSION (functional correctness)
+   - 412 backend tests across packages/shared + every service + training + scripts
+     + the QA harness self-tests.
+   - Run:   make test          (fast)
+            make coverage       (with coverage; needs pytest-cov)
+            make lint           (ruff; needs ruff)
+   - One comprehensive gate (tests[+coverage] + web typecheck/lint + stress smoke):
+            make qa             ( == python3 qa/regression.py )
+            python3 qa/regression.py --fast     # skip coverage + stress
+            python3 qa/regression.py --json qa_report.json
+
+2) API STRESS / PERFORMANCE / QUALITY (qa/stress.py)
+   Exercises the live HTTP services under concurrency and reports, per scenario:
+     functional pass-rate (QUALITY), p50/p95/p99 latency (SPEED), RPS + error-rate
+     (PERFORMANCE). It probes /health and SKIPS services that are down.
+   - Start services first (e.g. `make up`, or run uvicorn per service), then:
+        make stress
+        python3 qa/stress.py --concurrency 32 --requests 1000
+        python3 qa/stress.py --smoke                     # gentle 1-pass
+        python3 qa/stress.py --json qa/stress_report.json
+   - SLA gate (non-zero exit on breach), tunable:
+        --max-error-rate 0.01  --max-p95-ms 1500  --min-functional 0.99
+   - Target a remote/staging stack:
+        python3 qa/stress.py --orchestrator-url https://orch.staging ...
+
+3) CI
+   - .github/workflows/ci.yml gates every PR: full pytest + web typecheck/build
+     + compose/k8s validation.
+   - .github/workflows/qa.yml (nightly + manual dispatch) runs the comprehensive
+     regression runner: tests + coverage + web typecheck/lint + ruff.
+
+ADDING A SCENARIO
+   Edit qa/stress.py -> the *_scenarios() builder for the service; add a
+   Scenario(name, method, path, body=..., check=lambda j: ...). The `check`
+   predicate is the QUALITY assertion on the response body.
+
+SELF-TESTS
+   The harness is itself regression-tested: qa/tests/test_stress.py (percentiles,
+   concurrency, functional-failure + 5xx detection, SLA evaluation).

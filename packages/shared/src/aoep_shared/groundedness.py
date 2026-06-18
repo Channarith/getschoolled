@@ -13,7 +13,7 @@ ungrounded claims to live web validation when search engines are configured.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
+from typing import List, Sequence
 
 from .validation import _recall, _tokens, extract_claims
 

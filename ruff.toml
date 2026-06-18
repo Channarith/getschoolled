@@ -1,0 +1,16 @@
+# Ruff config for the AOEP backend (Python). Report-only in PR CI today; the
+# nightly QA workflow runs it. Keep the rule set lean and high-signal.
+line-length = 100
+target-version = "py311"
+
+[lint]
+# pyflakes (F) + a subset of pycodestyle (E) + bugbear-lite. Conservative on
+# purpose so it stays useful rather than noisy.
+select = ["F", "E4", "E7", "E9", "W6"]
+ignore = [
+    "E741",   # ambiguous variable names (a few short locals in comprehensions)
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["F401", "F811"]
+"**/__init__.py" = ["F401"]   # re-exports are intentional

@@ -1,0 +1,33 @@
+name: qa
+
+# Comprehensive regression: full backend test matrix WITH coverage + ruff lint.
+# Runs nightly and on manual dispatch (does not gate PRs - ci.yml does that).
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 07:00 UTC nightly
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python packages (editable) + QA tooling
+        run: |
+          python3 -m pip install --upgrade pip
+          for pkg in packages/shared services/orchestrator services/speech \
+            services/perception services/memory services/curriculum \
+            services/billing apps/agent-runtime; do
+            python3 -m pip install -e "$pkg[test]"
+          done
+          python3 -m pip install pytest-cov==5.0.0 ruff==0.6.9 PyYAML==6.0.2
+      - name: Backend tests + coverage
+        run: |
+          python3 -m pytest packages/shared/tests services/*/tests \
+            apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
+            --cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
+      - name: Ruff lint
+        run: python3 -m ruff check packages/shared/src services/*/src qa training

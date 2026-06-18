@@ -23,7 +23,6 @@ from aoep_shared.scene import (
     Transform,
     apply_delta,
     extract_region,
-    serialize,
     sign_scene,
     verify_scene,
 )
