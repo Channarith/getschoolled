@@ -7,3 +7,4 @@ resources:
   - services.yaml
   - llm-vllm.yaml
   - harvester.yaml
+  - retention-cronjob.yaml

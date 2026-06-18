@@ -107,6 +107,21 @@ def compliance(region: str) -> dict:
     return compliance_summary(region)
 
 
+class PurgeRequest(BaseModel):
+    # Optional fallback window for records that carry no explicit retention_days.
+    default_retention_days: int | None = None
+
+
+@app.post("/retention/purge")
+def retention_purge(req: PurgeRequest) -> dict:
+    """Enforce data retention: delete data past its retention window.
+
+    Intended to run on a schedule (cron / k8s CronJob) - see
+    scripts/retention_purge.py and infra/k8s/retention-cronjob.yaml.
+    """
+    return app.state.store.purge_expired(default_retention_days=req.default_retention_days)
+
+
 @app.post("/mastery")
 def update_mastery(req: MasteryUpdate) -> dict:
     score = app.state.store.update_mastery(req.student_id, req.topic, req.correct)

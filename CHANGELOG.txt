@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Retention/deletion enforcement: aoep_shared/retention.py (is_expired, datetime-
+  aware) + MemoryStore.purge_expired (drops consent records past retention_days,
+  revokes the grant, and deletes students no longer covered by active consent);
+  memory POST /retention/purge; scripts/retention_purge.py cron runner + an
+  infra/k8s retention-purge CronJob. Enforces GDPR storage limitation / COPPA /
+  BIPA retention. Tested.
 
 [0.3.50] - 2026-06-18
 - One-time AI & consent disclaimer gate: legal/DISCLAIMER.txt + a "disclaimer"
