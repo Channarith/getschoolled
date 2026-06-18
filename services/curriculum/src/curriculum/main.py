@@ -38,6 +38,13 @@ from aoep_shared.validation import (
 from fastapi import Body, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from aoep_shared.corrections import (
+    Correction,
+    CorrectionStatus,
+    TargetKind,
+    parse_bulk,
+)
+
 from .catalog import CatalogStore, Course, Module, Program
 from .decks import Deck, DeckStore, SlideSpec, parse_deck_text
 from .ingest import (
@@ -53,6 +60,7 @@ app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
+app.state.corrections = {}  # id -> Correction (review queue)
 
 
 def _signing_key() -> bytes:
@@ -390,6 +398,75 @@ def program_plan(program_id: str, req: PlanRequest) -> dict:
         })
     next_course = next((c["course_id"] for c in plan if c["unlocked"]), None)
     return {"program_id": program_id, "next_course": next_course, "plan": plan}
+
+
+# --------------------------------------------------------------------------- #
+# Corrections review queue (single + bulk entry; approve/reject)
+# --------------------------------------------------------------------------- #
+class CreateCorrectionRequest(BaseModel):
+    target_kind: TargetKind = TargetKind.COURSE
+    target_id: str = ""
+    locator: str = ""
+    original: str = ""
+    corrected: str
+    rationale: str = ""
+    author: str = ""
+    audience: dict = {}
+
+
+@app.post("/corrections", response_model=Correction)
+def submit_correction(req: CreateCorrectionRequest) -> Correction:
+    c = Correction(**req.model_dump())
+    app.state.corrections[c.id] = c
+    return c
+
+
+@app.post("/corrections/bulk")
+async def bulk_corrections(
+    file: UploadFile = File(...), fmt: str = Form("jsonl")
+) -> dict:
+    data = (await file.read()).decode("utf-8")
+    try:
+        items = parse_bulk(data, fmt)
+    except (ValueError, Exception) as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"could not parse bulk: {exc}")
+    for c in items:
+        app.state.corrections[c.id] = c
+    return {"count": len(items), "ids": [c.id for c in items]}
+
+
+@app.get("/corrections", response_model=list[Correction])
+def list_corrections(status: str | None = None) -> list[Correction]:
+    items = list(app.state.corrections.values())
+    if status:
+        items = [c for c in items if c.status.value == status]
+    return items
+
+
+@app.get("/corrections/{correction_id}", response_model=Correction)
+def get_correction(correction_id: str) -> Correction:
+    c = app.state.corrections.get(correction_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="unknown correction")
+    return c
+
+
+def _set_status(correction_id: str, status: CorrectionStatus) -> Correction:
+    c = app.state.corrections.get(correction_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="unknown correction")
+    c.status = status
+    return c
+
+
+@app.post("/corrections/{correction_id}/approve", response_model=Correction)
+def approve_correction(correction_id: str) -> Correction:
+    return _set_status(correction_id, CorrectionStatus.APPROVED)
+
+
+@app.post("/corrections/{correction_id}/reject", response_model=Correction)
+def reject_correction(correction_id: str) -> Correction:
+    return _set_status(correction_id, CorrectionStatus.REJECTED)
 
 
 # --------------------------------------------------------------------------- #

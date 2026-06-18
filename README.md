@@ -106,7 +106,7 @@ Backend capabilities being added phase-by-phase (each its own version release):
 
 - Course catalog - persistent Programs -> Courses -> Modules (modules reference CMS decks/scenes) with dynamic-program adaptive rules (e.g. prerequisite mastery). `curriculum/catalog.py` (`CatalogStore`, JSON-persisted) + `db/migrations/0003_catalog.sql`. Endpoints: `/courses`, `/programs`, `GET /catalog`, and `POST /programs/{id}/plan` (mastery-gated course ordering with `next_course`).
 
-- Corrections - standardized review/correction model (`aoep_shared/corrections.py`) for course content and the training model, with single + bulk (CSV/JSONL) entry and `correction_to_training_example` (gold, reward=+1) for back-propagation. Protected attributes are excluded from training context by design.
+- Corrections - standardized review/correction model (`aoep_shared/corrections.py`) for course content and the training model, with single + bulk (CSV/JSONL) entry and `correction_to_training_example` (gold, reward=+1) for back-propagation. Protected attributes are excluded from training context by design. Review API: `POST /corrections`, `POST /corrections/bulk`, `GET /corrections`, approve/reject.
 
 ## Architecture
 
