@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { APP_VERSION } from "./lib/version";
+import DisclaimerGate from "./components/DisclaimerGate";
 
 export const metadata: Metadata = {
   title: "Agentic Online Education Platform",
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <DisclaimerGate />
         <nav className="nav">
           <span className="brand">AI Classroom</span>
           <Link href="/">Home</Link>

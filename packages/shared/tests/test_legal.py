@@ -10,8 +10,12 @@ from aoep_shared.legal import (
 
 def test_registry_has_core_notices():
     ids = {n.id for n in NOTICES}
-    for required in ("license", "terms", "privacy", "aup", "dpa", "security"):
+    for required in ("disclaimer", "license", "terms", "privacy", "aup", "dpa", "security"):
         assert required in ids
+
+
+def test_disclaimer_is_required_first():
+    assert "disclaimer" in REQUIRED_NOTICE_IDS
 
 
 def test_acceptance_requires_all_required():
@@ -19,11 +23,11 @@ def test_acceptance_requires_all_required():
     assert store.has_accepted_required("u1") is False
     assert set(store.outstanding("u1")) == set(REQUIRED_NOTICE_IDS)
 
-    store.accept("u1", ["terms", "privacy"])
-    assert store.has_accepted_required("u1") is False  # aup missing
-    assert store.outstanding("u1") == ["aup"]
+    store.accept("u1", ["terms", "privacy", "aup"])
+    assert store.has_accepted_required("u1") is False  # disclaimer missing
+    assert store.outstanding("u1") == ["disclaimer"]
 
-    store.accept("u1", ["aup"])
+    store.accept("u1", ["disclaimer"])
     assert store.has_accepted_required("u1") is True
     assert store.outstanding("u1") == []
 

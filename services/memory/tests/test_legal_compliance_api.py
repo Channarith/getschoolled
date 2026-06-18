@@ -10,21 +10,21 @@ client = TestClient(app)
 def test_legal_notices_lists_required():
     body = client.get("/legal/notices").json()
     ids = {n["id"] for n in body["notices"]}
-    assert {"license", "terms", "privacy", "aup", "dpa", "security"} <= ids
-    assert set(body["required"]) == {"terms", "privacy", "aup"}
+    assert {"disclaimer", "license", "terms", "privacy", "aup", "dpa", "security"} <= ids
+    assert set(body["required"]) == {"disclaimer", "terms", "privacy", "aup"}
 
 
 def test_accept_flow_tracks_outstanding():
     before = client.get("/legal/acceptance/stud-1").json()
     assert before["all_required_accepted"] is False
-    assert "terms" in before["outstanding"]
+    assert "disclaimer" in before["outstanding"]
 
-    client.post("/legal/accept", json={"user_id": "stud-1", "notice_ids": ["terms", "privacy"]})
+    client.post("/legal/accept", json={"user_id": "stud-1", "notice_ids": ["terms", "privacy", "aup"]})
     mid = client.get("/legal/acceptance/stud-1").json()
     assert mid["all_required_accepted"] is False
-    assert mid["outstanding"] == ["aup"]
+    assert mid["outstanding"] == ["disclaimer"]
 
-    done = client.post("/legal/accept", json={"user_id": "stud-1", "notice_ids": ["aup"]}).json()
+    done = client.post("/legal/accept", json={"user_id": "stud-1", "notice_ids": ["disclaimer"]}).json()
     assert done["all_required_accepted"] is True
     assert done["outstanding"] == []
 

@@ -25,6 +25,10 @@ class Notice:
 
 
 NOTICES: List[Notice] = [
+    Notice("disclaimer", "AI & Consent Disclaimer", "1.0",
+           "One-time notice: AI-driven course; you consent, aware of legal terms "
+           "and liabilities, and that regulatory requirements are met.",
+           "legal/DISCLAIMER.txt"),
     Notice("license", "Software License", "1.0",
            "Proprietary license; lawful, authorized educational use only.", "LICENSE"),
     Notice("terms", "Terms of Use", "1.0",
@@ -42,8 +46,9 @@ NOTICES: List[Notice] = [
            "Vulnerability disclosure + user breach-notification policy.", "SECURITY.txt"),
 ]
 
-# Notices a user MUST accept before using the service.
-REQUIRED_NOTICE_IDS = ("terms", "privacy", "aup")
+# Notices a user MUST accept before using the service. The one-time AI & consent
+# disclaimer is required first so users proceed fully informed.
+REQUIRED_NOTICE_IDS = ("disclaimer", "terms", "privacy", "aup")
 
 
 def notice_versions() -> Dict[str, str]:
