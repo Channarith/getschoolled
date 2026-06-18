@@ -73,6 +73,26 @@ class ProviderFactory:
 
         return available_engines(self._config)
 
+    def ocr(self):
+        """OCR provider for homework scanning. Cloud mode -> CloudOcrProvider;
+        local mode -> Tesseract when its binary is present, else the offline
+        MockOcrProvider (keeps the local stack runnable without system deps)."""
+        if "ocr" in self._cache:
+            return self._cache["ocr"]
+        import shutil
+
+        from .providers.ocr import CloudOcrProvider, LocalOcrProvider, MockOcrProvider
+
+        mode = self._config.mode_for("ocr")
+        if mode is DeployMode.CLOUD:
+            instance = CloudOcrProvider(self._config)
+        elif shutil.which("tesseract"):
+            instance = LocalOcrProvider(self._config)
+        else:
+            instance = MockOcrProvider(self._config)
+        self._cache["ocr"] = instance
+        return instance
+
     def component_summary(self) -> dict[str, str]:
         """Human-readable map of component -> 'mode:impl' for /health."""
         summary: dict[str, str] = {}

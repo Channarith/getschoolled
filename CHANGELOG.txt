@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Homework P7 (scan/OCR): OcrProvider abstraction + providers/ocr.py
+  (MockOcrProvider offline, LocalOcrProvider/Tesseract, CloudOcrProvider for
+  handwriting) + factory.ocr() (local falls back to mock without tesseract);
+  homework/ingest.py normalizes OCR into a Submission with per-question
+  segmentation + typed/handwritten flag; curriculum POST /homework/scan.
 
 [0.3.33] - 2026-06-18
 - Homework P6 (generation): aoep_shared/homework (models + generate) builds an

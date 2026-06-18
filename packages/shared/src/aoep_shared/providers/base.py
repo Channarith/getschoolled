@@ -246,3 +246,24 @@ class SearchProvider(Provider):
     @abc.abstractmethod
     def search(self, query: str, *, max_results: int = 5) -> list[SearchResult]:
         ...
+
+
+# --------------------------------------------------------------------------- #
+# OCR (homework scanning: typed + handwritten)
+# --------------------------------------------------------------------------- #
+@dataclass
+class OcrResult:
+    text: str
+    handwritten: bool = False
+    confidence: float = 1.0
+    blocks: Sequence[str] = ()
+
+
+class OcrProvider(Provider):
+    """Reads text from a scanned homework image/PDF (typed or handwritten)."""
+
+    capability = "ocr"
+
+    @abc.abstractmethod
+    def read(self, content: bytes, *, hint: Optional[str] = None) -> OcrResult:
+        ...
