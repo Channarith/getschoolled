@@ -27,6 +27,10 @@ from .teaching import Answer, SessionView, TeachingSessions
 
 app = create_service("orchestrator")
 
+from aoep_shared.optimization import OptimizationLedger  # noqa: E402
+
+app.state.optimization = OptimizationLedger()
+
 # Live-class teaching loop (web-facing). Built lazily so /health and the other
 # endpoints don't pay curriculum/RAG load cost unless a class is used.
 _sessions: TeachingSessions | None = None
@@ -159,6 +163,55 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
         return sessions.ask(session_id, req.text, language=req.language)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
+
+
+# --------------------------------------------------------------------------- #
+# Optimization ledger (track accuracy per stage; promote / revert)
+# --------------------------------------------------------------------------- #
+class CommitStepRequest(BaseModel):
+    stage: str
+    params: dict = {}
+    metrics: dict = {}
+    parent: str | None = None
+
+
+def _step_dict(s) -> dict:
+    return {"step_id": s.step_id, "stage": s.stage, "params": s.params,
+            "metrics": s.metrics, "parent": s.parent, "created_at": s.created_at}
+
+
+@app.post("/api/optimization/commit")
+def optimization_commit(req: CommitStepRequest) -> dict:
+    ledger = app.state.optimization
+    step = ledger.commit(req.stage, req.params, req.metrics, parent=req.parent)
+    promoted = ledger.promote_if_better(step)
+    return {"step": _step_dict(step), "promoted": promoted,
+            "champion": _step_dict(ledger.champion(req.stage))}
+
+
+@app.get("/api/optimization/champion/{stage}")
+def optimization_champion(stage: str) -> dict:
+    champ = app.state.optimization.champion(stage)
+    return {"stage": stage, "champion": _step_dict(champ) if champ else None}
+
+
+@app.get("/api/optimization/history")
+def optimization_history(stage: str | None = None) -> dict:
+    return {"steps": [_step_dict(s) for s in app.state.optimization.history(stage)]}
+
+
+class RevertRequest(BaseModel):
+    stage: str
+    step_id: str
+
+
+@app.post("/api/optimization/revert")
+def optimization_revert(req: RevertRequest) -> dict:
+    try:
+        step = app.state.optimization.revert(req.stage, req.step_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"reverted_to": _step_dict(step)}
 
 
 # --------------------------------------------------------------------------- #
