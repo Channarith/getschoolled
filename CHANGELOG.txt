@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.27] - 2026-06-18
 - Trust P1 (AI disclosure): aoep_shared/disclosure.py (Disclosure model +
   disclosure_line) + orchestrator GET /api/disclosure; web shows a persistent
   "AI-instructed" badge, an AI-disclosure banner on the class page, and a new
