@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.46] - 2026-06-18
 - Integrations P19 (cloud/collab): aoep_shared/connectors/cloud.py - Slack/Workspace
   notification payloads + MockNotifier, calendar scheduling (auto-create class
   events) + MockCalendar, and SSO (OIDC claim validation + SAML attribute mapping);
