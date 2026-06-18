@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.7] - 2026-06-18
 - corrections API (P7): curriculum review queue - POST /corrections (single),
   POST /corrections/bulk (CSV/JSONL file upload), GET /corrections (filter by
   status), GET /corrections/{id}, and approve/reject. In-memory review store.
