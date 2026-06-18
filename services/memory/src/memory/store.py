@@ -110,6 +110,40 @@ class MemoryStore:
         if saw_slide:
             beh.slides_seen += 1
 
+    def purge_expired(self, *, now=None, default_retention_days=None) -> dict:
+        """Enforce retention: drop consent records past their window, revoke the
+        corresponding grant, and delete any student whose data is no longer
+        covered by an active (non-expired) consent. Returns a purge report."""
+        from aoep_shared.retention import PurgeReport, is_expired
+
+        report = PurgeReport(scanned=len(self._consent_log))
+        kept: list[ConsentRecord] = []
+        for rec in self._consent_log:
+            if is_expired(rec.recorded_at, rec.retention_days, now=now,
+                          default_days=default_retention_days):
+                report.consent_records_purged += 1
+                mem = self._students.get(rec.student_id)
+                if mem is not None:
+                    mem.consents[rec.scope] = False   # revoke on expiry
+            else:
+                kept.append(rec)
+        self._consent_log = kept
+
+        # Delete students whose data is no longer covered by any active consent
+        # (data minimization / storage limitation). A student with no consent
+        # records at all is left untouched (consent not required for that data).
+        students_with_records = {r.student_id for r in self._consent_log}
+        for sid in list(self._students.keys()):
+            mem = self._students[sid]
+            ever_had = any(mem.consents)  # had at least one consent decision
+            still_active = any(mem.consents.values())
+            if ever_had and not still_active and sid not in students_with_records:
+                del self._students[sid]
+                report.students_purged += 1
+        return {"scanned": report.scanned,
+                "consent_records_purged": report.consent_records_purged,
+                "students_purged": report.students_purged}
+
     def learner_signals(self, student_id: str, topic: str) -> LearnerSignals:
         """Aggregate this student's behavior on ``topic`` into adaptive signals."""
         mem = self._students.get(student_id)

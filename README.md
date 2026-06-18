@@ -386,7 +386,10 @@ The compliance policy is **enforced**, not just documented: set `REGION`
 record agreement to the required notices via the `/legal` page (memory service:
 `GET /legal/notices`, `POST /legal/accept`, `GET /legal/acceptance/{user}`,
 `GET /compliance/{region}`). Example enforcement: in the EU the vision provider
-suppresses expression/emotion inference (EU AI Act prohibition).
+suppresses expression/emotion inference (EU AI Act prohibition). Data retention is
+enforced (not just configured): `POST /retention/purge` (memory) deletes data past
+its `retention_days` window; run it on a schedule via `scripts/retention_purge.py`
+or the `retention-purge` k8s CronJob.
 
 > These legal documents are engineering templates and **must be reviewed by
 > qualified counsel** before any commercial/public release; they are not legal advice.

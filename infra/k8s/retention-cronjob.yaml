@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: retention-purge
+  namespace: aoep
+  labels:
+    app: retention-purge
+spec:
+  schedule: "30 3 * * *"   # 03:30 daily
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: retention-purge
+              image: aoep/memory:latest
+              command: ["python3", "scripts/retention_purge.py"]
+              env:
+                - name: MEMORY_URL
+                  value: "http://memory:8000"
