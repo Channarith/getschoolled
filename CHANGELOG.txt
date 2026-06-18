@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.19] - 2026-06-18
 - P14 Track B (base multi-model): vLLM multi-LoRA serving config
   (models/serving/vllm-multilora.yaml), per-domain QLoRA adapter trainer
   (training/base/train_adapters.sh, DRY_RUN-safe), and training/base/routes.py
