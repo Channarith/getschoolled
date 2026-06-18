@@ -215,10 +215,10 @@ export default function ClassPage() {
                     </div>
                   )}
                   {m.role === "teacher" && (
-                    <div className="cite">
+                    <div style={{ marginTop: 6 }}>
                       <button
                         onClick={() => onDispute(m.text)}
-                        style={{ fontSize: 12, padding: "1px 8px", background: "transparent", border: "1px solid currentColor", borderRadius: 999, cursor: "pointer" }}
+                        style={{ fontSize: 12, padding: "2px 10px", color: "#b45309", background: "#fff7ed", border: "1px solid #f59e0b", borderRadius: 999, cursor: "pointer" }}
                         title="Dispute this answer; a human reviews it"
                       >
                         Report / dispute
