@@ -1,0 +1,16 @@
+# Track A.4 - alignment config (runs on the GPU cluster after pretraining).
+base_checkpoint: ${CHECKPOINT_DIR}/base
+stages:
+  sft:
+    data: ${SFT_DATA}          # instruction JSONL (built from training/pipeline)
+    epochs: 3
+    lr: 0.00001
+  dpo:
+    data: ${PREF_DATA}         # {prompt, chosen, rejected} preference triples
+    beta: 0.1
+    lr: 0.000005
+safety:
+  red_team_sets: [internal-redteam, harmbench]
+  fairness_guardrail: true     # reuses training/pipeline assert_no_protected
+  block_on_regression: true    # promote via OptimizationLedger only if non-regressing
+output: ${CHECKPOINT_DIR}/aligned
