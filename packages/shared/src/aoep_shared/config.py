@@ -113,6 +113,9 @@ class AppConfig(BaseModel):
     # OCR (homework scanning; handwriting needs a cloud OCR backend).
     ocr_api_key: str = ""
     ocr_endpoint: str = ""
+    # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
+    embodiment: str = "screen"   # screen | robot
+    robot_endpoint: str = ""
 
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
@@ -171,6 +174,8 @@ def load_config(
         vision_model_dir=get("VISION_MODEL_DIR", ""),
         ocr_api_key=get("OCR_API_KEY", ""),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
+        embodiment=get("EMBODIMENT", "screen"),
+        robot_endpoint=get("ROBOT_ENDPOINT", ""),
         vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get("LIVEKIT_URL", "ws://livekit:7880"),

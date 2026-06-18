@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Embodiment P14: EmbodimentProvider abstraction (say/gesture/perceive) +
+  providers/embodiment.py (ScreenAvatarProvider default, MockRobotProvider,
+  RobotProvider stub) + factory.embodiment() (EMBODIMENT=screen|robot); orchestrator
+  POST /api/embody maps a teaching beat onto the body, so the same brain drives a
+  screen avatar or a humanoid. Offline-tested.
 
 [0.3.40] - 2026-06-18
 - Edge P13 (local-first profile): DEPLOY_MODE=edge resolves every capability to
