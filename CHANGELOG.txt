@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.42] - 2026-06-18
 - Embodiment P15 (on-device packaging): apps/agent-runtime/edge (manifest.yaml +
   Dockerfile.edge + package_edge.sh, DRY_RUN-safe) for a self-contained edge
   runtime targeting Jetson/Coral/mini-PC; docs/edge-robot-runbook.txt (quantize ->
