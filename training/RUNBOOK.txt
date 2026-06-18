@@ -1,0 +1,42 @@
+TRAINING RUNBOOK - two tracks + bake-off (run on a forked GPU cloud agent / lab cluster)
+=======================================================================================
+
+This repo holds the code/configs/orchestration; the heavy runs execute on your
+GPU cluster (not the CPU CI sandbox). Fork a dedicated Cloud Agent with GPU
+access and the secrets below, then run the steps for the track(s) you want.
+
+REQUIRED SECRETS / ENV (set in the Cursor Secrets panel or the agent env)
+- BASE_MODEL            local path or HF id of the open-weight base (Track B + distills)
+- HF_TOKEN             (if pulling weights from Hugging Face; omit for fully offline)
+- CHECKPOINT_DIR       object-store path for checkpoints (Track A)
+- TOKENIZER_DIR        object-store path for the trained tokenizer (Track A)
+- CORPUS_SOURCES       object-store prefixes of the curated, licensed pretraining corpus
+- TARGET_PARAMS, TARGET_TOKENS   final Track A model size + token budget
+- LLM_ROUTES           Track B routing, e.g. "math=adapters/stem,history=adapters/humanities"
+- LLM_BASE_URL         served vLLM endpoint (so the app's LLMProvider uses the champion)
+
+TRACK B - open-weight base + per-domain adapters (recommended primary)
+1. pip install -r training/requirements.txt   (on the GPU host)
+2. Export data:  python3 training/export.py --in <sessions.json> --out train.jsonl \
+                   --corrections <corrections.jsonl> --eval-out eval.jsonl --eval-split 0.1
+3. Per domain in training/base/domains.yaml, fine-tune a QLoRA adapter:
+     python3 training/run_finetune.py --offline --base-model "$BASE_MODEL" \
+       --train train.jsonl --output adapters/<domain>
+4. Serve with vLLM multi-LoRA (--enable-lora --lora-modules <name>=adapters/<domain> ...)
+   and set LLM_ROUTES so the RoutedLLMProvider picks the adapter per class category.
+
+TRACK A - frontier from scratch (large effort; do the proxy rungs first)
+1. Data + tokenizer (A.1): run the pipeline per training/scratch/config/data.yaml.
+2. Distributed pretrain (A.2/A.3): use training/scratch/config/model_ladder.yaml;
+   run the proxy-1b rung first, validate scaling, then mid-8b, then target.
+3. Alignment (A.4): SFT (training/run_finetune.py) + DPO/RLHF + safety/red-team.
+
+BAKE-OFF - pick the champion
+- Evaluate each candidate (training/evaluate.py) into metrics, then:
+    python3 training/bakeoff.py --candidates candidates.json --primary accuracy
+- The champion is promoted via the OptimizationLedger; point LLM_BASE_URL/serving
+  at it. Any candidate is revertible (re-run bakeoff or revert the ledger step).
+
+CONTINUOUS (24/7)
+- Re-run export (incl. fresh corrections) -> fine-tune/align -> evaluate ->
+  promote_if_better on a schedule. Only promote non-regressing checkpoints.

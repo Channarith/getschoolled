@@ -1,0 +1,20 @@
+# Track A.1 - frontier data pipeline config (runs on the lab cluster).
+# Trillion-token corpus prep -> tokenizer. Weights/data are NOT in the repo.
+
+corpus:
+  sources: ${CORPUS_SOURCES}      # object-store prefixes of curated, licensed text
+  min_doc_chars: 200
+dedup:
+  method: minhash_lsh
+  threshold: 0.8
+quality_filter:
+  enabled: true
+  drop_boilerplate: true
+decontamination:
+  eval_sets: [mmlu, gsm8k, internal-edu-eval]   # remove eval overlap from train
+tokenizer:
+  type: bpe                       # or sentencepiece
+  vocab_size: 64000
+  output: ${TOKENIZER_DIR}
+shard:
+  tokens_per_shard: 100_000_000

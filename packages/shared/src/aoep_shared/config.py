@@ -73,6 +73,8 @@ class AppConfig(BaseModel):
     # local container URLs and cloud service URLs.
     llm_base_url: str = "http://llm:8000/v1"
     llm_model: str = "aoep-base-edu"
+    # Track B routing: "category=model,category=model" -> per-domain adapters.
+    llm_routes: str = ""
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
     # Face-model cache dir (empty -> ~/.cache/aoep/models) and cosine match
@@ -141,6 +143,7 @@ def load_config(
         component_modes=dict(component_modes),
         llm_base_url=get("LLM_BASE_URL", "http://llm:8000/v1"),
         llm_model=get("LLM_MODEL", "aoep-base-edu"),
+        llm_routes=get("LLM_ROUTES", ""),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
