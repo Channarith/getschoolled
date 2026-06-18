@@ -98,6 +98,12 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 > suite is green (120+ tests). Cloud k8s manifests under `infra/k8s` ship from the
 > phase0 foundations; real model serving and platform bots require credentials/GPU.
 
+## Platform extensions (in progress)
+
+Backend capabilities being added phase-by-phase (each its own version release):
+
+- Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured.
+
 ## Architecture
 
 ```

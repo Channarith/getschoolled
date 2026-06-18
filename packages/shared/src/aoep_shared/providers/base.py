@@ -216,3 +216,33 @@ class PaymentProvider(Provider):
         self, *, customer_id: str, plan: str, method=None
     ) -> CheckoutSession:
         ...
+
+
+# --------------------------------------------------------------------------- #
+# Search (course validation via web corroboration)
+# --------------------------------------------------------------------------- #
+@dataclass
+class SearchResult:
+    title: str
+    url: str
+    snippet: str
+    engine: str
+
+
+class SearchProvider(Provider):
+    """A web search engine adapter used for course validation.
+
+    Each concrete engine (Bing, Google CSE, Brave, Kagi, Baidu, ...) is enabled
+    only when its API key is configured (``ready()``); a deterministic mock
+    powers offline tests and no-key runs.
+    """
+
+    capability = "search"
+    engine: str = "search"
+
+    def ready(self) -> bool:  # pragma: no cover - overridden per adapter
+        return True
+
+    @abc.abstractmethod
+    def search(self, query: str, *, max_results: int = 5) -> list[SearchResult]:
+        ...
