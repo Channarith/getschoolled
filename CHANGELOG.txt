@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Trust P5 (opt-in tracks + model cards): Course/Program gain a delivery_mode
+  (ai|human|hybrid) with GET /catalog?delivery_mode= filtering; training/model_card.py
+  generates a JSON model card (accuracy + per-category + fairness gap + intended
+  use + limitations); curriculum GET /model-cards + a public web /model-cards page.
 
 [0.3.30] - 2026-06-18
 - Trust P4 (human-of-record + appeal loop): Course gains human_of_record/

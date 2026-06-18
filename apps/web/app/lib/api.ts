@@ -94,6 +94,23 @@ export async function getDisclosure(): Promise<Disclosure> {
   );
 }
 
+export type ModelCard = {
+  name: string;
+  base_model: string | null;
+  metrics: { accuracy: number | null; by_category: Record<string, number>; fairness_gap: number | null };
+  intended_use: string;
+  training_data: string;
+  limitations: string[];
+  fairness: string;
+};
+
+export async function getModelCards(): Promise<ModelCard[]> {
+  const r = await jsonOrThrow<{ model_cards: ModelCard[] }>(
+    await fetch(`${CURRICULUM_URL}/model-cards`, { cache: "no-store" })
+  );
+  return r.model_cards;
+}
+
 export type ReportedCorrection = { id: string; status: string };
 
 export async function reportIssue(args: {
