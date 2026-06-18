@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Accounts P3 (web member experience): login/signup page (token in localStorage),
+  a Netflix-style /browse catalog (search box + category/language/audio/format/
+  level/hands-on facet filters, course preview cards, one-click enroll), and a
+  /account member portal (membership tier selector, courses grouped by status
+  saved/enrolled/in_progress/passed/failed with scores, change-password security).
+  api.ts gains identity + catalog clients (IDENTITY_URL); nav adds Browse + Account.
 
 [0.3.54] - 2026-06-18
 - Accounts P2 (catalog metadata + search): Course gains browse/search metadata

@@ -17,8 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <nav className="nav">
           <span className="brand">AI Classroom</span>
           <Link href="/">Home</Link>
+          <Link href="/browse">Browse</Link>
           <Link href="/class">Live Class</Link>
           <Link href="/homework">Homework</Link>
+          <Link href="/account">Account</Link>
           <Link href="/console">Console</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/consent">Consent</Link>
