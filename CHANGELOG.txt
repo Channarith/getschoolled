@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P13 bake-off depth: per-category + fairness-gap scoring (training/evaluate.py
+  aggregate_scores), a fairness gate that rejects unfair candidates before
+  championing, and a persistent champion pointer (training/champion.py
+  ChampionRegistry: promote/current/revert) that the serving layer reads via the
+  new CHAMPION_PATH config. training/bakeoff.py --champion-path / --max-fairness-gap.
 
 [0.3.17] - 2026-06-18
 - docs: ticked execution status for the whole build - README now has a Backend

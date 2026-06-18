@@ -42,6 +42,37 @@ def token_f1(prediction: str, reference: str) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
+def aggregate_scores(items: List[Dict]) -> Dict:
+    """Aggregate per-item scores into overall + per-category + fairness gap.
+
+    items: [{"score": float, "category": str|None, "group": str|None}]
+    fairness_gap = max(group mean) - min(group mean) across audience groups
+    (0 when fewer than two groups). The bake-off rejects candidates whose gap
+    exceeds a threshold (fairness gate).
+    """
+    scores = [float(i["score"]) for i in items]
+    overall = sum(scores) / len(scores) if scores else 0.0
+
+    def _means(key: str) -> Dict[str, float]:
+        buckets: Dict[str, List[float]] = {}
+        for i in items:
+            k = i.get(key)
+            if k is None:
+                continue
+            buckets.setdefault(str(k), []).append(float(i["score"]))
+        return {k: sum(v) / len(v) for k, v in buckets.items()}
+
+    by_category = _means("category")
+    by_group = _means("group")
+    fairness_gap = (max(by_group.values()) - min(by_group.values())) if len(by_group) >= 2 else 0.0
+    return {
+        "overall": round(overall, 4),
+        "by_category": {k: round(v, 4) for k, v in by_category.items()},
+        "fairness_gap": round(fairness_gap, 4),
+        "n": len(scores),
+    }
+
+
 def read_jsonl(path: str) -> List[Dict]:
     rows = []
     with open(path, "r", encoding="utf-8") as fh:
