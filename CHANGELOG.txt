@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P14 Track B (base multi-model): vLLM multi-LoRA serving config
+  (models/serving/vllm-multilora.yaml), per-domain QLoRA adapter trainer
+  (training/base/train_adapters.sh, DRY_RUN-safe), and training/base/routes.py
+  to derive LLM_ROUTES from domains.yaml (safety-gated domains excluded) feeding
+  RoutedLLMProvider. Offline-tested; real fine-tune runs on the GPU agent.
 
 [0.3.18] - 2026-06-18
 - P13 bake-off depth: per-category + fairness-gap scoring (training/evaluate.py
