@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.49] - 2026-06-18
 - Compliance engine + agreement flow + EU emotion gate: aoep_shared/compliance.py
   encodes region policy (FERPA/COPPA/GDPR/BIPA/EU AI Act) with enforceable checks
   (feature_allowed, requires_parental_consent, requires_written_consent); the EU
