@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Edge P13 (local-first profile): DEPLOY_MODE=edge resolves every capability to
+  its local/on-device implementation (factory + is_local treat edge as local);
+  aoep_shared/edge.py conformance (edge_report/offline_violations/assert_offline)
+  catches any cloud dependency in the edge build. Foundation for the
+  embodiment/humanoid path; on-device quantized models (GGUF/ONNX) documented.
 
 [0.3.39] - 2026-06-18
 - HIL P12 (co-grading): homework grades route through a curriculum-side review

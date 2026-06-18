@@ -40,7 +40,8 @@ class ProviderFactory:
         if component in self._cache:
             return self._cache[component]
         mode = self._config.mode_for(component)
-        cls = local_cls if mode is DeployMode.LOCAL else cloud_cls
+        # Edge resolves to the local (on-device) implementation everywhere.
+        cls = local_cls if mode in (DeployMode.LOCAL, DeployMode.EDGE) else cloud_cls
         instance = cls(self._config)
         self._cache[component] = instance
         return instance
