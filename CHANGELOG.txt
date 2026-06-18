@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.21] - 2026-06-18
 - P16 Track A.2 stack (training/scratch/pretrain/): model sizing
   (transformer_params), Chinchilla token budgeting, and 3D-parallelism validation
   (model_config.py) + run_pretrain.py launcher with a torch-free --check CPU smoke
