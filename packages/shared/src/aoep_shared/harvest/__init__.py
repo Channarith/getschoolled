@@ -2,6 +2,7 @@
 
 from .pipeline import BatchMetrics, CatalogUpsertStore, HarvestPipeline, catalog_key
 from .queue import HarvestQueue, url_key
+from .runner import Checkpoint, harvest_loop
 from .sources import LICENSE_ALLOWLIST, SourceSpec, is_allowed, normalize_license
 from .worker import HarvestStats, HarvestWorker
 
@@ -18,4 +19,6 @@ __all__ = [
     "CatalogUpsertStore",
     "BatchMetrics",
     "catalog_key",
+    "Checkpoint",
+    "harvest_loop",
 ]

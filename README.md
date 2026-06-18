@@ -132,12 +132,12 @@ workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-t
 | 6.2 | Harvest dedup queue (`harvest/queue.py`) | ✅ | #32 |
 | 6.3 | Harvest worker pipeline + stats (`harvest/worker.py`) | ✅ | #32 |
 | 6.4 | Quality+license gate -> idempotent, batch-versioned catalog upsert + metrics (`harvest/pipeline.py`) | ✅ | #32, #42 |
-| 6.5 | 24/7 scale/durability (Redis-backed queue, minhash dedup, batch versioning) | ◑ | #32 |
+| 6.5 | 24/7 at scale: checkpoint/resume loop + harvester service worker + compose/k8s + runbook | ✅ | #43 |
 
-All ✅ rows run and are tested in this repo (full suite green &mdash; 257 tests). The ◑
-rows have their code/config/runbooks merged; their compute-heavy execution
-(frontier pretraining/alignment and the live 100k-material crawl) runs on forked
-GPU/worker agents once the secrets in `docs/secrets.txt` are provided.
+All ✅ rows run and are tested in this repo (full suite green &mdash; 292 tests). The ◑
+rows (Track A.3/A.4 cluster pretraining/alignment) have their code/config/runbooks
+merged; their compute-heavy execution runs on forked GPU agents once the secrets
+in `docs/secrets.txt` are provided.
 
 - Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured. Endpoints: `POST /validate/claim` and `POST /decks/{id}/validate` (per-claim supported/unverified/contradicted + confidence + citations).
 

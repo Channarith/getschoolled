@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P23 harvester at scale: checkpoint/resumable harvest_loop (aoep_shared/harvest/
+  runner.py - Checkpoint persists done sources so a restarted worker skips them),
+  services/harvester worker entrypoint (+ Dockerfile, offline MockFetcher),
+  infra/compose harvester service + infra/k8s harvester Deployment/PVC, and an
+  updated runbook. Completes the 24/7 harvesting workstream (P20-P23).
 
 [0.3.25] - 2026-06-18
 - P22 harvest gate + catalog upsert (aoep_shared/harvest/pipeline.py):

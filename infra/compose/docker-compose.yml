@@ -100,6 +100,17 @@ services:
     ports:
       - "8006:8000"
 
+  harvester:
+    build:
+      context: ../..
+      dockerfile: services/harvester/Dockerfile
+    env_file:
+      - ../../config/local.env
+    volumes:
+      - ./data/harvester:/var/harvester
+    depends_on:
+      - curriculum
+
   agent-runtime:
     build:
       context: ../..
