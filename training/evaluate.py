@@ -15,7 +15,6 @@ import argparse
 import json
 import os
 import re
-from pathlib import Path
 from typing import Dict, List
 
 _TOKEN = re.compile(r"[a-z0-9]+")

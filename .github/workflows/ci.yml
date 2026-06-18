@@ -22,7 +22,7 @@ jobs:
             python3 -m pip install -e "$pkg[test]"
           done
       - name: Run tests
-        run: python3 -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests -q
+        run: python3 -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
 
   web:
     runs-on: ubuntu-latest

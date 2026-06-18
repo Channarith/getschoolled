@@ -11,8 +11,8 @@ Designed to run 24/7 on a separate worker agent against a HarvestQueue.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
-from typing import Callable, Dict, Optional, Set
+from dataclasses import dataclass
+from typing import Callable, Optional, Set
 
 from .queue import HarvestQueue
 from .sources import SourceSpec, is_allowed

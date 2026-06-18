@@ -10,7 +10,7 @@ is revertible in one call. Pure/offline-testable.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Set
 
 from .sources import SourceSpec, is_allowed

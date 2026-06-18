@@ -11,6 +11,10 @@ pydantic==2.7.4
 httpx==0.27.0
 python-multipart==0.0.32
 pytest==8.2.2
+# QA: coverage + lint (used by `make coverage` / `make lint` / qa/regression.py).
+pytest-cov==5.0.0
+ruff==0.6.9
+PyYAML==6.0.2
 
 # Perception (face recognition) - CPU only; model weights downloaded at runtime.
 opencv-contrib-python-headless==4.10.0.84

@@ -9,12 +9,16 @@ PYTHON_PKGS := packages/shared services/orchestrator services/speech \
 COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install test test-py web-install web-typecheck web-build \
-	compose-config k8s-build up down clean
+	compose-config k8s-build up down clean qa stress coverage lint regression
 
 help:
 	@echo "Targets:"
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
+	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
+	@echo "  lint           Ruff lint the Python sources (needs ruff)"
+	@echo "  stress         Stress/perf the running APIs (start services first)"
+	@echo "  qa             Comprehensive gate: tests+coverage + web + stress smoke"
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
 	@echo "  compose-config Validate the docker compose file"
@@ -32,7 +36,23 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
+
+# --- QA / regression / stress --------------------------------------------- #
+coverage:
+	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
+		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
+
+lint:
+	$(VENV_PY) -m ruff check packages/shared/src services/*/src qa training
+
+# Stress/perf the running APIs (start services first, e.g. `make up`).
+stress:
+	$(VENV_PY) qa/stress.py --concurrency 16 --requests 300
+
+# One comprehensive gate: backend tests (+coverage) + web typecheck/lint + stress smoke.
+qa regression:
+	$(VENV_PY) qa/regression.py
 
 web-install:
 	cd apps/web && npm install

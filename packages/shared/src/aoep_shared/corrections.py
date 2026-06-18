@@ -16,7 +16,7 @@ import io
 import json
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from pydantic import BaseModel, Field
 

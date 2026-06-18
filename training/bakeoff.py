@@ -15,7 +15,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, Sequence
 
 from aoep_shared.optimization import OptimizationLedger
 

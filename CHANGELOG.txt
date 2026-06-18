@@ -3,7 +3,15 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- QA: comprehensive regression + API stress system under qa/. qa/stress.py is a
+  dependency-free concurrency load test reporting per-endpoint functional pass-rate
+  (quality), p50/p95/p99 latency (speed), and RPS/error-rate (performance) with
+  tunable SLA gates; it probes /health and skips down services. qa/regression.py
+  runs the backend matrix (+coverage) + web typecheck/lint + a stress smoke as one
+  pass/fail gate. Added make targets (test/coverage/lint/stress/qa), ruff.toml,
+  pytest-cov+ruff dev deps, a nightly qa.yml workflow, and self-tests for the
+  harness (qa/tests). Cleaned 22 unused imports (ruff). Suite now 412 tests; core
+  aoep_shared coverage ~86%. Fixed stale README test counts (257 -> 412).
 
 [0.3.46] - 2026-06-18
 - Integrations P19 (cloud/collab): aoep_shared/connectors/cloud.py - Slack/Workspace
