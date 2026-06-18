@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.53] - 2026-06-18
 - Accounts P1 (identity service): aoep_shared/auth.py (PBKDF2 password hashing +
   HMAC session tokens, stdlib) + a new services/identity with signup/login/me,
   password change, membership tier, and a learner portfolio (saved/enrolled/
