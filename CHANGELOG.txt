@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.34] - 2026-06-18
 - Homework P7 (scan/OCR): OcrProvider abstraction + providers/ocr.py
   (MockOcrProvider offline, LocalOcrProvider/Tesseract, CloudOcrProvider for
   handwriting) + factory.ocr() (local falls back to mock without tesseract);
