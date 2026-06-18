@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import {
   advance,
   ask,
+  getDisclosure,
   listLessons,
   startSession,
   type Answer,
+  type Disclosure,
   type Lesson,
   type SessionView,
   type Slide,
@@ -22,6 +24,7 @@ export default function ClassPage() {
   const [chat, setChat] = useState<{ role: string; text: string; citations?: string[] }[]>([]);
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
 
   useEffect(() => {
     listLessons()
@@ -30,6 +33,9 @@ export default function ClassPage() {
         if (ls.length) setLessonId(ls[0].lesson_id);
       })
       .catch((e) => setError(String(e)));
+    getDisclosure()
+      .then(setDisclosure)
+      .catch(() => setDisclosure(null));
   }, []);
 
   async function onStart() {
@@ -79,6 +85,12 @@ export default function ClassPage() {
   return (
     <main className="container">
       <h1>Live Class</h1>
+      {disclosure && (
+        <div className="card" style={{ borderColor: "#6ea8fe" }}>
+          <strong>AI disclosure</strong>
+          <div className="muted">{disclosure.line}</div>
+        </div>
+      )}
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
           <strong>Could not reach the orchestrator.</strong>

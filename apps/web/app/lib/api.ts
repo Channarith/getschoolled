@@ -70,6 +70,23 @@ export async function advance(sessionId: string): Promise<Slide> {
   );
 }
 
+export type Disclosure = {
+  is_ai: boolean;
+  instructor: string;
+  model_name: string;
+  persona: string;
+  human_of_record: string | null;
+  generated_with: string;
+  grounded_with_citations: boolean;
+  line: string;
+};
+
+export async function getDisclosure(): Promise<Disclosure> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/disclosure`, { cache: "no-store" })
+  );
+}
+
 export async function ask(sessionId: string, text: string): Promise<Answer> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {
