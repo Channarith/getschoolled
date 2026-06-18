@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.16] - 2026-06-18
 - docs: docs/secrets.txt - consolidated GPU/secret reference for the main app and
   the forked training + harvester agents (search, LLM routing/serving, training
   checkpoints/corpus, harvester crawl + object store, payments). All integrations
