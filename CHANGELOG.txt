@@ -3,7 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- docs: ticked execution status for the whole build - README now has a Backend
+  workstreams status table (6 workstreams / 23 phases, mapped to PRs #19-#32) and
+  docs/plan.txt gains an authoritative EXECUTION STATUS block (architecture
+  phase0-10 + the validation/catalog/corrections plan). Validation, Course Catalog,
+  and Corrections backends are complete (PRs #19-#26); adaptive brain done (#27-#30);
+  model-track + harvester scaffolds merged (#31-#32, heavy runs on forked agents).
+  Stale test counts refreshed to 257.
 
 [0.3.16] - 2026-06-18
 - docs: docs/secrets.txt - consolidated GPU/secret reference for the main app and
