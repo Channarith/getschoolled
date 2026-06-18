@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.51] - 2026-06-18
 - Retention/deletion enforcement: aoep_shared/retention.py (is_expired, datetime-
   aware) + MemoryStore.purge_expired (drops consent records past retention_days,
   revokes the grant, and deletes students no longer covered by active consent);
