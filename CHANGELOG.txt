@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.8] - 2026-06-18
 - corrections back-prop (P8): POST /corrections/{id}/apply (approved only) -
   course/deck corrections patch the referenced deck slide; scene corrections
   patch the layer text; model/claim corrections append a gold (reward=+1)
