@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.55] - 2026-06-18
 - Accounts P3 (web member experience): login/signup page (token in localStorage),
   a Netflix-style /browse catalog (search box + category/language/audio/format/
   level/hands-on facet filters, course preview cards, one-click enroll), and a
