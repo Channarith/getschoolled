@@ -45,3 +45,17 @@ def test_emotion_present_in_us():
 def test_emotion_suppressed_in_other_region_by_default():
     obs = _provider("other").analyze_image(b"img", consented_student_ids=[])
     assert obs and all(o.expression is None for o in obs)
+
+
+def test_realtime_biometric_id_gated_by_region():
+    # Enroll the stub face's embedding, then identify with consent.
+    us = _provider("us")
+    us.gallery().enroll("stud-1", [0.1, 0.2, 0.3])
+    us_obs = us.analyze_image(b"img", consented_student_ids=["stud-1"])
+    assert any(o.matched_student_id == "stud-1" for o in us_obs)  # US: identified
+
+    eu = _provider("eu")
+    eu.gallery().enroll("stud-1", [0.1, 0.2, 0.3])
+    eu_obs = eu.analyze_image(b"img", consented_student_ids=["stud-1"])
+    # EU: real-time biometric identification is prohibited -> anonymous (no match).
+    assert all(o.matched_student_id is None for o in eu_obs)
