@@ -142,3 +142,59 @@ PERSONAS (avatar styles, seed into a persona registry)
 friendly, cartoony, realistic, strict instructor, scientific trainer, language tutor.
 Each persona = avatar asset + teaching tone/voice profile (TTS voice, pacing,
 strictness, encouragement), selectable per class or per student preference.
+
+=================================================================
+EXECUTION STATUS  (updated 2026-06-18; authoritative record in-repo)
+=================================================================
+Legend: [x] built & merged (offline-tested)
+        [~] code/config/runbook merged; heavy run on a forked GPU/worker agent
+
+ARCHITECTURE ROADMAP (phase0..phase10)
+  [x] phase0  Foundations (monorepo, provider abstraction + factory, config
+              contracts, db migrations, RAG skeleton, compose, Dockerfiles, CI)
+  [~] phase1  Live AI teacher (text teaching loop end-to-end; real-time LiveKit
+              audio / agent-runtime room wiring needs media infra)
+  [~] phase2  Multilingual + voice (routing/coverage done; ASR/NLLB/XTTS need GPU)
+  [x] phase3  Perception (self-hosted YuNet+SFace face recognition, consent-gated)
+  [x] phase4  Memory & adaptive learning (profiles, mastery, pacing policy)
+  [x] phase5  Assessment (quizzes, definition checks, polls, mastery feedback)
+  [x] phase6  Curriculum CMS (deck CRUD + import + presentation)
+  [x] phase6b Monetization & billing (entitlements + all payment methods; sandbox)
+  [~] phase7  Zoom bridge   (scaffolded behind MediaBridge; needs Zoom SDK+creds)
+  [~] phase8  Teams bridge  (scaffolded; needs Azure/Graph + .NET media bot)
+  [~] phase9  Meet/Chat bridge (scaffolded; needs Google Workspace creds)
+  [~] phase10 Hardening & scale (latency budget + recorder done; GPU/autoscale/
+              observability need infra)
+
+VALIDATION / COURSE CATALOG / CORRECTIONS BACKEND PLAN (6 workstreams, 23 phases)
+  Workstream 1 - Search & course validation
+    [x] 1.1 SearchProvider + adapters (Bing/Google/Brave/Kagi/Baidu) + factory   PR#19
+    [x] 1.2 validation.py (extract/validate claims, cross-engine corroboration)   PR#20
+    [x] 1.3 endpoints POST /validate/claim, POST /decks/{id}/validate             PR#20
+  Workstream 2 - Course catalog (dynamic training programs)
+    [x] 2.1 catalog model/store + db/migrations/0003_catalog.sql                  PR#21
+    [x] 2.2 catalog API + adaptive plan (/courses /programs /catalog /plan)       PR#22
+  Workstream 3 - Corrections & back-propagation
+    [x] 3.1 corrections model + bulk parse (CSV/JSONL) + gold conversion          PR#23
+    [x] 3.2 corrections review API (submit/bulk/list/approve/reject)              PR#24
+    [x] 3.3 corrections apply (patch/gold) + training/export.py --corrections     PR#25
+    [x] 3.4 hallucination guard (groundedness) + Tutor abstain + endpoint         PR#26
+  Workstream 4 - Adaptive optimization brain
+    [x] 4.1 Bayesian Knowledge Tracing + prerequisite SkillGraph                  PR#27
+    [x] 4.2 variational-inference Bayesian IRT ability model                      PR#28
+    [x] 4.3 Thompson-sampling content bandit + BKT mastery + policy wiring        PR#29
+    [x] 4.4 OptimizationLedger (per-stage accuracy, promote/revert) + endpoints   PR#30
+  Workstream 5 - Model development tracks + bake-off
+    [x] 5.1 bake-off / champion-challenger harness (training/bakeoff.py)          PR#31
+    [x] 5.2 RoutedLLMProvider per-domain multi-model routing (LLM_ROUTES)         PR#31
+    [~] 5.3 Track A (from-scratch) data + model-ladder configs + runbook          PR#31
+    [~] 5.4 Track B per-domain QLoRA adapter training (scripts/configs)           PR#31
+  Workstream 6 - 24/7 large-scale harvester
+    [x] 6.1 source spec + license gate (harvest/sources.py)                       PR#32
+    [x] 6.2 dedup queue (harvest/queue.py)                                        PR#32
+    [x] 6.3 worker pipeline + stats (harvest/worker.py)                           PR#32
+    [~] 6.4 worker wiring (curriculum ingest + catalog) + runbook                 PR#32
+    [~] 6.5 24/7 scale/durability (Redis queue, minhash dedup, batch versioning)  PR#32
+
+Required secrets / GPU to run the [~] items: see docs/secrets.txt.
+Full backend test suite: 257 passing.

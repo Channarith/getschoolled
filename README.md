@@ -95,12 +95,45 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 > 2, and 10 have their offline logic done but need GPU/media infra for the
 > remaining pieces; phases 7&ndash;9 (platform bridges) are scaffolded behind a
 > stable interface and need external SDKs/credentials to run. The whole backend
-> suite is green (120+ tests). Cloud k8s manifests under `infra/k8s` ship from the
+> suite is green (257 tests). Cloud k8s manifests under `infra/k8s` ship from the
 > phase0 foundations; real model serving and platform bots require credentials/GPU.
 
-## Platform extensions (in progress)
+## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
-Backend capabilities being added phase-by-phase (each its own version release):
+Delivered phase-by-phase (each its own version release / PR). The
+*Validation, Course Catalog, and Corrections Backend* plan grew into six
+workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-tested)
+· ◑ code/config/runbook merged, heavy execution runs on a forked GPU/worker agent.
+
+| # | Phase | Status | PR |
+| --- | --- | --- | --- |
+| 1.1 | `SearchProvider` + per-engine adapters (Bing/Google/Brave/Kagi/Baidu) + `factory.search_engines()` | ✅ | #19 |
+| 1.2 | Validation engine (`validation.py`: extract/validate claims, cross-engine corroboration) | ✅ | #20 |
+| 1.3 | Validation endpoints (`POST /validate/claim`, `POST /decks/{id}/validate`) | ✅ | #20 |
+| 2.1 | Catalog model/store + `db/migrations/0003_catalog.sql` | ✅ | #21 |
+| 2.2 | Catalog API + adaptive program plan (`/courses`, `/programs`, `/catalog`, `/programs/{id}/plan`) | ✅ | #22 |
+| 3.1 | Corrections model + bulk parse (CSV/JSONL) + gold-example conversion | ✅ | #23 |
+| 3.2 | Corrections review API (submit/bulk/list/approve/reject) | ✅ | #24 |
+| 3.3 | Corrections apply (patch content / emit gold) + `training/export.py --corrections` back-prop | ✅ | #25 |
+| 3.4 | Hallucination guard (`groundedness.py`) + Tutor abstain/ground + `/api/groundedness/check` | ✅ | #26 |
+| 4.1 | Bayesian Knowledge Tracing + prerequisite `SkillGraph` (`knowledge.py`) | ✅ | #27 |
+| 4.2 | Variational-inference Bayesian IRT ability model (`inference.py`) | ✅ | #28 |
+| 4.3 | Thompson-sampling content bandit + BKT-driven mastery + model&rarr;policy wiring | ✅ | #29 |
+| 4.4 | `OptimizationLedger` (per-stage accuracy, promote/revert) + `/api/optimization/*` | ✅ | #30 |
+| 5.1 | Model bake-off / champion-challenger harness (`training/bakeoff.py`) | ✅ | #31 |
+| 5.2 | `RoutedLLMProvider` per-domain multi-model routing (`LLM_ROUTES`) | ✅ | #31 |
+| 5.3 | Track A (from-scratch) data + model-ladder configs + runbook | ◑ | #31 |
+| 5.4 | Track B per-domain QLoRA adapter training (scripts/configs) | ◑ | #31 |
+| 6.1 | Harvest source spec + license gate (`harvest/sources.py`) | ✅ | #32 |
+| 6.2 | Harvest dedup queue (`harvest/queue.py`) | ✅ | #32 |
+| 6.3 | Harvest worker pipeline + stats (`harvest/worker.py`) | ✅ | #32 |
+| 6.4 | Worker wiring (curriculum ingest + catalog) + runbook | ◑ | #32 |
+| 6.5 | 24/7 scale/durability (Redis-backed queue, minhash dedup, batch versioning) | ◑ | #32 |
+
+All ✅ rows run and are tested in this repo (full suite green &mdash; 257 tests). The ◑
+rows have their code/config/runbooks merged; their compute-heavy execution
+(frontier pretraining/alignment and the live 100k-material crawl) runs on forked
+GPU/worker agents once the secrets in `docs/secrets.txt` are provided.
 
 - Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured. Endpoints: `POST /validate/claim` and `POST /decks/{id}/validate` (per-claim supported/unverified/contradicted + confidence + citations).
 
@@ -229,7 +262,7 @@ curl http://localhost:8000/api/lessons
 | Web production build | `make build-web` |
 | Validate compose | `make compose-config` (requires Docker) |
 
-The full backend suite (120+ tests) is green: provider local-vs-cloud selection,
+The full backend suite (257 tests) is green: provider local-vs-cloud selection,
 the orchestrator teaching flow (start &rarr; advance &rarr; ask) plus adaptive/assessment
 APIs, real face-recognition accuracy on a labeled dataset, CMS deck CRUD/import,
 multilingual delivery routing, payment methods, and bridge/latency scaffolds.
