@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { hilDecide, hilQueue, type ReviewItem } from "../lib/api";
+import {
+  gradeReviewDecide,
+  gradeReviews,
+  hilDecide,
+  hilQueue,
+  type ReviewItem,
+} from "../lib/api";
 
 export default function ConsolePage() {
   const [autonomy, setAutonomy] = useState("");
   const [items, setItems] = useState<ReviewItem[]>([]);
+  const [grades, setGrades] = useState<ReviewItem[]>([]);
   const [error, setError] = useState("");
 
   async function refresh() {
@@ -15,6 +22,12 @@ export default function ConsolePage() {
       setItems(r.items);
     } catch (e) {
       setError(String(e));
+    }
+    try {
+      const g = await gradeReviews();
+      setGrades(g.items);
+    } catch {
+      /* curriculum service may be down; ignore */
     }
   }
 
@@ -32,6 +45,21 @@ export default function ConsolePage() {
         await hilDecide(id, "edit", { text });
       } else {
         await hilDecide(id, action);
+      }
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function decideGrade(id: string, action: string) {
+    try {
+      if (action === "edit") {
+        const corrected = window.prompt("Corrected grade feedback (back-propagated to training):");
+        if (corrected === null) return;
+        await gradeReviewDecide(id, "edit", { corrected });
+      } else {
+        await gradeReviewDecide(id, action);
       }
       await refresh();
     } catch (e) {
@@ -77,6 +105,32 @@ export default function ConsolePage() {
               Decided: {it.status}
               {it.final_payload?.text ? ` -> "${String(it.final_payload.text)}"` : ""}
             </div>
+          )}
+        </div>
+      ))}
+
+      <h2>Grading lane</h2>
+      {grades.length === 0 && (
+        <div className="card">
+          <div className="muted">No grades awaiting review.</div>
+        </div>
+      )}
+      {grades.map((it) => (
+        <div className="card" key={it.id}>
+          <div className="muted">
+            grade · score {String(it.payload.score)}/{String(it.payload.max_score)} · risk {it.risk} · status {it.status}
+          </div>
+          {Array.isArray(it.payload.validity_flags) && (it.payload.validity_flags as string[]).length > 0 && (
+            <div className="muted">flags: {(it.payload.validity_flags as string[]).join(", ")}</div>
+          )}
+          {it.status === "pending" ? (
+            <div className="row">
+              <button onClick={() => decideGrade(it.id, "approve")}>Approve</button>
+              <button onClick={() => decideGrade(it.id, "edit")}>Override</button>
+              <button onClick={() => decideGrade(it.id, "reject")}>Reject</button>
+            </div>
+          ) : (
+            <div className="muted">Decided: {it.status}</div>
           )}
         </div>
       ))}

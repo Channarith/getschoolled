@@ -79,6 +79,24 @@ app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
 app.state.corrections = {}  # id -> Correction (review queue)
 
+# Human-in-the-loop co-grading (Phase 12): a review queue for AI-proposed grades.
+from aoep_shared.hil import (  # noqa: E402
+    AutonomyLevel,
+    ReviewItem,
+    ReviewKind,
+    ReviewQueue,
+    ReviewStatus,
+    should_escalate,
+)
+from aoep_shared.optimization import OptimizationLedger  # noqa: E402
+
+app.state.grade_reviews = ReviewQueue()
+app.state.grade_optimization = OptimizationLedger()
+try:
+    app.state.autonomy = AutonomyLevel(os.environ.get("HIL_AUTONOMY", "autonomous"))
+except ValueError:
+    app.state.autonomy = AutonomyLevel.AUTONOMOUS
+
 
 def _signing_key() -> bytes:
     return os.environ.get("SCENE_SIGNING_KEY", "dev-scene-signing-key").encode()
@@ -763,7 +781,7 @@ def homework_grade(req: GradeHomeworkRequest) -> dict:
         subject=req.subject,
         authorship=authorship,
     )
-    return {
+    result = {
         "score": grade.score, "max_score": grade.max_score, "percentage": grade.percentage,
         "validity_flags": grade.validity_flags, "authorship_label": grade.authorship_label,
         "items": [
@@ -771,7 +789,75 @@ def homework_grade(req: GradeHomeworkRequest) -> dict:
              "score": it.score, "citations": it.citations, "rationale": it.rationale}
             for it in grade.items
         ],
+        "pending_review": False, "review_id": None,
     }
+
+    # HIL co-grading gate: route low-confidence / flagged grades to a human.
+    conf = (grade.score / grade.max_score) if grade.max_score else 0.0
+    flagged = bool(set(grade.validity_flags) & {"needs_human_review", "possible_ai_authorship"})
+    if flagged or should_escalate(
+        autonomy=app.state.autonomy, risk=round(1.0 - conf, 3), ai_confidence=round(conf, 3),
+        subject=req.subject,
+    ):
+        item = app.state.grade_reviews.enqueue(ReviewItem(
+            kind=ReviewKind.GRADE, subject=req.subject, ai_confidence=round(conf, 3),
+            risk=round(1.0 - conf, 3), payload={**result, "assignment": req.assignment},
+        ))
+        result["pending_review"] = True
+        result["review_id"] = item.id
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# HIL co-grading review queue (Phase 12)
+# --------------------------------------------------------------------------- #
+def _grade_review_dict(it) -> dict:
+    return {"id": it.id, "kind": it.kind.value, "payload": it.payload,
+            "ai_confidence": it.ai_confidence, "risk": it.risk, "subject": it.subject,
+            "status": it.status.value, "final_payload": it.final_payload,
+            "decided_by": it.decided_by}
+
+
+@app.get("/homework/grade-reviews")
+def grade_reviews(status: str | None = None) -> dict:
+    st = ReviewStatus(status) if status else None
+    return {"autonomy": app.state.autonomy.value,
+            "items": [_grade_review_dict(i) for i in app.state.grade_reviews.list(st)]}
+
+
+class GradeReviewDecisionRequest(BaseModel):
+    action: str                       # approve | edit | reject | takeover
+    edited_payload: dict | None = None   # e.g. {"score": 2, "feedback": "...", "corrected": "..."}
+    decided_by: str = "human"
+
+
+@app.post("/homework/grade-reviews/{item_id}/decision")
+def grade_review_decision(item_id: str, req: GradeReviewDecisionRequest) -> dict:
+    try:
+        item = app.state.grade_reviews.decide(
+            item_id, req.action, edited_payload=req.edited_payload, decided_by=req.decided_by)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown grade review")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    # A human override back-propagates: open a Correction (gold) + record an
+    # optimization step so the grader improves over time.
+    if item.status in (ReviewStatus.EDITED, ReviewStatus.TAKEN_OVER) and req.edited_payload:
+        corrected = str(req.edited_payload.get("corrected") or req.edited_payload.get("feedback") or "")
+        if corrected:
+            c = Correction(
+                target_kind=TargetKind.MODEL, target_id=item.id,
+                locator=str(item.payload.get("assignment", {}).get("title", "homework grade")),
+                corrected=corrected, rationale="human grading override (HIL)",
+                author=req.decided_by, status=CorrectionStatus.APPROVED,
+            )
+            app.state.corrections[c.id] = c
+        new_conf = float(req.edited_payload.get("score", item.ai_confidence))
+        step = app.state.grade_optimization.commit(
+            "grading", {"review_id": item.id}, {"accuracy": new_conf})
+        app.state.grade_optimization.promote_if_better(step)
+    return _grade_review_dict(item)
 
 
 class AuthorshipRequest(BaseModel):
