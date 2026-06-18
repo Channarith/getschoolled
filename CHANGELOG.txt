@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.17] - 2026-06-18
 - docs: ticked execution status for the whole build - README now has a Backend
   workstreams status table (6 workstreams / 23 phases, mapped to PRs #19-#32) and
   docs/plan.txt gains an authoritative EXECUTION STATUS block (architecture
