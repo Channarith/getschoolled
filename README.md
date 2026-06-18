@@ -104,6 +104,8 @@ Backend capabilities being added phase-by-phase (each its own version release):
 
 - Course validation - pluggable, key-gated `SearchProvider` (Bing/Google CSE/Brave/Kagi/Baidu + offline mock) to corroborate course content against the web. `factory.search_engines()` returns whichever engines have API keys configured. Endpoints: `POST /validate/claim` and `POST /decks/{id}/validate` (per-claim supported/unverified/contradicted + confidence + citations).
 
+- Course catalog - persistent Programs -> Courses -> Modules (modules reference CMS decks/scenes) with dynamic-program adaptive rules (e.g. prerequisite mastery). `curriculum/catalog.py` (`CatalogStore`, JSON-persisted) + `db/migrations/0003_catalog.sql`.
+
 ## Architecture
 
 ```

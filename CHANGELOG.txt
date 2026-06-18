@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- catalog (P4): course catalog + dynamic training programs. curriculum/catalog.py
+  - Module/Course/Program models + CatalogStore (CRUD + JSON persistence,
+  autosave) where Module references CMS decks/scenes and Program carries adaptive
+  rules (e.g. prereq mastery). db/migrations/0003_catalog.sql schema-of-record
+  (courses/modules/programs/program_courses/enrollments). Offline-tested.
 
 [0.3.3] - 2026-06-18
 - validation (P2/P3): aoep_shared/validation.py - extract_claims, validate_claim,
