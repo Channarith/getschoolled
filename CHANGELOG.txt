@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Embodiment P15 (on-device packaging): apps/agent-runtime/edge (manifest.yaml +
+  Dockerfile.edge + package_edge.sh, DRY_RUN-safe) for a self-contained edge
+  runtime targeting Jetson/Coral/mini-PC; docs/edge-robot-runbook.txt (quantize ->
+  build -> flash -> humanoid integration contract via EmbodimentProvider); and an
+  offline edge_smoke (assert offline + one teaching beat). Completes the
+  edge/embodiment workstream (P13-P15).
 
 [0.3.41] - 2026-06-18
 - Embodiment P14: EmbodimentProvider abstraction (say/gesture/perceive) +

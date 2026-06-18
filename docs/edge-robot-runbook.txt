@@ -1,0 +1,40 @@
+EDGE + HUMANOID RUNBOOK (Phase 15) - run the teaching brain on a chip/USB device
+================================================================================
+
+The same agent (apps/agent-runtime) runs fully on-device with DEPLOY_MODE=edge:
+no cloud calls, quantized local models. This is the path to plugging the brain
+into a physical humanoid. Heavy hardware bring-up is future work; this runbook +
+the packaging + the offline smoke are in the repo.
+
+0. Offline smoke (any machine, no weights needed):
+   python3 -c "from aoep_shared.edge import edge_smoke, edge_config; \
+     from aoep_shared.factory import ProviderFactory; \
+     print(edge_smoke(ProviderFactory(edge_config(embodiment='robot'))))"
+   -> asserts fully offline + emits one teaching beat (speech + gesture).
+
+1. Quantize models (build host):
+   - LLM: convert to GGUF + quantize (llama.cpp llama-quantize, e.g. Q4_K_M).
+   - ASR/TTS/vision: export to ONNX (Whisper, a TTS, YuNet+SFace).
+   Place per apps/agent-runtime/edge/manifest.yaml model paths.
+
+2. Build the self-contained runtime:
+   DRY_RUN=1 apps/agent-runtime/edge/package_edge.sh   # validate manifest
+   apps/agent-runtime/edge/package_edge.sh             # build OCI image
+
+3. Flash / deploy to the device:
+   - NVIDIA Jetson Orin (GPU module), Google Coral USB (accelerator), or an
+     x86 mini-PC (CPU-only, use a smaller LLM).
+   - Mount the quantized models at /models and run the image (DEPLOY_MODE=edge).
+
+4. Humanoid integration contract (EmbodimentProvider <-> robot SDK):
+   - say(text, language)  -> robot speaker / TTS out.
+   - gesture(name)        -> robot motor/servo motion (map names to joint poses).
+   - perceive()           -> robot cameras + mics in (frames/audio) -> VisionProvider.
+   Implement these three in a hardware RobotProvider (providers/embodiment.py)
+   against the specific humanoid's SDK; everything above it (Director, tutor,
+   adaptivity, HIL) is unchanged.
+
+5. Safety: keep the human-in-the-loop (HIL_AUTONOMY) and the hallucination guard
+   on for an embodied tutor; an on-device kill-switch should halt say()/gesture().
+
+REVERT: stop the device service / repoint to the cloud or screen build.

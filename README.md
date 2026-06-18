@@ -121,6 +121,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 
 | Edge 13 | Local-first `DEPLOY_MODE=edge` (all-local, offline) + `aoep_shared/edge.py` conformance (assert_offline) | ✅ | #56 |
 | Embodiment 14 | `EmbodimentProvider` (say/gesture/perceive) + screen/robot impls + `factory.embodiment()` + `POST /api/embody` | ✅ | #57 |
+| Embodiment 15 | On-device packaging (`apps/agent-runtime/edge/*`) + `docs/edge-robot-runbook.txt` + offline `edge_smoke` | ✅ | #58 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 

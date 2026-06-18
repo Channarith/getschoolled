@@ -49,3 +49,24 @@ def assert_offline(factory) -> None:
 def edge_config(**overrides) -> AppConfig:
     """Convenience: an AppConfig pinned to the edge (all-local) profile."""
     return AppConfig(deploy_mode=DeployMode.EDGE, **overrides)
+
+
+def edge_smoke(factory) -> Dict[str, object]:
+    """On-device boot smoke (Phase 15): assert fully offline, then produce one
+    teaching beat - proves the packaged edge runtime can teach with no network.
+
+    The beat is rendered through the always-available screen avatar (the
+    embodiment-agnostic output stream); the configured embodiment TARGET (e.g. a
+    robot, whose hardware provider is wired on-device) is reported separately."""
+    assert_offline(factory)
+    from .providers.embodiment import ScreenAvatarProvider, narrate
+
+    target = factory.embodiment().info().impl
+    actions = narrate(ScreenAvatarProvider(factory.config),
+                      "Edge teaching turn: today we learn fractions.", gesture="wave")
+    return {
+        "offline": True,
+        "embodiment_target": target,
+        "actions": len(actions),
+        "first_modality": actions[0].modality,
+    }

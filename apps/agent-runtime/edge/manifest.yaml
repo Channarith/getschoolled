@@ -1,0 +1,28 @@
+# Edge runtime manifest (Phase 15) - what gets packaged onto the device.
+# The teaching brain runs fully on-device (DEPLOY_MODE=edge); models are quantized
+# so inference needs no network or datacenter GPU.
+
+runtime:
+  entry: agent_runtime.worker     # the LiveKit/teaching worker
+  deploy_mode: edge
+  embodiment: robot               # screen | robot
+
+models:
+  - role: llm
+    format: gguf                  # llama.cpp; e.g. a 7-8B instruct, 4-bit
+    quantization: Q4_K_M
+    path: /models/llm.gguf
+  - role: asr
+    format: onnx                  # e.g. whisper-small ONNX
+    path: /models/asr.onnx
+  - role: tts
+    format: onnx
+    path: /models/tts.onnx
+  - role: vision
+    format: onnx                  # YuNet + SFace already CPU-friendly
+    path: /models/vision/
+
+target_devices:
+  - nvidia-jetson-orin            # GPU edge module
+  - google-coral-usb              # USB accelerator
+  - x86-mini-pc                   # CPU-only fallback (smaller LLM)
