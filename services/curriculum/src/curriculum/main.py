@@ -27,7 +27,12 @@ from aoep_shared.scene import (
     sign_scene,
     verify_scene,
 )
-from aoep_shared.homework import Assignment, assignment_from_slides, ocr_to_submission
+from aoep_shared.homework import (
+    Assignment,
+    assignment_from_slides,
+    detect_authorship,
+    ocr_to_submission,
+)
 from aoep_shared.provenance import (
     SignedManifest,
     build_manifest,
@@ -714,6 +719,19 @@ class GenerateHomeworkRequest(BaseModel):
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
+
+
+class AuthorshipRequest(BaseModel):
+    text: str
+    handwritten: bool = False
+
+
+@app.post("/homework/authorship")
+def homework_authorship(req: AuthorshipRequest) -> dict:
+    """AI-vs-human authorship signal for a submission (Phase 8)."""
+    v = detect_authorship(req.text, handwritten=req.handwritten)
+    return {"label": v.label, "ai_probability": v.ai_probability, "signals": v.signals,
+            "note": "Probabilistic signal, not proof; borderline cases route to human review."}
 
 
 @app.post("/homework/scan")
