@@ -27,7 +27,7 @@ from aoep_shared.scene import (
     sign_scene,
     verify_scene,
 )
-from aoep_shared.homework import Assignment, assignment_from_slides
+from aoep_shared.homework import Assignment, assignment_from_slides, ocr_to_submission
 from aoep_shared.provenance import (
     SignedManifest,
     build_manifest,
@@ -714,6 +714,21 @@ class GenerateHomeworkRequest(BaseModel):
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
+
+
+@app.post("/homework/scan")
+async def homework_scan(
+    file: UploadFile = File(...), hint: str | None = Form(None), expected: int | None = Form(None)
+) -> dict:
+    """OCR a scanned/typed homework upload into a Submission (Phase 7)."""
+    content = await file.read()
+    ocr = app.state.factory.ocr()
+    try:
+        result = ocr.read(content, hint=hint)
+    except (NotImplementedError, Exception) as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"OCR unavailable: {exc}")
+    sub = ocr_to_submission(result, expected=expected)
+    return sub.model_dump()
 
 
 @app.post("/homework/generate", response_model=Assignment)

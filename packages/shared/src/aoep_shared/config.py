@@ -42,6 +42,7 @@ COMPONENTS = (
     "payment",
     "database",
     "bus",
+    "ocr",
 )
 
 
@@ -106,6 +107,9 @@ class AppConfig(BaseModel):
     brave_search_key: str = ""
     kagi_api_key: str = ""
     baidu_api_key: str = ""
+    # OCR (homework scanning; handwriting needs a cloud OCR backend).
+    ocr_api_key: str = ""
+    ocr_endpoint: str = ""
 
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
@@ -157,6 +161,8 @@ def load_config(
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
+        ocr_api_key=get("OCR_API_KEY", ""),
+        ocr_endpoint=get("OCR_ENDPOINT", ""),
         vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
         livekit_url=get("LIVEKIT_URL", "ws://livekit:7880"),
