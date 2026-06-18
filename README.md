@@ -120,7 +120,7 @@ workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-t
 | 4.2 | Variational-inference Bayesian IRT ability model (`inference.py`) | ✅ | #28 |
 | 4.3 | Thompson-sampling content bandit + BKT-driven mastery + model&rarr;policy wiring | ✅ | #29 |
 | 4.4 | `OptimizationLedger` (per-stage accuracy, promote/revert) + `/api/optimization/*` | ✅ | #30 |
-| 5.1 | Model bake-off / champion-challenger harness (`training/bakeoff.py`) | ✅ | #31 |
+| 5.1 | Model bake-off / champion-challenger harness (`training/bakeoff.py`): per-category + fairness scoring, fairness gate, champion pointer (`training/champion.py`) + revert | ✅ | #31, #35 |
 | 5.2 | `RoutedLLMProvider` per-domain multi-model routing (`LLM_ROUTES`) | ✅ | #31 |
 | 5.3 | Track A (from-scratch) data + model-ladder configs + runbook | ◑ | #31 |
 | 5.4 | Track B per-domain QLoRA adapter training (scripts/configs) | ◑ | #31 |
