@@ -5,6 +5,9 @@ Format: newest first. No markdown per project convention.
 [unreleased]
 - (no changes yet)
 
+[0.3.32] - 2026-06-18
+- (no changes yet)
+
 [0.3.31] - 2026-06-18
 - Trust P5 (opt-in tracks + model cards): Course/Program gain a delivery_mode
   (ai|human|hybrid) with GET /catalog?delivery_mode= filtering; training/model_card.py
