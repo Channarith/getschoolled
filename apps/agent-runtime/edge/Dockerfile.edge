@@ -1,0 +1,16 @@
+# Self-contained on-device edge runtime (Phase 15). Build context = repo root.
+# Runs the teaching brain fully offline (DEPLOY_MODE=edge); models are mounted
+# from the device (/models) per apps/agent-runtime/edge/manifest.yaml.
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    DEPLOY_MODE=edge EMBODIMENT=robot
+
+COPY packages/shared /app/packages/shared
+COPY VERSION /app/VERSION
+RUN pip install --no-cache-dir -e /app/packages/shared
+COPY apps/agent-runtime /app/apps/agent-runtime
+ENV PYTHONPATH=/app/apps/agent-runtime/src:/app/packages/shared/src
+
+# Smoke on boot: assert the runtime is fully offline before serving.
+CMD ["python3", "-c", "from aoep_shared.edge import edge_smoke; from aoep_shared.factory import ProviderFactory; from aoep_shared.edge import edge_config; print(edge_smoke(ProviderFactory(edge_config(embodiment='robot'))))"]
