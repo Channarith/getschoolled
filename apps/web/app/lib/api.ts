@@ -94,6 +94,57 @@ export async function getDisclosure(): Promise<Disclosure> {
   );
 }
 
+export type HomeworkItemGrade = {
+  question_id: string;
+  type: string;
+  correct: boolean | null;
+  score: number;
+  citations: { source?: string; url?: string; overlap?: number; snippet?: string }[];
+  rationale: string;
+};
+
+export type HomeworkGrade = {
+  score: number;
+  max_score: number;
+  percentage: number;
+  validity_flags: string[];
+  authorship_label: string | null;
+  items: HomeworkItemGrade[];
+};
+
+export async function gradeHomework(args: {
+  assignment: unknown;
+  answers?: string[];
+  submission_text?: string;
+  handwritten?: boolean;
+  deck_id?: string;
+  subject?: string;
+}): Promise<HomeworkGrade> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/homework/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    })
+  );
+}
+
+export async function generateHomework(args: {
+  deck_id?: string;
+  course_id?: string;
+  title?: string;
+  subject?: string;
+  num_questions?: number;
+}): Promise<{ assignment_id: string; title: string; subject: string; questions: unknown[] }> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/homework/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    })
+  );
+}
+
 export type ModelCard = {
   name: string;
   base_model: string | null;

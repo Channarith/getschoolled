@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Homework P9 (autograder): homework/grade.py grades objective items (MCQ key
+  match) and open items by corroboration - claims checked against catalog/RAG
+  passages AND subject-restricted trusted sources (homework/sources.py, e.g.
+  webmd.com/nih.gov for medical) via validate_claim; per-item citations + validity
+  flags (incl. AI-authorship). Curriculum POST /homework/grade + public web
+  /homework grader page. Completes the homework subtool (P6-P9).
 
 [0.3.35] - 2026-06-18
 - Homework P8 (AI-vs-human authorship): homework/authorship.py - an offline

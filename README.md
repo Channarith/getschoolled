@@ -113,6 +113,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Homework 6 | Homework generation: `aoep_shared/homework` (Assignment/Question) + `POST /homework/generate` from deck/course | ✅ | merged |
 | Homework 7 | Scan/OCR (typed + handwritten): `OcrProvider` + `providers/ocr.py` + `factory.ocr()` + `homework/ingest.py` + `POST /homework/scan` | ✅ | #50 |
 | Homework 8 | AI-vs-human authorship: `homework/authorship.py` (burstiness/lexical + handwriting signal) + `POST /homework/authorship` (probabilistic signal) | ✅ | #51 |
+| Homework 9 | Autograder: `homework/grade.py` (objective + open-item corroboration vs catalog RAG + trusted domains like webmd/nih) + `POST /homework/grade` + public `/homework` page | ✅ | #52 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
