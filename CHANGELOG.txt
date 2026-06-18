@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- P17 Track A.3 pretrain orchestration: scaling-laws power-law fit
+  (scaling.py: fit proxy runs, extrapolate target loss) + orchestrate.py staged
+  plan (proxy ladder -> full run, checkpoint/resume) with --check smoke, and
+  training/scratch/pretrain/RUNBOOK.txt. Full run executes on the cluster.
 
 [0.3.21] - 2026-06-18
 - P16 Track A.2 stack (training/scratch/pretrain/): model sizing
