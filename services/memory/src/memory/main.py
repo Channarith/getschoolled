@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from aoep_shared.compliance import compliance_summary
+from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, notice_versions
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
 from pydantic import BaseModel
@@ -10,6 +12,7 @@ from .store import MemoryStore
 
 app = create_service("memory")
 app.state.store = MemoryStore()
+app.state.acceptances = AcceptanceStore()
 
 
 class StudentUpsert(BaseModel):
@@ -59,6 +62,49 @@ def has_consent(student_id: str, scope: ConsentScope) -> dict:
         "scope": scope,
         "granted": app.state.store.has_consent(student_id, scope),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Legal notices + user agreement/acceptance, and the region compliance summary
+# --------------------------------------------------------------------------- #
+@app.get("/legal/notices")
+def legal_notices() -> dict:
+    return {
+        "required": list(REQUIRED_NOTICE_IDS),
+        "notices": [
+            {"id": n.id, "title": n.title, "version": n.version,
+             "summary": n.summary, "path": n.path}
+            for n in NOTICES
+        ],
+    }
+
+
+class AcceptRequest(BaseModel):
+    user_id: str
+    notice_ids: list[str]
+
+
+@app.post("/legal/accept")
+def legal_accept(req: AcceptRequest) -> dict:
+    rec = app.state.acceptances.accept(req.user_id, req.notice_ids)
+    return {"user_id": rec.user_id, "accepted": rec.accepted,
+            "all_required_accepted": app.state.acceptances.has_accepted_required(req.user_id),
+            "outstanding": app.state.acceptances.outstanding(req.user_id)}
+
+
+@app.get("/legal/acceptance/{user_id}")
+def legal_acceptance(user_id: str) -> dict:
+    rec = app.state.acceptances.get(user_id)
+    return {"user_id": user_id,
+            "accepted": rec.accepted if rec else {},
+            "all_required_accepted": app.state.acceptances.has_accepted_required(user_id),
+            "outstanding": app.state.acceptances.outstanding(user_id),
+            "current_versions": notice_versions()}
+
+
+@app.get("/compliance/{region}")
+def compliance(region: str) -> dict:
+    return compliance_summary(region)
 
 
 @app.post("/mastery")

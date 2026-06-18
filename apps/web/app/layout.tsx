@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/consent">Consent</Link>
           <Link href="/transparency">Transparency</Link>
+          <Link href="/legal">Legal</Link>
           <span
             title="This platform is AI-instructed; see the Transparency page."
             style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px", borderRadius: 999, border: "1px solid currentColor", opacity: 0.85 }}
@@ -32,6 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </span>
         </nav>
         {children}
+        <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333", fontSize: 12, opacity: 0.75 }}>
+          <span>© 2026 AOEP · </span>
+          <Link href="/legal">Legal &amp; Compliance</Link>
+          <span> · AI-assisted instruction. Use only in compliance with applicable laws. </span>
+          <Link href="/transparency">Transparency</Link>
+        </footer>
       </body>
     </html>
   );
