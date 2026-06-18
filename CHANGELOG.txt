@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.39] - 2026-06-18
 - HIL P12 (co-grading): homework grades route through a curriculum-side review
   queue (per HIL_AUTONOMY; auto-escalates flagged/low-confidence grades). Endpoints
   GET /homework/grade-reviews + POST /homework/grade-reviews/{id}/decision; a human
