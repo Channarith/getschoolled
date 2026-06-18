@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.20] - 2026-06-18
 - P15 Track A.1 data pipeline (training/scratch/data/data_pipeline.py): clean ->
   quality filter -> MinHash/LSH dedup -> eval-set decontamination -> sharding ->
   toy word-frequency tokenizer train/encode/decode. Pure Python reference impls
