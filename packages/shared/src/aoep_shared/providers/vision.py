@@ -78,7 +78,14 @@ class _BaseVisionProvider(VisionProvider):
         self, image: bytes | str, *, consented_student_ids: Iterable[str]
     ) -> List[FaceObservation]:
         """Detect faces and match only against the consented set."""
-        self._consented = frozenset(consented_student_ids)
+        from ..compliance import FEATURE_REALTIME_BIOMETRIC_ID, feature_allowed
+
+        region = getattr(self._config, "region", "us")
+        # Compliance gate: where real-time biometric identification is prohibited
+        # (e.g. EU AI Act), run in anonymous mode - detect/engage but never match
+        # an identity, regardless of the consented set.
+        rt_id_allowed = feature_allowed(region, FEATURE_REALTIME_BIOMETRIC_ID)
+        self._consented = frozenset(consented_student_ids) if rt_id_allowed else frozenset()
         observations: List[FaceObservation] = []
         for idx, face in enumerate(self.engine().detect_faces(image)):
             match = self._gallery.identify(

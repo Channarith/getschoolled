@@ -3,7 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Consent persistence + EU real-time-biometric gate + migration cleanup: the web
+  consent page now records per-scope decisions (region + written-consent) to the
+  memory /consent API (no longer local-only); the vision provider enforces the
+  region real-time biometric-identification restriction (anonymous mode in the EU,
+  no identity match even with consent); removed the duplicate db migration
+  0001_consent_compliance.sql (0001_init.sql is canonical); renamed a duplicate
+  test_retention.py basename that broke combined pytest collection.
 
 [0.3.51] - 2026-06-18
 - Retention/deletion enforcement: aoep_shared/retention.py (is_expired, datetime-

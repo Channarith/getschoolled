@@ -109,6 +109,23 @@ export async function getCompliance(region: string): Promise<Record<string, unkn
   return jsonOrThrow(await fetch(`${MEMORY_URL}/compliance/${region}`, { cache: "no-store" }));
 }
 
+export async function recordConsent(args: {
+  student_id: string;
+  scope: string;
+  granted: boolean;
+  region?: string;
+  written?: boolean;
+  retention_days?: number | null;
+}): Promise<{ student_id: string; scope: string; granted: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/consent`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    })
+  );
+}
+
 export type ReviewItem = {
   id: string;
   kind: string;
