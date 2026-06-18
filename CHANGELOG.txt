@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- adaptive (P10): aoep_shared/inference.py - a Rasch/1PL Bayesian IRT ability
+  model fit by mean-field variational inference (coordinate-ascent with Gaussian
+  priors; posterior std from Fisher info). Estimates latent student ability +
+  item difficulty from responses and selects an item difficulty that targets a
+  desired success probability (adaptive item selection). Pure Python, tested.
 
 [0.3.10] - 2026-06-18
 - adaptive (P9): aoep_shared/knowledge.py - Bayesian Knowledge Tracing (2-state
