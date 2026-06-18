@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.47] - 2026-06-18
 - QA: comprehensive regression + API stress system under qa/. qa/stress.py is a
   dependency-free concurrency load test reporting per-endpoint functional pass-rate
   (quality), p50/p95/p99 latency (speed), and RPS/error-rate (performance) with
