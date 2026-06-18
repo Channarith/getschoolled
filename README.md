@@ -111,6 +111,7 @@ Backend capabilities being added phase-by-phase (each its own version release):
 - Hallucination guard - `aoep_shared/groundedness.py` checks every answer's claims against its retrieved sources (groundedness + risk score); the Tutor abstains/grounds an ungrounded answer (never serves unsupported content) and reports `grounded`/`hallucination_risk`/`unsupported`. `POST /api/groundedness/check`; detected hallucinations route into the corrections back-prop loop.
 
 - Adaptive learner modeling - Bayesian Knowledge Tracing + a prerequisite SkillGraph belief network (`aoep_shared/knowledge.py`), a variational-inference Bayesian IRT ability model (`aoep_shared/inference.py`), and a Thompson-sampling content bandit (`aoep_shared/bandit.py`). Memory mastery is BKT-driven and `adaptive.signals_from_models` feeds BKT/IRT signals into the pacing/difficulty policy. An `OptimizationLedger` (`aoep_shared/optimization.py`) tracks per-stage accuracy and promotes/reverts optimizer steps (endpoints under `/api/optimization/*`).
+- 24/7 course harvester - `aoep_shared/harvest` (license gate + dedup queue + worker) ingests 100k+ permissively-licensed/OER materials on a separate worker agent; see `services/harvester/RUNBOOK.txt`. Two-track LLM training (open-weight multi-model + from-scratch) with a bake-off harness lives under `training/` (see `training/RUNBOOK.txt`).
 
 ## Architecture
 
