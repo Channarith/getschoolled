@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "aoep-shared"
 version = "0.2.0"
 description = "Shared provider interfaces, local/cloud implementations, config factory, schemas, RAG, adaptive learning, assessment, and vision for the Agentic Online Education Platform."
+license = { text = "LicenseRef-AOEP-Proprietary" }
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.7,<3",

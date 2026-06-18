@@ -1,0 +1,73 @@
+AOEP - AGENTIC ONLINE EDUCATION PLATFORM
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright (c) 2026 The AOEP Project / its owners ("Licensor"). All rights reserved.
+
+This software and associated documentation files (the "Software") are the
+confidential and proprietary property of the Licensor. The Software is licensed,
+not sold. Unless a separate written agreement signed by the Licensor states
+otherwise, the following terms apply.
+
+1. GRANT OF LICENSE
+   Subject to these terms, the Licensor grants you a limited, non-exclusive,
+   non-transferable, revocable license to install and use the Software solely
+   for your internal, authorized educational purposes and in accordance with all
+   applicable documentation.
+
+2. RESTRICTIONS
+   You may NOT, except to the extent this restriction is prohibited by applicable
+   law or permitted by a separate written agreement:
+   (a) copy, modify, or create derivative works of the Software;
+   (b) distribute, sublicense, sell, rent, lease, or otherwise make the Software
+       available to any third party;
+   (c) reverse engineer, decompile, or disassemble the Software;
+   (d) remove or alter any proprietary notices, labels, AI-disclosure markings,
+       or content-credential/provenance signatures;
+   (e) use the Software to develop a competing product or to train a competing
+       model on the Software's outputs.
+
+3. LAWFUL AND PERMITTED USE (SOLE USAGE MODEL)
+   The Software must be used ONLY in compliance with all applicable laws,
+   regulations, and policies of the user's government, country, state/province,
+   institution, and any other competent authority, including but not limited to
+   education-privacy, child-protection, biometric-privacy, accessibility,
+   anti-discrimination, and artificial-intelligence laws (see PRIVACY and the
+   in-product Compliance notices). Use that violates such laws or the Acceptable
+   Use Policy (legal/ACCEPTABLE_USE.txt) is unauthorized and terminates this
+   license automatically.
+
+4. AI-SPECIFIC TERMS
+   The Software uses artificial intelligence to assist or conduct instruction and
+   assessment. AI output may be incorrect and is provided as an aid, not as
+   professional, legal, medical, or accredited advice. A human of record remains
+   responsible for instruction and grading where required by law or policy.
+
+5. THIRD-PARTY COMPONENTS
+   The Software includes third-party open-source components and may ingest
+   third-party content; those components/content are governed by their own
+   licenses (see NOTICE.txt). Nothing here grants rights beyond those licenses.
+
+6. DATA AND PRIVACY
+   Processing of personal and student data is governed by legal/PRIVACY.txt and
+   the applicable Data Processing Addendum (legal/DPA.txt).
+
+7. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+   PURPOSE, AND NON-INFRINGEMENT.
+
+8. LIMITATION OF LIABILITY
+   TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR
+   ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY
+   LOSS OF DATA, ARISING FROM OR RELATED TO THE SOFTWARE.
+
+9. TERMINATION
+   This license terminates automatically upon any breach. On termination you must
+   cease all use and destroy all copies.
+
+10. NOTE
+    This is a template provided for engineering completeness and MUST be reviewed
+    and finalized by qualified legal counsel before any commercial or public
+    release. It is not legal advice.
+
+SPDX-License-Identifier: LicenseRef-AOEP-Proprietary
