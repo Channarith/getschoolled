@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- corrections model (P6): aoep_shared/corrections.py - Correction model
+  (target_kind course/deck/scene/claim/model + status), parse_bulk for CSV/JSONL
+  bulk entry, and correction_to_training_example producing a gold (reward=+1)
+  training example. Fairness guardrail: protected attributes (race, ethnicity)
+  are excluded from the training context (allowlisted features only). Tested.
 
 [0.3.5] - 2026-06-18
 - catalog API (P5): curriculum endpoints for the catalog - POST/GET/DELETE
