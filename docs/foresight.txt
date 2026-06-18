@@ -1,0 +1,82 @@
+FORESIGHT - PREDICTIVE INFERENCE ENGINE (invention disclosure / design)
+======================================================================
+Status: patent-pending (draft for counsel). Not legal advice.
+Reference implementation: packages/shared/src/aoep_shared/foresight/
+
+1. SUMMARY
+Foresight is a portable multimodal prediction/inference engine that, in a single
+forward pass, (a) fuses multimodal inputs, (b) routes the request to a finite
+query-type taxonomy, (c) attends over a curated library of "liked patterns" to
+build explainable per-question summaries, (d) emits many predictions in parallel
+through specialized heads (classification, probability, count, ranked
+hypotheses, and a relational graph), and (e) calibrates probabilities. It is
+designed to be re-used across products and accelerated on CUDA (multi-threaded /
+on-device batched inference).
+
+2. ARCHITECTURE & FORMULAS (as implemented)
+Attention:        Attention(Q,K,V) = softmax(QK^T / sqrt(d_k)) V
+Backbone:         H = Encoder(X) in R^{T x d};  F = Pool(H) in R^d   (CLS/mean/attn pool)
+Multimodal fusion: X = concat(text tokens, image tokens, audio tokens)
+Query-type router: pi(c|F) = softmax(W_route^T F + b_route),  c in taxonomy C
+                   mixture:  F_tilde = sum_c pi(c|F) * A_c F   (A_c = tiny adapter)
+Pattern grouping:  K_P = P W_P,  V_P = P U_P    (P = pattern library, M x d_p)
+                   Q_k = W_k^Q F_tilde
+                   alpha_k = softmax(Q_k K_P^T / sqrt(d))
+                   G_k = sum_j alpha_{k,j} V_P[j]    (explainable mixture over patterns)
+Multi-head outputs (one head per question, computed in parallel):
+  (a) classification: z = W^T (F || G_k); p = softmax(z)
+  (b) probability:    p = sigmoid(w^T (F || G_k) + b)
+  (c) count dist.:    p(n) = softmax(W^T (F || G_k)),  n in 1..N_max
+  (d) ranked set:     s(h) = w_h^T phi(H, G_k); top-m by score (diverse sampling)
+  (e) binary flag:    p = sigmoid(w^T (F || G_k) + b)
+  (f) relational graph (RELATIONAL AI):
+        U = relu((H || G_k) W_n) in R^{T x d_g}; select top-K nodes
+        theta_ij = u_i^T W_g u_j;  w_ij = sigmoid(theta_ij)
+        emit G=(V,E,W) with node/edge semantics + probabilities
+Calibration:       temperature / Platt scaling on logits for usable probabilities.
+
+3. RELATIONAL AI
+The graph head models relationships between entities (in education: student <->
+weak skills <-> courses <-> prerequisites) and predicts weighted edges, yielding
+an explainable relational map that drives suggestions ("needs skill Y -> take
+course X"). The pattern-library attention (G_k) is itself relational: predictions
+are grounded in a learned, inspectable mixture over known patterns/typologies.
+
+4. EDUCATION INSTANTIATION (this product)
+LearnerForesight maps the engine to learners:
+  - student profile = skill-mastery state (pooled query F)
+  - skill universe = the "pattern library"
+  - heads: recommend (ranked courses), mastery-gap (which skills are lacking),
+    adapt-difficulty (scalar), needs-support (binary), and the relational skill map.
+Used for: customer/account predictions, suggestive coursework from history, and
+real-time adaptation of class materials to each student's gaps. Because one
+account can have multiple students, predictions run per STUDENT profile.
+
+5. PORTABILITY & CUDA
+The engine is dependency-light (numpy reference) and backend-swappable: the same
+call sites run on a CUDA/CuPy or torch backend for GPU-accelerated, multi-
+threaded / batched inference (predict_batch). The taxonomy, pattern library, and
+head set are configuration, so the engine ports to new domains (the spec's crime-
+analysis heads are an example head set; education heads are another) without code
+changes - "build once, reuse everywhere."
+
+6. NOVELTY (candidate claims - for counsel to refine)
+  C1. A single-forward-pass engine combining a finite query-type ROUTER with
+      per-class adapter mixing AND attention over a curated PATTERN LIBRARY to
+      produce per-head explainable summaries feeding parallel heterogeneous heads.
+  C2. A relational graph head whose edges are predicted from token states fused
+      with the pattern summary (theta_ij = u_i^T W_g u_j), emitting a calibrated,
+      typed relational graph in the same pass as the scalar/categorical heads.
+  C3. Application to per-student educational prediction: routing + pattern-grouped
+      attention over a skill library to recommend coursework and adapt difficulty
+      to identified mastery gaps, per student profile within a shared account.
+  C4. A portable, backend-swappable realization enabling CUDA multi-threaded
+      batched inference behind a fixed interface.
+
+7. EVIDENCE OF REDUCTION TO PRACTICE
+Working reference + tests: packages/shared/tests/test_foresight_engine.py and
+test_foresight_education.py (attention/router/grouping/heads/graph correctness;
+gap-targeted, prerequisite-gated recommendations; batched inference).
+
+NOTE: This disclosure is engineering documentation to support a patent filing and
+must be reviewed/finalized by qualified IP counsel before any filing or release.
