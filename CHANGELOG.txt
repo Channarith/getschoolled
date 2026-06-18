@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.43] - 2026-06-18
 - Integrations P16 (gateway + webhooks): aoep_shared/webhooks.py (HMAC sign/verify,
   SubscriptionStore, retrying delivery + dispatch, MockSender) and a new
   services/integrations gateway (webhook subscriptions + emit, signature-verified
