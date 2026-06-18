@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- training scaffold (Track A/B): RoutedLLMProvider (per-domain adapter routing,
+  LLM_ROUTES) for the open-weight multi-model track; training/bakeoff.py champion-
+  challenger harness (non-regressing promotion via the OptimizationLedger);
+  training/base/domains.yaml + training/scratch/config/{data,model_ladder}.yaml +
+  training/RUNBOOK.txt for the forked GPU agent. All paths secret/env-driven.
 
 [0.3.13] - 2026-06-18
 - adaptive (P12): aoep_shared/optimization.py - OptimizationLedger of versioned

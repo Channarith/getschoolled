@@ -1,0 +1,23 @@
+# Track B - open-weight base + per-domain LoRA adapters (served via vLLM multi-LoRA).
+# The base model is open-weight (set by env; see RUNBOOK). Each domain is a QLoRA
+# adapter trained from that domain's classes/feedback via training/run_finetune.py
+# and routed by class category (LLM_ROUTES, RoutedLLMProvider).
+
+base_model: ${BASE_MODEL}        # e.g. a Qwen Instruct checkpoint (local/HF id)
+serving: vllm-multi-lora
+
+domains:
+  - name: stem            # math/science -> consider a DeepSeek-R1 distill base
+    adapter: adapters/stem
+  - name: humanities      # history/culture/art
+    adapter: adapters/humanities
+  - name: languages
+    adapter: adapters/languages
+  - name: vocational      # culinary/tech/hands-on
+    adapter: adapters/vocational
+  - name: medical         # GATED: safety/red-team review required before serving
+    adapter: adapters/medical
+    safety_gated: true
+
+# Maps to LLM_ROUTES, e.g.:
+#   LLM_ROUTES="math=adapters/stem,biology=adapters/stem,history=adapters/humanities,culinary=adapters/vocational"
