@@ -3,7 +3,16 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Foresight engine (patent-pending): aoep_shared/foresight - a portable
+  multimodal prediction engine implementing the Foresight spec (scaled dot-product
+  attention, encoder + pooled state, finite query-type router with per-class
+  adapter mixing, attention over a "liked pattern" library for explainable
+  grouped summaries, parallel multi-head outputs incl. a RELATIONAL graph head,
+  temperature calibration, and multi-threaded batch inference; numpy reference,
+  CUDA/torch-backend swappable). LearnerForesight applies it to education:
+  per-student mastery-gap detection, difficulty adaptation, course recommendation
+  (gap-coverage, prerequisite-gated), and a relational student/skill/course map.
+  docs/foresight.txt invention disclosure (formulas + novelty/claims). Tested.
 
 [0.3.56] - 2026-06-18
 - Rewards/points system: aoep_shared/rewards.py (points_for_completion scaled by
