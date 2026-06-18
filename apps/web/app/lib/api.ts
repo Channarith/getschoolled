@@ -4,6 +4,9 @@
 export const ORCHESTRATOR_URL =
   process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
 
+export const CURRICULUM_URL =
+  process.env.NEXT_PUBLIC_CURRICULUM_URL ?? "http://localhost:8005";
+
 export type Slide = {
   index: number;
   title: string;
@@ -84,6 +87,26 @@ export type Disclosure = {
 export async function getDisclosure(): Promise<Disclosure> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/disclosure`, { cache: "no-store" })
+  );
+}
+
+export type ProvenanceVerification = {
+  valid: boolean;
+  content_matches: boolean | null;
+  artifact_id: string;
+  assertions: { label: string; data: Record<string, unknown> }[];
+};
+
+export async function verifyProvenance(
+  signed: unknown,
+  content?: string
+): Promise<ProvenanceVerification> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/provenance/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signed, content: content ?? null }),
+    })
   );
 }
 

@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Trust P2 (content credentials): aoep_shared/provenance.py - C2PA-shaped
+  ContentManifest (assertions: ai_generated/model/human_reviewed/sources/
+  training_data_source) bound to content by sha256 and HMAC-signed
+  (sign_manifest/verify_manifest/verify_against_content); curriculum
+  POST /provenance/sign + /provenance/verify; public web /verify page;
+  PROVENANCE_SIGNING_KEY config. Defuses "that content is fake/AI".
 
 [0.3.27] - 2026-06-18
 - Trust P1 (AI disclosure): aoep_shared/disclosure.py (Disclosure model +

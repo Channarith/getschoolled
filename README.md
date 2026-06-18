@@ -105,6 +105,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | # | Phase | Status | PR |
 | --- | --- | --- | --- |
 | Trust 1 | AI disclosure: `aoep_shared/disclosure.py` + `GET /api/disclosure` + AI-instructed badge + `/transparency` page | ✅ | #44 |
+| Trust 2 | Content credentials: `aoep_shared/provenance.py` (C2PA-style manifest, HMAC sign/verify) + `/provenance/sign`+`/verify` + public `/verify` page | ✅ | #45 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 

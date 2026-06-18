@@ -27,6 +27,14 @@ from aoep_shared.scene import (
     sign_scene,
     verify_scene,
 )
+from aoep_shared.provenance import (
+    SignedManifest,
+    build_manifest,
+    sha256_hex,
+    sign_manifest,
+    verify_against_content,
+    verify_manifest,
+)
 from aoep_shared.service import create_service
 from aoep_shared.validation import (
     Claim,
@@ -65,6 +73,12 @@ app.state.corrections = {}  # id -> Correction (review queue)
 
 def _signing_key() -> bytes:
     return os.environ.get("SCENE_SIGNING_KEY", "dev-scene-signing-key").encode()
+
+
+def _provenance_key() -> bytes:
+    return os.environ.get(
+        "PROVENANCE_SIGNING_KEY", os.environ.get("SCENE_SIGNING_KEY", "dev-provenance-key")
+    ).encode()
 
 
 def _curriculum_dir() -> Path:
@@ -632,6 +646,52 @@ def scene_sign(scene_id: str) -> SignedScene:
 @app.post("/scenes/verify")
 def scene_verify(signed: SignedScene) -> dict:
     return {"valid": verify_scene(signed, _signing_key())}
+
+
+# --------------------------------------------------------------------------- #
+# Content credentials / provenance (Trust layer, Phase 2)
+# --------------------------------------------------------------------------- #
+class SignProvenanceRequest(BaseModel):
+    artifact_id: str
+    content: str
+    ai_generated: bool = False
+    model: str | None = None
+    human_reviewed: bool = False
+    reviewer: str | None = None
+    sources: list[str] | None = None
+    training_data_source: str | None = None
+
+
+@app.post("/provenance/sign", response_model=SignedManifest)
+def provenance_sign(req: SignProvenanceRequest) -> SignedManifest:
+    manifest = build_manifest(
+        req.artifact_id, req.content, ai_generated=req.ai_generated, model=req.model,
+        human_reviewed=req.human_reviewed, reviewer=req.reviewer, sources=req.sources,
+        training_data_source=req.training_data_source,
+    )
+    return sign_manifest(manifest, _provenance_key())
+
+
+class VerifyProvenanceRequest(BaseModel):
+    signed: SignedManifest
+    content: str | None = None  # if given, also re-check the content hash
+
+
+@app.post("/provenance/verify")
+def provenance_verify(req: VerifyProvenanceRequest) -> dict:
+    key = _provenance_key()
+    if req.content is not None:
+        valid = verify_against_content(req.signed, req.content, key)
+        content_matches = sha256_hex(req.content) == req.signed.manifest.content_sha256
+    else:
+        valid = verify_manifest(req.signed, key)
+        content_matches = None
+    return {
+        "valid": valid,
+        "content_matches": content_matches,
+        "artifact_id": req.signed.manifest.artifact_id,
+        "assertions": [a.model_dump() for a in req.signed.manifest.assertions],
+    }
 
 
 @app.post("/ingest/youtube", response_model=Deck)
