@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.54] - 2026-06-18
 - Accounts P2 (catalog metadata + search): Course gains browse/search metadata
   (category, tags, audio_language, media_format, level, duration_min, hands_on,
   preview, access_tier, price_usd, thumbnail; category/audio default from subject/
