@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.41] - 2026-06-18
 - Embodiment P14: EmbodimentProvider abstraction (say/gesture/perceive) +
   providers/embodiment.py (ScreenAvatarProvider default, MockRobotProvider,
   RobotProvider stub) + factory.embodiment() (EMBODIMENT=screen|robot); orchestrator
