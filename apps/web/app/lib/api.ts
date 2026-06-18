@@ -77,6 +77,36 @@ export async function advance(sessionId: string): Promise<Slide> {
   );
 }
 
+export type ReviewItem = {
+  id: string;
+  kind: string;
+  payload: Record<string, unknown>;
+  ai_confidence: number;
+  risk: number;
+  status: string;
+  final_payload: Record<string, unknown> | null;
+  decided_by: string | null;
+};
+
+export async function hilQueue(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  return jsonOrThrow(await fetch(`${ORCHESTRATOR_URL}/api/hil/queue${q}`, { cache: "no-store" }));
+}
+
+export async function hilDecide(
+  itemId: string,
+  action: string,
+  editedPayload?: Record<string, unknown>
+): Promise<ReviewItem> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/hil/${itemId}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
+    })
+  );
+}
+
 export type Disclosure = {
   is_ai: boolean;
   instructor: string;

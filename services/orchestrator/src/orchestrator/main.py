@@ -31,6 +31,25 @@ from aoep_shared.optimization import OptimizationLedger  # noqa: E402
 
 app.state.optimization = OptimizationLedger()
 
+import os  # noqa: E402
+
+from aoep_shared.hil import (  # noqa: E402
+    AutonomyLevel,
+    ReviewItem,
+    ReviewKind,
+    ReviewQueue,
+    should_escalate,
+)
+
+app.state.hil = ReviewQueue()
+try:
+    app.state.autonomy = AutonomyLevel(os.environ.get("HIL_AUTONOMY", "autonomous"))
+except ValueError:
+    app.state.autonomy = AutonomyLevel.AUTONOMOUS
+
+_HUMAN_REQUEST_CUES = ("talk to a human", "speak to a human", "real person",
+                       "human teacher", "real teacher")
+
 
 @app.get("/api/disclosure")
 def disclosure(persona: str = "friendly", human_of_record: str | None = None) -> dict:
@@ -171,9 +190,66 @@ def api_advance(session_id: str) -> Slide:
 def api_ask(session_id: str, req: AskRequest) -> Answer:
     sessions = get_sessions()
     try:
-        return sessions.ask(session_id, req.text, language=req.language)
+        answer = sessions.ask(session_id, req.text, language=req.language)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
+
+    # Human-in-the-loop gate (Phase 11): route risky/low-confidence/sensitive or
+    # student-requested answers to a human review queue (per the autonomy level).
+    student_requested = any(c in req.text.lower() for c in _HUMAN_REQUEST_CUES)
+    if should_escalate(
+        autonomy=app.state.autonomy,
+        risk=answer.hallucination_risk,
+        ai_confidence=1.0 - answer.hallucination_risk,
+        student_requested=student_requested,
+    ):
+        item = app.state.hil.enqueue(ReviewItem(
+            kind=ReviewKind.ANSWER,
+            payload={"session_id": session_id, "question": req.text, "text": answer.text,
+                     "citations": answer.citations},
+            ai_confidence=round(1.0 - answer.hallucination_risk, 3),
+            risk=answer.hallucination_risk,
+        ))
+        answer.pending_review = True
+        answer.review_id = item.id
+    return answer
+
+
+# --------------------------------------------------------------------------- #
+# Human-in-the-loop review queue (co-teaching, Phase 11)
+# --------------------------------------------------------------------------- #
+def _review_dict(it) -> dict:
+    return {"id": it.id, "kind": it.kind.value, "payload": it.payload,
+            "ai_confidence": it.ai_confidence, "risk": it.risk, "subject": it.subject,
+            "status": it.status.value, "final_payload": it.final_payload,
+            "decided_by": it.decided_by, "created_at": it.created_at}
+
+
+@app.get("/api/hil/queue")
+def hil_queue(status: str | None = None) -> dict:
+    from aoep_shared.hil import ReviewStatus
+
+    st = ReviewStatus(status) if status else None
+    return {"autonomy": app.state.autonomy.value,
+            "items": [_review_dict(i) for i in app.state.hil.list(st)]}
+
+
+class HilDecisionRequest(BaseModel):
+    action: str                       # approve | edit | reject | takeover
+    edited_payload: dict | None = None
+    decided_by: str = "human"
+
+
+@app.post("/api/hil/{item_id}/decision")
+def hil_decision(item_id: str, req: HilDecisionRequest) -> dict:
+    try:
+        item = app.state.hil.decide(item_id, req.action, edited_payload=req.edited_payload,
+                                    decided_by=req.decided_by)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown review item")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _review_dict(item)
 
 
 # --------------------------------------------------------------------------- #
