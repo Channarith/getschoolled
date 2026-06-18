@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Accounts P1 (identity service): aoep_shared/auth.py (PBKDF2 password hashing +
+  HMAC session tokens, stdlib) + a new services/identity with signup/login/me,
+  password change, membership tier, and a learner portfolio (saved/enrolled/
+  in_progress/passed/failed enrollments + status history). AUTH_SIGNING_KEY config;
+  compose service on :8008. Foundation for the Netflix-style member experience.
 
 [0.3.52] - 2026-06-18
 - Consent persistence + EU real-time-biometric gate + migration cleanup: the web
