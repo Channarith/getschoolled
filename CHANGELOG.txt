@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.48] - 2026-06-18
 - Legal/licensing/notices: added a proprietary LICENSE; legal/ notices (TERMS,
   PRIVACY [FERPA/COPPA-2025/GDPR/BIPA], ACCEPTABLE_USE, DPA), NOTICE.txt
   (third-party/open-weight/OER attributions), and SECURITY.txt (vulnerability
