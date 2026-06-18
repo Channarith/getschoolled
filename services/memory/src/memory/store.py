@@ -10,7 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from aoep_shared.adaptive import LearnerSignals, signals_from_events
+from aoep_shared.knowledge import BayesianKnowledgeTracing
 from aoep_shared.schemas import ConsentRecord, ConsentScope
+
+_BKT = BayesianKnowledgeTracing()
 
 
 @dataclass
@@ -67,12 +70,16 @@ class MemoryStore:
     def update_mastery(
         self, student_id: str, topic: str, correct: bool, *, alpha: float = 0.4
     ) -> float:
+        """Update P(known) for a topic via Bayesian Knowledge Tracing (phase 4).
+
+        (`alpha` is accepted for backwards compatibility but no longer used; the
+        BKT learn/slip/guess/forget model supersedes the old EMA.)
+        """
         mem = self._students.get(student_id)
         if mem is None:
             mem = self.upsert_student(student_id, student_id)
-        prior = mem.mastery.get(topic, 0.0)
-        target = 1.0 if correct else 0.0
-        updated = (1 - alpha) * prior + alpha * target
+        prior = mem.mastery.get(topic, _BKT.params.p_init)
+        updated = _BKT.update(prior, correct)
         mem.mastery[topic] = updated
         return updated
 

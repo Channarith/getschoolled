@@ -123,6 +123,32 @@ class AdaptivePolicy:
         )
 
 
+def signals_from_models(
+    *,
+    topic_mastery: float,
+    quiz_accuracy: float = 0.5,
+    ability: float = 0.0,
+    avg_response_latency_s: float = 5.0,
+    attention_trend: float = 1.0,
+    question_rate: float = 0.0,
+) -> "LearnerSignals":
+    """Build LearnerSignals from the Bayesian models (phase 4).
+
+    `topic_mastery` comes from Bayesian Knowledge Tracing; `ability` is the
+    variational-IRT latent ability (folded in as a small competence nudge to the
+    quiz-accuracy proxy). This is the seam wiring BKT/VI into the AdaptivePolicy.
+    """
+    ability_boost = _clamp01(0.5 + 0.15 * ability)  # sigmoid-ish nudge in [0,1]
+    blended_accuracy = _clamp01(0.7 * quiz_accuracy + 0.3 * ability_boost)
+    return LearnerSignals(
+        topic_mastery=_clamp01(topic_mastery),
+        quiz_accuracy=blended_accuracy,
+        avg_response_latency_s=avg_response_latency_s,
+        attention_trend=_clamp01(attention_trend),
+        question_rate=question_rate,
+    )
+
+
 def signals_from_events(
     *,
     quiz_outcomes: List[bool] | None = None,
