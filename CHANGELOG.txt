@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.5] - 2026-06-18
 - catalog API (P5): curriculum endpoints for the catalog - POST/GET/DELETE
   /courses and /programs, GET /catalog (tree), and POST /programs/{id}/plan which
   orders a program's courses and gates each by its prerequisite-mastery rule
