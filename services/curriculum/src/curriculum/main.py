@@ -38,6 +38,7 @@ from aoep_shared.validation import (
 from fastapi import Body, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from .catalog import CatalogStore, Course, Module, Program
 from .decks import Deck, DeckStore, SlideSpec, parse_deck_text
 from .ingest import (
     ClassFormat,
@@ -51,6 +52,7 @@ from .ingest import (
 app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
+app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
 
 
 def _signing_key() -> bytes:
@@ -266,6 +268,128 @@ class IngestYouTubeRequest(BaseModel):
     video_id: str
     title: str = ""
     fmt: str = "video"
+
+
+# --------------------------------------------------------------------------- #
+# Course catalog + dynamic training programs
+# --------------------------------------------------------------------------- #
+class CreateCourseRequest(BaseModel):
+    title: str
+    subject: str = "general"
+    language: str = "en"
+    description: str = ""
+    modules: list[Module] = []
+
+
+@app.post("/courses", response_model=Course)
+def create_course(req: CreateCourseRequest) -> Course:
+    return app.state.catalog.create_course(Course(**req.model_dump()))
+
+
+@app.get("/courses", response_model=list[Course])
+def list_courses() -> list[Course]:
+    return app.state.catalog.list_courses()
+
+
+@app.get("/courses/{course_id}", response_model=Course)
+def get_course(course_id: str) -> Course:
+    course = app.state.catalog.get_course(course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    return course
+
+
+@app.delete("/courses/{course_id}")
+def delete_course(course_id: str) -> dict:
+    if not app.state.catalog.delete_course(course_id):
+        raise HTTPException(status_code=404, detail="unknown course")
+    return {"deleted": course_id}
+
+
+class CreateProgramRequest(BaseModel):
+    title: str
+    audience: str = ""
+    description: str = ""
+    course_ids: list[str] = []
+    adaptive_rules: dict = {}
+
+
+@app.post("/programs", response_model=Program)
+def create_program(req: CreateProgramRequest) -> Program:
+    return app.state.catalog.create_program(Program(**req.model_dump()))
+
+
+@app.get("/programs", response_model=list[Program])
+def list_programs() -> list[Program]:
+    return app.state.catalog.list_programs()
+
+
+@app.get("/programs/{program_id}", response_model=Program)
+def get_program(program_id: str) -> Program:
+    program = app.state.catalog.get_program(program_id)
+    if program is None:
+        raise HTTPException(status_code=404, detail="unknown program")
+    return program
+
+
+@app.delete("/programs/{program_id}")
+def delete_program(program_id: str) -> dict:
+    if not app.state.catalog.delete_program(program_id):
+        raise HTTPException(status_code=404, detail="unknown program")
+    return {"deleted": program_id}
+
+
+@app.get("/catalog")
+def catalog_tree() -> dict:
+    cat = app.state.catalog
+    return {
+        "courses": [
+            {"course_id": c.course_id, "title": c.title, "subject": c.subject,
+             "modules": len(c.modules), "validation_status": c.validation_status}
+            for c in cat.list_courses()
+        ],
+        "programs": [
+            {"program_id": p.program_id, "title": p.title, "audience": p.audience,
+             "courses": len(p.course_ids)}
+            for p in cat.list_programs()
+        ],
+    }
+
+
+class PlanRequest(BaseModel):
+    # Per-course mastery (0..1), e.g. from the memory service mastery graph.
+    mastery: dict[str, float] = {}
+
+
+@app.post("/programs/{program_id}/plan")
+def program_plan(program_id: str, req: PlanRequest) -> dict:
+    """Order a program's courses and gate each by its prerequisite-mastery rule.
+
+    A course with a `prereq_mastery` threshold is unlocked only once every
+    preceding course in the sequence is mastered at/above that threshold.
+    """
+    program = app.state.catalog.get_program(program_id)
+    if program is None:
+        raise HTTPException(status_code=404, detail="unknown program")
+    prereq_rules = program.adaptive_rules.get("prereq_mastery", {})
+    plan = []
+    for idx, cid in enumerate(program.course_ids):
+        course = app.state.catalog.get_course(cid)
+        threshold = prereq_rules.get(cid)
+        unlocked, reason = True, ""
+        if threshold is not None:
+            preceding = program.course_ids[:idx]
+            unlocked = all(req.mastery.get(p, 0.0) >= threshold for p in preceding)
+            if not unlocked:
+                reason = f"prior courses must be mastered >= {threshold}"
+        plan.append({
+            "course_id": cid,
+            "title": course.title if course else None,
+            "unlocked": unlocked,
+            "reason": reason,
+        })
+    next_course = next((c["course_id"] for c in plan if c["unlocked"]), None)
+    return {"program_id": program_id, "next_course": next_course, "plan": plan}
 
 
 # --------------------------------------------------------------------------- #
