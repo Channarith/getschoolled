@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.36] - 2026-06-18
 - Homework P9 (autograder): homework/grade.py grades objective items (MCQ key
   match) and open items by corroboration - claims checked against catalog/RAG
   passages AND subject-restricted trusted sources (homework/sources.py, e.g.
