@@ -1,0 +1,22 @@
+[
+  {
+    "audience": {"age_band": "teen", "language": "en", "reading_level": "beginner", "learning_style": "visual", "professionalism": "casual", "prior_mastery": 0.3},
+    "turns": [
+      {"role": "student", "text": "what gas do plants release?"},
+      {"role": "teacher", "text": "Plants release oxygen during photosynthesis, as a byproduct of turning carbon dioxide and water into glucose using light."},
+      {"role": "student", "text": "is this a piece of cake to remember?"},
+      {"role": "teacher", "text": "It can be! Just remember: plants take in carbon dioxide and give out oxygen. A simple way to recall it."}
+    ],
+    "rewards": [1.0, 0.5],
+    "tags": ["intro-to-photosynthesis"]
+  },
+  {
+    "audience": {"age_band": "adult", "language": "en", "reading_level": "intermediate", "professionalism": "formal", "prior_mastery": 0.6},
+    "turns": [
+      {"role": "student", "text": "explain the numerator and denominator"},
+      {"role": "teacher", "text": "In a fraction, the denominator (bottom) is the number of equal parts the whole is split into, and the numerator (top) is how many of those parts you have."}
+    ],
+    "rewards": [1.0],
+    "tags": ["intro-to-fractions"]
+  }
+]

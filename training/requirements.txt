@@ -1,0 +1,19 @@
+# Offline education-LLM fine-tuning (Linux/Ubuntu). Install on the training host
+# (a GPU box for real runs). The data step (export.py) and run_finetune.py
+# --check work with just PyYAML; the rest are needed for actual training.
+#
+# Install (GPU host):
+#   python3 -m venv .venv && . .venv/bin/activate
+#   pip install -r training/requirements.txt
+# For CUDA QLoRA you also need a matching CUDA toolchain; bitsandbytes is
+# GPU-only (skip it / it is unused on CPU-only LoRA runs).
+PyYAML==6.0.1
+torch==2.3.1
+transformers==4.43.3
+peft==0.12.0
+trl==0.9.6
+datasets==2.20.0
+accelerate==0.33.0
+sentencepiece==0.2.0
+# GPU-only (4-bit QLoRA); omit on CPU-only machines:
+bitsandbytes==0.43.1

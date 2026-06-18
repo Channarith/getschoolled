@@ -46,7 +46,27 @@ ETHICS / FAIRNESS GUARDRAIL (important)
   pedagogical needs.
 - All training data is consent-gated and PII-minimized (no names/face data).
 
-RUNNING IT (separate cloud agent)
+RUN OFFLINE ON LINUX / UBUNTU (no network)
+Code: export.py, run_finetune.py, evaluate.py, train.sh, requirements.txt.
+
+  # 0) one-time: get a base model locally (on a networked box), e.g.
+  #    huggingface-cli download <model> --local-dir /models/education-base
+  # 1) install deps on the training host (GPU box for real runs)
+  python3 -m venv .venv && . .venv/bin/activate
+  pip install -r training/requirements.txt
+  # 2) validate the pipeline with NO GPU/torch needed:
+  CHECK_ONLY=1 ./training/train.sh
+  # 3) a real offline run against the local base model:
+  BASE_MODEL=/models/education-base ./training/train.sh
+
+train.sh exports sessions -> JSONL (export.py), fine-tunes (run_finetune.py:
+4-bit QLoRA on CUDA, LoRA/CPU fallback otherwise), and evaluates (evaluate.py).
+HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE are exported so nothing touches the
+network. Replace training/data/sample_sessions.json with real exported class
+sessions (SESSIONS=/path/to/sessions.json).
+
+RUNNING IT CONTINUOUSLY (separate cloud agent)
 Fork a dedicated long-running cloud agent with GPU access; it runs the loop
-above on a schedule/continuously. This repo only provides the pipeline + config
-so that agent has a stable, tested contract to build on.
+above (export -> fine-tune -> evaluate -> promote) on a schedule/continuously.
+This repo provides the pipeline + scripts + config so that agent has a stable,
+tested contract to build on.

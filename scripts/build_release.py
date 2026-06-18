@@ -40,7 +40,10 @@ WEB_PACKAGE_JSON = REPO_ROOT / "apps" / "web" / "package.json"
 FEATURE_BUMP_THRESHOLD = 8
 
 SEMVER_RE = re.compile(r"^\s*(\d+)\.(\d+)\.(\d+)\s*$")
-UNRELEASED_HEADER_RE = re.compile(r"^\[unreleased\]\s*-\s*.*$", re.IGNORECASE)
+# Matches the unreleased header in both bare ("[unreleased]") and dated
+# ("[unreleased] - 2026-06-17") forms. The bare form previously slipped through
+# and broke changelog rolling, so accept either.
+UNRELEASED_HEADER_RE = re.compile(r"^\[unreleased\]\s*(?:-.*)?$", re.IGNORECASE)
 
 
 def read_version() -> tuple[int, int, int]:
