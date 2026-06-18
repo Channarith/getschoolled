@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.26] - 2026-06-18
 - P23 harvester at scale: checkpoint/resumable harvest_loop (aoep_shared/harvest/
   runner.py - Checkpoint persists done sources so a restarted worker skips them),
   services/harvester worker entrypoint (+ Dockerfile, offline MockFetcher),
