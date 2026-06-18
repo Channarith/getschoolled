@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.23] - 2026-06-18
 - P18 Track A.4 alignment (training/scratch/align/): SFT example + DPO preference-
   pair builders with a safety blocklist (red-team gate) and the protected-attribute
   fairness guardrail (reuses training/pipeline); align.yaml config + run_align.py
