@@ -1,0 +1,27 @@
+# Track B - vLLM multi-LoRA serving: one open-weight base + per-domain adapters.
+# RoutedLLMProvider selects the adapter per class category via LLM_ROUTES.
+# Launch (GPU host):
+#   vllm serve "$BASE_MODEL" --served-model-name education-base \
+#     --enable-lora --max-loras 8 --max-lora-rank 16 \
+#     --lora-modules stem=$ADAPTER_DIR/stem humanities=$ADAPTER_DIR/humanities \
+#                    languages=$ADAPTER_DIR/languages vocational=$ADAPTER_DIR/vocational
+
+model: ${BASE_MODEL}
+served_model_name: education-base
+enable_lora: true
+max_loras: 8
+max_lora_rank: 16
+dtype: bfloat16
+lora_modules:
+  - name: adapters/stem
+    path: ${ADAPTER_DIR}/stem
+  - name: adapters/humanities
+    path: ${ADAPTER_DIR}/humanities
+  - name: adapters/languages
+    path: ${ADAPTER_DIR}/languages
+  - name: adapters/vocational
+    path: ${ADAPTER_DIR}/vocational
+  # medical adapter is safety-gated: serve only after red-team review.
+
+# App wiring: set LLM_BASE_URL to this endpoint and
+#   LLM_ROUTES="$(python3 training/base/routes.py)"

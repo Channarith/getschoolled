@@ -121,9 +121,9 @@ workstreams (23 phases); status below. Legend: ✅ built &amp; merged (offline-t
 | 4.3 | Thompson-sampling content bandit + BKT-driven mastery + model&rarr;policy wiring | ✅ | #29 |
 | 4.4 | `OptimizationLedger` (per-stage accuracy, promote/revert) + `/api/optimization/*` | ✅ | #30 |
 | 5.1 | Model bake-off / champion-challenger harness (`training/bakeoff.py`): per-category + fairness scoring, fairness gate, champion pointer (`training/champion.py`) + revert | ✅ | #31, #35 |
-| 5.2 | `RoutedLLMProvider` per-domain multi-model routing (`LLM_ROUTES`) | ✅ | #31 |
+| 5.2 | `RoutedLLMProvider` multi-model routing + vLLM multi-LoRA serving config + per-domain adapter trainer + `routes.py` | ✅ | #31, #36 |
 | 5.3 | Track A (from-scratch) data + model-ladder configs + runbook | ◑ | #31 |
-| 5.4 | Track B per-domain QLoRA adapter training (scripts/configs) | ◑ | #31 |
+| 5.4 | Track B per-domain QLoRA adapter training (scripts/configs) | ✅ | #31, #36 |
 | 6.1 | Harvest source spec + license gate (`harvest/sources.py`) | ✅ | #32 |
 | 6.2 | Harvest dedup queue (`harvest/queue.py`) | ✅ | #32 |
 | 6.3 | Harvest worker pipeline + stats (`harvest/worker.py`) | ✅ | #32 |
