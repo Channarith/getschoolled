@@ -123,6 +123,8 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Embodiment 14 | `EmbodimentProvider` (say/gesture/perceive) + screen/robot impls + `factory.embodiment()` + `POST /api/embody` | ✅ | #57 |
 | Embodiment 15 | On-device packaging (`apps/agent-runtime/edge/*`) + `docs/edge-robot-runbook.txt` + offline `edge_smoke` | ✅ | #58 |
 
+| Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
+
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
 Delivered phase-by-phase (each its own version release / PR). The

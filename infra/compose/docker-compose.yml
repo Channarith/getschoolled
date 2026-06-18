@@ -100,6 +100,15 @@ services:
     ports:
       - "8006:8000"
 
+  integrations:
+    build:
+      context: ../..
+      dockerfile: services/integrations/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8007:8000"
+
   harvester:
     build:
       context: ../..
