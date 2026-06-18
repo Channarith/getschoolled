@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.2] - 2026-06-18
 - search/validation (P1): add a pluggable SearchProvider abstraction for course
   validation - SearchResult + SearchProvider in providers/base.py; providers/
   search.py with key-gated adapters (Bing, Google CSE, Brave, Kagi, Baidu) plus
