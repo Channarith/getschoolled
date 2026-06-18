@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.44] - 2026-06-18
 - Integrations P17 (finance/payment): aoep_shared/connectors/finance.py
   (parse_payment_event for Stripe-style webhooks + FinanceConnector/Mock); the
   integrations gateway adds POST /payments/webhook/{provider} (signature-verified)
