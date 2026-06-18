@@ -91,6 +91,13 @@ class AppConfig(BaseModel):
     database_url: str = "postgresql://aoep:aoep@postgres:5432/aoep"
     redis_url: str = "redis://redis:6379/0"
     payment_api_key: str = ""
+    # Course-validation search engines (each enabled only when its key is set).
+    bing_search_key: str = ""
+    google_cse_key: str = ""
+    google_cse_cx: str = ""
+    brave_search_key: str = ""
+    kagi_api_key: str = ""
+    baidu_api_key: str = ""
 
     def mode_for(self, component: str) -> DeployMode:
         """Return the effective mode for ``component``."""
@@ -151,4 +158,10 @@ def load_config(
         ),
         redis_url=get("REDIS_URL", "redis://redis:6379/0"),
         payment_api_key=get("PAYMENT_API_KEY", ""),
+        bing_search_key=get("BING_SEARCH_KEY", ""),
+        google_cse_key=get("GOOGLE_CSE_KEY", ""),
+        google_cse_cx=get("GOOGLE_CSE_CX", ""),
+        brave_search_key=get("BRAVE_SEARCH_KEY", ""),
+        kagi_api_key=get("KAGI_API_KEY", ""),
+        baidu_api_key=get("BAIDU_API_KEY", ""),
     )

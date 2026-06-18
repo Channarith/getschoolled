@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- search/validation (P1): add a pluggable SearchProvider abstraction for course
+  validation - SearchResult + SearchProvider in providers/base.py; providers/
+  search.py with key-gated adapters (Bing, Google CSE, Brave, Kagi, Baidu) plus
+  a deterministic MockSearchProvider; per-engine API-key config; factory
+  .search_engines() returns every configured engine (mock when none). Offline-
+  tested; real engines activate when their key/secret is set.
 
 [0.3.1] - 2026-06-18
 - fix(changelog): repair changelog rolling. build_release.py only recognized a

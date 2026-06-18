@@ -66,6 +66,13 @@ class ProviderFactory:
             "payment", SandboxPaymentProvider, StripePaymentProvider
         )
 
+    def search_engines(self):
+        """Return the configured web-search providers for course validation
+        (every engine whose API key is set; falls back to the offline mock)."""
+        from .providers.search import available_engines
+
+        return available_engines(self._config)
+
     def component_summary(self) -> dict[str, str]:
         """Human-readable map of component -> 'mode:impl' for /health."""
         summary: dict[str, str] = {}
