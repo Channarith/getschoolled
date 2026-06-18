@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Integrations P19 (cloud/collab): aoep_shared/connectors/cloud.py - Slack/Workspace
+  notification payloads + MockNotifier, calendar scheduling (auto-create class
+  events) + MockCalendar, and SSO (OIDC claim validation + SAML attribute mapping);
+  integrations endpoints /notify, /calendar/schedule, /sso/oidc. Live class media
+  bridging reuses bridges/{zoom,teams,meet}. Completes the integrations workstream
+  (P16-P19) and the full Trust/Homework/HIL/Edge/Integrations plan (P1-P19).
 
 [0.3.45] - 2026-06-18
 - Integrations P18 (education platforms): aoep_shared/connectors/lms.py - LTI 1.3

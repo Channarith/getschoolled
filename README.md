@@ -98,9 +98,9 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 > suite is green (257 tests). Cloud k8s manifests under `infra/k8s` ship from the
 > phase0 foundations; real model serving and platform bots require credentials/GPU.
 
-## Trust, homework, HIL, edge, and integrations (in progress)
+## Trust, homework, HIL, edge, and integrations
 
-A second initiative adding a trust/transparency layer, a homework subtool, human-in-the-loop collaboration, an edge/embodiment path, and external integrations. Legend: ✅ built &amp; merged (offline-tested).
+A second initiative (19 phases, all merged) adding a trust/transparency layer (P1-P5), a homework subtool (P6-P9), human-in-the-loop collaboration (P10-P12), an edge/embodiment path toward a humanoid (P13-P15), and external API/webhook integrations (P16-P19). Legend: ✅ built &amp; merged (offline-tested).
 
 | # | Phase | Status | PR |
 | --- | --- | --- | --- |
@@ -126,6 +126,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
+| Integrations 19 | Cloud/collab: `connectors/cloud.py` (Slack/Workspace notify, calendar scheduling, OIDC/SAML SSO) + `/notify`,`/calendar/schedule`,`/sso/oidc` | ✅ | #62 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 

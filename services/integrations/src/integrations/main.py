@@ -24,6 +24,12 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 from aoep_shared.connectors.finance import MockFinanceConnector, parse_payment_event
+from aoep_shared.connectors.cloud import (
+    MockCalendar,
+    MockNotifier,
+    schedule_event,
+    verify_oidc_claims,
+)
 from aoep_shared.connectors.lms import (
     MockLMS,
     build_ags_score,
@@ -44,6 +50,8 @@ app.state.entitlements = {}
 app.state.finance = MockFinanceConnector()
 app.state.lms = MockLMS()           # production: a real Canvas/Moodle/Classroom adapter
 app.state.rosters = {}              # context_id -> [members]
+app.state.notifier = MockNotifier()  # production: Slack/Workspace adapter
+app.state.calendar = MockCalendar()  # production: Google/Microsoft calendar adapter
 
 
 # --------------------------------------------------------------------------- #
@@ -190,6 +198,50 @@ def lms_grade_passback(req: GradePassbackRequest) -> dict:
         scaled = (req.score / req.maximum) if req.maximum else 0.0
         out["xapi"] = build_xapi_statement(req.user_id, "completed", req.line_item, scaled=scaled)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Cloud / collaboration connectors (Phase 19)
+# --------------------------------------------------------------------------- #
+class NotifyRequest(BaseModel):
+    channel: str = "#general"
+    text: str
+
+
+@app.post("/notify")
+def notify(req: NotifyRequest) -> dict:
+    return app.state.notifier.send(req.channel, req.text)
+
+
+class ScheduleRequest(BaseModel):
+    title: str
+    start: str                       # ISO 8601
+    duration_min: int = 60
+    attendees: list[str] = []
+
+
+@app.post("/calendar/schedule")
+def calendar_schedule(req: ScheduleRequest) -> dict:
+    try:
+        event = schedule_event(req.title, req.start, req.duration_min, req.attendees)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"bad start time: {exc}")
+    return app.state.calendar.create_event(event)
+
+
+class OidcRequest(BaseModel):
+    claims: dict
+    audience: str
+
+
+@app.post("/sso/oidc")
+def sso_oidc(req: OidcRequest) -> dict:
+    try:
+        ident = verify_oidc_claims(req.claims, audience=req.audience)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    return {"subject": ident.subject, "email": ident.email, "name": ident.name,
+            "provider": ident.provider}
 
 
 # --------------------------------------------------------------------------- #
