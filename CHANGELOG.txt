@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Homework P8 (AI-vs-human authorship): homework/authorship.py - an offline
+  heuristic detector (sentence-length burstiness + lexical regularity, plus a
+  handwriting human-signal) returning label/ai_probability/signals; curriculum
+  POST /homework/authorship. Documented as a probabilistic signal (not proof)
+  that routes borderline cases to human review.
 
 [0.3.34] - 2026-06-18
 - Homework P7 (scan/OCR): OcrProvider abstraction + providers/ocr.py
