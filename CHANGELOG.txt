@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- One-time AI & consent disclaimer gate: legal/DISCLAIMER.txt + a "disclaimer"
+  notice now REQUIRED (legal.py); a full-screen DisclaimerGate modal blocks the
+  web app on first visit until the user acknowledges this is AI-driven, meets
+  regulatory requirements, and consents fully aware of legal terms/liabilities.
+  Acceptance is remembered (localStorage, shown once) and recorded server-side.
 
 [0.3.49] - 2026-06-18
 - Compliance engine + agreement flow + EU emotion gate: aoep_shared/compliance.py

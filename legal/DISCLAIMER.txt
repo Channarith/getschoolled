@@ -1,0 +1,32 @@
+AOEP - AI & CONSENT DISCLAIMER (one-time notice)
+================================================
+Version: 1.0   Effective: 2026-06-18
+
+Please read before taking a course.
+
+THIS PLATFORM IS AI-DRIVEN. Instruction, answers, and grading on this platform
+are conducted or assisted by artificial intelligence. AI output can be incorrect
+and is provided as an educational aid - not professional, legal, medical, or
+accredited advice. A human of record reviews content where required, and you may
+request human review at any time.
+
+REGULATORY COMPLIANCE. This platform is designed to meet applicable regulatory
+requirements for AI in education, including (as applicable to your region) FERPA,
+COPPA, GDPR, BIPA/CUBI, and the EU AI Act. Region-restricted features are
+enforced automatically (for example, emotion recognition is disabled where
+prohibited). See the Privacy Notice, Terms of Use, and Acceptable Use Policy on
+the Legal page for details.
+
+YOUR CONSENT. By choosing "I understand and consent" and proceeding, you confirm
+that you:
+  - understand this is an AI-driven course experience;
+  - agree to the Terms of Use, Privacy Notice, and Acceptable Use Policy;
+  - are taking the course voluntarily and are fully aware of the associated legal
+    terms, responsibilities, and liabilities (including that the platform is
+    provided "as is", without warranties, and with limited liability to the
+    extent permitted by law);
+  - have authority to consent (or, for a minor, that a parent/guardian or the
+    school has provided the required consent).
+
+This is a one-time notice; you can review all notices any time on the Legal page.
+This summary does not replace the full notices and is not legal advice.
