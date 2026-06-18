@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.15] - 2026-06-18
 - harvester scaffold (24/7, P20-P23): aoep_shared/harvest (SourceSpec + license
   gate is_allowed, HarvestQueue with URL dedup, HarvestWorker with content dedup +
   stats; decoupled fetch/extract/sink callables) and services/harvester/RUNBOOK.txt
