@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.50] - 2026-06-18
 - One-time AI & consent disclaimer gate: legal/DISCLAIMER.txt + a "disclaimer"
   notice now REQUIRED (legal.py); a full-screen DisclaimerGate modal blocks the
   web app on first visit until the user acknowledges this is AI-driven, meets
