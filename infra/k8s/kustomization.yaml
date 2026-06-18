@@ -6,3 +6,4 @@ resources:
   - configmap.yaml
   - services.yaml
   - llm-vllm.yaml
+  - harvester.yaml

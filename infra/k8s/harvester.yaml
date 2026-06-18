@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvester
+  namespace: aoep
+  labels:
+    app: harvester
+spec:
+  replicas: 1            # scale out by sharding seeds across replicas for 100k+
+  selector:
+    matchLabels:
+      app: harvester
+  template:
+    metadata:
+      labels:
+        app: harvester
+    spec:
+      containers:
+        - name: harvester
+          image: aoep/harvester:latest
+          command: ["python3", "services/harvester/src/harvester/run.py"]
+          envFrom:
+            - configMapRef:
+                name: aoep-config
+          env:
+            - name: PYTHONPATH
+              value: /app/services/harvester/src:/app/packages/shared/src
+          volumeMounts:
+            - name: checkpoint
+              mountPath: /var/harvester
+      volumes:
+        - name: checkpoint
+          persistentVolumeClaim:
+            claimName: harvester-checkpoint
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harvester-checkpoint
+  namespace: aoep
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
