@@ -117,6 +117,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 
 | HIL 10 | Human-in-the-loop core: `aoep_shared/hil.py` (autonomy levels + ReviewQueue + escalation policy) | ✅ | #53 |
 | HIL 11 | Co-teaching: orchestrator gates answers through the queue + `/api/hil/*` + web `/console` teacher review (`HIL_AUTONOMY`) | ✅ | #54 |
+| HIL 12 | Co-grading: grades routed to a review queue + human override -> corrections back-prop + optimization ledger + console grading lane | ✅ | #55 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 

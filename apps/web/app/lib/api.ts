@@ -107,6 +107,25 @@ export async function hilDecide(
   );
 }
 
+export async function gradeReviews(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/homework/grade-reviews${q}`, { cache: "no-store" }));
+}
+
+export async function gradeReviewDecide(
+  itemId: string,
+  action: string,
+  editedPayload?: Record<string, unknown>
+): Promise<ReviewItem> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/homework/grade-reviews/${itemId}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
+    })
+  );
+}
+
 export type Disclosure = {
   is_ai: boolean;
   instructor: string;
