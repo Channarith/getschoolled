@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.4] - 2026-06-18
 - catalog (P4): course catalog + dynamic training programs. curriculum/catalog.py
   - Module/Course/Program models + CatalogStore (CRUD + JSON persistence,
   autosave) where Module references CMS decks/scenes and Program carries adaptive
