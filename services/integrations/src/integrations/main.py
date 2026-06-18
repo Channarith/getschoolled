@@ -24,6 +24,13 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel
 
 from aoep_shared.connectors.finance import MockFinanceConnector, parse_payment_event
+from aoep_shared.connectors.lms import (
+    MockLMS,
+    build_ags_score,
+    build_xapi_statement,
+    parse_lti_launch,
+    parse_oneroster,
+)
 
 app = create_service("integrations")
 app.state.subs = SubscriptionStore()
@@ -35,6 +42,8 @@ app.state.sender = MockSender()
 # this forwards to the billing service; held here for the offline gateway.
 app.state.entitlements = {}
 app.state.finance = MockFinanceConnector()
+app.state.lms = MockLMS()           # production: a real Canvas/Moodle/Classroom adapter
+app.state.rosters = {}              # context_id -> [members]
 
 
 # --------------------------------------------------------------------------- #
@@ -136,6 +145,51 @@ class PayoutRequest(BaseModel):
 @app.post("/finance/payout")
 def finance_payout(req: PayoutRequest) -> dict:
     return app.state.finance.payout(req.account, req.amount, currency=req.currency)
+
+
+# --------------------------------------------------------------------------- #
+# Education platform connectors: LMS / SIS (Phase 18)
+# --------------------------------------------------------------------------- #
+@app.post("/lms/lti/launch")
+def lti_launch(claims: dict) -> dict:
+    try:
+        ctx = parse_lti_launch(claims)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"user_id": ctx.user_id, "context_id": ctx.context_id,
+            "roles": ctx.roles, "name": ctx.name}
+
+
+class RosterImportRequest(BaseModel):
+    context_id: str
+    payload: dict                    # OneRoster users payload
+
+
+@app.post("/lms/roster")
+def lms_roster(req: RosterImportRequest) -> dict:
+    members = parse_oneroster(req.payload)
+    app.state.rosters[req.context_id] = members
+    return {"context_id": req.context_id, "count": len(members),
+            "members": [{"user_id": m.user_id, "role": m.role, "name": m.name} for m in members]}
+
+
+class GradePassbackRequest(BaseModel):
+    user_id: str
+    score: float
+    maximum: float = 1.0
+    line_item: str = "homework"
+    export_xapi: bool = False
+
+
+@app.post("/lms/grade-passback")
+def lms_grade_passback(req: GradePassbackRequest) -> dict:
+    payload = build_ags_score(req.user_id, req.score, req.maximum, line_item=req.line_item)
+    result = app.state.lms.push_grade(payload)
+    out = {"pushed": payload, "result": result}
+    if req.export_xapi:
+        scaled = (req.score / req.maximum) if req.maximum else 0.0
+        out["xapi"] = build_xapi_statement(req.user_id, "completed", req.line_item, scaled=scaled)
+    return out
 
 
 # --------------------------------------------------------------------------- #

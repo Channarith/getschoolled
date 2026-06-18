@@ -3,7 +3,10 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Integrations P18 (education platforms): aoep_shared/connectors/lms.py - LTI 1.3
+  launch parsing, OneRoster roster sync, LTI AGS grade-passback + xAPI statements,
+  ConnectorProvider + MockLMS; integrations endpoints /lms/lti/launch, /lms/roster,
+  /lms/grade-passback (pushes HIL-approved homework grades back to the LMS).
 
 [0.3.44] - 2026-06-18
 - Integrations P17 (finance/payment): aoep_shared/connectors/finance.py
