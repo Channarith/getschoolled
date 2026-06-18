@@ -1,0 +1,42 @@
+AOEP - SECURITY POLICY & VULNERABILITY DISCLOSURE
+=================================================
+(Mirror of /.well-known/security.txt format; see RFC 9116.)
+
+Contact: mailto:security@example.org
+Policy: https://example.org/security
+Preferred-Languages: en
+Expires: 2027-01-01T00:00:00Z
+
+REPORTING A VULNERABILITY
+- Email security@example.org with steps to reproduce, impact, and affected
+  versions. Encrypt sensitive details if possible.
+- Please do NOT open public issues for security reports.
+- Do NOT access, modify, or exfiltrate other users' data; never target real
+  student/biometric data. Use test accounts and minimal proof-of-concept.
+
+OUR COMMITMENT (coordinated disclosure)
+- Acknowledge your report within 3 business days.
+- Provide a remediation timeline and keep you updated.
+- Credit reporters who wish to be named after a fix ships.
+- Safe harbor: good-faith research that follows this policy will not be pursued
+  legally and is authorized for the purposes of CFAA-type statutes.
+
+SCOPE
+- The AOEP services (orchestrator, curriculum, memory, speech, perception,
+  billing, integrations, harvester), the web app, and the shared library.
+- Out of scope: third-party services, social engineering, physical attacks,
+  and volumetric DoS.
+
+SECURITY-RELEVANT FEATURES IN THIS REPO
+- Tamper-evident content credentials / provenance (HMAC-signed) - see
+  packages/shared/src/aoep_shared/provenance.py and the /verify page.
+- Webhook signature verification (inbound + outbound) - aoep_shared/webhooks.py.
+- Consent-gated biometrics; encrypted, deletable face embeddings (db migrations).
+- Hallucination guard + human-in-the-loop review for high-risk output.
+
+HANDLING SECURITY NOTIFICATIONS TO USERS
+- Material security incidents affecting personal/student data are disclosed to
+  affected institutions/users per applicable breach-notification laws (e.g. GDPR
+  Art. 33/34, US state breach laws) and the timelines in legal/PRIVACY.txt.
+
+NOTE: contact addresses/URLs above are placeholders to be set before release.

@@ -1,0 +1,52 @@
+AOEP - DATA PROCESSING ADDENDUM (DPA)  (TEMPLATE - requires legal review)
+========================================================================
+Version: 1.0   Effective: 2026-06-18
+
+This DPA governs processing of personal data / student education records when an
+institution ("Controller"/"School") uses AOEP ("Processor"). It supplements the
+Terms of Use and applies where FERPA, COPPA, GDPR, or similar laws apply.
+
+1. ROLES
+   The School is the controller of student data; AOEP is the processor / "school
+   official" acting only on the School's documented instructions.
+
+2. SCOPE & PURPOSE LIMITATION
+   AOEP processes student data solely to provide the Service "for the use and
+   benefit of the School and for no other commercial purpose" (FTC COPPA school-
+   authorization standard). No advertising; no sale; no model training on student
+   PII without separate written authorization.
+
+3. COPPA SCHOOL AUTHORIZATION
+   Where the School authorizes collection from under-13 students on parents'
+   behalf, AOEP provides a description of all personal information collected, how
+   it is used, and the ability to review and delete it on request.
+
+4. SUBPROCESSORS
+   Listed in NOTICE.txt / on request; bound by equivalent obligations; School is
+   notified of changes and may object.
+
+5. SECURITY
+   Encryption in transit and at rest for sensitive data (incl. biometric
+   embeddings), access controls, signed content/webhooks, and audit logging.
+
+6. DATA SUBJECT / PARENT RIGHTS
+   AOEP assists the School with access, correction, deletion, portability, and
+   consent-withdrawal requests within statutory timelines.
+
+7. RETENTION & RETURN/DELETION
+   Data retained per the School's retention schedule (retention_days), then
+   deleted or anonymized; returned/deleted on termination.
+
+8. BREACH NOTIFICATION
+   AOEP notifies the School without undue delay (and within GDPR Art. 33
+   timelines where applicable) and supports the School's notification duties.
+
+9. INTERNATIONAL TRANSFERS / DATA RESIDENCY
+   Lawful transfer mechanisms; deployments can be pinned to a region/boundary
+   (local/edge) to keep data in-jurisdiction.
+
+10. AUDIT
+   AOEP provides reasonable information and supports audits to demonstrate
+   compliance.
+
+CONTACT: dpo@example.org  (placeholder)

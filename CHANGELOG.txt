@@ -3,7 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Legal/licensing/notices: added a proprietary LICENSE; legal/ notices (TERMS,
+  PRIVACY [FERPA/COPPA-2025/GDPR/BIPA], ACCEPTABLE_USE, DPA), NOTICE.txt
+  (third-party/open-weight/OER attributions), and SECURITY.txt (vulnerability
+  disclosure + user breach-notification policy). License metadata added to
+  packages/shared/pyproject.toml and apps/web/package.json. README legal section
+  added. (Templates; require counsel review. Enforceable compliance policy +
+  in-app acceptance + EU emotion-recognition gate follow in the next change.)
 
 [0.3.47] - 2026-06-18
 - QA: comprehensive regression + API stress system under qa/. qa/stress.py is a

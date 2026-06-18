@@ -1,0 +1,72 @@
+AOEP - PRIVACY NOTICE  (TEMPLATE - requires legal review)
+=========================================================
+Version: 1.0   Effective: 2026-06-18
+
+This Notice explains what data the Service processes, why, and your rights. It is
+designed to align with FERPA, COPPA (FTC 2025 amendments), GDPR, CCPA/CPRA,
+BIPA/CUBI, and applicable state student-privacy laws. Counsel must finalize it.
+
+1. DATA WE PROCESS
+   - Account/profile: name, role, institution, language.
+   - Learning data: questions, answers, homework submissions, quiz results,
+     mastery/adaptivity signals.
+   - Optional biometric data (face embeddings) ONLY with consent (see 4).
+   - Engagement signals (attention/gaze) where permitted (see 6).
+   - Operational logs and security telemetry.
+
+2. WHY (PURPOSES) & MINIMIZATION
+   To deliver and personalize instruction, assess learning, ensure safety/
+   integrity, and secure the Service. We collect only what is reasonably
+   necessary (data minimization). We do NOT sell personal data.
+
+3. STUDENT DATA / FERPA & SCHOOL OFFICIAL EXCEPTION
+   When used by a school, AOEP acts as a "school official" / processor under the
+   institution's direction and uses student education records solely for the use
+   and benefit of the school and for no other commercial purpose. Institutions
+   may review, export, correct, and request deletion of student data. See the
+   Data Processing Addendum (legal/DPA.txt).
+
+4. CHILDREN (COPPA) & MINORS
+   For users under 13 (US) or the applicable local age, we require verifiable
+   parental consent or valid school authorization. Per the FTC's 2025 COPPA
+   amendments, biometric identifiers are personal information; we apply data
+   minimization, separate opt-in before any third-party sharing, retention limits,
+   and security safeguards, and we do not condition participation on optional data.
+
+5. AI & AUTOMATED PROCESSING
+   AI assists instruction, grading, and (optionally) recognition. We provide AI
+   disclosure, citations/groundedness, human-in-the-loop review, and model cards.
+   You may request human review of AI decisions that affect you.
+
+6. BIOMETRICS & EMOTION/ENGAGEMENT (region-restricted)
+   Face recognition is opt-in and consent-gated, with a name-only fallback;
+   embeddings are encrypted, kept within the configured boundary, and deletable.
+   In Illinois (BIPA) and similar regimes we obtain written consent and publish a
+   retention/destruction schedule. EMOTION RECOGNITION IS DISABLED where prohibited
+   (e.g. EU AI Act bans emotion recognition in education); the Compliance policy
+   enforces this by region.
+
+7. RETENTION & DELETION
+   Data is retained only as long as necessary or as set by your institution's
+   retention schedule (retention_days), then deleted/anonymized. You/your
+   institution may request deletion at any time.
+
+8. SHARING
+   With service providers under contract, with your institution, and as required
+   by law. No sale of personal data; no third-party sharing of children's data
+   without separate consent.
+
+9. SECURITY & BREACH NOTIFICATION
+   We apply technical and organizational safeguards (encryption, access control,
+   signed content/webhooks). Material breaches are notified per GDPR Art. 33/34
+   and applicable state laws (see SECURITY.txt).
+
+10. YOUR RIGHTS
+   Access, correction, deletion, portability, objection/restriction, and consent
+   withdrawal (GDPR/CCPA/FERPA as applicable). Contact privacy@example.org.
+
+11. INTERNATIONAL TRANSFERS
+   Where data crosses borders, we use lawful transfer mechanisms; deployments can
+   be pinned to a region/boundary (local/edge mode) to keep data in-jurisdiction.
+
+CONTACT / DPO: privacy@example.org  (placeholder)

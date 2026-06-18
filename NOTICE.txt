@@ -1,0 +1,31 @@
+AOEP - THIRD-PARTY NOTICES & ATTRIBUTIONS
+=========================================
+
+The AOEP platform is licensed under the proprietary LICENSE in this repository.
+It incorporates third-party open-source components and may serve open-weight
+models and ingest openly-licensed (OER) content. Those are governed by their own
+licenses; this NOTICE provides attribution and does not enlarge any rights.
+
+OPEN-SOURCE COMPONENTS (non-exhaustive; see lockfiles for full lists/versions)
+- Python: FastAPI, Starlette, Uvicorn, Pydantic, NumPy, OpenCV, ONNX Runtime,
+  pypdf, BeautifulSoup, Requests, pytest (and their dependencies) - under MIT /
+  BSD / Apache-2.0 / similar permissive licenses.
+- Web: Next.js, React, TypeScript and dependencies - under MIT / similar.
+
+OPEN-WEIGHT MODELS (Track B / serving; when configured by the operator)
+- e.g. Qwen, DeepSeek-distill, Llama, gpt-oss, Whisper, NLLB, XTTS, YuNet, SFace.
+  Each is subject to ITS OWN model license/terms; operators must comply with the
+  license of any model they deploy.
+
+HARVESTED COURSE CONTENT (Workstream F)
+- The 24/7 harvester ingests ONLY permissively-licensed / OER / public-domain /
+  API-permitted sources (see aoep_shared/harvest/sources.py LICENSE_ALLOWLIST);
+  each item retains its license + attribution. Non-reusable content is blocked.
+
+CONTENT CREDENTIALS
+- Generated content carries C2PA-style provenance/credentials
+  (aoep_shared/provenance.py); do not strip these markings.
+
+This file is informational. A complete, version-pinned third-party license
+inventory should be generated for any release (e.g. via pip-licenses / license
+checkers) and reviewed by counsel.

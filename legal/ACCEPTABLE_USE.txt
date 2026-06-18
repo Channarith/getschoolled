@@ -1,0 +1,33 @@
+AOEP - ACCEPTABLE USE POLICY  (TEMPLATE - requires legal review)
+===============================================================
+Version: 1.0   Effective: 2026-06-18
+
+Use the Service lawfully, ethically, and only as permitted by your government,
+country, state/province, and institution.
+
+PROHIBITED USES
+- Any use that violates applicable law or third-party rights.
+- Uploading others' personal/biometric data without a lawful basis/consent.
+- Using the Service for surveillance, profiling, or social scoring of students.
+- EMOTION RECOGNITION in education where prohibited (e.g. EU AI Act) - the
+  platform disables this by region; do not attempt to circumvent it.
+- Real-time remote biometric identification where prohibited by law.
+- Academic dishonesty, or using AI output to misrepresent authorship.
+- Generating unsafe, harassing, hateful, or illegal content; attempting to
+  bypass the hallucination guard or safety/HIL controls.
+- Scraping or ingesting non-permissively-licensed content (the harvester license
+  gate must not be bypassed).
+- Reverse engineering, unauthorized access, or removing AI-disclosure / content-
+  credential markings.
+
+REGION-AWARE RESTRICTIONS
+The in-product Compliance policy (aoep_shared/compliance.py) enforces region
+rules (FERPA/COPPA/GDPR/BIPA/EU AI Act). Operating in a region requires meeting
+its rules (e.g. written biometric consent in Illinois; parental consent for
+under-13; no emotion recognition in the EU).
+
+ENFORCEMENT
+Violations may result in feature gating, suspension, or termination, and may be
+reported to authorities where required.
+
+REPORT ABUSE / CONCERNS: trust@example.org  (placeholder)

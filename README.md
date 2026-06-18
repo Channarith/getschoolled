@@ -360,12 +360,29 @@ docker compose -f infra/compose/docker-compose.yml up --build
 | Memory / Profile | Long-term per-student profile, mastery graph, cross-class history |
 | Consent / Compliance | Gates biometric features; enforces retention/deletion (FERPA/GDPR/BIPA) |
 
-## Compliance
+## Legal, licensing &amp; compliance
 
-Biometric features are **opt-in** and consent-gated, with a name-only fallback.
-Face embeddings are stored encrypted, deletable on request, and never leave the
-configured boundary. Recording and data-retention disclosures are surfaced in the
-app (and, later, in bridged meetings).
+The platform is licensed under a proprietary `LICENSE` (use only in compliance
+with all applicable laws/policies). User-facing legal notices live in `legal/`
+and are surfaced in-app (the `/legal` page) with a recorded acceptance step:
+
+- `LICENSE` &mdash; proprietary software license (sole, lawful usage model).
+- `legal/TERMS.txt` &mdash; Terms of Use (AI disclosure, minors/school use, lawful use).
+- `legal/PRIVACY.txt` &mdash; Privacy Notice (FERPA, COPPA 2025, GDPR, BIPA/CUBI).
+- `legal/ACCEPTABLE_USE.txt` &mdash; Acceptable Use Policy (prohibited + region-restricted uses).
+- `legal/DPA.txt` &mdash; Data Processing Addendum (school-official exception, residency).
+- `SECURITY.txt` &mdash; vulnerability disclosure + user security-notification policy.
+- `NOTICE.txt` &mdash; third-party / open-weight model / OER attributions.
+
+Biometric features are **opt-in** and consent-gated, with a name-only fallback;
+face embeddings are encrypted, deletable on request, and never leave the
+configured boundary. A region-aware **Compliance policy** (`aoep_shared/compliance.py`)
+encodes FERPA/COPPA/GDPR/BIPA and the **EU AI Act** (which **prohibits emotion
+recognition in education**, so the platform disables expression/emotion inference
+in the EU). Recording and data-retention disclosures are surfaced in-app.
+
+> These legal documents are engineering templates and **must be reviewed by
+> qualified counsel** before any commercial/public release; they are not legal advice.
 
 ## Contributing
 

@@ -1,0 +1,58 @@
+AOEP - TERMS OF USE  (TEMPLATE - requires legal review)
+=======================================================
+Version: 1.0   Effective: 2026-06-18
+
+By creating an account or using the AOEP platform (the "Service") you ("User")
+agree to these Terms of Use, the Privacy Notice (legal/PRIVACY.txt), the
+Acceptable Use Policy (legal/ACCEPTABLE_USE.txt), and, for institutions, the Data
+Processing Addendum (legal/DPA.txt). If you do not agree, do not use the Service.
+
+1. THE SERVICE
+   AOEP is an AI-assisted online education platform that can deliver live classes,
+   answer questions, generate and grade homework, and (with consent) recognize
+   enrolled students. The Service is provided under the LICENSE in this repo.
+
+2. AI DISCLOSURE (no deception)
+   Instruction and grading may be performed by artificial intelligence. The
+   Service discloses AI involvement (see the in-app AI badge, /transparency, and
+   GET /api/disclosure). AI output may be inaccurate; it is an aid, not
+   professional, legal, medical, or accredited advice. A human of record reviews
+   content where required, and you may request human review (human-in-the-loop).
+
+3. ELIGIBILITY, MINORS & SCHOOL USE
+   Children under 13 (US/COPPA) and minors under applicable local law may use the
+   Service ONLY with verifiable parental consent or valid school authorization
+   acting on parents' behalf for educational purposes. Institutions represent
+   they have authority and have obtained any required consents.
+
+4. LAWFUL USE ONLY (SOLE USAGE MODEL)
+   You may use the Service only in compliance with all applicable laws and the
+   policies of your government, country, state/province, and institution,
+   including education-privacy (e.g. FERPA), child-protection (e.g. COPPA),
+   biometric-privacy (e.g. BIPA/CUBI, GDPR), accessibility, anti-discrimination,
+   academic-integrity, and AI laws (e.g. the EU AI Act). Prohibited and
+   region-restricted uses are listed in ACCEPTABLE_USE.txt and enforced by the
+   in-product Compliance policy.
+
+5. ACADEMIC INTEGRITY
+   Homework generation/grading and AI-vs-human authorship signals are decision
+   support, not proof. Final academic-integrity decisions rest with a human
+   educator. Do not use the Service to misrepresent authorship.
+
+6. INTELLECTUAL PROPERTY
+   The Service and its content are owned by the Licensor or its licensors. You
+   retain rights to your own content; you grant the Licensor a limited license to
+   process it to provide the Service, subject to the Privacy Notice.
+
+7. DISCLAIMERS & LIABILITY
+   The Service is provided "as is"; warranties are disclaimed and liability is
+   limited to the maximum extent permitted by law (see LICENSE sections 7-8).
+
+8. CHANGES & TERMINATION
+   We may update these Terms; material changes are notified in-app and require
+   re-acceptance. We may suspend access for violations.
+
+9. GOVERNING LAW
+   To be set per deployment jurisdiction before release.
+
+CONTACT: legal@example.org  (placeholder)
