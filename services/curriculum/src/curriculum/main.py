@@ -330,6 +330,17 @@ class CreateCourseRequest(BaseModel):
     human_of_record: str | None = None
     reviewed_by: str | None = None
     delivery_mode: DeliveryMode = DeliveryMode.AI
+    category: str = ""
+    tags: list[str] = []
+    audio_language: str = ""
+    media_format: str = "video"
+    level: str = "beginner"
+    duration_min: int = 0
+    hands_on: bool = False
+    preview: str = ""
+    access_tier: str = "free"
+    price_usd: float = 0.0
+    thumbnail: str | None = None
 
 
 @app.post("/courses", response_model=Course)
@@ -340,6 +351,45 @@ def create_course(req: CreateCourseRequest) -> Course:
 @app.get("/courses", response_model=list[Course])
 def list_courses() -> list[Course]:
     return app.state.catalog.list_courses()
+
+
+@app.get("/courses/search", response_model=list[Course])
+def search_courses(
+    q: str | None = None,
+    category: str | None = None,
+    language: str | None = None,
+    audio: str | None = None,
+    media_format: str | None = None,
+    level: str | None = None,
+    tag: str | None = None,
+    hands_on: bool | None = None,
+    delivery_mode: str | None = None,
+    access_tier: str | None = None,
+) -> list[Course]:
+    """Netflix-style faceted catalog search (name/category/language/audio/...)."""
+    return app.state.catalog.search_courses(
+        q=q, category=category, language=language, audio=audio,
+        media_format=media_format, level=level, tag=tag, hands_on=hands_on,
+        delivery_mode=delivery_mode, access_tier=access_tier,
+    )
+
+
+@app.get("/courses/facets")
+def course_facets() -> dict:
+    """Distinct values for each browse facet (drives the filter UI)."""
+    courses = app.state.catalog.list_courses()
+    def _distinct(key):
+        vals = {getattr(c, key) for c in courses if getattr(c, key)}
+        return sorted(str(v) for v in vals)
+    tags = sorted({t for c in courses for t in c.tags})
+    return {
+        "categories": sorted({(c.category or c.subject) for c in courses if (c.category or c.subject)}),
+        "languages": _distinct("language"),
+        "audio_languages": sorted({(c.audio_language or c.language) for c in courses}),
+        "media_formats": _distinct("media_format"),
+        "levels": _distinct("level"),
+        "tags": tags,
+    }
 
 
 @app.get("/courses/{course_id}", response_model=Course)

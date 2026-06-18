@@ -16,7 +16,7 @@ import os
 import uuid
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class DeliveryMode(str, enum.Enum):
@@ -49,6 +49,26 @@ class Course(BaseModel):
     reviewed_at: Optional[float] = None
     # Opt-in delivery track (Trust layer): AI / human / hybrid.
     delivery_mode: DeliveryMode = DeliveryMode.AI
+    # Browse / search metadata (Netflix-style catalog).
+    category: str = ""                  # defaults to subject; the browse facet
+    tags: List[str] = Field(default_factory=list)
+    audio_language: str = ""            # spoken-audio language; defaults to language
+    media_format: str = "video"         # video | audio | text | interactive
+    level: str = "beginner"             # beginner | intermediate | advanced
+    duration_min: int = 0
+    hands_on: bool = False              # requires hands-on/lab training
+    preview: str = ""                   # short preview/trailer blurb
+    access_tier: str = "free"           # membership tier required to enroll
+    price_usd: float = 0.0
+    thumbnail: Optional[str] = None     # object-store key / URL for a card image
+
+    @model_validator(mode="after")
+    def _defaults(self) -> "Course":
+        if not self.category:
+            self.category = self.subject
+        if not self.audio_language:
+            self.audio_language = self.language
+        return self
 
 
 class Program(BaseModel):
@@ -82,6 +102,51 @@ class CatalogStore:
 
     def list_courses(self) -> List[Course]:
         return list(self.courses.values())
+
+    def search_courses(
+        self,
+        *,
+        q: Optional[str] = None,
+        category: Optional[str] = None,
+        language: Optional[str] = None,
+        audio: Optional[str] = None,
+        media_format: Optional[str] = None,
+        level: Optional[str] = None,
+        tag: Optional[str] = None,
+        hands_on: Optional[bool] = None,
+        delivery_mode: Optional[str] = None,
+        access_tier: Optional[str] = None,
+    ) -> List[Course]:
+        """Faceted catalog search by name/category/language/audio/format/tag/etc."""
+        def _eq(value: str, want: Optional[str]) -> bool:
+            return want is None or value.lower() == want.lower()
+
+        out: List[Course] = []
+        for c in self.courses.values():
+            if q:
+                hay = " ".join([c.title, c.description, c.preview, " ".join(c.tags)]).lower()
+                if q.lower() not in hay:
+                    continue
+            if not _eq(c.category or c.subject, category):
+                continue
+            if not _eq(c.language, language):
+                continue
+            if not _eq(c.audio_language or c.language, audio):
+                continue
+            if not _eq(c.media_format, media_format):
+                continue
+            if not _eq(c.level, level):
+                continue
+            if not _eq(c.delivery_mode.value, delivery_mode):
+                continue
+            if not _eq(c.access_tier, access_tier):
+                continue
+            if tag is not None and tag.lower() not in [t.lower() for t in c.tags]:
+                continue
+            if hands_on is not None and c.hands_on != hands_on:
+                continue
+            out.append(c)
+        return out
 
     def delete_course(self, course_id: str) -> bool:
         existed = self.courses.pop(course_id, None) is not None
