@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- Integrations P17 (finance/payment): aoep_shared/connectors/finance.py
+  (parse_payment_event for Stripe-style webhooks + FinanceConnector/Mock); the
+  integrations gateway adds POST /payments/webhook/{provider} (signature-verified)
+  that grants/revokes entitlements, records revenue, and emits enrollment.paid
+  outbound, plus GET /entitlements/{customer} and POST /finance/payout.
 
 [0.3.43] - 2026-06-18
 - Integrations P16 (gateway + webhooks): aoep_shared/webhooks.py (HMAC sign/verify,
