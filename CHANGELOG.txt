@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.52] - 2026-06-18
 - Consent persistence + EU real-time-biometric gate + migration cleanup: the web
   consent page now records per-scope decisions (region + written-consent) to the
   memory /consent API (no longer local-only); the vision provider enforces the
