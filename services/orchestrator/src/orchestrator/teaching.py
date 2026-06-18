@@ -44,6 +44,10 @@ class Answer(BaseModel):
     grounded: bool = True
     hallucination_risk: float = 0.0
     unsupported: List[str] = Field(default_factory=list)
+    # Human-in-the-loop (Phase 11): set when the answer is held/flagged for human
+    # review before/after delivery.
+    pending_review: bool = False
+    review_id: Optional[str] = None
 
 
 class SessionView(BaseModel):

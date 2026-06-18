@@ -116,6 +116,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Homework 9 | Autograder: `homework/grade.py` (objective + open-item corroboration vs catalog RAG + trusted domains like webmd/nih) + `POST /homework/grade` + public `/homework` page | ✅ | #52 |
 
 | HIL 10 | Human-in-the-loop core: `aoep_shared/hil.py` (autonomy levels + ReviewQueue + escalation policy) | ✅ | #53 |
+| HIL 11 | Co-teaching: orchestrator gates answers through the queue + `/api/hil/*` + web `/console` teacher review (`HIL_AUTONOMY`) | ✅ | #54 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 

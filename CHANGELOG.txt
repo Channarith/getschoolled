@@ -3,7 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- HIL P11 (co-teaching): the orchestrator gates tutor answers through the HIL
+  review queue (per HIL_AUTONOMY) - suggest/human_led hold every answer; autonomous
+  escalates on high risk, low confidence, sensitive subject, or a student request
+  for a human. Endpoints GET /api/hil/queue + POST /api/hil/{id}/decision
+  (approve/edit/reject/takeover); Answer gains pending_review/review_id; web
+  /console teacher review page. Back-compatible (autonomous + low risk unchanged).
 
 [0.3.37] - 2026-06-18
 - HIL P10 (human-in-the-loop core): aoep_shared/hil.py - AutonomyLevel
