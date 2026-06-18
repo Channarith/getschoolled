@@ -110,7 +110,7 @@ Backend capabilities being added phase-by-phase (each its own version release):
 
 - Hallucination guard - `aoep_shared/groundedness.py` checks every answer's claims against its retrieved sources (groundedness + risk score); the Tutor abstains/grounds an ungrounded answer (never serves unsupported content) and reports `grounded`/`hallucination_risk`/`unsupported`. `POST /api/groundedness/check`; detected hallucinations route into the corrections back-prop loop.
 
-- Adaptive learner modeling - Bayesian Knowledge Tracing + a prerequisite SkillGraph belief network (`aoep_shared/knowledge.py`), and a variational-inference Bayesian IRT ability model (`aoep_shared/inference.py`) for ability estimation + adaptive item-difficulty selection; feeds the adaptive pacing/difficulty policy.
+- Adaptive learner modeling - Bayesian Knowledge Tracing + a prerequisite SkillGraph belief network (`aoep_shared/knowledge.py`), a variational-inference Bayesian IRT ability model (`aoep_shared/inference.py`), and a Thompson-sampling content bandit (`aoep_shared/bandit.py`). Memory mastery is BKT-driven and `adaptive.signals_from_models` feeds BKT/IRT signals into the pacing/difficulty policy.
 
 ## Architecture
 

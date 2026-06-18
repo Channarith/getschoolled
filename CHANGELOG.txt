@@ -3,7 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- (no changes yet)
+- adaptive (P11): feedback-tuned content bandit (aoep_shared/bandit.py -
+  Thompson sampling over Beta posteriors) to choose the next item/explanation;
+  memory service mastery now updates via Bayesian Knowledge Tracing (replacing
+  the EMA); and adaptive.signals_from_models wires BKT mastery + variational-IRT
+  ability into the AdaptivePolicy. Tested.
 
 [0.3.11] - 2026-06-18
 - adaptive (P10): aoep_shared/inference.py - a Rasch/1PL Bayesian IRT ability
