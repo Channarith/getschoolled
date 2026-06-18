@@ -123,6 +123,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Embodiment 14 | `EmbodimentProvider` (say/gesture/perceive) + screen/robot impls + `factory.embodiment()` + `POST /api/embody` | ✅ | #57 |
 | Embodiment 15 | On-device packaging (`apps/agent-runtime/edge/*`) + `docs/edge-robot-runbook.txt` + offline `edge_smoke` | ✅ | #58 |
 
+| Accounts 1 | Identity service: signup/login (PBKDF2 + session tokens), membership tier, learner portfolio (enrolled/passed/failed) | ✅ | #69 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |

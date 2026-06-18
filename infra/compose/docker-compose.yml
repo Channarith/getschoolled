@@ -100,6 +100,15 @@ services:
     ports:
       - "8006:8000"
 
+  identity:
+    build:
+      context: ../..
+      dockerfile: services/identity/Dockerfile
+    env_file:
+      - ../../config/local.env
+    ports:
+      - "8008:8000"
+
   integrations:
     build:
       context: ../..
