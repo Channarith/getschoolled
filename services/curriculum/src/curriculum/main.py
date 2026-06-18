@@ -301,6 +301,8 @@ class CreateCourseRequest(BaseModel):
     language: str = "en"
     description: str = ""
     modules: list[Module] = []
+    human_of_record: str | None = None
+    reviewed_by: str | None = None
 
 
 @app.post("/courses", response_model=Course)
@@ -431,6 +433,33 @@ class CreateCorrectionRequest(BaseModel):
 @app.post("/corrections", response_model=Correction)
 def submit_correction(req: CreateCorrectionRequest) -> Correction:
     c = Correction(**req.model_dump())
+    app.state.corrections[c.id] = c
+    return c
+
+
+class ReportIssueRequest(BaseModel):
+    """Learner-facing 'report / dispute' that opens a Correction for human review."""
+    target_kind: TargetKind = TargetKind.CLAIM
+    target_id: str = ""
+    locator: str = ""          # the disputed answer / slide / claim text
+    issue: str                  # what the learner thinks is wrong
+    suggested: str = ""         # optional suggested correction
+    author: str = ""
+
+
+@app.post("/report", response_model=Correction)
+def report_issue(req: ReportIssueRequest) -> Correction:
+    """Open a dispute -> a SUBMITTED correction routed to a human reviewer."""
+    c = Correction(
+        target_kind=req.target_kind,
+        target_id=req.target_id,
+        locator=req.locator,
+        original=req.locator,
+        corrected=req.suggested,
+        rationale=req.issue,
+        author=req.author,
+        status=CorrectionStatus.SUBMITTED,
+    )
     app.state.corrections[c.id] = c
     return c
 
