@@ -108,6 +108,8 @@ Backend capabilities being added phase-by-phase (each its own version release):
 
 - Corrections - standardized review/correction model (`aoep_shared/corrections.py`) for course content and the training model, with single + bulk (CSV/JSONL) entry and `correction_to_training_example` (gold, reward=+1) for back-propagation. Protected attributes are excluded from training context by design. Review API: `POST /corrections`, `POST /corrections/bulk`, `GET /corrections`, approve/reject, and `POST /corrections/{id}/apply` (patches deck/scene content or emits a gold training example; `training/export.py --corrections` merges those into training).
 
+- Hallucination guard - `aoep_shared/groundedness.py` checks every answer's claims against its retrieved sources (groundedness + risk score); the Tutor abstains/grounds an ungrounded answer (never serves unsupported content) and reports `grounded`/`hallucination_risk`/`unsupported`. `POST /api/groundedness/check`; detected hallucinations route into the corrections back-prop loop.
+
 ## Architecture
 
 ```

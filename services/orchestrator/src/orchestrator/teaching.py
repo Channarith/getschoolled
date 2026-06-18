@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 from typing import Dict, List, Optional
 
+from aoep_shared.groundedness import guard_answer
 from aoep_shared.providers.base import ChatMessage
 from aoep_shared.rag import Document, RagIndex
 from aoep_shared.slang import default_lexicon
@@ -38,6 +39,11 @@ class Answer(BaseModel):
     language: str = "en"
     # Slang/idioms recognized in the question (e.g. "piece of cake = very easy").
     understood: List[str] = Field(default_factory=list)
+    # Hallucination guard: whether the answer is grounded in the retrieved
+    # context, the risk score, and any unsupported claims that were caught.
+    grounded: bool = True
+    hallucination_risk: float = 0.0
+    unsupported: List[str] = Field(default_factory=list)
 
 
 class SessionView(BaseModel):
@@ -135,8 +141,17 @@ class TeachingSessions:
         except NotImplementedError:
             # No model server configured -> deterministic grounded fallback.
             text = _offline_answer(question, context)
+        # Hallucination guard: only serve answers grounded in the retrieved
+        # context; otherwise abstain/ground to avoid showing unsupported claims.
+        safe_text, report = guard_answer(text, context, question=question)
         session.history.append(ChatTurn(role="student", text=question))
-        session.history.append(ChatTurn(role="teacher", text=text))
+        session.history.append(ChatTurn(role="teacher", text=safe_text))
         return Answer(
-            text=text, citations=context, language=language, understood=norm.glossed
+            text=safe_text,
+            citations=context,
+            language=language,
+            understood=norm.glossed,
+            grounded=report.grounded,
+            hallucination_risk=report.hallucination_risk,
+            unsupported=report.unsupported,
         )
