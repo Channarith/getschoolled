@@ -53,7 +53,7 @@ from aoep_shared.corrections import (
     parse_bulk,
 )
 
-from .catalog import CatalogStore, Course, Module, Program
+from .catalog import CatalogStore, Course, DeliveryMode, Module, Program
 from .decks import Deck, DeckStore, SlideSpec, parse_deck_text
 from .ingest import (
     ClassFormat,
@@ -303,6 +303,7 @@ class CreateCourseRequest(BaseModel):
     modules: list[Module] = []
     human_of_record: str | None = None
     reviewed_by: str | None = None
+    delivery_mode: DeliveryMode = DeliveryMode.AI
 
 
 @app.post("/courses", response_model=Course)
@@ -336,6 +337,7 @@ class CreateProgramRequest(BaseModel):
     description: str = ""
     course_ids: list[str] = []
     adaptive_rules: dict = {}
+    delivery_mode: DeliveryMode = DeliveryMode.AI
 
 
 @app.post("/programs", response_model=Program)
@@ -364,20 +366,45 @@ def delete_program(program_id: str) -> dict:
 
 
 @app.get("/catalog")
-def catalog_tree() -> dict:
+def catalog_tree(delivery_mode: str | None = None) -> dict:
     cat = app.state.catalog
+    courses = cat.list_courses()
+    programs = cat.list_programs()
+    if delivery_mode:
+        courses = [c for c in courses if c.delivery_mode.value == delivery_mode]
+        programs = [p for p in programs if p.delivery_mode.value == delivery_mode]
     return {
         "courses": [
             {"course_id": c.course_id, "title": c.title, "subject": c.subject,
-             "modules": len(c.modules), "validation_status": c.validation_status}
-            for c in cat.list_courses()
+             "modules": len(c.modules), "validation_status": c.validation_status,
+             "delivery_mode": c.delivery_mode.value, "human_of_record": c.human_of_record}
+            for c in courses
         ],
         "programs": [
             {"program_id": p.program_id, "title": p.title, "audience": p.audience,
-             "courses": len(p.course_ids)}
-            for p in cat.list_programs()
+             "courses": len(p.course_ids), "delivery_mode": p.delivery_mode.value}
+            for p in programs
         ],
     }
+
+
+# --------------------------------------------------------------------------- #
+# Model cards (Trust layer, Phase 5) - transparency about the served model
+# --------------------------------------------------------------------------- #
+@app.get("/model-cards")
+def model_cards() -> dict:
+    """List generated model cards (JSON) from MODEL_CARDS_DIR, if any."""
+    cards = []
+    cards_dir = os.environ.get("MODEL_CARDS_DIR")
+    if cards_dir and os.path.isdir(cards_dir):
+        for name in sorted(os.listdir(cards_dir)):
+            if name.endswith(".json"):
+                try:
+                    with open(os.path.join(cards_dir, name), "r", encoding="utf-8") as fh:
+                        cards.append(json.load(fh))
+                except (OSError, json.JSONDecodeError):
+                    continue
+    return {"model_cards": cards}
 
 
 class PlanRequest(BaseModel):

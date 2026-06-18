@@ -10,12 +10,20 @@ eventual Postgres backend.
 
 from __future__ import annotations
 
+import enum
 import json
 import os
 import uuid
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+class DeliveryMode(str, enum.Enum):
+    """Who conducts the class: fully AI, fully human, or AI + human (hybrid)."""
+    AI = "ai"
+    HUMAN = "human"
+    HYBRID = "hybrid"
 
 
 class Module(BaseModel):
@@ -39,6 +47,8 @@ class Course(BaseModel):
     human_of_record: Optional[str] = None
     reviewed_by: Optional[str] = None
     reviewed_at: Optional[float] = None
+    # Opt-in delivery track (Trust layer): AI / human / hybrid.
+    delivery_mode: DeliveryMode = DeliveryMode.AI
 
 
 class Program(BaseModel):
@@ -50,6 +60,7 @@ class Program(BaseModel):
     # Adaptive rules, e.g. {"prereq_mastery": {course_id: 0.7}} - a course is
     # unlocked only once its prerequisites are mastered above the threshold.
     adaptive_rules: Dict[str, Dict[str, float]] = Field(default_factory=dict)
+    delivery_mode: DeliveryMode = DeliveryMode.AI
 
 
 class CatalogStore:

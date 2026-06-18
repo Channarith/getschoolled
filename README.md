@@ -108,6 +108,7 @@ A second initiative adding a trust/transparency layer, a homework subtool, human
 | Trust 2 | Content credentials: `aoep_shared/provenance.py` (C2PA-style manifest, HMAC sign/verify) + `/provenance/sign`+`/verify` + public `/verify` page | ✅ | #45 |
 | Trust 3 | User-facing citations + grounded/confidence chip + "verified against N sources" + unsupported-claim flags in class Q&A | ✅ | #46 |
 | Trust 4 | Human-of-record on `Course` + `POST /report` dispute -> corrections review loop + web "Report / dispute" control | ✅ | #47 |
+| Trust 5 | Opt-in `delivery_mode` (ai/human/hybrid) + `/catalog` filter + `training/model_card.py` + `GET /model-cards` + public `/model-cards` page | ✅ | #48 |
 
 ## Backend workstreams (validation, catalog, corrections, adaptivity, models, harvester)
 
