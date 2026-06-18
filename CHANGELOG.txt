@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- (no changes yet)
+
+[0.3.6] - 2026-06-18
 - corrections model (P6): aoep_shared/corrections.py - Correction model
   (target_kind course/deck/scene/claim/model + status), parse_bulk for CSV/JSONL
   bulk entry, and correction_to_training_example producing a gold (reward=+1)
