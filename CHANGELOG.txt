@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile app build pipeline: apps/mobile is now buildable. Added expo-constants
+  to package.json (fixes Metro resolve), an .npmrc that forces a hoisted
+  node_modules so Metro can resolve through it (pnpm's symlinked layout breaks
+  RN's Node-style resolution), eas.json with development/preview/production
+  build profiles (com.aiclassroom.app, AAB for Play Store / IPA for App Store),
+  and pnpm scripts for export/prebuild/EAS Build. New Makefile targets
+  mobile-install / mobile-typecheck / mobile-build / mobile-prebuild. Verified
+  end-to-end: `pnpm typecheck` clean and `pnpm run export` produces production
+  Hermes bytecode bundles for both platforms
+  (dist/_expo/static/js/{ios,android}/index-*.hbc, ~1.5 MB each, 540+ modules).
+  RUN.txt rewritten with the full local + EAS Build instructions.
+
 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,
