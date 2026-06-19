@@ -72,3 +72,26 @@ def test_match_round_and_leaderboard_subject_filter():
 
 def test_unknown_game_type_422():
     assert client.post("/games/new", json={"subject": "math", "game_type": "nope"}).status_code == 422
+
+
+def test_catalog_includes_age_groups():
+    cat = client.get("/games").json()
+    assert {a["id"] for a in cat["age_groups"]} == {"kids", "tween", "teen", "adult"}
+
+
+def test_kids_round_and_age_leaderboard():
+    h = _auth(_user("kiddo@example.com", "Kiddo"))
+    rnd = client.post("/games/new", json={
+        "subject": "math", "game_type": "quiz", "age_group": "kids", "n": 4}).json()
+    assert rnd["age_group"] == "kids"
+    out = client.post("/games/submit", headers=h,
+                      json={"game_id": rnd["game_id"], "answers": {it["id"]: 1 for it in rnd["items"]}}).json()
+    assert "points_earned" in out
+    board = client.get("/games/leaderboard", params={"age_group": "kids"}).json()
+    assert board["age_group"] == "kids"
+    assert any(r["name"] == "Kiddo" for r in board["leaders"])
+
+
+def test_unknown_age_group_422():
+    assert client.post("/games/new", json={
+        "subject": "math", "game_type": "quiz", "age_group": "elder"}).status_code == 422

@@ -200,7 +200,7 @@ class AccountStore:
 
     # --- learning games / arcade ------------------------------------------ #
     def record_game(self, account_id: str, *, subject: str, game_type: str,
-                    score: dict, player_name: str = "") -> dict:
+                    score: dict, player_name: str = "", age_group: str = "teen") -> dict:
         """Award game points to the account ledger + update the leaderboard.
 
         `score` is the dict form of games.ScoreResult. Returns the updated
@@ -213,33 +213,41 @@ class AccountStore:
         st = self._game_stats.setdefault(account_id, {
             "account_id": account_id, "name": player_name or acct.display_name or acct.email,
             "game_points": 0, "games_played": 0, "best_by_subject": {},
+            "points_by_age": {},
         })
         st["name"] = player_name or st["name"]
         st["game_points"] += pts
         st["games_played"] += 1
         prev = st["best_by_subject"].get(subject, 0)
         st["best_by_subject"][subject] = max(prev, pts)
+        st["points_by_age"][age_group] = st["points_by_age"].get(age_group, 0) + pts
+        st["last_age_group"] = age_group
         return st
 
-    def leaderboard(self, *, subject: Optional[str] = None, limit: int = 20) -> List[dict]:
+    def leaderboard(self, *, subject: Optional[str] = None, age_group: Optional[str] = None,
+                    limit: int = 20) -> List[dict]:
         """Top players. Global ranks by total game points; subject ranks by best
-        single-game score in that subject."""
+        single-game score in that subject; age_group ranks by points earned in
+        that age tier (so kids compete with kids, adults with adults)."""
         rows = list(self._game_stats.values())
         if subject:
             rows = [r for r in rows if subject in r["best_by_subject"]]
-            rows.sort(key=lambda r: r["best_by_subject"].get(subject, 0), reverse=True)
             key = lambda r: r["best_by_subject"].get(subject, 0)  # noqa: E731
+        elif age_group:
+            rows = [r for r in rows if age_group in r.get("points_by_age", {})]
+            key = lambda r: r.get("points_by_age", {}).get(age_group, 0)  # noqa: E731
         else:
-            rows.sort(key=lambda r: r["game_points"], reverse=True)
             key = lambda r: r["game_points"]  # noqa: E731
+        rows.sort(key=key, reverse=True)
         out = []
         for i, r in enumerate(rows[:limit], start=1):
             out.append({"rank": i, "name": r["name"], "score": key(r),
                         "game_points": r["game_points"], "games_played": r["games_played"]})
         return out
 
-    def my_game_rank(self, account_id: str, *, subject: Optional[str] = None) -> Optional[int]:
-        board = self.leaderboard(subject=subject, limit=10_000)
+    def my_game_rank(self, account_id: str, *, subject: Optional[str] = None,
+                     age_group: Optional[str] = None) -> Optional[int]:
+        board = self.leaderboard(subject=subject, age_group=age_group, limit=10_000)
         mine = self._game_stats.get(account_id)
         if not mine:
             return None

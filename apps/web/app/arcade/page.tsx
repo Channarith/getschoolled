@@ -23,6 +23,7 @@ export default function ArcadePage() {
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [subject, setSubject] = useState("biology");
   const [gameType, setGameType] = useState("quiz");
+  const [ageGroup, setAgeGroup] = useState("teen");
   const [round, setRound] = useState<GameRound | null>(null);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [selTerm, setSelTerm] = useState<string>("");
@@ -38,9 +39,11 @@ export default function ArcadePage() {
   useEffect(() => { setLoggedIn(Boolean(getToken())); }, []);
   useEffect(() => { getGamesCatalog().then(setCat).catch((e) => setError(String(e))); }, []);
 
+  const [lbAge, setLbAge] = useState<string>("");
   const loadLeaders = useCallback(() => {
-    getLeaderboard(lbSubject || undefined).then((r) => setLeaders(r.leaders)).catch(() => setLeaders([]));
-  }, [lbSubject]);
+    getLeaderboard(lbSubject || undefined, lbAge || undefined)
+      .then((r) => setLeaders(r.leaders)).catch(() => setLeaders([]));
+  }, [lbSubject, lbAge]);
   useEffect(() => { loadLeaders(); }, [loadLeaders]);
 
   const finish = useCallback(async () => {
@@ -66,7 +69,7 @@ export default function ArcadePage() {
   async function play() {
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     try {
-      const r = await newGame(subject, gameType, gameType === "match" ? 4 : 5);
+      const r = await newGame(subject, gameType, ageGroup, gameType === "match" ? 4 : 5);
       startedAt.current = Date.now();
       setTimeLeft(r.time_limit_s || 0);
       setRound(r);
@@ -105,7 +108,19 @@ export default function ArcadePage() {
               </button>
             ))}
           </div>
-          <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: "wrap" }}>
+          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>Age group</div>
+          <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
+            {cat?.age_groups.map((a) => (
+              <button key={a.id} onClick={() => setAgeGroup(a.id)} title={a.range}
+                style={{ opacity: ageGroup === a.id ? 1 : 0.55,
+                  background: ageGroup === a.id ? "#0ea5e9" : undefined,
+                  color: ageGroup === a.id ? "#fff" : undefined }}>
+                {a.name} <span style={{ fontSize: 11, opacity: 0.8 }}>({a.range})</span>
+              </button>
+            ))}
+          </div>
+          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>Game mode</div>
+          <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
             {cat?.game_types.map((g) => (
               <button key={g.id} onClick={() => setGameType(g.id)} title={g.desc}
                 style={{ opacity: gameType === g.id ? 1 : 0.55 }}>
@@ -113,9 +128,9 @@ export default function ArcadePage() {
               </button>
             ))}
           </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 16 }}>
             <button onClick={play} style={{ background: "#7c3aed", color: "#fff", padding: "10px 22px" }}>
-              ▶ Play {subject} · {gameType}
+              ▶ Play {subject} · {gameType} · {ageGroup}
             </button>
           </div>
         </div>
@@ -212,7 +227,11 @@ export default function ArcadePage() {
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h3 style={{ margin: 0 }}>🏆 Top players</h3>
-          <select value={lbSubject} onChange={(e) => setLbSubject(e.target.value)}>
+          <select value={lbAge} onChange={(e) => { setLbAge(e.target.value); if (e.target.value) setLbSubject(""); }}>
+            <option value="">All ages</option>
+            {cat?.age_groups.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <select value={lbSubject} onChange={(e) => { setLbSubject(e.target.value); if (e.target.value) setLbAge(""); }}>
             <option value="">Overall</option>
             {cat?.subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
