@@ -40,6 +40,19 @@ class Enrollment(BaseModel):
     updated_at: float = Field(default_factory=lambda: time.time())
 
 
+class StudentProfile(BaseModel):
+    """A learner sub-profile under an account (one account, many students -
+    like Netflix profiles). Each carries its own mastery + history so Foresight
+    can recommend and adapt PER STUDENT."""
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    display_name: str
+    age_band: str = "adult"            # child | teen | adult
+    mastery: Dict[str, float] = Field(default_factory=dict)   # skill -> [0,1]
+    completed_course_ids: List[str] = Field(default_factory=list)
+    interests: List[str] = Field(default_factory=list)
+    created_at: float = Field(default_factory=lambda: time.time())
+
+
 class Account(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     email: str
@@ -52,6 +65,8 @@ class Account(BaseModel):
     last_login_at: Optional[float] = None
     failed_logins: int = 0
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
+    # Learner sub-profiles (one account, multiple students).
+    students: Dict[str, StudentProfile] = Field(default_factory=dict)
     # Rewards: points ledger + redemptions (pydantic-excluded; managed in-store).
     points: PointsLedger = Field(default_factory=PointsLedger, exclude=True)
     redemptions: List[dict] = Field(default_factory=list)
@@ -180,3 +195,36 @@ class AccountStore:
 
     def enrollments(self, account_id: str) -> List[Enrollment]:
         return list(self._by_id[account_id].enrollments.values())
+
+    # --- student sub-profiles --------------------------------------------- #
+    def add_student(self, account_id: str, display_name: str, *, age_band: str = "adult",
+                    interests: Optional[List[str]] = None) -> StudentProfile:
+        acct = self._by_id[account_id]
+        prof = StudentProfile(display_name=display_name, age_band=age_band,
+                              interests=list(interests or []))
+        acct.students[prof.id] = prof
+        return prof
+
+    def list_students(self, account_id: str) -> List[StudentProfile]:
+        return list(self._by_id[account_id].students.values())
+
+    def get_student(self, account_id: str, student_id: str) -> Optional[StudentProfile]:
+        return self._by_id[account_id].students.get(student_id)
+
+    def set_mastery(self, account_id: str, student_id: str, skill: str, value: float) -> StudentProfile:
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        prof.mastery[skill] = max(0.0, min(1.0, float(value)))
+        return prof
+
+    def record_completion(self, account_id: str, student_id: str, course_id: str,
+                          skills: Optional[List[str]] = None, *, mastery: float = 0.8) -> StudentProfile:
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        if course_id not in prof.completed_course_ids:
+            prof.completed_course_ids.append(course_id)
+        for s in (skills or []):
+            prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
+        return prof

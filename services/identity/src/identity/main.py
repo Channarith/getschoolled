@@ -144,6 +144,63 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
 
 
 # --------------------------------------------------------------------------- #
+# Student sub-profiles (one account, multiple learners) + Foresight inputs
+# --------------------------------------------------------------------------- #
+class CreateStudent(BaseModel):
+    display_name: str
+    age_band: str = "adult"
+    interests: list[str] = []
+
+
+@app.post("/students")
+def add_student(req: CreateStudent, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.add_student(
+        acct.id, req.display_name, age_band=req.age_band, interests=req.interests)
+    return prof.model_dump()
+
+
+@app.get("/students")
+def list_students(acct=Depends(current_account)) -> dict:
+    return {"students": [s.model_dump() for s in app.state.accounts.list_students(acct.id)]}
+
+
+@app.get("/students/{student_id}")
+def get_student(student_id: str, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return prof.model_dump()
+
+
+class MasteryUpdate(BaseModel):
+    skill: str
+    value: float
+
+
+@app.post("/students/{student_id}/mastery")
+def set_mastery(student_id: str, req: MasteryUpdate, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.set_mastery(acct.id, student_id, req.skill, req.value)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return prof.model_dump()
+
+
+class CompleteCourse(BaseModel):
+    course_id: str
+    skills: list[str] = []
+
+
+@app.post("/students/{student_id}/complete")
+def complete_course(student_id: str, req: CompleteCourse, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.record_completion(acct.id, student_id, req.course_id, req.skills)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return prof.model_dump()
+
+
+# --------------------------------------------------------------------------- #
 # Rewards (points for completion -> discounts / prizes / raffle entries)
 # --------------------------------------------------------------------------- #
 @app.get("/rewards")

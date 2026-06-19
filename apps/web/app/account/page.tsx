@@ -5,11 +5,15 @@ import Link from "next/link";
 import {
   changePassword,
   clearToken,
+  createStudent,
   getPortfolio,
   getRewards,
   getToken,
+  listStudents,
   setMembershipTier,
+  setStudentMastery,
   type Portfolio,
+  type StudentProfile,
 } from "../lib/api";
 
 const TIERS = ["free", "basic", "pro", "premium"];
@@ -27,6 +31,8 @@ export default function AccountPage() {
   const [next, setNext] = useState("");
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [points, setPoints] = useState<number | null>(null);
+  const [students, setStudents] = useState<StudentProfile[]>([]);
+  const [newStudent, setNewStudent] = useState("");
 
   async function refresh() {
     try {
@@ -38,6 +44,35 @@ export default function AccountPage() {
       setPoints((await getRewards()).balance);
     } catch {
       setPoints(null);
+    }
+    try {
+      setStudents((await listStudents()).students);
+    } catch {
+      setStudents([]);
+    }
+  }
+
+  async function addStudent() {
+    if (!newStudent.trim()) return;
+    try {
+      await createStudent(newStudent.trim());
+      setNewStudent("");
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function bumpMastery(studentId: string) {
+    const skill = window.prompt("Skill name (e.g. algebra):");
+    if (!skill) return;
+    const valStr = window.prompt("Mastery 0-1 (e.g. 0.3):", "0.3");
+    if (valStr == null) return;
+    try {
+      await setStudentMastery(studentId, skill, parseFloat(valStr) || 0);
+      await refresh();
+    } catch (e) {
+      setError(String(e));
     }
   }
 
@@ -140,6 +175,26 @@ export default function AccountPage() {
                 </ul>
               </div>
             ))}
+          </div>
+
+          <div className="card">
+            <h3>Student profiles</h3>
+            <p className="muted">One account, multiple learners. Each profile gets its own
+              mastery and <Link href="/recommended">Foresight recommendations</Link>.</p>
+            <ul>
+              {students.map((s) => (
+                <li key={s.id}>
+                  <strong>{s.display_name}</strong> ({s.age_band}) — skills: {Object.keys(s.mastery).length}
+                  {" "}
+                  <button onClick={() => bumpMastery(s.id)} style={{ fontSize: 12 }}>+ mastery</button>
+                </li>
+              ))}
+            </ul>
+            <div className="row">
+              <input placeholder="New learner name" value={newStudent}
+                onChange={(e) => setNewStudent(e.target.value)} style={{ padding: 8 }} />
+              <button onClick={addStudent}>Add profile</button>
+            </div>
           </div>
 
           <div className="card">
