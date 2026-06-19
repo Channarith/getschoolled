@@ -85,6 +85,8 @@ class AccountStore:
     def __init__(self) -> None:
         self._by_id: Dict[str, Account] = {}
         self._id_by_email: Dict[str, str] = {}
+        # Arcade leaderboard: account_id -> aggregate game stats.
+        self._game_stats: Dict[str, dict] = {}
 
     def create(self, email: str, password: str, *, display_name: str = "",
                tier: PlanTier = PlanTier.FREE, region: Region = Region.US) -> Account:
@@ -195,6 +197,56 @@ class AccountStore:
 
     def enrollments(self, account_id: str) -> List[Enrollment]:
         return list(self._by_id[account_id].enrollments.values())
+
+    # --- learning games / arcade ------------------------------------------ #
+    def record_game(self, account_id: str, *, subject: str, game_type: str,
+                    score: dict, player_name: str = "") -> dict:
+        """Award game points to the account ledger + update the leaderboard.
+
+        `score` is the dict form of games.ScoreResult. Returns the updated
+        per-player stats. Points feed the same rewards ledger (redeemable).
+        """
+        acct = self._by_id[account_id]
+        pts = int(score.get("points", 0))
+        if pts > 0:
+            acct.points.earn(pts, reason=f"game:{subject}", ref=str(score.get("game_id", "")))
+        st = self._game_stats.setdefault(account_id, {
+            "account_id": account_id, "name": player_name or acct.display_name or acct.email,
+            "game_points": 0, "games_played": 0, "best_by_subject": {},
+        })
+        st["name"] = player_name or st["name"]
+        st["game_points"] += pts
+        st["games_played"] += 1
+        prev = st["best_by_subject"].get(subject, 0)
+        st["best_by_subject"][subject] = max(prev, pts)
+        return st
+
+    def leaderboard(self, *, subject: Optional[str] = None, limit: int = 20) -> List[dict]:
+        """Top players. Global ranks by total game points; subject ranks by best
+        single-game score in that subject."""
+        rows = list(self._game_stats.values())
+        if subject:
+            rows = [r for r in rows if subject in r["best_by_subject"]]
+            rows.sort(key=lambda r: r["best_by_subject"].get(subject, 0), reverse=True)
+            key = lambda r: r["best_by_subject"].get(subject, 0)  # noqa: E731
+        else:
+            rows.sort(key=lambda r: r["game_points"], reverse=True)
+            key = lambda r: r["game_points"]  # noqa: E731
+        out = []
+        for i, r in enumerate(rows[:limit], start=1):
+            out.append({"rank": i, "name": r["name"], "score": key(r),
+                        "game_points": r["game_points"], "games_played": r["games_played"]})
+        return out
+
+    def my_game_rank(self, account_id: str, *, subject: Optional[str] = None) -> Optional[int]:
+        board = self.leaderboard(subject=subject, limit=10_000)
+        mine = self._game_stats.get(account_id)
+        if not mine:
+            return None
+        for row in board:
+            if row["name"] == mine["name"]:
+                return row["rank"]
+        return None
 
     # --- student sub-profiles --------------------------------------------- #
     def add_student(self, account_id: str, display_name: str, *, age_band: str = "adult",

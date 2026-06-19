@@ -266,6 +266,57 @@ export async function getAdBreaks(courseId: string, tier: string): Promise<AdPla
   );
 }
 
+// --- learning games / arcade --------------------------------------------- //
+export type GameTypeInfo = { id: string; name: string; desc: string };
+export type GamesCatalog = { subjects: string[]; game_types: GameTypeInfo[] };
+export type GameItem = { id: string; prompt: string; options: string[] };
+export type GameTerm = { id: string; term: string };
+export type GameOption = { id: string; text: string };
+export type GameRound = {
+  game_id: string; subject: string; game_type: string; time_limit_s: number;
+  items?: GameItem[]; terms?: GameTerm[]; options?: GameOption[];
+};
+export type GameItemResult = { id: string; correct: boolean; answer_index?: number; explain: string };
+export type GameScore = {
+  game_id: string; subject: string; game_type: string; correct: number; total: number;
+  accuracy: number; base_points: number; speed_bonus: number; accuracy_bonus: number;
+  points: number; results: GameItemResult[];
+};
+export type GameSubmit = {
+  result: GameScore; points_earned: number; balance: number;
+  rank: number | null; subject_rank: number | null;
+};
+export type Leader = { rank: number; name: string; score: number; game_points: number; games_played: number };
+
+export async function getGamesCatalog(): Promise<GamesCatalog> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games`, { cache: "no-store" }));
+}
+
+export async function newGame(subject: string, gameType: string, n = 5): Promise<GameRound> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/games/new`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ subject, game_type: gameType, n }),
+    })
+  );
+}
+
+export async function submitGame(
+  gameId: string, answers: Record<string, number | string>, elapsedS?: number
+): Promise<GameSubmit> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/games/submit`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ game_id: gameId, answers, elapsed_s: elapsedS ?? null }),
+    })
+  );
+}
+
+export async function getLeaderboard(subject?: string): Promise<{ leaders: Leader[] }> {
+  const qs = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games/leaderboard${qs}`, { cache: "no-store" }));
+}
+
 // --- rewards (points for completion -> discounts / prizes) --------------- //
 export type LedgerEntry = { delta: number; reason: string; ref: string; ts: number };
 export type Redemption = {
