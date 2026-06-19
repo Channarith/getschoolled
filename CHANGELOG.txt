@@ -538,6 +538,9 @@ were lost to the changelog-rolling bug fixed in [unreleased]; their content is
 [unreleased]
 - (no changes yet)
 
+[0.3.60] - 2026-06-19
+- (no changes yet)
+
 [0.3.59] - 2026-06-19
 - Netflix-compatible content interchange: Course gains streaming/interchange
   metadata (maturity_rating, subtitle_languages, hls_url, dash_url, trailer_url);
