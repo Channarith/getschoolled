@@ -65,12 +65,15 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
-### Learning Arcade &mdash; learn by playing (points + leaderboard)
+### Learning Arcade &mdash; learn by playing (age groups + points + leaderboard)
 Competitive, play-to-learn mini-games at `/arcade` across **biology, chemistry,
 physics, math, science, history, art, technology, programming**, in three modes:
 **Quiz**, **Speed Round** (timed, with a speed bonus), and **Match** (terms &harr;
-definitions). Points feed the existing rewards ledger (redeemable) and a
-**top-player leaderboard** (global + per-subject) makes it competitive. Backed by
+definitions). Choose an **age group** &mdash; **Kids** (5-8), **Tweens** (9-12),
+**Teens** (13-17), **Adults** (18+) &mdash; for age-appropriate difficulty (e.g.
+kids math is `2 + 3`, adult math is `d/dx of x²`). Points feed the existing
+rewards ledger (redeemable) and a **top-player leaderboard** (overall, per-subject,
+and **per age group** so kids compete with kids) makes it competitive. Backed by
 `aoep_shared/games.py` + identity `GET /games`, `POST /games/new`, `POST
 /games/submit`, `GET /games/leaderboard`.
 
@@ -79,6 +82,14 @@ definitions). Points feed the existing rewards ledger (redeemable) and a
 | Quiz (score + explanations) | Match (terms ↔ definitions) | Leaderboard |
 | --- | --- | --- |
 | <img src="docs/screens/arcade_quiz_score.webp" alt="Arcade quiz score" /> | <img src="docs/screens/arcade_match.webp" alt="Arcade match game" /> | <img src="docs/screens/arcade_leaderboard.webp" alt="Arcade leaderboard" /> |
+
+Age-group mini-games (same subjects, age-appropriate difficulty + age-segmented leaderboard):
+
+![Arcade age groups: kids vs adult content and per-age leaderboard](docs/demos/arcade_age_groups_demo.gif)
+
+| Kids quiz (simple) | Adult quiz (advanced) | Kids leaderboard |
+| --- | --- | --- |
+| <img src="docs/screens/arcade_kids_quiz.webp" alt="Kids quiz" /> | <img src="docs/screens/arcade_adult_quiz.webp" alt="Adult quiz" /> | <img src="docs/screens/arcade_kids_leaderboard.webp" alt="Kids leaderboard" /> |
 
 ### Backgrounds &amp; wallpapers (61+ designs, year-round)
 A site-wide background system with **61+ designs** across holiday, seasonal,
@@ -263,6 +274,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Discovery 1 | Netflix-style home feed `GET /home` (popular/new/free/kids/category rails + view popularity), `/kids` children's platform, `/corporate` training programs, sample-class CTA | ✅ | #82 |
 | Design 1 | Site backgrounds: 61+ themed designs (holiday/seasonal/social/economic/realistic/surreal/artistic/kids/anime) + seasonal auto-rotation + `/backgrounds` gallery picker + 5 image wallpapers | ✅ | #83 |
 | Games 1 | Learning Arcade: subject mini-games (quiz/speed/match) for 9 subjects, points into rewards + top-player leaderboard (`aoep_shared/games.py`, identity `/games*`, web `/arcade`) | ✅ | #84 |
+| Games 2 | Age-group mini-games: kids/tween/teen/adult age-appropriate content + age picker + age-segmented leaderboard | ✅ | #85 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |

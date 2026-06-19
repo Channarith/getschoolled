@@ -219,18 +219,23 @@ def games_catalog_ep() -> dict:
 class NewGameRequest(BaseModel):
     subject: str = "science"
     game_type: str = "quiz"
+    age_group: str = "teen"
     n: int = 5
 
 
 @app.post("/games/new")
 def games_new(req: NewGameRequest) -> dict:
-    from aoep_shared.games import GameType, make_round
+    from aoep_shared.games import AgeGroup, GameType, make_round
 
     try:
         gt = GameType(req.game_type)
     except ValueError:
         raise HTTPException(status_code=422, detail="unknown game_type")
-    rnd = make_round(req.subject, gt, n=max(1, min(req.n, 8)))
+    try:
+        age = AgeGroup(req.age_group)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="unknown age_group")
+    rnd = make_round(req.subject, gt, age_group=age, n=max(1, min(req.n, 8)))
     app.state.game_rounds[rnd.game_id] = rnd
     return rnd.public()
 
@@ -254,6 +259,7 @@ def games_submit(req: SubmitGameRequest, acct=Depends(current_account)) -> dict:
     app.state.game_submitted.add(req.game_id)
     app.state.accounts.record_game(
         acct.id, subject=result.subject, game_type=result.game_type.value,
+        age_group=rnd.age_group.value,
         score=result.model_dump(), player_name=acct.display_name or acct.email)
     return {
         "result": result.model_dump(),
@@ -265,9 +271,11 @@ def games_submit(req: SubmitGameRequest, acct=Depends(current_account)) -> dict:
 
 
 @app.get("/games/leaderboard")
-def games_leaderboard(subject: str | None = None, limit: int = 20) -> dict:
-    return {"subject": subject,
-            "leaders": app.state.accounts.leaderboard(subject=subject, limit=limit)}
+def games_leaderboard(subject: str | None = None, age_group: str | None = None,
+                      limit: int = 20) -> dict:
+    return {"subject": subject, "age_group": age_group,
+            "leaders": app.state.accounts.leaderboard(
+                subject=subject, age_group=age_group, limit=limit)}
 
 
 @app.get("/rewards")

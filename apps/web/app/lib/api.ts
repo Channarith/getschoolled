@@ -268,7 +268,8 @@ export async function getAdBreaks(courseId: string, tier: string): Promise<AdPla
 
 // --- learning games / arcade --------------------------------------------- //
 export type GameTypeInfo = { id: string; name: string; desc: string };
-export type GamesCatalog = { subjects: string[]; game_types: GameTypeInfo[] };
+export type AgeGroupInfo = { id: string; name: string; range: string };
+export type GamesCatalog = { subjects: string[]; game_types: GameTypeInfo[]; age_groups: AgeGroupInfo[] };
 export type GameItem = { id: string; prompt: string; options: string[] };
 export type GameTerm = { id: string; term: string };
 export type GameOption = { id: string; text: string };
@@ -292,11 +293,13 @@ export async function getGamesCatalog(): Promise<GamesCatalog> {
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/games`, { cache: "no-store" }));
 }
 
-export async function newGame(subject: string, gameType: string, n = 5): Promise<GameRound> {
+export async function newGame(
+  subject: string, gameType: string, ageGroup = "teen", n = 5
+): Promise<GameRound> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/games/new`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ subject, game_type: gameType, n }),
+      body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n }),
     })
   );
 }
@@ -312,9 +315,12 @@ export async function submitGame(
   );
 }
 
-export async function getLeaderboard(subject?: string): Promise<{ leaders: Leader[] }> {
-  const qs = subject ? `?subject=${encodeURIComponent(subject)}` : "";
-  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games/leaderboard${qs}`, { cache: "no-store" }));
+export async function getLeaderboard(subject?: string, ageGroup?: string): Promise<{ leaders: Leader[] }> {
+  const p = new URLSearchParams();
+  if (subject) p.set("subject", subject);
+  if (ageGroup) p.set("age_group", ageGroup);
+  const qs = p.toString();
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games/leaderboard${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
 }
 
 // --- rewards (points for completion -> discounts / prizes) --------------- //

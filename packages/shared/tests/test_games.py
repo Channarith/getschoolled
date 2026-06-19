@@ -1,10 +1,13 @@
 """Learning-games engine: round generation + scoring + points."""
 
 from aoep_shared.games import (
+    AGE_GROUPS,
     GAME_SUBJECTS,
+    AgeGroup,
     GameType,
     games_catalog,
     make_round,
+    mcq_bank_for,
     score_round,
 )
 
@@ -72,3 +75,40 @@ def test_match_round_scoring():
 def test_unknown_subject_falls_back():
     rnd = make_round("astrology", GameType.QUIZ, n=3)
     assert rnd.subject == "science"
+
+
+def test_catalog_lists_age_groups():
+    cat = games_catalog()
+    ids = {a["id"] for a in cat["age_groups"]}
+    assert ids == {"kids", "tween", "teen", "adult"}
+    assert {a["id"] for a in AGE_GROUPS} == ids
+
+
+def test_kids_content_is_age_appropriate():
+    rnd = make_round("math", GameType.QUIZ, age_group=AgeGroup.KIDS, n=4, seed=1)
+    assert rnd.age_group is AgeGroup.KIDS
+    prompts = " ".join(m.prompt for m in rnd.mcqs)
+    # Kids math is simple arithmetic, not algebra/derivatives.
+    assert "2 + 3" in prompts or "5 - 2" in prompts
+
+
+def test_adult_pool_is_harder_superset():
+    core = mcq_bank_for("math", AgeGroup.TEEN)
+    adult = mcq_bank_for("math", AgeGroup.ADULT)
+    assert len(adult) > len(core)  # adult adds advanced items
+    assert any("d/dx" in q["prompt"] for q in adult)
+
+
+def test_kids_rounds_score_normally_across_subjects():
+    for subj in GAME_SUBJECTS:
+        rnd = make_round(subj, GameType.QUIZ, age_group=AgeGroup.KIDS, n=4, seed=7)
+        assert len(rnd.mcqs) >= 1
+        answers = {m.id: m.answer_index for m in rnd.mcqs}
+        res = score_round(rnd, answers)
+        assert res.correct == res.total
+
+
+def test_kids_match_uses_kid_pairs():
+    rnd = make_round("biology", GameType.MATCH, age_group=AgeGroup.KIDS, n=4, seed=2)
+    terms = {p.term for p in rnd.pairs}
+    assert "Cow" in terms  # kid-friendly pair, not "Mitochondria"

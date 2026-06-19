@@ -29,6 +29,22 @@ class GameType(str, enum.Enum):
     MATCH = "match"
 
 
+class AgeGroup(str, enum.Enum):
+    KIDS = "kids"      # ~5-8
+    TWEEN = "tween"    # ~9-12
+    TEEN = "teen"      # ~13-17
+    ADULT = "adult"    # 18+
+
+
+# Age-group metadata + fallback chain (use the nearest available content when a
+# subject has no bank for the requested age).
+AGE_GROUPS = [
+    {"id": "kids", "name": "Kids", "range": "ages 5-8"},
+    {"id": "tween", "name": "Tweens", "range": "ages 9-12"},
+    {"id": "teen", "name": "Teens", "range": "ages 13-17"},
+    {"id": "adult", "name": "Adults", "range": "18+"},
+]
+
 # Subjects the arcade supports (kept independent of the course catalog).
 GAME_SUBJECTS: List[str] = [
     "biology", "chemistry", "physics", "math", "science",
@@ -146,10 +162,139 @@ _PAIR_BANK: Dict[str, List[tuple]] = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# Age-tiered content. KIDS = gentle/playful; ADULT = harder extras layered on
+# top of the core (teen/tween use the core bank). Subjects without a tier fall
+# back via the chain in mcq_bank_for/pair_bank_for.
+# --------------------------------------------------------------------------- #
+_KIDS_MCQ: Dict[str, List[dict]] = {
+    "biology": [
+        _mcq("Which animal says 'moo'?", ["Dog", "Cow", "Cat", "Duck"], 1),
+        _mcq("What do plants need to grow?", ["Candy", "Sunlight", "Toys", "Rocks"], 1),
+        _mcq("How many legs does a spider have?", ["4", "6", "8", "10"], 2),
+        _mcq("Where do fish live?", ["Trees", "Water", "Sky", "Sand"], 1),
+    ],
+    "chemistry": [
+        _mcq("What do we drink when thirsty?", ["Sand", "Water", "Glue", "Rocks"], 1),
+        _mcq("Ice is frozen…", ["Juice", "Water", "Milk", "Air"], 1),
+        _mcq("What tastes salty?", ["Sugar", "Salt", "Apple", "Bread"], 1),
+        _mcq("Bubbles in soda are made of…", ["Sand", "Gas", "Water", "Rocks"], 1),
+    ],
+    "physics": [
+        _mcq("What goes up must come…", ["Up", "Down", "Sideways", "Away"], 1),
+        _mcq("The sun gives us light and…", ["Snow", "Heat", "Rain", "Wind"], 1),
+        _mcq("Magnets stick to…", ["Wood", "Metal", "Paper", "Water"], 1),
+        _mcq("A ball moves when you…", ["Look at it", "Push it", "Sing", "Sleep"], 1),
+    ],
+    "math": [
+        _mcq("2 + 3 = ?", ["4", "5", "6", "7"], 1),
+        _mcq("How many fingers on one hand?", ["3", "4", "5", "6"], 2),
+        _mcq("Which is bigger?", ["4", "7", "2", "1"], 1),
+        _mcq("5 - 2 = ?", ["1", "2", "3", "4"], 2),
+    ],
+    "science": [
+        _mcq("We see stars and the moon in the…", ["Morning", "Night", "Lunch", "Bath"], 1),
+        _mcq("Water falls from the sky as…", ["Rain", "Sand", "Rocks", "Toys"], 0),
+        _mcq("How many seasons are there?", ["2", "3", "4", "5"], 2),
+        _mcq("The sun rises in the…", ["Night", "Morning", "Pool", "Box"], 1),
+    ],
+    "history": [
+        _mcq("Big reptiles that lived long ago were…", ["Dinosaurs", "Cars", "Robots", "Phones"], 0),
+        _mcq("A king wears a…", ["Hat", "Crown", "Sock", "Cup"], 1),
+        _mcq("Knights rode on…", ["Horses", "Bikes", "Planes", "Boats"], 0),
+        _mcq("Pyramids are found in…", ["Egypt", "Space", "Ocean", "Mall"], 0),
+    ],
+    "art": [
+        _mcq("Blue and yellow make…", ["Red", "Green", "Black", "Pink"], 1),
+        _mcq("You paint with a…", ["Spoon", "Brush", "Shoe", "Cup"], 1),
+        _mcq("A rainbow has many…", ["Rocks", "Colors", "Numbers", "Words"], 1),
+        _mcq("Which is a color?", ["Loud", "Purple", "Fast", "Cold"], 1),
+    ],
+    "technology": [
+        _mcq("You call someone far away with a…", ["Spoon", "Phone", "Hat", "Ball"], 1),
+        _mcq("You type on a…", ["Keyboard", "Pillow", "Plate", "Door"], 0),
+        _mcq("Robots are machines that can…", ["Sleep only", "Move and help", "Eat cake", "Cry"], 1),
+        _mcq("A computer shows things on a…", ["Screen", "Rock", "Leaf", "Sock"], 0),
+    ],
+    "programming": [
+        _mcq("A list of steps for a computer is a…", ["Snack", "Program", "Cloud", "Hat"], 1),
+        _mcq("You move the arrow on screen with a…", ["Mouse", "Cat", "Cup", "Sock"], 0),
+        _mcq("Computers like to count with…", ["Colors", "0s and 1s", "Apples", "Songs"], 1),
+        _mcq("A mistake in code is called a…", ["Bug", "Cat", "Star", "Hat"], 0),
+    ],
+}
+
+_KIDS_PAIRS: Dict[str, List[tuple]] = {
+    "biology": [("Cow", "Moo"), ("Dog", "Bark"), ("Fish", "Swim"), ("Bird", "Fly")],
+    "chemistry": [("Ice", "Cold"), ("Fire", "Hot"), ("Water", "Drink"), ("Salt", "Salty")],
+    "physics": [("Sun", "Hot"), ("Magnet", "Metal"), ("Ball", "Roll"), ("Up", "Down")],
+    "math": [("1", "One"), ("2", "Two"), ("3", "Three"), ("4", "Four")],
+    "science": [("Rain", "Sky"), ("Star", "Night"), ("Sun", "Day"), ("Fish", "Water")],
+    "history": [("King", "Crown"), ("Knight", "Horse"), ("Pyramid", "Egypt"), ("Dino", "Long ago")],
+    "art": [("Red", "Color"), ("Brush", "Paint"), ("Sun", "Yellow"), ("Grass", "Green")],
+    "technology": [("Phone", "Call"), ("Keyboard", "Type"), ("Screen", "Show"), ("Robot", "Help")],
+    "programming": [("Mouse", "Click"), ("Bug", "Mistake"), ("Code", "Steps"), ("0/1", "Binary")],
+}
+
+_ADULT_MCQ: Dict[str, List[dict]] = {
+    "math": [
+        _mcq("d/dx of x² is…", ["x", "2x", "x²", "2"], 1),
+        _mcq("log₂(8) = ?", ["2", "3", "4", "8"], 1),
+        _mcq("Solve 2^x = 16, x = ?", ["2", "3", "4", "5"], 2),
+    ],
+    "physics": [
+        _mcq("E = mc² relates energy and…", ["charge", "mass", "time", "volume"], 1),
+        _mcq("Unit of capacitance?", ["Ohm", "Farad", "Henry", "Tesla"], 1),
+    ],
+    "chemistry": [
+        _mcq("Avogadro's number ≈", ["6.02×10²³", "3.14", "9.81", "1.6×10⁻¹⁹"], 0),
+        _mcq("A catalyst…", ["Is consumed", "Speeds a reaction", "Stops reactions", "Adds mass"], 1),
+    ],
+    "biology": [
+        _mcq("Protein synthesis occurs at the…", ["Nucleus", "Ribosome", "Vacuole", "Membrane"], 1),
+        _mcq("The Krebs cycle occurs in the…", ["Nucleus", "Mitochondria", "Ribosome", "Golgi"], 1),
+    ],
+    "programming": [
+        _mcq("Big-O of binary search?", ["O(n)", "O(log n)", "O(n²)", "O(1)"], 1),
+        _mcq("A stack is…", ["FIFO", "LIFO", "Random", "Sorted"], 1),
+        _mcq("Which is immutable in Python?", ["list", "dict", "tuple", "set"], 2),
+    ],
+    "history": [
+        _mcq("The Berlin Wall fell in…", ["1979", "1989", "1991", "2001"], 1),
+        _mcq("The Magna Carta was signed in…", ["1066", "1215", "1492", "1776"], 1),
+    ],
+    "science": [
+        _mcq("Speed of sound in air ≈", ["34 m/s", "343 m/s", "3,430 m/s", "3×10⁸ m/s"], 1),
+    ],
+    "technology": [
+        _mcq("TCP/IP is a…", ["File format", "Protocol suite", "CPU", "Database"], 1),
+    ],
+    "art": [
+        _mcq("'Chiaroscuro' refers to…", ["Color theory", "Light/shadow contrast", "Sculpture", "Symmetry"], 1),
+    ],
+}
+
+
+def mcq_bank_for(subject: str, age: AgeGroup) -> List[dict]:
+    """Age-appropriate MCQ pool for a subject (with sensible fallbacks)."""
+    if age is AgeGroup.KIDS:
+        return _KIDS_MCQ.get(subject) or _MCQ_BANK[subject]
+    if age is AgeGroup.ADULT:
+        return _MCQ_BANK[subject] + _ADULT_MCQ.get(subject, [])
+    return _MCQ_BANK[subject]  # tween / teen use the core bank
+
+
+def pair_bank_for(subject: str, age: AgeGroup) -> List[tuple]:
+    if age is AgeGroup.KIDS:
+        return _KIDS_PAIRS.get(subject) or _PAIR_BANK[subject]
+    return _PAIR_BANK[subject]
+
+
 class GameRound(BaseModel):
     game_id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     subject: str
     game_type: GameType
+    age_group: AgeGroup = AgeGroup.TEEN
     time_limit_s: int = 0
     mcqs: List[MCQItem] = Field(default_factory=list)
     pairs: List[MatchPair] = Field(default_factory=list)
@@ -158,7 +303,8 @@ class GameRound(BaseModel):
         """Client-facing round with answers stripped."""
         out: dict = {
             "game_id": self.game_id, "subject": self.subject,
-            "game_type": self.game_type.value, "time_limit_s": self.time_limit_s,
+            "game_type": self.game_type.value, "age_group": self.age_group.value,
+            "time_limit_s": self.time_limit_s,
         }
         if self.game_type is GameType.MATCH:
             rng = random.Random(self.game_id)
@@ -193,21 +339,22 @@ class ScoreResult(BaseModel):
     results: List[ItemResult] = Field(default_factory=list)
 
 
-def make_round(subject: str, game_type: GameType, *, n: int = 5,
-               seed: Optional[int] = None) -> GameRound:
+def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGroup.TEEN,
+               n: int = 5, seed: Optional[int] = None) -> GameRound:
     subject = subject if subject in GAME_SUBJECTS else "science"
     rng = random.Random(seed)
     if game_type is GameType.MATCH:
-        bank = _PAIR_BANK[subject][:]
+        bank = pair_bank_for(subject, age_group)[:]
         rng.shuffle(bank)
         pairs = [MatchPair(id=uuid.uuid4().hex[:8], term=t, match=m)
                  for t, m in bank[: max(2, min(n, len(bank)))]]
-        return GameRound(subject=subject, game_type=game_type, pairs=pairs)
-    bank = _MCQ_BANK[subject][:]
+        return GameRound(subject=subject, game_type=game_type, age_group=age_group, pairs=pairs)
+    bank = mcq_bank_for(subject, age_group)[:]
     rng.shuffle(bank)
     mcqs = [MCQItem(id=uuid.uuid4().hex[:8], **q) for q in bank[: max(1, min(n, len(bank)))]]
     tl = SPEED_TIME_LIMIT_S if game_type is GameType.SPEED else 0
-    return GameRound(subject=subject, game_type=game_type, mcqs=mcqs, time_limit_s=tl)
+    return GameRound(subject=subject, game_type=game_type, age_group=age_group,
+                     mcqs=mcqs, time_limit_s=tl)
 
 
 def score_round(rnd: GameRound, answers: Dict[str, object],
@@ -252,6 +399,7 @@ def score_round(rnd: GameRound, answers: Dict[str, object],
 def games_catalog() -> dict:
     return {
         "subjects": GAME_SUBJECTS,
+        "age_groups": AGE_GROUPS,
         "game_types": [
             {"id": GameType.QUIZ.value, "name": "Quiz", "desc": "Pick the correct answer."},
             {"id": GameType.SPEED.value, "name": "Speed Round", "desc": "Beat the clock for a bonus."},
