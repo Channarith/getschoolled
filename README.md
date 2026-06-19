@@ -25,9 +25,9 @@
 ## Table of contents
 
 - [What is this?](#what-is-this)
-- [Screenshots](#screenshots)
+- [Screens &amp; scenarios by user type](#screens--scenarios-by-user-type)
 - [Build status by phase](#build-status-by-phase)
-- [Architecture](#architecture)
+- [Architecture &amp; design](#architecture--design)
 - [Tech stack](#tech-stack)
 - [Repository layout](#repository-layout)
 - [Prerequisites](#prerequisites)
@@ -59,15 +59,64 @@ routing** &mdash; all testable offline. Real-time voice/video, GPU model serving
 and the external platform bridges (Zoom/Teams/Meet) are wired behind config and
 need infra/credentials to run. See the status table below.
 
-## Screenshots
+## Screens &amp; scenarios by user type
 
-| Live class &mdash; slide delivery | Live class &mdash; ask the AI teacher (RAG + citations) |
+The platform serves several distinct customer types, each with its own layout and
+journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
+Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
+
+### 1. New / free learner &mdash; browse + ad-supported watch
+Anonymous visitor explores the Netflix-style catalog (search + faceted filters)
+and watches a course on the **free tier** with pre-roll / mid-roll video ads.
+
+![Free learner: browse and ad-supported watch](docs/demos/persona_free_learner_browse_watch.gif)
+
+| Catalog browse (search + filters) | Free-tier pre-roll ad |
 | --- | --- |
-| <img src="docs/images/live_class_slide.webp" alt="Live class slide" /> | <img src="docs/images/live_class_ask.webp" alt="Ask the AI teacher" /> |
+| <img src="docs/screens/browse_catalog.webp" alt="Browse catalog filtered by Science" /> | <img src="docs/screens/watch_preroll_ad.webp" alt="Pre-roll video ad on free tier" /> |
 
-| Home | Teacher dashboard (agent roster) | Biometric consent |
+### 2. Enrolled learner &mdash; live AI class
+Start a session, the Teaching Director presents slides, ask the AI tutor a
+question (answered with RAG + **grounding/citations + confidence**, unsupported
+claims flagged), then a flag-gated **post-class survey** captures feedback.
+
+![Learner: live AI class with grounded answers and post-class survey](docs/demos/persona_live_ai_class_student.gif)
+
+<img src="docs/screens/live_class_grounded_answer.webp" alt="AI teacher answer with grounding, confidence and citations" />
+
+### 3. Member / parent &mdash; account, personalization &amp; rewards
+A paying subscriber signs in, manages membership tier and learner **sub-profiles**,
+views Foresight **&ldquo;For You&rdquo;** recommendations for a child, and redeems
+reward points for a prize.
+
+![Member: account, recommendations and rewards](docs/demos/persona_member_account_rewards.gif)
+
+| Member account portal | &ldquo;For You&rdquo; (Foresight) | Rewards redemption |
 | --- | --- | --- |
-| <img src="docs/images/home.webp" alt="Home page" /> | <img src="docs/images/dashboard.webp" alt="Teacher dashboard" /> | <img src="docs/images/consent.webp" alt="Consent page" /> |
+| <img src="docs/screens/member_account.webp" alt="Member account portal" /> | <img src="docs/screens/foryou_recommendations.webp" alt="Foresight recommendations" /> | <img src="docs/screens/rewards_redeem.webp" alt="Rewards redemption" /> |
+
+### 4. Educator / institution &mdash; Human-in-the-Loop console
+With autonomy set to `suggest`, AI-drafted answers are routed to the educator
+**review queue**; the teacher approves or edits before the answer reaches the
+student. Separate lanes exist for co-teaching and co-grading.
+
+![Educator: Human-in-the-Loop review console](docs/demos/persona_educator_hil_console.gif)
+
+<img src="docs/screens/educator_hil_console.webp" alt="Educator HIL console with a pending AI-drafted answer" />
+
+### 5. Platform admin / ops &mdash; feature flags, versions &amp; data mining
+Secret-gated admin console: **System &amp; Versions** panel (per-service version /
+git / mode, with drift detection), ~30 **feature flags** (toggles, rollouts,
+tier targeting), and the multi-dimensional **survey data-mart**.
+
+![Admin: feature flags, versions and survey insights](docs/demos/persona_admin_console.gif)
+
+| System &amp; Versions panel | Feature-flag console |
+| --- | --- |
+| <img src="docs/screens/admin_system_versions.webp" alt="System and Versions panel" /> | <img src="docs/screens/admin_feature_flags.webp" alt="Feature flag console" /> |
+
+> Higher-resolution `.mp4` versions of each recording are attached to the
+> corresponding pull request.
 
 ## Build status by phase
 
@@ -192,30 +241,101 @@ in `docs/secrets.txt` are provided.
 - Adaptive learner modeling - Bayesian Knowledge Tracing + a prerequisite SkillGraph belief network (`aoep_shared/knowledge.py`), a variational-inference Bayesian IRT ability model (`aoep_shared/inference.py`), and a Thompson-sampling content bandit (`aoep_shared/bandit.py`). Memory mastery is BKT-driven and `adaptive.signals_from_models` feeds BKT/IRT signals into the pacing/difficulty policy. An `OptimizationLedger` (`aoep_shared/optimization.py`) tracks per-stage accuracy and promotes/reverts optimizer steps (endpoints under `/api/optimization/*`).
 - 24/7 course harvester - `aoep_shared/harvest` (license gate + dedup queue + worker) ingests 100k+ permissively-licensed/OER materials on a separate worker agent; see `services/harvester/RUNBOOK.txt`. Two-track LLM training (open-weight multi-model + from-scratch) with a bake-off harness lives under `training/` (see `training/RUNBOOK.txt`).
 
-## Architecture
+## Architecture &amp; design
 
+Full text source-of-truth: [`docs/architecture.txt`](docs/architecture.txt).
+Diagrams below render on GitHub (mermaid); measured/illustrative charts are in
+`docs/diagrams/`.
+
+### Block diagram (services, providers, data)
+
+```mermaid
+flowchart TB
+  subgraph Client
+    WEB["Browser - apps/web (Next.js)<br/>per-persona UIs"]
+  end
+  WEB -->|JSON over HTTPS| ORCH["orchestrator :8000<br/>teaching loop, HIL, disclosure"]
+  WEB --> MEM["memory :8004<br/>profiles, consent, flags, survey"]
+  WEB --> CUR["curriculum :8005<br/>catalog, RAG, homework, ads, recommend"]
+  WEB --> IDN["identity :8008<br/>accounts, tiers, students, rewards"]
+  WEB --> INT["integrations :8007<br/>webhooks, LMS, finance, cloud"]
+  ORCH --> SPC["speech :8002"]
+  ORCH --> PER["perception :8003"]
+  IDN --> BIL["billing :8006"]
+
+  ORCH & MEM & CUR & IDN & INT & SPC & PER & BIL --> SHARED["packages/shared<br/>ProviderFactory (local | cloud | edge, by env)"]
+  SHARED --> PROV{{"LLM · Speech · Vision · Media<br/>ObjectStore · Payment · OCR"}}
+  SHARED --> DATA[("Postgres + pgvector · Redis · object store")]
+  ORCH -.worker.-> ART["apps/agent-runtime<br/>(LiveKit Agents)"]
 ```
-                 Browser (apps/web, Next.js)
-                          |
-                          v
-        Orchestrator API (services/orchestrator, FastAPI)
-        Teaching Director: lessons, sessions, slides, RAG Q&A
-                          |
-              packages/shared  ProviderFactory
-        (selects local vs cloud per capability, by env)
-   ┌──────────┬──────────┬──────────┬──────────┬──────────┐
-  LLM       Speech     Vision      Media   ObjectStore  Payment
- (vLLM/    (Whisper/  (InsightFace (LiveKit) (MinIO/S3) (Stripe/
-  Ollama)   XTTS)      /MediaPipe)                        sandbox)
 
-  Supporting services (FastAPI): memory · speech · perception ·
-  curriculum · billing        Worker: apps/agent-runtime (LiveKit Agents)
-  Data: Postgres + pgvector · Redis · object store
+### Teaching-loop flow (ask the AI teacher)
+
+```mermaid
+flowchart LR
+  A["Student asks a question"] --> B["RAG retrieve<br/>course passages"]
+  B --> C["Tutor composes<br/>grounded answer"]
+  C --> D["Groundedness guard<br/>confidence + flag unsupported"]
+  D --> E{"HIL: should_escalate?<br/>(confidence, risk, autonomy)"}
+  E -->|autonomous / high conf| F["Answer to student<br/>+ citations + confidence"]
+  E -->|suggest / low conf| G["Educator review queue<br/>/console: approve or edit"]
+  G --> F
 ```
 
-**Dual-mode** is the core idea: `DEPLOY_MODE=local|cloud` sets the default
+### Ask sequence (RAG + grounding + optional human review)
+
+```mermaid
+sequenceDiagram
+  participant U as Student (web)
+  participant O as orchestrator
+  participant R as RAG (curriculum)
+  participant H as HIL ReviewQueue
+  participant T as Educator (/console)
+  U->>O: POST /api/sessions/{id}/ask
+  O->>R: retrieve grounded passages
+  R-->>O: passages + citations
+  O->>O: compose answer + groundedness/confidence
+  alt escalate (suggest mode / low confidence)
+    O->>H: enqueue ReviewItem
+    T->>H: approve / edit
+    H-->>O: decided answer
+  end
+  O-->>U: answer + citations + confidence (+ pending_review?)
+```
+
+### Survey &rarr; multi-dimensional data mart (data mining)
+
+```mermaid
+flowchart LR
+  ADM["Admin enables<br/>engagement.post_class_survey"] --> FL["memory FlagStore"]
+  FL --> CLS["/class Finish -> survey modal (gated)"]
+  CLS --> SUB["POST /survey/post-class"]
+  SUB --> ST["SurveyStore"]
+  ST --> MART["OLAP cube:<br/>course x class_type x rating"]
+  ST --> MINE["suggestion-theme mining"]
+  MART --> INS["/admin survey insights"]
+  MINE --> INS
+```
+
+**Dual-mode** is the core idea: `DEPLOY_MODE=local|cloud|edge` sets the default
 implementation family, and each capability can be overridden independently (for
 example, keep biometrics local even in cloud for compliance) without forking code.
+
+### Performance &amp; analytics charts
+
+API latency is **measured** from the live QA stress harness (`qa/stress.py`);
+mastery/engagement/funnel charts are **illustrative** models. Regenerate the
+measured charts by re-running the stress smoke against a live stack.
+
+| API latency profile (measured p95/service) | Latency vs concurrency (measured) |
+| --- | --- |
+| <img src="docs/diagrams/chart_api_latency.png" alt="Mean p95 latency per service" /> | <img src="docs/diagrams/chart_latency_vs_load.png" alt="Latency vs concurrency" /> |
+
+| Mastery over sessions (BKT model) | Engagement &amp; rewards over time (illustrative) |
+| --- | --- |
+| <img src="docs/diagrams/chart_mastery_over_sessions.png" alt="Mastery over sessions" /> | <img src="docs/diagrams/chart_engagement_timeseries.png" alt="Engagement and rewards over time" /> |
+
+<img src="docs/diagrams/chart_user_funnel.png" alt="User and customer-type funnel" width="560" />
 
 ## Tech stack
 

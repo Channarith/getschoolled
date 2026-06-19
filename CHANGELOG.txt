@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Docs: per-persona screen recordings + design/architecture documentation.
+  README gains a "Screens & scenarios by user type" section (5 recorded GIF
+  walkthroughs + screenshots: free learner, live AI class, member/parent,
+  educator HIL, admin) and an "Architecture & design" section with mermaid
+  block/flow/sequence diagrams and time-series charts (measured API latency +
+  illustrative mastery/engagement/funnel). New docs/architecture.txt (text
+  source-of-truth), docs/diagrams/*.png, docs/demos/*.gif, docs/screens/*.webp.
+
 - Automation-testing API expansion: aoep_shared/testsupport.py gates deterministic
   E2E hooks (admin secret AND ENABLE_TEST_ENDPOINTS / local-edge mode); memory adds
   POST /admin/test/reset (scope=all|flags|surveys|acceptances|store) and
