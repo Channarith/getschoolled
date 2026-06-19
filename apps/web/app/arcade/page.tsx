@@ -31,9 +31,11 @@ export default function ArcadePage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const [lbSubject, setLbSubject] = useState<string>("");
+  const [loggedIn, setLoggedIn] = useState(false);
   const startedAt = useRef(0);
-  const loggedIn = typeof window !== "undefined" && Boolean(getToken());
 
+  // Read auth on the client only (avoids SSR/client hydration mismatch).
+  useEffect(() => { setLoggedIn(Boolean(getToken())); }, []);
   useEffect(() => { getGamesCatalog().then(setCat).catch((e) => setError(String(e))); }, []);
 
   const loadLeaders = useCallback(() => {
@@ -160,7 +162,8 @@ export default function ArcadePage() {
                 <button key={t.id} onClick={() => setSelTerm(t.id)}
                   style={{ display: "block", width: "100%", marginBottom: 8, textAlign: "left",
                     border: selTerm === t.id ? "2px solid #7c3aed" : "1px solid var(--border)",
-                    background: answers[t.id] ? "#dcfce7" : "transparent" }}>
+                    background: answers[t.id] ? "#dcfce7" : "transparent",
+                    color: answers[t.id] ? "#166534" : "var(--text)" }}>
                   {t.term} {answers[t.id] ? "✓" : ""}
                 </button>
               ))}
@@ -171,7 +174,8 @@ export default function ArcadePage() {
                 return (
                   <button key={o.id} onClick={() => pickMatch(o.id)} disabled={!selTerm}
                     style={{ display: "block", width: "100%", marginBottom: 8, textAlign: "left",
-                      opacity: taken ? 0.5 : 1, border: "1px solid var(--border)", background: "transparent" }}>
+                      opacity: taken ? 0.5 : 1, border: "1px solid var(--border)",
+                      background: "transparent", color: "var(--text)" }}>
                     {o.text}
                   </button>
                 );
