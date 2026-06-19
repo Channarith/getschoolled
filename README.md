@@ -129,6 +129,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Accounts 4 | Rewards/points: earn on course completion, redeem for class discounts or prize raffles (PS5/gold bar) + `/rewards` page + sweepstakes rules | ✅ | #72 |
 | Foresight 1 | Portable "Foresight" prediction engine (`aoep_shared/foresight`): attention/router/pattern-grouping/multi-head + relational graph + LearnerForesight recommender; `docs/foresight.txt` (patent disclosure) | ✅ | #73 |
 | Foresight 2 | Per-account student sub-profiles + `POST /recommend` (Foresight over the catalog) + web `/recommended` ("For You") + profile management | ✅ | #74 |
+| Distribution 1 | Netflix-compatible catalog export: `GET /catalog/export?format=json\|mrss` (MRSS + JSON feed, HLS/DASH refs, maturity/audio/subtitle metadata) | ✅ | #75 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
