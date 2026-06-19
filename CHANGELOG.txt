@@ -535,4 +535,8 @@ Format: newest first. No markdown per project convention.
 
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
 were lost to the changelog-rolling bug fixed in [unreleased]; their content is
-consolidated under [0.3.0] above.
+[unreleased]
+- (no changes yet)
+
+[0.3.58] - 2026-06-19
+- release build (no itemized changes)
