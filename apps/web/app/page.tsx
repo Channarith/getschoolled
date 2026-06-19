@@ -1,111 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  DEFAULT_THEME_ID,
-  getTheme,
-  themeList,
-  type Theme,
-} from "./lib/themes";
-
-function themeVars(theme: Theme): React.CSSProperties {
-  const p = theme.palette;
-  return {
-    // Exposed as CSS variables consumed by the themed classes below.
-    ["--t-bg" as string]: p.bg,
-    ["--t-panel" as string]: p.panel,
-    ["--t-accent" as string]: p.accent,
-    ["--t-accent2" as string]: p.accent2,
-    ["--t-text" as string]: p.text,
-    ["--t-muted" as string]: p.muted,
-    ["--t-border" as string]: p.border,
-    ["--t-radius" as string]: theme.radius,
-    fontFamily: theme.font,
-  };
-}
+import { useEffect, useState } from "react";
+import { Rail } from "./components/CourseRail";
+import { getHomeFeed, getToken, type HomeRail } from "./lib/api";
 
 export default function HomePage() {
-  const [themeId, setThemeId] = useState<string>(DEFAULT_THEME_ID);
+  const [rails, setRails] = useState<HomeRail[] | null>(null);
+  const [error, setError] = useState("");
+  const [loggedIn, setLoggedIn] = useState(false);
 
-  // Resolve the active theme from ?theme= or the saved preference on mount.
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("theme");
-    const saved = window.localStorage.getItem("aoep-theme");
-    const initial = fromUrl || saved || DEFAULT_THEME_ID;
-    setThemeId(initial);
+    setLoggedIn(Boolean(getToken()));
+    getHomeFeed().then(setRails).catch((e) => setError(String(e)));
   }, []);
 
-  function selectTheme(id: string) {
-    setThemeId(id);
-    window.localStorage.setItem("aoep-theme", id);
-    const url = new URL(window.location.href);
-    url.searchParams.set("theme", id);
-    window.history.replaceState({}, "", url.toString());
-  }
-
-  const theme = useMemo(() => getTheme(themeId), [themeId]);
-  const bgImage = theme.background
-    ? `${theme.overlay}, url(${theme.background})`
-    : theme.overlay;
-
   return (
-    <div className="themed" style={themeVars(theme)}>
-      <section
-        className="theme-hero"
-        style={{ backgroundImage: bgImage }}
-        data-gamified={theme.gamified ? "1" : "0"}
-      >
+    <main>
+      <section className="theme-hero" style={{
+        background: "linear-gradient(120deg, #0b1020 0%, #4338ca 60%, #7c3aed 100%)",
+        color: "#fff", padding: "40px 24px 44px",
+      }}>
         <div className="theme-hero-inner">
-          <div className="theme-toolbar">
-            <span className="theme-badge">
-              {theme.decoration} {theme.hero.badge}
-            </span>
-            <label className="theme-picker">
-              <span className="muted">Template</span>
-              <select
-                value={theme.id}
-                onChange={(e) => selectTheme(e.target.value)}
-                aria-label="Choose a landing template"
-              >
-                {themeList().map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} — {t.audience}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <span className="theme-badge">AI-instructed learning</span>
+          <h1 className="theme-title" style={{ marginTop: 14 }}>
+            Thousands of classes. One AI campus.
+          </h1>
+          <p className="theme-subtitle">
+            {loggedIn
+              ? "Pick up where you left off, or explore popular courses by category and age."
+              : "Browse popular courses by category and age — sign in to track progress, earn rewards, and get personalized picks."}
+          </p>
+          <div className="hero-cta">
+            <Link href="/class"><button className="theme-btn">▶ Try a sample class</button></Link>
+            <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>Browse all</button></Link>
+            <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>Kids</button></Link>
+            <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>Corporate training</button></Link>
+            {loggedIn
+              ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>For You</button></Link>
+              : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>Sign in</button></Link>}
           </div>
-
-          <h1 className="theme-title">{theme.hero.title}</h1>
-          <p className="theme-subtitle">{theme.hero.subtitle}</p>
-
-          {theme.gamified && (
-            <div className="gami-row" aria-hidden="true">
-              <span className="gami-badge">🏅 Level 1</span>
-              <span className="gami-badge">🔥 3-day streak</span>
-              <span className="gami-badge">⭐ 120 XP</span>
-            </div>
-          )}
         </div>
       </section>
 
-      <section className="theme-cards">
-        {theme.cards.map((card) => (
-          <div className="theme-card" key={card.title}>
-            <h3>{card.title}</h3>
-            <p className="muted">{card.body}</p>
-            <Link href={card.href}>
-              <button className="theme-btn">{card.cta}</button>
-            </Link>
-          </div>
-        ))}
-      </section>
-
-      <p className="theme-foot muted">
-        Showing the <strong>{theme.name}</strong> template ·{" "}
-        {themeList().length} audience templates available · switch any time.
-      </p>
-    </div>
+      <div className="feed">
+        {error && <p style={{ color: "#b00" }}>Could not load the catalog: {error}</p>}
+        {rails === null && !error && <p className="muted">Loading your catalog…</p>}
+        {rails && rails.length === 0 && (
+          <p className="muted">No courses yet. <Link href="/browse">Browse</Link> to get started.</p>
+        )}
+        {rails?.map((r) => <Rail key={r.key} rail={r} />)}
+      </div>
+    </main>
   );
 }
