@@ -11,8 +11,10 @@ RUN (development)
   cd apps/mobile
   npm install
   npm run start          # then scan the QR with Expo Go, or:
-  npm run android        # Android emulator/device
-  npm run ios            # iOS simulator (macOS)
+  npm run start:android  # Expo Go / dev client on Android
+  npm run start:ios      # Expo Go / dev client on iOS
+  npm run android        # native Android run after prebuild + Android SDK
+  npm run ios            # native iOS run after prebuild + Xcode (macOS)
 
 BUILD (local production bundles)
   npm run typecheck
