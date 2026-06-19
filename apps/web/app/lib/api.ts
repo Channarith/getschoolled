@@ -198,6 +198,21 @@ export async function getFacets(): Promise<Facets> {
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/courses/facets`, { cache: "no-store" }));
 }
 
+// --- video-ad monetization (VAST/VMAP, tier-gated) ---------------------- //
+export type AdCreative = {
+  id: string; title: string; advertiser: string; media_url: string;
+  duration_s: number; click_url: string | null; skippable_after_s: number | null;
+};
+export type AdBreak = { position: "preroll" | "midroll" | "postroll"; offset_s: number; ads: AdCreative[] };
+export type AdPlan = { course_id: string; tier: string; ad_free: boolean; breaks: AdBreak[] };
+
+export async function getAdBreaks(courseId: string, tier: string): Promise<AdPlan> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(courseId)}/ad-breaks?tier=${encodeURIComponent(tier)}`,
+      { cache: "no-store" })
+  );
+}
+
 // --- rewards (points for completion -> discounts / prizes) --------------- //
 export type LedgerEntry = { delta: number; reason: string; ref: string; ts: number };
 export type Redemption = {
