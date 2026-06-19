@@ -49,12 +49,16 @@ def test_view_unknown_course_404():
     assert client.post("/courses/nope/view").status_code == 404
 
 
-def test_kids_feed_excludes_mature():
+def test_kids_feed_only_kid_rated():
     _seed()
     rails = client.get("/home", params={"kids": "true"}).json()["rails"]
     titles = {c["title"] for r in rails for c in r["courses"]}
-    assert "ABC Adventures" in titles
-    assert "Human Anatomy" not in titles  # mature excluded from kids feed
+    assert "ABC Adventures" in titles          # kids-rated included
+    assert "Human Anatomy" not in titles        # mature excluded
+    assert "Astronomy 101" not in titles        # general all-ages NOT in kids mode
+    assert "Python Bootcamp" not in titles      # general all-ages NOT in kids mode
+    # Every course shown in kids mode is kid-rated.
+    assert all(c["maturity_rating"] == "kids" for r in rails for c in r["courses"])
 
 
 def test_search_maturity_filter_and_facets():

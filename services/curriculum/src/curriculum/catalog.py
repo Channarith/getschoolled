@@ -170,8 +170,12 @@ class CatalogStore:
         return c
 
     def kids_safe(self) -> List[Course]:
-        """Courses appropriate for children (all-ages or kids-rated)."""
-        return [c for c in self.courses.values() if c.maturity_rating in ("all", "kids")]
+        """Courses for the children's platform: only kid-authored (kids-rated).
+
+        The general all-ages catalog stays on the main home; the kids platform is
+        deliberately limited to content authored for children.
+        """
+        return [c for c in self.courses.values() if c.maturity_rating == "kids"]
 
     def home_rails(self, *, kids_only: bool = False, per_rail: int = 12) -> List[dict]:
         """Build ordered carousel rows for the home feed.
@@ -193,7 +197,7 @@ class CatalogStore:
         rail("free", "Free to start", [c for c in pool if c.access_tier == "free"])
         rail("hands_on", "Hands-on labs", [c for c in pool if c.hands_on])
         if not kids_only:
-            rail("kids", "Just for kids", [c for c in pool if c.maturity_rating in ("all", "kids")])
+            rail("kids", "Just for kids", [c for c in pool if c.maturity_rating == "kids"])
         # Per-category rows, ordered by category name.
         cats: Dict[str, List[Course]] = {}
         for c in pool:

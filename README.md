@@ -65,6 +65,46 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Home / discover &mdash; Netflix-style catalog (on login)
+When you open the home page (and right after sign-in) you land on a Netflix-style
+feed: horizontal carousels for **Popular now**, **New releases**, **Free to
+start**, **Hands-on labs**, **Just for kids**, and a row per **category**
+(Science, Technology, History, &hellip;). Popularity is a real view signal; tiles
+open the player. Backed by `GET /home` (curriculum).
+
+![Home: Netflix-style catalog carousels](docs/demos/home_netflix_catalog_demo.gif)
+
+<img src="docs/screens/home_netflix_feed.webp" alt="Netflix-style home feed carousels" />
+
+### Children's platform &mdash; Kids mode
+A dedicated, colorful **kids platform** at `/kids` that shows **only
+kid-authored** content (mature/teen content is hidden &mdash; parental controls),
+with big playful tiles and a simplified, safe experience.
+
+![Kids mode: children's platform version](docs/demos/kids_mode_platform_demo.gif)
+
+<img src="docs/screens/kids_mode.webp" alt="Kids mode children's platform" />
+
+### Corporate training programs
+Enterprise customers get curated **multi-course training programs** at
+`/corporate` (e.g. New Hire Onboarding, Compliance &amp; Safety, Engineering
+Upskilling), each adaptively sequenced by mastery. Backed by curriculum
+`GET /programs?audience=corporate`.
+
+![Corporate training programs](docs/demos/corporate_training_programs_demo.gif)
+
+<img src="docs/screens/corporate_programs.webp" alt="Corporate training programs" />
+
+### Sample demo class
+Click **&ldquo;Try a sample class&rdquo;** on the home page to jump straight into a
+live AI class: slide delivery + narration, then ask the AI teacher a question
+answered with RAG **grounding, confidence and citations** (off-topic claims are
+flagged by the hallucination guard).
+
+![Sample demo class walkthrough](docs/demos/sample_demo_class_walkthrough.gif)
+
+<img src="docs/screens/sample_class.webp" alt="Sample demo class" />
+
 ### 1. New / free learner &mdash; browse + ad-supported watch
 Anonymous visitor explores the Netflix-style catalog (search + faceted filters)
 and watches a course on the **free tier** with pre-roll / mid-roll video ads.
@@ -185,6 +225,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Ops 1 | Version visibility + automation discovery: every service exposes `GET /version` + `GET /__meta` (route index); web `/admin` "System & Versions" panel aggregates service versions/health | ✅ | #79 |
 | Ops 2 | Automation-testing APIs: gated deterministic `POST /admin/test/reset\|seed` hooks (`ENABLE_TEST_ENDPOINTS`) + `qa/stress.py` expanded to all 8 services & new endpoints | ✅ | #80 |
 | Ops 3 | Observability/telemetry (local+cloud): per-service `GET /metrics` (Prometheus) + `/telemetry/summary\|errors\|logs`, request middleware, web `/admin` Observability panel (memory/perf/errors + RCA) | ✅ | #81 |
+| Discovery 1 | Netflix-style home feed `GET /home` (popular/new/free/kids/category rails + view popularity), `/kids` children's platform, `/corporate` training programs, sample-class CTA | ✅ | #82 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |

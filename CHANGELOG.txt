@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Netflix-style home + kids mode + corporate programs: curriculum adds GET /home
+  (carousel rails: Popular now / New releases / Free to start / Hands-on / Just
+  for kids / per-category), a view-based popularity signal (POST /courses/{id}/
+  view), a maturity filter + facets, and a programs audience filter. Web home (/)
+  is now a Netflix-style feed shown on login; new /kids children's platform (only
+  kid-rated content, parental-controls-safe); new /corporate training-programs
+  page; prominent "Try a sample class" CTA. README adds recordings for home,
+  kids, corporate and the sample demo class. Tested.
+
 - Observability & telemetry (local + cloud): aoep_shared/telemetry.py adds a
   dependency-free TelemetryStore (per-route latency p50/p95/p99 + error rate,
   in-flight gauge, recent-error ring with traceback + request id, event log) and
