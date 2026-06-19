@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getJobMatch,
   listJobs,
+  parseJobDescription,
   type JobMatch,
+  type JobParse,
   type JobPosting,
 } from "../lib/api";
 
@@ -18,6 +20,8 @@ export default function JobsPage() {
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState("");
   const [match, setMatch] = useState<JobMatch | null>(null);
+  const [jd, setJd] = useState("");
+  const [parsed, setParsed] = useState<JobParse | null>(null);
   const [error, setError] = useState("");
 
   const refresh = useCallback(() => {
@@ -30,6 +34,13 @@ export default function JobsPage() {
   async function openJob(id: string) {
     setError("");
     try { setMatch(await getJobMatch(id)); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    catch (e) { setError(String(e)); }
+  }
+
+  async function analyzeJd() {
+    setError("");
+    if (!jd.trim()) return;
+    try { setParsed(await parseJobDescription(jd)); }
     catch (e) { setError(String(e)); }
   }
 
@@ -99,6 +110,51 @@ export default function JobsPage() {
           </div>
         </div>
       )}
+
+      {/* Paste a real (e.g. LinkedIn) job description -> targeted classes */}
+      <div className="card" style={{ borderColor: "#7c3aed" }}>
+        <h3 style={{ marginTop: 0 }}>🔎 Paste a job description (e.g. from LinkedIn)</h3>
+        <p className="muted">We extract the exact skills + certifications and target specific classes — including cert prep like Cisco UCSM, AWS, PMP.</p>
+        <textarea rows={4} value={jd} onChange={(e) => setJd(e.target.value)}
+          placeholder="Paste the role's requirements here…"
+          style={{ width: "100%", padding: 10 }} />
+        <button onClick={analyzeJd} disabled={!jd.trim()}
+          style={{ marginTop: 8, background: "#7c3aed", color: "#fff" }}>Analyze &amp; recommend</button>
+        {parsed && (
+          <div style={{ marginTop: 12 }}>
+            {parsed.parsed.certifications.length > 0 && (
+              <p><strong>Certifications detected:</strong>{" "}
+                {parsed.parsed.certifications.map((c) => (
+                  <span key={c} className="pill" style={{ color: "#7c3aed" }}>{c}</span>
+                ))}</p>
+            )}
+            <p><strong>Skills:</strong> {parsed.parsed.skills.map(pretty).join(", ") || "—"}</p>
+            <p>Catalog coverage: <strong>{parsed.coverage_pct}%</strong></p>
+            {parsed.matched_courses.length > 0 && (
+              <>
+                <div style={{ fontWeight: 600 }}>Take these courses:</div>
+                <ul>{parsed.matched_courses.map((c) => (
+                  <li key={c.course_id}>{c.title} <span className="muted" style={{ fontSize: 12 }}>
+                    ({c.covered_skills.map(pretty).join(", ")})</span></li>
+                ))}</ul>
+              </>
+            )}
+            {parsed.specialized_classes.length > 0 && (
+              <>
+                <div style={{ fontWeight: 600 }}>Specialized classes to add (targeted to this role):</div>
+                <ul>{parsed.specialized_classes.map((s, i) => (
+                  <li key={i}>
+                    {s.title}{" "}
+                    <span className="pill" style={{ color: s.kind === "certification" ? "#16a34a" : "#b45309" }}>
+                      {s.kind}
+                    </span>
+                  </li>
+                ))}</ul>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Search */}
       <div className="card">

@@ -18,6 +18,7 @@ export default function BrowsePage() {
   const [msg, setMsg] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({
     q: "", category: "", language: "", audio: "", media_format: "", level: "", hands_on: "",
+    audience: "", core_skill: "",
   });
 
   useEffect(() => {
@@ -67,10 +68,24 @@ export default function BrowsePage() {
           <Facet label="Audio" value={filters.audio} onChange={(v) => set("audio", v)} options={facets?.audio_languages} />
           <Facet label="Format" value={filters.media_format} onChange={(v) => set("media_format", v)} options={facets?.media_formats} />
           <Facet label="Level" value={filters.level} onChange={(v) => set("level", v)} options={facets?.levels} />
+          <label style={{ fontSize: 13 }}>
+            For&nbsp;
+            <select value={filters.audience} onChange={(e) => set("audience", e.target.value)}>
+              <option value="">Anyone</option>
+              {(facets?.audiences ?? []).map((a) => (
+                <option key={a.slug} value={a.slug}>{a.label}</option>
+              ))}
+            </select>
+          </label>
           <label className="row">
             <input type="checkbox" checked={filters.hands_on === "true"}
               onChange={(e) => set("hands_on", e.target.checked ? "true" : "")} />
             &nbsp;Hands-on only
+          </label>
+          <label className="row">
+            <input type="checkbox" checked={filters.core_skill === "true"}
+              onChange={(e) => set("core_skill", e.target.checked ? "true" : "")} />
+            &nbsp;Core skills
           </label>
         </div>
       </div>

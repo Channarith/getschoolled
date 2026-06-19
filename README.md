@@ -87,6 +87,25 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Skill relevance tags &mdash; core skills, fundamentals &amp; profession audiences
+Courses carry derived relevance tags beyond "related jobs": **Core skill**,
+**Fundamental for &lt;profession&gt;**, and **For &lt;profession&gt;** (e.g. Algebra
+is a *core skill*, *fundamental for accountants/engineers*, and *for chefs*;
+Calculus is *fundamental for engineers*; Physics is *fundamental for civil &amp;
+aerospace/NASA engineers*). Browse filters by audience ("For Chefs", "For Nurses",
+"For Aerospace/NASA Engineers") and "Core skills". And you can **paste a real
+LinkedIn job description** → it extracts the exact skills + **certifications**
+(e.g. Cisco UCSM, AWS, CCNA, PMP) and recommends matched courses plus **targeted
+certification‑prep classes**. Backed by `aoep_shared/skills_taxonomy.py` +
+`aoep_shared/jobs.py` (JD parser) and curriculum `GET /courses/{id}/relevance`,
+`GET /skills/professions`, `POST /jobs/parse`, and audience facets/filters.
+
+![Skill tags + job-description parsing to targeted certification classes](docs/demos/skills_taxonomy_jd_parse_demo.gif)
+
+| Job description → certifications + targeted classes | Audience filter ("For Chefs") |
+| --- | --- |
+| <img src="docs/screens/jd_parse_certs.webp" alt="JD parsed into certifications" /> | <img src="docs/screens/audience_chefs.webp" alt="Courses for chefs" /> |
+
 ### Careers &mdash; courses linked to real job openings
 A `/jobs` board that connects classes to the job market to **incentivize
 learning**: pick a role and see exactly which AI Classroom courses cover its
@@ -357,6 +376,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Languages 1 | Language learning for 26 languages: pronunciation (audio + vision mouth coaching), listening, vocab, phrases, travel, conversation, grammar, slang, reading, writing, culture, shadowing, story; gamified XP/streaks (`aoep_shared/language_learning.py`, speech `/learn/*`, web `/languages`) | ✅ | #86 |
 | Mobile 1 | Audio "Drive Mode": 220+ audio-only/eyes-free classes (`aoep_shared/audio_courses.py`, curriculum `/audio/*`), web `/drive` hands-free player, + Expo React Native app scaffold (`apps/mobile`) for Android/iOS | ✅ | #88 |
 | Careers 1 | Jobs↔skills↔courses: `aoep_shared/jobs.py` (LinkedIn/Indeed provider + matcher), curriculum `/jobs` + `/courses/{id}/jobs`, web `/jobs` board with coverage %, skill gap & learning path | ✅ | #89 |
+| Careers 2 | Relevance tags (core skill / fundamental-for / for-profession) + job-description parser → skills/certs (Cisco UCSM, AWS, PMP) → targeted cert classes; `aoep_shared/skills_taxonomy.py`, `/courses/{id}/relevance`, `/skills/professions`, `/jobs/parse`, Browse audience filter | ✅ | #90 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
