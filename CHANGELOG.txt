@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Careers / job matching: new aoep_shared/jobs.py links classes to real job
+  openings. A JobsProvider abstracts the source (LinkedIn/Indeed via
+  LINKEDIN_API_KEY/JOBS_API_KEY; a curated representative board offline) and a
+  pure skill->course matcher computes coverage %, the skill gap, and a recommended
+  learning path. Curriculum adds GET /jobs (list/search), GET /jobs/{id} (matched
+  courses + coverage + gaps + path), and GET /courses/{id}/jobs (reverse lookup).
+  New web /jobs Careers page: openings (with LinkedIn/Indeed source) + per-job
+  "take these courses to qualify" with covered vs missing skills. Incentivizes
+  learning by showing how course skills map to the job market. Tested.
+
 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,

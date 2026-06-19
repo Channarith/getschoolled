@@ -87,6 +87,22 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Careers &mdash; courses linked to real job openings
+A `/jobs` board that connects classes to the job market to **incentivize
+learning**: pick a role and see exactly which AI Classroom courses cover its
+skills, your **coverage %**, the **skill gap**, and a recommended **learning
+path** ("take these courses to qualify"). Openings come through a `JobsProvider`
+(LinkedIn / Indeed / other sites via API key); offline it uses a curated board
+representative of those listings. Backed by `aoep_shared/jobs.py` (provider +
+skill→course matcher) and curriculum `GET /jobs`, `GET /jobs/{id}` (matched
+courses), `GET /courses/{id}/jobs` (reverse: roles a course helps with).
+
+![Careers: job openings matched to courses](docs/demos/careers_jobs_matching_demo.gif)
+
+| Job board (LinkedIn/Indeed sources) | Course match (coverage %, skills, learning path) |
+| --- | --- |
+| <img src="docs/screens/careers_board.webp" alt="Job board" /> | <img src="docs/screens/careers_match.webp" alt="Course match for a job" /> |
+
 ### Drive Mode &mdash; hundreds of audio-only classes (+ mobile app)
 **220+ audio-only, eyes-free classes** designed for learning while driving /
 commuting / exercising: language "listen &amp; repeat" lessons for all 26
@@ -340,6 +356,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Games 2 | Age-group mini-games: kids/tween/teen/adult age-appropriate content + age picker + age-segmented leaderboard | ✅ | #85 |
 | Languages 1 | Language learning for 26 languages: pronunciation (audio + vision mouth coaching), listening, vocab, phrases, travel, conversation, grammar, slang, reading, writing, culture, shadowing, story; gamified XP/streaks (`aoep_shared/language_learning.py`, speech `/learn/*`, web `/languages`) | ✅ | #86 |
 | Mobile 1 | Audio "Drive Mode": 220+ audio-only/eyes-free classes (`aoep_shared/audio_courses.py`, curriculum `/audio/*`), web `/drive` hands-free player, + Expo React Native app scaffold (`apps/mobile`) for Android/iOS | ✅ | #88 |
+| Careers 1 | Jobs↔skills↔courses: `aoep_shared/jobs.py` (LinkedIn/Indeed provider + matcher), curriculum `/jobs` + `/courses/{id}/jobs`, web `/jobs` board with coverage %, skill gap & learning path | ✅ | #89 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
