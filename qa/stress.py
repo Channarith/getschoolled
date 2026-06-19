@@ -166,6 +166,15 @@ def service_available(base_url: str) -> bool:
     return http_request("GET", base_url.rstrip("/") + "/health", timeout=3.0).status == 200
 
 
+def common_scenarios() -> List[Scenario]:
+    """Scenarios every service exposes (via create_service) - smoke + discovery."""
+    return [
+        Scenario("health", "GET", "/health", check=lambda j: j.get("status") == "ok"),
+        Scenario("version", "GET", "/version", check=lambda j: bool(j.get("version"))),
+        Scenario("meta", "GET", "/__meta", check=lambda j: j.get("route_count", 0) >= 1),
+    ]
+
+
 def orchestrator_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
     """Build orchestrator scenarios; set up a session for the ask path."""
     context: dict = {}
@@ -178,7 +187,7 @@ def orchestrator_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
         context["session_id"] = (sess.get("session") or {}).get("session_id")
 
     scenarios = [
-        Scenario("health", "GET", "/health", check=lambda j: j.get("status") == "ok"),
+        *common_scenarios(),
         Scenario("disclosure", "GET", "/api/disclosure", check=lambda j: j.get("is_ai") is True),
         Scenario("lessons", "GET", "/api/lessons", check=lambda j: isinstance(j, list)),
         Scenario("embody", "POST", "/api/embody", body={"text": "Welcome", "gesture": "wave"},
@@ -194,22 +203,36 @@ def orchestrator_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
 
 
 def curriculum_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
+    # Discover a course id so the ad-breaks scenario is realistic.
+    context: dict = {}
+    courses = http_request("GET", base_url.rstrip("/") + "/courses/search").json()
+    if isinstance(courses, list) and courses:
+        context["course_id"] = courses[0].get("course_id")
+
     scenarios = [
-        Scenario("health", "GET", "/health", check=lambda j: j.get("status") == "ok"),
+        *common_scenarios(),
         Scenario("validate_claim", "POST", "/validate/claim",
                  body={"text": "plants release oxygen during photosynthesis"},
                  check=lambda j: j.get("status") in ("supported", "unverified", "contradicted")),
         Scenario("catalog", "GET", "/catalog", check=lambda j: "courses" in j),
+        Scenario("courses_search", "GET", "/courses/search", check=lambda j: isinstance(j, list)),
+        Scenario("catalog_export", "GET", "/catalog/export?format=json",
+                 check=lambda j: "titles" in j),
         Scenario("authorship", "POST", "/homework/authorship",
                  body={"text": "Plants make glucose. Cells use oxygen for energy."},
                  check=lambda j: j.get("label") in ("ai", "human", "uncertain")),
     ]
-    return scenarios, {}
+    if context.get("course_id"):
+        scenarios.append(Scenario(
+            "ad_breaks", "GET", f"/courses/{context['course_id']}/ad-breaks?tier=free",
+            check=lambda j: "breaks" in j,
+        ))
+    return scenarios, context
 
 
 def integrations_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
     scenarios = [
-        Scenario("health", "GET", "/health", check=lambda j: j.get("status") == "ok"),
+        *common_scenarios(),
         Scenario("create_client", "POST", "/clients",
                  body={"name": "stress", "scopes": ["catalog:read"]},
                  check=lambda j: str(j.get("api_key", "")).startswith("aoep_")),
@@ -219,10 +242,51 @@ def integrations_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
     return scenarios, {}
 
 
+def memory_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
+    scenarios = [
+        *common_scenarios(),
+        Scenario("flags_evaluate", "GET", "/flags/evaluate?tier=free",
+                 check=lambda j: isinstance(j.get("flags"), dict)),
+        Scenario("survey_template", "GET", "/survey/post-class",
+                 check=lambda j: "enabled" in j),
+        Scenario("legal_notices", "GET", "/legal/notices",
+                 check=lambda j: isinstance(j.get("notices"), list)),
+        Scenario("compliance", "GET", "/compliance/us",
+                 check=lambda j: isinstance(j, dict)),
+    ]
+    return scenarios, {}
+
+
+def identity_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
+    import time as _t
+
+    scenarios = [
+        *common_scenarios(),
+        Scenario("rewards_catalog", "GET", "/rewards/catalog",
+                 check=lambda j: isinstance(j, (list, dict))),
+        Scenario("signup", "POST", "/auth/signup",
+                 body_fn=lambda ctx: {
+                     "email": f"stress+{_t.time_ns()}@example.com",
+                     "password": "pw-stress-123", "display_name": "Stress"},
+                 check=lambda j: bool(j.get("token") or j.get("account"))),
+    ]
+    return scenarios, {}
+
+
+def generic_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
+    """For services we only smoke (health/version/meta) - billing/speech/perception."""
+    return common_scenarios(), {}
+
+
 SERVICES = {
     "orchestrator": orchestrator_scenarios,
+    "speech": generic_scenarios,
+    "perception": generic_scenarios,
+    "memory": memory_scenarios,
     "curriculum": curriculum_scenarios,
+    "billing": generic_scenarios,
     "integrations": integrations_scenarios,
+    "identity": identity_scenarios,
 }
 
 
@@ -296,8 +360,13 @@ def print_report(report: dict) -> None:
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--orchestrator-url", default="http://localhost:8000")
+    ap.add_argument("--speech-url", default="http://localhost:8002")
+    ap.add_argument("--perception-url", default="http://localhost:8003")
+    ap.add_argument("--memory-url", default="http://localhost:8004")
     ap.add_argument("--curriculum-url", default="http://localhost:8005")
+    ap.add_argument("--billing-url", default="http://localhost:8006")
     ap.add_argument("--integrations-url", default="http://localhost:8007")
+    ap.add_argument("--identity-url", default="http://localhost:8008")
     ap.add_argument("--concurrency", type=int, default=16)
     ap.add_argument("--requests", type=int, default=300, help="requests per scenario")
     ap.add_argument("--smoke", action="store_true", help="1 light pass per scenario")
@@ -313,8 +382,13 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     base_urls = {
         "orchestrator": args.orchestrator_url,
+        "speech": args.speech_url,
+        "perception": args.perception_url,
+        "memory": args.memory_url,
         "curriculum": args.curriculum_url,
+        "billing": args.billing_url,
         "integrations": args.integrations_url,
+        "identity": args.identity_url,
     }
     report = run(base_urls, concurrency=concurrency, total=total, timeout=args.timeout)
     print_report(report)

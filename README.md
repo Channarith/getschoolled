@@ -134,6 +134,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Admin 1 | Admin feature flags: `aoep_shared/flags.py` catalog + memory `GET /flags/evaluate`, admin-gated `PUT /admin/flags/{key}` (`X-Admin-Secret`) + web `/admin` console | ✅ | #77 |
 | Engagement 1 | Post-class survey (flag-gated) + multi-dimensional data-mining insights: `aoep_shared/survey.py`, memory `/survey/post-class` + `/admin/survey/insights`, web survey modal on `/class` + insights on `/admin` | ✅ | #78 |
 | Ops 1 | Version visibility + automation discovery: every service exposes `GET /version` + `GET /__meta` (route index); web `/admin` "System & Versions" panel aggregates service versions/health | ✅ | #79 |
+| Ops 2 | Automation-testing APIs: gated deterministic `POST /admin/test/reset\|seed` hooks (`ENABLE_TEST_ENDPOINTS`) + `qa/stress.py` expanded to all 8 services & new endpoints | ✅ | #80 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |

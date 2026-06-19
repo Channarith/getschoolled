@@ -7,7 +7,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from stress import (
+    SERVICES,
     Scenario,
+    common_scenarios,
     evaluate,
     percentile,
     run_scenario,
@@ -95,6 +97,17 @@ def test_post_scenario_with_body(server):
     sc = Scenario("echo", "POST", "/echo", body={"a": 1}, check=lambda j: j.get("echo") is True)
     res = run_scenario(server, sc, concurrency=4, total=10)
     assert res.functional_pass_rate == 1.0
+
+
+def test_common_scenarios_cover_version_and_meta():
+    names = {s.name for s in common_scenarios()}
+    assert {"health", "version", "meta"} <= names
+
+
+def test_all_services_registered_for_automation():
+    # Every backend service should have a scenario builder.
+    assert {"orchestrator", "memory", "curriculum", "integrations", "identity",
+            "billing", "speech", "perception"} <= set(SERVICES)
 
 
 def test_evaluate_flags_breaches():
