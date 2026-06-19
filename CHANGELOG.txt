@@ -545,6 +545,10 @@ were lost to the changelog-rolling bug fixed in [unreleased]; their content is
   acquisition-ready content feed (JSON) and a Media RSS (MRSS) XML feed with
   media:content/thumbnail/rating + HLS/DASH manifest refs - mappable to streaming-
   partner onboarding specs. Tested.
+- Video-ad monetization: aoep_shared/ads.py builds IAB VAST/VMAP ad schedules
+  (pre-roll + capped mid-rolls at cue points), tier-gated (free/basic see ads,
+  pro/premium ad-free). GET /courses/{id}/ad-breaks?tier=&format=json|vmap +
+  web /watch player demo (skippable ads, mid-roll cues, ad-free upgrade). Tested.
 
 [0.3.58] - 2026-06-19
 - release build (no itemized changes)

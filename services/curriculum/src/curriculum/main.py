@@ -418,6 +418,31 @@ def recommend(req: RecommendRequest) -> dict:
     return out
 
 
+@app.get("/courses/{course_id}/ad-breaks")
+def course_ad_breaks(course_id: str, tier: str = "free", format: str = "json"):
+    """Ad-break schedule for playing a course (VMAP/VAST, tier-gated).
+
+    Paid tiers (pro/premium) are ad-free. format=vmap returns IAB VMAP XML.
+    """
+    from aoep_shared.ads import AD_FREE_TIERS, ad_plan_for, build_vmap
+
+    course = app.state.catalog.get_course(course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="course not found")
+
+    breaks = ad_plan_for(tier, duration_min=int(course.duration_min or 0))
+    if format == "vmap":
+        from fastapi import Response
+
+        return Response(content=build_vmap(breaks), media_type="application/xml")
+    return {
+        "course_id": course_id,
+        "tier": tier,
+        "ad_free": (tier or "free").lower() in AD_FREE_TIERS,
+        "breaks": [b.model_dump(mode="json") for b in breaks],
+    }
+
+
 @app.get("/catalog/export")
 def catalog_export(format: str = "json"):
     """Acquisition-ready catalog export (Netflix-compatible interchange).
