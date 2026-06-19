@@ -20,6 +20,9 @@ from .store import AccountStore, Enrollment, EnrollmentStatus
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+# Arcade: live game rounds (answer keys kept server-side) + submitted guard.
+app.state.game_rounds = {}
+app.state.game_submitted = set()
 
 
 def _token_key() -> bytes:
@@ -203,6 +206,70 @@ def complete_course(student_id: str, req: CompleteCourse, acct=Depends(current_a
 # --------------------------------------------------------------------------- #
 # Rewards (points for completion -> discounts / prizes / raffle entries)
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# Learning games / arcade: play-to-learn mini-games, points + leaderboard
+# --------------------------------------------------------------------------- #
+@app.get("/games")
+def games_catalog_ep() -> dict:
+    from aoep_shared.games import games_catalog
+
+    return games_catalog()
+
+
+class NewGameRequest(BaseModel):
+    subject: str = "science"
+    game_type: str = "quiz"
+    n: int = 5
+
+
+@app.post("/games/new")
+def games_new(req: NewGameRequest) -> dict:
+    from aoep_shared.games import GameType, make_round
+
+    try:
+        gt = GameType(req.game_type)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="unknown game_type")
+    rnd = make_round(req.subject, gt, n=max(1, min(req.n, 8)))
+    app.state.game_rounds[rnd.game_id] = rnd
+    return rnd.public()
+
+
+class SubmitGameRequest(BaseModel):
+    game_id: str
+    answers: dict
+    elapsed_s: float | None = None
+
+
+@app.post("/games/submit")
+def games_submit(req: SubmitGameRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.games import score_round
+
+    rnd = app.state.game_rounds.get(req.game_id)
+    if rnd is None:
+        raise HTTPException(status_code=404, detail="unknown or expired game")
+    if req.game_id in app.state.game_submitted:
+        raise HTTPException(status_code=409, detail="game already submitted")
+    result = score_round(rnd, req.answers, elapsed_s=req.elapsed_s)
+    app.state.game_submitted.add(req.game_id)
+    app.state.accounts.record_game(
+        acct.id, subject=result.subject, game_type=result.game_type.value,
+        score=result.model_dump(), player_name=acct.display_name or acct.email)
+    return {
+        "result": result.model_dump(),
+        "points_earned": result.points,
+        "balance": app.state.accounts.points_balance(acct.id),
+        "rank": app.state.accounts.my_game_rank(acct.id),
+        "subject_rank": app.state.accounts.my_game_rank(acct.id, subject=result.subject),
+    }
+
+
+@app.get("/games/leaderboard")
+def games_leaderboard(subject: str | None = None, limit: int = 20) -> dict:
+    return {"subject": subject,
+            "leaders": app.state.accounts.leaderboard(subject=subject, limit=limit)}
+
+
 @app.get("/rewards")
 def rewards(acct=Depends(current_account)) -> dict:
     return app.state.accounts.rewards_summary(acct.id)

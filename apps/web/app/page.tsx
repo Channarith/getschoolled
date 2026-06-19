@@ -34,6 +34,7 @@ export default function HomePage() {
           <div className="hero-cta">
             <Link href="/class"><button className="theme-btn">▶ Try a sample class</button></Link>
             <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>Browse all</button></Link>
+            <Link href="/arcade"><button className="theme-btn" style={{ background: "#7c3aed", color: "#fff" }}>🎮 Arcade</button></Link>
             <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>Kids</button></Link>
             <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>Corporate training</button></Link>
             {loggedIn
