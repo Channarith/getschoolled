@@ -266,6 +266,29 @@ export async function getAdBreaks(courseId: string, tier: string): Promise<AdPla
   );
 }
 
+// --- jobs <-> courses (career relevance) --------------------------------- //
+export type JobPosting = {
+  id: string; title: string; company: string; location: string; source: string;
+  url: string; employment_type: string; salary_range: string; posted_days_ago: number;
+  category: string; skills: string[]; nice_to_have: string[]; description: string;
+};
+export type CourseMatch = { course_id: string; title: string; covered_skills: string[]; match: number };
+export type JobMatch = {
+  job: JobPosting; required: string[]; matched_courses: CourseMatch[];
+  covered: string[]; missing: string[]; coverage_pct: number; recommended_path: string[];
+};
+
+export async function listJobs(q?: string, location?: string): Promise<{ source: string; count: number; jobs: JobPosting[] }> {
+  const p = new URLSearchParams();
+  if (q) p.set("q", q);
+  if (location) p.set("location", location);
+  const qs = p.toString();
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
+}
+export async function getJobMatch(jobId: string): Promise<JobMatch> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" }));
+}
+
 // --- audio "drive mode" courses ------------------------------------------ //
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;

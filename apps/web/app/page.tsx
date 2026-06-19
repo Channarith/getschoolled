@@ -36,6 +36,7 @@ export default function HomePage() {
             <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>Browse all</button></Link>
             <Link href="/arcade"><button className="theme-btn" style={{ background: "#7c3aed", color: "#fff" }}>🎮 Arcade</button></Link>
             <Link href="/languages"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>🌍 Languages</button></Link>
+            <Link href="/jobs"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>💼 Careers</button></Link>
             <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>Kids</button></Link>
             <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>Corporate training</button></Link>
             {loggedIn
