@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen logo concept 1 - "Seal".
+
+  An S inside a circular seal frame, with a small upward hook flaring off the
+  top-right of the S - a direct nod to the swan-neck loop on top of the
+  Khmer letter SA. A small bindu dot below the S echoes the Sanskrit
+  anusvara and the typical descender on Khmer letters. Single ink, thick
+  strokes, ancient cartouche / royal-seal feel.
+
+  Uses currentColor so the same file inverts cleanly on light or dark
+  backgrounds via CSS.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-width="14"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106"/>
+    <path d="M 178 96
+             C 178 78, 154 68, 128 68
+             C 100 68, 80 82, 80 102
+             C 80 122, 102 130, 128 136
+             C 154 142, 178 150, 178 172
+             C 178 192, 154 202, 128 202
+             C 102 202, 84 196, 80 180"/>
+    <path d="M 178 96
+             C 196 88, 200 70, 190 60
+             C 180 52, 168 60, 170 72"/>
+  </g>
+  <circle cx="128" cy="220" r="6" fill="currentColor"/>
+</svg>

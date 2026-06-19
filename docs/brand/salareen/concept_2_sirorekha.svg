@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen logo concept 2 - "Sirorekha".
+
+  A modern S anchored to a horizontal headline bar that overhangs both sides,
+  the way every Khmer / Devanagari consonant "hangs" from its sirorekha
+  (the connective top stroke that Pallava-derived scripts share). Reads as
+  a one-letter wordmark and as a glyph at the same time. No frame; works
+  great as a favicon / app icon at small sizes.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M 32 56 L 224 56" stroke-width="20"/>
+    <path d="M 198 102
+             C 198 84, 174 76, 128 76
+             C 88 76, 64 92, 64 116
+             C 64 138, 100 146, 128 150
+             C 156 154, 198 160, 198 188
+             C 198 210, 174 220, 128 220
+             C 90 220, 64 210, 56 192"
+          stroke-width="26"/>
+  </g>
+</svg>

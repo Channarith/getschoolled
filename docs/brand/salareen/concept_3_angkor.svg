@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen logo concept 3 - "Angkor".
+
+  An S built entirely from straight, blocky strokes - the angular, stone-cut
+  feel of ancient Pallava / Brahmi inscriptions and Angkor Wat carvings.
+  A small stepped ziggurat sits on the right shoulder of the S, echoing
+  the tiered tower (prasat) silhouette of an Angkor temple and the upward
+  hook above the Khmer SA. Bold, architectural, carved-on-stone.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="currentColor">
+    <rect x="170" y="22"  width="20" height="14"/>
+    <rect x="160" y="36"  width="40" height="12"/>
+    <rect x="150" y="48"  width="60" height="14"/>
+    <rect x="44"  y="62"  width="172" height="22"/>
+    <rect x="44"  y="62"  width="22"  height="74"/>
+    <rect x="44"  y="118" width="172" height="22"/>
+    <rect x="194" y="140" width="22"  height="74"/>
+    <rect x="44"  y="194" width="172" height="22"/>
+  </g>
+</svg>

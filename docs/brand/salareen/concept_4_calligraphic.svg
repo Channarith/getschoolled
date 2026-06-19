@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen logo concept 4 - "Calligraphic".
+
+  A clean S in a soft brushed weight, with a small SA-style swan-hook curling
+  off the top right - the visual signature of "salareen" written in Khmer.
+  No frame, no fills; just two strokes that share an endpoint, so the mark
+  reads as a single letterform but carries the Khmer accent. The most
+  letterform-y of the five.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round"
+     stroke-linejoin="round">
+    <path d="M 188 96
+             C 188 76, 160 64, 128 64
+             C 92  64, 64 80, 64 104
+             C 64 126, 100 134, 128 140
+             C 156 146, 192 152, 192 178
+             C 192 200, 164 216, 128 216
+             C 94  216, 68 206, 60 188"
+          stroke-width="22"/>
+    <path d="M 188 96
+             C 204 86, 208 66, 196 60
+             C 188 56, 178 62, 180 74"
+          stroke-width="14"/>
+  </g>
+</svg>
