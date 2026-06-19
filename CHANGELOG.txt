@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Administrative feature flags: aoep_shared/flags.py adds a comprehensive flag
+  catalog (engagement/data/access/monetization/ai/ux/ops - incl. optional
+  end-of-class survey, multi-dimensional data-mart, user levels) with a FlagStore
+  supporting master on/off, value overrides, percentage rollouts (stable
+  per-subject bucketing), membership-tier targeting, and per-subject overrides.
+  Memory service exposes public GET /flags/evaluate + /flags/{key} and
+  admin-secret-gated PUT/override/reset (X-Admin-Secret header / ADMIN_SECRET).
+  New web /admin console to manage flags. Tested.
+
 - Foresight integration (student profiles + recommendations): identity gains
   learner SUB-PROFILES (one account, many students) with per-student mastery/
   history (POST/GET /students, /students/{id}/mastery, /complete); curriculum adds

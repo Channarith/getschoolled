@@ -131,6 +131,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Foresight 2 | Per-account student sub-profiles + `POST /recommend` (Foresight over the catalog) + web `/recommended` ("For You") + profile management | ✅ | #74 |
 | Distribution 1 | Netflix-compatible catalog export: `GET /catalog/export?format=json\|mrss` (MRSS + JSON feed, HLS/DASH refs, maturity/audio/subtitle metadata) | ✅ | #75 |
 | Monetization 1 | Video-ad monetization (IAB VAST/VMAP): `GET /courses/{id}/ad-breaks` tier-gated pre/mid-roll + web `/watch` player (skippable ads, ad-free for paid tiers) | ✅ | #76 |
+| Admin 1 | Admin feature flags: `aoep_shared/flags.py` catalog + memory `GET /flags/evaluate`, admin-gated `PUT /admin/flags/{key}` (`X-Admin-Secret`) + web `/admin` console | ✅ | #77 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
