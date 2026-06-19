@@ -2,8 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-[unreleased]
-- (no changes yet)
+- Foresight integration (student profiles + recommendations): identity gains
+  learner SUB-PROFILES (one account, many students) with per-student mastery/
+  history (POST/GET /students, /students/{id}/mastery, /complete); curriculum adds
+  POST /recommend running the Foresight LearnerForesight over the catalog to return
+  adapted difficulty + skill gaps + gap-targeted course recommendations + a
+  relational map. Web: student-profile management on /account + a "For You"
+  (/recommended) page with a profile switcher. Tested.
 
 [0.3.57] - 2026-06-18
 - Foresight engine (patent-pending): aoep_shared/foresight - a portable

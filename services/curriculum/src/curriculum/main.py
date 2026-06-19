@@ -374,6 +374,45 @@ def search_courses(
     )
 
 
+class RecommendRequest(BaseModel):
+    student_id: str = "student"
+    mastery: dict[str, float] = {}
+    completed_course_ids: list[str] = []
+    interests: list[str] = []
+    top_n: int = 5
+
+
+@app.post("/recommend")
+def recommend(req: RecommendRequest) -> dict:
+    """Foresight: suggest courses + gaps + adapted difficulty for a student.
+
+    Maps catalog courses to Foresight CourseFeatures (skills = tags or [category])
+    and runs LearnerForesight over the student's mastery/history.
+    """
+    from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
+
+    courses = app.state.catalog.list_courses()
+    features = [
+        CourseFeature(
+            course_id=c.course_id, title=c.title,
+            skills=(c.tags or [c.category or c.subject]),
+            level=c.level, category=(c.category or c.subject),
+        )
+        for c in courses
+    ]
+    skills = sorted({s for f in features for s in f.skills})
+    if not skills:
+        return {"student_id": req.student_id, "difficulty": "beginner",
+                "gaps": [], "recommendations": [], "relational_map": {"nodes": [], "edges": []}}
+    lf = LearnerForesight(skills)
+    profile = StudentProfile(student_id=req.student_id, mastery=req.mastery,
+                             completed_course_ids=req.completed_course_ids,
+                             interests=req.interests)
+    out = lf.predict(profile, features)
+    out["recommendations"] = out["recommendations"][: req.top_n]
+    return out
+
+
 @app.get("/courses/facets")
 def course_facets() -> dict:
     """Distinct values for each browse facet (drives the filter UI)."""

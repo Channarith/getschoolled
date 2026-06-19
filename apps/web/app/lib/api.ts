@@ -121,6 +121,57 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+// --- student sub-profiles + Foresight recommendations -------------------- //
+export type StudentProfile = {
+  id: string; display_name: string; age_band: string;
+  mastery: Record<string, number>; completed_course_ids: string[]; interests: string[];
+};
+
+export async function listStudents(): Promise<{ students: StudentProfile[] }> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/students`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+export async function createStudent(displayName: string, ageBand = "adult", interests: string[] = []):
+  Promise<StudentProfile> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ display_name: displayName, age_band: ageBand, interests }),
+    })
+  );
+}
+
+export async function setStudentMastery(studentId: string, skill: string, value: number):
+  Promise<StudentProfile> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${studentId}/mastery`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ skill, value }),
+    })
+  );
+}
+
+export type ForesightRec = {
+  course_id: string; title: string; score: number; covers_gaps: string[]; reason: string;
+};
+export type ForesightResult = {
+  student_id: string; difficulty: string; gaps: string[];
+  recommendations: ForesightRec[];
+  relational_map: { nodes: { id: string; kind: string }[]; edges: { src: string; dst: string; rel: string; weight: number }[] };
+};
+
+export async function recommendForProfile(args: {
+  student_id?: string; mastery: Record<string, number>;
+  completed_course_ids?: string[]; interests?: string[]; top_n?: number;
+}): Promise<ForesightResult> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/recommend`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(args),
+    })
+  );
+}
+
 // --- catalog browse / search ---------------------------------------------- //
 export type CatalogCourse = {
   course_id: string; title: string; subject: string; category: string;
