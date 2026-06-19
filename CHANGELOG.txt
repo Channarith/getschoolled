@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile build: apps/mobile now has a reproducible local Expo build (`npm run
+  build`) that exports production Android + iOS bundles under dist/, plus an
+  Android prebuild helper. Direct Expo runtime deps are pinned in package.json
+  with a package-lock.json. Typecheck and Android/iOS bundle exports pass.
+
 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,

@@ -14,6 +14,17 @@ RUN (development)
   npm run android        # Android emulator/device
   npm run ios            # iOS simulator (macOS)
 
+BUILD (local production bundles)
+  npm run typecheck
+  npm run build
+
+  Outputs:
+    dist/android/_expo/static/js/android/*.hbc
+    dist/ios/_expo/static/js/ios/*.hbc
+
+  These are Expo production bundles/assets for Android and iOS. They verify the
+  React Native app compiles and packages locally without Expo cloud credentials.
+
 BACKEND URL
   The app reads the curriculum API from app.json -> expo.extra.curriculumUrl.
   On a physical device, "localhost" points at the phone, not your computer, so:
@@ -30,8 +41,14 @@ WHAT'S HERE
   src/screens/DriveModeScreen.tsx      hands-free player (expo-speech narration)
 
 BUILDING NATIVE BINARIES (later)
-  Use EAS Build (eas build -p android / -p ios) to produce store-ready apps.
-  android.package / ios.bundleIdentifier are set in app.json.
+  Android native project generation:
+    npm run prebuild:android
+
+  To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
+  run the Gradle assemble/bundle task from apps/mobile/android. To produce
+  store-ready Android/iOS apps in the cloud, use EAS Build
+  (eas build -p android / -p ios). android.package / ios.bundleIdentifier are
+  set in app.json.
 
 NEXT STEPS (roadmap)
   - Add auth (reuse identity /auth + token) and sync points/streaks.
