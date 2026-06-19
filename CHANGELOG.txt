@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Learning Arcade (play-to-learn games): new aoep_shared/games.py engine -
+  subject mini-games (quiz, timed speed round with bonus, term/definition match)
+  across biology, chemistry, physics, math, science, history, art, technology,
+  programming, with deterministic rounds (answers kept server-side) + scoring.
+  Identity service adds GET /games, POST /games/new, POST /games/submit (auth;
+  awards points into the existing rewards ledger), GET /games/leaderboard
+  (global + per-subject top players). New web /arcade page (pick subject + game,
+  play interactively, see score/explanations/points, leaderboard) + nav + home
+  CTA. Tested. (Fixed a match-tile text-color bug where the global dark button
+  color rendered invisibly on the dark card.)
+
 - Site backgrounds / wallpapers: new apps/web/app/lib/backgrounds.ts catalog of
   61+ themed designs (holiday, seasonal, social, economic, realistic, surreal,
   artistic, kids, anime, minimal) - mostly lightweight CSS/SVG plus 5 image
