@@ -44,7 +44,7 @@ WHAT'S HERE
 
 BUILDING NATIVE BINARIES (later)
   Android native project generation:
-    npm run prebuild:android
+    npm run native:prebuild:android
 
   To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
   run the Gradle assemble/bundle task from apps/mobile/android. To produce
