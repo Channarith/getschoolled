@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Branding: simplified the AI Classroom logo to a single-color minimalist
+  mark (Apple/X/Micron-style). New mark is a graduation mortarboard whose
+  tassel curls back into the bowl of a capital G - the cap is the G's top
+  stroke, the tassel curl is the body, so the mark reads as "graduation"
+  at favicon size and as a clean monogram at any scale. SVG sources
+  (docs/brand/aiclassroom_mark.svg + aiclassroom_wordmark.svg) use
+  fill="currentColor" so a single file inverts cleanly on light/dark via
+  CSS. New scripts/build_brand_assets.py regenerates every raster:
+  multi-size favicon.ico (16/32/48/64), 128/512 webp marks, 1024 wordmark
+  webp, 1024 color png/webp, and 1-bit dithered + threshold binary PNGs
+  for stamp/screen-print. apps/web/app/layout.tsx now also serves
+  /logo-mark.svg as an SVG icon and /logo.webp as the apple-touch-icon.
+  The previous illustrated robot-owl mark is replaced (kept the same file
+  paths so README and downstream references continue to work).
+
 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,
