@@ -65,6 +65,26 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Language learning &mdash; 20+ languages, multi-skill, gamified
+A full language-learning surface at `/languages` covering **26 languages**
+(Spanish, French, German, Italian, Portuguese, Dutch, Russian, Arabic, Hindi,
+Chinese, Japanese, Korean, Vietnamese, Thai, Greek, Swahili, &hellip;) with skill
+areas for **pronunciation** (speak &amp; get scored via audio recognition + a
+machine-vision mouth-shape coaching tip), **listening**, **vocabulary**, **common
+phrases**, **travel**, **conversation**, **grammar**, **reading**, **writing**,
+**slang &amp; idioms**, **culture notes**, **shadowing**, and **story mode**.
+Practice is fun and gamified &mdash; stars, instant feedback, daily streaks, and
+**XP that feeds the rewards/points** balance. Backed by
+`aoep_shared/language_learning.py` + speech `GET /learn/languages`, `GET
+/learn/{lang}/course`, `POST /learn/exercise`, `POST /learn/pronounce`, and
+identity `POST /language/practice`.
+
+![Language learning: 26 languages, skills, pronunciation scoring](docs/demos/language_learning_demo.gif)
+
+| 26-language grid | Course skills + grammar/culture | Pronunciation scoring + mouth coaching |
+| --- | --- | --- |
+| <img src="docs/screens/languages_grid.webp" alt="Language grid" /> | <img src="docs/screens/language_course.webp" alt="Language course skills" /> | <img src="docs/screens/language_pronunciation.webp" alt="Pronunciation scoring" /> |
+
 ### Learning Arcade &mdash; learn by playing (age groups + points + leaderboard)
 Competitive, play-to-learn mini-games at `/arcade` across **biology, chemistry,
 physics, math, science, history, art, technology, programming**, in three modes:
@@ -275,6 +295,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Design 1 | Site backgrounds: 61+ themed designs (holiday/seasonal/social/economic/realistic/surreal/artistic/kids/anime) + seasonal auto-rotation + `/backgrounds` gallery picker + 5 image wallpapers | ✅ | #83 |
 | Games 1 | Learning Arcade: subject mini-games (quiz/speed/match) for 9 subjects, points into rewards + top-player leaderboard (`aoep_shared/games.py`, identity `/games*`, web `/arcade`) | ✅ | #84 |
 | Games 2 | Age-group mini-games: kids/tween/teen/adult age-appropriate content + age picker + age-segmented leaderboard | ✅ | #85 |
+| Languages 1 | Language learning for 26 languages: pronunciation (audio + vision mouth coaching), listening, vocab, phrases, travel, conversation, grammar, slang, reading, writing, culture, shadowing, story; gamified XP/streaks (`aoep_shared/language_learning.py`, speech `/learn/*`, web `/languages`) | ✅ | #86 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |

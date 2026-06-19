@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Language learning (26 languages, multi-skill, gamified): new
+  aoep_shared/language_learning.py - display metadata for all supported languages,
+  14 skill areas (pronunciation, listening, reading, writing, vocabulary, grammar,
+  slang, idioms, phrases, travel, conversation, culture, shadowing, story), a
+  curated multilingual phrasebook (rich content for 10 languages, starter sets for
+  the rest), exercise generators (vocab/listening/match/pronunciation), offline
+  pronunciation scoring + a machine-vision mouth-shape coaching cue, grammar/culture
+  tips, and XP. Speech service adds /learn/languages, /learn/{lang}/course,
+  /learn/{lang}/phrases, /learn/{lang}/slang, POST /learn/exercise, POST
+  /learn/pronounce. Identity adds POST /language/practice (awards XP into the
+  rewards ledger). New web /languages page (language picker, course skills,
+  interactive exercises, pronunciation with mic + speech synthesis + mouth tip,
+  daily streak) + nav + home CTA. Tested.
+
 - Arcade age groups: mini-games now have age tiers (kids 5-8, tween 9-12, teen
   13-17, adult 18+). games.py adds AgeGroup + age-appropriate content (gentle
   KIDS banks for all 9 subjects, harder ADULT extras) and make_round(age_group=).
