@@ -59,6 +59,28 @@ routing** &mdash; all testable offline. Real-time voice/video, GPU model serving
 and the external platform bridges (Zoom/Teams/Meet) are wired behind config and
 need infra/credentials to run. See the status table below.
 
+## Branding
+
+A fun-but-surreal **AI Classroom** logo: a friendly robot-owl teacher holding a
+green chalkboard that melts into a galaxy of chalk equations, planets and a
+graduation cap. Brand assets live in `docs/brand/` (and `apps/web/public/` for the
+site); a **1-bit black-and-white** version is included for easy single-color
+printing (stamps, screen-print, stickers). See [`docs/brand/branding.txt`](docs/brand/branding.txt)
+for usage + the domain/trademark notes.
+
+| Logo (color) | Printable binary (dithered) | Printable binary (stamp) |
+| --- | --- | --- |
+| <img src="docs/brand/aiclassroom_logo.webp" alt="AI Classroom logo" width="240" /> | <img src="docs/brand/aiclassroom_logo_binary.png" alt="1-bit dithered logo" width="240" /> | <img src="docs/brand/aiclassroom_logo_binary_threshold.png" alt="1-bit threshold logo" width="240" /> |
+
+> **Domain / trademark (not legal advice):** a live WHOIS couldn't run in this
+> sandbox, but `aiclassroom.com` is a generic short `.com` and is **likely already
+> registered/premium** (similar names like `aiclassroom.world`, `classroom-ai.com`
+> are in active use by others). No exact live U.S. federal trademark for "AI
+> Classroom" was found, but the term is **highly descriptive** (hard to register;
+> cf. the refused "LEARN WITH AI" mark) and the space is crowded. Run a formal
+> ICANN/registrar domain check and a USPTO/WIPO clearance search with a trademark
+> attorney; favor filing the **logo (design mark)** + a distinctive wordmark.
+
 ## Screens &amp; scenarios by user type
 
 The platform serves several distinct customer types, each with its own layout and
