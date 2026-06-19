@@ -278,6 +278,25 @@ def games_leaderboard(subject: str | None = None, age_group: str | None = None,
                 subject=subject, age_group=age_group, limit=limit)}
 
 
+class LanguagePracticeRequest(BaseModel):
+    language: str
+    skill: str = "vocabulary"
+    correct: int = 0
+    total: int = 0
+
+
+@app.post("/language/practice")
+def language_practice(req: LanguagePracticeRequest, acct=Depends(current_account)) -> dict:
+    """Award XP/points for a completed language-practice set (feeds rewards)."""
+    from aoep_shared.language_learning import practice_xp
+
+    xp = practice_xp(req.skill, req.correct, req.total)
+    if xp > 0:
+        acct.points.earn(xp, reason=f"language:{req.language}", ref=req.skill)
+    return {"language": req.language, "skill": req.skill, "xp": xp,
+            "balance": app.state.accounts.points_balance(acct.id)}
+
+
 @app.get("/rewards")
 def rewards(acct=Depends(current_account)) -> dict:
     return app.state.accounts.rewards_summary(acct.id)
