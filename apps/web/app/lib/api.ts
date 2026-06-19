@@ -13,6 +13,30 @@ export const MEMORY_URL =
 export const IDENTITY_URL =
   process.env.NEXT_PUBLIC_IDENTITY_URL ?? "http://localhost:8008";
 
+export const BILLING_URL =
+  process.env.NEXT_PUBLIC_BILLING_URL ?? "http://localhost:8006";
+
+export const INTEGRATIONS_URL =
+  process.env.NEXT_PUBLIC_INTEGRATIONS_URL ?? "http://localhost:8007";
+
+export const SPEECH_URL =
+  process.env.NEXT_PUBLIC_SPEECH_URL ?? "http://localhost:8002";
+
+export const PERCEPTION_URL =
+  process.env.NEXT_PUBLIC_PERCEPTION_URL ?? "http://localhost:8003";
+
+// All backend services keyed by name -> base URL (each exposes /version + /health).
+export const SERVICE_URLS: Record<string, string> = {
+  orchestrator: ORCHESTRATOR_URL,
+  speech: SPEECH_URL,
+  perception: PERCEPTION_URL,
+  memory: MEMORY_URL,
+  curriculum: CURRICULUM_URL,
+  billing: BILLING_URL,
+  integrations: INTEGRATIONS_URL,
+  identity: IDENTITY_URL,
+};
+
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
 
@@ -418,6 +442,39 @@ export async function submitPostClassSurvey(payload: {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     })
+  );
+}
+
+// --- service version / status (automation + admin visibility) ----------- //
+export type ServiceVersion = {
+  service: string;
+  url: string;
+  reachable: boolean;
+  version?: string;
+  git_sha?: string;
+  build_time?: string;
+  api_version?: string;
+  deploy_mode?: string;
+  error?: string;
+};
+
+export async function getServiceVersion(name: string, url: string): Promise<ServiceVersion> {
+  try {
+    const res = await fetch(`${url}/version`, { cache: "no-store" });
+    if (!res.ok) return { service: name, url, reachable: false, error: `${res.status}` };
+    const j = await res.json();
+    return {
+      service: name, url, reachable: true, version: j.version, git_sha: j.git_sha,
+      build_time: j.build_time, api_version: j.api_version, deploy_mode: j.deploy_mode,
+    };
+  } catch (e) {
+    return { service: name, url, reachable: false, error: String(e) };
+  }
+}
+
+export async function getServiceVersions(): Promise<ServiceVersion[]> {
+  return Promise.all(
+    Object.entries(SERVICE_URLS).map(([name, url]) => getServiceVersion(name, url))
   );
 }
 

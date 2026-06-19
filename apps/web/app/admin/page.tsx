@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { adminListFlags, adminSetFlag, adminSurveyInsights, type FlagSpec } from "../lib/api";
+import { useEffect, useState } from "react";
+import {
+  adminListFlags,
+  adminSetFlag,
+  adminSurveyInsights,
+  getServiceVersions,
+  type FlagSpec,
+  type ServiceVersion,
+} from "../lib/api";
+import { APP_VERSION } from "../lib/version";
 
 type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
 
@@ -22,6 +30,11 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string>("");
   const [insights, setInsights] = useState<Insights | null>(null);
+  const [versions, setVersions] = useState<ServiceVersion[] | null>(null);
+
+  useEffect(() => {
+    if (authed) getServiceVersions().then(setVersions).catch(() => setVersions([]));
+  }, [authed]);
 
   async function load(s: string) {
     setError("");
@@ -83,11 +96,62 @@ export default function AdminPage() {
 
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: 24 }}>
-      <h1>Admin · Feature Flags</h1>
+      <h1>Admin · Console</h1>
       <p style={{ color: "#666" }}>
         Toggle features, run percentage rollouts, target membership tiers. Changes apply immediately.
       </p>
       {error && <p style={{ color: "#b00" }}>{error}</p>}
+
+      <section style={{ marginTop: 16 }}>
+        <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          System &amp; Versions
+        </h2>
+        <p style={{ fontSize: 13, color: "#666" }}>
+          Web app <code>v{APP_VERSION}</code>. Each service also reports <code>/version</code> and
+          a <code>/__meta</code> route index for automation.
+        </p>
+        {(() => {
+          const reachable = (versions ?? []).filter((v) => v.reachable);
+          const distinct = new Set(reachable.map((v) => v.version));
+          return distinct.size > 1 ? (
+            <p style={{ color: "#b45309" }}>⚠ Version mismatch across services: {[...distinct].join(", ")}</p>
+          ) : reachable.length > 0 ? (
+            <p style={{ color: "#16a34a" }}>✓ All reachable services on the same version.</p>
+          ) : null;
+        })()}
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+          <thead>
+            <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+              <th style={{ padding: 6 }}>Service</th><th style={{ padding: 6 }}>Status</th>
+              <th style={{ padding: 6 }}>Version</th><th style={{ padding: 6 }}>API</th>
+              <th style={{ padding: 6 }}>Mode</th><th style={{ padding: 6 }}>Git</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderTop: "1px solid #eee" }}>
+              <td style={{ padding: 6 }}>web</td>
+              <td style={{ padding: 6, color: "#16a34a" }}>● up</td>
+              <td style={{ padding: 6 }}><code>{APP_VERSION}</code></td>
+              <td style={{ padding: 6 }}>—</td><td style={{ padding: 6 }}>—</td><td style={{ padding: 6 }}>—</td>
+            </tr>
+            {(versions ?? []).map((v) => (
+              <tr key={v.service} style={{ borderTop: "1px solid #eee" }}>
+                <td style={{ padding: 6 }}>{v.service}</td>
+                <td style={{ padding: 6, color: v.reachable ? "#16a34a" : "#b00" }}>
+                  {v.reachable ? "● up" : "○ down"}
+                </td>
+                <td style={{ padding: 6 }}>{v.version ? <code>{v.version}</code> : "—"}</td>
+                <td style={{ padding: 6 }}>{v.api_version ?? "—"}</td>
+                <td style={{ padding: 6 }}>{v.deploy_mode ?? "—"}</td>
+                <td style={{ padding: 6 }}>{v.git_sha || "—"}</td>
+              </tr>
+            ))}
+            {versions === null && (
+              <tr><td colSpan={6} style={{ padding: 6, color: "#666" }}>Loading service versions…</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
 
       {Object.entries(byCat).map(([cat, items]) => (
         <section key={cat} style={{ marginTop: 24 }}>
