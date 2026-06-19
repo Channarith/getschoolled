@@ -285,3 +285,95 @@ def get_job(job_id: str) -> Optional[JobPosting]:
         if j.id == job_id:
             return j
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Job-description parsing -> targeted classes (incl. certifications).
+# Once we have a real LinkedIn/Indeed job description, extract the concrete
+# skills + certifications it asks for and recommend specific classes/cert prep.
+# --------------------------------------------------------------------------- #
+# canonical certification -> alias phrases to detect in free text.
+KNOWN_CERTS: Dict[str, List[str]] = {
+    "Cisco UCS Manager (UCSM)": ["ucsm", "ucs manager", "cisco ucs", "unified computing"],
+    "Cisco CCNA": ["ccna"],
+    "Cisco CCNP": ["ccnp"],
+    "AWS Certified Solutions Architect": ["aws certified", "aws solutions architect", "aws saa"],
+    "Microsoft Azure (AZ-104)": ["az-104", "azure administrator", "azure certified"],
+    "Google Cloud (GCP) Certification": ["gcp certified", "google cloud certified"],
+    "CompTIA A+": ["comptia a+", "a+ certification"],
+    "CompTIA Network+": ["network+"],
+    "CompTIA Security+": ["security+"],
+    "CISSP": ["cissp"],
+    "Certified Kubernetes Administrator (CKA)": ["cka", "kubernetes administrator", "ckad"],
+    "PMP (Project Management Professional)": ["pmp", "project management professional"],
+    "Certified ScrumMaster (CSM)": ["scrum master", "certified scrummaster", "csm"],
+    "Six Sigma": ["six sigma", "lean six sigma"],
+    "CPA (Certified Public Accountant)": ["cpa", "certified public accountant"],
+    "RN / NCLEX": ["nclex", "registered nurse license", "rn license"],
+    "Google Analytics Certification": ["google analytics", "ga4 certified"],
+    "Salesforce Administrator": ["salesforce administrator", "salesforce certified"],
+}
+
+# Extra skill aliases to scan for (beyond SKILL_SYNONYMS keys).
+_SKILL_ALIASES: Dict[str, List[str]] = {
+    "python": ["python"], "java": ["java"], "javascript": ["javascript", "node.js", "react"],
+    "sql": ["sql", "postgres", "mysql"], "linux": ["linux", "unix"],
+    "cloud": ["aws", "azure", "gcp", "cloud"], "devops": ["devops", "ci/cd", "terraform"],
+    "docker": ["docker"], "kubernetes": ["kubernetes", "k8s"],
+    "networking": ["networking", "tcp/ip", "routing", "switching", "vlan", "cisco"],
+    "excel": ["excel", "spreadsheets"], "statistics": ["statistics", "statistical"],
+    "machine-learning": ["machine learning", "ml", "deep learning"],
+    "communication": ["communication", "stakeholder"], "leadership": ["leadership"],
+    "project-management": ["project management", "agile", "scrum", "jira"],
+    "marketing": ["marketing", "seo", "content"], "design": ["figma", "ux", "ui"],
+    "finance": ["financial modeling", "accounting", "finance"],
+    "spanish": ["spanish", "bilingual"], "data-analysis": ["data analysis", "analytics", "tableau"],
+    "anatomy": ["anatomy", "patient care", "clinical"],
+}
+
+# job-title keyword -> profession slug (for inferring who the role is for).
+_TITLE_PROFESSION = {
+    "software": "software-engineer", "data analyst": "data-analyst",
+    "data scientist": "data-scientist", "network": "network-engineer",
+    "civil engineer": "civil-engineer", "aerospace": "aerospace-engineer",
+    "mechanical engineer": "mechanical-engineer", "electrical engineer": "electrical-engineer",
+    "nurse": "nurse", "chef": "chef", "accountant": "accountant",
+    "financial analyst": "financial-analyst", "marketing": "marketer",
+    "designer": "designer", "project manager": "project-manager", "engineer": "engineer",
+}
+
+
+def parse_job_description(text: str) -> dict:
+    """Extract skills, certifications, and likely professions from a JD."""
+    low = (text or "").lower()
+    certs = [canon for canon, aliases in KNOWN_CERTS.items()
+             if any(a in low for a in aliases)]
+    skills: List[str] = []
+    for skill, aliases in _SKILL_ALIASES.items():
+        if any(re.search(r"\b" + re.escape(a) + r"\b", low) for a in aliases):
+            skills.append(skill)
+    professions: List[str] = []
+    for kw, prof in _TITLE_PROFESSION.items():
+        if kw in low and prof not in professions:
+            professions.append(prof)
+    return {"skills": sorted(set(skills)), "certifications": certs, "professions": professions}
+
+
+def recommend_from_description(text: str, courses: Sequence[dict], *, top: int = 8) -> dict:
+    """Parse a JD and recommend catalog courses + targeted specialized/cert classes."""
+    parsed = parse_job_description(text)
+    synthetic = JobPosting(id="jd", title="Pasted role", company="", skills=parsed["skills"])
+    match = match_courses_to_job(synthetic, courses, top=top)
+    # Targeted classes the catalog doesn't yet cover - especially certifications.
+    specialized = [{"title": f"{c} - Certification Prep", "kind": "certification", "for": c}
+                   for c in parsed["certifications"]]
+    for s in match.missing:
+        specialized.append({"title": f"{pretty_skill(s)} - Targeted Class",
+                            "kind": "skill", "for": s})
+    return {
+        "parsed": parsed,
+        "matched_courses": [m.model_dump() for m in match.matched_courses],
+        "covered": match.covered, "missing": match.missing,
+        "coverage_pct": match.coverage_pct, "recommended_path": match.recommended_path,
+        "specialized_classes": specialized,
+    }

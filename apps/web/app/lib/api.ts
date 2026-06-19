@@ -236,6 +236,7 @@ export async function getPrograms(audience?: string): Promise<Program[]> {
 export type Facets = {
   categories: string[]; languages: string[]; audio_languages: string[];
   media_formats: string[]; levels: string[]; tags: string[];
+  audiences?: { slug: string; label: string }[];
 };
 
 export async function searchCourses(params: Record<string, string>): Promise<CatalogCourse[]> {
@@ -287,6 +288,28 @@ export async function listJobs(q?: string, location?: string): Promise<{ source:
 }
 export async function getJobMatch(jobId: string): Promise<JobMatch> {
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" }));
+}
+
+export type SpecializedClass = { title: string; kind: string; for: string };
+export type JobParse = {
+  parsed: { skills: string[]; certifications: string[]; professions: string[] };
+  matched_courses: CourseMatch[]; covered: string[]; missing: string[];
+  coverage_pct: number; recommended_path: string[]; specialized_classes: SpecializedClass[];
+};
+export async function parseJobDescription(description: string): Promise<JobParse> {
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/jobs/parse`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ description }),
+    })
+  );
+}
+export type CourseRelevance = {
+  course_id: string; audiences: string[]; fundamental_for: string[];
+  core_skill: boolean; audience_labels: string[]; tags: string[];
+};
+export async function getCourseRelevance(id: string): Promise<CourseRelevance> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(id)}/relevance`, { cache: "no-store" }));
 }
 
 // --- audio "drive mode" courses ------------------------------------------ //

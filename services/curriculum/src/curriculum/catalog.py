@@ -70,6 +70,8 @@ class Course(BaseModel):
     trailer_url: Optional[str] = None
     popularity: int = 0                 # view/enroll signal for "popular" rails
     created_at: float = Field(default_factory=time.time)
+    audiences: List[str] = Field(default_factory=list)   # explicit profession tags
+    core_skill: bool = False                              # explicit "core skill" flag
 
     @model_validator(mode="after")
     def _defaults(self) -> "Course":

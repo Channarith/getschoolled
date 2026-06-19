@@ -346,6 +346,8 @@ class CreateCourseRequest(BaseModel):
     hls_url: str | None = None
     dash_url: str | None = None
     trailer_url: str | None = None
+    audiences: list[str] = []
+    core_skill: bool = False
 
 
 @app.post("/courses", response_model=Course)
@@ -371,13 +373,29 @@ def search_courses(
     delivery_mode: str | None = None,
     access_tier: str | None = None,
     maturity: str | None = None,
+    audience: str | None = None,
+    core_skill: bool | None = None,
 ) -> list[Course]:
-    """Netflix-style faceted catalog search (name/category/language/audio/...)."""
-    return app.state.catalog.search_courses(
+    """Netflix-style faceted catalog search (name/category/language/audio/audience/...)."""
+    rows = app.state.catalog.search_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
         delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
     )
+    if audience or core_skill is not None:
+        from aoep_shared.skills_taxonomy import course_relevance
+        out = []
+        for c in rows:
+            rel = course_relevance({"title": c.title, "subject": c.subject,
+                                    "category": c.category, "tags": c.tags,
+                                    "audiences": c.audiences, "core_skill": c.core_skill})
+            if audience and audience.lower() not in rel["audiences"]:
+                continue
+            if core_skill is not None and rel["core_skill"] != core_skill:
+                continue
+            out.append(c)
+        rows = out
+    return rows
 
 
 def _catalog_dicts() -> list[dict]:
@@ -386,6 +404,44 @@ def _catalog_dicts() -> list[dict]:
          "category": c.category, "tags": c.tags}
         for c in app.state.catalog.list_courses()
     ]
+
+
+def _course_relevance_dict(course) -> dict:
+    from aoep_shared.skills_taxonomy import course_relevance
+
+    return course_relevance({
+        "course_id": course.course_id, "title": course.title, "subject": course.subject,
+        "category": course.category, "tags": course.tags,
+        "audiences": course.audiences, "core_skill": course.core_skill})
+
+
+@app.get("/skills/professions")
+def skills_professions() -> dict:
+    """Professions + the subjects that feed each (for audience facets/discovery)."""
+    from aoep_shared.skills_taxonomy import professions_catalog
+
+    return {"professions": professions_catalog()}
+
+
+@app.get("/courses/{course_id}/relevance")
+def course_relevance_ep(course_id: str) -> dict:
+    course = app.state.catalog.get_course(course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    return {"course_id": course_id, **_course_relevance_dict(course)}
+
+
+class ParseJobRequest(BaseModel):
+    description: str
+
+
+@app.post("/jobs/parse")
+def jobs_parse(req: ParseJobRequest) -> dict:
+    """Parse a pasted job description -> skills, certifications, matched courses,
+    and targeted specialized/certification classes (e.g. Cisco UCSM)."""
+    from aoep_shared.jobs import recommend_from_description
+
+    return recommend_from_description(req.description, _catalog_dicts())
 
 
 @app.get("/jobs")
@@ -574,7 +630,21 @@ def course_facets() -> dict:
         "tags": tags,
         "maturity_ratings": _distinct("maturity_rating"),
         "access_tiers": _distinct("access_tier"),
+        "audiences": _course_audiences_facet(courses),
     }
+
+
+def _course_audiences_facet(courses) -> list[dict]:
+    from aoep_shared.skills_taxonomy import PROFESSIONS, course_relevance
+
+    seen: set[str] = set()
+    for c in courses:
+        rel = course_relevance({"title": c.title, "subject": c.subject,
+                                "category": c.category, "tags": c.tags,
+                                "audiences": c.audiences, "core_skill": c.core_skill})
+        seen |= set(rel["audiences"])
+    return sorted(({"slug": s, "label": PROFESSIONS.get(s, s.title())} for s in seen),
+                  key=lambda x: x["label"])
 
 
 @app.get("/courses/{course_id}", response_model=Course)
