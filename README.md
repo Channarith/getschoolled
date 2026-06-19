@@ -87,6 +87,27 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Drive Mode &mdash; hundreds of audio-only classes (+ mobile app)
+**220+ audio-only, eyes-free classes** designed for learning while driving /
+commuting / exercising: language "listen &amp; repeat" lessons for all 26
+languages plus knowledge audio across history, science, finance, wellness,
+technology, geography, and more. Every class is narration-only
+(`visual_required=false`, `drive_safe=true`) with segmented scripts so a
+hands-free player can autoplay and announce progress. The web `/drive` page is a
+big-button, eyes-free player (on-device speech narration, autoplay queue, speed
+control); backed by `aoep_shared/audio_courses.py` + curriculum `GET
+/audio/courses`, `/audio/courses/{id}`, `/audio/categories`.
+
+A native **mobile app** (Android + iOS) is scaffolded under
+[`apps/mobile/`](apps/mobile/RUN.txt) (Expo + React Native) and opens straight
+into Drive Mode (audio classes via `expo-speech`), reusing the same backend.
+
+![Drive Mode: hands-free audio classes](docs/demos/drive_mode_audio_courses_demo.gif)
+
+| Audio class catalog (web) | Hands-free player (web) | Mobile app (Expo, Android/iOS) |
+| --- | --- | --- |
+| <img src="docs/screens/drive_mode_catalog.webp" alt="Audio class catalog" /> | <img src="docs/screens/drive_mode_player.webp" alt="Hands-free player" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Mobile app mockup" /> |
+
 ### Language learning &mdash; 20+ languages, multi-skill, gamified
 A full language-learning surface at `/languages` covering **26 languages**
 (Spanish, French, German, Italian, Portuguese, Dutch, Russian, Arabic, Hindi,
@@ -318,6 +339,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Games 1 | Learning Arcade: subject mini-games (quiz/speed/match) for 9 subjects, points into rewards + top-player leaderboard (`aoep_shared/games.py`, identity `/games*`, web `/arcade`) | ✅ | #84 |
 | Games 2 | Age-group mini-games: kids/tween/teen/adult age-appropriate content + age picker + age-segmented leaderboard | ✅ | #85 |
 | Languages 1 | Language learning for 26 languages: pronunciation (audio + vision mouth coaching), listening, vocab, phrases, travel, conversation, grammar, slang, reading, writing, culture, shadowing, story; gamified XP/streaks (`aoep_shared/language_learning.py`, speech `/learn/*`, web `/languages`) | ✅ | #86 |
+| Mobile 1 | Audio "Drive Mode": 220+ audio-only/eyes-free classes (`aoep_shared/audio_courses.py`, curriculum `/audio/*`), web `/drive` hands-free player, + Expo React Native app scaffold (`apps/mobile`) for Android/iOS | ✅ | #88 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
