@@ -10,26 +10,32 @@ import {
   listContinue, markAllRead, markRead, getSettings,
 } from "../storage";
 import { ensurePermissions, scheduleAlertsFor } from "../notifications";
+import { useT } from "../i18n";
 
 const ICONS: Record<NotificationItem["icon"], string> = {
   bell: "🔔", sparkle: "✨", flame: "🔥",
   play: "▶", trophy: "🏆", gift: "🎁",
 };
 
-function relTime(iso: string): string {
-  const d = new Date(iso).getTime();
-  const now = Date.now();
-  const m = Math.max(1, Math.round((now - d) / 60000));
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+function useRelTime() {
+  const { t } = useT();
+  return (iso: string): string => {
+    const d = new Date(iso).getTime();
+    const now = Date.now();
+    const m = Math.max(1, Math.round((now - d) / 60000));
+    if (m < 60) return t("time.minAgo", { n: m });
+    const h = Math.round(m / 60);
+    if (h < 24) return t("time.hAgo", { n: h });
+    return t("time.dAgo", { n: Math.round(h / 24) });
+  };
 }
 
 export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
   onOpenCourse: (id: string) => void;
   onUnreadChange?: (unread: number) => void;
 }) {
+  const { t, locale } = useT();
+  const relTime = useRelTime();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [readSet, setReadSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -46,7 +52,7 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
       const feed = await getNotificationsFeed({
         studentId: settings.studentId,
         interests, inProgress: inProgress.map((c) => c.id),
-        completed, streakDays: streak.days,
+        completed, streakDays: streak.days, locale,
       });
       setItems(feed.items);
       setReadSet(new Set(read));
@@ -57,11 +63,11 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
         }
       } catch {}
     } catch (e) {
-      setError(`Could not load notifications (${String(e)}).`);
+      setError(t("notif.error", { error: String(e) }));
     } finally {
       setLoading(false); setRefreshing(false);
     }
-  }, []);
+  }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { void load(); }, [load]);
 
@@ -97,26 +103,26 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-            <Text style={styles.title}>Alerts</Text>
-            {unread > 0 ? <Text style={styles.unread}>{unread} new</Text> : null}
+            <Text style={styles.title}>{t("notif.title")}</Text>
+            {unread > 0 ? <Text style={styles.unread}>{t("notif.unread", { n: unread })}</Text> : null}
           </View>
           {error ? <Text style={styles.err}>{error}</Text> : null}
           <Text style={styles.sub}>
             {scheduled
-              ? `${scheduled} alerts scheduled on your device.`
-              : "Personalized inbox + on-device daily reminders. Manage in Settings."}
+              ? t("notif.subScheduled", { n: scheduled })
+              : t("notif.subEmpty")}
           </Text>
           {items.length > 0 ? (
             <Pressable onPress={onMarkAllRead} style={styles.markAll}>
-              <Text style={styles.markAllText}>Mark all as read</Text>
+              <Text style={styles.markAllText}>{t("notif.markAll")}</Text>
             </Pressable>
           ) : null}
         </View>
       }
       ListEmptyComponent={
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>You're all caught up</Text>
-          <Text style={styles.emptyBody}>New classes and recommendations show up here.</Text>
+          <Text style={styles.emptyTitle}>{t("notif.emptyTitle")}</Text>
+          <Text style={styles.emptyBody}>{t("notif.emptyBody")}</Text>
         </View>
       }
       data={items}

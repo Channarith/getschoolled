@@ -1,10 +1,11 @@
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { SafeAreaView, StyleSheet, View } from "react-native";
+import { I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
 
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
+import { LocaleProvider, useT } from "./src/i18n";
 import {
   ensurePermissions, installNotificationHandler,
   rescheduleDailyReminder, scheduleAlertsFor,
@@ -22,6 +23,15 @@ import { getNotificationsFeed } from "./src/api";
 import type { TabId } from "./src/types";
 
 export default function App() {
+  return (
+    <LocaleProvider>
+      <AppInner />
+    </LocaleProvider>
+  );
+}
+
+function AppInner() {
+  const { t, isRTL } = useT();
   const [tab, setTab] = useState<TabId>("home");
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
@@ -51,7 +61,7 @@ export default function App() {
       const c = n.request.content;
       setBanner({
         kind: "live", title: c.title || "AI Classroom",
-        body: c.body || undefined, cta: "Open",
+        body: c.body || undefined, cta: t("banner.open"),
         ttlMs: 6000,
         onPress: () => {
           const data = (c.data || {}) as { courseId?: string; deepLink?: string };
@@ -119,10 +129,15 @@ export default function App() {
     screen = <SettingsScreen />;
   }
 
+  // React-Native-Web honors writingDirection on the root so RTL locales (ar,
+  // he, ur, fa) lay out from right to left without a force-reload. On native,
+  // I18nManager.forceRTL would require a relaunch, which is annoying for
+  // demos - we keep the in-app layout pragmatic and let native users restart.
+  void I18nManager;
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
-      <View style={{ flex: 1 }}>
+      <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
         {screen}
       </View>

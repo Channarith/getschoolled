@@ -8,10 +8,12 @@ import {
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
+import { useT } from "../i18n";
 
 // Hands-free audio player: large controls, on-device TTS narration, auto-advance,
 // progress persisted to AsyncStorage so Continue Listening works.
 export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+  const { t } = useT();
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -62,12 +64,14 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   return (
     <View style={styles.c}>
       <View style={styles.topRow}>
-        <Pressable onPress={() => { Speech.stop(); onBack(); }}><Text style={styles.back}>← Back</Text></Pressable>
+        <Pressable onPress={() => { Speech.stop(); onBack(); }}><Text style={styles.back}>{t("drive.back")}</Text></Pressable>
         <Pressable onPress={() => void onToggleSave()} hitSlop={12}>
           <Text style={[styles.star, saved && styles.starOn]}>{saved ? "★" : "☆"}</Text>
         </Pressable>
       </View>
-      <Text style={styles.cat}>{course.category} · {course.duration_min} min · audio</Text>
+      <Text style={styles.cat}>
+        {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
+      </Text>
       <Text style={styles.title}>{course.title}</Text>
       <Text style={styles.seg}>▶ {course.segments[seg]?.heading}</Text>
       <Text style={styles.prog}>{seg + 1} / {course.segments.length}  ({pct}%)</Text>
@@ -81,7 +85,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
           : <Pressable style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}><Text style={styles.btnT}>▶</Text></Pressable>}
         <Pressable style={styles.btn} onPress={() => playFrom(course, seg + 1)}><Text style={styles.btnT}>⏭</Text></Pressable>
       </View>
-      <Text style={styles.hint}>Keep your eyes on the road — this plays hands-free.</Text>
+      <Text style={styles.hint}>{t("drive.hint")}</Text>
     </View>
   );
 }

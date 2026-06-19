@@ -47,3 +47,33 @@ def test_completed_courses_are_filtered_out_of_new():
                       now=dt.datetime(2026, 6, 19, 12, tzinfo=dt.timezone.utc))
     assert all(i.course_id != "lang-es-phrases"
                for i in feed.items if i.kind == "new_class")
+
+
+def test_locale_translates_titles_and_bodies():
+    now = dt.datetime(2026, 6, 19, 12, tzinfo=dt.timezone.utc)
+    es = build_feed(locale="es", in_progress_course_ids=["lang-es-phrases"],
+                    streak_days=3, now=now)
+    titles = " ".join(i.title for i in es.items)
+    bodies = " ".join(i.body for i in es.items)
+    assert "Continúa" in titles or "Para ti" in titles or "Nueva clase" in titles
+    assert "Tu clase diaria está lista" in titles or "donde" in bodies
+    assert "Racha de 3 días" in titles or "tu racha" in bodies.lower() or "3" in titles
+
+    fr = build_feed(locale="fr", streak_days=5, now=now)
+    assert any("Série" in i.title or "quotidien" in i.title for i in fr.items)
+
+    ja = build_feed(locale="ja", now=now)
+    assert any("クラス" in i.title or "ドライブ" in i.body for i in ja.items)
+
+
+def test_unknown_locale_falls_back_to_english():
+    feed = build_feed(locale="xx", streak_days=2,
+                      now=dt.datetime(2026, 6, 19, 12, tzinfo=dt.timezone.utc))
+    assert any("Your daily class is ready" in i.title for i in feed.items)
+    assert any("2-day streak" in i.title for i in feed.items)
+
+
+def test_supported_locales_list_is_nonempty():
+    from aoep_shared.notifications import SUPPORTED_NOTIFICATION_LOCALES
+    assert "en" in SUPPORTED_NOTIFICATION_LOCALES
+    assert len(SUPPORTED_NOTIFICATION_LOCALES) >= 10

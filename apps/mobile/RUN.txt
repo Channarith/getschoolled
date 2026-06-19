@@ -86,6 +86,21 @@ WHAT'S HERE
   eas.json                       EAS Build profiles (development/preview/production)
   .npmrc                         forces hoisted node_modules for Metro
 
+LANGUAGES (i18n)
+  The UI is translated into 13 languages out of the box: English, Spanish,
+  French, German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese
+  (Mandarin), Japanese, Korean, Vietnamese. The other 13 supported languages
+  (Dutch, Polish, Ukrainian, Turkish, Hebrew, Bengali, Urdu, Persian, Thai,
+  Indonesian, Swahili, Greek, Czech) appear in the picker and inherit
+  English until they're translated.
+  - Initial locale: AsyncStorage user pick > device locale (expo-localization)
+    > English fallback.
+  - Switch language: Settings -> LANGUAGE section -> tap a flag chip.
+  - RTL: Arabic / Hebrew / Urdu / Persian flip layout via `direction: rtl`.
+  - Backend: GET /notifications/feed accepts `locale=es|fr|de|...` and renders
+    titles/bodies in 13 languages. Unknown locales fall back to English.
+    Source: aoep_shared/notifications.py.
+
 NETFLIX-STYLE FEATURES (all on the audio catalog)
   Push / local notifications via expo-notifications:
     * Daily class reminder (user-configurable hour, OS-scheduled, repeating)

@@ -51,3 +51,25 @@ def test_deep_links_for_drive_mode():
 def test_limit_caps_items():
     body = client.get("/notifications/feed", params={"limit": 3}).json()
     assert len(body["items"]) <= 3
+
+
+def test_locale_param_translates_feed():
+    es = client.get("/notifications/feed",
+                    params={"locale": "es", "interests": "spanish"}).json()
+    titles = " ".join(i["title"] for i in es["items"])
+    assert "Nueva clase" in titles or "Tu clase diaria" in titles
+
+    ja = client.get("/notifications/feed", params={"locale": "ja"}).json()
+    assert any("クラス" in i["title"] or "ドライブ" in i["body"] for i in ja["items"])
+
+
+def test_locales_endpoint_lists_supported_languages():
+    body = client.get("/notifications/locales").json()
+    assert "en" in body["locales"]
+    assert "es" in body["locales"]
+
+
+def test_unknown_locale_falls_back_cleanly():
+    body = client.get("/notifications/feed", params={"locale": "zz"}).json()
+    titles = " ".join(i["title"] for i in body["items"])
+    assert "Your daily class is ready" in titles

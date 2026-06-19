@@ -11,6 +11,7 @@ import {
   recordInterest, type ContinueRow,
 } from "../storage";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
+import { useT } from "../i18n";
 
 const EMOJIS_BY_CATEGORY: Record<string, string> = {
   Languages: "🌍", History: "🏛", Science: "🧪",
@@ -25,6 +26,7 @@ export default function HomeScreen({
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
 }) {
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +68,7 @@ export default function HomeScreen({
       const streak = await getStreak();
       setStreakDays(streak.days);
     } catch (e) {
-      setError(`Couldn't reach the catalog (${String(e)}). Pull to retry.`);
+      setError(t("home.error", { error: String(e) }));
     } finally {
       setLoading(false); setRefreshing(false);
     }
@@ -91,11 +93,10 @@ export default function HomeScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
     >
       <View style={styles.heroBox}>
-        <Text style={styles.kicker}>AI Classroom</Text>
-        <Text style={styles.hero}>Thousands of classes. One AI campus.</Text>
+        <Text style={styles.kicker}>{t("home.kicker")}</Text>
+        <Text style={styles.hero}>{t("home.hero")}</Text>
         <Text style={styles.heroSub}>
-          {streakDays > 0 ? `🔥 ${streakDays}-day streak — keep it alive with one quick class.` :
-            "Tap any class to start hands-free in Drive Mode."}
+          {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
         </Text>
       </View>
 
@@ -103,15 +104,15 @@ export default function HomeScreen({
 
       {continueRows.length > 0 ? (
         <Rail
-          title="Continue listening"
-          subtitle="Pick up where you left off."
+          title={t("rail.continue")}
+          subtitle={t("rail.continueSub")}
           data={continueRows}
           keyExtractor={(c) => c.id}
           renderItem={(c) => (
             <CourseCard
               emoji="▶"
               title={c.title}
-              meta={`${c.segment + 1}/${c.total} segments`}
+              meta={t("meta.segmentOf", { i: c.segment + 1, n: c.total })}
               onPress={() => open(c.id, c.category)}
               progressPct={Math.round(((c.segment + 1) / Math.max(1, c.total)) * 100)}
             />
@@ -121,15 +122,15 @@ export default function HomeScreen({
 
       {savedRows.length > 0 ? (
         <Rail
-          title="My List"
-          subtitle="Your saved classes."
+          title={t("rail.mylist")}
+          subtitle={t("rail.mylistSub")}
           data={savedRows}
           keyExtractor={(c) => c.id}
           renderItem={(c) => (
             <CourseCard
               emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
               title={c.title}
-              meta={`${c.category} · ${c.duration_min} min`}
+              meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
               savedBadge
               onPress={() => open(c.id, c.category)}
             />
@@ -138,15 +139,15 @@ export default function HomeScreen({
       ) : null}
 
       <Rail
-        title="New this week"
-        subtitle="Fresh audio classes."
+        title={t("rail.new")}
+        subtitle={t("rail.newSub")}
         data={newRows}
         keyExtractor={(c) => c.id}
         renderItem={(c) => (
           <CourseCard
             emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
             title={c.title}
-            meta={`${c.category} · ${c.duration_min} min`}
+            meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
           />
@@ -154,15 +155,15 @@ export default function HomeScreen({
       />
 
       <Rail
-        title="Picked for you"
-        subtitle="Based on what you've listened to."
+        title={t("rail.forYou")}
+        subtitle={t("rail.forYouSub")}
         data={forYou}
         keyExtractor={(c) => c.id}
         renderItem={(c) => (
           <CourseCard
             emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
             title={c.title}
-            meta={`${c.category} · ${c.duration_min} min`}
+            meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
           />
@@ -170,14 +171,14 @@ export default function HomeScreen({
       />
 
       <Rail
-        title="Trending now"
+        title={t("rail.trending")}
         data={trending}
         keyExtractor={(c) => c.id}
         renderItem={(c) => (
           <CourseCard
             emoji="📈"
             title={c.title}
-            meta={`${c.category} · ${c.duration_min} min`}
+            meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
           />
@@ -185,11 +186,12 @@ export default function HomeScreen({
       />
 
       <Rail
-        title="Browse categories"
+        title={t("rail.categories")}
         data={cats}
         keyExtractor={(c) => c.category}
         renderItem={(c) => (
           <CategoryTile category={c.category} count={c.count}
+            countLabel={t("meta.classes", { n: c.count })}
             onPress={() => onOpenCategory(c.category)} />
         )}
       />

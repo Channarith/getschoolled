@@ -11,8 +11,10 @@ import {
 import {
   DEFAULT_SETTINGS, getSettings, setSettings, type Settings,
 } from "../storage";
+import { LANGUAGES, languageInfo, useT } from "../i18n";
 
 export default function SettingsScreen() {
+  const { t, locale, setLocale } = useT();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [scheduled, setScheduled] = useState<number>(0);
@@ -26,10 +28,6 @@ export default function SettingsScreen() {
     void refreshScheduled();
   }, []);
 
-  // Apply patches synchronously so the UI flips immediately, then persist +
-  // reschedule notifications in the background. Without this, AsyncStorage's
-  // async write let chip taps appear "additive" because the visual didn't
-  // catch up to the state until storage I/O completed.
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
       const next = { ...cur, ...patch };
@@ -51,41 +49,62 @@ export default function SettingsScreen() {
       await rescheduleDailyReminder();
       await refreshScheduled();
     } else {
-      Alert.alert("Notifications disabled",
-        "Enable notifications for AI Classroom in your phone's Settings.");
+      Alert.alert(t("settings.permDeniedTitle"), t("settings.permDeniedBody"));
     }
   };
 
   const sendTest = async () => {
     const ok = await ensurePermissions();
     if (!ok) {
-      Alert.alert("Permission needed", "Allow notifications first.");
+      Alert.alert(t("settings.permRequiredTitle"), t("settings.permRequiredBody"));
       return;
     }
-    await fireImmediate(
-      "AI Classroom test alert",
-      "If you see this, notifications are working. 🎉",
-    );
+    await fireImmediate(t("settings.testTitle"), t("settings.testBody"));
     await refreshScheduled();
   };
 
+  const current = languageInfo(locale);
   return (
     <ScrollView style={styles.bg} contentContainerStyle={{ paddingTop: 56, paddingBottom: 32 }}>
       <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.sub}>Notifications, alerts, account.</Text>
+        <Text style={styles.title}>{t("settings.title")}</Text>
+        <Text style={styles.sub}>{t("settings.sub")}</Text>
       </View>
 
-      <Section title="Notifications">
-        <Row label="Allow notifications"
-             desc="Daily reminders, new-class alerts, completion banners.">
+      <Section title={t("settings.sectionLang")}>
+        <Row label={t("settings.language")} desc={t("settings.languageDesc")}>
+          <Text style={styles.currentLang}>{current.flag}  {current.native}</Text>
+        </Row>
+        <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {LANGUAGES.map((lang) => {
+              const selected = lang.code === locale;
+              return (
+                <TouchableOpacity key={lang.code} activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setLocale(lang.code)}
+                  style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
+                >
+                  <Text style={[styles.langText, selected && styles.langTextOn]}>
+                    {lang.flag} {lang.native}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Section>
+
+      <Section title={t("settings.sectionNotif")}>
+        <Row label={t("settings.allow")} desc={t("settings.allowDesc")}>
           <Switch
             value={s.notificationsEnabled}
             onValueChange={(v) => update({ notificationsEnabled: v })}
             thumbColor={s.notificationsEnabled ? "#0ea5e9" : "#666"} />
         </Row>
-        <Row label="Daily class reminder"
-             desc={`A nudge at ${pad(s.dailyReminderHour)}:00 every day.`}>
+        <Row label={t("settings.daily")}
+             desc={t("settings.dailyDesc", { hour: pad(s.dailyReminderHour) })}>
           <Switch
             value={s.dailyReminder && s.notificationsEnabled}
             onValueChange={(v) => update({ dailyReminder: v })}
@@ -93,21 +112,10 @@ export default function SettingsScreen() {
             thumbColor={s.dailyReminder ? "#0ea5e9" : "#666"} />
         </Row>
         <View style={[styles.row, { flexDirection: "column", alignItems: "stretch", gap: 8 }]}>
-          <Text style={styles.label}>Reminder time</Text>
+          <Text style={styles.label}>{t("settings.time")}</Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {[7, 9, 12, 15, 18, 20, 21].map((h) => {
               const selected = s.dailyReminderHour === h;
-              // On web, react-native-web's Pressable keeps a :focus outline +
-              // hover bg after click, which makes a previously-tapped chip
-              // look selected even when state has moved on. Force the
-              // selected style off explicitly when the chip is not the
-              // current value, and disable the web hover/focus ring.
-              // Use TouchableOpacity instead of Pressable to avoid the
-              // sticky :focus / :active background browsers leave on a
-              // recently-clicked Pressable on react-native-web (which made
-              // multiple chips look "selected" simultaneously even though
-              // state had moved on). TouchableOpacity only animates opacity
-              // on press and clears on release.
               return (
                 <TouchableOpacity key={h} activeOpacity={0.7}
                   accessibilityRole="button"
@@ -126,16 +134,14 @@ export default function SettingsScreen() {
             })}
           </View>
         </View>
-        <Row label="New-class alerts"
-             desc="Get alerted when fresh audio classes match your interests.">
+        <Row label={t("settings.newAlerts")} desc={t("settings.newAlertsDesc")}>
           <Switch
             value={s.newContentAlerts && s.notificationsEnabled}
             onValueChange={(v) => update({ newContentAlerts: v })}
             disabled={!s.notificationsEnabled}
             thumbColor={s.newContentAlerts ? "#0ea5e9" : "#666"} />
         </Row>
-        <Row label="Completion banners"
-             desc="Celebrate when you finish a class — and queue the next one.">
+        <Row label={t("settings.completion")} desc={t("settings.completionDesc")}>
           <Switch
             value={s.completionAlerts && s.notificationsEnabled}
             onValueChange={(v) => update({ completionAlerts: v })}
@@ -144,33 +150,27 @@ export default function SettingsScreen() {
         </Row>
       </Section>
 
-      <Section title="Diagnostics">
-        <Row label={`Scheduled on this device: ${scheduled}`}
-             desc="Local notifications waiting in the OS scheduler.">
+      <Section title={t("settings.sectionDiag")}>
+        <Row label={t("settings.scheduled", { n: scheduled })} desc={t("settings.scheduledDesc")}>
           <Pressable onPress={() => void refreshScheduled()} style={styles.btn}>
-            <Text style={styles.btnText}>Refresh</Text>
+            <Text style={styles.btnText}>{t("settings.refresh")}</Text>
           </Pressable>
         </Row>
-        <Row label="Send a test alert"
-             desc="Fires immediately so you can verify the channel works.">
+        <Row label={t("settings.testAlert")} desc={t("settings.testAlertDesc")}>
           <Pressable onPress={() => void sendTest()} style={styles.btn}>
-            <Text style={styles.btnText}>Send</Text>
+            <Text style={styles.btnText}>{t("settings.send")}</Text>
           </Pressable>
         </Row>
-        <Row label={`Permission: ${permission}`}
-             desc="Tap if iOS / Android dropped the prompt.">
+        <Row label={t("settings.permission", { status: permission })}
+             desc={t("settings.permissionDesc")}>
           <Pressable onPress={() => void askPermission()} style={styles.btn}>
-            <Text style={styles.btnText}>Request</Text>
+            <Text style={styles.btnText}>{t("settings.request")}</Text>
           </Pressable>
         </Row>
       </Section>
 
-      <Section title="About">
-        <Text style={styles.about}>
-          AI Classroom mobile · v0.1{"\n"}
-          Backend: see app.json → expo.extra.curriculumUrl. Make sure the
-          curriculum service is running and reachable from your device.
-        </Text>
+      <Section title={t("settings.sectionAbout")}>
+        <Text style={styles.about}>{t("settings.aboutBody")}</Text>
       </Section>
     </ScrollView>
   );
@@ -219,4 +219,10 @@ const styles = StyleSheet.create({
   hourText: { color: "#9aa6c2", fontWeight: "700" },
   hourTextOn: { color: "#001022" },
   about: { color: "#9aa6c2", padding: 10, lineHeight: 18, fontSize: 13 },
+  currentLang: { color: "#e8ecf6", fontWeight: "700" },
+  langChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  langChipOff: { backgroundColor: "#1d2746" },
+  langChipOn: { backgroundColor: "#0ea5e9" },
+  langText: { color: "#9aa6c2", fontWeight: "600" },
+  langTextOn: { color: "#001022", fontWeight: "800" },
 });

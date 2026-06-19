@@ -72,6 +72,7 @@ export function getNotificationsFeed(opts: {
   completed?: string[];
   streakDays?: number;
   limit?: number;
+  locale?: string;
 } = {}) {
   const p = new URLSearchParams();
   if (opts.studentId) p.set("student_id", opts.studentId);
@@ -80,6 +81,7 @@ export function getNotificationsFeed(opts: {
   if (opts.completed?.length) p.set("completed", opts.completed.join(","));
   if (typeof opts.streakDays === "number") p.set("streak_days", String(opts.streakDays));
   if (typeof opts.limit === "number") p.set("limit", String(opts.limit));
+  if (opts.locale) p.set("locale", opts.locale);
   const qs = p.toString();
   return get<NotificationFeed>(`/notifications/feed${qs ? `?${qs}` : ""}`);
 }

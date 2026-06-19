@@ -1,15 +1,17 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { useT } from "../i18n";
+import type { StringKey } from "../i18n/strings";
 import type { TabId } from "../types";
 
-type Tab = { id: TabId; label: string; emoji: string };
+type TabSpec = { id: TabId; labelKey: StringKey; emoji: string };
 
-const TABS: Tab[] = [
-  { id: "home",          label: "Home",     emoji: "🏠" },
-  { id: "drive",         label: "Drive",    emoji: "🎧" },
-  { id: "mylist",        label: "My List",  emoji: "★" },
-  { id: "notifications", label: "Alerts",   emoji: "🔔" },
-  { id: "settings",      label: "Settings", emoji: "⚙" },
+const TABS: TabSpec[] = [
+  { id: "home",          labelKey: "tab.home",     emoji: "🏠" },
+  { id: "drive",         labelKey: "tab.drive",    emoji: "🎧" },
+  { id: "mylist",        labelKey: "tab.mylist",   emoji: "★" },
+  { id: "notifications", labelKey: "tab.alerts",   emoji: "🔔" },
+  { id: "settings",      labelKey: "tab.settings", emoji: "⚙" },
 ];
 
 export default function BottomTabs({
@@ -17,20 +19,21 @@ export default function BottomTabs({
 }: {
   active: TabId; onChange: (id: TabId) => void; unreadCount?: number;
 }) {
+  const { t } = useT();
   return (
     <View style={styles.bar} accessibilityRole="tablist">
-      {TABS.map((t) => {
-        const isActive = t.id === active;
+      {TABS.map((tab) => {
+        const isActive = tab.id === active;
         return (
           <Pressable
-            key={t.id} onPress={() => onChange(t.id)}
+            key={tab.id} onPress={() => onChange(tab.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             style={styles.tab}
           >
             <View>
-              <Text style={[styles.icon, isActive && styles.iconActive]}>{t.emoji}</Text>
-              {t.id === "notifications" && unreadCount > 0 ? (
+              <Text style={[styles.icon, isActive && styles.iconActive]}>{tab.emoji}</Text>
+              {tab.id === "notifications" && unreadCount > 0 ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>
                     {unreadCount > 99 ? "99+" : unreadCount}
@@ -38,7 +41,7 @@ export default function BottomTabs({
                 </View>
               ) : null}
             </View>
-            <Text style={[styles.label, isActive && styles.labelActive]}>{t.label}</Text>
+            <Text style={[styles.label, isActive && styles.labelActive]}>{t(tab.labelKey)}</Text>
           </Pressable>
         );
       })}

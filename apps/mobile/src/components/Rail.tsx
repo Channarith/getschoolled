@@ -62,14 +62,16 @@ export function CourseCard({
   );
 }
 
-export function CategoryTile({ category, count, onPress }: {
-  category: string; count: number; onPress?: () => void;
+export function CategoryTile({ category, count, countLabel, onPress }: {
+  category: string; count: number; countLabel?: string; onPress?: () => void;
 }) {
   const colors = HUES[Math.abs(hash(category)) % HUES.length];
   return (
     <Pressable onPress={onPress} style={[styles.tile, { backgroundColor: colors.bg }]}>
       <Text style={[styles.tileTitle, { color: colors.fg }]}>{category}</Text>
-      <Text style={[styles.tileCount, { color: colors.fg }]}>{count} classes</Text>
+      <Text style={[styles.tileCount, { color: colors.fg }]}>
+        {countLabel || `${count} classes`}
+      </Text>
     </Pressable>
   );
 }

@@ -6,10 +6,12 @@ import {
 
 import { listAudioCourses, type AudioCourseRow } from "../api";
 import { getMyList, toggleMyList } from "../storage";
+import { useT } from "../i18n";
 
 export default function MyListScreen({ onOpenCourse }: {
   onOpenCourse: (id: string) => void;
 }) {
+  const { t } = useT();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
@@ -40,14 +42,14 @@ export default function MyListScreen({ onOpenCourse }: {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <Text style={styles.title}>★ My List</Text>
-          <Text style={styles.sub}>Saved for later. Auto-syncs on this device.</Text>
+          <Text style={styles.title}>{t("mylist.title")}</Text>
+          <Text style={styles.sub}>{t("mylist.sub")}</Text>
         </View>
       }
       ListEmptyComponent={
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No saved classes yet</Text>
-          <Text style={styles.emptyBody}>Tap the star on any class to add it here.</Text>
+          <Text style={styles.emptyTitle}>{t("mylist.emptyTitle")}</Text>
+          <Text style={styles.emptyBody}>{t("mylist.emptyBody")}</Text>
         </View>
       }
       data={rows}
@@ -57,7 +59,7 @@ export default function MyListScreen({ onOpenCourse }: {
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>🎧 {item.title}</Text>
             <Text style={styles.rowMeta}>
-              {item.category} · {item.duration_min} min · {item.segments} segments
+              {item.category} · {item.duration_min} {t("meta.min")} · {item.segments} {t("meta.segments")}
             </Text>
           </View>
           <Pressable onPress={() => void remove(item.id)} hitSlop={12}>

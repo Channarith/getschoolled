@@ -4,6 +4,7 @@ import {
 } from "react-native";
 import { getAudioCategories, listAudioCourses, type AudioCourseRow } from "../api";
 import { getMyList, recordInterest, toggleMyList } from "../storage";
+import { useT } from "../i18n";
 
 type Props = {
   onOpen: (id: string) => void;
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
+  const { t } = useT();
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
   const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
   const [cat, setCat] = useState<string>(initialCategory || "");
@@ -44,9 +46,9 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.h1}>🚗 Drive Mode</Text>
-      <Text style={styles.sub}>Audio-only classes for the road — eyes free.</Text>
-      <TextInput style={styles.input} placeholder="Search…" placeholderTextColor="#9aa6c2"
+      <Text style={styles.h1}>{t("drive.title")}</Text>
+      <Text style={styles.sub}>{t("drive.subtitle")}</Text>
+      <TextInput style={styles.input} placeholder={t("drive.search")} placeholderTextColor="#9aa6c2"
         value={q} onChangeText={setQ} />
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={chips}
@@ -54,7 +56,7 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
         renderItem={({ item }) => (
           <Pressable onPress={() => setCat(item.category)}
             style={[styles.chip, cat === item.category && styles.chipOn]}>
-            <Text style={styles.chipText}>{item.category || "All"}</Text>
+            <Text style={styles.chipText}>{item.category || t("drive.all")}</Text>
           </Pressable>
         )}
       />
@@ -67,7 +69,9 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
               <Pressable onPress={() => { void recordInterest(item.category); onOpen(item.id); }}
                          style={{ flex: 1 }}>
                 <Text style={styles.title}>🎧 {item.title}</Text>
-                <Text style={styles.meta}>{item.category} · {item.duration_min} min · {item.segments} segments</Text>
+                <Text style={styles.meta}>
+                  {item.category} · {item.duration_min} {t("meta.min")} · {item.segments} {t("meta.segments")}
+                </Text>
               </Pressable>
               <Pressable onPress={() => void onToggleSave(item.id)} hitSlop={12}>
                 <Text style={[styles.star, savedSet.has(item.id) && styles.starOn]}>

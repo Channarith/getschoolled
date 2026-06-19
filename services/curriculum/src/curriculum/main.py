@@ -424,13 +424,15 @@ def notifications_feed(
     completed: str | None = None,
     streak_days: int = 0,
     limit: int = 30,
+    locale: str = "en",
 ) -> dict:
     """Personalized notification feed for the mobile/web inbox.
 
     ``interests`` / ``in_progress`` / ``completed`` are comma-separated strings;
     the mobile app reads its locally-tracked state (AsyncStorage) and passes it
-    in so the server-rendered feed matches the device. The same items are also
-    used by the client to schedule LOCAL push notifications via
+    in so the server-rendered feed matches the device. ``locale`` selects the
+    language of the rendered titles + bodies (defaults to English). The same
+    items are also used by the client to schedule LOCAL push notifications via
     expo-notifications - no remote push server is required.
     """
     from aoep_shared.notifications import build_feed
@@ -445,8 +447,17 @@ def notifications_feed(
         completed_course_ids=_split(completed),
         streak_days=max(0, streak_days),
         limit=max(1, min(limit, 100)),
+        locale=(locale or "en").lower().split("-")[0],
     )
     return feed.model_dump()
+
+
+@app.get("/notifications/locales")
+def notifications_locales() -> dict:
+    """List the language codes for which the notification feed is translated."""
+    from aoep_shared.notifications import SUPPORTED_NOTIFICATION_LOCALES
+
+    return {"locales": list(SUPPORTED_NOTIFICATION_LOCALES)}
 
 
 @app.post("/courses/{course_id}/view")

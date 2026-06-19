@@ -2,6 +2,27 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile multi-language UI (i18n): the entire AI Classroom mobile app is now
+  translated into 13 languages out of the box (English, Spanish, French,
+  German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese, Japanese,
+  Korean, Vietnamese), with the other 13 platform-supported languages wired
+  into the picker as graceful fallback-to-English. New apps/mobile/src/i18n/
+  package: `languages.ts` (locale registry, RTL flags), `strings.ts` (full
+  hand-translated string dictionary), `index.tsx` (LocaleProvider, useT()
+  hook, AsyncStorage-backed persistence, expo-localization device-locale
+  detection, English fallback for missing keys). Every screen + BottomTabs
+  routes through `t(...)`. Settings gains a LANGUAGE section with a
+  flag-chip language picker (single-select, instant re-render). RTL locales
+  apply `direction: rtl` to the root view. Backend localized too:
+  aoep_shared.notifications builds rendered titles/bodies in 13 languages
+  via the new locale param; curriculum service: GET /notifications/feed
+  takes `locale=`, GET /notifications/locales lists supported codes;
+  unknown locales fall back to English cleanly. expo-localization added.
+  Tests: 4 new shared (test_notifications.py) + 3 new API
+  (test_notifications_api.py); 94 + 291 backend tests pass. Mobile
+  typecheck clean, Metro bundles iOS (1.81 MB / 698 modules) + Android
+  (1.82 MB / 701 modules) + web (≈580 kB).
+
 - Mobile Netflix-style features + push/local notifications: apps/mobile is now
   a real multi-screen app (5-tab bottom nav: Home, Drive, My List, Alerts,
   Settings). New screens: HomeScreen with rails (Continue Listening, My List,
