@@ -1,0 +1,137 @@
+AOEP - DESIGN & ARCHITECTURE
+============================
+Agentic Online Education Platform. This is the text source-of-truth for the
+system design; rendered block diagrams, flow charts, sequence diagrams and
+time-series charts live in the README (mermaid) and docs/diagrams/*.png.
+
+No-markdown house rule: this file is plain text on purpose. Diagrams here are
+ASCII; the polished versions are in the README.
+
+-----------------------------------------------------------------------------
+1. SYSTEM CONTEXT (who uses it)
+-----------------------------------------------------------------------------
+  Free learner / visitor ....... browse catalog, ad-supported watch, live class
+  Paid member (Pro/Premium) .... ad-free watch, full catalog, rewards
+  Parent / account holder ...... many learner sub-profiles, mastery, portfolio
+  Student sub-profile .......... the person actually taking a class
+  Educator / institution ....... Human-in-the-Loop review (co-teach / co-grade)
+  Platform admin / ops ......... feature flags, versions, data-mining insights
+  Partner / integrator ......... LMS/LTI, finance, cloud connectors, webhooks
+
+-----------------------------------------------------------------------------
+2. BLOCK DIAGRAM (logical)
+-----------------------------------------------------------------------------
+                          +---------------------------+
+                          |  Browser - apps/web       |
+                          |  Next.js (per-persona UIs)|
+                          +-------------+-------------+
+                                        | HTTPS (JSON)
+        +-------------------------------+-------------------------------+
+        |                 |             |             |                 |
+        v                 v             v             v                 v
+  orchestrator(8000)  memory(8004) curriculum(8005) identity(8008) integrations(8007)
+  teaching loop,      profiles,    catalog, RAG,    accounts,      webhooks, LMS,
+  sessions, HIL,      consent,     homework, scenes,auth, tiers,   finance, cloud
+  disclosure, embody  legal, flags,ads, provenance, students,      connectors
+                      surveys      recommend        rewards
+        |   speech(8002)   perception(8003)   billing(8006)
+        |   ASR/TTS/i18n   face id (consent)  plans/entitlements
+        |
+        +--> packages/shared  ProviderFactory  (local | cloud | edge, by env)
+             +----------+----------+----------+-----------+-----------+--------+
+             LLM        Speech     Vision     Media       ObjectStore Payment  OCR
+            (vLLM/     (Whisper/  (YuNet/    (LiveKit)   (MinIO/S3)  (Stripe/ (Tesseract
+             Ollama)    XTTS)      SFace)                             sandbox) /cloud)
+
+  Cross-cutting shared modules: ads, rewards, hil, survey, flags, foresight,
+  provenance, disclosure, compliance, legal, retention, adaptive, assessment,
+  groundedness, validation, corrections, webhooks, connectors, testsupport.
+
+  Data: Postgres(+pgvector) . Redis . object store . in-memory stores (dev)
+  Worker: apps/agent-runtime (LiveKit Agents) . Edge: DEPLOY_MODE=edge image
+
+-----------------------------------------------------------------------------
+3. SERVICES (FastAPI; all via create_service -> /health, /version, /__meta)
+-----------------------------------------------------------------------------
+  orchestrator 8000  Teaching Director: lessons, sessions, slides, RAG Q&A,
+                     groundedness, HIL gating, disclosure, embodiment
+  speech       8002  language coverage/routing, ASR/translation/TTS
+  perception   8003  consent-gated face recognition + attention/engagement
+  memory       8004  profiles, consent, legal acceptance, compliance, retention,
+                     feature FLAGS (admin), post-class SURVEY + data-mart, test hooks
+  curriculum   8005  catalog + search/facets, RAG, homework gen/scan/grade,
+                     scenes (AOEPLX), provenance, ad-breaks (VAST/VMAP),
+                     catalog export (MRSS/JSON), Foresight /recommend
+  billing      8006  plans, entitlements, checkout (sandbox/Stripe)
+  integrations 8007  signed webhooks, API clients, LMS/LTI, finance, cloud/SSO
+  identity     8008  accounts, auth (PBKDF2 + HMAC tokens), membership tier,
+                     learner sub-profiles, portfolio, rewards/points
+
+-----------------------------------------------------------------------------
+4. KEY DATA FLOWS
+-----------------------------------------------------------------------------
+4a. Ask the AI teacher (grounded, optionally human-reviewed)
+    web -> orchestrator /api/sessions/{id}/ask
+         -> RAG retrieve (curriculum/sample-curriculum)
+         -> Tutor compose answer grounded in passages
+         -> groundedness guard (flag unsupported claims, confidence)
+         -> HIL: should_escalate(confidence,risk,autonomy)?
+               yes -> ReviewQueue (educator /console approves/edits) -> student
+               no  -> answer returned with citations + confidence
+
+4b. Post-class survey -> multi-dimensional data mart (data mining)
+    admin enables engagement.post_class_survey (flag, memory)
+    web /class "Finish" -> GET /survey/post-class (gated) -> modal
+    submit -> POST /survey/post-class -> SurveyStore
+    admin GET /admin/survey/insights -> OLAP cube (course x class_type x rating)
+          + mined free-text suggestion themes
+
+4c. Ad decisioning (monetization)
+    web /watch -> curriculum GET /courses/{id}/ad-breaks?tier=
+         tier in {pro,premium} -> ad-free (empty plan)
+         else -> pre-roll + capped mid-rolls (VAST/VMAP), skippable
+
+4d. Rewards (points -> prizes)
+    identity set_status(passed) -> PointsLedger += points_for_completion
+    GET /rewards -> balance + ledger; POST /rewards/redeem -> voucher / raffle
+
+4e. Personalization (Foresight)
+    curriculum POST /recommend(student profile) -> Foresight engine
+         (attention, multimodal fuse, router, pattern attention, multi-head)
+         -> ranked recommendations + skill gaps + adapted difficulty
+
+-----------------------------------------------------------------------------
+5. ADMIN / OPS SURFACE
+-----------------------------------------------------------------------------
+  Feature flags (memory): public GET /flags/evaluate, /flags/{key};
+    admin (X-Admin-Secret == ADMIN_SECRET) PUT/override/reset.
+    Catalog ~30 flags across engagement/data/access/monetization/ai/ux/ops.
+  Version visibility: every service GET /version (version, git_sha, build_time,
+    api_version, deploy_mode); GET /__meta (route index for automation).
+    Web /admin "System & Versions" panel aggregates + flags version drift.
+  Automation hooks (gated by ADMIN_SECRET AND ENABLE_TEST_ENDPOINTS):
+    POST /admin/test/reset|seed for deterministic E2E setup.
+  QA: qa/stress.py (all 8 services; health/version/__meta + endpoint scenarios),
+    qa/regression.py (pytest+coverage, web typecheck/lint, stress smoke).
+
+-----------------------------------------------------------------------------
+6. DEPLOYMENT TOPOLOGY (dual/triple mode)
+-----------------------------------------------------------------------------
+  DEPLOY_MODE=local  docker compose; mocks/sandboxes; everything offline-runnable
+  DEPLOY_MODE=cloud  Kubernetes + GPU pool; real LLM/speech/vision; Stripe; S3
+  DEPLOY_MODE=edge   on-device/humanoid image (apps/agent-runtime/edge); offline
+  Each capability (llm/speech/vision/media/object_store/payment/ocr/...) can be
+  overridden independently by <COMPONENT>_MODE without forking code, e.g. keep
+  biometrics local even in cloud for compliance.
+
+-----------------------------------------------------------------------------
+7. RENDERED DIAGRAMS & CHARTS
+-----------------------------------------------------------------------------
+  README "Architecture & design" - mermaid block diagram, teaching-loop flow
+    chart, ask sequence diagram, survey->data-mart flow.
+  docs/diagrams/chart_api_latency.png        mean p95 per service (measured)
+  docs/diagrams/chart_latency_vs_load.png    latency vs concurrency (measured)
+  docs/diagrams/chart_mastery_over_sessions.png  BKT mastery curve (model)
+  docs/diagrams/chart_engagement_timeseries.png  WAU + reward points (illustrative)
+  docs/diagrams/chart_user_funnel.png        user/customer-type funnel (illustrative)
+  docs/demos/persona_*.gif                    per-persona screen recordings
