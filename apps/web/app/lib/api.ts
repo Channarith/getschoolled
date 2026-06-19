@@ -342,6 +342,56 @@ export async function getCompliance(region: string): Promise<Record<string, unkn
   return jsonOrThrow(await fetch(`${MEMORY_URL}/compliance/${region}`, { cache: "no-store" }));
 }
 
+// --- administrative feature flags --------------------------------------- //
+export type FlagSpec = {
+  key: string; type: string; category: string; description: string;
+  admin_only: boolean; options: string[]; default: unknown; enabled: boolean;
+  value: unknown; rollout_pct: number | null; tiers: string[] | null;
+  overrides: Record<string, unknown>; updated_at: number; updated_by: string;
+};
+
+export async function evaluateFlags(
+  subject?: string, tier?: string
+): Promise<Record<string, unknown>> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  const r = await jsonOrThrow<{ flags: Record<string, unknown> }>(
+    await fetch(`${MEMORY_URL}/flags/evaluate?${qs.toString()}`, { cache: "no-store" })
+  );
+  return r.flags;
+}
+
+export async function getFlag(key: string, subject?: string): Promise<unknown> {
+  const qs = subject ? `?subject=${encodeURIComponent(subject)}` : "";
+  const r = await jsonOrThrow<{ value: unknown }>(
+    await fetch(`${MEMORY_URL}/flags/${encodeURIComponent(key)}${qs}`, { cache: "no-store" })
+  );
+  return r.value;
+}
+
+export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
+  const r = await jsonOrThrow<{ flags: FlagSpec[] }>(
+    await fetch(`${MEMORY_URL}/admin/flags`, {
+      cache: "no-store", headers: { "X-Admin-Secret": secret },
+    })
+  );
+  return r.flags;
+}
+
+export async function adminSetFlag(
+  secret: string, key: string,
+  patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }
+): Promise<FlagSpec> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/admin/flags/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "X-Admin-Secret": secret },
+      body: JSON.stringify(patch),
+    })
+  );
+}
+
 export async function recordConsent(args: {
   student_id: string;
   scope: string;

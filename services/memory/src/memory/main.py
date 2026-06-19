@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import os
+
 from aoep_shared.compliance import compliance_summary
+from aoep_shared.flags import FlagStore, require_admin
 from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, notice_versions
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
+from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from .store import MemoryStore
@@ -13,6 +17,18 @@ from .store import MemoryStore
 app = create_service("memory")
 app.state.store = MemoryStore()
 app.state.acceptances = AcceptanceStore()
+app.state.flags = FlagStore()
+
+
+def _admin_secret() -> str:
+    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+
+
+def require_admin_header(x_admin_secret: str = Header(default="")) -> str:
+    """FastAPI dependency: gate administrative writes behind the admin secret."""
+    if not require_admin(x_admin_secret, _admin_secret()):
+        raise HTTPException(status_code=401, detail="invalid or missing admin secret")
+    return "admin"
 
 
 class StudentUpsert(BaseModel):
@@ -120,6 +136,84 @@ def retention_purge(req: PurgeRequest) -> dict:
     scripts/retention_purge.py and infra/k8s/retention-cronjob.yaml.
     """
     return app.state.store.purge_expired(default_retention_days=req.default_retention_days)
+
+
+# --------------------------------------------------------------------------- #
+# Administrative feature flags (secret-gated writes; public/eval reads)
+# --------------------------------------------------------------------------- #
+@app.get("/flags/evaluate")
+def flags_evaluate(subject: str | None = None, tier: str | None = None) -> dict:
+    """Resolve all non-admin flags for a request context (used by the apps)."""
+    return {
+        "subject": subject,
+        "tier": tier,
+        "flags": app.state.flags.evaluate_all(subject=subject, tier=tier),
+    }
+
+
+@app.get("/flags/{key}")
+def flag_get(key: str, subject: str | None = None, tier: str | None = None) -> dict:
+    if app.state.flags.spec(key) is None:
+        raise HTTPException(status_code=404, detail="unknown flag")
+    return {
+        "key": key,
+        "value": app.state.flags.resolve(key, subject=subject, tier=tier),
+        "spec": app.state.flags.describe(key),
+    }
+
+
+@app.get("/admin/flags")
+def admin_list_flags(_: str = Depends(require_admin_header)) -> dict:
+    """Full flag catalog with runtime state (admin-only, includes hidden flags)."""
+    return {"flags": app.state.flags.list_specs(include_admin=True)}
+
+
+class SetFlagRequest(BaseModel):
+    enabled: bool | None = None
+    value: object | None = None
+    rollout_pct: int | None = None
+    tiers: list[str] | None = None
+    clear_value: bool = False
+
+
+@app.put("/admin/flags/{key}")
+def admin_set_flag(key: str, req: SetFlagRequest,
+                   _: str = Depends(require_admin_header)) -> dict:
+    try:
+        app.state.flags.set_flag(
+            key, enabled=req.enabled, value=req.value, rollout_pct=req.rollout_pct,
+            tiers=req.tiers, clear_value=req.clear_value, actor="admin",
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown flag")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return app.state.flags.describe(key)
+
+
+class OverrideRequest(BaseModel):
+    subject: str
+    value: object
+
+
+@app.post("/admin/flags/{key}/override")
+def admin_override_flag(key: str, req: OverrideRequest,
+                        _: str = Depends(require_admin_header)) -> dict:
+    try:
+        app.state.flags.set_override(key, req.subject, req.value, actor="admin")
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown flag")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return app.state.flags.describe(key)
+
+
+@app.post("/admin/flags/{key}/reset")
+def admin_reset_flag(key: str, _: str = Depends(require_admin_header)) -> dict:
+    if app.state.flags.spec(key) is None:
+        raise HTTPException(status_code=404, detail="unknown flag")
+    app.state.flags.reset(key)
+    return app.state.flags.describe(key)
 
 
 @app.post("/mastery")

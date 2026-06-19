@@ -25,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/rewards">Rewards</Link>
           <Link href="/account">Account</Link>
           <Link href="/console">Console</Link>
+          <Link href="/admin">Admin</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/consent">Consent</Link>
           <Link href="/transparency">Transparency</Link>
