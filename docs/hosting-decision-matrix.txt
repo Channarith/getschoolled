@@ -1,0 +1,68 @@
+SALAREEN HOSTING - QUICK DECISION MATRIX
+========================================
+The 60-second version of docs/hosting.txt. If you only have a minute,
+read this; otherwise read the full doc.
+
+WHAT WE PICKED
+--------------
+                  Service                        Why
+  Compute / k8s   AWS EKS (us-east-1, 3 AZs)     Mature, GPU available, fits
+                                                 our k8s manifests as-is.
+  Database        AWS Aurora PostgreSQL          Multi-AZ, <30s failover,
+                                                 pgvector for RAG.
+  Cache           AWS ElastiCache Redis          Multi-AZ, sharded, talks to
+                                                 aoep_shared.ratelimit + cache.
+  Object storage  AWS S3 (or Cloudflare R2)      R2 wins on egress cost; S3
+                                                 wins on AWS-internal latency.
+  GPU             AWS g5/g6 node pool            On-demand + Spot mix.
+  CDN / WAF /
+  DDoS / DNS      Cloudflare (in front of AWS)   Free egress, best DDoS,
+                                                 cheapest registrar.
+  Domain          salareen.com via Cloudflare    At-cost, free WHOIS privacy,
+                  Registrar                      mandatory 2FA.
+
+REGION CHOICE
+-------------
+  Phase 1: us-east-1
+  Phase 2: + us-west-2 (active-active) when you cross ~1M DAU.
+  Phase 3: + eu-west-1 / ap-southeast-1 once geographic latency is the
+           dominant SLA constraint.
+
+DOMAINS TO REGISTER
+-------------------
+  salareen.com    primary; ~$10/yr.
+  salareen.app    mobile deep links; ~$13/yr.
+  salareen.ai     premium TLD; ~$80-120/yr (consider).
+  salareen.co     typo defence; ~$30/yr.
+  Plus matching social handles (Twitter/X, Instagram, TikTok, Bluesky).
+
+ROUGH MONTHLY COST AT 5M DAU
+----------------------------
+  AWS         ~$6,000  (EKS + Aurora + Redis + S3 + GPUs + observability)
+  Cloudflare  ~$160    (Pro + Workers + R2 + domains)
+  TOTAL       ~$6,200/mo  (~$0.0012 per DAU per month)
+
+  Compute Savings Plans + Aurora reservations cut another 30-40% once
+  steady-state.
+
+WHAT YOU CAN START TODAY
+------------------------
+  1. Verify salareen.com is available -> register at Cloudflare.
+  2. Create AWS Organisation (prod + staging + shared accounts).
+  3. cd infra/terraform/aws && terraform plan
+     cd infra/terraform/cloudflare && terraform plan
+     (See infra/terraform/RUNBOOK.txt for the full bootstrap.)
+  4. Deploy infra/k8s with kustomize.
+  5. Smoke-test with qa/loadtest.py.
+
+DO-NOT-DO LIST
+--------------
+  - Don't pick GCP / Azure unless your team is already in them.
+  - Don't put the marketing site on Vercel "for speed" - egress + ops
+    cost beats you up at our request volume.
+  - Don't go bare-metal (Hetzner / OVH / Equinix) on day 1; migrate
+    later if cost optimisation becomes the unique advantage.
+  - Don't buy reservations on day 1 - wait for 2-3 weeks of stable
+    traffic so you know the floor.
+  - Don't collapse to a single NAT gateway - one per AZ, always.
+  - Don't put R2 / S3 keys in container images; use IRSA.

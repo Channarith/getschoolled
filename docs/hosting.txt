@@ -1,0 +1,380 @@
+SALAREEN - HOSTING & DOMAIN PLAN (production, millions of users)
+================================================================
+Plain-text on purpose (repo no-markdown rule).
+
+This is the recommendation, the rationale, and the cost math. Pair with
+docs/scalability.txt (capacity model + redundancy) and the Terraform
+skeleton in infra/terraform/.
+
+-----------------------------------------------------------------------------
+0. TL;DR (the recommendation)
+-----------------------------------------------------------------------------
+Compute + data plane:
+    AWS  - EKS (k8s) + RDS Aurora PostgreSQL + ElastiCache Redis +
+           S3 + GPU node pool (g5/g6 for inference). Region 1: us-east-1
+           (or eu-west-1 for EU users). Region 2 (DR/active-active when
+           you cross ~1M DAU): us-west-2.
+
+Edge + DNS + CDN + WAF + DDoS:
+    Cloudflare  - Registrar + DNS + CDN + WAF + Bot Management +
+                  Workers (light edge logic) + R2 (zero-egress media
+                  storage). Sits in front of AWS.
+
+Domain:
+    salareen.com - register at Cloudflare Registrar (at-cost, free
+                   WHOIS privacy, mandatory 2FA). Verify availability
+                   first via lookup.icann.org or Cloudflare Domains.
+                   Also reserve: salareen.app, salareen.ai, salareen.co,
+                   getsalareen.com, and the matching social handles
+                   (defensive registration is cheap insurance).
+
+Why this combo (one paragraph):
+    AWS gives the broadest, most-mature managed-service surface for a
+    multi-AZ, GPU-heavy stack and is what every k8s-savvy hire already
+    knows. Cloudflare in front gives free egress (~85-95% of our
+    catalog reads hit the CDN edge thanks to the Cache-Control + ETag
+    middleware shipped in aoep_shared.http_cache), best-in-class
+    L3/L4/L7 DDoS, a global WAF, and a built-in registrar with the
+    cheapest sane domain pricing. Cloudflare R2 stores media at zero
+    egress so audio bundles, deck assets, and screencasts never bill
+    you per byte served. Together: one cloud for stateful + GPU; one
+    edge for everything cacheable. Multi-region active-active is a
+    Phase-2 cutover, not a day-1 cost.
+
+-----------------------------------------------------------------------------
+1. WHY NOT THE OTHER OPTIONS?
+-----------------------------------------------------------------------------
+GCP (Google Cloud)
+    Pros: better networking/per-second billing, AlloyDB is excellent,
+          Vertex AI is convenient if you want managed Gemini, T4 / L4
+          GPU availability is good, BigQuery if you need analytics.
+    Cons: smaller marketplace, fewer regions than AWS, smaller talent
+          pool. Egress is comparable (not cheaper).
+    Verdict: defensible second choice. Pick GCP if your team is
+             already in BigQuery/Vertex.
+
+Azure
+    Pros: Azure OpenAI for managed GPT, strong if you sell into MS
+          enterprise, AKS works fine.
+    Cons: noticeably worse k8s ergonomics, smaller open-source
+          community, weaker networking story, mediocre object storage
+          performance vs S3.
+    Verdict: only if a customer mandates it.
+
+Cloudflare-only
+    Pros: insanely cheap egress, beautiful global edge, R2 + Workers +
+          KV + D1 + Durable Objects.
+    Cons: no managed Postgres at our scale, no GPU, no first-class k8s.
+          The vLLM / XTTS / face-recognition path needs GPU compute
+          you can't run on Workers. D1 is fine for hobby but not
+          5M-DAU Postgres.
+    Verdict: NOT a full replacement; use as the edge in front of AWS.
+
+DigitalOcean / Linode / Vultr
+    Pros: cheaper VMs, simpler UI.
+    Cons: smaller managed-service catalog, weaker GPU availability,
+          fewer regions, no equivalent of Aurora/ElastiCache HA.
+    Verdict: fine for staging or seed-stage; under-equipped for
+             millions of users.
+
+Fly.io / Render / Railway
+    Pros: great DX, fast time-to-first-deploy.
+    Cons: opinionated platforms - won't host vLLM / face-recognition
+          economically, limited control over network/security
+          posture, scale ceiling.
+    Verdict: great for a marketing site, not the AI campus.
+
+Vercel / Netlify (for the Next.js app)
+    Pros: best-in-class for Next.js. Zero-ops deploys.
+    Cons: function pricing gets eye-watering at our request volume,
+          and we're already running k8s for the backend so adding
+          another deploy target is extra ops.
+    Verdict: keep apps/web in the same EKS cluster behind Cloudflare;
+             revisit Vercel if marketing wants edge ISR for landing
+             pages.
+
+Bare-metal (Hetzner / OVH / Equinix Metal)
+    Pros: 3-5x cheaper compute for the same CPU/RAM.
+    Cons: you build the control plane, the storage, the networking,
+          the failover, the capacity planning. That is months of work
+          and ongoing toil.
+    Verdict: only if cost optimization is the unique advantage at
+             enormous scale (think: post-IPO, dedicated infra team).
+
+-----------------------------------------------------------------------------
+2. CONCRETE AWS LAYOUT (Phase 1, single region, multi-AZ)
+-----------------------------------------------------------------------------
+Region:  us-east-1     (3 AZs minimum, e.g. use1-az1 / az2 / az6)
+
+Networking:
+    VPC                10.0.0.0/16
+    public subnets     /24 in each of 3 AZs (NAT GW, ALB)
+    private subnets    /22 in each of 3 AZs (EKS nodes, RDS, ElastiCache)
+    NAT gateways       3 (one per AZ - never 1, do not collapse for
+                       cost; AZ failure must not kill egress)
+    VPC endpoints      S3 (gateway), ECR, EKS, KMS, Secrets Manager,
+                       CloudWatch Logs, STS (interface) - keeps cluster
+                       traffic off the public Internet and cuts
+                       NAT egress costs.
+
+Cluster:
+    EKS                k8s control plane (managed, multi-AZ).
+    Node groups
+      - api-pool       managed group, 6-200 m6i.large nodes
+                       (CPU services). Cluster autoscaler enabled.
+      - gpu-pool       managed group, 1-20 g5.xlarge / g5.2xlarge
+                       (vLLM, XTTS, face-recognition). On-demand +
+                       Spot mix for non-critical inference.
+    Karpenter          consider replacing the managed-node-group
+                       autoscaler with Karpenter once node-shape
+                       diversity matters (saves 20-30%).
+    Add-ons            VPC CNI, kube-proxy, CoreDNS, EBS CSI, ALB
+                       Ingress Controller, External DNS, Cert-Manager,
+                       Cluster Autoscaler / Karpenter, Metrics Server,
+                       AWS Load Balancer Controller.
+
+Stateful services:
+    RDS Aurora PostgreSQL  primary + 2 read replicas across AZs.
+                            Aurora handles failover in <30s. Start
+                            with db.r6g.xlarge; Aurora I/O-Optimized
+                            after you cross ~50k tx/s.
+    ElastiCache Redis      cluster.r6g.large with Multi-AZ +
+                            automatic failover. 2 shards initially,
+                            grow with sharded HPA.
+    S3                     three buckets: aoep-media (CDN-fronted),
+                            aoep-uploads (private + presigned PUT),
+                            aoep-backups (versioned, glacier
+                            transition).
+    OpenSearch Serverless  optional; only if logs/metrics outgrow
+                            CloudWatch.
+
+GPU + AI providers:
+    g5.xlarge / g5.2xlarge for vLLM (Llama-3.1-8B-instruct or your
+    fine-tune). Two-replica minimum, batched serving, autoscaled on
+    inflight-requests via a custom CloudWatch metric.
+
+    Alternative: Bedrock + AWS-managed inference if you want to skip
+    operating GPUs in Phase 1. Swap via the existing
+    aoep_shared.factory provider abstraction; no code changes.
+
+Storage tiers (CDN front):
+    Cloudflare CDN (free egress) -> origin = ALB -> EKS pods.
+    Static media: Cloudflare R2 + Workers Range support.
+    Mutable user uploads: S3 + presigned URLs + CloudFront ONLY if
+        you can't put R2 in front for your media path (region
+        constraints). Default to R2.
+
+Observability:
+    Prometheus (kube-prometheus-stack) -> AWS Managed Prometheus.
+    Grafana (managed) for dashboards.
+    Loki (or AWS Managed Service for Grafana logs) for app logs.
+    Sentry (managed) for crash reporting (already wired in
+    aoep_shared.telemetry).
+    OTLP exporter -> AWS X-Ray or Tempo for tracing.
+
+Security:
+    IAM Identity Center (formerly SSO) for human access.
+    IAM Roles for Service Accounts (IRSA) for pod-level AWS perms.
+    Secrets Manager for the secrets the k8s manifests reference
+        (DATABASE_URL, LIVEKIT_API_SECRET, etc.).
+    KMS for envelope encryption everywhere (RDS, EBS, S3, Secrets).
+    GuardDuty + Inspector for threat detection.
+    Cloudflare WAF + Bot Management at the edge.
+    AWS Shield Standard included free; Shield Advanced if you cross
+    a threat-model threshold.
+
+CI / CD:
+    GitHub Actions (already in this repo's .github/workflows/) build
+    images to ECR, kustomize the manifests, kubectl apply via OIDC
+    federation (no static AWS keys). Argo CD optional once the
+    deployment graph grows.
+
+-----------------------------------------------------------------------------
+3. CLOUDFLARE LAYOUT
+-----------------------------------------------------------------------------
+Zone:       salareen.com
+DNS:        Cloudflare-managed; A/AAAA records proxied (orange-cloud).
+            api.salareen.com  -> CNAME to AWS ALB (proxied)
+            app.salareen.com  -> CNAME to AWS ALB (proxied)
+            www / @           -> Pages (marketing) or proxied to AWS
+
+CDN tier:
+    Pro plan ($20/mo) is fine to start; upgrade to Business ($200/mo)
+    when you need image resizing, custom WAF rules, or higher-priority
+    support. Don't go Enterprise unless a customer demands it.
+    Caches on response Cache-Control headers - we already emit the
+    right ones (max-age=60 + s-maxage=300 + stale-while-revalidate)
+    from aoep_shared.http_cache, so this works out of the box.
+
+WAF + Bot Management:
+    Managed Ruleset (OWASP) ON.
+    Bot Fight Mode ON; Super Bot Fight Mode at Pro+ if scrapers
+    become a problem.
+    Custom rules:
+      - block requests where User-Agent matches obvious scraper
+        signatures
+      - rate-limit /auth/login per IP (defence in depth alongside
+        the aoep_shared.ratelimit per-identity bucket)
+      - geo-block sanctioned countries until we serve them properly.
+
+Workers (light edge logic):
+    AB-test cookie injection / rollout flag toggle.
+    Image transformations on the fly (vs maintaining a service).
+    Geo-aware redirects for kid-mode / region-locked content.
+    Edge-cached signed-URL minting for media.
+
+R2 (object storage at the edge):
+    aoep-media       audio bundles, deck assets, screencasts.
+    aoep-public      public-read with custom domain (cdn.salareen.com).
+    Migration path:  use S3 in Phase 1 if simpler; flip to R2 with
+    a one-line content-source change once you want zero egress.
+
+Cloudflare Pages:
+    Optional: deploy apps/web (or just the marketing site) on Pages
+    for free SSL + global edge. Today we colocate it with the API
+    in EKS for one fewer deploy target.
+
+-----------------------------------------------------------------------------
+4. DOMAINS - registration + protection
+-----------------------------------------------------------------------------
+Primary
+    salareen.com           the canonical domain. Register via
+                            Cloudflare Registrar after RDAP confirms
+                            availability. ~$10/yr at-cost.
+
+Defensive (cheap, register them all)
+    salareen.app           good for the mobile deep-link scheme
+                            (Apple/Android). $13/yr.
+    salareen.ai            premium TLD, ~$80-120/yr but valuable.
+    salareen.co            common typo target. ~$30/yr.
+    salareen.org           non-profit/community angle.
+    getsalareen.com        affiliate/marketing campaigns.
+    salareen.school        education TLD if you want it.
+
+Email
+    Cloudflare Email Routing free tier: forwards
+    hello@salareen.com -> your Gmail/Workspace inbox; lets you NOT
+    pay Workspace until you really need real mailboxes.
+    For sending: Postmark (transactional) + SES (bulk) once volume
+    matters.
+
+Trademark / brand-clear
+    "Salareen" comes from Khmer "salaa rian" (school). Run a USPTO
+    TESS clearance (and WIPO Madrid for international) before
+    investing heavily in marketing. The mark is uncommon-coined and
+    should be more registrable than a descriptive phrase like "AI
+    Classroom".
+
+DNS hygiene
+    SPF, DKIM, DMARC for any sending domain. Set DMARC p=quarantine
+    after a 2-week monitoring window in p=none.
+    CAA records limiting which CAs can issue (Let's Encrypt + ISRG
+    Root, plus AWS Certificate Manager if you mint inside AWS).
+    DNSSEC on at the registrar.
+
+-----------------------------------------------------------------------------
+5. COSTS (rough, USD/month, Phase 1 single-region at ~5M DAU peak)
+-----------------------------------------------------------------------------
+After Cloudflare absorbs ~85% of catalog reads, the AWS bill is sized
+for the residual traffic + the always-on stateful tier.
+
+  EKS control plane                        $73
+  Compute (api-pool, ~30 m6i.large avg)    $1,500   (mixed Spot)
+  GPU pool (~4 g5.2xlarge avg)             $1,800   (on-demand)
+  RDS Aurora primary + 2 reads             $1,400   (db.r6g.xlarge)
+  ElastiCache Redis (2 shards, multi-AZ)   $400
+  S3 + EBS                                 $200
+  Data transfer (NAT + small AWS egress)   $400     (CF eats most)
+  Managed Prometheus + Grafana             $150
+  Secrets Manager + KMS + GuardDuty        $150
+  Route 53 hosted zone (only if we keep    $1
+       any record at AWS; CF DNS is free)
+                                          ------
+  AWS subtotal                             ~$6,000
+
+  Cloudflare Pro plan                       $20
+  Cloudflare Workers (paid plan + req)      $50
+  R2 storage (~5 TB, no egress)             $75
+  Domains (.com + 2 defensive)              ~$12
+                                          ------
+  Cloudflare subtotal                      ~$160
+
+  Total                                   ~$6,200 / mo
+  Per DAU (5M)                            ~$0.0012/DAU/mo
+
+That's the honest order-of-magnitude. Real numbers depend on Spot
+mix, GPU utilisation, traffic patterns, and reservation purchases
+(Compute Savings Plans + RIs trim 30-40% off the AWS subtotal).
+At lower DAU the bill scales down with the autoscalers.
+
+Phase 2 (multi-region active-active) approximately doubles compute +
+adds cross-region replication (~$300-500/mo for Aurora Global
+Database). Move there when SLA/latency demands it, not before.
+
+-----------------------------------------------------------------------------
+6. WHAT TO DO RIGHT NOW (in order)
+-----------------------------------------------------------------------------
+1. Register salareen.com via Cloudflare Registrar (verify with RDAP).
+   Add it to a new Cloudflare account (use a shared team email +
+   password manager + mandatory 2FA).
+
+2. Create AWS Organisation; one production account, one staging
+   account, one shared-services account (logs/audit). Enable
+   IAM Identity Center.
+
+3. Bootstrap the EKS cluster with the Terraform skeleton in
+   infra/terraform/aws/. See infra/terraform/RUNBOOK.txt for the
+   step-by-step.
+
+4. Apply infra/k8s with kustomize against the new cluster. Confirm
+   HPAs settle on minReplicas, PDBs are healthy, /metrics scrapes
+   work.
+
+5. Front the cluster with Cloudflare:
+   - Add api.salareen.com, app.salareen.com proxied CNAMEs to the
+     ALB. Enable "Full (strict)" SSL. Issue ACM cert on AWS for the
+     ALB; CF gets a Universal Edge cert.
+   - Turn on the Cloudflare WAF managed ruleset.
+   - Configure the page rules / cache rules to honour our origin
+     Cache-Control headers (default behaviour).
+
+6. Smoke-test with qa/loadtest.py against api.salareen.com. Confirm
+   ETag 304s, X-RateLimit-Remaining headers, p95 within budget.
+
+7. Run a 10-minute load test at 2x your projected peak (we already
+   have the harness). Confirm HPAs scale up, no 5xx, and Cloudflare
+   absorbs the catalog reads.
+
+8. DR drill: kill one AZ in staging via a chaos experiment; confirm
+   no user-visible 5xx and HPAs replace the lost capacity within 60s.
+
+9. Set up the GitHub Actions OIDC federation + ECR push + EKS
+   apply. Production deploys = merge to main + 1-button promote.
+
+10. Buy reservations / Compute Savings Plan ONLY after 2-3 weeks
+    of stable traffic: you need to know the steady-state floor
+    before locking in a 1-year commitment. Until then, on-demand +
+    Spot.
+
+-----------------------------------------------------------------------------
+7. BAILOUT OPTIONS (if AWS gets weird)
+-----------------------------------------------------------------------------
+Because of the strict provider-abstraction (DEPLOY_MODE +
+aoep_shared.factory) and the boring k8s manifests, we are NOT locked
+into AWS:
+
+  - Move compute to GCP: GKE replaces EKS, AlloyDB replaces Aurora,
+    Memorystore replaces ElastiCache, GCS replaces S3. The k8s YAML
+    is the same. The migration is one weekend per region.
+
+  - Move compute to Hetzner k3s: keep Cloudflare in front, point
+    proxied DNS at the new origin. Ops cost goes up; cloud bill
+    drops 60-70%. Sensible at large scale once we have a dedicated
+    infra team.
+
+  - Move edge from Cloudflare to AWS CloudFront + AWS WAF: 5-10x
+    egress cost but tighter integration with AWS-native services.
+    Don't do this unless egress isn't a concern.
+
+The hosting decision is reversible. Pick the obvious one (AWS +
+Cloudflare), ship, then revisit when you have data.

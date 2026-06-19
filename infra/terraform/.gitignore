@@ -1,0 +1,19 @@
+# Local state, plans, lock files - never commit.
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Real values for variables. The *.example files are the templates.
+terraform.tfvars
+*.auto.tfvars
+
+# Local override files (used in some Terraform setups).
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
