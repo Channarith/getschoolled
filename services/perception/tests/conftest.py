@@ -48,3 +48,8 @@ def engine(models):
 
     detector, recognizer = models
     return FaceRecognitionEngine(detector, recognizer)
+
+# Disable rate limiting + share-clock cache for tests; the platform-wide
+# limiter is unit-tested in packages/shared and would otherwise flake
+# busy service test suites that issue hundreds of requests per session.
+os.environ.setdefault("RATE_LIMIT_DISABLED", "1")

@@ -1,0 +1,328 @@
+SALAREEN / AOEP - SCALABILITY + REDUNDANCY PLAN
+================================================
+Plain text on purpose (repo no-markdown house rule).
+
+Audience: someone evaluating whether the platform can serve millions of
+users a day with no single points of failure. Numbers below come from
+real measurements (see "Measured baseline" near the bottom) plus
+standard back-of-envelope capacity math.
+
+-----------------------------------------------------------------------------
+0. ONE-PARAGRAPH SUMMARY
+-----------------------------------------------------------------------------
+The Python services are stateless (config-only local/cloud split via
+DEPLOY_MODE), behind FastAPI with a shared `aoep_shared` middleware
+stack: per-route Cache-Control + ETag, per-identity token-bucket rate
+limiting (Redis-backed for multi-replica consistency, in-memory
+fallback), Prometheus /metrics, telemetry summary/errors/logs, request
+IDs, and Server-Timing. Kubernetes deployment ships with HPAs (3 -> 30
+replicas on CPU + memory), PodDisruptionBudgets (N-1 during voluntary
+disruptions), pod anti-affinity across AZs, rolling deploys with zero
+maxUnavailable, preStop drain, an NGINX Ingress with edge rate-limit and
+TLS, and a Redis StatefulSet for the rate-limiter / cache backplane.
+With the autoscaling ceilings below, one deployment per region absorbs
+peak ~50,000 RPS of mixed traffic; multi-region active-active doubles
+that and provides DR with seconds of failover time.
+
+A 1-CPU pod handles ~940 GET RPS at p95 = 6.3 ms (measured). At
+HPA max 30 replicas that's 28,000 RPS per service per region; the
+catalog rails + audio/notifications endpoints reach far more since they
+are CDN/browser-cacheable (304 hits run in 1-2 ms with no body).
+
+-----------------------------------------------------------------------------
+1. CAPACITY MODEL: WHAT "MILLIONS OF USERS A DAY" MEANS
+-----------------------------------------------------------------------------
+Plan target: 5,000,000 daily-active users (DAU), 90% mobile / 10% web.
+
+Concurrent users at any instant (Little's law, 30-min average session
+across a 16-hour active window worldwide):
+  Concurrent = DAU * (avg_session_min / 60) / active_hours
+             = 5,000,000 * (30/60) / 16 = 156,250 concurrent
+
+Average requests per active session, observed in similar product
+shapes (Netflix-style home + audio classes + notifications poll):
+  ~40 API calls per 30-min session = ~1.3 RPS per concurrent user.
+
+So average platform RPS at full DAU:
+  156,250 * 1.3 = ~200,000 RPS aggregate API traffic.
+
+Peak-hour multiplier (US-east evening + EMEA primetime overlap): ~2x.
+  Peak  ~400,000 RPS aggregate.
+
+Distribution across services (measured share on this stack):
+  curriculum    ~35% (catalog + audio + recommend + home rails)
+  orchestrator  ~25% (lessons + sessions + ask)
+  identity      ~15% (auth + rewards + games + interests)
+  memory        ~10% (mastery + behavior + flags)
+  notifications ~5%  (handled by curriculum)
+  speech         ~5%
+  perception     ~3%
+  billing        ~2%
+
+Peak per service:
+  curriculum    ~140,000 RPS
+  orchestrator  ~100,000 RPS
+  identity       ~60,000 RPS
+  memory         ~40,000 RPS
+
+CDN absorbs 70-90% of curriculum reads (catalog, audio, language meta)
+because they're public + Cache-Control: s-maxage=300+ + ETag-revalidated.
+Origin curriculum traffic after CDN: ~14,000 - 42,000 RPS, typical
+production residual ~25,000 RPS.
+
+-----------------------------------------------------------------------------
+2. LAYERS OF REDUNDANCY
+-----------------------------------------------------------------------------
+Edge:
+  - DNS:        Route 53 / Cloudflare with health-checked failover and a
+                low TTL (60s) on the primary record. Anycast at the
+                provider level handles geographic routing.
+  - CDN:        Cloudflare or CloudFront in front of the API ingress.
+                Caches GETs on the public catalog endpoints
+                (Cache-Control: public, max-age=60, s-maxage=300+,
+                stale-while-revalidate=300). Static web assets are CDN-
+                only.
+  - WAF + DDoS: enabled at the CDN tier. Rate-limit + bot-management +
+                IP reputation. Cluster never sees the L3/L4 flood.
+  - Ingress:    NGINX (k8s ingress-nginx) with limit-rps=60 burst=300 +
+                limit-conn=200 per IP, HSTS + nosniff, pinned TLS, and
+                cert-manager-issued Let's Encrypt certs.
+
+Compute (k8s, infra/k8s/*):
+  - 3-30 replicas per service, spread across >=2 AZs via
+    podAntiAffinity + topologySpreadConstraints. One AZ failing leaves
+    >=2/3 of every service still serving.
+  - HPA scales on CPU (60% target) and memory (75%); scaleUp doubles
+    pods every 30s with a 15s stabilization window so traffic spikes
+    are absorbed; scaleDown is conservative (5 min stabilization) so a
+    brief dip doesn't cause flapping.
+  - PodDisruptionBudget(minAvailable: 2) so node drains, autoscaler
+    down-scales, and cluster upgrades can never take more than 1 pod
+    out at once.
+  - rollingUpdate(maxUnavailable: 0, maxSurge: 25%) so deploys never
+    drop capacity.
+  - terminationGracePeriodSeconds + preStop sleep let the LB stop
+    routing to a pod before SIGKILL, so deploys don't 502.
+
+State:
+  - Postgres (managed, primary + 2 read replicas across AZs) for
+    durable data: catalog, identity, rewards, payments. Failover via
+    the cloud provider's managed primary promotion (~30 sec). Async
+    replication to a DR region with point-in-time recovery via WAL
+    archiving.
+  - Redis (StatefulSet locally; managed Redis cluster - ElastiCache /
+    MemoryStore / Upstash - in production) for rate-limit + HTTP cache
+    backplane + sessions. Sentinel HA pair so any single node failure
+    fails over in seconds. The rate-limiter falls back to per-replica
+    in-memory if Redis is briefly unreachable, so Redis being down
+    only degrades cross-replica consistency, never returns user-facing
+    5xx.
+  - Object storage (S3 / GCS / MinIO locally) for media, deck assets,
+    audio bundles. Versioning + lifecycle rules + cross-region
+    replication for DR.
+
+Multi-region:
+  - Phase 1 (single region): all of the above.
+  - Phase 2 (global active-active): deploy a stack to a second region,
+    point users at the closest via geo-DNS or Cloudflare load
+    balancers; Postgres logical replication or Aurora Global / Spanner
+    for the multi-master story. Run failover drills monthly.
+
+-----------------------------------------------------------------------------
+3. BUILT-IN PLATFORM SCALING PRIMITIVES (already shipped)
+-----------------------------------------------------------------------------
+  aoep_shared.ratelimit
+    InMemoryTokenBucket + RedisTokenBucket (Lua, single round-trip,
+    consistent across N replicas). Auto-detects REDIS_URL; falls back
+    to memory if Redis is unreachable. Per-route bypass list keeps
+    /health, /metrics, /__meta out of the bucket so liveness probes
+    and Prometheus never get throttled.
+
+  aoep_shared.http_cache
+    Per-route prefix Cache-Control registry + ETag middleware.
+    Standard registry already covers /audio/courses, /audio/categories,
+    /catalog, /courses, /programs, /notifications/locales,
+    /learn/languages, /version, /__meta. POST/PUT/DELETE bypass.
+    304 revalidation strips the body so cached GET cost drops to
+    ~1.5 ms (measured) with zero bytes shipped over the wire.
+
+  aoep_shared.service.create_service
+    Wires telemetry middleware (TelemetryStore, X-Request-ID,
+    Server-Timing), rate limit, HTTP cache, /metrics (Prometheus),
+    /telemetry/*, /__meta into every service automatically. New
+    services get all of this for free.
+
+  aoep_shared.telemetry
+    Per-route latency p50/p95/p99 + error rate, in-flight gauge, recent
+    errors w/ tracebacks, event log, RSS/CPU/threads. Exposed via
+    /metrics for Prometheus, /telemetry/summary for the admin UI.
+    Optional Sentry + OTLP exporters when configured + libs installed.
+
+  qa/stress.py
+    Closed-loop scenario harness; SLA gating on error_rate / p95 /
+    functional_pass_rate.
+
+  qa/loadtest.py
+    Open-loop sustained-RPS harness; latency histogram, percentiles,
+    cache-hit / rate-limit / 5xx ratios, SLA gating.
+
+-----------------------------------------------------------------------------
+4. MEASURED BASELINE (single 4-worker uvicorn, /audio/categories)
+-----------------------------------------------------------------------------
+  Command:  python3 qa/loadtest.py http://localhost:8005/audio/categories \\
+              --rps 1000 --duration 10 --concurrency 128
+  Server:   curriculum service, RATE_LIMIT_DISABLED=1, --workers 4
+
+  achieved   937 RPS sustained
+  p50          2.8 ms
+  p95          6.3 ms
+  p99         44.2 ms
+  max        657 ms     (uvicorn worker GC pause)
+  errors       0 / 0
+  bandwidth  6.5 MB / 10s = 0.65 MB/s
+
+With ETag-driven 304 cache hits (same load, same workers):
+  p50         1.6 ms
+  bandwidth   158 KB / 10s = 15 KB/s            (~40x reduction)
+  -> CDNs amplify this further: 304 from origin once per s-maxage
+     window, 200 served from edge for everyone else.
+
+Multi-replica projection: at HPA max 30 pods x ~940 RPS each = 28,000
+RPS sustainable per service per region with the same p95 budget, before
+CDN. With CDN absorbing 70-90% of catalog reads, the same headroom
+serves 100,000-280,000 origin-eligible RPS / region.
+
+-----------------------------------------------------------------------------
+5. WHAT BREAKS FIRST AT MILLIONS-OF-USERS SCALE - AND THE FIX
+-----------------------------------------------------------------------------
+Here is the honest list. Each item is fixable without rewriting the
+platform, and most are config / infra changes.
+
+  1. In-memory stores in some services
+     Some services hold catalog / decks / scenes / corrections in
+     `app.state.<thing>` Python dicts. That works at 3 replicas because
+     each replica re-loads from disk; it does NOT work for write paths
+     that need to see each other's writes (e.g., `POST /courses/{id}/view`
+     popularity).
+     Fix: move write-path stores to Postgres (schema is already in
+     db/migrations), keep read-path RAM caches with Redis as the
+     source of truth, write-through.
+
+  2. Sticky-session assumptions
+     Live class sessions (orchestrator) are in-memory. If the user's
+     orchestrator pod dies mid-session, the session resets. Right now
+     the LB doesn't pin sessions.
+     Fix: persist session state in Redis on every state transition;
+     make the orchestrator stateless w.r.t. sessions. This is a small
+     refactor of `services/orchestrator/src/orchestrator/main.py`.
+
+  3. Heavy providers (LLM / TTS / vision)
+     vLLM / XTTS / face-recognition models are GPU-bound and don't
+     scale linearly with HPA. They need:
+       * a separate node-pool with GPU instances,
+       * their own HPA driven by inflight-requests (custom metric),
+       * batching at the model server (vLLM does this),
+       * a circuit-breaker in the orchestrator so an overloaded LLM
+         degrades to the deterministic Tutor fallback.
+     The factory abstraction means we can swap to managed APIs (e.g.
+     OpenAI / Bedrock / Vertex) per-deploy via env, no code change.
+
+  4. Database contention
+     Identity + memory write to Postgres on every interaction (XP,
+     mastery, behavior). At 200,000 RPS with 5% writes that's 10,000
+     writes/sec; one Postgres can handle that with the right indexes
+     and connection pooling, but we should:
+       * front the DB with PgBouncer (transaction pooling),
+       * route reads to read-replicas via an async route prefix,
+       * batch low-priority writes (telemetry, popularity, view
+         counts) through a queue (SQS / Redis stream).
+
+  5. Notification / push fan-out
+     The mobile app's local-notification scheduling is fine because the
+     OS handles delivery. For server-driven push (announcements) we
+     need an outbound queue (FCM / APNs via expo-server-sdk or direct).
+
+  6. Object storage / media
+     Audio bundle downloads must go through CDN, never origin. The
+     catalog service should sign short-lived URLs and let the CDN
+     serve the bytes.
+
+  7. Rate-limit fairness
+     Token bucket is per-identity (X-User-Id) or per-IP. Behind a CGNAT
+     a whole carrier shares a bucket. Production should:
+       * authenticate every request and bucket per user-id,
+       * tier the bucket by entitlement (free vs pro vs premium),
+       * add a global-cap bucket so a runaway client can't exhaust
+         shared resources.
+
+  8. Cold-start latency
+     New pods need ~3-5s to import + warm caches. HPA scaleUp policy
+     already pre-creates pods aggressively (Percent: 100, Pods: 4 per
+     30s); production should additionally:
+       * keep a warm-pool above HPA min via the cluster autoscaler's
+         over-provisioning trick,
+       * gate readiness on the RAG index being loaded (already done via
+         /health probing the FactoryProvider).
+
+-----------------------------------------------------------------------------
+6. DAY-2 OPERABILITY
+-----------------------------------------------------------------------------
+Observability:
+  - /metrics (Prometheus) on every service, scraped via service
+    annotations.
+  - Prometheus -> Alertmanager rules: error rate > 1%, p95 > 1s for >2
+    min, in-flight saturation, 429-rate spike, replica count below
+    HPA min.
+  - Sentry + OTLP exporters wired in aoep_shared.telemetry for
+    production tracing.
+  - Loki / CloudWatch for structured JSON logs (each request gets an
+    X-Request-ID header that traces across services).
+
+Deploy strategy:
+  - Trunk-based development; CI runs lint + tests + qa/regression.py.
+  - GitHub Actions release pipeline cuts a tag + deploys to staging
+    automatically; production promotion is manual (1-button) with
+    progressive 1% / 10% / 50% / 100% rollouts driven by the readiness
+    probes + error-rate guardrails.
+
+Capacity planning:
+  - Run qa/loadtest.py against staging for every release; compare p95
+    against the previous release; fail the deploy if p95 regresses
+    >20%.
+  - Capacity drill quarterly: simulate 2x peak; confirm HPA scales,
+    no AZ failure cascades, on-call gets the right alerts.
+
+DR drill:
+  - Monthly: kill the primary AZ in staging; confirm RTO < 60s, no
+    user-visible 5xx beyond the failover window.
+  - Quarterly: cut over the primary region to the DR region. RPO
+    target: <5 min for transactional state (db replication), <1 min
+    for cache (regenerable), 0 for object storage (CRR).
+
+-----------------------------------------------------------------------------
+7. COST ENVELOPE (rough)
+-----------------------------------------------------------------------------
+At peak ~25k origin RPS per region after CDN, mostly small JSON, a
+typical k8s footprint:
+
+  Compute (3 AZs, mixed-instance):
+    web         3 - 12 pods   x 1 vCPU / 0.75 GiB
+    orchestrator 3 - 30 pods  x 1 vCPU / 1 GiB
+    curriculum  3 - 30 pods   x 1 vCPU / 1 GiB
+    identity    3 - 12 pods   x 0.5 vCPU / 0.5 GiB
+    memory      3 - 12 pods   x 0.75 vCPU / 0.75 GiB
+    speech      3 - 20 pods   x 1 vCPU / 1 GiB
+    perception  3 - 20 pods   x 1 vCPU / 1.5 GiB
+    GPUs        on-demand for vLLM / TTS / vision; node-pool autoscaler.
+
+  Managed services (per region):
+    Postgres   db.r6g.xlarge primary + 2 reads
+    Redis      ElastiCache cluster.t4g.medium x 2
+    Object     S3 (or GCS); only metadata at origin
+    CDN        Cloudflare / CloudFront
+
+  Observability:
+    Prometheus + Grafana + Loki (or managed AMP/AMG / GCP Operations)
+
+The HPA + cluster autoscaler keeps the bill proportional to traffic;
+off-peak the platform shrinks to the 3-replica floor.

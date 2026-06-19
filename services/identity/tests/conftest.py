@@ -11,3 +11,8 @@ _SHARED = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "packages", "sha
 for _p in (_SRC, _SHARED, _HERE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+# Disable rate limiting + share-clock cache for tests; the platform-wide
+# limiter is unit-tested in packages/shared and would otherwise flake
+# busy service test suites that issue hundreds of requests per session.
+os.environ.setdefault("RATE_LIMIT_DISABLED", "1")

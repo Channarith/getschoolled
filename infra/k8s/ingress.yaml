@@ -1,0 +1,56 @@
+# NGINX Ingress for the public API + web app.
+#
+# Why ingress-nginx and not ALB / Cloud LB directly?
+#   * Cloud-agnostic: the same manifest works on EKS / GKE / AKS / on-prem.
+#   * Easy WAF + rate-limit at the edge: ingress-nginx supports per-host
+#     limit-rps + limit-conn out of the box, and ModSecurity for WAF.
+#   * Cheap to swap: replace with an ALB / Cloud Run / Cloudflare LB
+#     later by changing the ingressClassName + annotations.
+#
+# In production add cert-manager + Let's Encrypt for TLS, and front this
+# Ingress with Cloudflare / AWS WAF / Akamai for DDoS + bot management
+# before traffic ever hits the cluster.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep
+  namespace: aoep
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    # Edge rate limit (defence in depth alongside aoep_shared.ratelimit).
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    nginx.ingress.kubernetes.io/limit-connections: "200"
+    # Connection draining so rolling deploys don't 502.
+    nginx.ingress.kubernetes.io/proxy-next-upstream: "error timeout http_502 http_503"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    # Long-lived WebSockets (LiveKit signaling, server-sent events).
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Strict transport security + sensible defaults.
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "Referrer-Policy: no-referrer-when-downgrade";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.aoep.example, app.aoep.example]
+      secretName: aoep-tls
+  rules:
+    - host: app.aoep.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
+    - host: api.aoep.example
+      http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }

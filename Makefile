@@ -9,7 +9,8 @@ PYTHON_PKGS := packages/shared services/orchestrator services/speech \
 COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install test test-py web-install web-typecheck web-build \
-	compose-config k8s-build up down clean qa stress coverage lint regression
+	compose-config k8s-build up down clean qa stress coverage lint regression \
+	loadtest scale-up scale-down
 
 help:
 	@echo "Targets:"
@@ -50,6 +51,15 @@ lint:
 stress:
 	$(VENV_PY) qa/stress.py --concurrency 16 --requests 300
 
+# Sustained-RPS load test against a single URL with latency histogram +
+# cache-hit / rate-limit / 5xx ratios. Override URL/RPS/DURATION via env:
+#   make loadtest URL=http://localhost:8005/audio/categories RPS=500 DURATION=15
+URL ?= http://localhost:8005/audio/categories
+RPS ?= 200
+DURATION ?= 15
+loadtest:
+	$(VENV_PY) qa/loadtest.py "$(URL)" --rps $(RPS) --duration $(DURATION)
+
 # One comprehensive gate: backend tests (+coverage) + web typecheck/lint + stress smoke.
 qa regression:
 	$(VENV_PY) qa/regression.py
@@ -74,6 +84,16 @@ up:
 
 down:
 	docker compose -f $(COMPOSE) down
+
+# Multi-replica + nginx-LB local stack. See infra/compose/scale.yml +
+# infra/compose/nginx-edge.conf. Hit http://localhost:18500 for the
+# load-balanced curriculum service, :18000 for orchestrator.
+scale-up:
+	docker compose -f $(COMPOSE) -f infra/compose/scale.yml up -d --build \
+		--scale curriculum=4 --scale orchestrator=3
+
+scale-down:
+	docker compose -f $(COMPOSE) -f infra/compose/scale.yml down
 
 clean:
 	rm -rf $(VENV) apps/web/node_modules apps/web/.next
