@@ -16,7 +16,7 @@ from typing import Optional
 from .config import AppConfig, load_config
 from .factory import ProviderFactory
 from .schemas import HealthStatus
-from .version import get_version
+from .version import API_VERSION, build_info, get_version
 
 
 def create_service(
@@ -61,5 +61,36 @@ def create_service(
             components=fac.component_summary(),
             version=get_version(),
         )
+
+    @app.get("/version")
+    def version() -> dict:
+        """Version + build metadata. Standard on every service for automation."""
+        return {"service": name, "deploy_mode": cfg.deploy_mode.value, **build_info()}
+
+    @app.get("/__meta")
+    def meta() -> dict:
+        """Machine-readable endpoint index for automation/test discovery.
+
+        Lists every route (methods + path) the service exposes, complementing
+        /openapi.json with a compact, stable shape that test harnesses can crawl.
+        """
+        routes = []
+        for r in app.router.routes:
+            path = getattr(r, "path", None)
+            methods = getattr(r, "methods", None)
+            if not path or methods is None:
+                continue
+            verbs = sorted(m for m in methods if m not in ("HEAD", "OPTIONS"))
+            if verbs:
+                routes.append({"path": path, "methods": verbs})
+        routes.sort(key=lambda x: x["path"])
+        return {
+            "service": name,
+            "version": get_version(),
+            "api_version": API_VERSION,
+            "route_count": len(routes),
+            "routes": routes,
+            "openapi": "/openapi.json",
+        }
 
     return app

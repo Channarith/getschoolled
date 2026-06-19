@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Version visibility + service meta for automation: every service now exposes
+  GET /version (version + git_sha + build_time + api_version + deploy_mode) and
+  GET /__meta (machine-readable route index) via create_service; version.py adds
+  build_info() + API_VERSION. Web /admin gains a "System & Versions" panel that
+  aggregates each service's /version + health and flags version mismatches.
+  Tested.
+
 - Post-class survey + data mining: aoep_shared/survey.py adds a one-time
   end-of-class survey template (rating/choice/recommend/free-text) + SurveyStore
   with per-course summaries (avg, NPS-like, recommend rate) and a multi-dimensional

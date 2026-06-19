@@ -53,3 +53,23 @@ def get_version() -> str:
         return _meta_version("aoep-shared")
     except Exception:  # noqa: BLE001
         return "0.0.0+unknown"
+
+
+# Bump when the cross-service HTTP contract changes in a breaking way. Lets
+# automation/clients assert they are talking to a compatible API surface.
+API_VERSION = "1"
+
+
+def build_info() -> dict:
+    """Full version/build metadata for the /version endpoint + admin UI.
+
+    git sha and build time are stamped into the image/env at build time
+    (``AOEP_GIT_SHA`` / ``AOEP_BUILD_TIME``); they are empty in a plain dev
+    checkout, which is fine - the version string is always present.
+    """
+    return {
+        "version": get_version(),
+        "git_sha": (os.environ.get("AOEP_GIT_SHA") or "").strip(),
+        "build_time": (os.environ.get("AOEP_BUILD_TIME") or "").strip(),
+        "api_version": API_VERSION,
+    }
