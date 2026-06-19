@@ -61,6 +61,12 @@ class Course(BaseModel):
     access_tier: str = "free"           # membership tier required to enroll
     price_usd: float = 0.0
     thumbnail: Optional[str] = None     # object-store key / URL for a card image
+    # Streaming / interchange metadata (Netflix-style, acquisition-ready).
+    maturity_rating: str = "all"        # all | kids | teen | mature
+    subtitle_languages: List[str] = Field(default_factory=list)
+    hls_url: Optional[str] = None       # HLS manifest (.m3u8)
+    dash_url: Optional[str] = None      # MPEG-DASH manifest (.mpd)
+    trailer_url: Optional[str] = None
 
     @model_validator(mode="after")
     def _defaults(self) -> "Course":

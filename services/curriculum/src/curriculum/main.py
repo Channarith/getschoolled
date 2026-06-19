@@ -341,6 +341,11 @@ class CreateCourseRequest(BaseModel):
     access_tier: str = "free"
     price_usd: float = 0.0
     thumbnail: str | None = None
+    maturity_rating: str = "all"
+    subtitle_languages: list[str] = []
+    hls_url: str | None = None
+    dash_url: str | None = None
+    trailer_url: str | None = None
 
 
 @app.post("/courses", response_model=Course)
@@ -411,6 +416,22 @@ def recommend(req: RecommendRequest) -> dict:
     out = lf.predict(profile, features)
     out["recommendations"] = out["recommendations"][: req.top_n]
     return out
+
+
+@app.get("/catalog/export")
+def catalog_export(format: str = "json"):
+    """Acquisition-ready catalog export (Netflix-compatible interchange).
+
+    format=json -> a portable content feed; format=mrss -> Media RSS (XML).
+    """
+    from fastapi import Response
+
+    from .interchange import catalog_json_feed, catalog_mrss
+
+    courses = app.state.catalog.list_courses()
+    if format == "mrss":
+        return Response(content=catalog_mrss(courses), media_type="application/rss+xml")
+    return catalog_json_feed(courses)
 
 
 @app.get("/courses/facets")

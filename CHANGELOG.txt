@@ -536,7 +536,12 @@ Format: newest first. No markdown per project convention.
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
 were lost to the changelog-rolling bug fixed in [unreleased]; their content is
 [unreleased]
-- (no changes yet)
+- Netflix-compatible content interchange: Course gains streaming/interchange
+  metadata (maturity_rating, subtitle_languages, hls_url, dash_url, trailer_url);
+  curriculum/interchange.py + GET /catalog/export?format=json|mrss produce an
+  acquisition-ready content feed (JSON) and a Media RSS (MRSS) XML feed with
+  media:content/thumbnail/rating + HLS/DASH manifest refs - mappable to streaming-
+  partner onboarding specs. Tested.
 
 [0.3.58] - 2026-06-19
 - release build (no itemized changes)
