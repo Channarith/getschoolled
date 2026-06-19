@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { adminListFlags, adminSetFlag, type FlagSpec } from "../lib/api";
+import { adminListFlags, adminSetFlag, adminSurveyInsights, type FlagSpec } from "../lib/api";
+
+type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
 
 const CATEGORY_LABELS: Record<string, string> = {
   engagement: "Engagement & Feedback",
@@ -19,6 +21,7 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string>("");
+  const [insights, setInsights] = useState<Insights | null>(null);
 
   async function load(s: string) {
     setError("");
@@ -30,6 +33,14 @@ export default function AdminPage() {
       setError("Invalid admin secret or memory service unavailable.");
       setAuthed(false);
       void e;
+    }
+  }
+
+  async function loadInsights() {
+    try {
+      setInsights(await adminSurveyInsights(secret));
+    } catch (e) {
+      setError(`Could not load survey insights: ${String(e)}`);
     }
   }
 
@@ -127,6 +138,51 @@ export default function AdminPage() {
           ))}
         </section>
       ))}
+
+      <section style={{ marginTop: 32 }}>
+        <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          Survey Insights (multi-dimensional data mining)
+        </h2>
+        <button onClick={loadInsights}
+          style={{ padding: "6px 14px", marginTop: 8, cursor: "pointer" }}>
+          Load insights
+        </button>
+        {insights && (
+          <div style={{ marginTop: 12 }}>
+            <p>
+              <strong>{insights.datamart.total_responses}</strong> responses ·
+              data-mining flag: {insights.data_mining_enabled ? "on" : "off"}
+            </p>
+            <h4 style={{ marginBottom: 4 }}>By course × class type × rating</h4>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+                  <th style={{ padding: 6 }}>Course</th><th style={{ padding: 6 }}>Class type</th>
+                  <th style={{ padding: 6 }}>Rating bucket</th><th style={{ padding: 6 }}>Responses</th>
+                  <th style={{ padding: 6 }}>Avg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {insights.datamart.cells.map((c, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid #eee" }}>
+                    <td style={{ padding: 6 }}>{c.course_id}</td>
+                    <td style={{ padding: 6 }}>{c.class_type}</td>
+                    <td style={{ padding: 6 }}>{c.rating_bucket}</td>
+                    <td style={{ padding: 6 }}>{c.responses}</td>
+                    <td style={{ padding: 6 }}>{c.avg_overall}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {insights.datamart.top_suggestions.length > 0 && (
+              <p style={{ marginTop: 10 }}>
+                <strong>Mined suggestion themes:</strong>{" "}
+                {insights.datamart.top_suggestions.map((t) => `${t.term} (${t.count})`).join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
