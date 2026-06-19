@@ -65,6 +65,26 @@ The platform serves several distinct customer types, each with its own layout an
 journey. Below are recorded walkthroughs (animated GIFs) plus key screenshots.
 Recordings live in `docs/demos/`, screenshots in `docs/screens/`.
 
+### Backgrounds &amp; wallpapers (61+ designs, year-round)
+A site-wide background system with **61+ designs** across holiday, seasonal,
+social, economic, realistic, surreal, artistic, kids, anime and minimal styles.
+Most are lightweight CSS/SVG (instant, no binary weight); five are rich image
+wallpapers. The `/backgrounds` gallery lets anyone preview/apply a design, and
+**Auto** mode rotates an appropriate design by date all year (New Year &rarr;
+Valentine&rsquo;s &rarr; St. Patrick&rsquo;s &rarr; Earth Day &rarr; Pride &rarr;
+&hellip; &rarr; Halloween &rarr; Thanksgiving &rarr; Christmas). Backed by
+`apps/web/app/lib/backgrounds.ts` (`seasonalBackgroundId(date)`).
+
+![Backgrounds gallery: 61+ themed wallpapers with seasonal auto-rotation](docs/demos/site_backgrounds_gallery_demo.gif)
+
+| Gallery (categories + swatches) | Applied site-wide (Dreamscape) |
+| --- | --- |
+| <img src="docs/screens/backgrounds_gallery.webp" alt="Backgrounds gallery" /> | <img src="docs/screens/background_applied_home.webp" alt="Background applied on home" /> |
+
+| Anime classroom | Surreal dreamscape | Kids space |
+| --- | --- | --- |
+| <img src="apps/web/public/wallpapers/anime_classroom.webp" alt="Anime classroom wallpaper" /> | <img src="apps/web/public/wallpapers/surreal_dreamscape.webp" alt="Surreal dreamscape wallpaper" /> | <img src="apps/web/public/wallpapers/kids_space.webp" alt="Kids space wallpaper" /> |
+
 ### Home / discover &mdash; Netflix-style catalog (on login)
 When you open the home page (and right after sign-in) you land on a Netflix-style
 feed: horizontal carousels for **Popular now**, **New releases**, **Free to
@@ -226,6 +246,7 @@ A second initiative (19 phases, all merged) adding a trust/transparency layer (P
 | Ops 2 | Automation-testing APIs: gated deterministic `POST /admin/test/reset\|seed` hooks (`ENABLE_TEST_ENDPOINTS`) + `qa/stress.py` expanded to all 8 services & new endpoints | ✅ | #80 |
 | Ops 3 | Observability/telemetry (local+cloud): per-service `GET /metrics` (Prometheus) + `/telemetry/summary\|errors\|logs`, request middleware, web `/admin` Observability panel (memory/perf/errors + RCA) | ✅ | #81 |
 | Discovery 1 | Netflix-style home feed `GET /home` (popular/new/free/kids/category rails + view popularity), `/kids` children's platform, `/corporate` training programs, sample-class CTA | ✅ | #82 |
+| Design 1 | Site backgrounds: 61+ themed designs (holiday/seasonal/social/economic/realistic/surreal/artistic/kids/anime) + seasonal auto-rotation + `/backgrounds` gallery picker + 5 image wallpapers | ✅ | #83 |
 | Integrations 16 | Gateway + webhooks: `aoep_shared/webhooks.py` + `services/integrations` (subscriptions/emit, inbound verify, API clients) | ✅ | #59 |
 | Integrations 17 | Finance/payment: `connectors/finance.py` + `/payments/webhook/{provider}` -> entitlements + `enrollment.paid` emit + payouts | ✅ | #60 |
 | Integrations 18 | Education platforms: `connectors/lms.py` (LTI 1.3 / OneRoster / AGS / xAPI) + `/lms/launch`,`/lms/roster`,`/lms/grade-passback` | ✅ | #61 |
