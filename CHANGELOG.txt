@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Site backgrounds / wallpapers: new apps/web/app/lib/backgrounds.ts catalog of
+  61+ themed designs (holiday, seasonal, social, economic, realistic, surreal,
+  artistic, kids, anime, minimal) - mostly lightweight CSS/SVG plus 5 image
+  wallpapers (anime/surreal/realistic/kids/artistic). BackgroundProvider renders
+  a full-bleed site background; seasonalBackgroundId() auto-rotates by date
+  (holidays + seasons) all year; new /backgrounds gallery to preview/apply with
+  category filters + Auto toggle; nav "Themes" link; translucent nav over
+  wallpapers. Tested.
+
 - Netflix-style home + kids mode + corporate programs: curriculum adds GET /home
   (carousel rails: Popular now / New releases / Free to start / Hands-on / Just
   for kids / per-category), a view-based popularity signal (POST /courses/{id}/

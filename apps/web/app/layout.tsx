@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { APP_VERSION } from "./lib/version";
 import DisclaimerGate from "./components/DisclaimerGate";
+import BackgroundProvider from "./components/BackgroundProvider";
 
 export const metadata: Metadata = {
   title: "Agentic Online Education Platform",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <BackgroundProvider />
         <DisclaimerGate />
         <nav className="nav">
           <span className="brand">AI Classroom</span>
@@ -30,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/admin">Admin</Link>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/consent">Consent</Link>
+          <Link href="/backgrounds">Themes</Link>
           <Link href="/transparency">Transparency</Link>
           <Link href="/legal">Legal</Link>
           <span
