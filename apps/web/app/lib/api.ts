@@ -392,6 +392,51 @@ export async function adminSetFlag(
   );
 }
 
+// --- end-of-class survey (gated by engagement.post_class_survey flag) ---- //
+export type SurveyQuestion = {
+  id: string; type: string; prompt: string; options: string[]; required: boolean;
+};
+export type SurveyTemplate = { version: string; title: string; questions: SurveyQuestion[] };
+
+export async function getPostClassSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/post-class?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitPostClassSurvey(payload: {
+  course_id: string; overall: number; class_type?: string; subject?: string;
+  student_id?: string | null; clarity?: number | null; pace?: string | null;
+  would_recommend?: boolean | null; suggestion?: string;
+}): Promise<{ id: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/post-class`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function adminSurveyInsights(secret: string): Promise<{
+  data_mining_enabled: boolean;
+  datamart: {
+    total_responses: number;
+    dimensions: Record<string, Record<string, number>>;
+    cells: { course_id: string; class_type: string; rating_bucket: string; responses: number; avg_overall: number }[];
+    top_suggestions: { term: string; count: number }[];
+  };
+}> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/admin/survey/insights`, {
+      cache: "no-store", headers: { "X-Admin-Secret": secret },
+    })
+  );
+}
+
 export async function recordConsent(args: {
   student_id: string;
   scope: string;

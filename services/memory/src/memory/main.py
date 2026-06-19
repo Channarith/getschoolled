@@ -9,6 +9,7 @@ from aoep_shared.flags import FlagStore, require_admin
 from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, notice_versions
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
+from aoep_shared.survey import SurveyResponse, SurveyStore, template as survey_template
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
@@ -18,6 +19,7 @@ app = create_service("memory")
 app.state.store = MemoryStore()
 app.state.acceptances = AcceptanceStore()
 app.state.flags = FlagStore()
+app.state.surveys = SurveyStore()
 
 
 def _admin_secret() -> str:
@@ -214,6 +216,56 @@ def admin_reset_flag(key: str, _: str = Depends(require_admin_header)) -> dict:
         raise HTTPException(status_code=404, detail="unknown flag")
     app.state.flags.reset(key)
     return app.state.flags.describe(key)
+
+
+# --------------------------------------------------------------------------- #
+# End-of-class survey (gated by engagement.post_class_survey flag) + insights
+# --------------------------------------------------------------------------- #
+@app.get("/survey/post-class")
+def survey_post_class(subject: str | None = None, tier: str | None = None) -> dict:
+    """Return the survey template IF the post-class survey flag is enabled.
+
+    The client uses `enabled` to decide whether to prompt the learner.
+    """
+    enabled = bool(app.state.flags.resolve(
+        "engagement.post_class_survey", subject=subject, tier=tier))
+    return {"enabled": enabled, "template": survey_template() if enabled else None}
+
+
+class SurveySubmit(BaseModel):
+    course_id: str
+    overall: int
+    class_type: str = "self_paced"
+    subject: str = ""
+    student_id: str | None = None
+    clarity: int | None = None
+    pace: str | None = None
+    would_recommend: bool | None = None
+    suggestion: str = ""
+
+
+@app.post("/survey/post-class")
+def survey_submit(req: SurveySubmit) -> dict:
+    try:
+        resp = app.state.surveys.submit(SurveyResponse(**req.model_dump()))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"id": resp.id, "course_id": resp.course_id, "recorded": True}
+
+
+@app.get("/survey/summary/{course_id}")
+def survey_course_summary(course_id: str) -> dict:
+    return app.state.surveys.course_summary(course_id)
+
+
+@app.get("/admin/survey/insights")
+def survey_insights(_: str = Depends(require_admin_header)) -> dict:
+    """Multi-dimensional data-mart of survey responses (admin-only).
+
+    Available when the data-mining flag is on; otherwise reports it as disabled.
+    """
+    mining_on = bool(app.state.flags.resolve("data.multidim_datamart"))
+    return {"data_mining_enabled": mining_on, "datamart": app.state.surveys.datamart()}
 
 
 @app.post("/mastery")

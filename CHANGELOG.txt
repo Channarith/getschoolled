@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Post-class survey + data mining: aoep_shared/survey.py adds a one-time
+  end-of-class survey template (rating/choice/recommend/free-text) + SurveyStore
+  with per-course summaries (avg, NPS-like, recommend rate) and a multi-dimensional
+  "data mart" (course x class_type x rating bucket) plus suggestion-theme mining.
+  Memory service: GET/POST /survey/post-class (template gated by the
+  engagement.post_class_survey flag), GET /survey/summary/{course},
+  admin GET /admin/survey/insights. Web: post-class survey modal on /class +
+  survey-insights table on /admin. Tested.
+
 - Administrative feature flags: aoep_shared/flags.py adds a comprehensive flag
   catalog (engagement/data/access/monetization/ai/ux/ops - incl. optional
   end-of-class survey, multi-dimensional data-mart, user levels) with a FlagStore

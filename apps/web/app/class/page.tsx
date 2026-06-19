@@ -5,14 +5,17 @@ import {
   advance,
   ask,
   getDisclosure,
+  getPostClassSurvey,
   listLessons,
   reportIssue,
   startSession,
+  submitPostClassSurvey,
   type Answer,
   type Disclosure,
   type Lesson,
   type SessionView,
   type Slide,
+  type SurveyTemplate,
 } from "../lib/api";
 
 export default function ClassPage() {
@@ -35,6 +38,9 @@ export default function ClassPage() {
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
+  const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
+  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
+  const [surveyDone, setSurveyDone] = useState(false);
 
   useEffect(() => {
     listLessons()
@@ -69,6 +75,54 @@ export default function ClassPage() {
     try {
       const s = await advance(view.session.session_id);
       setSlide(s);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // End the class: if the post-class survey flag is on, prompt the survey.
+  async function onFinish() {
+    if (!view) return;
+    setBusy(true);
+    try {
+      const res = await getPostClassSurvey();
+      if (res.enabled && res.template) {
+        setSurvey(res.template);
+        setSurveyAnswers({});
+        setSurveyDone(false);
+      } else {
+        window.alert("Class complete. Thanks for attending!");
+        setView(null);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSubmitSurvey() {
+    if (!view) return;
+    const overall = Number(surveyAnswers["overall"] ?? 0);
+    if (!overall) {
+      setError("Please give an overall rating.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await submitPostClassSurvey({
+        course_id: lessonId,
+        class_type: classType,
+        overall,
+        clarity: surveyAnswers["clarity"] != null ? Number(surveyAnswers["clarity"]) : null,
+        pace: (surveyAnswers["pace"] as string) ?? null,
+        would_recommend:
+          surveyAnswers["would_recommend"] != null ? Boolean(surveyAnswers["would_recommend"]) : null,
+        suggestion: (surveyAnswers["suggestion"] as string) ?? "",
+      });
+      setSurveyDone(true);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -173,6 +227,10 @@ export default function ClassPage() {
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →
               </button>
+              <button onClick={onFinish} disabled={busy}
+                style={{ background: "#111", color: "#fff" }}>
+                Finish class
+              </button>
               <span className="muted">Session {view.session.session_id}</span>
             </div>
           </div>
@@ -242,6 +300,79 @@ export default function ClassPage() {
             </div>
           </div>
         </>
+      )}
+
+      {survey && (
+        <div role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}>
+          <div className="card" style={{ maxWidth: 520, width: "100%", background: "#fff" }}>
+            {!surveyDone ? (
+              <>
+                <h3 style={{ marginTop: 0 }}>{survey.title}</h3>
+                <p className="muted">Optional · helps us improve this course.</p>
+                {survey.questions.map((q) => (
+                  <div key={q.id} style={{ margin: "14px 0" }}>
+                    <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                      {q.prompt}{q.required ? " *" : ""}
+                    </label>
+                    {q.type === "rating" && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button key={n} onClick={() => setSurveyAnswers((a) => ({ ...a, [q.id]: n }))}
+                            style={{ fontSize: 22, lineHeight: 1, padding: "2px 6px", cursor: "pointer",
+                              background: "transparent", border: 0,
+                              filter: Number(surveyAnswers[q.id] ?? 0) >= n ? "none" : "grayscale(1) opacity(0.4)" }}>
+                            ⭐
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {q.type === "choice" && (
+                      <select value={(surveyAnswers[q.id] as string) ?? ""}
+                        onChange={(e) => setSurveyAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                        style={{ padding: 6 }}>
+                        <option value="">—</option>
+                        {q.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    )}
+                    {q.type === "bool" && (
+                      <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input type="checkbox" checked={Boolean(surveyAnswers[q.id])}
+                          onChange={(e) => setSurveyAnswers((a) => ({ ...a, [q.id]: e.target.checked }))} />
+                        Yes
+                      </label>
+                    )}
+                    {q.type === "text" && (
+                      <textarea rows={2} style={{ width: "100%" }}
+                        placeholder="Your suggestion…"
+                        value={(surveyAnswers[q.id] as string) ?? ""}
+                        onChange={(e) => setSurveyAnswers((a) => ({ ...a, [q.id]: e.target.value }))} />
+                    )}
+                  </div>
+                ))}
+                <div className="row" style={{ marginTop: 12 }}>
+                  <button onClick={onSubmitSurvey} disabled={busy}
+                    style={{ background: "#111", color: "#fff" }}>
+                    Submit feedback
+                  </button>
+                  <button onClick={() => { setSurvey(null); setView(null); }} disabled={busy}>
+                    Skip
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginTop: 0 }}>Thank you! 🙌</h3>
+                <p className="muted">Your feedback helps us improve this course.</p>
+                <button onClick={() => { setSurvey(null); setView(null); }}
+                  style={{ background: "#111", color: "#fff" }}>
+                  Close
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );
