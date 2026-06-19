@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Automation-testing API expansion: aoep_shared/testsupport.py gates deterministic
+  E2E hooks (admin secret AND ENABLE_TEST_ENDPOINTS / local-edge mode); memory adds
+  POST /admin/test/reset (scope=all|flags|surveys|acceptances|store) and
+  POST /admin/test/seed (flags + survey fixtures). qa/stress.py expanded to all 8
+  services with shared health/version/__meta scenarios plus new coverage (flags,
+  survey, catalog export, course search, ad-breaks, rewards, signup). Tested.
+
 - Version visibility + service meta for automation: every service now exposes
   GET /version (version + git_sha + build_time + api_version + deploy_mode) and
   GET /__meta (machine-readable route index) via create_service; version.py adds

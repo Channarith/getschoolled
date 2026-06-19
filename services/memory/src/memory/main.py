@@ -10,6 +10,7 @@ from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, not
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
 from aoep_shared.survey import SurveyResponse, SurveyStore, template as survey_template
+from aoep_shared.testsupport import test_endpoints_enabled
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
@@ -266,6 +267,67 @@ def survey_insights(_: str = Depends(require_admin_header)) -> dict:
     """
     mining_on = bool(app.state.flags.resolve("data.multidim_datamart"))
     return {"data_mining_enabled": mining_on, "datamart": app.state.surveys.datamart()}
+
+
+# --------------------------------------------------------------------------- #
+# Automation/E2E test hooks: deterministic reset + seed of in-memory state.
+# Double-gated: admin secret AND test endpoints must be enabled for the process.
+# --------------------------------------------------------------------------- #
+def require_test_mode() -> None:
+    if not test_endpoints_enabled(app.state.config):
+        raise HTTPException(status_code=403, detail="test endpoints are disabled")
+
+
+@app.post("/admin/test/reset")
+def test_reset(scope: str = "all", _: str = Depends(require_admin_header)) -> dict:
+    """Reset in-memory state so automated tests start from a known baseline.
+
+    scope: all | flags | surveys | acceptances | store
+    """
+    require_test_mode()
+    reset: list[str] = []
+    if scope in ("all", "flags"):
+        app.state.flags = FlagStore()
+        reset.append("flags")
+    if scope in ("all", "surveys"):
+        app.state.surveys = SurveyStore()
+        reset.append("surveys")
+    if scope in ("all", "acceptances"):
+        app.state.acceptances = AcceptanceStore()
+        reset.append("acceptances")
+    if scope in ("all", "store"):
+        app.state.store = MemoryStore()
+        reset.append("store")
+    return {"reset": reset}
+
+
+class SeedRequest(BaseModel):
+    flags: dict[str, dict] | None = None       # key -> {enabled,value,rollout_pct,tiers}
+    surveys: list[dict] | None = None          # SurveyResponse-shaped dicts
+
+
+@app.post("/admin/test/seed")
+def test_seed(req: SeedRequest, _: str = Depends(require_admin_header)) -> dict:
+    """Seed deterministic fixtures (flags + survey responses) for automation."""
+    require_test_mode()
+    seeded = {"flags": 0, "surveys": 0}
+    for key, patch in (req.flags or {}).items():
+        try:
+            app.state.flags.set_flag(
+                key, enabled=patch.get("enabled"), value=patch.get("value"),
+                rollout_pct=patch.get("rollout_pct"), tiers=patch.get("tiers"),
+                actor="test-seed",
+            )
+            seeded["flags"] += 1
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=f"flag {key}: {exc}")
+    for row in (req.surveys or []):
+        try:
+            app.state.surveys.submit(SurveyResponse(**row))
+            seeded["surveys"] += 1
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=f"survey: {exc}")
+    return {"seeded": seeded}
 
 
 @app.post("/mastery")
