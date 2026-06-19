@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "AI Classroom",
+    "slug": "aiclassroom",
+    "scheme": "aiclassroom",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": { "resizeMode": "contain", "backgroundColor": "#0b1020" },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aiclassroom.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "Used for pronunciation practice."
+      }
+    },
+    "android": {
+      "package": "com.aiclassroom.app",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "extra": {
+      "//": "Set CURRICULUM_URL to your reachable backend (LAN IP for a device, or deployed URL).",
+      "curriculumUrl": "http://localhost:8005",
+      "identityUrl": "http://localhost:8008"
+    }
+  }
+}

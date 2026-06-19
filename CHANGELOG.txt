@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
+  AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
+  lessons + knowledge audio across history, science, finance, wellness, tech,
+  geography, cooking, civics, sports, ...), each narration-only with segmented
+  scripts (no visuals). Curriculum adds GET /audio/courses (list/filter/paginate),
+  /audio/courses/{id}, /audio/categories. New web /drive hands-free player
+  (on-device speech narration, autoplay queue, big controls, speed). New mobile
+  app scaffold apps/mobile (Expo + React Native, Android + iOS) opening into Drive
+  Mode via expo-speech, reusing the curriculum API; see apps/mobile/RUN.txt. Tested.
+
 - Branding: added a fun-but-surreal AI Classroom logo (robot-owl + melting
   chalkboard galaxy). Assets in docs/brand/ (color webp/png) + a 1-bit
   black-and-white PRINTABLE version (dithered + hard-threshold stamp) for

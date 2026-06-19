@@ -1,0 +1,40 @@
+AI CLASSROOM - MOBILE APP (Android + iOS)
+=========================================
+Expo + React Native scaffold. This is the starting point for the native mobile
+apps; it opens into "Drive Mode" (audio-only classes) for learning on the go.
+
+PREREQUISITES
+  - Node 18+ and the Expo tooling (npx expo). Install Expo Go on your phone, or
+    use an Android emulator / iOS simulator.
+
+RUN (development)
+  cd apps/mobile
+  npm install
+  npm run start          # then scan the QR with Expo Go, or:
+  npm run android        # Android emulator/device
+  npm run ios            # iOS simulator (macOS)
+
+BACKEND URL
+  The app reads the curriculum API from app.json -> expo.extra.curriculumUrl.
+  On a physical device, "localhost" points at the phone, not your computer, so:
+    - set curriculumUrl to your machine's LAN IP (e.g. http://192.168.1.20:8005), or
+    - point it at your deployed backend.
+  Make sure the curriculum service is running:
+    cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
+      uvicorn curriculum.main:app --port 8005
+
+WHAT'S HERE
+  App.tsx                       root (list <-> drive player)
+  src/api.ts                    fetches /audio/courses from curriculum
+  src/screens/AudioCoursesScreen.tsx   browse audio classes (search + categories)
+  src/screens/DriveModeScreen.tsx      hands-free player (expo-speech narration)
+
+BUILDING NATIVE BINARIES (later)
+  Use EAS Build (eas build -p android / -p ios) to produce store-ready apps.
+  android.package / ios.bundleIdentifier are set in app.json.
+
+NEXT STEPS (roadmap)
+  - Add auth (reuse identity /auth + token) and sync points/streaks.
+  - Add expo-av for real audio files / background playback + lock-screen controls.
+  - Add the live class, browse, and language-learning screens (reuse the same APIs).
+  - Offline download of audio lessons for tunnels / no-signal drives.

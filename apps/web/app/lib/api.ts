@@ -266,6 +266,33 @@ export async function getAdBreaks(courseId: string, tier: string): Promise<AdPla
   );
 }
 
+// --- audio "drive mode" courses ------------------------------------------ //
+export type AudioCourseRow = {
+  id: string; title: string; category: string; subject: string; level: string;
+  duration_min: number; tags: string[]; format: string; visual_required: boolean;
+  drive_safe: boolean; segments: number;
+};
+export type AudioSegment = { heading: string; text: string };
+export type AudioCourse = {
+  id: string; title: string; category: string; subject: string; level: string;
+  duration_min: number; tags: string[]; format: string; visual_required: boolean;
+  drive_safe: boolean; segments: AudioSegment[];
+};
+
+export async function getAudioCategories(): Promise<{ category: string; count: number }[]> {
+  const r = await jsonOrThrow<{ categories: { category: string; count: number }[] }>(
+    await fetch(`${CURRICULUM_URL}/audio/categories`, { cache: "no-store" })
+  );
+  return r.categories;
+}
+export async function listAudioCourses(params: Record<string, string> = {}): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
+}
+export async function getAudioCourse(id: string): Promise<AudioCourse> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}`, { cache: "no-store" }));
+}
+
 // --- language learning ---------------------------------------------------- //
 export type LangInfo = { code: string; name: string; native: string; flag: string; tier: string; phrase_count: number };
 export type LangSkill = { id: string; name: string; icon: string; desc: string };

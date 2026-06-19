@@ -380,6 +380,33 @@ def search_courses(
     )
 
 
+@app.get("/audio/categories")
+def audio_categories() -> dict:
+    from aoep_shared.audio_courses import categories
+
+    return {"categories": categories()}
+
+
+@app.get("/audio/courses")
+def audio_courses(category: str | None = None, q: str | None = None,
+                  max_minutes: int | None = None, offset: int = 0, limit: int = 50) -> dict:
+    """Audio-only, drive-safe classes (hundreds) for hands-free / on-the-road learning."""
+    from aoep_shared.audio_courses import list_courses
+
+    return list_courses(category=category, q=q, max_minutes=max_minutes,
+                        offset=max(0, offset), limit=max(1, min(limit, 100)))
+
+
+@app.get("/audio/courses/{course_id}")
+def audio_course(course_id: str) -> dict:
+    from aoep_shared.audio_courses import get_course
+
+    c = get_course(course_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="unknown audio course")
+    return c.model_dump()
+
+
 @app.get("/home")
 def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
     """Netflix-style home feed: ordered carousel rows of courses.
