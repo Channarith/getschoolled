@@ -380,6 +380,58 @@ def search_courses(
     )
 
 
+def _catalog_dicts() -> list[dict]:
+    return [
+        {"course_id": c.course_id, "title": c.title, "subject": c.subject,
+         "category": c.category, "tags": c.tags}
+        for c in app.state.catalog.list_courses()
+    ]
+
+
+@app.get("/jobs")
+def jobs_list(q: str | None = None, location: str | None = None, limit: int = 50) -> dict:
+    """Open roles from the job market (LinkedIn/other via provider; sample offline)."""
+    from aoep_shared.jobs import get_jobs_provider
+
+    provider = get_jobs_provider()
+    try:
+        postings = provider.search(query=q or "", location=location or "", limit=limit)
+    except NotImplementedError:
+        # Real provider configured but unreachable here -> fall back to the sample board.
+        from aoep_shared.jobs import MockJobsProvider
+        postings = MockJobsProvider().search(query=q or "", location=location or "", limit=limit)
+        provider = MockJobsProvider()
+    return {"source": provider.source, "count": len(postings),
+            "jobs": [j.model_dump() for j in postings]}
+
+
+@app.get("/jobs/{job_id}")
+def job_detail(job_id: str) -> dict:
+    """A job + the catalog courses that cover its skills (coverage %, gap, path)."""
+    from aoep_shared.jobs import get_job, match_courses_to_job
+
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown job")
+    m = match_courses_to_job(job, _catalog_dicts())
+    return m.model_dump()
+
+
+@app.get("/courses/{course_id}/jobs")
+def course_related_jobs(course_id: str) -> dict:
+    """Open roles whose required skills this course helps with."""
+    from aoep_shared.jobs import SAMPLE_JOBS, jobs_for_course
+
+    course = app.state.catalog.get_course(course_id)
+    if course is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    cdict = {"course_id": course.course_id, "title": course.title,
+             "subject": course.subject, "category": course.category, "tags": course.tags}
+    rel = jobs_for_course(cdict, SAMPLE_JOBS)
+    return {"course_id": course_id, "jobs": [
+        {"job": r["job"].model_dump(), "relevant_skills": r["relevant_skills"]} for r in rel]}
+
+
 @app.get("/audio/categories")
 def audio_categories() -> dict:
     from aoep_shared.audio_courses import categories
