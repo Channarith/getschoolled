@@ -13,6 +13,7 @@ from __future__ import annotations
 import enum
 import json
 import os
+import time
 import uuid
 from typing import Dict, List, Optional
 
@@ -67,6 +68,8 @@ class Course(BaseModel):
     hls_url: Optional[str] = None       # HLS manifest (.m3u8)
     dash_url: Optional[str] = None      # MPEG-DASH manifest (.mpd)
     trailer_url: Optional[str] = None
+    popularity: int = 0                 # view/enroll signal for "popular" rails
+    created_at: float = Field(default_factory=time.time)
 
     @model_validator(mode="after")
     def _defaults(self) -> "Course":
@@ -122,6 +125,7 @@ class CatalogStore:
         hands_on: Optional[bool] = None,
         delivery_mode: Optional[str] = None,
         access_tier: Optional[str] = None,
+        maturity: Optional[str] = None,
     ) -> List[Course]:
         """Faceted catalog search by name/category/language/audio/format/tag/etc."""
         def _eq(value: str, want: Optional[str]) -> bool:
@@ -147,12 +151,60 @@ class CatalogStore:
                 continue
             if not _eq(c.access_tier, access_tier):
                 continue
+            if not _eq(c.maturity_rating, maturity):
+                continue
             if tag is not None and tag.lower() not in [t.lower() for t in c.tags]:
                 continue
             if hands_on is not None and c.hands_on != hands_on:
                 continue
             out.append(c)
         return out
+
+    # --- discovery rails (Netflix-style home feed) ------------------------- #
+    def bump_popularity(self, course_id: str, by: int = 1) -> Optional[Course]:
+        c = self.courses.get(course_id)
+        if c is None:
+            return None
+        c.popularity += by
+        self._autosave()
+        return c
+
+    def kids_safe(self) -> List[Course]:
+        """Courses for the children's platform: only kid-authored (kids-rated).
+
+        The general all-ages catalog stays on the main home; the kids platform is
+        deliberately limited to content authored for children.
+        """
+        return [c for c in self.courses.values() if c.maturity_rating == "kids"]
+
+    def home_rails(self, *, kids_only: bool = False, per_rail: int = 12) -> List[dict]:
+        """Build ordered carousel rows for the home feed.
+
+        Rows: Popular now, New releases, Free to start, Hands-on, Just for kids,
+        then one row per category. Empty rows are omitted.
+        """
+        pool = self.kids_safe() if kids_only else list(self.courses.values())
+        rails: List[dict] = []
+
+        def rail(key: str, title: str, items: List[Course]) -> None:
+            if items:
+                rails.append({"key": key, "title": title, "courses": items[:per_rail]})
+
+        popular = sorted(pool, key=lambda c: (c.popularity, c.created_at), reverse=True)
+        rail("popular", "Popular now", popular)
+        recent = sorted(pool, key=lambda c: c.created_at, reverse=True)
+        rail("new", "New releases", recent)
+        rail("free", "Free to start", [c for c in pool if c.access_tier == "free"])
+        rail("hands_on", "Hands-on labs", [c for c in pool if c.hands_on])
+        if not kids_only:
+            rail("kids", "Just for kids", [c for c in pool if c.maturity_rating == "kids"])
+        # Per-category rows, ordered by category name.
+        cats: Dict[str, List[Course]] = {}
+        for c in pool:
+            cats.setdefault(c.category or c.subject, []).append(c)
+        for cat in sorted(k for k in cats if k):
+            rail(f"cat:{cat}", cat, sorted(cats[cat], key=lambda c: c.popularity, reverse=True))
+        return rails
 
     def delete_course(self, course_id: str) -> bool:
         existed = self.courses.pop(course_id, None) is not None

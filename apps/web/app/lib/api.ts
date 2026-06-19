@@ -202,7 +202,36 @@ export type CatalogCourse = {
   language: string; audio_language: string; media_format: string; level: string;
   duration_min: number; hands_on: boolean; preview: string; description: string;
   tags: string[]; access_tier: string; delivery_mode: string;
+  maturity_rating?: string; price_usd?: number; thumbnail?: string | null;
+  popularity?: number;
 };
+
+export type HomeRail = { key: string; title: string; courses: CatalogCourse[] };
+
+export async function getHomeFeed(kids = false): Promise<HomeRail[]> {
+  const r = await jsonOrThrow<{ rails: HomeRail[] }>(
+    await fetch(`${CURRICULUM_URL}/home${kids ? "?kids=true" : ""}`, { cache: "no-store" })
+  );
+  return r.rails;
+}
+
+export async function bumpCourseView(courseId: string): Promise<void> {
+  try {
+    await fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(courseId)}/view`, { method: "POST" });
+  } catch {
+    /* popularity signal is best-effort */
+  }
+}
+
+export type Program = {
+  program_id: string; title: string; audience: string; description: string;
+  course_ids: string[]; delivery_mode: string;
+};
+
+export async function getPrograms(audience?: string): Promise<Program[]> {
+  const qs = audience ? `?audience=${encodeURIComponent(audience)}` : "";
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/programs${qs}`, { cache: "no-store" }));
+}
 
 export type Facets = {
   categories: string[]; languages: string[]; audio_languages: string[];

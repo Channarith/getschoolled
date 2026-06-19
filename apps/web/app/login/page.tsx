@@ -22,7 +22,8 @@ export default function LoginPage() {
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
-      router.push("/account");
+      // Land on the Netflix-style home feed (popular / category / age) on login.
+      router.push("/");
     } catch (err) {
       setError(String(err));
     } finally {

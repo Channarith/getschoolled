@@ -370,13 +370,32 @@ def search_courses(
     hands_on: bool | None = None,
     delivery_mode: str | None = None,
     access_tier: str | None = None,
+    maturity: str | None = None,
 ) -> list[Course]:
     """Netflix-style faceted catalog search (name/category/language/audio/...)."""
     return app.state.catalog.search_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
-        delivery_mode=delivery_mode, access_tier=access_tier,
+        delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
     )
+
+
+@app.get("/home")
+def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
+    """Netflix-style home feed: ordered carousel rows of courses.
+
+    kids=true returns only child-appropriate (all/kids) content for the kids mode.
+    """
+    return {"rails": app.state.catalog.home_rails(kids_only=kids, per_rail=per_rail)}
+
+
+@app.post("/courses/{course_id}/view")
+def course_view(course_id: str) -> dict:
+    """Record a view/open to feed the 'Popular now' rail."""
+    c = app.state.catalog.bump_popularity(course_id)
+    if c is None:
+        raise HTTPException(status_code=404, detail="unknown course")
+    return {"course_id": course_id, "popularity": c.popularity}
 
 
 class RecommendRequest(BaseModel):
@@ -474,6 +493,8 @@ def course_facets() -> dict:
         "media_formats": _distinct("media_format"),
         "levels": _distinct("level"),
         "tags": tags,
+        "maturity_ratings": _distinct("maturity_rating"),
+        "access_tiers": _distinct("access_tier"),
     }
 
 
@@ -507,8 +528,11 @@ def create_program(req: CreateProgramRequest) -> Program:
 
 
 @app.get("/programs", response_model=list[Program])
-def list_programs() -> list[Program]:
-    return app.state.catalog.list_programs()
+def list_programs(audience: str | None = None) -> list[Program]:
+    progs = app.state.catalog.list_programs()
+    if audience:
+        progs = [p for p in progs if audience.lower() in (p.audience or "").lower()]
+    return progs
 
 
 @app.get("/programs/{program_id}", response_model=Program)
