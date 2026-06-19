@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Observability & telemetry (local + cloud): aoep_shared/telemetry.py adds a
+  dependency-free TelemetryStore (per-route latency p50/p95/p99 + error rate,
+  in-flight gauge, recent-error ring with traceback + request id, event log) and
+  process metrics (RSS memory, CPU, GC, threads, uptime). create_service now adds
+  request-timing/error middleware (X-Request-ID + Server-Timing) and standard
+  endpoints on EVERY service: GET /metrics (Prometheus exposition), /telemetry/
+  summary, /telemetry/errors, /telemetry/logs. Optional Sentry/OTLP export via env
+  (no-op unless the lib is installed). Web /admin gains an "Observability &
+  Telemetry" panel (per-service memory/perf/error-rate + drill-down to recent
+  errors with tracebacks, auto-refresh). Tested.
+
 - Docs: per-persona screen recordings + design/architecture documentation.
   README gains a "Screens & scenarios by user type" section (5 recorded GIF
   walkthroughs + screenshots: free learner, live AI class, member/parent,

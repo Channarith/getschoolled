@@ -478,6 +478,54 @@ export async function getServiceVersions(): Promise<ServiceVersion[]> {
   );
 }
 
+// --- observability / telemetry (perf, memory, errors) -------------------- //
+export type RoutePerf = {
+  count: number; errors: number; p50_ms: number; p95_ms: number;
+  p99_ms: number; max_ms: number; last_ms: number; error_rate: number;
+};
+export type TelemetrySummary = {
+  service: string; url: string; reachable: boolean;
+  uptime_s?: number;
+  process?: { rss_mb: number; cpu_user_s: number; cpu_system_s: number; threads: number; gc_objects: number };
+  totals?: { requests: number; errors: number; error_rate: number; inflight: number };
+  routes?: Record<string, RoutePerf>;
+  error_count?: number;
+  exporters?: { sentry: boolean; otlp: boolean };
+  error?: string;
+};
+export type TelemetryError = {
+  ts: number; route: string; method: string; status: number;
+  type: string; message: string; traceback: string; request_id: string;
+};
+
+export async function getTelemetrySummary(name: string, url: string): Promise<TelemetrySummary> {
+  try {
+    const res = await fetch(`${url}/telemetry/summary`, { cache: "no-store" });
+    if (!res.ok) return { service: name, url, reachable: false, error: `${res.status}` };
+    const j = await res.json();
+    return { ...j, service: name, url, reachable: true };
+  } catch (e) {
+    return { service: name, url, reachable: false, error: String(e) };
+  }
+}
+
+export async function getAllTelemetry(): Promise<TelemetrySummary[]> {
+  return Promise.all(
+    Object.entries(SERVICE_URLS).map(([name, url]) => getTelemetrySummary(name, url))
+  );
+}
+
+export async function getServiceErrors(name: string, url: string, limit = 20): Promise<TelemetryError[]> {
+  try {
+    const res = await fetch(`${url}/telemetry/errors?limit=${limit}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const j = await res.json();
+    return (j.errors ?? []) as TelemetryError[];
+  } catch {
+    return [];
+  }
+}
+
 export async function adminSurveyInsights(secret: string): Promise<{
   data_mining_enabled: boolean;
   datamart: {
