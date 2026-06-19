@@ -95,3 +95,19 @@ def test_kids_round_and_age_leaderboard():
 def test_unknown_age_group_422():
     assert client.post("/games/new", json={
         "subject": "math", "game_type": "quiz", "age_group": "elder"}).status_code == 422
+
+
+def test_language_practice_awards_points():
+    h = _auth(_user("polyglot@example.com", "Poly"))
+    out = client.post("/language/practice", headers=h, json={
+        "language": "es", "skill": "pronunciation", "correct": 5, "total": 5}).json()
+    assert out["xp"] > 0
+    assert out["balance"] >= out["xp"]
+    # Shows up in the rewards ledger.
+    rw = client.get("/rewards", headers=h).json()
+    assert any(e["reason"] == "language:es" for e in rw["ledger"])
+
+
+def test_language_practice_requires_auth():
+    assert client.post("/language/practice", json={
+        "language": "fr", "skill": "vocabulary", "correct": 3, "total": 5}).status_code == 401

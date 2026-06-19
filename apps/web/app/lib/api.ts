@@ -266,6 +266,53 @@ export async function getAdBreaks(courseId: string, tier: string): Promise<AdPla
   );
 }
 
+// --- language learning ---------------------------------------------------- //
+export type LangInfo = { code: string; name: string; native: string; flag: string; tier: string; phrase_count: number };
+export type LangSkill = { id: string; name: string; icon: string; desc: string };
+export type LangCourse = {
+  code: string; name: string; native: string; flag: string; tier: string;
+  skills: LangSkill[]; phrase_count: number; grammar_tip: string; culture_note: string;
+};
+export type LangItem = { id: string; prompt: string; options: string[]; answer_index: number; explain: string; audio_prompt?: string };
+export type LangExercise = { skill: string; language: string; items?: LangItem[];
+  pairs?: { id: string; term: string; match: string }[]; target?: string; roman?: string;
+  en?: string; mouth_tip?: string; tip?: string; note?: string };
+export type Pronounce = { score: number; stars: number; passed: boolean; target: string;
+  heard: string; missed_words: string[]; feedback: string; mouth_tip: string };
+
+export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; count: number }> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/languages`, { cache: "no-store" }));
+}
+export async function getLangCourse(code: string): Promise<LangCourse> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/${code}/course`, { cache: "no-store" }));
+}
+export async function newLangExercise(language: string, skill: string, n = 5): Promise<LangExercise> {
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/learn/exercise`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ language, skill, n }),
+    })
+  );
+}
+export async function pronounce(target: string, heard: string, mouthOpenness?: number): Promise<Pronounce> {
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/learn/pronounce`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ target, heard, mouth_openness: mouthOpenness ?? null }),
+    })
+  );
+}
+export async function languagePractice(
+  language: string, skill: string, correct: number, total: number
+): Promise<{ xp: number; balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/language/practice`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ language, skill, correct, total }),
+    })
+  );
+}
+
 // --- learning games / arcade --------------------------------------------- //
 export type GameTypeInfo = { id: string; name: string; desc: string };
 export type AgeGroupInfo = { id: string; name: string; range: string };
