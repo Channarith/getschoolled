@@ -64,6 +64,8 @@ def test_parse_job_description_finds_skills_and_certs():
     assert "AWS Certified Solutions Architect" in parsed["certifications"]
     assert "networking" in parsed["skills"] and "python" in parsed["skills"]
     assert "network-engineer" in parsed["professions"]
+    # "CSM" must NOT be falsely detected inside "UCSM".
+    assert "Certified ScrumMaster (CSM)" not in parsed["certifications"]
 
 
 def test_recommend_from_description_suggests_cert_classes():

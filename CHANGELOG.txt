@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Skill relevance tags + job-description parsing: new aoep_shared/skills_taxonomy.py
+  derives course tags beyond "related jobs" - Core skill, Fundamental for
+  <profession>, and For <profession> (e.g. algebra: core skill + fundamental for
+  accountants/engineers + for chefs; calculus: fundamental for engineers; physics:
+  fundamental for civil & aerospace/NASA engineers). jobs.py adds a job-description
+  parser that extracts skills + certifications (Cisco UCSM, CCNA, AWS, Azure, PMP,
+  CompTIA, CKA, CPA, ...) and recommends matched courses + targeted certification-
+  prep classes. Course gains optional audiences/core_skill fields. Curriculum adds
+  GET /courses/{id}/relevance, GET /skills/professions, POST /jobs/parse, plus an
+  audience facet and audience/core_skill search filters. Web: Careers "paste a job
+  description" tool (-> certs + specialized classes) and a Browse "For <profession>"
+  + "Core skills" filter. Tested. (Fixed a cert false-positive where "CSM" matched
+  inside "UCSM" - alias detection now uses alphanumeric boundaries.)
+
 - Careers / job matching: new aoep_shared/jobs.py links classes to real job
   openings. A JobsProvider abstracts the source (LinkedIn/Indeed via
   LINKEDIN_API_KEY/JOBS_API_KEY; a curated representative board offline) and a

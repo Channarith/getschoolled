@@ -343,14 +343,20 @@ _TITLE_PROFESSION = {
 }
 
 
+def _alias_present(alias: str, text: str) -> bool:
+    # Boundary match that respects alphanumerics so "csm" doesn't match "ucsm"
+    # but "a+"/"network+"/"ci/cd" still match.
+    return re.search(r"(?<![a-z0-9])" + re.escape(alias) + r"(?![a-z0-9])", text) is not None
+
+
 def parse_job_description(text: str) -> dict:
     """Extract skills, certifications, and likely professions from a JD."""
     low = (text or "").lower()
     certs = [canon for canon, aliases in KNOWN_CERTS.items()
-             if any(a in low for a in aliases)]
+             if any(_alias_present(a, low) for a in aliases)]
     skills: List[str] = []
     for skill, aliases in _SKILL_ALIASES.items():
-        if any(re.search(r"\b" + re.escape(a) + r"\b", low) for a in aliases):
+        if any(_alias_present(a, low) for a in aliases):
             skills.append(skill)
     professions: List[str] = []
     for kw, prof in _TITLE_PROFESSION.items():
