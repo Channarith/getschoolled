@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Arcade age groups: mini-games now have age tiers (kids 5-8, tween 9-12, teen
+  13-17, adult 18+). games.py adds AgeGroup + age-appropriate content (gentle
+  KIDS banks for all 9 subjects, harder ADULT extras) and make_round(age_group=).
+  Identity /games/new takes age_group; the leaderboard is age-segmented
+  (GET /games/leaderboard?age_group=) so kids compete with kids. Web /arcade adds
+  an age-group picker + an age filter on the leaderboard. Tested.
+
 - Learning Arcade (play-to-learn games): new aoep_shared/games.py engine -
   subject mini-games (quiz, timed speed round with bonus, term/definition match)
   across biology, chemistry, physics, math, science, history, art, technology,
