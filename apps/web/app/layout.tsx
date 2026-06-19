@@ -30,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/corporate">Corporate</Link>
           <Link href="/recommended">For You</Link>
           <Link href="/languages">Languages</Link>
+          <Link href="/drive">Drive</Link>
           <Link href="/arcade">Arcade</Link>
           <Link href="/watch">Watch</Link>
           <Link href="/class">Live Class</Link>
