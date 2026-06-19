@@ -5,13 +5,25 @@ import {
   adminListFlags,
   adminSetFlag,
   adminSurveyInsights,
+  getAllTelemetry,
+  getServiceErrors,
   getServiceVersions,
+  SERVICE_URLS,
   type FlagSpec,
   type ServiceVersion,
+  type TelemetryError,
+  type TelemetrySummary,
 } from "../lib/api";
 import { APP_VERSION } from "../lib/version";
 
 type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
+
+function worstP95(t: TelemetrySummary): number {
+  const routes = t.routes ?? {};
+  let m = 0;
+  for (const r of Object.values(routes)) m = Math.max(m, r.p95_ms);
+  return Math.round(m);
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   engagement: "Engagement & Feedback",
@@ -31,10 +43,29 @@ export default function AdminPage() {
   const [busy, setBusy] = useState<string>("");
   const [insights, setInsights] = useState<Insights | null>(null);
   const [versions, setVersions] = useState<ServiceVersion[] | null>(null);
+  const [telemetry, setTelemetry] = useState<TelemetrySummary[] | null>(null);
+  const [errorsFor, setErrorsFor] = useState<string>("");
+  const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
     if (authed) getServiceVersions().then(setVersions).catch(() => setVersions([]));
   }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const load = () => getAllTelemetry().then(setTelemetry).catch(() => setTelemetry([]));
+    load();
+    if (!autoRefresh) return;
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
+  }, [authed, autoRefresh]);
+
+  async function viewErrors(name: string) {
+    setErrorsFor(name);
+    const url = SERVICE_URLS[name];
+    setSvcErrors(url ? await getServiceErrors(name, url, 25) : []);
+  }
 
   async function load(s: string) {
     setError("");
@@ -151,6 +182,89 @@ export default function AdminPage() {
             )}
           </tbody>
         </table>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          <h2 style={{ fontSize: 18, margin: 0, flex: 1 }}>Observability &amp; Telemetry</h2>
+          <label style={{ fontSize: 13 }}>
+            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+            &nbsp;Auto-refresh (5s)
+          </label>
+          <button onClick={() => getAllTelemetry().then(setTelemetry)} style={{ padding: "4px 12px", cursor: "pointer" }}>
+            Refresh
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: "#666" }}>
+          Per-service performance, memory and error telemetry for root-cause analysis.
+          Each service also exposes a Prometheus <code>/metrics</code> endpoint for cloud scraping.
+        </p>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+          <thead>
+            <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+              <th style={{ padding: 6 }}>Service</th><th style={{ padding: 6 }}>Mem (MB)</th>
+              <th style={{ padding: 6 }}>Threads</th><th style={{ padding: 6 }}>Uptime</th>
+              <th style={{ padding: 6 }}>Requests</th><th style={{ padding: 6 }}>Err rate</th>
+              <th style={{ padding: 6 }}>Worst p95</th><th style={{ padding: 6 }}>In-flight</th>
+              <th style={{ padding: 6 }}>Export</th><th style={{ padding: 6 }}>Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(telemetry ?? []).map((t) => {
+              const errRate = t.totals?.error_rate ?? 0;
+              return (
+                <tr key={t.service} style={{ borderTop: "1px solid #eee" }}>
+                  <td style={{ padding: 6 }}>{t.service}{!t.reachable && " (down)"}</td>
+                  <td style={{ padding: 6 }}>{t.process?.rss_mb ?? "—"}</td>
+                  <td style={{ padding: 6 }}>{t.process?.threads ?? "—"}</td>
+                  <td style={{ padding: 6 }}>{t.uptime_s != null ? `${Math.round(t.uptime_s)}s` : "—"}</td>
+                  <td style={{ padding: 6 }}>{t.totals?.requests ?? "—"}</td>
+                  <td style={{ padding: 6, color: errRate > 0 ? "#b00" : "#16a34a" }}>
+                    {t.reachable ? `${(errRate * 100).toFixed(1)}%` : "—"}
+                  </td>
+                  <td style={{ padding: 6 }}>{t.reachable ? `${worstP95(t)} ms` : "—"}</td>
+                  <td style={{ padding: 6 }}>{t.totals?.inflight ?? "—"}</td>
+                  <td style={{ padding: 6, fontSize: 12 }}>
+                    {t.exporters ? `${t.exporters.sentry ? "sentry " : ""}${t.exporters.otlp ? "otlp" : ""}`.trim() || "—" : "—"}
+                  </td>
+                  <td style={{ padding: 6 }}>
+                    {t.reachable
+                      ? <button onClick={() => viewErrors(t.service)} style={{ fontSize: 12, padding: "2px 8px", cursor: "pointer" }}>
+                          {t.error_count ?? 0} ▸
+                        </button>
+                      : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+            {telemetry === null && (
+              <tr><td colSpan={10} style={{ padding: 6, color: "#666" }}>Loading telemetry…</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {errorsFor && (
+          <div style={{ marginTop: 12 }}>
+            <h4 style={{ marginBottom: 6 }}>Recent errors — {errorsFor}
+              <button onClick={() => { setErrorsFor(""); setSvcErrors([]); }}
+                style={{ marginLeft: 10, fontSize: 12, cursor: "pointer" }}>close</button>
+            </h4>
+            {svcErrors.length === 0 ? (
+              <p className="muted" style={{ color: "#16a34a" }}>No recent errors. 🎉</p>
+            ) : (
+              svcErrors.map((e, i) => (
+                <details key={i} style={{ border: "1px solid #eee", borderRadius: 6, padding: 8, marginBottom: 6 }}>
+                  <summary style={{ cursor: "pointer" }}>
+                    <code style={{ color: "#b00" }}>{e.type}</code> · {e.method} {e.route} · {e.status}
+                    {" "}· {new Date(e.ts * 1000).toLocaleTimeString()} · req {e.request_id}
+                  </summary>
+                  <pre style={{ background: "#0b1020", color: "#fca5a5", padding: 10, borderRadius: 6,
+                    fontSize: 12, overflowX: "auto", marginTop: 8 }}>{e.message}{"\n\n"}{e.traceback}</pre>
+                </details>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
       {Object.entries(byCat).map(([cat, items]) => (

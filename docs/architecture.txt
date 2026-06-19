@@ -111,6 +111,14 @@ ASCII; the polished versions are in the README.
     Web /admin "System & Versions" panel aggregates + flags version drift.
   Automation hooks (gated by ADMIN_SECRET AND ENABLE_TEST_ENDPOINTS):
     POST /admin/test/reset|seed for deterministic E2E setup.
+  Observability (every service, dependency-free; local + cloud):
+    GET /metrics            Prometheus exposition (perf, memory, requests, latency)
+    GET /telemetry/summary  perf + memory/runtime (RSS/CPU/GC/threads) + counts
+    GET /telemetry/errors   recent exceptions w/ traceback + request id (RCA)
+    GET /telemetry/logs     recent structured events
+    Request middleware stamps X-Request-ID + Server-Timing and records per-route
+    latency/error stats; optional Sentry/OTLP export via env when libs present.
+    Web /admin "Observability & Telemetry" panel aggregates all services.
   QA: qa/stress.py (all 8 services; health/version/__meta + endpoint scenarios),
     qa/regression.py (pytest+coverage, web typecheck/lint, stress smoke).
 
