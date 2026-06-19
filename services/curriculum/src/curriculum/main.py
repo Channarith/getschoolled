@@ -416,6 +416,39 @@ def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
     return {"rails": app.state.catalog.home_rails(kids_only=kids, per_rail=per_rail)}
 
 
+@app.get("/notifications/feed")
+def notifications_feed(
+    student_id: str = "guest",
+    interests: str | None = None,
+    in_progress: str | None = None,
+    completed: str | None = None,
+    streak_days: int = 0,
+    limit: int = 30,
+) -> dict:
+    """Personalized notification feed for the mobile/web inbox.
+
+    ``interests`` / ``in_progress`` / ``completed`` are comma-separated strings;
+    the mobile app reads its locally-tracked state (AsyncStorage) and passes it
+    in so the server-rendered feed matches the device. The same items are also
+    used by the client to schedule LOCAL push notifications via
+    expo-notifications - no remote push server is required.
+    """
+    from aoep_shared.notifications import build_feed
+
+    def _split(s: str | None) -> list[str]:
+        return [p.strip() for p in (s or "").split(",") if p.strip()]
+
+    feed = build_feed(
+        student_id=student_id,
+        interests=_split(interests),
+        in_progress_course_ids=_split(in_progress),
+        completed_course_ids=_split(completed),
+        streak_days=max(0, streak_days),
+        limit=max(1, min(limit, 100)),
+    )
+    return feed.model_dump()
+
+
 @app.post("/courses/{course_id}/view")
 def course_view(course_id: str) -> dict:
     """Record a view/open to feed the 'Popular now' rail."""

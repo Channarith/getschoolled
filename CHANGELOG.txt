@@ -2,6 +2,28 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile Netflix-style features + push/local notifications: apps/mobile is now
+  a real multi-screen app (5-tab bottom nav: Home, Drive, My List, Alerts,
+  Settings). New screens: HomeScreen with rails (Continue Listening, My List,
+  New This Week, Picked for You, Trending, Categories), MyListScreen,
+  NotificationsScreen (server-rendered inbox + read-state), SettingsScreen
+  (notification toggles, daily-reminder hour picker, permission request,
+  send-test, scheduled count). Real notifications via expo-notifications:
+  permission request + Android channel, repeating daily class reminder,
+  staggered "new class" / "picked for you" alerts, immediate "class complete"
+  alert; foreground notifications surface as an in-app top banner that
+  deep-links into Drive Mode. Continue Listening + My List + streak persist
+  via @react-native-async-storage/async-storage. New Banner / Rail /
+  BottomTabs components. Backend: aoep_shared/notifications.py builds a
+  personalized notification feed (new_class / continue / recommended /
+  streak / daily reminder) deterministically from the audio catalog and
+  optional student state; curriculum service exposes GET /notifications/feed
+  with student_id / interests / in_progress / completed / streak_days
+  query params. Tests: 5 unit (aoep_shared.notifications) + 5 API
+  (curriculum). End-to-end: mobile typecheck clean, Metro bundles iOS
+  (1.76 MB / 693 modules) + Android (1.78 MB / 696 modules), live
+  /notifications/feed returns rich personalized items.
+
 - Mobile app build pipeline: apps/mobile is now buildable. Added expo-constants
   to package.json (fixes Metro resolve), an .npmrc that forces a hoisted
   node_modules so Metro can resolve through it (pnpm's symlinked layout breaks

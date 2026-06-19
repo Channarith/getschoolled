@@ -66,15 +66,45 @@ BACKEND URL
       uvicorn curriculum.main:app --port 8005
 
 WHAT'S HERE
-  App.tsx                       root (list <-> drive player)
-  src/api.ts                    fetches /audio/courses from curriculum
-  src/screens/AudioCoursesScreen.tsx   browse audio classes (search + categories)
-  src/screens/DriveModeScreen.tsx      hands-free player (expo-speech narration)
-  eas.json                      EAS Build profiles (development/preview/production)
-  .npmrc                        forces hoisted node_modules for Metro
+  App.tsx                       root: bottom-tab nav, banner, notification listeners
+  src/api.ts                    typed client (audio courses, home rails, notifications)
+  src/storage.ts                AsyncStorage helpers (continue, my-list, settings, streak)
+  src/notifications.ts          expo-notifications wrapper (perms, daily reminder,
+                                 staggered new-content alerts, completion banners)
+  src/components/Banner.tsx     in-app top alert (info/success/warn/live)
+  src/components/Rail.tsx       Netflix-style horizontal rails + cards / category tiles
+  src/components/BottomTabs.tsx 5-tab bottom nav with unread badge
+  src/screens/HomeScreen.tsx           Netflix home: Continue, My List, New, For You,
+                                        Trending, Categories rails
+  src/screens/AudioCoursesScreen.tsx   browse + search + category chips (with star)
+  src/screens/DriveModeScreen.tsx      hands-free player (expo-speech, progress saved,
+                                        completion notification, streak bump, save)
+  src/screens/MyListScreen.tsx         saved-classes list (Netflix My List)
+  src/screens/NotificationsScreen.tsx  alerts inbox (server feed, mark-read, deep-link)
+  src/screens/SettingsScreen.tsx       notification prefs (toggles, hour picker,
+                                        permission request, send-test, scheduled count)
+  eas.json                       EAS Build profiles (development/preview/production)
+  .npmrc                         forces hoisted node_modules for Metro
+
+NETFLIX-STYLE FEATURES (all on the audio catalog)
+  Push / local notifications via expo-notifications:
+    * Daily class reminder (user-configurable hour, OS-scheduled, repeating)
+    * "New class" + "Picked for you" banners (staggered local alerts)
+    * Completion alert when a class finishes
+    * Tappable - deep-links into Drive Mode for the right course
+  In-app alerts: top banner that surfaces foreground notifications with CTA.
+  Inbox: GET /notifications/feed renders a personalized list (new / continue /
+    recommended / streak / daily); read-state stored in AsyncStorage; unread
+    count appears as a badge on the Alerts tab.
+  Continue Listening: every play tick records progress; the Home screen rail
+    resumes from the saved segment.
+  My List: star icon on every card / row toggles a saved-courses list.
+  Streak: each completed class extends a daily streak (used by the inbox feed).
+  Browse rails: Continue, My List, New This Week, Picked for You, Trending,
+    and a Categories tile grid.
 
 ROADMAP
-  - Auth (reuse identity /auth + token) and sync points/streaks.
-  - expo-av for real audio files / background playback + lock-screen controls.
-  - Live class, browse, and language-learning screens (reuse the same APIs).
+  - expo-av for real recorded-audio playback + lock-screen controls (TTS only today).
+  - Auth (reuse identity /auth + token) so my-list and progress sync across devices.
+  - Remote push tokens (Expo / FCM / APNs) for server-driven announcements.
   - Offline download of audio lessons for tunnels / no-signal drives.

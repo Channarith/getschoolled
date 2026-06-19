@@ -20,12 +20,20 @@
     "build:preview:ios": "eas build -p ios --profile preview --non-interactive"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~3.2.3",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~51.0.39",
+    "expo-av": "~14.0.7",
     "expo-constants": "~16.0.2",
+    "expo-device": "~6.0.2",
+    "expo-linking": "~6.3.1",
+    "expo-notifications": "~0.28.19",
     "expo-speech": "~12.0.2",
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
-    "react-native": "0.74.5"
+    "react-dom": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-web": "~0.19.13"
   },
   "devDependencies": {
     "@types/react": "~18.2.45",

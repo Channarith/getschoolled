@@ -1,0 +1,208 @@
+import { useEffect, useState } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView,
+         StyleSheet, Text, View } from "react-native";
+
+import {
+  getAudioCategories, listAudioCourses,
+  type AudioCourseRow, type CategoryRow,
+} from "../api";
+import {
+  bumpStreak, getInterests, getMyList, getStreak, listContinue,
+  recordInterest, type ContinueRow,
+} from "../storage";
+import Rail, { CategoryTile, CourseCard } from "../components/Rail";
+
+const EMOJIS_BY_CATEGORY: Record<string, string> = {
+  Languages: "🌍", History: "🏛", Science: "🧪",
+  "Personal Finance": "💰", Wellness: "🧘", Technology: "💻",
+  Cooking: "🍳", Geography: "🗺", Sports: "🏅",
+  Civics: "🏛", Business: "💼", Mindfulness: "✨",
+};
+
+export default function HomeScreen({
+  onOpenCourse, onOpenCategory,
+}: {
+  onOpenCourse: (id: string) => void;
+  onOpenCategory: (category: string) => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [continueRows, setContinueRows] = useState<ContinueRow[]>([]);
+  const [savedRows, setSavedRows] = useState<AudioCourseRow[]>([]);
+  const [newRows, setNewRows] = useState<AudioCourseRow[]>([]);
+  const [forYou, setForYou] = useState<AudioCourseRow[]>([]);
+  const [trending, setTrending] = useState<AudioCourseRow[]>([]);
+  const [cats, setCats] = useState<CategoryRow[]>([]);
+  const [streakDays, setStreakDays] = useState(0);
+  const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
+
+  const load = async () => {
+    setError("");
+    try {
+      const [cont, savedIds, allCats, all, interests] = await Promise.all([
+        listContinue(), getMyList(), getAudioCategories(),
+        listAudioCourses(undefined, undefined, 80), getInterests(),
+      ]);
+      setContinueRows(cont);
+      setCats(allCats.categories);
+      const savedIdSet = new Set(savedIds);
+      setSavedSet(savedIdSet);
+      setNewRows(all.courses.slice(0, 12));
+      setTrending(all.courses.slice(12, 24));
+
+      const interestSet = new Set(interests);
+      const matches = all.courses.filter((c) =>
+        interestSet.has(c.category.toLowerCase()) ||
+        c.tags.some((t) => interestSet.has(t.toLowerCase()))
+      );
+      setForYou(matches.length ? matches.slice(0, 12) : all.courses.slice(24, 36));
+
+      if (savedIds.length) {
+        const lookup = new Map(all.courses.map((c) => [c.id, c]));
+        setSavedRows(savedIds.map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
+      } else { setSavedRows([]); }
+
+      const streak = await getStreak();
+      setStreakDays(streak.days);
+    } catch (e) {
+      setError(`Couldn't reach the catalog (${String(e)}). Pull to retry.`);
+    } finally {
+      setLoading(false); setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { void load(); /* one-shot on mount */ // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  const open = (id: string, category?: string) => {
+    if (category) void recordInterest(category);
+    void bumpStreak();
+    onOpenCourse(id);
+  };
+
+  if (loading) {
+    return <View style={styles.center}><ActivityIndicator color="#0ea5e9" /></View>;
+  }
+  return (
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 28, paddingTop: 56 }}
+      style={styles.bg}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
+    >
+      <View style={styles.heroBox}>
+        <Text style={styles.kicker}>AI Classroom</Text>
+        <Text style={styles.hero}>Thousands of classes. One AI campus.</Text>
+        <Text style={styles.heroSub}>
+          {streakDays > 0 ? `🔥 ${streakDays}-day streak — keep it alive with one quick class.` :
+            "Tap any class to start hands-free in Drive Mode."}
+        </Text>
+      </View>
+
+      {error ? <Text style={styles.err}>{error}</Text> : null}
+
+      {continueRows.length > 0 ? (
+        <Rail
+          title="Continue listening"
+          subtitle="Pick up where you left off."
+          data={continueRows}
+          keyExtractor={(c) => c.id}
+          renderItem={(c) => (
+            <CourseCard
+              emoji="▶"
+              title={c.title}
+              meta={`${c.segment + 1}/${c.total} segments`}
+              onPress={() => open(c.id, c.category)}
+              progressPct={Math.round(((c.segment + 1) / Math.max(1, c.total)) * 100)}
+            />
+          )}
+        />
+      ) : null}
+
+      {savedRows.length > 0 ? (
+        <Rail
+          title="My List"
+          subtitle="Your saved classes."
+          data={savedRows}
+          keyExtractor={(c) => c.id}
+          renderItem={(c) => (
+            <CourseCard
+              emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
+              title={c.title}
+              meta={`${c.category} · ${c.duration_min} min`}
+              savedBadge
+              onPress={() => open(c.id, c.category)}
+            />
+          )}
+        />
+      ) : null}
+
+      <Rail
+        title="New this week"
+        subtitle="Fresh audio classes."
+        data={newRows}
+        keyExtractor={(c) => c.id}
+        renderItem={(c) => (
+          <CourseCard
+            emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
+            title={c.title}
+            meta={`${c.category} · ${c.duration_min} min`}
+            savedBadge={savedSet.has(c.id)}
+            onPress={() => open(c.id, c.category)}
+          />
+        )}
+      />
+
+      <Rail
+        title="Picked for you"
+        subtitle="Based on what you've listened to."
+        data={forYou}
+        keyExtractor={(c) => c.id}
+        renderItem={(c) => (
+          <CourseCard
+            emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
+            title={c.title}
+            meta={`${c.category} · ${c.duration_min} min`}
+            savedBadge={savedSet.has(c.id)}
+            onPress={() => open(c.id, c.category)}
+          />
+        )}
+      />
+
+      <Rail
+        title="Trending now"
+        data={trending}
+        keyExtractor={(c) => c.id}
+        renderItem={(c) => (
+          <CourseCard
+            emoji="📈"
+            title={c.title}
+            meta={`${c.category} · ${c.duration_min} min`}
+            savedBadge={savedSet.has(c.id)}
+            onPress={() => open(c.id, c.category)}
+          />
+        )}
+      />
+
+      <Rail
+        title="Browse categories"
+        data={cats}
+        keyExtractor={(c) => c.category}
+        renderItem={(c) => (
+          <CategoryTile category={c.category} count={c.count}
+            onPress={() => onOpenCategory(c.category)} />
+        )}
+      />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  bg: { backgroundColor: "#0b1020" },
+  center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
+  heroBox: { paddingHorizontal: 16, paddingBottom: 16 },
+  kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
+  hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },
+  heroSub: { color: "#c5cce0", marginTop: 6 },
+  err: { color: "#ff6b6b", paddingHorizontal: 16, paddingBottom: 12 },
+});
