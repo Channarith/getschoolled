@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Branding: added a fun-but-surreal AI Classroom logo (robot-owl + melting
+  chalkboard galaxy). Assets in docs/brand/ (color webp/png) + a 1-bit
+  black-and-white PRINTABLE version (dithered + hard-threshold stamp) for
+  single-color printing; web favicon + nav logo mark (apps/web/public). Wired the
+  logo into the site nav + favicon. docs/brand/branding.txt documents usage and
+  the domain (aiclassroom.com - likely registered/premium; verify via ICANN) and
+  trademark notes ("AI Classroom" is highly descriptive/crowded - consult a TM
+  attorney; favor the design mark). Live WHOIS/TM clearance not run in-sandbox.
+
 - Language learning (26 languages, multi-skill, gamified): new
   aoep_shared/language_learning.py - display metadata for all supported languages,
   14 skill areas (pronunciation, listening, reading, writing, vocabulary, grammar,

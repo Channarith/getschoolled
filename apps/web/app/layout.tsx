@@ -6,8 +6,9 @@ import DisclaimerGate from "./components/DisclaimerGate";
 import BackgroundProvider from "./components/BackgroundProvider";
 
 export const metadata: Metadata = {
-  title: "Agentic Online Education Platform",
+  title: "AI Classroom — Agentic Online Education Platform",
   description: "A multi-agent AI instructor that teaches live online classes.",
+  icons: { icon: "/favicon.ico" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,7 +18,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <BackgroundProvider />
         <DisclaimerGate />
         <nav className="nav">
-          <span className="brand">AI Classroom</span>
+          <Link href="/" className="brand" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.webp" alt="AI Classroom logo" height={30}
+              style={{ height: 30, width: "auto", borderRadius: 6 }} />
+            AI Classroom
+          </Link>
           <Link href="/">Home</Link>
           <Link href="/browse">Browse</Link>
           <Link href="/kids">Kids</Link>
