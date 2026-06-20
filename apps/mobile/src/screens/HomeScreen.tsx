@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView,
+import { ActivityIndicator, Image, RefreshControl, ScrollView,
          StyleSheet, Text, View } from "react-native";
 
 import {
@@ -114,7 +114,19 @@ export default function HomeScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
     >
       <View style={styles.heroBox}>
-        <Text style={styles.kicker}>{t("home.kicker")}</Text>
+        {/* Photo-real Salarean medallion + Khmer wordmark
+            (សាលារៀន, sala-rean) lockup. Replaces the old text-only
+            "SALAREAN" kicker so the brand reads as a single
+            premium mark. The image bundles the wordmark; we keep
+            the textual `home.kicker` translation around but render
+            it as accessible-only screen-reader alt text. */}
+        <Image
+          source={require("../../assets/salarean_lockup_realistic_512.png")}
+          style={styles.heroLockup}
+          accessible
+          accessibilityLabel={`${t("home.kicker")} \u2014 \u179f\u17b6\u179b\u17b6\u179a\u17c0\u1793`}
+          resizeMode="contain"
+        />
         <Text style={styles.hero}>{t("home.hero")}</Text>
         <Text style={styles.heroSub}>
           {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
@@ -223,9 +235,15 @@ export default function HomeScreen({
 const styles = StyleSheet.create({
   bg: { backgroundColor: "#0b1020" },
   center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
-  heroBox: { paddingHorizontal: 16, paddingBottom: 16 },
+  heroBox: { paddingHorizontal: 16, paddingBottom: 16, alignItems: "center" },
+  heroLockup: {
+    width: 200, height: 250,
+    marginBottom: 12,
+    borderRadius: 14,
+    backgroundColor: "#0b1020",
+  },
   kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
-  hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },
-  heroSub: { color: "#c5cce0", marginTop: 6 },
+  hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4, textAlign: "center" },
+  heroSub: { color: "#c5cce0", marginTop: 6, textAlign: "center" },
   err: { color: "#ff6b6b", paddingHorizontal: 16, paddingBottom: 12 },
 });
