@@ -1,0 +1,88 @@
+SALAREEN - BRANDING
+===================
+Plain text on purpose (repo no-markdown house rule).
+
+-----------------------------------------------------------------------------
+1. LOGO
+-----------------------------------------------------------------------------
+Concept: a calligraphic capital S whose top swan-neck curl rises into the
+central petal of a stylized 3-petal lotus crown. The crown grows out of
+the curl - they are one silhouette. Single ink, minimalist, in the
+spirit of Apple / X / Micron but with a Khmer-Sanskrit accent (the
+swan-hook on top of the Khmer letter SA, and lotus iconography from
+temple art).
+
+Why this composition:
+  - "Salareen" romanizes the Khmer សាលារៀន (sala-rian, "school").
+  - The lotus crown nods to the temple-art roots of Khmer / Pallava
+    script (Bayon, Borobudur, Angkor).
+  - The S with the swan-hook curl reads as a graduation crest.
+  - The curl is visibly tucked inside the crown so the wordmark works
+    at favicon size + scales cleanly to billboard.
+
+Sources (vector, source-of-truth):
+  docs/brand/salareen/salareen_mark.svg     square mark (256x256 viewBox)
+  docs/brand/salareen/salareen_lockup.svg   mark + Khmer wordmark below
+
+Both SVGs use `currentColor` so the same file inverts on light or dark
+backgrounds via CSS.
+
+Generated raster assets (do NOT edit by hand; regenerate via
+`python3 scripts/build_salareen_logo.py`):
+  salareen_mark.png                1024x1024 light-on-navy
+  salareen_mark_binary.png         1024x1024 1-bit print
+  salareen_mark_256.png            256x256   small preview / nav
+  salareen_lockup.png              1024 wide mark + Khmer wordmark
+  salareen_lockup_binary.png       1-bit print version
+  salareen_wordmark.png            Khmer-only (សាលារៀន) for press kits
+  salareen_wordmark_binary.png     1-bit Khmer wordmark
+
+Why two render paths in the asset script:
+  - The mark uses `rsvg-convert` (vector -> raster).
+  - The Khmer wordmark uses Pillow + raqm/HarfBuzz because librsvg's
+    text shaper renders the U+17C0 (ie) vowel sign as a dotted-circle
+    tofu. Pillow with raqm composes Khmer clusters correctly.
+  - Browsers + Figma + Illustrator render the SVG `<text>` element via
+    HarfBuzz directly, so salareen_lockup.svg also works there
+    without the PIL fallback.
+
+Brand colors:
+  navy    #0b1020   primary background
+  light   #e8ecf6   primary foreground / mark color on dark
+  accent  #0ea5e9   interactive sky-cyan (links, focus)
+
+-----------------------------------------------------------------------------
+2. USAGE
+-----------------------------------------------------------------------------
+  - Keep clear space around the mark equal to the width of one lotus
+    side-petal.
+  - Don't recolor the mark beyond the brand neutrals (navy / light) or
+    a single accent color; for 1-color contexts use the *_binary.png
+    files.
+  - Don't add gradients, drop shadows, or 3-D effects.
+  - Minimum legible size: ~24px (favicon) for the mark; ~96px wide for
+    the lockup so the Khmer wordmark stays readable.
+  - When placing the wordmark in body copy, prefer the standalone
+    salareen_wordmark.png so the mark doesn't compete with surrounding
+    text.
+
+-----------------------------------------------------------------------------
+3. WORDMARK
+-----------------------------------------------------------------------------
+The Khmer wordmark សាលារៀន (sala-rian) renders in Noto Sans Khmer Bold
+at the asset script's default size. On the web, set:
+
+  font-family: "Noto Sans Khmer", "Khmer OS", "Khmer", sans-serif;
+  font-weight: 700;
+  /* The Khmer block is in @font-face Noto Sans Khmer; ship the font
+     subset for the seven codepoints we use to keep the request small. */
+
+The five other concept variants explored during selection live alongside
+in this directory (concept_1_seal.svg through concept_5_lotus.svg) for
+reference; the final mark above is the one in production.
+
+-----------------------------------------------------------------------------
+4. DOMAIN (see docs/hosting.txt for the full plan)
+-----------------------------------------------------------------------------
+Primary: salareen.com (register at Cloudflare Registrar)
+Defensive: salareen.app, salareen.ai, salareen.co

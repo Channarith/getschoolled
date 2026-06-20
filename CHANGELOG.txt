@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Salareen final mark + Khmer lockup: combined concepts 4 + 5 from the
+  exploration set - a calligraphic capital S whose top swan-neck curl
+  rises into the central petal of a stylized 3-petal lotus crown, with
+  the Khmer wordmark sala-rian (the romanization our brand uses)
+  below. New docs/brand/salareen/salareen_mark.svg (currentColor,
+  256x256) + salareen_lockup.svg (mark + <text> wordmark for browsers
+  and Figma). New scripts/build_salareen_logo.py generates the full
+  raster pack: mark color + 1-bit print + 256 nav, Khmer wordmark
+  standalone color + 1-bit, lockup color + 1-bit. The Khmer wordmark
+  is rendered via Pillow + raqm/HarfBuzz because librsvg's shaper
+  emits a dotted-circle tofu for the U+17C0 vowel sign; the two
+  passes (rsvg for the mark + PIL for the text) are composited into
+  the final PNG. New docs/brand/salareen/branding.txt documents the
+  mark, usage rules, the wordmark CSS font stack, and points at the
+  domain plan in docs/hosting.txt.
+
 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,
