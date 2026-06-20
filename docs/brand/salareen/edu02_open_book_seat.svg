@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <path d="M 168 86
+           C 168 72, 152 64, 128 64
+           C 104 64, 88 76, 88 90
+           C 88 104, 108 110, 128 116
+           C 148 122, 168 128, 168 144
+           C 168 160, 150 168, 128 168
+           C 110 168, 92 164, 88 154"
+        stroke-width="20" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Open book: two trapezoidal pages meeting at a spine, prominent -->
+    <path d="M 50 180 L 124 170 L 124 218 L 50 226 Z"/>
+    <path d="M 206 180 L 132 170 L 132 218 L 206 226 Z"/>
+    <rect x="124" y="170" width="8" height="48"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+    <!-- Page lines, a couple per side -->
+    <line x1="62" y1="190" x2="118" y2="183"/>
+    <line x1="62" y1="200" x2="118" y2="193"/>
+    <line x1="138" y1="183" x2="194" y2="190"/>
+    <line x1="138" y1="193" x2="194" y2="200"/>
+  </g>
+</svg>

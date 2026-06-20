@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <path d="M 172 132
+           C 172 116, 154 108, 128 108
+           C 102 108, 86 118, 86 134
+           C 86 150, 108 156, 128 162
+           C 148 168, 172 174, 172 192
+           C 172 208, 152 218, 128 218
+           C 106 218, 88 210, 84 200"
+        stroke-width="20" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Lightbulb: rounded glass + screw base -->
+    <path d="M 128 32
+             C 110 32, 96 46, 96 62
+             C 96 74, 104 84, 110 90
+             L 110 96
+             L 146 96
+             L 146 90
+             C 152 84, 160 74, 160 62
+             C 160 46, 146 32, 128 32 Z"/>
+    <rect x="112" y="96" width="32" height="6"/>
+    <rect x="116" y="102" width="24" height="4"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+    <!-- Filament hint inside the bulb -->
+    <path d="M 120 70 Q 128 78, 136 70"/>
+  </g>
+</svg>

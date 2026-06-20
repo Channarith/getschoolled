@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <!-- Compact S in the middle -->
+  <path d="M 162 124
+           C 162 114, 148 108, 128 108
+           C 108 108, 96 116, 96 128
+           C 96 140, 112 146, 128 150
+           C 144 154, 162 158, 162 170
+           C 162 182, 148 190, 128 190
+           C 112 190, 98 184, 96 176"
+        stroke-width="18" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Mortarboard above -->
+    <path d="M 128 50 L 186 68 L 128 86 L 70 68 Z"/>
+    <rect x="118" y="84" width="20" height="4"/>
+    <!-- Open book below -->
+    <path d="M 58 202 L 124 194 L 124 222 L 58 228 Z"/>
+    <path d="M 198 202 L 132 194 L 132 222 L 198 228 Z"/>
+    <rect x="124" y="194" width="8" height="28"/>
+  </g>
+</svg>

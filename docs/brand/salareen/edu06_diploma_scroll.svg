@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <path d="M 168 96
+           C 168 82, 152 74, 128 74
+           C 104 74, 88 84, 88 100
+           C 88 114, 108 120, 128 126
+           C 148 132, 168 138, 168 156
+           C 168 174, 150 184, 128 184
+           C 108 184, 92 178, 88 168"
+        stroke-width="20" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Top scroll roll -->
+    <rect x="54" y="56" width="148" height="14" rx="7"/>
+    <!-- Bottom scroll roll -->
+    <rect x="54" y="200" width="148" height="14" rx="7"/>
+    <!-- Scroll body sides as a subtle indication, optional -->
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+    <!-- Side curl decorations -->
+    <path d="M 54 200 L 50 214 L 54 222"/>
+    <path d="M 202 200 L 206 214 L 202 222"/>
+    <path d="M 54 56 L 50 42 L 54 34"/>
+    <path d="M 202 56 L 206 42 L 202 34"/>
+  </g>
+  <g fill="currentColor">
+    <!-- Wax seal (small circle with ribbon tails) at the bottom right -->
+    <circle cx="200" cy="220" r="10"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+    <path d="M 196 226 L 192 236"/>
+    <path d="M 204 226 L 208 236"/>
+  </g>
+</svg>

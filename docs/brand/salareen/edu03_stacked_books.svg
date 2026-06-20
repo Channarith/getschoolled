@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <path d="M 170 84
+           C 170 70, 152 62, 128 62
+           C 104 62, 88 74, 88 88
+           C 88 102, 108 108, 128 114
+           C 148 120, 170 126, 170 142
+           C 170 158, 152 166, 128 166
+           C 110 166, 92 162, 88 152"
+        stroke-width="20" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- 3 books stacked, slightly offset for depth, biggest at bottom -->
+    <rect x="58"  y="186" width="140" height="18" rx="2"/>
+    <rect x="66"  y="204" width="124" height="16" rx="2"/>
+    <rect x="74"  y="220" width="108" height="14" rx="2"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+    <!-- A page-edge highlight on each book -->
+    <line x1="62" y1="194" x2="194" y2="194"/>
+    <line x1="70" y1="212" x2="186" y2="212"/>
+    <line x1="78" y1="227" x2="178" y2="227"/>
+  </g>
+</svg>

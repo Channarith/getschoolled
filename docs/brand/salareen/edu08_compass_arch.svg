@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  <path d="M 168 116
+           C 168 100, 150 92, 128 92
+           C 104 92, 88 102, 88 118
+           C 88 134, 108 140, 128 146
+           C 148 152, 168 158, 168 178
+           C 168 196, 150 206, 128 206
+           C 106 206, 90 198, 86 186"
+        stroke-width="20" stroke="currentColor" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Compass / dividers: two legs meeting at a pivot above the S,
+         opening downward to span the top of the circle -->
+    <path d="M 128 36 L 80 92" stroke-width="10"/>
+    <path d="M 128 36 L 176 92" stroke-width="10"/>
+    <!-- Pivot dot -->
+    <circle cx="128" cy="36" r="6" fill="currentColor"/>
+    <!-- Pencil tip + needle tip -->
+    <circle cx="80" cy="92" r="4" fill="currentColor"/>
+    <circle cx="176" cy="92" r="4" fill="currentColor"/>
+  </g>
+</svg>
