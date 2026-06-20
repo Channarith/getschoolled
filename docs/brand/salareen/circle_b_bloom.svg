@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen circle concept B - "Lotus bloom".
+  A circular ring with a side-view 5-petal lotus opening upward inside.
+  Echoes temple-art lotus thrones (Bayon / Borobudur) without copying
+  any religious icon. Single ink.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-width="14"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106"/>
+  </g>
+  <g fill="currentColor">
+    <!-- Central petal (tallest, pointing straight up) -->
+    <path d="M 128 56
+             C 116 80, 110 110, 116 138
+             C 124 152, 132 152, 140 138
+             C 146 110, 140 80, 128 56 Z"/>
+    <!-- Inner-left petal -->
+    <path d="M 100 72
+             C 84 96, 80 124, 92 142
+             C 104 152, 116 148, 118 138
+             C 116 116, 110 92, 100 72 Z"/>
+    <!-- Inner-right petal -->
+    <path d="M 156 72
+             C 172 96, 176 124, 164 142
+             C 152 152, 140 148, 138 138
+             C 140 116, 146 92, 156 72 Z"/>
+    <!-- Outer-left petal (lower, smaller) -->
+    <path d="M 70 96
+             C 60 116, 60 138, 74 152
+             C 86 158, 96 154, 94 144
+             C 90 124, 82 106, 70 96 Z"/>
+    <!-- Outer-right petal -->
+    <path d="M 186 96
+             C 196 116, 196 138, 182 152
+             C 170 158, 160 154, 162 144
+             C 166 124, 174 106, 186 96 Z"/>
+    <!-- Base / pad line -->
+    <path d="M 78 168 L 178 168" stroke="currentColor" stroke-width="10"
+          stroke-linecap="round" fill="none"/>
+    <!-- Bindu dot below the bloom (Sanskrit anusvara) -->
+    <circle cx="128" cy="200" r="8"/>
+  </g>
+</svg>

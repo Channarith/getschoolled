@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen circle concept D - "S on lotus".
+  A circular ring with a small lotus pad at the bottom and a calligraphic
+  S resting on it - the wisdom-seeker on the lotus seat. Both elements
+  bounded by the circle. Single ink.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-width="14"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106"/>
+  </g>
+  <!-- The S body, inside the circle, sitting on the lotus -->
+  <g fill="none" stroke="currentColor" stroke-width="18"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 168 86
+             C 168 72, 150 64, 128 64
+             C 102 64, 86 76, 86 92
+             C 86 108, 106 114, 128 118
+             C 150 122, 168 128, 168 144
+             C 168 162, 150 174, 128 174
+             C 108 174, 92 168, 88 156"/>
+  </g>
+  <!-- Lotus pad: 5 petals fanning out at the bottom of the circle,
+       acting as a base/seat for the S. -->
+  <g fill="currentColor">
+    <path d="M 128 186
+             C 122 206, 116 212, 110 210
+             C 104 208, 104 198, 112 188 Z"/>
+    <path d="M 128 186
+             C 134 206, 140 212, 146 210
+             C 152 208, 152 198, 144 188 Z"/>
+    <path d="M 92 198
+             C 90 212, 96 218, 104 216
+             C 110 214, 112 206, 108 198 Z"/>
+    <path d="M 164 198
+             C 166 212, 160 218, 152 216
+             C 146 214, 144 206, 148 198 Z"/>
+    <path d="M 128 184
+             C 120 204, 136 204, 128 184 Z"/>
+  </g>
+  <!-- A subtle stem line connecting S to the pad -->
+  <path d="M 128 174 L 128 188" stroke="currentColor" stroke-width="6"
+        stroke-linecap="round" fill="none"/>
+</svg>

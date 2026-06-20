@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Salareen circle concept C - "Prasat".
+  A circular ring with a stylized Angkor-style stepped temple tower
+  (prasat) silhouette inside. Reads as "school / temple / wisdom seat"
+  at any size. Single ink.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-width="14"
+     stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106"/>
+  </g>
+  <g fill="currentColor">
+    <!-- Stepped prasat silhouette: 4 tiers + spire + plinth.
+         Each tier slightly narrower than the one below; the topmost
+         tier finishes in a pointed spire reminiscent of Angkor towers. -->
+    <!-- Spire (pointed top) -->
+    <path d="M 128 52 L 118 78 L 138 78 Z"/>
+    <!-- Tier 1 (top) -->
+    <rect x="112" y="78"  width="32" height="16"/>
+    <!-- Tier 2 -->
+    <rect x="104" y="94"  width="48" height="16"/>
+    <!-- Tier 3 -->
+    <rect x="96"  y="110" width="64" height="16"/>
+    <!-- Tier 4 -->
+    <rect x="86"  y="126" width="84" height="18"/>
+    <!-- Base / plinth -->
+    <rect x="74"  y="144" width="108" height="16"/>
+    <rect x="64"  y="160" width="128" height="14"/>
+    <!-- Two columns / doorways under the plinth (suggest a school entrance) -->
+    <rect x="92"  y="174" width="14" height="32"/>
+    <rect x="150" y="174" width="14" height="32"/>
+    <!-- Ground line -->
+    <rect x="60"  y="206" width="136" height="10"/>
+  </g>
+</svg>
