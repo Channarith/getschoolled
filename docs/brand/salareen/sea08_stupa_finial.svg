@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  </g>
+  <path d="M 174 96
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 100
+             C 86 118, 108 124, 128 130
+             C 148 136, 170 142, 170 162
+             C 170 180, 152 192, 128 192
+             C 106 192, 88 184, 84 172"
+          stroke-width="22" stroke="currentColor" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Small chedi/stupa silhouette at the top of the inside of the circle:
+         spire + bell. Sits above the S as a small crown finial. -->
+    <path d="M 128 28 L 126 38 L 130 38 Z"/>
+    <rect x="124" y="38" width="8" height="6"/>
+    <path d="M 120 44 L 136 44 L 132 56 L 124 56 Z"/>
+    <path d="M 118 56 L 138 56 L 134 64 L 122 64 Z"/>
+  </g>
+</svg>

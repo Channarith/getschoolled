@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  </g>
+  <path d="M 174 96
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 100
+             C 86 118, 108 124, 128 130
+             C 148 136, 170 142, 170 162
+             C 170 180, 152 192, 128 192
+             C 106 192, 88 184, 84 172"
+          stroke-width="22" stroke="currentColor" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- 3-petal lotus seat under the S -->
+    <path d="M 128 200 C 118 200, 110 208, 112 216 C 114 222, 122 224, 128 220 C 134 224, 142 222, 144 216 C 146 208, 138 200, 128 200 Z"/>
+    <path d="M 100 206 C 92 208, 88 214, 92 220 C 96 224, 106 222, 110 216 C 110 210, 106 206, 100 206 Z"/>
+    <path d="M 156 206 C 164 208, 168 214, 164 220 C 160 224, 150 222, 146 216 C 146 210, 150 206, 156 206 Z"/>
+  </g>
+</svg>

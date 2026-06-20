@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  </g>
+  <path d="M 174 96
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 100
+             C 86 118, 108 124, 128 130
+             C 148 136, 170 142, 170 162
+             C 170 180, 152 184, 128 184
+             C 106 184, 88 176, 84 172"
+          stroke-width="22" stroke="currentColor" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="currentColor">
+    <!-- Open book: two pages meeting at a spine -->
+    <path d="M 80 210 L 124 200 L 124 220 L 80 224 Z"/>
+    <path d="M 176 210 L 132 200 L 132 220 L 176 224 Z"/>
+    <!-- Spine -->
+    <rect x="124" y="200" width="8" height="24"/>
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11" stroke="currentColor" fill="none"/>
+  </g>
+  <g fill="currentColor">
+    <!-- 3 stacked roof tiers; SE Asian temple/pagoda silhouette -->
+    <path d="M 128 38 L 100 50 L 156 50 Z"/>
+    <rect x="98" y="50" width="60" height="4"/>
+    <path d="M 128 54 L 94 66 L 162 66 Z"/>
+    <rect x="92" y="66" width="72" height="4"/>
+    <path d="M 128 70 L 86 84 L 170 84 Z"/>
+    <rect x="84" y="84" width="88" height="4"/>
+  </g>
+  <path d="M 174 108
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 112
+             C 86 130, 108 136, 128 142
+             C 148 148, 170 154, 170 174
+             C 170 192, 152 204, 128 204
+             C 106 204, 88 196, 84 184"
+          stroke-width="22" stroke="currentColor" fill="none"
+          stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
