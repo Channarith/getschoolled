@@ -81,6 +81,68 @@ treatment):
   apps/web/app/components/LocalizedNav.tsx); the /kids hero uses
   the 512px version.
 
+----------------------------------------------------------------------------
+KIDS MASCOTS (Angkorian-culture-inspired)
+----------------------------------------------------------------------------
+Friendly companion characters for the /kids experience. Four
+concepts ship; the active mascot is selected by ACTIVE_MASCOT in
+apps/web/app/lib/mascots.ts (one-line swap, no rebuild needed
+beyond Next dev's HMR).
+
+Concepts:
+
+  apsara - "Lily the Apsara"        (default)
+    Young Apsara dancer in the iconic Khmer mokot crown,
+    jade-green sampot with traditional pattern, frangipani
+    flowers, raised in the classic Apsara mudra holding an
+    open book. The Apsara is the most directly Angkorian of
+    the four - the celestial dancers carved on the walls of
+    Angkor Wat are the temple's defining motif.
+
+  bayon - "Bayon Buddy"
+    Round, plump, sandstone-grey character with the iconic
+    closed-eye Bayon smile and a lotus-bud crown carved into
+    its head. Holds a glowing lightbulb of wisdom. Inspired
+    by the famous smiling stone faces atop the towers of
+    Bayon Temple in Angkor Thom.
+
+  naga - "Naga the Wise"
+    Five-headed serpent in cartoon form with rounded heads,
+    big sparkling eyes, body curled around an open book.
+    Middle head wears a graduation mortarboard. The Naga is
+    the temple guardian of Angkor (its multi-headed body
+    forms the balustrades of every causeway) and the Khmer
+    Buddhist symbol of wisdom.
+
+  garuda - "Garuda Glider"
+    Baby Garuda chick with golden feathers, red-orange
+    wing-tips, graduation cap, holding an open book. Garuda
+    is Cambodia's royal emblem and the legendary bird-man
+    of Khmer mythology.
+
+Sources:
+
+  docs/brand/mascots/salarean_mascot_<id>.png         master
+  docs/brand/mascots/salarean_mascot_<id>_square.png  square crop
+  docs/brand/mascots/salarean_mascot_<id>_{512,256,128}.png
+  docs/brand/mascots/_contact_sheet.png               2x2 preview
+
+  apps/web/public/mascot-<id>.webp     512 (hero greeter)
+  apps/web/public/mascot-<id>-sm.webp  192 (loader / inline)
+
+Active mascot is wired to /kids hero via lib/mascots.ts. To swap:
+
+  // apps/web/app/lib/mascots.ts
+  export const ACTIVE_MASCOT: MascotId = "apsara";
+                                          ^^^^^^^^
+                                          apsara | bayon | naga | garuda
+
+To regenerate sized variants and webp delivery copies after adding
+new mascot masters, re-run scripts/build_mascots.py (forthcoming;
+currently inlined in the brand pipeline).
+
+----------------------------------------------------------------------------
+
 Web assets (apps/web/public/, served from /):
   /favicon.ico       multi-size 16/32/48/64
   /logo-mark.svg     themable SVG (currentColor)

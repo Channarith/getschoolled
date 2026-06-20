@@ -2,6 +2,63 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Salarean Kids: Angkorian-culture mascots. Four child-friendly
+  cartoon mascots themed around ancient Khmer iconography; the
+  /kids hero shows the active mascot greeting kids next to the
+  brand lockup. Concepts:
+  * apsara  - Lily the Apsara (DEFAULT). Young Apsara dancer in
+              the Khmer mokot crown, holding an open book.
+              Inspired by the celestial dancers carved at
+              Angkor Wat.
+  * bayon   - Bayon Buddy. Plump stone-character with the iconic
+              Bayon Temple smile, holding a lightbulb of wisdom.
+  * naga    - Naga the Wise. Five-headed serpent curled around
+              an open book, the Angkor temple guardian.
+  * garuda  - Garuda Glider. Baby Garuda chick (Cambodia's
+              royal emblem) with graduation cap and book.
+  Files:
+  * docs/brand/mascots/_contact_sheet.png  2x2 preview of all 4
+  * docs/brand/mascots/salarean_mascot_<id>{,_512,_256,_128,
+                       _square}.png        masters + sized
+  * apps/web/public/mascot-<id>{,-sm}.webp 512 + 192 web copies
+  * apps/web/app/lib/mascots.ts            registry + ACTIVE_MASCOT
+  * apps/web/app/kids/page.tsx             hero now displays brand
+    lockup + mascot side-by-side with a first-person greeting
+    line keyed off the active mascot's metadata.
+  Swap mascot in one line: edit ACTIVE_MASCOT in lib/mascots.ts
+  to apsara | bayon | naga | garuda. Branding doc
+  (docs/brand/branding.txt) gained a Kids mascots section.
+
+- Salarean logo: realistic + cartoon LOCKUPS with Khmer
+  wordmark. Both variants now ship as composited lockup PNGs
+  (variant mark + សាលារៀន wordmark below, rendered via Pillow +
+  raqm/HarfBuzz so the U+17C0 vowel sign shapes correctly):
+  * docs/brand/salarean_lockup_realistic.png  (1024 wide)
+  * docs/brand/salarean_lockup_cartoon.png    (1024 wide)
+  Web copies (1024/768/512 webp):
+  * apps/web/public/logo-realistic-lockup{,-768,-512}.webp
+  * apps/web/public/logo-cartoon-lockup{,-768,-512}.webp
+  Wired in:
+  * apps/web/app/page.tsx home hero now shows the realistic
+    lockup as a 220x275 navy card on the left, alongside the
+    "Thousands of classes" headline + CTA row.
+  * apps/web/app/kids/page.tsx kids hero swapped from the bare
+    cartoon mark to the cartoon LOCKUP (same composition with
+    the Khmer wordmark below).
+  scripts/build_salarean_brand.py extended with a per-variant
+  lockup pass that picks up the square-cropped masters
+  (salarean_mark_{realistic,cartoon}_square.png) and produces
+  the 6 webp web copies + 2 master PNGs. Falls back gracefully
+  with "(skip variant lockup; missing X)" if a master isn't
+  there yet.
+
+- Brand naming audit: stray "AI Classroom" string in
+  apps/mobile/package.json description corrected to "Salarean";
+  the legacy STORAGE_KEY "salareen.locale.v1" in
+  apps/web/app/lib/i18n.tsx is intentionally kept for one
+  release cycle so existing visitors don't lose their language
+  pick (commented inline).
+
 - Salarean logo: realistic + cartoon variants. Two new
   illustrative renderings of the canonical Bodhi-leaf-S mark,
   generated with the binary mark as silhouette reference:
