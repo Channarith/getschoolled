@@ -2,6 +2,24 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Homework tool is now INTERNAL-ONLY (AI teacher agent, not students).
+  All six /homework/* endpoints in the curriculum service
+  (/homework/generate, /grade, /scan, /authorship, /grade-reviews,
+  /grade-reviews/{id}/decision) are now gated behind a new
+  Depends(require_internal) so a student client can't grade their
+  own paper. New aoep_shared/internal_auth.py provides
+  is_internal_caller + require_internal: accepts either a static
+  INTERNAL_TOKEN (local dev) or a signed agent token (HMAC via
+  INTERNAL_TOKEN_KEY) with scope in {internal, agent, teacher}.
+  Failure-mode is fail-closed: if no key is configured, every
+  call is denied (so the gate can never accidentally ship open).
+  Tests: 7 new in services/curriculum/tests/
+  test_homework_internal_only.py covering deny-by-default,
+  static-token, signed-agent-token, wrong-scope rejection, and
+  the Authorization: Bearer alternate header. Existing
+  homework-API tests bypass the gate via INTERNAL_AUTH_DISABLED=1
+  set in the service conftest.
+
 - Khmer (km) is now a first-class supported language across the
   platform - hard requirement for the Salareen brand (sala-rian
   literally means 'school' in Khmer). aoep_shared.languages

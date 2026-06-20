@@ -50,8 +50,10 @@ from aoep_shared.validation import (
     validate_claim,
     validate_course,
 )
-from fastapi import Body, File, Form, HTTPException, UploadFile
+from fastapi import Body, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+
+from aoep_shared.internal_auth import require_internal
 
 from aoep_shared.corrections import (
     Correction,
@@ -1014,9 +1016,17 @@ def _context_passages(deck_id: str | None, course_id: str | None) -> list[str]:
     return passages
 
 
-@app.post("/homework/grade")
+@app.post("/homework/grade", dependencies=[Depends(require_internal)])
 def homework_grade(req: GradeHomeworkRequest) -> dict:
-    """Autograde a submission against an assignment (Phase 9)."""
+    """Autograde a submission against an assignment (Phase 9).
+
+    INTERNAL-ONLY. This endpoint is called by the AI agentic teacher
+    (orchestrator / agent-runtime) when a student turns in homework -
+    it must never be reachable from a student client, because then the
+    student could grade their own paper. Gated by require_internal:
+    pass a valid X-Internal-Token header signed with INTERNAL_TOKEN_KEY
+    (or set INTERNAL_TOKEN for local dev).
+    """
     assignment = HomeworkAssignment(**req.assignment)
     answers = req.answers
     if req.submission_text:
@@ -1067,8 +1077,10 @@ def _grade_review_dict(it) -> dict:
             "decided_by": it.decided_by}
 
 
-@app.get("/homework/grade-reviews")
+@app.get("/homework/grade-reviews", dependencies=[Depends(require_internal)])
 def grade_reviews(status: str | None = None) -> dict:
+    """INTERNAL-ONLY. HIL review queue for low-confidence AI grades.
+    Visible only to the teacher agent / human grader, never to students."""
     st = ReviewStatus(status) if status else None
     return {"autonomy": app.state.autonomy.value,
             "items": [_grade_review_dict(i) for i in app.state.grade_reviews.list(st)]}
@@ -1080,8 +1092,11 @@ class GradeReviewDecisionRequest(BaseModel):
     decided_by: str = "human"
 
 
-@app.post("/homework/grade-reviews/{item_id}/decision")
+@app.post("/homework/grade-reviews/{item_id}/decision",
+          dependencies=[Depends(require_internal)])
 def grade_review_decision(item_id: str, req: GradeReviewDecisionRequest) -> dict:
+    """INTERNAL-ONLY. Decide on a queued grade review (approve / edit /
+    reject / takeover). Locked behind the teacher-agent token."""
     try:
         item = app.state.grade_reviews.decide(
             item_id, req.action, edited_payload=req.edited_payload, decided_by=req.decided_by)
@@ -1114,19 +1129,23 @@ class AuthorshipRequest(BaseModel):
     handwritten: bool = False
 
 
-@app.post("/homework/authorship")
+@app.post("/homework/authorship", dependencies=[Depends(require_internal)])
 def homework_authorship(req: AuthorshipRequest) -> dict:
-    """AI-vs-human authorship signal for a submission (Phase 8)."""
+    """INTERNAL-ONLY. AI-vs-human authorship signal for a submission
+    (Phase 8). Used by the teacher agent to decide whether to route a
+    grade to a human; not exposed to student clients."""
     v = detect_authorship(req.text, handwritten=req.handwritten)
     return {"label": v.label, "ai_probability": v.ai_probability, "signals": v.signals,
             "note": "Probabilistic signal, not proof; borderline cases route to human review."}
 
 
-@app.post("/homework/scan")
+@app.post("/homework/scan", dependencies=[Depends(require_internal)])
 async def homework_scan(
     file: UploadFile = File(...), hint: str | None = Form(None), expected: int | None = Form(None)
 ) -> dict:
-    """OCR a scanned/typed homework upload into a Submission (Phase 7)."""
+    """INTERNAL-ONLY. OCR a scanned/typed homework upload into a
+    Submission (Phase 7). The OCR pipeline is gated so a student
+    can't replay other students' uploads through it."""
     content = await file.read()
     ocr = app.state.factory.ocr()
     try:
@@ -1137,8 +1156,13 @@ async def homework_scan(
     return sub.model_dump()
 
 
-@app.post("/homework/generate", response_model=Assignment)
+@app.post("/homework/generate", response_model=Assignment,
+          dependencies=[Depends(require_internal)])
 def homework_generate(req: GenerateHomeworkRequest) -> Assignment:
+    """INTERNAL-ONLY. Build a new homework assignment from a deck or
+    course. Called by the teacher agent during lesson planning; never
+    by a student.
+    """
     slides: list = []
     source = ""
     if req.deck_id:
