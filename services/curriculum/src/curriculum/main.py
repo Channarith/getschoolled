@@ -991,6 +991,7 @@ class GenerateHomeworkRequest(BaseModel):
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
+    locale: str = "en"
 
 
 class GradeHomeworkRequest(BaseModel):
@@ -1184,7 +1185,7 @@ def homework_generate(req: GenerateHomeworkRequest) -> Assignment:
     if not slides:
         raise HTTPException(status_code=422, detail="no slide content to generate from")
     return assignment_from_slides(
-        slides, title=req.title, subject=req.subject, source=source,
+        slides, title=req.title, subject=req.subject, source=source, locale=req.locale,
         num_questions=req.num_questions,
     )
 

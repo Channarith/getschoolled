@@ -2,6 +2,31 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Vietnamese (vi) is now first-class across web + mobile + homework
+  generator, in addition to the catalog/notification i18n already
+  shipped. New apps/web/app/lib/i18n.tsx (LocaleProvider + useT()
+  hook + 14-locale strings dict, mirroring the mobile i18n shape -
+  no react-intl/i18next dep). New apps/web/app/components/
+  LanguagePicker.tsx (footer + nav-compact dropdowns) and
+  LocalizedNav.tsx; the home page hero + CTA buttons + footer +
+  every nav link now flips per locale. Persisted to localStorage so
+  return visits land in the user's last pick. RTL locales (ar)
+  flip document.documentElement.dir. The strings dict ships full
+  Vietnamese + Khmer (brand language) + partial coverage of 11
+  other locales, all with English fallback for missing keys.
+  Backend: aoep_shared/homework/generate.py adds a 14-locale
+  prompt + rubric translation table (SUPPORTED_HOMEWORK_LOCALES,
+  _PROMPT_I18N), so when the AI teacher agent calls /homework/
+  generate with locale=vi the student sees prompts like
+  "Hãy dùng lời của em để giải thích: …" + rubrics in Vietnamese.
+  Falls back to English for unknown locales. Curriculum
+  POST /homework/generate accepts locale=. Tests: 15 new in
+  packages/shared/tests/test_homework_i18n.py covering vi/km/es/
+  fr/de/ja/zh/ko/ar localization, rubric translation, locale
+  normalisation (vi-VN -> vi), and English fallback for unsupported
+  locales. Backend test sweep: 693 tests pass overall (was 671;
+  +22 across this PR's i18n + internal-auth additions).
+
 - Homework tool is now INTERNAL-ONLY (AI teacher agent, not students).
   All six /homework/* endpoints in the curriculum service
   (/homework/generate, /grade, /scan, /authorship, /grade-reviews,
