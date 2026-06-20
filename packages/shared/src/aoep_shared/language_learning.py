@@ -59,6 +59,7 @@ LANGUAGE_META: Dict[str, dict] = {
     "sw": {"name": "Swahili", "native": "Kiswahili", "flag": "🇰🇪"},
     "el": {"name": "Greek", "native": "Ελληνικά", "flag": "🇬🇷"},
     "cs": {"name": "Czech", "native": "Čeština", "flag": "🇨🇿"},
+    "km": {"name": "Khmer", "native": "\u1781\u17d2\u1798\u17c2\u179a", "flag": "\U0001f1f0\U0001f1ed"},
 }
 
 
@@ -222,9 +223,28 @@ _T: Dict[str, Dict[str, tuple]] = {
     "sw": {"hello": ("Jambo", ""), "thanks": ("Asante", ""), "yes": ("Ndiyo", ""), "no": ("Hapana", "")},
     "el": {"hello": ("Γεια σας", "Yia sas"), "thanks": ("Ευχαριστώ", "Efcharistó"), "yes": ("Ναι", "Nai"), "no": ("Όχι", "Ohi")},
     "cs": {"hello": ("Ahoj", ""), "thanks": ("Děkuji", ""), "yes": ("Ano", ""), "no": ("Ne", "")},
+    # Khmer (km) is a rich language because the platform brand "Salareen"
+    # derives from the Khmer word for school (sala-rian); Khmer must be
+    # first-class. Romanization uses the loose ALA-LC style commonly seen
+    # in Phnom Penh phrasebooks (not strict IPA).
+    "km": {
+        "hello":     ("\u1787\u17c6\u179a\u17b6\u1794\u179f\u17bd\u179a", "Chum reap suor"),
+        "goodbye":   ("\u1787\u17c6\u179a\u17b6\u1794\u179b\u17b6", "Chum reap lear"),
+        "thanks":    ("\u17a2\u179a\u1782\u17bb\u178e", "Aw kohn"),
+        "please":    ("\u179f\u17bc\u1798", "Som"),
+        "yes":       ("\u1794\u17b6\u1791/\u1785\u17b6\u179f", "Baat / Chas"),
+        "no":        ("\u1791\u17c1", "Te"),
+        "excuseme":  ("\u179f\u17bc\u1798\u1791\u17c4\u179f", "Som tos"),
+        "howareyou": ("\u179f\u17bb\u1781\u179f\u1794\u17d2\u1794\u17b6\u1799\u1791\u17c1?", "Sok sabbai te?"),
+        "myname":    ("\u1781\u17d2\u1789\u17bb\u17c6\u1788\u17d2\u1798\u17c4\u17c7\u2026", "Khnyom chhmuah…"),
+        "nicemeet":  ("\u179a\u17b8\u1780\u179a\u17b6\u1799\u178e\u17b6\u179f\u17cd\u1787\u17bd\u1794\u17a2\u17d2\u1793\u1780", "Rikreay nas chuob anak"),
+        "bathroom":  ("\u1794\u1793\u17d2\u1791\u1794\u17cb\u1791\u17b9\u1780\u1793\u17c5\u17af\u178e\u17b6?", "Bantob tuek neuv aenah?"),
+        "howmuch":   ("\u1798\u17bd\u1799\u1793\u17c1\u17c7\u178f\u1798\u17d2\u179b\u17c3\u1794\u17bb\u1793\u17d2\u1798\u17b6\u1793?", "Muoy nih tamlay ponman?"),
+        "help":      ("\u1787\u17bd\u1799\u1781\u17d2\u1789\u17bb\u17c6\u1795\u1784!", "Chuoy khnyom phong!"),
+    },
 }
 
-RICH_LANGUAGES = {"en", "es", "fr", "de", "it", "pt", "nl", "ja", "zh", "ko"}
+RICH_LANGUAGES = {"en", "es", "fr", "de", "it", "pt", "nl", "ja", "zh", "ko", "km"}
 
 # Bite-size grammar tips + culture notes for the rich languages.
 _GRAMMAR_TIPS: Dict[str, str] = {
@@ -238,6 +258,9 @@ _GRAMMAR_TIPS: Dict[str, str] = {
     "zh": "No verb conjugation or plurals; tone changes meaning (mā/má/mǎ/mà).",
     "ko": "Subject-Object-Verb order; politeness levels change verb endings.",
     "en": "Word order is Subject-Verb-Object; add -s for plurals and 3rd person.",
+    "km": "Khmer has no tones and no verb conjugation; meaning comes from word "
+          "order (Subject-Verb-Object) and politeness particles like \u1794\u17b6\u1791 "
+          "(baat, men) / \u1785\u17b6\u179f (chas, women).",
 }
 _CULTURE_NOTES: Dict[str, str] = {
     "es": "A friendly greeting is often two cheek kisses in Spain, a handshake in much of Latin America.",
@@ -250,6 +273,9 @@ _CULTURE_NOTES: Dict[str, str] = {
     "zh": "Offer and receive items (and business cards) with both hands.",
     "ko": "Use two hands when giving/receiving, especially with elders.",
     "en": "Small talk about the weather is a common, friendly icebreaker.",
+    "km": "Greet with the sampeah - palms together, fingertips at chest "
+          "height - and say 'chum reap suor'. Show respect with two hands "
+          "when offering or receiving.",
 }
 
 LEARNING_TIPS = [

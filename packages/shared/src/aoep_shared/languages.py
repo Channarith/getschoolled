@@ -7,16 +7,20 @@ cloud-TTS fallback. This module is the single source of truth for both sets.
 
 from __future__ import annotations
 
-# 26 supported languages (ISO 639-1 where available). ASR + translation cover
-# all of these.
+# 27 supported languages (ISO 639-1 where available). ASR + translation cover
+# all of these. Khmer (km) added because the brand "Salareen" derives from the
+# Khmer word for school (sala-rian), so first-class Khmer support is a brand
+# requirement, not a stretch goal.
 SUPPORTED_LANGUAGES: tuple[str, ...] = (
     "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk",
     "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja", "ko",
-    "vi", "th", "id", "sw", "el", "cs",
+    "vi", "th", "id", "sw", "el", "cs", "km",
 )
 
 # Languages with solid open TTS voice coverage (XTTS-v2). The remainder use the
-# cloud-TTS fallback regardless of deploy mode.
+# cloud-TTS fallback regardless of deploy mode. Khmer is not in XTTS-v2 voice
+# coverage as of 2026 - it routes to the cloud-TTS fallback (Azure / Google /
+# Polly all have native Khmer voices).
 TTS_NATIVE_LANGUAGES: frozenset[str] = frozenset(
     {
         "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru",

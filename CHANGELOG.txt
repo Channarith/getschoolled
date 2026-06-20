@@ -2,6 +2,41 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Khmer (km) is now a first-class supported language across the
+  platform - hard requirement for the Salareen brand (sala-rian
+  literally means 'school' in Khmer). aoep_shared.languages
+  SUPPORTED_LANGUAGES grows from 26 to 27 (km routes to cloud-TTS
+  fallback since XTTS-v2 doesn't ship a Khmer voice).
+  language_learning.LANGUAGE_META gains the km row (Khmer / khmae,
+  KH flag); km is added to RICH_LANGUAGES with a full 13-concept
+  phrasebook (greetings, conversation, travel-survival in Khmer
+  script + ALA-LC romanization), a grammar tip, and a culture note
+  about the sampeah greeting. catalog_i18n grows from 13 to 14
+  locales: km translations for all 15 categories, 3 levels, 3
+  language-lesson types, 6 segment headings, and 6 narration
+  templates. audio_courses._LANGUAGE_NAME_TRANSLATIONS gets a km
+  column on every existing row + a brand new km row, so the
+  language-being-taught name renders in Khmer and 'Khmer' renders in
+  every other locale. notifications gains a km i18n entry; build_feed
+  now passes the active locale through to build_catalog so course
+  titles embedded inside notification text render in the same
+  language as the framing. Mobile: km added to
+  apps/mobile/src/i18n/languages.ts (full tier) + a 82-string KM
+  translation dict in strings.ts; HomeScreen now refreshes Continue
+  Listening + My List rows from the freshly loaded locale-correct
+  catalog so a row stored when the user was browsing in JA doesn't
+  retain its old Japanese title after switching to KM. Tests: 11 new
+  test_khmer_support.py covering the full Khmer surface; existing
+  '26 supported languages' assertions in test_languages_speech.py +
+  services/speech/tests/test_speech.py + test_catalog_i18n.py
+  updated to 27. 671 backend tests pass overall (323 shared, 100
+  curriculum, plus the rest unchanged). Verified live via
+  GET /audio/categories?locale=km, /audio/courses?locale=km,
+  /audio/courses/<id>?locale=km, /notifications/feed?locale=km, and
+  the mobile web preview switching to ខ្មែរ in Settings re-renders
+  Home rails, course cards, Drive Mode player + notification inbox
+  fully in Khmer.
+
 - Catalog content i18n: course names, category labels, level labels,
   segment headings, and templated narration now translate alongside the
   UI chrome (previously only the static UI strings translated; catalog

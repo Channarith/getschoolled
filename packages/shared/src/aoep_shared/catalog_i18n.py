@@ -36,7 +36,7 @@ from typing import Dict, Optional
 # (the 13 "full" tier locales).
 SUPPORTED_LOCALES: tuple[str, ...] = (
     "en", "es", "fr", "de", "it", "pt",
-    "ru", "ar", "hi", "zh", "ja", "ko", "vi",
+    "ru", "ar", "hi", "zh", "ja", "ko", "vi", "km",
 )
 
 DEFAULT_LOCALE = "en"
@@ -62,11 +62,13 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "en": "Languages", "es": "Idiomas", "fr": "Langues", "de": "Sprachen",
         "it": "Lingue", "pt": "Idiomas", "ru": "Языки", "ar": "اللغات",
         "hi": "भाषाएँ", "zh": "语言", "ja": "言語", "ko": "언어", "vi": "Ngôn ngữ",
+        "km": "ភាសា",
     },
     "History": {
         "en": "History", "es": "Historia", "fr": "Histoire", "de": "Geschichte",
         "it": "Storia", "pt": "História", "ru": "История", "ar": "التاريخ",
         "hi": "इतिहास", "zh": "历史", "ja": "歴史", "ko": "역사", "vi": "Lịch sử",
+        "km": "ប្រវត្តិ",
     },
     "Science & Nature": {
         "en": "Science & Nature", "es": "Ciencia y Naturaleza",
@@ -75,6 +77,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Наука и природа", "ar": "العلوم والطبيعة",
         "hi": "विज्ञान और प्रकृति", "zh": "科学与自然", "ja": "科学と自然",
         "ko": "과학과 자연", "vi": "Khoa học & Thiên nhiên",
+        "km": "វិទ្យាសាស្ត្រ និង ធម្មជាតិ",
     },
     "Business & Career": {
         "en": "Business & Career", "es": "Negocios y Carrera",
@@ -83,6 +86,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Бизнес и карьера", "ar": "الأعمال والمهنة",
         "hi": "व्यापार और करियर", "zh": "商业与职业", "ja": "ビジネスとキャリア",
         "ko": "비즈니스와 커리어", "vi": "Kinh doanh & Sự nghiệp",
+        "km": "អាជីវកម្ម និង មុខរបរ",
     },
     "Personal Finance": {
         "en": "Personal Finance", "es": "Finanzas personales",
@@ -91,6 +95,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Личные финансы", "ar": "التمويل الشخصي",
         "hi": "व्यक्तिगत वित्त", "zh": "个人理财", "ja": "個人ファイナンス",
         "ko": "개인 재정", "vi": "Tài chính cá nhân",
+        "km": "ហិរញ្ញវត្ថុមនុស្ស",
     },
     "Health & Wellness": {
         "en": "Health & Wellness", "es": "Salud y Bienestar",
@@ -99,12 +104,14 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Здоровье и благополучие", "ar": "الصحة والعافية",
         "hi": "स्वास्थ्य और कल्याण", "zh": "健康与养生", "ja": "健康とウェルネス",
         "ko": "건강과 웰니스", "vi": "Sức khỏe & Thể chất",
+        "km": "សុខភាព និង សុខសរហ្វាល",
     },
     "Technology": {
         "en": "Technology", "es": "Tecnología", "fr": "Technologie",
         "de": "Technologie", "it": "Tecnologia", "pt": "Tecnologia",
         "ru": "Технологии", "ar": "التكنولوجيا", "hi": "तकनीक",
         "zh": "科技", "ja": "テクノロジー", "ko": "기술", "vi": "Công nghệ",
+        "km": "បច្ចេកវិទ្យា",
     },
     "Mindfulness & Philosophy": {
         "en": "Mindfulness & Philosophy", "es": "Atención plena y Filosofía",
@@ -114,6 +121,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Осознанность и философия", "ar": "اليقظة والفلسفة",
         "hi": "सजगता और दर्शन", "zh": "正念与哲学", "ja": "マインドフルネスと哲学",
         "ko": "마음챙김과 철학", "vi": "Chánh niệm & Triết học",
+        "km": "សតិសម្បជញ្ញៈ និង ទស្សនវិជ្ជា",
     },
     "Arts & Culture": {
         "en": "Arts & Culture", "es": "Arte y Cultura",
@@ -122,6 +130,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Искусство и культура", "ar": "الفنون والثقافة",
         "hi": "कला और संस्कृति", "zh": "艺术与文化", "ja": "芸術と文化",
         "ko": "예술과 문화", "vi": "Nghệ thuật & Văn hóa",
+        "km": "សិល្បៈ និង វប្បធម៍",
     },
     "Productivity & Study": {
         "en": "Productivity & Study", "es": "Productividad y Estudio",
@@ -130,6 +139,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Продуктивность и учёба", "ar": "الإنتاجية والدراسة",
         "hi": "उत्पादकता और अध्ययन", "zh": "效率与学习",
         "ja": "生産性と学習", "ko": "생산성과 학습", "vi": "Năng suất & Học tập",
+        "km": "បរិមាណពលកម្ម និង ការសិក្សា",
     },
     "True Stories & Biographies": {
         "en": "True Stories & Biographies", "es": "Historias reales y Biografías",
@@ -139,6 +149,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Истории и биографии", "ar": "قصص حقيقية وسير ذاتية",
         "hi": "सच्ची कहानियाँ और जीवनी", "zh": "真实故事与传记",
         "ja": "実話と伝記", "ko": "실화와 전기", "vi": "Câu chuyện thật & Tiểu sử",
+        "km": "រឺងពិត និង ជីវប្រវត្តិ",
     },
     "Geography & World": {
         "en": "Geography & World", "es": "Geografía y Mundo",
@@ -147,6 +158,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "География и мир", "ar": "الجغرافيا والعالم",
         "hi": "भूगोल और दुनिया", "zh": "地理与世界",
         "ja": "地理と世界", "ko": "지리와 세계", "vi": "Địa lý & Thế giới",
+        "km": "ភូមិវិទ្យា និង ពិភពលោក",
     },
     "World Cultures": {
         "en": "World Cultures", "es": "Culturas del mundo",
@@ -155,6 +167,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Мировые культуры", "ar": "ثقافات العالم",
         "hi": "विश्व संस्कृतियाँ", "zh": "世界文化",
         "ja": "世界の文化", "ko": "세계 문화", "vi": "Văn hóa thế giới",
+        "km": "វប្បធម៍ពិភពលោក",
     },
     "Cooking & Food": {
         "en": "Cooking & Food", "es": "Cocina y Comida",
@@ -163,6 +176,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Кулинария и еда", "ar": "الطبخ والطعام",
         "hi": "रसोई और भोजन", "zh": "烹饪与美食",
         "ja": "料理と食", "ko": "요리와 음식", "vi": "Nấu ăn & Ẩm thực",
+        "km": "ម្ហូប និង គ្រឺអាហារ",
     },
     "Civics & Law": {
         "en": "Civics & Law", "es": "Cívica y Derecho",
@@ -171,6 +185,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Гражданство и право", "ar": "التربية المدنية والقانون",
         "hi": "नागरिक शास्त्र और कानून", "zh": "公民与法律",
         "ja": "公民と法", "ko": "시민과 법", "vi": "Công dân & Pháp luật",
+        "km": "ពររដ្ឋ និង ច្បាប់",
     },
     "Sports & Games": {
         "en": "Sports & Games", "es": "Deportes y Juegos",
@@ -179,6 +194,7 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ru": "Спорт и игры", "ar": "الرياضة والألعاب",
         "hi": "खेल और गेम्स", "zh": "运动与游戏",
         "ja": "スポーツとゲーム", "ko": "스포츠와 게임", "vi": "Thể thao & Trò chơi",
+        "km": "កីឡា និង ល្បែង",
     },
 }
 
@@ -192,18 +208,21 @@ LEVEL: Dict[str, Dict[str, str]] = {
         "de": "Anfänger", "it": "principiante", "pt": "iniciante",
         "ru": "начальный", "ar": "مبتدئ", "hi": "शुरुआती",
         "zh": "入门", "ja": "初級", "ko": "초급", "vi": "Cơ bản",
+        "km": "ដំបូង",
     },
     "intermediate": {
         "en": "intermediate", "es": "intermedio", "fr": "intermédiaire",
         "de": "Mittelstufe", "it": "intermedio", "pt": "intermediário",
         "ru": "средний", "ar": "متوسط", "hi": "मध्यम",
         "zh": "中级", "ja": "中級", "ko": "중급", "vi": "Trung cấp",
+        "km": "កណ្តាល",
     },
     "advanced": {
         "en": "advanced", "es": "avanzado", "fr": "avancé",
         "de": "Fortgeschritten", "it": "avanzato", "pt": "avançado",
         "ru": "продвинутый", "ar": "متقدم", "hi": "उन्नत",
         "zh": "高级", "ja": "上級", "ko": "고급", "vi": "Nâng cao",
+        "km": "កូ៞ទរបស់",
     },
 }
 
@@ -220,6 +239,7 @@ LESSON_TYPE: Dict[str, Dict[str, str]] = {
         "ru": "Основные фразы", "ar": "عبارات أساسية",
         "hi": "ज़रूरी वाक्यांश", "zh": "必备短语",
         "ja": "必須フレーズ", "ko": "필수 문장", "vi": "Cụm từ thiết yếu",
+        "km": "ឧវាទសំបុមញាឡៀស",
     },
     "Everyday conversation": {
         "en": "Everyday conversation", "es": "Conversación cotidiana",
@@ -228,6 +248,7 @@ LESSON_TYPE: Dict[str, Dict[str, str]] = {
         "ru": "Повседневная речь", "ar": "محادثة يومية",
         "hi": "रोज़मर्रा की बातचीत", "zh": "日常对话",
         "ja": "日常会話", "ko": "일상 대화", "vi": "Hội thoại hàng ngày",
+        "km": "សន្ទនាដេកម្ណឹក",
     },
     "Travel survival": {
         "en": "Travel survival", "es": "Supervivencia de viaje",
@@ -236,6 +257,7 @@ LESSON_TYPE: Dict[str, Dict[str, str]] = {
         "ru": "Выживание в путешествии", "ar": "البقاء في السفر",
         "hi": "यात्रा में काम के वाक्य", "zh": "旅行求生",
         "ja": "旅のサバイバル", "ko": "여행 생존", "vi": "Sống sót khi đi du lịch",
+        "km": "ដំណាកាលគ្រាមានដំណើរ",
     },
 }
 
@@ -249,18 +271,21 @@ HEADING: Dict[str, Dict[str, str]] = {
         "de": "Einführung", "it": "Introduzione", "pt": "Introdução",
         "ru": "Введение", "ar": "مقدمة", "hi": "परिचय",
         "zh": "引言", "ja": "はじめに", "ko": "소개", "vi": "Giới thiệu",
+        "km": "សេចក្តីផ្ដើម",
     },
     "Recap": {
         "en": "Recap", "es": "Resumen", "fr": "Récapitulatif",
         "de": "Zusammenfassung", "it": "Riepilogo", "pt": "Resumo",
         "ru": "Итог", "ar": "ملخص", "hi": "सारांश",
         "zh": "回顾", "ja": "まとめ", "ko": "정리", "vi": "Tóm tắt",
+        "km": "សរុប",
     },
     "Key idea": {
         "en": "Key idea", "es": "Idea clave", "fr": "Idée clé",
         "de": "Kernidee", "it": "Idea chiave", "pt": "Ideia-chave",
         "ru": "Главная мысль", "ar": "فكرة أساسية", "hi": "मुख्य विचार",
         "zh": "要点", "ja": "重要ポイント", "ko": "핵심 아이디어", "vi": "Ý chính",
+        "km": "គំនិតសំខាន់",
     },
     "Why it matters": {
         "en": "Why it matters", "es": "Por qué importa",
@@ -269,6 +294,7 @@ HEADING: Dict[str, Dict[str, str]] = {
         "ru": "Почему это важно", "ar": "لماذا هذا مهم",
         "hi": "यह क्यों मायने रखता है", "zh": "为什么重要",
         "ja": "なぜ大切か", "ko": "왜 중요한가", "vi": "Vì sao quan trọng",
+        "km": "ហេតុអ្វីមានសំខាន់?",
     },
     "Core ideas": {
         "en": "Core ideas", "es": "Ideas centrales",
@@ -277,6 +303,7 @@ HEADING: Dict[str, Dict[str, str]] = {
         "ru": "Основные идеи", "ar": "الأفكار الأساسية",
         "hi": "मुख्य विचार", "zh": "核心思想",
         "ja": "中心となる考え", "ko": "핵심 개념", "vi": "Ý tưởng cốt lõi",
+        "km": "គំនិតសីនុំឧះ",
     },
     "Going deeper": {
         "en": "Going deeper", "es": "Profundizando",
@@ -285,6 +312,7 @@ HEADING: Dict[str, Dict[str, str]] = {
         "ru": "Глубже", "ar": "نتعمق أكثر",
         "hi": "और गहराई में", "zh": "进一步深入",
         "ja": "もっと深く", "ko": "한 걸음 더", "vi": "Đi sâu hơn",
+        "km": "ខ្ជំក្រឡាបន្តែម",
     },
 }
 
@@ -335,6 +363,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "vi": ("Chào mừng đến với {language} - {lesson}. Đây là bài học "
                "âm thanh rảnh tay, hãy giữ mắt trên đường. Cứ nghe rồi "
                "lặp lại to từng câu."),
+        "km": "សួស្តីមកកាន់អត្ថបទ {language} - {lesson}។ នេះជាមេរៀនសំឡេងដោយឡេងមិនប្រើទេ ដូច្នេះសូមស្តាប់និងតាមមកទាំងល្អ្​អានពាក្យនីមួយ២ពីសំឡេងទេេ។",
     },
     # Per-phrase line: "In {language}, '{en}' is {target}."
     "lang_phrase_say": {
@@ -351,6 +380,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "ja": "{language}で「{en}」は：{target}。",
         "ko": "{language}에서 '{en}'은(는): {target}.",
         "vi": "Trong {language}, '{en}' là: {target}.",
+        "km": "ជា{language} «{en}» គឺ {target}។",
     },
     # Per-phrase romanization line
     "lang_phrase_roman": {
@@ -367,6 +397,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "ja": " このように発音できます：{roman}。",
         "ko": " 이렇게 발음할 수 있어요: {roman}.",
         "vi": " Bạn có thể đọc là: {roman}.",
+        "km": " អ្នកអាចនិយាយវាគឺ {roman}។",
     },
     # "Now you try - repeat: {target}. ... {target}."
     "lang_phrase_repeat": {
@@ -383,6 +414,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "ja": " では、あなたの番です — 続けて言ってみて：{target}。……{target}。",
         "ko": " 이제 따라 해보세요 — 저를 따라: {target}. ... {target}.",
         "vi": " Bây giờ tới lượt bạn — lặp lại theo tôi: {target}. ... {target}.",
+        "km": " ឡេតតាមសំឡេងខ្ញុំណឹតាម {target}។ … {target}។",
     },
     # "Great work! Let's review what you learned in {language}: {recap}."
     "lang_recap": {
@@ -417,6 +449,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
                "{recap}. 다음 운전 때 연습하면 확실히 익숙해질 거예요."),
         "vi": ("Tuyệt vời! Cùng ôn lại những gì bạn đã học bằng {language}: "
                "{recap}. Luyện tập trong chuyến đi sau và bạn sẽ nhớ chúng."),
+        "km": "ល្អណាស់! តើយើងរវាយមើលអ្វីដែលអ្នកបានរេឡ៎វិញជា{language}: {recap}។ រេឡ៎ពីឞឨតែពីសំឡេងឡេតឨតឣឣឣឣ",
     },
     # Knowledge lesson intro: "Welcome to this audio lesson on {title}..."
     "know_intro": {
@@ -459,6 +492,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "vi": ("Chào mừng đến với bài học âm thanh về {title}. Hãy giữ "
                "mắt trên đường - không có gì để nhìn. Trong vài phút, chỉ "
                "cần nghe là bạn sẽ nắm được những ý chính."),
+        "km": "សួស្តីមកកាន់បទសីក្សាសំឡេងនេះ ​អំពី {title}។ សូមតាមដានផ្រូបមីដាបឞឨតែ - មីនមានអ្វីត្រូវមើល​​​​​​ឣ ក្នុងរយៈពេលពីរបីនាទីភាគ​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​អ្នកនឹងយល់​​​​​​​​​​​​​​ឣ",
     },
     # Knowledge lesson recap
     "know_recap": {
@@ -483,6 +517,7 @@ NARRATION: Dict[str, Dict[str, str]] = {
         "ko": ("{title}의 빠른 정리: {recap} 잘하셨어요 — 이동 중 학습."),
         "vi": ("Ôn nhanh về {title}: {recap} Tốt lắm — học ngay khi đang "
                "di chuyển."),
+        "km": "សរុបពី {title}: {recap} ល្អណាស់ - រៀន​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​ា​​​អ្នកនឹងយល់ឣ",
     },
 }
 

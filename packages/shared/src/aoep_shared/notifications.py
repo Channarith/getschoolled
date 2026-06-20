@@ -184,6 +184,18 @@ _I18N: Dict[str, Dict[str, str]] = {
         "reminder.title": "Lớp học hôm nay đã sẵn sàng",
         "reminder.body": "Lớp âm thanh 5 phút đang chờ trong chế độ Lái xe.",
     },
+    "km": {
+        "new_class.title": "មេរៀនសំឡេងថ្មី: {title}",
+        "new_class.body": "{min} នាទី · {category} · {level}. ចុចដើម្បីចាប់ផ្ដើមនៅបោហេរឣ",
+        "continue.title": "បន្ត: {title}",
+        "continue.body": "បន្តពីកន្លែងដែលអ្នកបានឈប់ - រត់របស់អ្នកត្រូវបានរក្សាទុកឣ",
+        "recommended.title": "ជ្រើសរើសសម្រាប់អ្នក: {title}",
+        "recommended.body": "មាន​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​្​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​អ្នកទាំង{interests}ឣ",
+        "streak.title": "តាមអាយុ {days} ថ្ងៃ! 🔥",
+        "streak.body": "រក្សាវែអ្នក - មេរៀនខ្លីមួយខ្ត៊ោយអាចបន្តស៊ស្រី​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​អ្នក​​​​​​​​​​​​​​​​​​​​​​​ឣ",
+        "reminder.title": "មេរៀនរបស់អ្នកភាពរួចរួយឣ",
+        "reminder.body": "មេរៀនសំឡេង​​​5 នាទី​​​​​​​​​​​​​​​​​​​​​​​​ឣ",
+    },
 }
 
 
@@ -251,7 +263,10 @@ def build_feed(
     base = (now or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0)
 
     items: List[NotificationItem] = []
-    catalog = build_catalog()
+    # Build the catalog in the user's locale so course titles embedded
+    # inside notification text ("New audio class: <title>") render in
+    # the same language as the framing.
+    catalog = build_catalog(locale)
     fresh = [c for c in catalog if c.id not in completed][:120]
 
     matched = []

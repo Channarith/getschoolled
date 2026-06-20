@@ -9,7 +9,7 @@
 export type LocaleCode =
   | "en" | "es" | "fr" | "de" | "it" | "pt" | "nl" | "pl" | "ru" | "uk"
   | "tr" | "ar" | "he" | "hi" | "bn" | "ur" | "fa" | "zh" | "ja" | "ko"
-  | "vi" | "th" | "id" | "sw" | "el" | "cs";
+  | "vi" | "th" | "id" | "sw" | "el" | "cs" | "km";
 
 export type LanguageInfo = {
   code: LocaleCode;
@@ -34,6 +34,7 @@ export const LANGUAGES: LanguageInfo[] = [
   { code: "ja", name: "Japanese",           native: "日本語",            flag: "🇯🇵", tier: "full" },
   { code: "ko", name: "Korean",             native: "한국어",             flag: "🇰🇷", tier: "full" },
   { code: "vi", name: "Vietnamese",         native: "Tiếng Việt",       flag: "🇻🇳", tier: "full" },
+  { code: "km", name: "Khmer",              native: "ខ្មែរ",            flag: "🇰🇭", tier: "full" },
   // Remaining 13 are wired in the picker but inherit English until a full
   // translation lands. (The strings dictionary cleanly falls through.)
   { code: "nl", name: "Dutch",              native: "Nederlands",       flag: "🇳🇱", tier: "fallback" },

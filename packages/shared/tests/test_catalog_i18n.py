@@ -17,9 +17,12 @@ def test_normalize_locale_handles_variants():
     assert n("es-MX") == "es"
     assert n("fr_FR") == "fr"
     assert n("ZH-Hans") == "zh"
+    # Khmer is fully supported (brand-required).
+    assert n("km") == "km"
+    assert n("km-KH") == "km"
     # Unsupported -> English fallback.
     assert n("zzz") == "en"
-    assert n("km") == "en"
+    assert n("xx") == "en"
     assert n(None) == "en"
     assert n("") == "en"
 

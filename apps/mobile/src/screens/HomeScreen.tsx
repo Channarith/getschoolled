@@ -46,7 +46,19 @@ export default function HomeScreen({
         listContinue(), getMyList(), getAudioCategories(locale),
         listAudioCourses(undefined, undefined, 80, locale), getInterests(),
       ]);
-      setContinueRows(cont);
+      // Re-resolve the persisted Continue Listening rows against the
+      // freshly loaded (locale-correct) catalog so a row stored when
+      // the user was in JA doesn't display its old Japanese title
+      // after switching to KM. Falls back to the stored title if the
+      // course is no longer in the catalog (defensive).
+      const courseLookup = new Map(all.courses.map((c) => [c.id, c]));
+      const refreshedContinue = cont.map((c) => {
+        const fresh = courseLookup.get(c.id);
+        return fresh
+          ? { ...c, title: fresh.title, category: fresh.category }
+          : c;
+      });
+      setContinueRows(refreshedContinue);
       setCats(allCats.categories);
       const savedIdSet = new Set(savedIds);
       setSavedSet(savedIdSet);
@@ -61,8 +73,8 @@ export default function HomeScreen({
       setForYou(matches.length ? matches.slice(0, 12) : all.courses.slice(24, 36));
 
       if (savedIds.length) {
-        const lookup = new Map(all.courses.map((c) => [c.id, c]));
-        setSavedRows(savedIds.map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
+        // Same idea: map saved IDs to the locale-correct catalog rows.
+        setSavedRows(savedIds.map((id) => courseLookup.get(id)).filter(Boolean) as AudioCourseRow[]);
       } else { setSavedRows([]); }
 
       const streak = await getStreak();

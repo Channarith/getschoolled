@@ -9,9 +9,11 @@ def test_health():
     assert client.get("/health").json()["service"] == "speech"
 
 
-def test_languages_count_is_26():
+def test_languages_count_is_27():
     body = client.get("/languages").json()
-    assert body["count"] == 26
+    # 26 base languages + Khmer (km) - brand-required for Salareen.
+    assert body["count"] == 27
+    assert "km" in body["languages"]
 
 
 def test_tts_engine_routing():
