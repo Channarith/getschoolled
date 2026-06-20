@@ -17,7 +17,7 @@ export type Background = {
   name: string;
   category:
     | "holiday" | "seasonal" | "social" | "economic" | "realistic"
-    | "surreal" | "artistic" | "kids" | "anime" | "minimal";
+    | "surreal" | "artistic" | "kids" | "anime" | "minimal" | "education";
   kind: BgKind;
   css: string;        // CSS `background` value (also used as fallback for images)
   src?: string;       // /wallpapers/*.webp when kind === "image"
@@ -36,6 +36,88 @@ const snow = (c: string) => svg(`<g fill='${c}'><circle cx='10' cy='10' r='2'/><
 const leaves = (c: string) => svg(`<path d='M8 24C8 14 18 8 28 8 28 18 18 24 8 24z' fill='${c}'/>`, 48, 48);
 const network = (c: string) => svg(`<g stroke='${c}' stroke-width='1' fill='${c}'><line x1='10' y1='10' x2='50' y2='30'/><line x1='50' y1='30' x2='20' y2='55'/><line x1='10' y1='10' x2='20' y2='55'/><circle cx='10' cy='10' r='3'/><circle cx='50' cy='30' r='3'/><circle cx='20' cy='55' r='3'/></g>`, 70, 70);
 const sparkle = (c: string) => svg(`<g fill='${c}'><path d='M20 6l2 8 8 2-8 2-2 8-2-8-8-2 8-2z'/><circle cx='44' cy='44' r='2'/><circle cx='48' cy='12' r='1.5'/></g>`, 60, 60);
+
+// --- Education pattern motifs --------------------------------------------- //
+// Each is a small SVG icon tile that gets repeated as a pattern overlay on
+// top of a gradient base. Tile size is chosen so the icons sit on a
+// gentle grid without looking dense.
+
+// Graduation cap: mortarboard with tassel.
+const gradCap = (c: string) => svg(
+  `<g fill='${c}'>
+     <path d='M30 12 L52 22 L30 32 L8 22 Z'/>
+     <rect x='26' y='30' width='8' height='3'/>
+     <path d='M30 32 Q42 36 44 46' stroke='${c}' stroke-width='2' fill='none'/>
+     <circle cx='44' cy='48' r='2'/>
+   </g>`, 60, 60);
+
+// Open book.
+const openBook = (c: string) => svg(
+  `<g fill='${c}'>
+     <path d='M6 22 L28 18 L28 42 L6 46 Z'/>
+     <path d='M54 22 L32 18 L32 42 L54 46 Z'/>
+     <rect x='28' y='18' width='4' height='24'/>
+   </g>`, 60, 60);
+
+// Lightbulb (idea / wisdom).
+const bulb = (c: string) => svg(
+  `<g fill='${c}'>
+     <path d='M30 8 C22 8 16 14 16 22 C16 28 20 32 24 36 L24 40 L36 40 L36 36 C40 32 44 28 44 22 C44 14 38 8 30 8 Z'/>
+     <rect x='25' y='40' width='10' height='3'/>
+     <rect x='27' y='43' width='6' height='2'/>
+   </g>`, 60, 60);
+
+// Pencil tilted up-right.
+const pencil = (c: string) => svg(
+  `<g fill='${c}' transform='rotate(-30 30 30)'>
+     <rect x='8' y='28' width='6' height='4' rx='1'/>
+     <rect x='14' y='28' width='2' height='4'/>
+     <rect x='16' y='28' width='30' height='4'/>
+     <path d='M46 28 L52 30 L46 32 Z'/>
+   </g>`, 60, 60);
+
+// Bodhi leaf (heart-shape with drip-tip) - SE Asian wisdom motif.
+const bodhi = (c: string) => svg(
+  `<g fill='${c}'>
+     <path d='M30 6 C22 14 16 24 18 32 C20 38 26 40 30 36 C34 40 40 38 42 32 C44 24 38 14 30 6 Z'/>
+   </g>`, 60, 60);
+
+// Combined education tile: graduation cap + open book + lightbulb + pencil
+// + bodhi leaf, distributed so the pattern repeats nicely. Used by the
+// default education wallpaper below.
+const eduTile = (c: string) => svg(
+  `<g fill='${c}'>
+     <!-- graduation cap top-left -->
+     <g transform='translate(8 14)'>
+       <path d='M22 0 L44 10 L22 20 L0 10 Z'/>
+       <rect x='18' y='18' width='8' height='3'/>
+       <path d='M22 20 Q34 24 36 34' stroke='${c}' stroke-width='2' fill='none'/>
+       <circle cx='36' cy='36' r='2'/>
+     </g>
+     <!-- open book bottom-right -->
+     <g transform='translate(120 110)'>
+       <path d='M6 22 L28 18 L28 42 L6 46 Z'/>
+       <path d='M54 22 L32 18 L32 42 L54 46 Z'/>
+       <rect x='28' y='18' width='4' height='24'/>
+     </g>
+     <!-- lightbulb top-right -->
+     <g transform='translate(120 14)'>
+       <path d='M30 8 C22 8 16 14 16 22 C16 28 20 32 24 36 L24 40 L36 40 L36 36 C40 32 44 28 44 22 C44 14 38 8 30 8 Z'/>
+       <rect x='25' y='40' width='10' height='3'/>
+       <rect x='27' y='43' width='6' height='2'/>
+     </g>
+     <!-- pencil bottom-left, tilted -->
+     <g transform='translate(0 100) rotate(-25)'>
+       <rect x='6' y='28' width='6' height='4' rx='1'/>
+       <rect x='12' y='28' width='2' height='4'/>
+       <rect x='14' y='28' width='34' height='4'/>
+       <path d='M48 28 L54 30 L48 32 Z'/>
+     </g>
+     <!-- Bodhi leaf center -->
+     <g transform='translate(75 70)'>
+       <path d='M22 0 C16 6 12 14 14 20 C16 24 20 26 22 22 C24 26 28 24 30 20 C32 14 28 6 22 0 Z'/>
+     </g>
+   </g>`, 200, 200);
 
 // Quick CSS builders.
 const lin = (deg: number, ...c: string[]) => `linear-gradient(${deg}deg, ${c.join(", ")})`;
@@ -186,11 +268,41 @@ export const BACKGROUNDS: Background[] = [
     css: pat(grid("rgba(255,255,255,.05)"), "#0b1020") },
   { id: "softlight", name: "Soft Light", category: "minimal", kind: "css",
     css: rad("#ffffff", "#e2e8f0 60%", "#cbd5e1") },
+
+  // -------------------- education (default category) -------------------- //
+  // The platform brand-default. A soft scholarly-navy gradient pattern-
+  // overlaid with a quiet education-motif tile (graduation caps + open
+  // books + lightbulbs + pencils + a Bodhi leaf at the centre - the
+  // Salarean brand mark's wisdom symbol). All-CSS, weightless, themed
+  // for low-distraction reading.
+  { id: "salarean-classic", name: "Salarean Classic (default)",
+    category: "education", kind: "css",
+    css: pat(eduTile("rgba(232,236,246,.08)"),
+             lin(135, "#0b1020", "#172554 55%", "#1d2746")) },
+  { id: "graduation", name: "Graduation Day", category: "education", kind: "css",
+    css: pat(gradCap("rgba(232,236,246,.12)"),
+             lin(135, "#0c4a6e", "#1e40af", "#4c1d95")) },
+  { id: "library", name: "Open Library", category: "education", kind: "css",
+    css: pat(openBook("rgba(245,238,224,.18)"),
+             lin(135, "#3f2d18", "#5e3a17", "#78350f")) },
+  { id: "bright-ideas", name: "Bright Ideas", category: "education", kind: "css",
+    css: pat(bulb("rgba(254,243,199,.22)"),
+             lin(135, "#1e1b4b", "#3730a3", "#0ea5e9")) },
+  { id: "study-paper", name: "Study Paper", category: "education", kind: "css",
+    css: pat(pencil("rgba(15,23,42,.06)"),
+             lin(180, "#f8fafc", "#e2e8f0")) },
+  { id: "wisdom-leaf", name: "Bodhi Wisdom", category: "education", kind: "css",
+    css: pat(bodhi("rgba(232,236,246,.10)"),
+             rad("#0c4a6e", "#0b1020 60%", "#020617")) },
 ];
 
-export const DEFAULT_BACKGROUND_ID = "meshgrad";
+// Brand-default background. Always shown on first load until the user
+// either picks something else or enables 'Auto' (which seasonally
+// rotates via seasonalBackgroundId() below).
+export const DEFAULT_BACKGROUND_ID = "salarean-classic";
 
 export const CATEGORIES = [
+  "education",
   "holiday", "seasonal", "social", "economic", "realistic",
   "surreal", "artistic", "kids", "anime", "minimal",
 ] as const;

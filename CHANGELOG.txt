@@ -2,6 +2,49 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Salarean rebrand + Bodhi-leaf mark + education wallpaper:
+  * Spelling correction: "Salareen" -> "Salarean" everywhere
+    user-visible. The brand romanises the Khmer word for school
+    (sala-rean, សាលារៀន); "Salareen" was an earlier mis-romanisation.
+    Renamed in mobile + web i18n strings (all 14 locales), mobile
+    app.json + package.json, mobile App + screens + notifications,
+    web layout metadata + nav, RUN.txt, branding doc.
+  * NEW canonical mark: docs/brand/salarean_mark.svg - capital S
+    inside a thin circular seal, crowned by a Bodhi-leaf silhouette
+    (the SE Asian / Buddhist symbol of learning under which the
+    Buddha attained enlightenment). Single-ink, currentColor,
+    works in 1-bit print. Sourced from the bodhi-leaf concept in
+    the exploration set; the previous 30+ exploration concepts
+    remain at docs/brand/salareen/ for archive.
+  * NEW scripts/build_salarean_brand.py - regenerates the full
+    asset pack from the SVG source: docs/brand/salarean_*.{svg,
+    png} (mark color + 1-bit + 256 nav, lockup color + 1-bit,
+    Khmer wordmark color + 1-bit) and apps/web/public/{favicon.ico
+    multi-size, logo-mark.svg + .webp, logo.webp apple-touch-icon,
+    wordmark.webp}. The Khmer wordmark renders via Pillow + raqm/
+    HarfBuzz then composites with the rsvg-rendered mark.
+  * apps/web layout.tsx: page title "Salarean - Agentic Online
+    Education Platform"; favicon + apple-touch-icon point at the
+    new assets; nav uses the new logo-mark.webp.
+  * NEW education-themed default wallpaper. Added a new
+    "education" category to apps/web/app/lib/backgrounds.ts with
+    six education wallpapers (Salarean Classic, Graduation Day,
+    Open Library, Bright Ideas, Study Paper, Bodhi Wisdom) built
+    from CSS gradients + inline-SVG education-motif tiles
+    (graduation cap, open book, lightbulb, pencil, Bodhi leaf).
+    DEFAULT_BACKGROUND_ID flipped from "meshgrad" to
+    "salarean-classic" - first-time visitors land on the brand
+    education wallpaper instead of the abstract mesh gradient.
+    apps/web/app/components/BackgroundProvider.tsx falls back to
+    DEFAULT_BACKGROUND_ID when no Auto/explicit pick exists.
+  * Mobile: package.json renamed aiclassroom-mobile -> salarean-
+    mobile; deep links + bundle id remain com.aiclassroom.app
+    until the next mobile-build PR (changing app id requires an
+    EAS rebuild).
+  * Tests: pnpm typecheck (web + mobile) clean; pnpm run build
+    (Next.js production) clean. Backend tests unchanged (no
+    backend code in this PR).
+
 - Vietnamese (vi) is now first-class across web + mobile + homework
   generator, in addition to the catalog/notification i18n already
   shipped. New apps/web/app/lib/i18n.tsx (LocaleProvider + useT()

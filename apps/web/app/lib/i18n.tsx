@@ -1,4 +1,4 @@
-// Lightweight i18n for the AI Classroom / Salareen web app.
+// Lightweight i18n for the Salarean / Salarean web app.
 //
 // Mirrors the mobile i18n in apps/mobile/src/i18n: a `LocaleProvider`
 // at the root + a `useT()` hook in screens. No i18next / react-intl;
@@ -10,7 +10,7 @@
 //   en, es, fr, de, it, pt, ru, ar, hi, zh, ja, ko, vi, km.
 //
 // Why `vi` and `km` specifically: vi is a product requirement; km is a
-// brand requirement (Salareen = ស្ហាលារៀន, the Khmer word for school).
+// brand requirement (Salarean = ស្ហាលារៀន, the Khmer word for school).
 //
 // Persistence: the user's pick is stored in localStorage so a return
 // visit lands in the same language without flicker.

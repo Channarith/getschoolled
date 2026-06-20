@@ -1,4 +1,4 @@
-// Languages the AI Classroom mobile UI is translated into.
+// Languages the Salarean mobile UI is translated into.
 // Source-of-truth list mirrors aoep_shared.languages.SUPPORTED_LANGUAGES so
 // content language coverage and UI language coverage stay aligned.
 //

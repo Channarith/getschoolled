@@ -1,4 +1,4 @@
-// Minimal i18n runtime for AI Classroom mobile.
+// Minimal i18n runtime for Salarean mobile.
 //
 // Why no i18next/react-intl? They're ~50 kB minified each and we don't need
 // pluralization rules, ICU, or compile-time extraction. A 30-line `t()` with

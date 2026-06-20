@@ -1,4 +1,4 @@
-AI CLASSROOM - MOBILE APP (Android + iOS)
+SALAREAN - MOBILE APP (Android + iOS)
 =========================================
 Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
 on the go.

@@ -1,81 +1,107 @@
-AI CLASSROOM - BRANDING
-=======================
+SALAREAN - BRANDING
+====================
 Plain text on purpose (repo no-markdown house rule).
 
------------------------------------------------------------------------------
-1. LOGO
------------------------------------------------------------------------------
-Concept: "fun but surreal." A friendly robot-owl teacher holds a green
-chalkboard that melts and morphs into a swirling galaxy of chalk equations,
-planets and a graduation cap, floating on a small surreal island. Dali-esque
-surrealism in a clean, modern flat-vector emblem style.
+----------------------------------------------------------------------------
+1. NAME
+----------------------------------------------------------------------------
+Salarean (NOT "Salareen" - that was an earlier mis-romanisation that
+appeared during exploration and is now corrected throughout the
+codebase).
 
-Assets (docs/brand/):
-  aiclassroom_logo.webp / .png        full-color emblem (primary)
-  aiclassroom_logo_binary.png         1-bit B/W, dithered - best for grayscale
-                                       print (newspaper/halftone look), keeps detail
-  aiclassroom_logo_binary_threshold.png  1-bit B/W, hard threshold - bold 1-color
-                                       "stamp/screen-print" mark (t-shirts, stickers,
-                                       embossing, fax, single-ink printing)
-Web (apps/web/public/):
-  logo.webp        512px color (hero/marketing)
-  logo-mark.webp   small mark used in the top nav
-  favicon.ico      multi-size browser icon
+The name is a Romanisation of the Khmer word for "school":
+  សាលារៀន   (sala-rean)
 
-Printing the binary version:
-  - Both binary files are true 1-bit PNGs (mode "1"): black ink on white, no
-    grayscale, so they print crisply on any printer and scale to any size.
-  - Use *_threshold.png for single-color jobs (stamps, screen print, laser
-    engraving); use *_binary.png when you want the shaded/detailed look.
+Other common Romanisations of the same Khmer word include "sala rian"
+and "sala riean"; we standardise on "Salarean" because it tracks the
+spoken consonant-vowel pattern more closely and is short enough for
+a domain (salarean.com).
 
------------------------------------------------------------------------------
-2. DOMAIN: aiclassroom.com  (NOT verified live - do a registrar check)
------------------------------------------------------------------------------
-The sandbox has restricted network egress, so a live WHOIS/RDAP/DNS lookup could
-not be performed here. From web search:
-  - "aiclassroom.com" is a short, generic, high-demand .com - it is very likely
-    ALREADY REGISTERED (often parked / privacy-masked or held for aftermarket
-    sale). Treat it as probably unavailable or premium-priced.
-  - Confusingly similar names are already in active use by OTHER parties:
-      aiclassroom.world (AI Classroom World), nextsteps-aiclassroom.com
-      (ClassInclined "AI Classroom Station"), classroom-ai.com / "Classroom AI"
-      (Google Play app), classroomai-sifocom.net (3I Academy "Classroom-AI").
-  Action items:
-  - Verify availability/owner via ICANN RDAP (https://lookup.icann.org) or any
-    registrar (GoDaddy/Namecheap/Cloudflare). If taken, consider a broker or an
-    alternative TLD/name (see naming below).
-  - Also secure matching social handles + defensive TLDs (.ai, .app, .edu-style).
+----------------------------------------------------------------------------
+2. LOGO
+----------------------------------------------------------------------------
+Canonical mark: docs/brand/salarean_mark.svg
 
------------------------------------------------------------------------------
-3. TRADEMARK: "AI Classroom"  (NOT legal advice - consult a TM attorney)
------------------------------------------------------------------------------
-From web search of USPTO-style records (not an authoritative clearance search):
-  - No exact LIVE U.S. federal registration was found for the wordmark
-    "AI CLASSROOM" in education/software classes.
-  - Related/nearby marks show how crowded + hard-to-register this space is:
-      * "LEARN WITH AI" (Serial 99018704, TIMEBACK LLC) - FINAL REFUSAL.
-      * "INTERNATIONAL INSTITUTE OF AI EDUCATION" (99197318) - ABANDONED.
-      * "AIBEP" (99404809) - pending, non-final office action.
-  - Multiple businesses already trade under "Classroom AI" / "AI Classroom"-like
-    names (apps + sites listed above) -> common-law rights + confusion risk.
+A capital S inside a thin circular seal, crowned by a Bodhi-leaf
+silhouette. The Bodhi (peepal / Ficus religiosa) is the tree under
+which the Buddha attained enlightenment - the universal Southeast
+Asian symbol of learning, wisdom, and the moment knowledge takes
+root. The leaf's distinctive heart-shape-with-drip-tip is
+instantly readable at favicon size.
 
-Assessment:
-  - "AI Classroom" is highly DESCRIPTIVE for an AI-taught classroom product.
-    Descriptive marks are weak and typically refused on the Principal Register
-    absent acquired distinctiveness (cf. the LEARN WITH AI refusal). Expect an
-    uphill USPTO path and limited enforceability.
-Recommendations:
-  - Engage a trademark attorney for a full clearance search (USPTO TESS + state +
-    common-law + WIPO/Madrid) before relying on the name.
-  - Consider a distinctive/coined brand (logo + a unique wordmark) that is easier
-    to register and defend; keep "AI Classroom" as a descriptive tagline.
-  - Candidate distinctive names to clear: e.g. an invented coinage paired with the
-    owl mark; file the LOGO (design mark) which is more registrable than the
-    descriptive words alone.
+Reading the mark in two ways at once:
+  - letter-as-monogram: a capital S, the first letter of Salarean;
+  - leaf-as-wisdom-emblem: the Bodhi tree under which one studies.
 
------------------------------------------------------------------------------
+Single ink, single closed silhouette, no gradients or drop shadows.
+Themable via `currentColor` so the same file inverts cleanly on
+light or dark backgrounds via CSS.
+
+Sources:
+  docs/brand/salarean_mark.svg      square mark (256x256 viewBox)
+  docs/brand/salarean_mark.png      1024 light-on-navy raster
+  docs/brand/salarean_mark_256.png  256 nav-size preview
+  docs/brand/salarean_mark_binary.png  1-bit threshold (print / stamp)
+  docs/brand/salarean_lockup.png    mark + Khmer wordmark composited
+  docs/brand/salarean_lockup_binary.png  1-bit lockup
+  docs/brand/salarean_wordmark.png  Khmer-only (សាលារៀន)
+  docs/brand/salarean_wordmark_binary.png  1-bit Khmer wordmark
+
+Web assets (apps/web/public/, served from /):
+  /favicon.ico       multi-size 16/32/48/64
+  /logo-mark.svg     themable SVG (currentColor)
+  /logo-mark.webp    128 nav raster
+  /logo.webp         512 hero / apple-touch-icon
+  /wordmark.webp     1024 wordmark for press
+
+Regenerate everything from the SVG source with:
+  python3 scripts/build_salarean_brand.py
+(idempotent; reads docs/brand/salarean_mark.svg).
+
+----------------------------------------------------------------------------
+3. BRAND COLOURS
+----------------------------------------------------------------------------
+navy     #0b1020   primary background ("scholarly midnight")
+light    #e8ecf6   primary foreground / mark colour on dark
+accent   #0ea5e9   interactive sky-cyan (links, focus)
+
+The default site wallpaper is "Salarean Classic" - a soft scholarly-
+navy gradient quietly patterned with education motifs (graduation
+caps + open books + lightbulbs + pencils + a Bodhi leaf at the
+centre). See apps/web/app/lib/backgrounds.ts; the wallpaper is
+defaulted in apps/web/app/components/BackgroundProvider.tsx.
+
+----------------------------------------------------------------------------
 4. USAGE
------------------------------------------------------------------------------
-  - Keep clear space around the emblem (>= the height of the graduation cap).
-  - Don't recolor the color emblem; for 1-color contexts use the binary marks.
-  - Minimum legible size for the full emblem ~ 28-32px tall (nav uses 30px).
+----------------------------------------------------------------------------
+  - Keep clear space around the mark equal to the diameter of the
+    Bodhi-leaf crown.
+  - Do not recolour beyond the brand neutrals (navy / light) or a
+    single accent colour. For one-ink contexts use the *_binary.png
+    files.
+  - Do not add gradients, drop shadows, 3-D effects, or rotate the
+    mark.
+  - Minimum legible size: 24px (favicon) for the mark alone, 128px
+    wide for the lockup so the Khmer wordmark stays readable.
+
+----------------------------------------------------------------------------
+5. WORDMARK
+----------------------------------------------------------------------------
+សាលារៀន (sala-rean) renders in Noto Sans Khmer Bold in the lockup
+PNG. On the web, set:
+
+  font-family: "Noto Sans Khmer", "Khmer OS", "Khmer", sans-serif;
+  font-weight: 700;
+
+Ship the Khmer subset for the seven codepoints we use to keep the
+request small.
+
+----------------------------------------------------------------------------
+6. DIRECTORY NOTE
+----------------------------------------------------------------------------
+The exploration directory docs/brand/salareen/ (older spelling) still
+exists in the tree; it holds the 30+ logo concept SVGs from the
+selection process. The canonical brand assets now live one level up
+at docs/brand/salarean_*.svg and apps/web/public/. The old folder can
+be archived or git-mv'd to docs/brand/salarean/concepts/ in a follow-
+up; nothing references the canonical mark from inside that folder.

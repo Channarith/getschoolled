@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  DEFAULT_BACKGROUND_ID,
   backgroundStyle,
   getBackground,
   seasonalBackgroundId,
@@ -13,11 +14,16 @@ export const BG_AUTO_KEY = "aoep-bg-auto";
 export const BG_EVENT = "aoep-bg-change";
 
 function resolve(): Background {
-  if (typeof window === "undefined") return getBackground(null);
+  if (typeof window === "undefined") return getBackground(DEFAULT_BACKGROUND_ID);
   const auto = window.localStorage.getItem(BG_AUTO_KEY);
-  // Default to Auto (seasonal/holiday) the first time.
-  if (auto === null || auto === "1") return getBackground(seasonalBackgroundId());
-  return getBackground(window.localStorage.getItem(BG_KEY));
+  // The platform default is the Salarean education wallpaper (graduation
+  // caps + books + lightbulbs + pencils + Bodhi leaf on a scholarly-navy
+  // gradient). Users can switch to Auto (seasonal rotation) or any
+  // specific wallpaper from /backgrounds; both prefs persist in
+  // localStorage. First-time visitors land on the brand default.
+  if (auto === "1") return getBackground(seasonalBackgroundId());
+  const explicit = window.localStorage.getItem(BG_KEY);
+  return getBackground(explicit || DEFAULT_BACKGROUND_ID);
 }
 
 /** Full-bleed decorative site background applied behind all content. */

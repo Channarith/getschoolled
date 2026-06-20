@@ -60,7 +60,7 @@ function AppInner() {
     subRef.current = Notifications.addNotificationReceivedListener((n) => {
       const c = n.request.content;
       setBanner({
-        kind: "live", title: c.title || "AI Classroom",
+        kind: "live", title: c.title || "Salarean",
         body: c.body || undefined, cta: t("banner.open"),
         ttlMs: 6000,
         onPress: () => {
@@ -68,7 +68,7 @@ function AppInner() {
           if (data.courseId) {
             setOpenCourseId(data.courseId);
             setTab("drive");
-          } else if (data.deepLink === "aiclassroom://drive") {
+          } else if (data.deepLink === "salarean://drive") {
             setTab("drive"); setOpenCourseId(null);
           } else {
             setTab("notifications");

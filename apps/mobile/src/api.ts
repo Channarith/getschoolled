@@ -1,4 +1,4 @@
-// API client for the AI Classroom mobile app.
+// API client for the Salarean mobile app.
 //
 // Targets the curriculum service. On a physical device, "localhost" points at
 // the phone, so set the URL in app.json (expo.extra.curriculumUrl) to your
