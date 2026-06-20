@@ -18,6 +18,13 @@ export default function KidsPage() {
     <div className="kids">
       <div className="feed">
         <div className="kids-hero">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-cartoon.webp"
+               alt="Salarean Kids"
+               width={144} height={144}
+               style={{ display: "block", margin: "0 auto 8px",
+                        borderRadius: 24,
+                        boxShadow: "0 6px 20px rgba(15,23,42,.12)" }} />
           <h1>🚀 Kids Academy</h1>
           <p style={{ color: "#9a3412", fontWeight: 600, fontSize: 18 }}>
             Safe, fun, age-appropriate classes — pick something and start the adventure!

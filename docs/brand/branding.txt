@@ -47,6 +47,40 @@ Sources:
   docs/brand/salarean_wordmark.png  Khmer-only (សាលារៀន)
   docs/brand/salarean_wordmark_binary.png  1-bit Khmer wordmark
 
+Variant marks (filled-in / illustrative renderings of the same
+silhouette as the line-art mark - same composition, different
+treatment):
+
+  docs/brand/salarean_mark_realistic.png         photo-real master
+  docs/brand/salarean_mark_realistic_square.png  square crop
+  docs/brand/salarean_mark_realistic_{512,256,128,64}.png  sized
+  docs/brand/salarean_mark_cartoon.png           kid-friendly master
+  docs/brand/salarean_mark_cartoon_square.png    square crop
+  docs/brand/salarean_mark_cartoon_{512,256,128,64}.png  sized
+
+  apps/web/public/logo-realistic.webp        512 hero (premium)
+  apps/web/public/logo-realistic-mark.webp   128 nav (premium)
+  apps/web/public/logo-cartoon.webp          512 kids hero
+  apps/web/public/logo-cartoon-mark.webp     128 kids nav
+
+  REALISTIC variant: a hyper-detailed, three-dimensional Bodhi-leaf
+  S medallion. Botanically accurate veined leaf in jade-green,
+  polished antique-brass seal with engraved guilloche, gold-leaf
+  serif S, soft cinematic studio light on a navy field. Use for
+  press kits, app-store icons, premium hero banners, and splash
+  screens. NOT a substitute for the line-art mark in nav / favicon
+  contexts (too detailed below 64px).
+
+  CARTOON variant: a friendly, child-safe interpretation of the
+  same composition. Plump glossy Bodhi leaf with a smile-highlight,
+  chunky sky-blue ring, sunny yellow rounded S, pastel cream
+  background dotted with soft stars. Designed for the /kids
+  section, kids tablet apps, parental-mode UI, and any children-
+  facing entry point. The web nav automatically swaps to this
+  variant on routes under /kids (see
+  apps/web/app/components/LocalizedNav.tsx); the /kids hero uses
+  the 512px version.
+
 Web assets (apps/web/public/, served from /):
   /favicon.ico       multi-size 16/32/48/64
   /logo-mark.svg     themable SVG (currentColor)
