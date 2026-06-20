@@ -175,6 +175,41 @@ def main() -> int:
         BRAND_DIR / "salarean_lockup_binary.png",
         format="PNG", optimize=True)
 
+    # ----- Realistic + Cartoon variant lockups ----------------------------
+    # If the AI-generated photo-real and cartoon master PNGs are present,
+    # build per-variant lockups (variant mark + Khmer wordmark below) and
+    # publish 1024 / 768 / 512 web copies. The masters live at
+    # docs/brand/salarean_mark_realistic.png and
+    # docs/brand/salarean_mark_cartoon.png; they are produced by the
+    # GenerateImage tool with the binary mark as silhouette reference and
+    # then square-cropped into salarean_mark_<variant>_square.png.
+    for variant, wordmark_color_hex, lockup_bg in (
+        ("realistic", "#f5e9c8", "#0b1020"),
+        ("cartoon",   "#0b1020", "#fdf6e3"),
+    ):
+        sq = BRAND_DIR / f"salarean_mark_{variant}_square.png"
+        if not sq.exists():
+            print(f"  (skip {variant} lockup; missing {sq.name})")
+            continue
+        master = Image.open(sq).convert("RGBA")
+        wm_for_variant = render_khmer(
+            KHMER, font_size=180, color=wordmark_color_hex, bg=None,
+            padding=32)
+        lk = compose_lockup(master, wm_for_variant, bg=lockup_bg,
+                            total_w=1024, gap=44)
+        lk_path = BRAND_DIR / f"salarean_lockup_{variant}.png"
+        lk.convert("RGB").save(lk_path, format="PNG", optimize=True)
+        # Web-delivery copies (smaller webp).
+        for w in (1024, 768, 512):
+            ratio = w / lk.width
+            scaled = lk.resize(
+                (w, int(lk.height * ratio)), Image.LANCZOS)
+            out = PUBLIC / (f"logo-{variant}-lockup.webp"
+                            if w == 1024 else
+                            f"logo-{variant}-lockup-{w}.webp")
+            scaled.convert("RGBA").save(
+                out, format="WEBP", quality=92, method=6)
+
     # ----- Web public assets ----------------------------------------------
     # SVG (themable via currentColor).
     shutil.copy2(svg, PUBLIC / "logo-mark.svg")
@@ -208,6 +243,8 @@ def main() -> int:
         BRAND_DIR / "salarean_mark_256.png",
         BRAND_DIR / "salarean_lockup.png",
         BRAND_DIR / "salarean_lockup_binary.png",
+        BRAND_DIR / "salarean_lockup_realistic.png",
+        BRAND_DIR / "salarean_lockup_cartoon.png",
         BRAND_DIR / "salarean_wordmark.png",
         BRAND_DIR / "salarean_wordmark_binary.png",
         PUBLIC / "logo-mark.svg",
@@ -215,6 +252,12 @@ def main() -> int:
         PUBLIC / "logo.webp",
         PUBLIC / "wordmark.webp",
         PUBLIC / "favicon.ico",
+        PUBLIC / "logo-realistic-lockup.webp",
+        PUBLIC / "logo-realistic-lockup-768.webp",
+        PUBLIC / "logo-realistic-lockup-512.webp",
+        PUBLIC / "logo-cartoon-lockup.webp",
+        PUBLIC / "logo-cartoon-lockup-768.webp",
+        PUBLIC / "logo-cartoon-lockup-512.webp",
     ]:
         if p.exists():
             kb = p.stat().st_size / 1024

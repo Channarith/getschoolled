@@ -23,7 +23,20 @@ export default function HomePage() {
         background: "linear-gradient(120deg, #0b1020 0%, #4338ca 60%, #7c3aed 100%)",
         color: "#fff", padding: "40px 24px 44px",
       }}>
-        <div className="theme-hero-inner">
+        <div className="theme-hero-inner"
+             style={{ display: "flex", gap: 32, alignItems: "center",
+                      flexWrap: "wrap" }}>
+          {/* Realistic Bodhi-leaf medallion + Khmer wordmark
+              (សាលារៀន, sala-rean) lockup. Decorative; the brand
+              text is owned by the nav and the title below. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-realistic-lockup-512.webp"
+               alt="Salarean - សាលារៀន"
+               width={220} height={275}
+               style={{ flex: "0 0 auto", borderRadius: 18,
+                        boxShadow: "0 16px 40px rgba(2,6,23,.45)",
+                        background: "#0b1020" }} />
+          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title" style={{ marginTop: 14 }}>
             {t("hero.title")}
@@ -41,6 +54,7 @@ export default function HomePage() {
             {loggedIn
               ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
               : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("nav.signin")}</button></Link>}
+          </div>
           </div>
         </div>
       </section>

@@ -18,10 +18,13 @@ export default function KidsPage() {
     <div className="kids">
       <div className="feed">
         <div className="kids-hero">
+          {/* Cartoon lockup: kid-friendly mark + Khmer wordmark
+              (សាលារៀន). Same composition as the realistic lockup
+              on the home page so the brand reads consistently. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-cartoon.webp"
-               alt="Salarean Kids"
-               width={144} height={144}
+          <img src="/logo-cartoon-lockup-512.webp"
+               alt="Salarean Kids - សាលារៀន"
+               width={180} height={225}
                style={{ display: "block", margin: "0 auto 8px",
                         borderRadius: 24,
                         boxShadow: "0 6px 20px rgba(15,23,42,.12)" }} />

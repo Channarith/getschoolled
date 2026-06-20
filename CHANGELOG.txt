@@ -2,6 +2,30 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Salarean logo: realistic + cartoon variants. Two new
+  illustrative renderings of the canonical Bodhi-leaf-S mark,
+  generated with the binary mark as silhouette reference:
+  * REALISTIC: photo-real, 3D Bodhi-leaf medallion. Botanically
+    accurate veined leaf in jade-green, polished antique-brass
+    seal with engraved guilloche, gold-leaf serif S, soft
+    cinematic studio light on a navy field. For press kits,
+    app-store icons, premium hero banners, splash screens.
+  * CARTOON (child-safe): plump glossy Bodhi leaf with a smile-
+    highlight, chunky sky-blue ring, sunny yellow rounded S,
+    pastel cream background dotted with soft stars. Pixar /
+    Bluey aesthetic suitable for the Kids section.
+  Sized variants written for both: 1024 master + square crop +
+  512/256/128/64 PNGs in docs/brand/, plus 512 hero + 128 nav
+  WebPs in apps/web/public/ (logo-realistic*.webp, logo-
+  cartoon*.webp).
+  Web nav (LocalizedNav.tsx) now uses next/navigation
+  usePathname() to auto-swap to logo-cartoon-mark.webp when the
+  current route is under /kids; everywhere else stays on the
+  line-art logo-mark.webp. The /kids landing page hero gained a
+  144x144 cartoon logo above the "Kids Academy" heading.
+  Branding doc (docs/brand/branding.txt) extended with a
+  "Variant marks" section documenting when to use each.
+
 - Salarean rebrand + Bodhi-leaf mark + education wallpaper:
   * Spelling correction: "Salareen" -> "Salarean" everywhere
     user-visible. The brand romanises the Khmer word for school

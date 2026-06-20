@@ -28,6 +28,10 @@ import {
 } from "./i18n-strings";
 
 const DEFAULT_LOCALE: Locale = "en";
+// localStorage key carries the legacy "salareen" prefix for one
+// release cycle so existing visitors keep their language pick.
+// New keys we add elsewhere should use the corrected "salarean"
+// spelling.
 const STORAGE_KEY = "salareen.locale.v1";
 
 function isSupported(code: string): code is Locale {

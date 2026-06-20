@@ -2,7 +2,7 @@
   "name": "salarean-mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
+  "description": "Salarean mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
