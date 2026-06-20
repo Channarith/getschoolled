@@ -13,7 +13,7 @@ import { useT } from "../i18n";
 // Hands-free audio player: large controls, on-device TTS narration, auto-advance,
 // progress persisted to AsyncStorage so Continue Listening works.
 export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -21,10 +21,12 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   const segRef = useRef(0);
 
   useEffect(() => {
-    getAudioCourse(courseId).then((c) => { setCourse(c); playFrom(c, 0); }).catch(() => {});
+    getAudioCourse(courseId, locale)
+      .then((c) => { setCourse(c); playFrom(c, 0); })
+      .catch(() => {});
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => { Speech.stop(); };
-  }, [courseId]);
+  }, [courseId, locale]);
 
   function playFrom(c: AudioCourse, i: number) {
     Speech.stop();

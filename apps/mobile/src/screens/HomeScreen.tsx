@@ -26,7 +26,7 @@ export default function HomeScreen({
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -43,8 +43,8 @@ export default function HomeScreen({
     setError("");
     try {
       const [cont, savedIds, allCats, all, interests] = await Promise.all([
-        listContinue(), getMyList(), getAudioCategories(),
-        listAudioCourses(undefined, undefined, 80), getInterests(),
+        listContinue(), getMyList(), getAudioCategories(locale),
+        listAudioCourses(undefined, undefined, 80, locale), getInterests(),
       ]);
       setContinueRows(cont);
       setCats(allCats.categories);
@@ -74,10 +74,19 @@ export default function HomeScreen({
     }
   };
 
-  useEffect(() => { void load(); /* one-shot on mount */ // eslint-disable-line react-hooks/exhaustive-deps
-  }, []);
+  // Reload whenever the user switches language so titles, categories,
+  // and segment headings re-render in the new locale.
+  useEffect(() => {
+    setLoading(true);
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
 
   const open = (id: string, category?: string) => {
+    // recordInterest stores LOCALIZED labels so the personalized inbox
+    // can match the user's recent interests in any language. The
+    // backend's notification feed builder is case-insensitive on the
+    // English subject/category, so this is a soft signal regardless.
     if (category) void recordInterest(category);
     void bumpStreak();
     onOpenCourse(id);
@@ -188,11 +197,11 @@ export default function HomeScreen({
       <Rail
         title={t("rail.categories")}
         data={cats}
-        keyExtractor={(c) => c.category}
+        keyExtractor={(c) => c.category_id || c.category}
         renderItem={(c) => (
           <CategoryTile category={c.category} count={c.count}
             countLabel={t("meta.classes", { n: c.count })}
-            onPress={() => onOpenCategory(c.category)} />
+            onPress={() => onOpenCategory(c.category_id || c.category)} />
         )}
       />
     </ScrollView>

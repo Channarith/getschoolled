@@ -381,30 +381,50 @@ def search_courses(
 
 
 @app.get("/audio/categories")
-def audio_categories() -> dict:
+def audio_categories(locale: str = "en") -> dict:
+    """List categories with localized labels.
+
+    ``locale`` selects the UI language; categories are translated into
+    13 locales (en, es, fr, de, it, pt, ru, ar, hi, zh, ja, ko, vi) and
+    fall back to English otherwise. Each row carries both ``category``
+    (the localized display label) and ``category_id`` (the canonical
+    English identifier you pass back to ``/audio/courses?category=``).
+    """
     from aoep_shared.audio_courses import categories
 
-    return {"categories": categories()}
+    return {"categories": categories(locale=locale), "locale": locale}
 
 
 @app.get("/audio/courses")
 def audio_courses(category: str | None = None, q: str | None = None,
-                  max_minutes: int | None = None, offset: int = 0, limit: int = 50) -> dict:
-    """Audio-only, drive-safe classes (hundreds) for hands-free / on-the-road learning."""
+                  max_minutes: int | None = None, offset: int = 0,
+                  limit: int = 50, locale: str = "en") -> dict:
+    """Audio-only, drive-safe classes (hundreds) for hands-free / on-the-road learning.
+
+    ``locale`` localizes every course's title, category, subject, level,
+    segment headings, and the templated intro/recap narration. The
+    factual body of knowledge courses (the "key idea" bullets) is the
+    original English; the framing around it (intro/recap/headings) is
+    localized. Languages-category courses are fully localized.
+    """
     from aoep_shared.audio_courses import list_courses
 
     return list_courses(category=category, q=q, max_minutes=max_minutes,
-                        offset=max(0, offset), limit=max(1, min(limit, 100)))
+                        offset=max(0, offset), limit=max(1, min(limit, 100)),
+                        locale=locale)
 
 
 @app.get("/audio/courses/{course_id}")
-def audio_course(course_id: str) -> dict:
+def audio_course(course_id: str, locale: str = "en") -> dict:
+    """Full course (with every segment) in the requested locale."""
     from aoep_shared.audio_courses import get_course
 
-    c = get_course(course_id)
+    c = get_course(course_id, locale=locale)
     if c is None:
         raise HTTPException(status_code=404, detail="unknown audio course")
-    return c.model_dump()
+    out = c.model_dump()
+    out["locale"] = locale
+    return out
 
 
 @app.get("/home")

@@ -2,6 +2,30 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Catalog content i18n: course names, category labels, level labels,
+  segment headings, and templated narration now translate alongside the
+  UI chrome (previously only the static UI strings translated; catalog
+  rows remained in English). New aoep_shared/catalog_i18n.py with
+  hand-translated tables for 13 locales (en, es, fr, de, it, pt, ru,
+  ar, hi, zh, ja, ko, vi) covering: 15 categories, 3 levels, 3
+  language-lesson types, 6 segment heading templates, 6 narration
+  template fragments (intro/recap/per-phrase/repeat). audio_courses.py
+  now takes a `locale=` parameter through build_catalog / categories /
+  list_courses / get_course (per-locale LRU cache, 16-locale capacity);
+  language-course titles use the UI-locale's word for the language
+  being taught (e.g. an es-locale browser sees "Francés:" instead of
+  "French:"). Language NAMES translated for 13 target languages × 13
+  UI locales; less-common languages fall back to their English name.
+  Curriculum endpoints accept `locale=`: GET /audio/categories,
+  /audio/courses, /audio/courses/{id}; the categories response now
+  carries both `category` (localized label) and `category_id`
+  (canonical English filter id), and /audio/courses?category= accepts
+  either form. Mobile API client + HomeScreen + AudioCoursesScreen +
+  MyListScreen + DriveModeScreen all thread the active locale through
+  every catalog call and re-fetch on language change. Tests: 21 new
+  unit (aoep_shared.catalog_i18n + audio_courses) + 6 new API
+  (curriculum); 319 shared + 104 curriculum tests pass overall.
+
 - Mobile multi-language UI (i18n): the entire AI Classroom mobile app is now
   translated into 13 languages out of the box (English, Spanish, French,
   German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese, Japanese,

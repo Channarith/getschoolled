@@ -16,10 +16,17 @@ export type AudioCourseRow = {
 export type AudioSegment = { heading: string; text: string };
 export type AudioCourse = {
   id: string; title: string; category: string; subject: string; level: string;
-  duration_min: number; tags: string[]; drive_safe: boolean; segments: AudioSegment[];
+  duration_min: number; tags: string[]; drive_safe: boolean;
+  segments: AudioSegment[]; locale?: string;
 };
 
-export type CategoryRow = { category: string; count: number };
+// `category_id` is the canonical English identifier (use as a filter
+// value); `category` is the localized display label (render in UI).
+// Older clients receive only `category`; the API accepts either form
+// in filter params so missing `category_id` is harmless.
+export type CategoryRow = {
+  category: string; category_id?: string; count: number;
+};
 
 export type HomeRail = {
   rail_id: string; title: string; reason?: string;
@@ -50,19 +57,30 @@ async function get<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function listAudioCourses(category?: string, q?: string, limit = 60) {
+export function listAudioCourses(category?: string, q?: string, limit = 60,
+                                 locale?: string) {
   const p = new URLSearchParams({ limit: String(limit) });
   if (category) p.set("category", category);
   if (q) p.set("q", q);
-  return get<{ total: number; courses: AudioCourseRow[] }>(`/audio/courses?${p.toString()}`);
+  if (locale) p.set("locale", locale);
+  return get<{ total: number; locale?: string; courses: AudioCourseRow[] }>(
+    `/audio/courses?${p.toString()}`);
 }
 
-export function getAudioCategories() {
-  return get<{ categories: CategoryRow[] }>("/audio/categories");
+export function getAudioCategories(locale?: string) {
+  const p = new URLSearchParams();
+  if (locale) p.set("locale", locale);
+  const qs = p.toString();
+  return get<{ categories: CategoryRow[]; locale?: string }>(
+    `/audio/categories${qs ? `?${qs}` : ""}`);
 }
 
-export function getAudioCourse(id: string) {
-  return get<AudioCourse>(`/audio/courses/${encodeURIComponent(id)}`);
+export function getAudioCourse(id: string, locale?: string) {
+  const p = new URLSearchParams();
+  if (locale) p.set("locale", locale);
+  const qs = p.toString();
+  return get<AudioCourse>(
+    `/audio/courses/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`);
 }
 
 export function getNotificationsFeed(opts: {

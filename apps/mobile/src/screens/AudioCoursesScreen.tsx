@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View,
 } from "react-native";
-import { getAudioCategories, listAudioCourses, type AudioCourseRow } from "../api";
+import {
+  getAudioCategories, listAudioCourses,
+  type AudioCourseRow, type CategoryRow,
+} from "../api";
 import { getMyList, recordInterest, toggleMyList } from "../storage";
 import { useT } from "../i18n";
 
@@ -12,9 +15,9 @@ type Props = {
 };
 
 export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
-  const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
+  const [cats, setCats] = useState<CategoryRow[]>([]);
   const [cat, setCat] = useState<string>(initialCategory || "");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -22,18 +25,27 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
 
   useEffect(() => { setCat(initialCategory || ""); }, [initialCategory]);
-  useEffect(() => { getAudioCategories().then((r) => setCats(r.categories)).catch(() => {}); }, []);
+  useEffect(() => {
+    getAudioCategories(locale).then((r) => setCats(r.categories)).catch(() => {});
+  }, [locale]);
   useEffect(() => { void getMyList().then((ids) => setSavedSet(new Set(ids))); }, []);
 
   useEffect(() => {
     setLoading(true);
-    listAudioCourses(cat || undefined, q || undefined)
+    listAudioCourses(cat || undefined, q || undefined, 60, locale)
       .then((r) => setRows(r.courses))
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [cat, q]);
+  }, [cat, q, locale]);
 
-  const chips = useMemo(() => [{ category: "", count: 0 }, ...cats], [cats]);
+  // The browse chips list "All" + every category. We thread `category_id`
+  // (canonical English) through onPress so filtering survives a locale
+  // switch - the user clicks "Idiomas" in Spanish but the request still
+  // sends category=Languages, and the server returns localized results.
+  const chips = useMemo<CategoryRow[]>(
+    () => [{ category: "", category_id: "", count: 0 }, ...cats],
+    [cats],
+  );
 
   const onToggleSave = async (id: string) => {
     const saved = await toggleMyList(id);
@@ -52,13 +64,17 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
         value={q} onChangeText={setQ} />
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={chips}
-        keyExtractor={(c) => c.category || "all"} style={{ maxHeight: 44, marginBottom: 8 }}
-        renderItem={({ item }) => (
-          <Pressable onPress={() => setCat(item.category)}
-            style={[styles.chip, cat === item.category && styles.chipOn]}>
-            <Text style={styles.chipText}>{item.category || t("drive.all")}</Text>
-          </Pressable>
-        )}
+        keyExtractor={(c) => c.category_id || c.category || "all"}
+        style={{ maxHeight: 44, marginBottom: 8 }}
+        renderItem={({ item }) => {
+          const id = item.category_id || item.category;
+          return (
+            <Pressable onPress={() => setCat(id)}
+              style={[styles.chip, cat === id && styles.chipOn]}>
+              <Text style={styles.chipText}>{item.category || t("drive.all")}</Text>
+            </Pressable>
+          );
+        }}
       />
       {error ? <Text style={styles.err}>{error}</Text> : null}
       {loading ? <ActivityIndicator color="#0ea5e9" /> : (

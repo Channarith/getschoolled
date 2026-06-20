@@ -11,7 +11,7 @@ import { useT } from "../i18n";
 export default function MyListScreen({ onOpenCourse }: {
   onOpenCourse: (id: string) => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
@@ -20,12 +20,12 @@ export default function MyListScreen({ onOpenCourse }: {
     const ids = await getMyList();
     if (ids.length === 0) { setRows([]); setLoading(false); setRefreshing(false); return; }
     try {
-      const all = await listAudioCourses(undefined, undefined, 100);
+      const all = await listAudioCourses(undefined, undefined, 100, locale);
       const lookup = new Map(all.courses.map((c) => [c.id, c]));
       setRows(ids.map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
     } finally { setLoading(false); setRefreshing(false); }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = async (id: string) => {
     await toggleMyList(id);
