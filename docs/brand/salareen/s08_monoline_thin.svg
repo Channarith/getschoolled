@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="108" stroke-width="6"/>
+    <path d="M 174 96
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 100
+             C 86 118, 108 124, 128 130
+             C 148 136, 170 142, 170 162
+             C 170 180, 152 192, 128 192
+             C 106 192, 88 184, 84 172"
+          stroke-width="14"/>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11"/>
+    <path d="M 168 90
+             C 168 76, 150 68, 128 68
+             C 102 68, 86 80, 86 96
+             C 86 112, 106 118, 128 122
+             C 150 126, 168 132, 168 150
+             C 168 168, 150 176, 128 176
+             C 110 176, 94 172, 88 162"
+          stroke-width="20"/>
+  </g>
+  <g fill="currentColor">
+    <!-- Small lotus-pad seat at the bottom of the circle, under the S -->
+    <path d="M 92 192 C 90 204, 98 210, 108 208 C 116 206, 120 200, 116 192 Z"/>
+    <path d="M 164 192 C 166 204, 158 210, 148 208 C 140 206, 136 200, 140 192 Z"/>
+    <path d="M 128 188 C 116 200, 116 210, 128 212 C 140 210, 140 200, 128 188 Z"/>
+  </g>
+</svg>

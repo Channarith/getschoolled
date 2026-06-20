@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <defs>
+    <mask id="s4mask">
+      <rect width="256" height="256" fill="black"/>
+      <circle cx="128" cy="128" r="106" fill="white"/>
+      <!-- The S cut-out: stroke painted in BLACK becomes the negative -->
+      <g fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="26">
+        <path d="M 174 94
+                 C 174 78, 154 70, 128 70
+                 C 102 70, 86 82, 86 100
+                 C 86 118, 108 124, 128 130
+                 C 148 136, 170 142, 170 160
+                 C 170 180, 152 192, 128 192
+                 C 106 192, 88 184, 84 172"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="256" height="256" fill="currentColor" mask="url(#s4mask)" opacity="0"/>
+  <g fill="currentColor">
+    <path d="M 128 22
+             A 106 106 0 1 1 127.99 22
+             Z
+             M 128 22
+             A 106 106 0 1 0 128.01 22
+             Z"/>
+  </g>
+  <!-- Simpler: filled disc, then white S overlay (will be navy in dark mode via currentColor) -->
+  <circle cx="128" cy="128" r="106" fill="currentColor"/>
+  <path d="M 174 94
+           C 174 78, 154 70, 128 70
+           C 102 70, 86 82, 86 100
+           C 86 118, 108 124, 128 130
+           C 148 136, 170 142, 170 160
+           C 170 180, 152 192, 128 192
+           C 106 192, 88 184, 84 172"
+        fill="none" stroke="#0b1020" stroke-width="26"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

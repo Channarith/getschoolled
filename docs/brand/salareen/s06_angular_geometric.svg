@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Salareen">
+  <g fill="none" stroke="currentColor" stroke-linejoin="miter" stroke-linecap="butt">
+    <circle cx="128" cy="128" r="106" stroke-width="10"/>
+  </g>
+  <g fill="currentColor">
+    <rect x="74"  y="68"  width="108" height="20"/>
+    <rect x="74"  y="68"  width="20"  height="60"/>
+    <rect x="74"  y="118" width="108" height="20"/>
+    <rect x="162" y="118" width="20"  height="60"/>
+    <rect x="74"  y="168" width="108" height="20"/>
+  </g>
+</svg>
