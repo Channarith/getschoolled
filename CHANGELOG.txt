@@ -2,6 +2,51 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Salarean Kids: refined Bayon Buddy mascot. The original
+  Bayon Buddy read as overly plump; this revision swaps in a
+  slimmer, child-proportioned baby-Buddha pose (kneeling,
+  hands cradling the lightbulb of wisdom) while keeping the
+  iconic Bayon Temple serene smile, the lotus-bud crown, and
+  the carved-stone material. Two alternates are kept under
+  docs/brand/mascots/alternates/ for variety:
+  * salarean_mascot_bayon_chibi.png    - chibi big-head ratio
+  * salarean_mascot_bayon_standing.png - standing pose holding
+                                          an open book
+  Sized variants + webps + the contact sheet are regenerated
+  to match. The Naga / Apsara / Garuda concepts and the
+  ACTIVE_MASCOT default ("apsara") are unchanged.
+
+- Photo-real Salarean lockup with gold-leaf សាលារៀន wordmark
+  (web + mobile). The realistic lockup has been upgraded so the
+  Khmer wordmark beneath the medallion is now rendered in
+  MATCHING photo-real gold-leaf style instead of a flat-fill
+  cream colour:
+  * scripts/build_salarean_brand.py gained a build_photoreal_lockup()
+    helper. Pipeline:
+      1. Cut the AI medallion master to a feathered circular alpha
+         mask so it blends seamlessly into navy (kills the square
+         seam from the AI render's residual background).
+      2. Render the Khmer wordmark via Pillow + raqm/HarfBuzz with
+         language="km" (preserves U+17C0 cluster shaping).
+      3. Apply a vertical gold-leaf gradient (cream-gold ->
+         antique gold -> deep brass -> rim highlight) masked by the
+         text alpha.
+      4. Add a blurred drop shadow + top-edge light-catch highlight.
+      5. Composite medallion + wordmark on a navy field with a
+         soft cinematic vignette.
+    Outputs: docs/brand/salarean_lockup_realistic{,_2x}.png +
+    apps/web/public/logo-realistic-lockup{,-768,-512}.webp,
+    plus apps/mobile/assets/salarean_lockup_realistic_{1024,512,
+    256}.png for native bundling.
+  * Web home hero (apps/web/app/page.tsx) keeps its existing
+    220x275 navy card; it now points at the new photo-real
+    asset (no template change).
+  * Mobile home hero (apps/mobile/src/screens/HomeScreen.tsx)
+    replaced the text-only "SALAREAN" kicker with the bundled
+    lockup PNG (200x250, contain-fit, navy card behind).
+    Accessibility label combines `home.kicker` translation
+    with the Khmer wordmark.
+
 - Salarean Kids: Angkorian-culture mascots. Four child-friendly
   cartoon mascots themed around ancient Khmer iconography; the
   /kids hero shows the active mascot greeting kids next to the
