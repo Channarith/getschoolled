@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import uuid
 
+from aoep_shared.internal_auth import require_internal
 from aoep_shared.service import create_service
 from aoep_shared.webhooks import (
     MockSender,
@@ -20,7 +21,7 @@ from aoep_shared.webhooks import (
     dispatch,
     verify_signature,
 )
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from aoep_shared.connectors.finance import MockFinanceConnector, parse_payment_event
@@ -63,12 +64,14 @@ class CreateSubscriptionRequest(BaseModel):
     secret: str = ""
 
 
-@app.post("/webhooks/subscriptions", response_model=WebhookSubscription)
+@app.post("/webhooks/subscriptions", response_model=WebhookSubscription,
+          dependencies=[Depends(require_internal)])
 def create_subscription(req: CreateSubscriptionRequest) -> WebhookSubscription:
     return app.state.subs.add(WebhookSubscription(**req.model_dump()))
 
 
-@app.get("/webhooks/subscriptions", response_model=list[WebhookSubscription])
+@app.get("/webhooks/subscriptions", response_model=list[WebhookSubscription],
+         dependencies=[Depends(require_internal)])
 def list_subscriptions() -> list[WebhookSubscription]:
     return app.state.subs.list()
 
@@ -78,7 +81,7 @@ class EmitRequest(BaseModel):
     data: dict = {}
 
 
-@app.post("/webhooks/emit")
+@app.post("/webhooks/emit", dependencies=[Depends(require_internal)])
 def emit_event(req: EmitRequest) -> dict:
     event = WebhookEvent(event_type=req.event_type, data=req.data)
     results = dispatch(app.state.subs, event, sender=app.state.sender)
@@ -95,8 +98,28 @@ def emit_event(req: EmitRequest) -> dict:
 # Inbound webhooks (signature-verified)
 # --------------------------------------------------------------------------- #
 def _inbound_secret(provider: str) -> str:
-    return os.environ.get(f"{provider.upper()}_WEBHOOK_SECRET", "") or \
-        os.environ.get("WEBHOOK_SIGNING_KEY", "dev-webhook-secret")
+    """Resolve the HMAC secret for verifying an inbound webhook from
+    ``provider``. Lookup order:
+
+      1. ``{PROVIDER}_WEBHOOK_SECRET`` (per-provider override)
+      2. ``WEBHOOK_SIGNING_KEY`` (platform default)
+      3. ``"dev-webhook-secret"`` (LOCAL deploy mode only)
+
+    In cloud/production deploy modes we refuse to fall back to the
+    dev secret — if both env vars are unset we return an empty
+    string, which makes signature verification fail closed instead
+    of accepting payloads signed with a well-known dev key.
+    """
+    explicit = (os.environ.get(f"{provider.upper()}_WEBHOOK_SECRET", "") or
+                os.environ.get("WEBHOOK_SIGNING_KEY", ""))
+    if explicit:
+        return explicit
+    deploy_mode = (os.environ.get("DEPLOY_MODE", "local") or "local").lower()
+    if deploy_mode == "local":
+        return "dev-webhook-secret"
+    # Fail-closed in cloud mode: return empty string so any inbound
+    # signature comparison fails and we return 401.
+    return ""
 
 
 @app.post("/webhooks/inbound/{provider}")
@@ -150,7 +173,7 @@ class PayoutRequest(BaseModel):
     currency: str = "usd"
 
 
-@app.post("/finance/payout")
+@app.post("/finance/payout", dependencies=[Depends(require_internal)])
 def finance_payout(req: PayoutRequest) -> dict:
     return app.state.finance.payout(req.account, req.amount, currency=req.currency)
 
@@ -252,14 +275,14 @@ class CreateClientRequest(BaseModel):
     scopes: list[str] = []
 
 
-@app.post("/clients")
+@app.post("/clients", dependencies=[Depends(require_internal)])
 def create_client(req: CreateClientRequest) -> dict:
     api_key = "aoep_" + uuid.uuid4().hex
     app.state.api_clients[api_key] = {"name": req.name, "scopes": req.scopes}
     return {"name": req.name, "api_key": api_key, "scopes": req.scopes}
 
 
-@app.get("/clients")
+@app.get("/clients", dependencies=[Depends(require_internal)])
 def list_clients() -> dict:
     return {"clients": [{"name": v["name"], "scopes": v["scopes"]}
                         for v in app.state.api_clients.values()]}

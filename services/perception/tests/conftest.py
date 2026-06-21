@@ -53,3 +53,7 @@ def engine(models):
 # limiter is unit-tested in packages/shared and would otherwise flake
 # busy service test suites that issue hundreds of requests per session.
 os.environ.setdefault("RATE_LIMIT_DISABLED", "1")
+
+# Bypass the internal-auth gate by default in tests. Specific tests
+# that exercise the gate clear this env via monkeypatch.
+os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")

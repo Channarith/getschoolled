@@ -12,6 +12,7 @@ import os
 import time
 
 from aoep_shared.auth import sign_token, verify_token
+from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
 from fastapi import Depends, Header, HTTPException
@@ -136,8 +137,15 @@ class TierChange(BaseModel):
     tier: PlanTier
 
 
-@app.post("/membership/tier")
+@app.post("/membership/tier", dependencies=[Depends(require_internal)])
 def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
+    """Update the caller's subscription tier.
+
+    Gated by ``require_internal`` because tier upgrades must be
+    driven by the billing service (after a verified payment) or by
+    a teacher / admin agent - not by the user themselves. The
+    billing webhook handler forwards an internal token here.
+    """
     updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {"tier": updated.tier.value}
 

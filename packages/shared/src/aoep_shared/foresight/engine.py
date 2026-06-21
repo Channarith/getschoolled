@@ -23,7 +23,7 @@ light (numpy only) so it can be ported and re-used across products.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -211,8 +211,10 @@ class ForesightEngine:
         rng = np.random.default_rng(config.seed)
         self._rng = rng
         # Encoder (one self-attention block) + pooling query.
-        self.Wq = _xavier(rng, (d, d)); self.Wk = _xavier(rng, (d, d))
-        self.Wv = _xavier(rng, (d, d)); self.Wo = _xavier(rng, (d, d))
+        self.Wq = _xavier(rng, (d, d))
+        self.Wk = _xavier(rng, (d, d))
+        self.Wv = _xavier(rng, (d, d))
+        self.Wo = _xavier(rng, (d, d))
         self.pool_query = _xavier(rng, (d,))
         # Query-type router + per-class adapters.
         C = list(config.taxonomy)

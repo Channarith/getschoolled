@@ -15,8 +15,9 @@ Endpoints:
 
 from __future__ import annotations
 
+from aoep_shared.internal_auth import require_internal
 from aoep_shared.service import create_service
-from fastapi import File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 app = create_service("perception")
@@ -40,7 +41,8 @@ class EnrollResponse(BaseModel):
     enrollments: int
 
 
-@app.post("/enroll/{student_id}", response_model=EnrollResponse)
+@app.post("/enroll/{student_id}", response_model=EnrollResponse,
+          dependencies=[Depends(require_internal)])
 async def enroll(student_id: str, file: UploadFile = File(...)) -> EnrollResponse:
     data = await file.read()
     try:

@@ -663,11 +663,13 @@ def course_ad_breaks(course_id: str, tier: str = "free", format: str = "json"):
     }
 
 
-@app.get("/catalog/export")
+@app.get("/catalog/export", dependencies=[Depends(require_internal)])
 def catalog_export(format: str = "json"):
     """Acquisition-ready catalog export (Netflix-compatible interchange).
 
     format=json -> a portable content feed; format=mrss -> Media RSS (XML).
+    Gated by require_internal because the full catalog dump is a
+    partner-facing artifact, not a public endpoint.
     """
     from fastapi import Response
 
@@ -891,7 +893,7 @@ def report_issue(req: ReportIssueRequest) -> Correction:
     return c
 
 
-@app.post("/corrections/bulk")
+@app.post("/corrections/bulk", dependencies=[Depends(require_internal)])
 async def bulk_corrections(
     file: UploadFile = File(...), fmt: str = Form("jsonl")
 ) -> dict:
@@ -929,17 +931,20 @@ def _set_status(correction_id: str, status: CorrectionStatus) -> Correction:
     return c
 
 
-@app.post("/corrections/{correction_id}/approve", response_model=Correction)
+@app.post("/corrections/{correction_id}/approve", response_model=Correction,
+          dependencies=[Depends(require_internal)])
 def approve_correction(correction_id: str) -> Correction:
     return _set_status(correction_id, CorrectionStatus.APPROVED)
 
 
-@app.post("/corrections/{correction_id}/reject", response_model=Correction)
+@app.post("/corrections/{correction_id}/reject", response_model=Correction,
+          dependencies=[Depends(require_internal)])
 def reject_correction(correction_id: str) -> Correction:
     return _set_status(correction_id, CorrectionStatus.REJECTED)
 
 
-@app.post("/corrections/{correction_id}/apply")
+@app.post("/corrections/{correction_id}/apply",
+          dependencies=[Depends(require_internal)])
 def apply_correction(correction_id: str) -> dict:
     """Back-propagate an APPROVED correction.
 
@@ -1326,7 +1331,8 @@ class SignProvenanceRequest(BaseModel):
     training_data_source: str | None = None
 
 
-@app.post("/provenance/sign", response_model=SignedManifest)
+@app.post("/provenance/sign", response_model=SignedManifest,
+          dependencies=[Depends(require_internal)])
 def provenance_sign(req: SignProvenanceRequest) -> SignedManifest:
     manifest = build_manifest(
         req.artifact_id, req.content, ai_generated=req.ai_generated, model=req.model,

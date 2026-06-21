@@ -16,7 +16,7 @@ import enum
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 _LEVEL_BASE = {"beginner": 100, "intermediate": 200, "advanced": 300}
 _CONSOLATION = 10   # points even for a failed attempt (encourages retrying)

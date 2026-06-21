@@ -2,6 +2,79 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Platform audit + security hardening (no behaviour changes for
+  end users; closes internal-auth gaps on 15 sensitive endpoints,
+  hardens webhook signature handling, fixes lint, adds 21 new
+  regression tests):
+
+  Internal-auth gates added on these previously-public endpoints
+  (all gated by `Depends(require_internal)` from aoep_shared.
+  internal_auth, with `INTERNAL_AUTH_DISABLED=1` bypass for unit
+  tests):
+
+  curriculum:
+    * POST   /corrections/bulk
+    * POST   /corrections/{id}/approve
+    * POST   /corrections/{id}/reject
+    * POST   /corrections/{id}/apply
+    * GET    /catalog/export
+    * POST   /provenance/sign
+
+  orchestrator:
+    * GET    /api/hil/queue
+    * POST   /api/hil/{item_id}/decision
+    * POST   /api/optimization/commit
+    * POST   /api/optimization/revert
+
+  integrations:
+    * POST   /webhooks/subscriptions
+    * GET    /webhooks/subscriptions
+    * POST   /webhooks/emit
+    * POST   /finance/payout
+    * POST   /clients
+    * GET    /clients
+
+  memory:
+    * POST   /retention/purge
+
+  identity:
+    * POST   /membership/tier  (now driven by billing service,
+                                not by the user themselves)
+
+  perception:
+    * POST   /enroll/{student_id}  (biometric face enrollment)
+
+  Inbound webhook signature verification (services/integrations
+  /src/integrations/main.py::_inbound_secret) hardened to FAIL
+  CLOSED in cloud deploy mode when WEBHOOK_SIGNING_KEY is unset
+  instead of silently falling back to the "dev-webhook-secret"
+  legacy string. Local mode still accepts the dev secret so the
+  OSS quickstart works without configuration. Regression test
+  pins both behaviours.
+
+  Per-service `tests/conftest.py` updated to set
+  `INTERNAL_AUTH_DISABLED=1` by default in orchestrator,
+  integrations, memory, identity, perception (curriculum already
+  had it) so the existing suite continues to pass.
+
+  New regression test files:
+    services/curriculum/tests/test_internal_auth_corrections.py
+    services/orchestrator/tests/test_internal_auth_admin.py
+    services/integrations/tests/test_internal_auth_gateway.py
+    services/memory/tests/test_internal_auth_retention.py
+    services/identity/tests/test_internal_auth_tier.py
+    services/perception/tests/test_internal_auth_enroll.py
+  Each test confirms the corresponding endpoint returns 401/403
+  to anonymous callers when the gate is active.
+
+  Lint: fixed 7 ruff findings across packages/shared (5 unused
+  imports auto-fixed; 2 E702 multi-statement lines manually
+  refactored in foresight/engine.py).
+
+  Verified: 714 backend tests pass (was 693; +21 new auth gate
+  tests), web pnpm typecheck + build + lint clean, mobile pnpm
+  typecheck clean, ruff clean.
+
 - Scaling + redundancy hardening: every service now ships with a
   per-identity token-bucket rate limiter (aoep_shared.ratelimit:
   in-memory + Redis-backed Lua, atomic single round-trip, falls back
@@ -29,7 +102,6 @@ Format: newest first. No markdown per project convention.
   8 service-scaling); 685 backend tests pass overall. Measured locally:
   4-worker uvicorn serves ~940 RPS at p95=6.3 ms on /audio/categories;
   with ETag-driven 304s p50 drops to 1.6 ms and bandwidth 40x.
-
 - Hosting plan + Terraform skeletons: docs/hosting.txt (full
   recommendation: AWS EKS in us-east-1 for compute + GPU + stateful;
   Cloudflare for domain registrar + DNS + CDN + WAF + DDoS + R2; rough
