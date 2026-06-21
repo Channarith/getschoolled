@@ -20,7 +20,6 @@ export default function HomePage() {
   return (
     <main>
       <section className="theme-hero" style={{
-        background: "linear-gradient(120deg, #0b1020 0%, #4338ca 60%, #7c3aed 100%)",
         color: "#fff", padding: "40px 24px 44px",
       }}>
         <div className="theme-hero-inner"

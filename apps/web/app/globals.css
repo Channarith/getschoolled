@@ -13,17 +13,29 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Fallback color shown only briefly before BackgroundProvider
+     paints its full-bleed decorative background. The body itself
+     stays transparent so the wallpaper from BackgroundProvider
+     covers the entire viewport, including under the hero, below
+     the fold, and in long scrolling pages. */
+  background: var(--bg);
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background-color: transparent;
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
     Arial, sans-serif;
 }
 
-/* Full-bleed decorative site background (rendered by BackgroundProvider). */
+/* Full-bleed decorative site background (rendered by BackgroundProvider).
+   Sits behind every other element (z-index: -1, position: fixed) so it
+   covers the entire viewport, persists across scroll, and isn't
+   clipped by overflow:hidden ancestors. */
 .site-bg {
   position: fixed;
   inset: 0;
@@ -163,7 +175,15 @@ textarea {
   background: var(--t-bg);
 }
 
+/* Hero panels are translucent so the photo-real wallpaper from
+   BackgroundProvider shows through; only a subtle dark wash keeps
+   the headlines readable. The original hero gradients are still
+   honoured if a hero overrides `background:` inline. */
 .theme-hero {
+  background: linear-gradient(120deg,
+                              rgba(11,16,32,0.55),
+                              rgba(67,56,202,0.42) 60%,
+                              rgba(124,58,237,0.40));
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

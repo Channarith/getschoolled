@@ -21,6 +21,12 @@ export type Background = {
   kind: BgKind;
   css: string;        // CSS `background` value (also used as fallback for images)
   src?: string;       // /wallpapers/*.webp when kind === "image"
+  /** Optional 0..1 overlay strength for image backgrounds. Bright/
+   * busy wallpapers want a heavier overlay (e.g. 0.65) so headlines
+   * stay readable; cinematic / already-dark wallpapers want a lighter
+   * overlay (e.g. 0.25) so the photo content shines through.
+   * Default 0.6 (matches the prior global overlay). */
+  overlay?: number;
 };
 
 // --- inline SVG pattern helpers (URL-encoded data URIs) -------------------- //
@@ -270,14 +276,30 @@ export const BACKGROUNDS: Background[] = [
     css: rad("#ffffff", "#e2e8f0 60%", "#cbd5e1") },
 
   // -------------------- education (default category) -------------------- //
-  // The platform brand-default. A soft scholarly-navy gradient pattern-
-  // overlaid with a quiet education-motif tile (graduation caps + open
-  // books + lightbulbs + pencils + a Bodhi leaf at the centre - the
-  // Salarean brand mark's wisdom symbol). All-CSS, weightless, themed
-  // for low-distraction reading.
-  { id: "salarean-classic", name: "Salarean Classic (default)",
+  // Photo-real "wisdom & learning" wallpapers - the brand defaults.
+  // These are atmospheric photographs (ancient libraries, the Bodhi
+  // tree at golden hour, illuminated manuscripts) so the home page
+  // feels like a place where learning happens, not a black void.
+  // Each carries an `overlay` strength tuned so headlines stay
+  // readable without flattening the photo.
+  { id: "wisdom-bodhi", name: "Bodhi Wisdom (default)",
+    category: "education", kind: "image", overlay: 0.30,
+    css: lin(160, "#3a2c14", "#5b3e1c 50%", "#1c1409"),
+    src: "/wallpapers/wisdom_bodhi.webp" },
+  { id: "wisdom-library", name: "Ancient Library",
+    category: "education", kind: "image", overlay: 0.35,
+    css: lin(135, "#0b0a14", "#1d1818 50%", "#0a0907"),
+    src: "/wallpapers/wisdom_library.webp" },
+  { id: "wisdom-manuscript", name: "Open Manuscript",
+    category: "education", kind: "image", overlay: 0.30,
+    css: lin(135, "#0b0a14", "#171511 50%", "#070605"),
+    src: "/wallpapers/wisdom_manuscript.webp" },
+
+  // CSS-only education wallpapers (no photo) - useful as low-bandwidth
+  // alternatives or themed accent picks.
+  { id: "salarean-classic", name: "Salarean Classic",
     category: "education", kind: "css",
-    css: pat(eduTile("rgba(232,236,246,.08)"),
+    css: pat(eduTile("rgba(232,236,246,.18)"),
              lin(135, "#0b1020", "#172554 55%", "#1d2746")) },
   { id: "graduation", name: "Graduation Day", category: "education", kind: "css",
     css: pat(gradCap("rgba(232,236,246,.12)"),
@@ -298,8 +320,11 @@ export const BACKGROUNDS: Background[] = [
 
 // Brand-default background. Always shown on first load until the user
 // either picks something else or enables 'Auto' (which seasonally
-// rotates via seasonalBackgroundId() below).
-export const DEFAULT_BACKGROUND_ID = "salarean-classic";
+// rotates via seasonalBackgroundId() below). Defaults to the photo-
+// real Bodhi-tree wisdom wallpaper which ties directly to the
+// Salarean logo (Bodhi-leaf-S) and reads as "a place where learning
+// happens" rather than a black void.
+export const DEFAULT_BACKGROUND_ID = "wisdom-bodhi";
 
 export const CATEGORIES = [
   "education",
@@ -341,8 +366,15 @@ export function seasonalBackgroundId(d: Date = new Date()): string {
 
 export function backgroundStyle(bg: Background): CSSProperties {
   if (bg.kind === "image" && bg.src) {
+    // Use the per-wallpaper overlay if set; otherwise fall back to
+    // the heavier global overlay (kept for the existing kids /
+    // anime / surreal photos which are bright and busy).
+    const a = bg.overlay ?? 0.60;
+    const a2 = Math.min(1, a + 0.05);
     return {
-      backgroundImage: `linear-gradient(rgba(7,11,26,0.55), rgba(7,11,26,0.7)), url(${bg.src})`,
+      backgroundImage:
+        `linear-gradient(rgba(7,11,26,${a}), rgba(7,11,26,${a2})), ` +
+        `url(${bg.src})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
       backgroundAttachment: "fixed",
