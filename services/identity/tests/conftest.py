@@ -11,3 +11,8 @@ _SHARED = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "packages", "sha
 for _p in (_SRC, _SHARED, _HERE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+
+# Bypass the internal-auth gate by default in tests. Specific tests
+# that exercise the gate clear this env via monkeypatch.
+os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")

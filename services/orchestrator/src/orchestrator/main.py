@@ -16,9 +16,10 @@ from aoep_shared.assessment import (
     definition_items_from_passages,
     grade,
 )
+from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 
 from .curriculum import Lesson, Slide
@@ -244,7 +245,7 @@ def _review_dict(it) -> dict:
             "decided_by": it.decided_by, "created_at": it.created_at}
 
 
-@app.get("/api/hil/queue")
+@app.get("/api/hil/queue", dependencies=[Depends(require_internal)])
 def hil_queue(status: str | None = None) -> dict:
     from aoep_shared.hil import ReviewStatus
 
@@ -259,7 +260,8 @@ class HilDecisionRequest(BaseModel):
     decided_by: str = "human"
 
 
-@app.post("/api/hil/{item_id}/decision")
+@app.post("/api/hil/{item_id}/decision",
+          dependencies=[Depends(require_internal)])
 def hil_decision(item_id: str, req: HilDecisionRequest) -> dict:
     try:
         item = app.state.hil.decide(item_id, req.action, edited_payload=req.edited_payload,
@@ -286,7 +288,8 @@ def _step_dict(s) -> dict:
             "metrics": s.metrics, "parent": s.parent, "created_at": s.created_at}
 
 
-@app.post("/api/optimization/commit")
+@app.post("/api/optimization/commit",
+          dependencies=[Depends(require_internal)])
 def optimization_commit(req: CommitStepRequest) -> dict:
     ledger = app.state.optimization
     step = ledger.commit(req.stage, req.params, req.metrics, parent=req.parent)
@@ -311,7 +314,8 @@ class RevertRequest(BaseModel):
     step_id: str
 
 
-@app.post("/api/optimization/revert")
+@app.post("/api/optimization/revert",
+          dependencies=[Depends(require_internal)])
 def optimization_revert(req: RevertRequest) -> dict:
     try:
         step = app.state.optimization.revert(req.stage, req.step_id)

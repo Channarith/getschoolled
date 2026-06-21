@@ -9,8 +9,8 @@ store and expose it over HTTP.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Set
+from dataclasses import dataclass
+from typing import Dict, List
 
 from pydantic import BaseModel, Field
 

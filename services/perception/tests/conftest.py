@@ -48,3 +48,8 @@ def engine(models):
 
     detector, recognizer = models
     return FaceRecognitionEngine(detector, recognizer)
+
+
+# Bypass the internal-auth gate by default in tests. Specific tests
+# that exercise the gate clear this env via monkeypatch.
+os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")

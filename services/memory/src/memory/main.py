@@ -6,6 +6,7 @@ import os
 
 from aoep_shared.compliance import compliance_summary
 from aoep_shared.flags import FlagStore, require_admin
+from aoep_shared.internal_auth import require_internal
 from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, notice_versions
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
@@ -131,12 +132,14 @@ class PurgeRequest(BaseModel):
     default_retention_days: int | None = None
 
 
-@app.post("/retention/purge")
+@app.post("/retention/purge", dependencies=[Depends(require_internal)])
 def retention_purge(req: PurgeRequest) -> dict:
     """Enforce data retention: delete data past its retention window.
 
     Intended to run on a schedule (cron / k8s CronJob) - see
     scripts/retention_purge.py and infra/k8s/retention-cronjob.yaml.
+    Gated by require_internal so a public caller cannot trigger a
+    sweep that deletes learner data.
     """
     return app.state.store.purge_expired(default_retention_days=req.default_retention_days)
 
