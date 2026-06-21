@@ -25,16 +25,17 @@ export default function HomePage() {
         <div className="theme-hero-inner"
              style={{ display: "flex", gap: 32, alignItems: "center",
                       flexWrap: "wrap" }}>
-          {/* Realistic Bodhi-leaf medallion + Khmer wordmark
-              (សាលារៀន, sala-rean) lockup. Decorative; the brand
-              text is owned by the nav and the title below. */}
+          {/* Salarean brand mascot: cute slim Bayon Buddy
+              cradling the photo-real S-medallion with the Bodhi-
+              leaf crown. Transparent PNG (no card background) so
+              the photo-real wisdom wallpaper shows through and
+              the character floats on the page. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-realistic-lockup-512.webp"
-               alt="Salarean - សាលារៀន"
-               width={220} height={275}
-               style={{ flex: "0 0 auto", borderRadius: 18,
-                        boxShadow: "0 16px 40px rgba(2,6,23,.45)",
-                        background: "#0b1020" }} />
+          <img src="/bayon-mark.webp"
+               alt="Salarean - Bayon Buddy mascot holding the Bodhi-leaf S brand mark"
+               width={200} height={409}
+               style={{ flex: "0 0 auto",
+                        filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }} />
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title" style={{ marginTop: 14 }}>

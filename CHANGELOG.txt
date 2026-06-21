@@ -2,6 +2,47 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Photo-real "wisdom & learning" default wallpaper. The previous
+  default ("salarean-classic") was a CSS-only navy gradient with
+  an 8%-opacity SVG education-motif overlay - so subtle the
+  pattern was effectively invisible and the page read as a black
+  void. Replaced with three photo-real wallpapers in a new
+  default-eligible "wisdom" set:
+  * wisdom-bodhi (NEW DEFAULT) - ancient Bodhi tree at golden
+    hour with weathered books, a Khmer brass lantern, and
+    distant Angkor temple silhouettes. Ties directly to the
+    Salarean logo (Bodhi-leaf-S) and the brand's Khmer roots.
+  * wisdom-library - dim grand library with stained-glass
+    light beam, leather-bound books, illuminated manuscript on
+    a candlelit reading desk.
+  * wisdom-manuscript - open antique book on a wooden desk
+    with golden light particles rising from the pages and a
+    brass desk lamp.
+  Files:
+    apps/web/public/wallpapers/wisdom_{bodhi,library,manuscript}.webp
+    apps/web/public/wallpapers/wisdom_*_thumb.webp (1280 px)
+    docs/brand/wallpapers/wisdom_*.png   1024 archives
+  apps/web/app/lib/backgrounds.ts: added the three image
+  wallpapers under category "education", added a per-wallpaper
+  `overlay` field to Background so cinematic-already-dark photos
+  get a 0.30 dim instead of the 0.60 used for bright photos.
+  Updated DEFAULT_BACKGROUND_ID to "wisdom-bodhi". Bumped the
+  CSS-only "salarean-classic" pattern opacity from 8% to 18% so
+  it's actually visible.
+
+- Web background: full-page coverage fix. The body element used
+  to paint background:var(--bg) (#0b1020) opaque navy, which
+  hid the BackgroundProvider's full-bleed wallpaper everywhere
+  except inside hero panels. Moved the fallback color to <html>
+  (briefly visible during first paint) and made <body>
+  background-color: transparent so the wallpaper covers the
+  ENTIRE viewport including below the fold. Softened
+  .theme-hero's purple-navy gradient to a translucent rgba so
+  the wallpaper shows through behind the hero while headlines
+  stay readable. Removed the inline opaque gradient on the
+  home hero (apps/web/app/page.tsx) so the new translucent
+  CSS class wins.
+
 - Salarean Kids: refined Bayon Buddy mascot. The original
   Bayon Buddy read as overly plump; this revision swaps in a
   slimmer, child-proportioned baby-Buddha pose (kneeling,

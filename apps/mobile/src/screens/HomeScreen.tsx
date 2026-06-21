@@ -114,14 +114,13 @@ export default function HomeScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
     >
       <View style={styles.heroBox}>
-        {/* Photo-real Salarean medallion + Khmer wordmark
-            (សាលារៀន, sala-rean) lockup. Replaces the old text-only
-            "SALAREAN" kicker so the brand reads as a single
-            premium mark. The image bundles the wordmark; we keep
-            the textual `home.kicker` translation around but render
-            it as accessible-only screen-reader alt text. */}
+        {/* Salarean brand mascot: cute slim Bayon Buddy cradling
+            the photo-real S-medallion with the Bodhi-leaf crown.
+            Transparent PNG so it sits on whatever background the
+            screen uses (no card backing). Replaces the prior
+            text-only "SALAREAN" kicker AND the navy-card lockup. */}
         <Image
-          source={require("../../assets/salarean_lockup_realistic_512.png")}
+          source={require("../../assets/salarean_bayon_mark_512.png")}
           style={styles.heroLockup}
           accessible
           accessibilityLabel={`${t("home.kicker")} \u2014 \u179f\u17b6\u179b\u17b6\u179a\u17c0\u1793`}
@@ -237,10 +236,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
   heroBox: { paddingHorizontal: 16, paddingBottom: 16, alignItems: "center" },
   heroLockup: {
-    width: 200, height: 250,
+    width: 160, height: 320,
     marginBottom: 12,
-    borderRadius: 14,
-    backgroundColor: "#0b1020",
   },
   kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4, textAlign: "center" },
