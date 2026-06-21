@@ -8,7 +8,15 @@ creation via the PaymentProvider (Stripe in cloud, sandbox stub local).
 from __future__ import annotations
 
 from aoep_shared.entitlements import PLANS, can_start
-from aoep_shared.payments import PaymentMethod, label_for, processor_for
+from aoep_shared.payments import (
+    COUNTRY_METHODS,
+    LOCALE_DEFAULT_COUNTRY,
+    PaymentMethod,
+    label_for,
+    methods_for_country,
+    methods_for_locale,
+    processor_for,
+)
 from aoep_shared.schemas import ClassType, PlanTier
 from aoep_shared.service import create_service
 from fastapi import HTTPException
@@ -80,11 +88,34 @@ def entitlements_can_start(req: CanStartRequest) -> CanStartResponse:
 
 
 @app.get("/payment-methods", response_model=PaymentMethodsResponse)
-def payment_methods() -> PaymentMethodsResponse:
-    """All known payment methods, flagged by whether the active provider can
-    currently process them (Apple/Google Pay, Cash App, PayPal, Venmo, Zelle...)."""
+def payment_methods(
+    country: str | None = None,
+    locale: str | None = None,
+) -> PaymentMethodsResponse:
+    """List payment methods, optionally filtered/ordered for a specific
+    country or locale.
+
+    - ``country=US|BR|DE|...`` returns the methods popular in that
+      country, ordered by popularity (CARD always near the top).
+    - ``locale=vi|km|hi|...`` does the same but infers the country
+      from the locale (vi -> VN, km -> KH, hi -> IN, etc.).
+    - With neither, returns every method the platform knows about.
+
+    Each method is flagged by whether the active provider can currently
+    process it. In local/sandbox mode every method is "available"; in
+    cloud mode only methods whose processor has its API key set show
+    available=True.
+    """
     payment = app.state.factory.payment()
     available = payment.supported_methods()
+
+    if country:
+        methods = methods_for_country(country)
+    elif locale:
+        methods = methods_for_locale(locale)
+    else:
+        methods = list(PaymentMethod)
+
     return PaymentMethodsResponse(
         methods=[
             PaymentMethodInfo(
@@ -93,8 +124,25 @@ def payment_methods() -> PaymentMethodsResponse:
                 processor=processor_for(m).value,
                 available=m in available,
             )
-            for m in PaymentMethod
+            for m in methods
         ]
+    )
+
+
+class CountryMethodsResponse(BaseModel):
+    countries: dict[str, list[str]]
+    locales: dict[str, str]
+
+
+@app.get("/payment-methods/by-country", response_model=CountryMethodsResponse)
+def payment_methods_by_country() -> CountryMethodsResponse:
+    """Full country/locale -> method-id matrix. Used by the web + mobile
+    UI to render the right method picker per audience without round-
+    tripping for every user (the data is small enough to ship once at
+    page load)."""
+    return CountryMethodsResponse(
+        countries={c: [m.value for m in ms] for c, ms in COUNTRY_METHODS.items()},
+        locales=dict(LOCALE_DEFAULT_COUNTRY),
     )
 
 

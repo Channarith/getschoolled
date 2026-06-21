@@ -1,0 +1,177 @@
+SALAREAN — GLOBAL PAYMENT METHODS
+=================================
+Plain text on purpose (repo no-markdown house rule).
+
+Source of truth: packages/shared/src/aoep_shared/payments.py and
+packages/shared/src/aoep_shared/providers/payment.py. Tests in
+packages/shared/tests/test_payments_global.py +
+services/billing/tests/test_payment_methods_global.py.
+
+----------------------------------------------------------------------------
+1. METHODS (44 total)
+----------------------------------------------------------------------------
+Global / US-centric (9)
+  card, apple_pay, google_pay, cashapp, paypal, venmo, zelle,
+  square, ach
+
+Buy-now-pay-later (3)
+  klarna, afterpay, affirm
+
+Europe / SEPA bank rails (7)
+  sepa, ideal (NL), bancontact (BE), sofort (DE/AT), giropay (DE),
+  eps (AT), p24 (PL)
+
+Latin America (4)
+  pix (BR), boleto (BR), oxxo (MX), mercado_pago
+
+Russia / CIS (2)
+  mir, yoomoney
+
+MENA (4)
+  mada (SA), stc_pay (SA), knet (KW), fawry (EG)
+
+South Asia / India (5)
+  upi, paytm, phonepe, razorpay, rupay
+
+China / Greater China (3)
+  alipay, wechat_pay, unionpay
+
+Japan (4)
+  jcb, konbini, payeasy, line_pay
+
+Korea (3)
+  kakao_pay, naver_pay, toss
+
+Vietnam (3)
+  vnpay, momo, zalo_pay
+
+Cambodia (3)
+  aba_pay, wing, khqr (Bakong national QR)
+
+----------------------------------------------------------------------------
+2. PROCESSORS (12)
+----------------------------------------------------------------------------
+stripe         — global aggregator. Handles 21 of the 44 methods
+                 natively: card, Apple/Google/Cash App, ACH, Klarna,
+                 BNPL, SEPA, iDEAL, Bancontact, Sofort, Giropay, EPS,
+                 P24, Konbini, OXXO, Boleto, Alipay, WeChat Pay, JCB,
+                 Afterpay, Affirm.
+                 Env: PAYMENT_API_KEY
+
+paypal         — PayPal + Venmo via PayPal/Braintree.
+                 Env: PAYPAL_API_KEY
+
+square         — Square checkout (US + a few EU markets).
+                 Env: SQUARE_API_KEY
+
+razorpay       — India aggregator: UPI, PhonePe, RuPay, India cards,
+                 NetBanking.
+                 Env: RAZORPAY_API_KEY
+
+paytm          — India alternate to Razorpay.
+                 Env: PAYTM_API_KEY
+
+mercado_pago   — LATAM: PIX (Brazil), Boleto, OXXO (Mexico),
+                 Mercado Pago wallet, regional cards.
+                 Env: MERCADO_PAGO_API_KEY
+
+vnpay          — Vietnam VNPay gateway (cards + bank ATM).
+                 Env: VNPAY_API_KEY
+
+momo           — Vietnam wallet (MoMo + ZaloPay).
+                 Env: MOMO_API_KEY
+
+aba            — Cambodia ABA Bank PayWay + Bakong KHQR.
+                 Env: ABA_API_KEY
+
+yoomoney       — Russia (Mir + YooMoney).
+                 Env: YOOMONEY_API_KEY
+
+toss           — Korea (KakaoPay, NaverPay, Toss, KCP).
+                 Env: TOSS_API_KEY
+
+local_psp      — Regional fallback for Mada, STC Pay, Knet, Fawry,
+                 Pay-easy, LINE Pay, UnionPay. The deployment configures
+                 whichever local PSP it has a direct contract with.
+                 Env: LOCAL_PSP_API_KEY
+
+manual         — Zelle (US bank-to-bank). Surfaces transfer
+                 instructions; reconciled out of band.
+
+----------------------------------------------------------------------------
+3. ROUTING IN CLOUD MODE (RoutedPaymentProvider)
+----------------------------------------------------------------------------
+When DEPLOY_MODE=cloud the factory returns a RoutedPaymentProvider
+that fans method-specific checkouts out to the right regional
+processor. The set of methods advertised in /payment-methods is the
+union of every CONFIGURED provider's method set (a provider is
+configured iff its API key is non-empty). Unconfigured methods raise
+NotImplementedError on /checkout — fail-closed.
+
+Local mode (DEPLOY_MODE=local) returns the SandboxPaymentProvider
+which simulates every method so the entire UX (UPI, PIX, KHQR, etc.)
+is testable offline without any cloud credentials.
+
+----------------------------------------------------------------------------
+4. COUNTRY → METHOD ORDERING
+----------------------------------------------------------------------------
+COUNTRY_METHODS in payments.py maps ISO-3166-1 alpha-2 codes to an
+ordered list of methods popular in that country. The /payment-methods
+API exposes this:
+
+  GET /payment-methods                  -> all 44 methods
+  GET /payment-methods?country=US       -> ordered list for US
+  GET /payment-methods?country=BR       -> ordered list for Brazil
+  GET /payment-methods?locale=km        -> infers country=KH (Cambodia)
+  GET /payment-methods?locale=hi        -> infers country=IN (India)
+  GET /payment-methods/by-country       -> full matrix (countries +
+                                            locale->country defaults)
+
+The web + mobile checkout UIs hit /payment-methods?locale=<active>
+to render a market-appropriate picker without a separate config step.
+
+----------------------------------------------------------------------------
+5. WHAT'S COVERED FOR EACH PLATFORM LOCALE
+----------------------------------------------------------------------------
+en (US default)  — card, Apple/Google/Cash App, PayPal, Venmo, Square,
+                   Zelle, ACH, Klarna, Afterpay, Affirm  (12)
+es (MX default)  — card, OXXO, Mercado Pago, Apple/Google Pay  (5)
+                   (set country=ES for SEPA / Klarna / iDEAL routes)
+pt (BR default)  — PIX, card, Boleto, Mercado Pago, Apple/Google Pay (6)
+fr (FR default)  — card, SEPA, Klarna, PayPal, Apple/Google Pay  (6)
+de (DE default)  — card, SEPA, Klarna, Sofort, Giropay, PayPal,
+                   Apple/Google Pay  (8)
+it (IT default)  — card, SEPA, Klarna, PayPal, Apple/Google Pay  (6)
+ru (RU default)  — card, Mir, YooMoney  (3)
+ar (SA default)  — card, Mada, STC Pay, Apple Pay  (4)
+hi (IN default)  — UPI, card, Paytm, PhonePe, Razorpay, RuPay,
+                   Apple/Google Pay  (8)
+zh (CN default)  — Alipay, WeChat Pay, UnionPay, card  (4)
+ja (JP default)  — card, JCB, Konbini, Pay-easy, LINE Pay,
+                   Apple/Google Pay, PayPal  (8)
+ko (KR default)  — card, KakaoPay, NaverPay, Toss, Apple Pay  (5)
+vi (VN default)  — card, VNPay, MoMo, ZaloPay, Apple Pay  (5)
+km (KH default)  — card, ABA Pay, Wing, KHQR, Apple Pay  (5)
+
+The platform also supports nl, pl, tr, sv, fi, no, da, el, ro, etc.,
+each with a country default in LOCALE_DEFAULT_COUNTRY.
+
+----------------------------------------------------------------------------
+6. WEBHOOKS
+----------------------------------------------------------------------------
+Inbound payment webhooks are received at:
+  POST /payments/webhook/{provider}   on the integrations service
+  POST /webhooks/inbound/{provider}   for generic provider payloads
+
+Each is HMAC-SHA256 verified against
+  {PROVIDER}_WEBHOOK_SECRET            preferred; per-provider secret
+  WEBHOOK_SIGNING_KEY                  platform-wide fallback
+  "dev-webhook-secret"                 LOCAL deploy mode only
+
+In cloud deploy mode an unset key fails CLOSED — the legacy dev
+secret is NOT used as a fallback.
+
+The handler normalises Stripe-style events via parse_payment_event()
+in connectors/finance.py; one path covers Stripe + Mercado Pago +
+PayPal-style payloads. Provider-specific normalisation can be added
+to that file when a processor uses a non-Stripe-shaped event.

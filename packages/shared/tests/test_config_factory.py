@@ -5,8 +5,8 @@ from aoep_shared.factory import build_factory
 from aoep_shared.providers.llm import CloudLLMProvider, LocalLLMProvider
 from aoep_shared.providers.media import CloudMediaProvider, LocalMediaProvider
 from aoep_shared.providers.payment import (
+    RoutedPaymentProvider,
     SandboxPaymentProvider,
-    StripePaymentProvider,
 )
 
 
@@ -23,7 +23,13 @@ def test_deploy_mode_cloud_flips_all_components():
     factory = build_factory(cfg)
     assert isinstance(factory.llm(), CloudLLMProvider)
     assert isinstance(factory.media(), CloudMediaProvider)
-    assert isinstance(factory.payment(), StripePaymentProvider)
+    # Cloud mode now returns a RoutedPaymentProvider that fans methods
+    # out to the right regional processor (Stripe / PayPal / Square /
+    # Razorpay / Mercado Pago / VNPay / MoMo / ABA / YooMoney / Toss /
+    # local PSP / manual). Stripe is still the primary processor
+    # for cards + most global methods, but it's now one of ~12 in the
+    # routed set rather than the only cloud provider.
+    assert isinstance(factory.payment(), RoutedPaymentProvider)
 
 
 def test_per_component_override_keeps_biometrics_local():
@@ -53,7 +59,10 @@ def test_component_summary_reports_mode_and_impl():
     factory = build_factory(load_config(env={"DEPLOY_MODE": "cloud"}))
     summary = factory.component_summary()
     assert summary["llm"].startswith("cloud:")
-    assert summary["payment"] == "cloud:stripe"
+    # Routed cloud provider; the underlying processors (stripe, paypal,
+    # square, razorpay, mercado_pago, vnpay, momo, aba, yoomoney, toss,
+    # local_psp) are advertised by /payment-methods.
+    assert summary["payment"] == "cloud:routed"
 
 
 def test_invalid_mode_raises():
