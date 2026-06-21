@@ -20,7 +20,10 @@ from .providers.base import (
 from .providers.llm import CloudLLMProvider, LocalLLMProvider
 from .providers.media import CloudMediaProvider, LocalMediaProvider
 from .providers.object_store import CloudObjectStore, LocalObjectStore
-from .providers.payment import SandboxPaymentProvider, StripePaymentProvider
+from .providers.payment import (
+    RoutedPaymentProvider,
+    SandboxPaymentProvider,
+)
 from .providers.speech import CloudSpeechProvider, LocalSpeechProvider
 from .providers.vision import CloudVisionProvider, LocalVisionProvider
 
@@ -62,9 +65,20 @@ class ProviderFactory:
         return self._select("object_store", LocalObjectStore, CloudObjectStore)
 
     def payment(self) -> PaymentProvider:
-        # local maps to the offline sandbox; cloud maps to Stripe.
+        """Return the active payment provider.
+
+        local mode -> SandboxPaymentProvider (simulates every method
+                       so the entire UX, including UPI, PIX, KHQR, etc.,
+                       can be developed and tested offline).
+        cloud mode -> RoutedPaymentProvider (an aggregator that fans
+                       each method out to the right regional processor:
+                       Stripe / PayPal / Square / Razorpay / Mercado
+                       Pago / VNPay / MoMo / ABA / YooMoney / Toss /
+                       local PSP / manual). Only providers whose API
+                       keys are set are advertised as available.
+        """
         return self._select(
-            "payment", SandboxPaymentProvider, StripePaymentProvider
+            "payment", SandboxPaymentProvider, RoutedPaymentProvider
         )
 
     def search_engines(self):

@@ -102,7 +102,22 @@ class AppConfig(BaseModel):
     object_store_secret_key: str = "aoep-secret"
     database_url: str = "postgresql://aoep:aoep@postgres:5432/aoep"
     redis_url: str = "redis://redis:6379/0"
-    payment_api_key: str = ""
+    # Payment-processor API keys. Only the ones configured for a given
+    # deployment are activated; unconfigured providers raise NotImplementedError
+    # so the platform fails-closed instead of silently dropping payments.
+    # See packages/shared/src/aoep_shared/providers/payment.py.
+    payment_api_key: str = ""              # Stripe (covers a wide global set)
+    paypal_api_key: str = ""               # PayPal/Braintree (PayPal + Venmo)
+    square_api_key: str = ""               # Square (US + a few EU)
+    razorpay_api_key: str = ""             # India (UPI/PhonePe/RuPay)
+    paytm_api_key: str = ""                # India alternate
+    mercado_pago_api_key: str = ""         # LATAM (PIX/Boleto/OXXO)
+    vnpay_api_key: str = ""                # Vietnam (VNPay)
+    momo_api_key: str = ""                 # Vietnam wallet (MoMo + ZaloPay)
+    aba_api_key: str = ""                  # Cambodia (ABA Pay/KHQR/Wing)
+    yoomoney_api_key: str = ""             # Russia (Mir/YooMoney)
+    toss_api_key: str = ""                 # Korea (KakaoPay/NaverPay/Toss)
+    local_psp_api_key: str = ""            # Regional fallback (Mada/Knet/Fawry/etc.)
     # Course-validation search engines (each enabled only when its key is set).
     bing_search_key: str = ""
     google_cse_key: str = ""
@@ -193,6 +208,17 @@ def load_config(
         ),
         redis_url=get("REDIS_URL", "redis://redis:6379/0"),
         payment_api_key=get("PAYMENT_API_KEY", ""),
+        paypal_api_key=get("PAYPAL_API_KEY", ""),
+        square_api_key=get("SQUARE_API_KEY", ""),
+        razorpay_api_key=get("RAZORPAY_API_KEY", ""),
+        paytm_api_key=get("PAYTM_API_KEY", ""),
+        mercado_pago_api_key=get("MERCADO_PAGO_API_KEY", ""),
+        vnpay_api_key=get("VNPAY_API_KEY", ""),
+        momo_api_key=get("MOMO_API_KEY", ""),
+        aba_api_key=get("ABA_API_KEY", ""),
+        yoomoney_api_key=get("YOOMONEY_API_KEY", ""),
+        toss_api_key=get("TOSS_API_KEY", ""),
+        local_psp_api_key=get("LOCAL_PSP_API_KEY", ""),
         bing_search_key=get("BING_SEARCH_KEY", ""),
         google_cse_key=get("GOOGLE_CSE_KEY", ""),
         google_cse_cx=get("GOOGLE_CSE_CX", ""),
