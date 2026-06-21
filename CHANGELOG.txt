@@ -2,6 +2,73 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+[unreleased]
+- (no changes yet)
+
+[0.4.0] - 2026-06-21
+- Global payment coverage (44 methods, 12 processors). Expanded
+  the payment surface from 7 US/UK-centric methods to 44 methods
+  spanning every region we localise into:
+
+  * Global/US (9): card, apple_pay, google_pay, cashapp, paypal,
+    venmo, zelle, square, ach
+  * BNPL (3): klarna, afterpay, affirm
+  * Europe (7): sepa, ideal, bancontact, sofort, giropay, eps, p24
+  * LATAM (4): pix, boleto, oxxo, mercado_pago
+  * Russia (2): mir, yoomoney
+  * MENA (4): mada, stc_pay, knet, fawry
+  * India (5): upi, paytm, phonepe, razorpay, rupay
+  * China (3): alipay, wechat_pay, unionpay
+  * Japan (4): jcb, konbini, payeasy, line_pay
+  * Korea (3): kakao_pay, naver_pay, toss
+  * Vietnam (3): vnpay, momo, zalo_pay
+  * Cambodia (3): aba_pay, wing, khqr (Bakong)
+
+  Each method routes to the right regional processor:
+    stripe (21 methods) | paypal | square | razorpay | paytm
+    mercado_pago | vnpay | momo | aba | yoomoney | toss
+    local_psp (Mada/Knet/Fawry/Pay-easy/LINE Pay/UnionPay)
+    manual (Zelle bank-to-bank)
+
+  Architecture:
+  * packages/shared/src/aoep_shared/payments.py - source of truth
+    for methods, processors, METHOD_PROCESSOR map, METHOD_LABELS,
+    COUNTRY_METHODS (ISO-3166-1 -> ordered method list),
+    LOCALE_DEFAULT_COUNTRY, methods_for_country(),
+    methods_for_locale(), all_methods_for_processors().
+  * packages/shared/src/aoep_shared/providers/payment.py -
+    SandboxPaymentProvider (simulates every method offline) +
+    StripePaymentProvider, PayPalPaymentProvider,
+    SquarePaymentProvider, RazorpayPaymentProvider,
+    PaytmPaymentProvider, MercadoPagoPaymentProvider,
+    VNPayPaymentProvider, MoMoPaymentProvider, ABAPaymentProvider,
+    YooMoneyPaymentProvider, TossPaymentProvider,
+    LocalPSPPaymentProvider, RoutedPaymentProvider.
+  * packages/shared/src/aoep_shared/factory.py - cloud mode now
+    returns RoutedPaymentProvider; local stays Sandbox. Each cloud
+    provider activates only when its API key is set; unconfigured
+    methods raise NotImplementedError (fail-closed).
+  * packages/shared/src/aoep_shared/config.py - 11 new API key
+    fields (PAYPAL_API_KEY, SQUARE_API_KEY, RAZORPAY_API_KEY,
+    PAYTM_API_KEY, MERCADO_PAGO_API_KEY, VNPAY_API_KEY,
+    MOMO_API_KEY, ABA_API_KEY, YOOMONEY_API_KEY, TOSS_API_KEY,
+    LOCAL_PSP_API_KEY).
+
+  Billing API (services/billing/src/billing/main.py):
+    GET /payment-methods                  -> all 44 methods
+    GET /payment-methods?country=US|BR|.. -> ordered per-country set
+    GET /payment-methods?locale=km|hi|..  -> infers country from locale
+    GET /payment-methods/by-country       -> full matrix for UI bootstrap
+
+  Tests: 28 new (24 in test_payments_global.py + 4 in
+  test_payment_methods_global.py + updated test_config_factory.py)
+  covering enum integrity, processor routing, country/locale
+  ordering, sandbox simulation of every method, RoutedPaymentProvider
+  fail-closed posture without keys, and the per-region API filters.
+
+  Docs: docs/payments.txt (plain-text) summarises the full matrix
+  and the env vars per processor.
+
 - Platform audit + security hardening (no behaviour changes for
   end users; closes internal-auth gaps on 15 sensitive endpoints,
   hardens webhook signature handling, fixes lint, adds 21 new

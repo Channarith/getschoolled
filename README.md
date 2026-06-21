@@ -1,18 +1,15 @@
-<p align="center">
-  <img src="docs/images/hero.png" alt="AI Classroom - Agentic Online Education Platform" width="100%" />
-</p>
+<h1 align="center">Salarean &middot; Agentic Online Education Platform</h1>
 
-<h1 align="center">AI Classroom &middot; Agentic Online Education Platform</h1>
+<p align="center">
+  <img src="docs/brand/salarean_lockup_realistic.png" alt="Salarean - the gold-leaf Bodhi-leaf S medallion with the Khmer wordmark សាលារៀន" width="320" />
+</p>
 
 <p align="center">
   A multi-agent AI instructor that teaches live online classes (group and 1:1),
   perceives the room over webcam, remembers every student across sessions, and
   adapts pedagogy in real time &mdash; built own-platform first, then bridged into
-  Zoom / Teams / Meet.
-</p>
-
-<p align="center">
-  <img src="docs/images/logo.png" alt="AI Classroom logo" width="120" />
+  Zoom / Teams / Meet. The brand name <strong>Salarean</strong> romanises the
+  Khmer word for school, <strong>សាលារៀន</strong> (sala-rean).
 </p>
 
 ---
@@ -21,6 +18,12 @@
 > `AGENTS.md`), always `python3`, dual-mode via env (no code forks), pinned
 > dependency versions, and `CHANGELOG.txt` updated on every meaningful change.
 > See `docs/plan.txt` and `docs/cloud-agent-task.txt` for the full spec.
+
+> **Current version:** **0.4.0** (see `VERSION`, `build-info.txt`, `CHANGELOG.txt`).
+> The brand is now Salarean (previous name: AI Classroom). The user-facing
+> UI, app metadata, mobile package, web page title, and i18n strings all
+> read "Salarean"; the legacy code path `aiclassroom://` deep-link is kept
+> for one cycle so existing installs don't break.
 
 ## Table of contents
 
@@ -61,25 +64,37 @@ need infra/credentials to run. See the status table below.
 
 ## Branding
 
-A fun-but-surreal **AI Classroom** logo: a friendly robot-owl teacher holding a
-green chalkboard that melts into a galaxy of chalk equations, planets and a
-graduation cap. Brand assets live in `docs/brand/` (and `apps/web/public/` for the
-site); a **1-bit black-and-white** version is included for easy single-color
-printing (stamps, screen-print, stickers). See [`docs/brand/branding.txt`](docs/brand/branding.txt)
-for usage + the domain/trademark notes.
+The **Salarean** mark is a capital "S" inside a thin circular seal, crowned by a
+**Bodhi leaf** silhouette. The Bodhi (peepal / Ficus religiosa) is the tree
+under which the Buddha attained enlightenment &mdash; the universal Southeast
+Asian symbol of learning, wisdom, and the moment knowledge takes root. The mark
+reads in two ways at once: letter-as-monogram (the brand initial) and
+leaf-as-wisdom-emblem (the place where one studies). See
+[`docs/brand/branding.txt`](docs/brand/branding.txt) for the full brand guide.
 
-| Logo (color) | Printable binary (dithered) | Printable binary (stamp) |
+| Photo-real lockup | Line-art mark (themable) | Cartoon (kids surfaces) |
 | --- | --- | --- |
-| <img src="docs/brand/aiclassroom_logo.webp" alt="AI Classroom logo" width="240" /> | <img src="docs/brand/aiclassroom_logo_binary.png" alt="1-bit dithered logo" width="240" /> | <img src="docs/brand/aiclassroom_logo_binary_threshold.png" alt="1-bit threshold logo" width="240" /> |
+| <img src="docs/brand/salarean_lockup_realistic.png" alt="Photo-real Salarean lockup with the Khmer wordmark សាលារៀន" width="240" /> | <img src="docs/brand/salarean_mark.svg" alt="Line-art Bodhi-leaf S mark" width="180" /> | <img src="docs/brand/salarean_mark_cartoon.png" alt="Kid-friendly cartoon mark" width="240" /> |
 
-> **Domain / trademark (not legal advice):** a live WHOIS couldn't run in this
-> sandbox, but `aiclassroom.com` is a generic short `.com` and is **likely already
-> registered/premium** (similar names like `aiclassroom.world`, `classroom-ai.com`
-> are in active use by others). No exact live U.S. federal trademark for "AI
-> Classroom" was found, but the term is **highly descriptive** (hard to register;
-> cf. the refused "LEARN WITH AI" mark) and the space is crowded. Run a formal
-> ICANN/registrar domain check and a USPTO/WIPO clearance search with a trademark
-> attorney; favor filing the **logo (design mark)** + a distinctive wordmark.
+The home page hero pairs the photo-real medallion with the cute slim
+**Bayon Buddy** mascot cradling the medallion in his hands (transparent PNG
+so it floats directly on whatever wallpaper sits behind it). `/kids` surfaces
+swap to the cartoon variant + an Angkorian-culture mascot greeter:
+**Lily the Apsara** (default), **Bayon Buddy**, **Naga the Wise**, or
+**Garuda Glider** &mdash; switchable in one line via
+`ACTIVE_MASCOT` in `apps/web/app/lib/mascots.ts`.
+
+The default site wallpaper is **Bodhi Wisdom** &mdash; a photo-real Bodhi tree
+at golden hour with weathered books, a Khmer brass lantern, and distant Angkor
+temple silhouettes. Two alternates ship: **Ancient Library** and
+**Open Manuscript**. All three live at
+`apps/web/public/wallpapers/wisdom_*.webp`.
+
+> **Domain / trademark:** the rebrand standardises on **Salarean**
+> (`salarean.com` is registrable). The earlier "Salareen" romanisation was a
+> mis-romanisation corrected during exploration. The earlier "AI Classroom"
+> brand has been retired site-wide; only the legacy `aiclassroom://` deep-link
+> remains for one release cycle so existing mobile installs don't break.
 
 ## Screens &amp; scenarios by user type
 
@@ -283,7 +298,7 @@ Legend: ✅ implemented &amp; tested · ◑ partial (offline logic done; needs G
 | **phase4** | Memory &amp; adaptive learning: profiles, mastery, learning-behavior signals, pacing/difficulty policy (solo vs group) | ✅ Implemented &amp; tested (adaptive policy + behavior tracking) |
 | **phase5** | Assessment: quizzes, definition checks, polls, mastery feedback loop | ✅ Implemented &amp; tested (MCQ generation, grading, polls) |
 | **phase6** | Curriculum suite / CMS: author/import/manage decks | ✅ Implemented &amp; tested (deck CRUD + text import + presentation view) |
-| **phase6b** | Monetization &amp; billing: entitlements API + payment methods (card, Apple/Google Pay, Cash App, PayPal, Venmo, Zelle); Stripe (cloud) / sandbox (local) | ✅ Implemented &amp; tested (sandbox simulates all methods offline) |
+| **phase6b** | Monetization &amp; billing: entitlements API + **44 payment methods spanning 41 countries / 12 processors** (Stripe / PayPal / Square / Razorpay / Paytm / Mercado Pago / VNPay / MoMo / ABA / YooMoney / Toss / Local-PSP / Manual). Includes Zelle, Venmo, PayPal, Square, Cash App, Klarna, Afterpay, Affirm (US/Global); SEPA, iDEAL, Bancontact, Sofort, Giropay, EPS, P24 (Europe); PIX, Boleto, OXXO, Mercado Pago (LATAM); Mir, YooMoney (Russia); Mada, STC Pay, Knet, Fawry (MENA); UPI, Paytm, PhonePe, RuPay (India); Alipay, WeChat Pay, UnionPay (China); JCB, Konbini, Pay-easy, LINE Pay (Japan); KakaoPay, NaverPay, Toss (Korea); VNPay, MoMo, ZaloPay (Vietnam); ABA Pay, Wing, KHQR/Bakong (Cambodia). See [`docs/payments.txt`](docs/payments.txt) for the full matrix. | ✅ Implemented &amp; tested (sandbox simulates all 44 methods offline; cloud routes per processor; each provider activates only when its API key is set) |
 | **phase7** | Zoom bridge &rarr; LiveKit | ⬜ Scaffolded: `MediaBridge` interface + capability registry + credential checks; needs Zoom SDK + creds |
 | **phase8** | Teams bridge (.NET Graph Communications) | ⬜ Scaffolded; needs Azure/Graph creds + a .NET media bot |
 | **phase9** | Google Meet / Chat bridge | ⬜ Scaffolded; needs Google Workspace creds |

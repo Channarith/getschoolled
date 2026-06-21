@@ -3,7 +3,7 @@
     "name": "Salarean",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "splash": { "resizeMode": "contain", "backgroundColor": "#0b1020" },
