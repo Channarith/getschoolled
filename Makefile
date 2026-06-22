@@ -11,7 +11,7 @@ COMPOSE := infra/compose/docker-compose.yml
 .PHONY: help venv install test test-py web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild \
-	loadtest scale-up scale-down
+	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke
 
 help:
 	@echo "Targets:"
@@ -29,6 +29,7 @@ help:
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
+	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
 	@echo "  scale-up/down  Start / stop multi-replica local compose overlay"
 	@echo "  up / down      Start / stop the full local stack"
 
@@ -101,6 +102,12 @@ compose-config:
 
 k8s-build:
 	kustomize build infra/k8s
+
+k8s-build-vke:
+	kustomize build infra/k8s-vke
+
+k8s-apply-vke:
+	kubectl apply -k infra/k8s-vke
 
 up:
 	docker compose -f $(COMPOSE) up -d --build

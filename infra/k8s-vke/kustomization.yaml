@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: aoep
+resources:
+  - ../k8s
+patches:
+  - path: configmap-vke.yaml
+  - path: ingress-vke.yaml
+  - path: pvc-vke.yaml
+images:
+  - name: ghcr.io/aoep/orchestrator
+    newName: registry.vultr.com/aiclassroom/orchestrator
+    newTag: latest
+  - name: ghcr.io/aoep/speech
+    newName: registry.vultr.com/aiclassroom/speech
+    newTag: latest
+  - name: ghcr.io/aoep/perception
+    newName: registry.vultr.com/aiclassroom/perception
+    newTag: latest
+  - name: ghcr.io/aoep/memory
+    newName: registry.vultr.com/aiclassroom/memory
+    newTag: latest
+  - name: ghcr.io/aoep/curriculum
+    newName: registry.vultr.com/aiclassroom/curriculum
+    newTag: latest
+  - name: ghcr.io/aoep/billing
+    newName: registry.vultr.com/aiclassroom/billing
+    newTag: latest
+  - name: ghcr.io/aoep/integrations
+    newName: registry.vultr.com/aiclassroom/integrations
+    newTag: latest
+  - name: ghcr.io/aoep/identity
+    newName: registry.vultr.com/aiclassroom/identity
+    newTag: latest
+  - name: ghcr.io/aoep/web
+    newName: registry.vultr.com/aiclassroom/web
+    newTag: latest
+  - name: aoep/harvester
+    newName: registry.vultr.com/aiclassroom/harvester
+    newTag: latest
+  - name: aoep/memory
+    newName: registry.vultr.com/aiclassroom/memory
+    newTag: latest

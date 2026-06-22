@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aoep-config
+  namespace: aoep
+data:
+  DEPLOY_MODE: "cloud"
+  LLM_BASE_URL: "http://llm:8000/v1"
+  LLM_MODEL: "aoep-base-edu"
+  SPEECH_BASE_URL: "http://speech:8100"
+  VISION_BASE_URL: "http://perception:8200"
+  LIVEKIT_URL: "wss://livekit.aiclassroom.com"
+  OBJECT_STORE_ENDPOINT: "https://<vultr-region>.vultrobjects.com"
+  OBJECT_STORE_BUCKET: "aiclassroom-prod"
+  REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
+  CURRICULUM_DIR: "/app/sample-curriculum"
+  ORCHESTRATOR_URL: "https://api.aiclassroom.com"

@@ -54,6 +54,7 @@ and member rewards flows. Additional screenshots live in `docs/screens/`.
 | Ops | `/version`, `/__meta`, telemetry, metrics, flags, testsupport, rate limits, ETags, load tests | shared service middleware + `qa/` |
 | Compliance | Legal notices, disclaimer gate, privacy/DPA, consent, retention, regional policy, internal auth gates | `legal/`, `services/memory` |
 | Scale/hosting | Docker compose, k8s manifests, HPAs/PDBs/Ingress/Redis, Terraform skeletons, hosting plan | `infra/`, `docs/hosting.txt`, `docs/scalability.txt` |
+| Vultr VKE | Provider overlay for Vultr Container Registry, VKE ingress hosts, Vultr Object Storage, and VKE block-storage constraints | `infra/k8s-vke` |
 
 Known live-class gap: the current web example is interactive but not yet fully
 autonomous per-student live orchestration. The Director, TeachingBrain, Memory
@@ -188,6 +189,16 @@ Full compose stack:
 docker compose -f infra/compose/docker-compose.yml config
 docker compose -f infra/compose/docker-compose.yml up --build
 ```
+
+Vultr Kubernetes Engine:
+
+```bash
+kustomize build infra/k8s-vke
+kubectl apply -k infra/k8s-vke
+```
+
+See `infra/k8s-vke/RUNBOOK.txt` for VKE cluster creation, ingress-nginx,
+cert-manager, DNS, secrets, image push, and verification steps.
 
 Multi-replica local overlay:
 
@@ -330,6 +341,7 @@ available.
 - `docs/scalability.txt` documents rate limiting, ETags/cache, multi-replica
   compose, k8s HPA/PDB/anti-affinity/Ingress/Redis, load testing, and capacity
   math.
+- `infra/k8s-vke/` contains the Vultr Kubernetes Engine overlay and runbook.
 - `infra/terraform/` contains AWS and Cloudflare skeletons.
 - `infra/k8s/` contains service, autoscaling, ingress, Redis, and kustomize files.
 

@@ -1,0 +1,140 @@
+AI CLASSROOM - VULTR KUBERNETES ENGINE (VKE) RUNBOOK
+=====================================================
+Plain text on purpose (repo no-markdown house rule).
+
+Goal
+----
+Deploy the AOEP / AI Classroom stack to Vultr Kubernetes Engine using the
+generic infra/k8s manifests plus the provider overlay in infra/k8s-vke.
+
+What the VKE overlay changes
+----------------------------
+  - Rewrites container images to Vultr Container Registry:
+      registry.vultr.com/aiclassroom/<service>:latest
+  - Sets public hosts to:
+      app.aiclassroom.com
+      api.aiclassroom.com
+  - Sets Object Storage placeholders to Vultr Object Storage.
+  - Uses the in-cluster Redis service DNS.
+  - Changes the LLM model PVC from ReadOnlyMany to ReadWriteOnce because Vultr
+    block volumes are single-node attached.
+  - Adds cert-manager ingress annotation for letsencrypt-prod.
+
+Prerequisites
+-------------
+  - Vultr account with API token.
+  - VKE cluster.
+  - Vultr Container Registry named aiclassroom.
+  - DNS for aiclassroom.com managed where you can add records.
+  - kubectl, kustomize, helm, docker.
+  - Built and pushed images for every service.
+  - Managed Postgres and Object Storage credentials, or external equivalents.
+
+Create VKE cluster (example)
+----------------------------
+  vultr-cli kubernetes create \
+    --region ewr \
+    --label aiclassroom-prod \
+    --version latest \
+    --node-pools '[{"node_quantity":3,"label":"api-pool","tag":"api","plan":"vc2-4c-8gb","auto_scaler":true,"min_nodes":3,"max_nodes":12}]'
+
+Get kubeconfig
+--------------
+  vultr-cli kubernetes config <cluster-id> > kubeconfig-vke.yaml
+  export KUBECONFIG=$PWD/kubeconfig-vke.yaml
+  kubectl get nodes
+
+Install ingress-nginx
+---------------------
+  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+  helm repo update
+  helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+    --namespace ingress-nginx --create-namespace \
+    --set controller.service.type=LoadBalancer
+
+Find the Vultr LoadBalancer IP:
+  kubectl -n ingress-nginx get svc ingress-nginx-controller
+
+DNS
+---
+Create A records:
+  app.aiclassroom.com -> ingress LoadBalancer IP
+  api.aiclassroom.com -> ingress LoadBalancer IP
+
+Install cert-manager
+--------------------
+  helm repo add jetstack https://charts.jetstack.io
+  helm repo update
+  helm upgrade --install cert-manager jetstack/cert-manager \
+    --namespace cert-manager --create-namespace \
+    --set installCRDs=true
+
+Create a ClusterIssuer named letsencrypt-prod (replace email):
+  cat <<'YAML' | kubectl apply -f -
+  apiVersion: cert-manager.io/v1
+  kind: ClusterIssuer
+  metadata:
+    name: letsencrypt-prod
+  spec:
+    acme:
+      email: ops@aiclassroom.com
+      server: https://acme-v02.api.letsencrypt.org/directory
+      privateKeySecretRef:
+        name: letsencrypt-prod
+      solvers:
+        - http01:
+            ingress:
+              class: nginx
+  YAML
+
+Create secrets
+--------------
+Do NOT commit real secrets. Replace placeholders:
+  kubectl -n aoep create secret generic aoep-secrets \
+    --from-literal=LIVEKIT_API_KEY=... \
+    --from-literal=LIVEKIT_API_SECRET=... \
+    --from-literal=OBJECT_STORE_ACCESS_KEY=... \
+    --from-literal=OBJECT_STORE_SECRET_KEY=... \
+    --from-literal=DATABASE_URL='postgresql://user:pass@host:5432/db' \
+    --from-literal=PAYMENT_API_KEY=...
+
+If the namespace does not exist yet, first:
+  kubectl apply -f infra/k8s/namespace.yaml
+
+Build and push images
+---------------------
+Example:
+  docker build -t registry.vultr.com/aiclassroom/orchestrator:latest \
+    -f services/orchestrator/Dockerfile .
+  docker push registry.vultr.com/aiclassroom/orchestrator:latest
+
+Repeat for:
+  orchestrator, speech, perception, memory, curriculum, billing, integrations,
+  identity, web, harvester.
+
+Render manifests
+----------------
+  kustomize build infra/k8s-vke > /tmp/aiclassroom-vke.yaml
+
+Apply
+-----
+  kubectl apply -k infra/k8s-vke
+
+Verify
+------
+  kubectl -n aoep get pods
+  kubectl -n aoep get ingress
+  curl -I https://api.aiclassroom.com/health
+  curl -I https://app.aiclassroom.com
+
+Operational notes
+-----------------
+  - The LLM deployment requests nvidia.com/gpu: 1. VKE GPU availability depends
+    on region/plan. If no GPU node pool exists, temporarily omit llm-vllm.yaml
+    or set LLM_BASE_URL to an external provider.
+  - Use managed Postgres for production. The repo's compose Postgres is local
+    dev only.
+  - Use Vultr Object Storage for media/deck assets; set OBJECT_STORE_ENDPOINT
+    to the chosen region endpoint.
+  - Keep Cloudflare in front of Vultr LoadBalancers for WAF, DDoS, CDN, and
+    cheaper cached egress.
