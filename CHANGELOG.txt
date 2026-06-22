@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Spoken AI answers across web and mobile: web Live Class now
+  speaks AI teacher answers aloud while still printing text/citations, and web
+  Drive Mode now has the same "Hey Sala" / "Salareen" interruption assistant as
+  mobile with voice/type fallback, pause/resume/next/previous commands,
+  course-grounded answers, and automatic resume. Tested.
+
 - 2026-06-22 - Drive Mode agentic interruptions: mobile Drive Mode now has a
   Sala Drive Assistant with "Hey Sala" / "Salareen" wake-word handling on web
   speech recognition, tap/type fallback for native, voice/text commands for

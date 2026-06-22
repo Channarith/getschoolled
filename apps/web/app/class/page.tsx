@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
@@ -41,6 +41,9 @@ export default function ClassPage() {
   const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
   const [surveyDone, setSurveyDone] = useState(false);
+  const [speakAnswers, setSpeakAnswers] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     listLessons()
@@ -52,7 +55,26 @@ export default function ClassPage() {
     getDisclosure()
       .then(setDisclosure)
       .catch(() => setDisclosure(null));
+    return () => stopSpeaking();
   }, []);
+
+  function stopSpeaking() {
+    try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
+    speechRef.current = null;
+    setSpeaking(false);
+  }
+
+  function speak(text: string) {
+    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    stopSpeaking();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    speechRef.current = utterance;
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }
 
   async function onStart() {
     setError("");
@@ -155,6 +177,7 @@ export default function ClassPage() {
     setBusy(true);
     try {
       const a: Answer = await ask(view.session.session_id, q);
+      speak(a.text);
       setChat((c) => [
         ...c,
         {
@@ -236,7 +259,20 @@ export default function ClassPage() {
           </div>
 
           <div className="card">
-            <h3>Ask the AI teacher</h3>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Ask the AI teacher</h3>
+              <label className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={speakAnswers}
+                  onChange={(e) => {
+                    setSpeakAnswers(e.target.checked);
+                    if (!e.target.checked) stopSpeaking();
+                  }}
+                />
+                Speak answers
+              </label>
+            </div>
             <div className="chat">
               {chat.map((m, i) => (
                 <div key={i} className={`bubble ${m.role}`}>
@@ -273,7 +309,23 @@ export default function ClassPage() {
                     </div>
                   )}
                   {m.role === "teacher" && (
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => speak(m.text)}
+                        style={{ fontSize: 12, padding: "2px 10px", color: "#075985", background: "#e0f2fe", border: "1px solid #0ea5e9", borderRadius: 999, cursor: "pointer" }}
+                        title="Speak this answer aloud"
+                      >
+                        🔊 Speak
+                      </button>
+                      {speaking && (
+                        <button
+                          onClick={stopSpeaking}
+                          style={{ fontSize: 12, padding: "2px 10px", color: "#334155", background: "#f1f5f9", border: "1px solid #94a3b8", borderRadius: 999, cursor: "pointer" }}
+                          title="Stop speaking"
+                        >
+                          Stop audio
+                        </button>
+                      )}
                       <button
                         onClick={() => onDispute(m.text)}
                         style={{ fontSize: 12, padding: "2px 10px", color: "#b45309", background: "#fff7ed", border: "1px solid #f59e0b", borderRadius: 999, cursor: "pointer" }}

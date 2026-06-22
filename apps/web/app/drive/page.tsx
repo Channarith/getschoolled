@@ -22,7 +22,15 @@ export default function DrivePage() {
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [error, setError] = useState("");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantStatus, setAssistantStatus] = useState("Say Hey Sala or Salareen to ask a question.");
+  const [assistantTranscript, setAssistantTranscript] = useState("");
+  const [assistantAnswer, setAssistantAnswer] = useState("");
+  const [typedQuestion, setTypedQuestion] = useState("");
+  const [listening, setListening] = useState(false);
   const queue = useRef<AudioCourseRow[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getAudioCategories().then(setCats).catch(() => setCats([]));
@@ -66,11 +74,159 @@ export default function DrivePage() {
     if (next) startCourse(next.id);
   }
 
+  function clearResumeTimer() {
+    if (resumeTimerRef.current) {
+      clearTimeout(resumeTimerRef.current);
+      resumeTimerRef.current = null;
+    }
+  }
+
   function pause() { window.speechSynthesis.pause(); setPlaying(false); }
   function resume() { window.speechSynthesis.resume(); setPlaying(true); }
-  function stop() { window.speechSynthesis.cancel(); setPlaying(false); setCourse(null); }
+  function stop() {
+    clearResumeTimer();
+    stopVoiceRecognition();
+    window.speechSynthesis.cancel();
+    setPlaying(false);
+    setCourse(null);
+    setAssistantOpen(false);
+  }
 
-  useEffect(() => () => { try { window.speechSynthesis.cancel(); } catch { /* */ } }, []);
+  function pauseForAssistant(status = "Listening. Say Hey Sala or Salareen, then ask your question.") {
+    clearResumeTimer();
+    window.speechSynthesis.cancel();
+    setPlaying(false);
+    setAssistantOpen(true);
+    setAssistantStatus(status);
+    setAssistantAnswer("");
+  }
+
+  function resumeAfterAssistant(delayMs = 0) {
+    if (!course) return;
+    clearResumeTimer();
+    const go = () => {
+      setAssistantOpen(false);
+      playSeg(course, seg);
+    };
+    if (delayMs > 0) {
+      setAssistantStatus(`Resuming in ${Math.round(delayMs / 1000)} seconds. Say or tap pause to stay paused.`);
+      resumeTimerRef.current = setTimeout(go, delayMs);
+    } else {
+      go();
+    }
+  }
+
+  function stopVoiceRecognition() {
+    try { recognitionRef.current?.stop?.(); } catch { /* ignore */ }
+    recognitionRef.current = null;
+    setListening(false);
+  }
+
+  function startVoiceRecognition(expectWakeWord = true) {
+    pauseForAssistant(expectWakeWord
+      ? "Listening for Hey Sala or Salareen..."
+      : "Listening for your question or command...");
+    const root = window as any;
+    const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setAssistantStatus("Voice recognition is unavailable in this browser. Type your question or use the controls.");
+      return;
+    }
+    stopVoiceRecognition();
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event: any) => {
+      const text = Array.from(event.results || [])
+        .map((result: any) => result?.[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      setAssistantTranscript(text);
+      handleSpokenInput(text, expectWakeWord);
+    };
+    recognition.onerror = () => {
+      setAssistantStatus("I could not hear that. Try again, or type your question.");
+      setListening(false);
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    setListening(true);
+    recognition.start();
+  }
+
+  function handleSpokenInput(raw: string, expectWakeWord: boolean) {
+    stopVoiceRecognition();
+    const text = raw.trim();
+    const hasWake = /\b(hey\s+sala|sala|salareen)\b/i.test(text);
+    if (expectWakeWord && !hasWake) {
+      setAssistantStatus("Wake word not detected. Say Hey Sala or Salareen before your question.");
+      return;
+    }
+    const cleaned = text
+      .replace(/\bhey\s+sala\b/ig, "")
+      .replace(/\bsalareen\b/ig, "")
+      .replace(/\bsala\b/ig, "")
+      .trim();
+    if (!cleaned) {
+      setAssistantStatus("I heard you. Ask a question, say pause, resume, next, or previous.");
+      startVoiceRecognition(false);
+      return;
+    }
+    handleAssistantQuestion(cleaned);
+  }
+
+  function handleAssistantQuestion(input: string) {
+    if (!course) return;
+    clearResumeTimer();
+    const command = input.trim();
+    if (!command) return;
+    setAssistantTranscript(command);
+    const lower = command.toLowerCase();
+    if (/\b(pause|stop|hold)\b/.test(lower)) {
+      setAssistantAnswer("Paused. Say or tap Resume when you want to continue.");
+      setAssistantStatus("Paused for you.");
+      setPlaying(false);
+      window.speechSynthesis.cancel();
+      return;
+    }
+    if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
+      setAssistantAnswer("Resuming the lesson.");
+      resumeAfterAssistant(1000);
+      return;
+    }
+    if (/\b(next|skip ahead)\b/.test(lower)) {
+      setAssistantAnswer("Skipping to the next segment.");
+      playSeg(course, Math.min(seg + 1, course.segments.length - 1));
+      return;
+    }
+    if (/\b(previous|back|repeat)\b/.test(lower)) {
+      setAssistantAnswer("Going back so you can hear that part again.");
+      playSeg(course, Math.max(0, seg - 1));
+      return;
+    }
+    const answer = answerFromCourse(course, seg, command);
+    setAssistantAnswer(answer);
+    setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
+    window.speechSynthesis.cancel();
+    speak(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, () => {
+      resumeAfterAssistant(6500);
+    });
+  }
+
+  function submitTypedQuestion() {
+    const q = typedQuestion.trim();
+    if (!q) return;
+    setTypedQuestion("");
+    pauseForAssistant("Answering your typed question.");
+    handleAssistantQuestion(q);
+  }
+
+  useEffect(() => () => {
+    clearResumeTimer();
+    stopVoiceRecognition();
+    try { window.speechSynthesis.cancel(); } catch { /* */ }
+  }, []);
 
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
 
@@ -112,6 +268,50 @@ export default function DrivePage() {
           <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
             Auto-advances to the next class when this one finishes.
           </p>
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: "#151c34" }}>
+            <strong>Say “Hey Sala” or “Salareen”</strong>
+            <p className="muted" style={{ margin: "4px 0 10px" }}>
+              Interrupt safely to ask a question, pause, resume, repeat, or skip.
+            </p>
+            <div className="row" style={{ gap: 8 }}>
+              <button onClick={() => startVoiceRecognition(true)}>
+                {listening ? "Listening..." : "🎙 Ask"}
+              </button>
+              <button onClick={() => pauseForAssistant("Paused. Ask a question or resume when ready.")}>
+                Pause + Ask
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {assistantOpen && (
+        <div role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, background: "rgba(3,7,18,0.68)",
+            display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
+          <div className="card" style={{ width: "min(760px, 100%)", margin: 0, borderRadius: "24px 24px 0 0",
+            background: "#0b1020", color: "#e8ecf6" }}>
+            <h3 style={{ marginTop: 0 }}>Sala Drive Assistant</h3>
+            <p className="muted">{assistantStatus}</p>
+            {assistantTranscript && <p style={{ color: "#bae6fd" }}>You: {assistantTranscript}</p>}
+            {assistantAnswer && <p style={{ lineHeight: 1.6 }}>{assistantAnswer}</p>}
+            <input
+              placeholder="Ask a question or say pause/resume..."
+              value={typedQuestion}
+              onChange={(e) => setTypedQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitTypedQuestion()}
+              style={{ width: "100%", padding: 12, borderRadius: 10, background: "#151c34",
+                color: "#e8ecf6", border: "1px solid #23304f" }}
+            />
+            <div className="row" style={{ gap: 8, marginTop: 12 }}>
+              <button onClick={() => startVoiceRecognition(false)}>{listening ? "Listening..." : "Mic"}</button>
+              <button onClick={submitTypedQuestion}>Ask</button>
+              <button onClick={() => resumeAfterAssistant()} style={{ background: "#16a34a", color: "#fff" }}>
+                Resume
+              </button>
+              <button onClick={() => { clearResumeTimer(); setAssistantOpen(false); }}>Stay paused</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -144,4 +344,21 @@ export default function DrivePage() {
       </div>
     </main>
   );
+}
+
+function answerFromCourse(course: AudioCourse, seg: number, question: string): string {
+  const words = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  const candidates = course.segments.map((segment, i) => ({
+    segment,
+    score: scoreSegment(segment.text, words) + (i === seg ? 2 : 0),
+  })).sort((a, b) => b.score - a.score);
+  const best = candidates[0]?.segment || course.segments[seg] || course.segments[0];
+  const source = (best.text || "").replace(/\s+/g, " ").trim();
+  const snippet = source.length > 420 ? `${source.slice(0, 420)}...` : source;
+  return `Here is the course-grounded answer: ${snippet}`;
+}
+
+function scoreSegment(text: string, words: string[]): number {
+  const lower = text.toLowerCase();
+  return words.reduce((score, word) => score + (lower.includes(word) ? 1 : 0), 0);
 }
