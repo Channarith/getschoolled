@@ -2,17 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- README restoration: expanded GitHub README with brand/logo, setup/run/test
+- 2026-06-22 - README restoration: expanded GitHub README with brand/logo, setup/run/test
   commands, API and webhook map, integrations, mobile platform, security/legal/
   compliance/restrictions, hosting/scale, and checked-in web/mobile screenshots
   plus platform walkthrough videos. Fixed the mobile web preview rails so the
   page fits a 400px responsive viewport without horizontal page overflow. Tested.
 
-- README asset note: updated the cleaned GitHub README to mention the newly
+- 2026-06-22 - README asset note: updated the cleaned GitHub README to mention the newly
   merged secular minimalist logo assets without reintroducing missing screenshot,
   demo, or chart embeds. Tested.
 
-- Branding: simplified the AI Classroom logo to a single-color minimalist
+- 2026-06-22 - Branding: simplified the AI Classroom logo to a single-color minimalist
   mark (Apple/X/Micron-style). New mark is a graduation mortarboard whose
   tassel curls back into the bowl of a capital G - the cap is the G's top
   stroke, the tassel curl is the body, so the mark reads as "graduation"
@@ -27,7 +27,7 @@ Format: newest first. No markdown per project convention.
   The previous illustrated robot-owl mark is replaced (kept the same file
   paths so README and downstream references continue to work).
 
-- Platform audit + security hardening (no behaviour changes for
+- 2026-06-22 - Platform audit + security hardening (no behaviour changes for
   end users; closes internal-auth gaps on 15 sensitive endpoints,
   hardens webhook signature handling, fixes lint, adds 21 new
   regression tests):
@@ -100,7 +100,7 @@ Format: newest first. No markdown per project convention.
   tests), web pnpm typecheck + build + lint clean, mobile pnpm
   typecheck clean, ruff clean.
 
-- Scaling + redundancy hardening: every service now ships with a
+- 2026-06-22 - Scaling + redundancy hardening: every service now ships with a
   per-identity token-bucket rate limiter (aoep_shared.ratelimit:
   in-memory + Redis-backed Lua, atomic single round-trip, falls back
   cleanly when Redis is unreachable) and a Cache-Control + ETag
@@ -127,7 +127,7 @@ Format: newest first. No markdown per project convention.
   8 service-scaling); 685 backend tests pass overall. Measured locally:
   4-worker uvicorn serves ~940 RPS at p95=6.3 ms on /audio/categories;
   with ETag-driven 304s p50 drops to 1.6 ms and bandwidth 40x.
-- Hosting plan + Terraform skeletons: docs/hosting.txt (full
+- 2026-06-22 - Hosting plan + Terraform skeletons: docs/hosting.txt (full
   recommendation: AWS EKS in us-east-1 for compute + GPU + stateful;
   Cloudflare for domain registrar + DNS + CDN + WAF + DDoS + R2; rough
   $6.2k/mo all-in cost at 5M DAU; phased multi-region path; bailout
@@ -146,7 +146,7 @@ Format: newest first. No markdown per project convention.
   excluded from VCS via infra/terraform/.gitignore. Skeleton; pair
   with the existing scalability plan in docs/scalability.txt.
 
-- Vietnamese (vi) is now first-class across web + mobile + homework
+- 2026-06-22 - Vietnamese (vi) is now first-class across web + mobile + homework
   generator, in addition to the catalog/notification i18n already
   shipped. New apps/web/app/lib/i18n.tsx (LocaleProvider + useT()
   hook + 14-locale strings dict, mirroring the mobile i18n shape -
@@ -171,7 +171,7 @@ Format: newest first. No markdown per project convention.
   locales. Backend test sweep: 693 tests pass overall (was 671;
   +22 across this PR's i18n + internal-auth additions).
 
-- Homework tool is now INTERNAL-ONLY (AI teacher agent, not students).
+- 2026-06-22 - Homework tool is now INTERNAL-ONLY (AI teacher agent, not students).
   All six /homework/* endpoints in the curriculum service
   (/homework/generate, /grade, /scan, /authorship, /grade-reviews,
   /grade-reviews/{id}/decision) are now gated behind a new
@@ -189,7 +189,7 @@ Format: newest first. No markdown per project convention.
   homework-API tests bypass the gate via INTERNAL_AUTH_DISABLED=1
   set in the service conftest.
 
-- Khmer (km) is now a first-class supported language across the
+- 2026-06-22 - Khmer (km) is now a first-class supported language across the
   platform - hard requirement for the Salareen brand (sala-rian
   literally means 'school' in Khmer). aoep_shared.languages
   SUPPORTED_LANGUAGES grows from 26 to 27 (km routes to cloud-TTS
@@ -224,7 +224,7 @@ Format: newest first. No markdown per project convention.
   Home rails, course cards, Drive Mode player + notification inbox
   fully in Khmer.
 
-- Catalog content i18n: course names, category labels, level labels,
+- 2026-06-22 - Catalog content i18n: course names, category labels, level labels,
   segment headings, and templated narration now translate alongside the
   UI chrome (previously only the static UI strings translated; catalog
   rows remained in English). New aoep_shared/catalog_i18n.py with
@@ -248,7 +248,7 @@ Format: newest first. No markdown per project convention.
   unit (aoep_shared.catalog_i18n + audio_courses) + 6 new API
   (curriculum); 319 shared + 104 curriculum tests pass overall.
 
-- Mobile multi-language UI (i18n): the entire AI Classroom mobile app is now
+- 2026-06-22 - Mobile multi-language UI (i18n): the entire AI Classroom mobile app is now
   translated into 13 languages out of the box (English, Spanish, French,
   German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese, Japanese,
   Korean, Vietnamese), with the other 13 platform-supported languages wired
@@ -269,7 +269,7 @@ Format: newest first. No markdown per project convention.
   typecheck clean, Metro bundles iOS (1.81 MB / 698 modules) + Android
   (1.82 MB / 701 modules) + web (≈580 kB).
 
-- Mobile Netflix-style features + push/local notifications: apps/mobile is now
+- 2026-06-22 - Mobile Netflix-style features + push/local notifications: apps/mobile is now
   a real multi-screen app (5-tab bottom nav: Home, Drive, My List, Alerts,
   Settings). New screens: HomeScreen with rails (Continue Listening, My List,
   New This Week, Picked for You, Trending, Categories), MyListScreen,
@@ -291,7 +291,7 @@ Format: newest first. No markdown per project convention.
   (1.76 MB / 693 modules) + Android (1.78 MB / 696 modules), live
   /notifications/feed returns rich personalized items.
 
-- Mobile app build pipeline: apps/mobile is now buildable. Added expo-constants
+- 2026-06-22 - Mobile app build pipeline: apps/mobile is now buildable. Added expo-constants
   to package.json (fixes Metro resolve), an .npmrc that forces a hoisted
   node_modules so Metro can resolve through it (pnpm's symlinked layout breaks
   RN's Node-style resolution), eas.json with development/preview/production
@@ -303,18 +303,18 @@ Format: newest first. No markdown per project convention.
   (dist/_expo/static/js/{ios,android}/index-*.hbc, ~1.5 MB each, 540+ modules).
   RUN.txt rewritten with the full local + EAS Build instructions.
 
-- Design neutrality: removed non-secular visual context from the Khmer audience
+- 2026-06-22 - Design neutrality: removed non-secular visual context from the Khmer audience
   theme and seasonal background design labels, added an explicit secular
   mascot/design guardrail to docs/brand/branding.txt, and renamed
   religion-adjacent Drive Mode course labels to secular culture/focus wording.
   Tested.
 
-- README cleanup: removed broken logo/screenshot/demo/chart references from the
+- 2026-06-22 - README cleanup: removed broken logo/screenshot/demo/chart references from the
   GitHub README, replaced stale architecture imagery with current Mermaid
   diagrams, updated run/test/mobile commands, and aligned docs/architecture.txt
   with the checked-in asset reality. Tested.
 
-- Mobile native build + profile context sharing prep: apps/mobile Android
+- 2026-06-22 - Mobile native build + profile context sharing prep: apps/mobile Android
   prebuild now patches the generated Gradle wrapper to the official Gradle
   GitHub distribution URL, disables the restricted-network Foojay toolchain
   plugin hook, and adds a native debug APK build command; the auto-push build
@@ -324,12 +324,12 @@ Format: newest first. No markdown per project convention.
   database-backed integrations; db/migrations/0004_profile_context_sharing.sql
   adds the schema-of-record tables for that persistence path. Tested.
 
-- Mobile build: apps/mobile now has a reproducible local Expo build (`npm run
+- 2026-06-22 - Mobile build: apps/mobile now has a reproducible local Expo build (`npm run
   build`) that exports production Android + iOS bundles under dist/, plus an
   Android prebuild helper. Direct Expo runtime deps are pinned in package.json
   with a package-lock.json. Typecheck and Android/iOS bundle exports pass.
 
-- Skill relevance tags + job-description parsing: new aoep_shared/skills_taxonomy.py
+- 2026-06-22 - Skill relevance tags + job-description parsing: new aoep_shared/skills_taxonomy.py
   derives course tags beyond "related jobs" - Core skill, Fundamental for
   <profession>, and For <profession> (e.g. algebra: core skill + fundamental for
   accountants/engineers + for chefs; calculus: fundamental for engineers; physics:
@@ -343,7 +343,7 @@ Format: newest first. No markdown per project convention.
   + "Core skills" filter. Tested. (Fixed a cert false-positive where "CSM" matched
   inside "UCSM" - alias detection now uses alphanumeric boundaries.)
 
-- Careers / job matching: new aoep_shared/jobs.py links classes to real job
+- 2026-06-22 - Careers / job matching: new aoep_shared/jobs.py links classes to real job
   openings. A JobsProvider abstracts the source (LinkedIn/Indeed via
   LINKEDIN_API_KEY/JOBS_API_KEY; a curated representative board offline) and a
   pure skill->course matcher computes coverage %, the skill gap, and a recommended
@@ -353,7 +353,7 @@ Format: newest first. No markdown per project convention.
   "take these courses to qualify" with covered vs missing skills. Incentivizes
   learning by showing how course skills map to the job market. Tested.
 
-- Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
+- 2026-06-22 - Mobile + audio Drive Mode: new aoep_shared/audio_courses.py generates 220+
   AUDIO-ONLY, eyes-free / drive-safe classes (26-language listen-and-repeat
   lessons + knowledge audio across history, science, finance, wellness, tech,
   geography, cooking, civics, sports, ...), each narration-only with segmented
@@ -363,7 +363,7 @@ Format: newest first. No markdown per project convention.
   app scaffold apps/mobile (Expo + React Native, Android + iOS) opening into Drive
   Mode via expo-speech, reusing the curriculum API; see apps/mobile/RUN.txt. Tested.
 
-- Branding: added a fun-but-surreal AI Classroom logo (robot-owl + melting
+- 2026-06-22 - Branding: added a fun-but-surreal AI Classroom logo (robot-owl + melting
   chalkboard galaxy). Assets in docs/brand/ (color webp/png) + a 1-bit
   black-and-white PRINTABLE version (dithered + hard-threshold stamp) for
   single-color printing; web favicon + nav logo mark (apps/web/public). Wired the
@@ -372,7 +372,7 @@ Format: newest first. No markdown per project convention.
   trademark notes ("AI Classroom" is highly descriptive/crowded - consult a TM
   attorney; favor the design mark). Live WHOIS/TM clearance not run in-sandbox.
 
-- Language learning (26 languages, multi-skill, gamified): new
+- 2026-06-22 - Language learning (26 languages, multi-skill, gamified): new
   aoep_shared/language_learning.py - display metadata for all supported languages,
   14 skill areas (pronunciation, listening, reading, writing, vocabulary, grammar,
   slang, idioms, phrases, travel, conversation, culture, shadowing, story), a
@@ -386,14 +386,14 @@ Format: newest first. No markdown per project convention.
   interactive exercises, pronunciation with mic + speech synthesis + mouth tip,
   daily streak) + nav + home CTA. Tested.
 
-- Arcade age groups: mini-games now have age tiers (kids 5-8, tween 9-12, teen
+- 2026-06-22 - Arcade age groups: mini-games now have age tiers (kids 5-8, tween 9-12, teen
   13-17, adult 18+). games.py adds AgeGroup + age-appropriate content (gentle
   KIDS banks for all 9 subjects, harder ADULT extras) and make_round(age_group=).
   Identity /games/new takes age_group; the leaderboard is age-segmented
   (GET /games/leaderboard?age_group=) so kids compete with kids. Web /arcade adds
   an age-group picker + an age filter on the leaderboard. Tested.
 
-- Learning Arcade (play-to-learn games): new aoep_shared/games.py engine -
+- 2026-06-22 - Learning Arcade (play-to-learn games): new aoep_shared/games.py engine -
   subject mini-games (quiz, timed speed round with bonus, term/definition match)
   across biology, chemistry, physics, math, science, history, art, technology,
   programming, with deterministic rounds (answers kept server-side) + scoring.
@@ -404,7 +404,7 @@ Format: newest first. No markdown per project convention.
   CTA. Tested. (Fixed a match-tile text-color bug where the global dark button
   color rendered invisibly on the dark card.)
 
-- Site backgrounds / wallpapers: new apps/web/app/lib/backgrounds.ts catalog of
+- 2026-06-22 - Site backgrounds / wallpapers: new apps/web/app/lib/backgrounds.ts catalog of
   61+ themed designs (holiday, seasonal, social, economic, realistic, surreal,
   artistic, kids, anime, minimal) - mostly lightweight CSS/SVG plus 5 image
   wallpapers (anime/surreal/realistic/kids/artistic). BackgroundProvider renders
@@ -413,7 +413,7 @@ Format: newest first. No markdown per project convention.
   category filters + Auto toggle; nav "Themes" link; translucent nav over
   wallpapers. Tested.
 
-- Netflix-style home + kids mode + corporate programs: curriculum adds GET /home
+- 2026-06-22 - Netflix-style home + kids mode + corporate programs: curriculum adds GET /home
   (carousel rails: Popular now / New releases / Free to start / Hands-on / Just
   for kids / per-category), a view-based popularity signal (POST /courses/{id}/
   view), a maturity filter + facets, and a programs audience filter. Web home (/)
@@ -422,7 +422,7 @@ Format: newest first. No markdown per project convention.
   page; prominent "Try a sample class" CTA. README adds recordings for home,
   kids, corporate and the sample demo class. Tested.
 
-- Observability & telemetry (local + cloud): aoep_shared/telemetry.py adds a
+- 2026-06-22 - Observability & telemetry (local + cloud): aoep_shared/telemetry.py adds a
   dependency-free TelemetryStore (per-route latency p50/p95/p99 + error rate,
   in-flight gauge, recent-error ring with traceback + request id, event log) and
   process metrics (RSS memory, CPU, GC, threads, uptime). create_service now adds
@@ -433,7 +433,7 @@ Format: newest first. No markdown per project convention.
   Telemetry" panel (per-service memory/perf/error-rate + drill-down to recent
   errors with tracebacks, auto-refresh). Tested.
 
-- Docs: per-persona screen recordings + design/architecture documentation.
+- 2026-06-22 - Docs: per-persona screen recordings + design/architecture documentation.
   README gains a "Screens & scenarios by user type" section (5 recorded GIF
   walkthroughs + screenshots: free learner, live AI class, member/parent,
   educator HIL, admin) and an "Architecture & design" section with mermaid
@@ -441,21 +441,21 @@ Format: newest first. No markdown per project convention.
   illustrative mastery/engagement/funnel). New docs/architecture.txt (text
   source-of-truth), docs/diagrams/*.png, docs/demos/*.gif, docs/screens/*.webp.
 
-- Automation-testing API expansion: aoep_shared/testsupport.py gates deterministic
+- 2026-06-22 - Automation-testing API expansion: aoep_shared/testsupport.py gates deterministic
   E2E hooks (admin secret AND ENABLE_TEST_ENDPOINTS / local-edge mode); memory adds
   POST /admin/test/reset (scope=all|flags|surveys|acceptances|store) and
   POST /admin/test/seed (flags + survey fixtures). qa/stress.py expanded to all 8
   services with shared health/version/__meta scenarios plus new coverage (flags,
   survey, catalog export, course search, ad-breaks, rewards, signup). Tested.
 
-- Version visibility + service meta for automation: every service now exposes
+- 2026-06-22 - Version visibility + service meta for automation: every service now exposes
   GET /version (version + git_sha + build_time + api_version + deploy_mode) and
   GET /__meta (machine-readable route index) via create_service; version.py adds
   build_info() + API_VERSION. Web /admin gains a "System & Versions" panel that
   aggregates each service's /version + health and flags version mismatches.
   Tested.
 
-- Post-class survey + data mining: aoep_shared/survey.py adds a one-time
+- 2026-06-22 - Post-class survey + data mining: aoep_shared/survey.py adds a one-time
   end-of-class survey template (rating/choice/recommend/free-text) + SurveyStore
   with per-course summaries (avg, NPS-like, recommend rate) and a multi-dimensional
   "data mart" (course x class_type x rating bucket) plus suggestion-theme mining.
@@ -464,7 +464,7 @@ Format: newest first. No markdown per project convention.
   admin GET /admin/survey/insights. Web: post-class survey modal on /class +
   survey-insights table on /admin. Tested.
 
-- Administrative feature flags: aoep_shared/flags.py adds a comprehensive flag
+- 2026-06-22 - Administrative feature flags: aoep_shared/flags.py adds a comprehensive flag
   catalog (engagement/data/access/monetization/ai/ux/ops - incl. optional
   end-of-class survey, multi-dimensional data-mart, user levels) with a FlagStore
   supporting master on/off, value overrides, percentage rollouts (stable
@@ -473,7 +473,7 @@ Format: newest first. No markdown per project convention.
   admin-secret-gated PUT/override/reset (X-Admin-Secret header / ADMIN_SECRET).
   New web /admin console to manage flags. Tested.
 
-- Foresight integration (student profiles + recommendations): identity gains
+- 2026-06-22 - Foresight integration (student profiles + recommendations): identity gains
   learner SUB-PROFILES (one account, many students) with per-student mastery/
   history (POST/GET /students, /students/{id}/mastery, /complete); curriculum adds
   POST /recommend running the Foresight LearnerForesight over the catalog to return
