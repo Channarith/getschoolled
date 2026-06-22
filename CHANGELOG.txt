@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Mobile mascot logo: added a tappable AI Classroom logo on the
+  mobile home screen that opens the photo-real Bayon Buddy mascot hugging the
+  S + Bodhi leaf mark, using a mobile-only bundled image asset. Tested.
+
 - 2026-06-22 - README restoration: expanded GitHub README with brand/logo, setup/run/test
   commands, API and webhook map, integrations, mobile platform, security/legal/
   compliance/restrictions, hosting/scale, and checked-in web/mobile screenshots

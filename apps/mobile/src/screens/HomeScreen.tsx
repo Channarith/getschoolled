@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView,
+import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView,
          StyleSheet, Text, View } from "react-native";
 
 import {
@@ -12,6 +12,8 @@ import {
 } from "../storage";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
 import { useT } from "../i18n";
+
+const BAYON_BUDDY = require("../../assets/bayon_buddy_s_bodhi_512.png");
 
 const EMOJIS_BY_CATEGORY: Record<string, string> = {
   Languages: "🌍", History: "🏛", Science: "🧪",
@@ -38,6 +40,7 @@ export default function HomeScreen({
   const [cats, setCats] = useState<CategoryRow[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
+  const [showMascot, setShowMascot] = useState(false);
 
   const load = async () => {
     setError("");
@@ -114,12 +117,41 @@ export default function HomeScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
     >
       <View style={styles.heroBox}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Show Bayon Buddy mascot"
+          onPress={() => setShowMascot(true)}
+          style={styles.logoButton}
+        >
+          <View style={styles.logoMark}>
+            <Text style={styles.logoMarkText}>AI</Text>
+          </View>
+          <Text style={styles.logoText}>AI Classroom</Text>
+        </Pressable>
         <Text style={styles.kicker}>{t("home.kicker")}</Text>
         <Text style={styles.hero}>{t("home.hero")}</Text>
         <Text style={styles.heroSub}>
           {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
         </Text>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={showMascot}
+        onRequestClose={() => setShowMascot(false)}
+      >
+        <Pressable style={styles.modalScrim} onPress={() => setShowMascot(false)}>
+          <Pressable style={styles.mascotCard} onPress={() => {}}>
+            <Text style={styles.mascotTitle}>Bayon Buddy</Text>
+            <Text style={styles.mascotSub}>Photo-real mascot hugging the S + Bodhi leaf mark.</Text>
+            <Image source={BAYON_BUDDY} resizeMode="contain" style={styles.mascotImage} />
+            <Pressable style={styles.closeButton} onPress={() => setShowMascot(false)}>
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {error ? <Text style={styles.err}>{error}</Text> : null}
 
@@ -224,8 +256,34 @@ const styles = StyleSheet.create({
   bg: { backgroundColor: "#0b1020" },
   center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
   heroBox: { paddingHorizontal: 16, paddingBottom: 16 },
+  logoButton: {
+    alignItems: "center", alignSelf: "flex-start", flexDirection: "row",
+    gap: 8, marginBottom: 12,
+  },
+  logoMark: {
+    alignItems: "center", backgroundColor: "#e8ecf6", borderRadius: 10,
+    height: 34, justifyContent: "center", width: 34,
+  },
+  logoMarkText: { color: "#0b1020", fontSize: 12, fontWeight: "900" },
+  logoText: { color: "#e8ecf6", fontSize: 14, fontWeight: "800", letterSpacing: 0.8 },
   kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },
   heroSub: { color: "#c5cce0", marginTop: 6 },
   err: { color: "#ff6b6b", paddingHorizontal: 16, paddingBottom: 12 },
+  modalScrim: {
+    alignItems: "center", backgroundColor: "rgba(3,7,18,0.78)", flex: 1,
+    justifyContent: "center", padding: 20,
+  },
+  mascotCard: {
+    alignItems: "center", backgroundColor: "#111827", borderColor: "#334155",
+    borderRadius: 24, borderWidth: 1, maxWidth: 340, padding: 18, width: "100%",
+  },
+  mascotTitle: { color: "#e8ecf6", fontSize: 22, fontWeight: "900" },
+  mascotSub: { color: "#9aa6c2", marginBottom: 8, marginTop: 4, textAlign: "center" },
+  mascotImage: { height: 360, width: 220 },
+  closeButton: {
+    backgroundColor: "#0ea5e9", borderRadius: 999, marginTop: 10,
+    paddingHorizontal: 18, paddingVertical: 9,
+  },
+  closeText: { color: "#001022", fontWeight: "900" },
 });
