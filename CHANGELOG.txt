@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- README cleanup: removed broken logo/screenshot/demo/chart references from the
+  GitHub README, replaced stale architecture imagery with current Mermaid
+  diagrams, updated run/test/mobile commands, and aligned docs/architecture.txt
+  with the checked-in asset reality. Tested.
+
 - Mobile native build + profile context sharing prep: apps/mobile Android
   prebuild now patches the generated Gradle wrapper to the official Gradle
   GitHub distribution URL, disables the restricted-network Foojay toolchain
