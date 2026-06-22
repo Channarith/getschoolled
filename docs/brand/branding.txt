@@ -5,10 +5,11 @@ Plain text on purpose (repo no-markdown house rule).
 -----------------------------------------------------------------------------
 1. LOGO
 -----------------------------------------------------------------------------
-Concept: "fun but surreal." A friendly robot-owl teacher holds a green
-chalkboard that melts and morphs into a swirling galaxy of chalk equations,
-planets and a graduation cap, floating on a small surreal island. Dali-esque
-surrealism in a clean, modern flat-vector emblem style.
+Concept: a minimalist, single-color mark in the spirit of Apple / X / Micron.
+A graduation mortarboard whose tassel curls back into the bowl of a capital G
+- the cap is the G's top stroke, the tassel curl is the body. Reads as
+"graduation" at favicon size and as a clean monogram at any scale. No
+gradients, no detail, one solid silhouette.
 
 Mascot/design guardrail:
   - Keep mascot and theme art secular and classroom-focused.
@@ -16,29 +17,51 @@ Mascot/design guardrail:
   - For Khmer-language or Cambodian audience designs, use neutral language,
     family, study, food, music, pattern, landscape, or everyday-learning motifs.
 
-Assets (docs/brand/):
-  aiclassroom_logo.webp / .png        full-color emblem (primary)
-  aiclassroom_logo_binary.png         1-bit B/W, dithered - best for grayscale
-                                       print (newspaper/halftone look), keeps detail
-  aiclassroom_logo_binary_threshold.png  1-bit B/W, hard threshold - bold 1-color
-                                       "stamp/screen-print" mark (t-shirts, stickers,
-                                       embossing, fax, single-ink printing)
-Web (apps/web/public/):
-  logo.webp        512px color (hero/marketing)
-  logo-mark.webp   small mark used in the top nav
-  favicon.ico      multi-size browser icon
+Sources (vector, single-source-of-truth):
+  docs/brand/aiclassroom_mark.svg          icon (square, viewBox 0 0 256 256)
+  docs/brand/aiclassroom_wordmark.svg      horizontal lockup (mark + text)
 
-Printing the binary version:
-  - Both binary files are true 1-bit PNGs (mode "1"): black ink on white, no
-    grayscale, so they print crisply on any printer and scale to any size.
-  - Use *_threshold.png for single-color jobs (stamps, screen print, laser
-    engraving); use *_binary.png when you want the shaded/detailed look.
+
+Both SVGs use fill="currentColor" so a single file inverts cleanly on light
+or dark backgrounds via CSS (`color: ...` on the parent / inline style).
+
+Generated raster assets (do NOT edit by hand; regenerate via
+`python3 scripts/build_brand_assets.py`):
+  docs/brand/aiclassroom_logo.png                1024x1024 color on navy
+  docs/brand/aiclassroom_logo.webp               1024x1024 color on navy
+  docs/brand/aiclassroom_logo_binary.png         1-bit Floyd-Steinberg dither,
+                                                  for grayscale/halftone print
+  docs/brand/aiclassroom_logo_binary_threshold.png  1-bit hard threshold,
+                                                  for stamps / screen print /
+                                                  single-ink / laser engraving
+
+Web assets (apps/web/public/, served from /):
+  /favicon.ico       multi-size browser icon (16/32/48/64)
+  /logo-mark.webp    128x128 nav icon
+  /logo-mark.svg     same as the source SVG (themable via currentColor)
+  /logo.webp         512x512 hero / share / OG-image
+  /wordmark.webp     1024x224 horizontal lockup (header / press kit)
+
+Brand colors (UI uses CSS vars; mark uses solids):
+  navy    #0b1020   primary background
+  light   #e8ecf6   primary foreground / mark color on dark
+  accent  #0ea5e9   interactive sky-cyan (links, focus)
 
 -----------------------------------------------------------------------------
-2. DOMAIN: aiclassroom.com  (NOT verified live - do a registrar check)
+2. USAGE
 -----------------------------------------------------------------------------
-The sandbox has restricted network egress, so a live WHOIS/RDAP/DNS lookup could
-not be performed here. From web search:
+  - Keep clear space around the mark equal to the width of the tassel curl.
+  - Don't recolor the mark beyond the two brand neutrals (navy / light) or a
+    single accent color; use the binary marks for 1-color contexts.
+  - Don't add gradients, drop shadows, or 3-D effects.
+  - Minimum legible size: ~16px (favicon) for the mark, ~120px wide for the
+    wordmark.
+
+-----------------------------------------------------------------------------
+3. DOMAIN: aiclassroom.com  (NOT verified live - do a registrar check)
+-----------------------------------------------------------------------------
+The sandbox has restricted network egress, so a live WHOIS/RDAP/DNS lookup
+could not be performed here. From web search:
   - "aiclassroom.com" is a short, generic, high-demand .com - it is very likely
     ALREADY REGISTERED (often parked / privacy-masked or held for aftermarket
     sale). Treat it as probably unavailable or premium-priced.
@@ -53,7 +76,7 @@ not be performed here. From web search:
   - Also secure matching social handles + defensive TLDs (.ai, .app, .edu-style).
 
 -----------------------------------------------------------------------------
-3. TRADEMARK: "AI Classroom"  (NOT legal advice - consult a TM attorney)
+4. TRADEMARK: "AI Classroom"  (NOT legal advice - consult a TM attorney)
 -----------------------------------------------------------------------------
 From web search of USPTO-style records (not an authoritative clearance search):
   - No exact LIVE U.S. federal registration was found for the wordmark
@@ -74,14 +97,6 @@ Recommendations:
   - Engage a trademark attorney for a full clearance search (USPTO TESS + state +
     common-law + WIPO/Madrid) before relying on the name.
   - Consider a distinctive/coined brand (logo + a unique wordmark) that is easier
-    to register and defend; keep "AI Classroom" as a descriptive tagline.
-  - Candidate distinctive names to clear: e.g. an invented coinage paired with the
-    owl mark; file the LOGO (design mark) which is more registrable than the
-    descriptive words alone.
-
------------------------------------------------------------------------------
-4. USAGE
------------------------------------------------------------------------------
-  - Keep clear space around the emblem (>= the height of the graduation cap).
-  - Don't recolor the color emblem; for 1-color contexts use the binary marks.
-  - Minimum legible size for the full emblem ~ 28-32px tall (nav uses 30px).
+    to register and defend; keep "AI Classroom" as a descriptive tagline. The
+    new minimalist mark (this file) is significantly more registrable than the
+    previous illustrated mark and should be filed as a DESIGN MARK.

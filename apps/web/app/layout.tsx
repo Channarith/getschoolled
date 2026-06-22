@@ -11,7 +11,13 @@ import { LocaleProvider } from "./lib/i18n";
 export const metadata: Metadata = {
   title: "AI Classroom — Agentic Online Education Platform",
   description: "A multi-agent AI instructor that teaches live online classes.",
-  icons: { icon: "/favicon.ico" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo-mark.svg", type: "image/svg+xml" },
+    ],
+    apple: "/logo.webp",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

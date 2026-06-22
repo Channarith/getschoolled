@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AI Classroom mark.
+
+  Single-color minimalist symbol in the spirit of Apple / X / Micron.
+  A graduation mortarboard whose tassel curls back into a small G-bowl -
+  the cap is the "top stroke" of the G, the tassel curl is the body. Reads
+  as a graduation cap at favicon size and as a clean monogram at any scale.
+
+  Uses currentColor so the same file inverts cleanly on light or dark
+  backgrounds (set fill via CSS).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
+     aria-label="AI Classroom">
+  <g fill="currentColor">
+
+    <!-- Mortarboard (flat board on top): rhombus / tilted square -->
+    <path d="M 128 40
+             L 232 96
+             L 128 152
+             L 24  96
+             Z"/>
+
+    <!--
+      Tassel cord + knot, drawn as one filled path: drops from the centre
+      of the board, sweeps right, curls back left forming the bowl of a
+      small letter G, and closes onto the board. The curl deliberately
+      mimics the lower bowl of a capital G.
+    -->
+    <path d="M 128 130
+             C 168 138, 198 162, 206 196
+             C 212 222, 188 240, 162 230
+             C 142 222, 130 202, 134 182
+             C 138 168, 152 162, 164 168
+             C 176 174, 178 192, 168 198
+             C 162 202, 154 200, 152 194
+             L 138 194
+             C 142 214, 168 222, 184 212
+             C 200 200, 198 178, 184 168
+             C 168 156, 144 154, 128 158
+             Z"/>
+  </g>
+</svg>
