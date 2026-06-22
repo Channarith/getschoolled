@@ -17,7 +17,7 @@ export default function Rail<T>({
   title, subtitle, data, emptyMessage, renderItem, keyExtractor,
 }: Props<T>) {
   return (
-    <View style={{ marginBottom: 18 }}>
+    <View style={styles.rail}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
@@ -30,6 +30,7 @@ export default function Rail<T>({
           showsHorizontalScrollIndicator={false}
           data={data}
           keyExtractor={keyExtractor}
+          style={styles.list}
           contentContainerStyle={{ paddingHorizontal: 12 }}
           renderItem={({ item }) => <View style={{ marginRight: 10 }}>{renderItem(item)}</View>}
         />
@@ -89,12 +90,14 @@ const HUES = [
 ];
 
 const styles = StyleSheet.create({
+  rail: { marginBottom: 18, width: "100%", maxWidth: "100%", overflow: "hidden" },
+  list: { width: "100%", maxWidth: "100%" },
   header: { paddingHorizontal: 16, marginBottom: 8 },
   title: { color: "#e8ecf6", fontSize: 18, fontWeight: "800" },
   sub: { color: "#9aa6c2", fontSize: 12, marginTop: 2 },
   empty: { color: "#9aa6c2", paddingHorizontal: 16, fontStyle: "italic" },
-  card: { width: 168, backgroundColor: "#151c34", borderRadius: 12, padding: 10 },
-  thumb: { backgroundColor: "#0b1020", height: 92, borderRadius: 8,
+  card: { width: 154, backgroundColor: "#151c34", borderRadius: 12, padding: 10 },
+  thumb: { backgroundColor: "#0b1020", height: 88, borderRadius: 8,
            alignItems: "center", justifyContent: "center", marginBottom: 8,
            position: "relative" },
   emoji: { fontSize: 36 },
@@ -103,7 +106,7 @@ const styles = StyleSheet.create({
   cardMeta: { color: "#9aa6c2", fontSize: 11, marginTop: 4 },
   progressTrack: { height: 3, backgroundColor: "#23304f", borderRadius: 2, marginTop: 6, overflow: "hidden" },
   progressBar: { height: 3, backgroundColor: "#0ea5e9" },
-  tile: { width: 140, height: 90, borderRadius: 12, padding: 12, justifyContent: "space-between" },
+  tile: { width: 132, height: 90, borderRadius: 12, padding: 12, justifyContent: "space-between" },
   tileTitle: { fontWeight: "800", fontSize: 16 },
   tileCount: { fontSize: 12, fontWeight: "600", opacity: 0.8 },
 });

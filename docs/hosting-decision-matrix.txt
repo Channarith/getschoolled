@@ -1,4 +1,4 @@
-SALAREEN HOSTING - QUICK DECISION MATRIX
+AI CLASSROOM HOSTING - QUICK DECISION MATRIX
 ========================================
 The 60-second version of docs/hosting.txt. If you only have a minute,
 read this; otherwise read the full doc.
@@ -18,7 +18,7 @@ WHAT WE PICKED
   CDN / WAF /
   DDoS / DNS      Cloudflare (in front of AWS)   Free egress, best DDoS,
                                                  cheapest registrar.
-  Domain          salareen.com via Cloudflare    At-cost, free WHOIS privacy,
+  Domain          aiclassroom.com via Cloudflare    At-cost, free WHOIS privacy,
                   Registrar                      mandatory 2FA.
 
 REGION CHOICE
@@ -30,10 +30,10 @@ REGION CHOICE
 
 DOMAINS TO REGISTER
 -------------------
-  salareen.com    primary; ~$10/yr.
-  salareen.app    mobile deep links; ~$13/yr.
-  salareen.ai     premium TLD; ~$80-120/yr (consider).
-  salareen.co     typo defence; ~$30/yr.
+  aiclassroom.com    primary; ~$10/yr.
+  aiclassroom.app    mobile deep links; ~$13/yr.
+  aiclassroom.ai     premium TLD; ~$80-120/yr (consider).
+  aiclassroom.co     typo defence; ~$30/yr.
   Plus matching social handles (Twitter/X, Instagram, TikTok, Bluesky).
 
 ROUGH MONTHLY COST AT 5M DAU
@@ -47,7 +47,7 @@ ROUGH MONTHLY COST AT 5M DAU
 
 WHAT YOU CAN START TODAY
 ------------------------
-  1. Verify salareen.com is available -> register at Cloudflare.
+  1. Verify aiclassroom.com is available -> register at Cloudflare.
   2. Create AWS Organisation (prod + staging + shared accounts).
   3. cd infra/terraform/aws && terraform plan
      cd infra/terraform/cloudflare && terraform plan

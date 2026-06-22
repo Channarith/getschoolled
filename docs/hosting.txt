@@ -1,4 +1,4 @@
-SALAREEN - HOSTING & DOMAIN PLAN (production, millions of users)
+AI CLASSROOM - HOSTING & DOMAIN PLAN (production, millions of users)
 ================================================================
 Plain-text on purpose (repo no-markdown rule).
 
@@ -21,11 +21,11 @@ Edge + DNS + CDN + WAF + DDoS:
                   storage). Sits in front of AWS.
 
 Domain:
-    salareen.com - register at Cloudflare Registrar (at-cost, free
+    aiclassroom.com - register at Cloudflare Registrar (at-cost, free
                    WHOIS privacy, mandatory 2FA). Verify availability
                    first via lookup.icann.org or Cloudflare Domains.
-                   Also reserve: salareen.app, salareen.ai, salareen.co,
-                   getsalareen.com, and the matching social handles
+                   Also reserve: aiclassroom.app, aiclassroom.ai, aiclassroom.co,
+                   getaiclassroom.com, and the matching social handles
                    (defensive registration is cheap insurance).
 
 Why this combo (one paragraph):
@@ -192,10 +192,10 @@ CI / CD:
 -----------------------------------------------------------------------------
 3. CLOUDFLARE LAYOUT
 -----------------------------------------------------------------------------
-Zone:       salareen.com
+Zone:       aiclassroom.com
 DNS:        Cloudflare-managed; A/AAAA records proxied (orange-cloud).
-            api.salareen.com  -> CNAME to AWS ALB (proxied)
-            app.salareen.com  -> CNAME to AWS ALB (proxied)
+            api.aiclassroom.com  -> CNAME to AWS ALB (proxied)
+            app.aiclassroom.com  -> CNAME to AWS ALB (proxied)
             www / @           -> Pages (marketing) or proxied to AWS
 
 CDN tier:
@@ -225,7 +225,7 @@ Workers (light edge logic):
 
 R2 (object storage at the edge):
     aoep-media       audio bundles, deck assets, screencasts.
-    aoep-public      public-read with custom domain (cdn.salareen.com).
+    aoep-public      public-read with custom domain (cdn.aiclassroom.com).
     Migration path:  use S3 in Phase 1 if simpler; flip to R2 with
     a one-line content-source change once you want zero egress.
 
@@ -238,28 +238,28 @@ Cloudflare Pages:
 4. DOMAINS - registration + protection
 -----------------------------------------------------------------------------
 Primary
-    salareen.com           the canonical domain. Register via
+    aiclassroom.com           the canonical domain. Register via
                             Cloudflare Registrar after RDAP confirms
                             availability. ~$10/yr at-cost.
 
 Defensive (cheap, register them all)
-    salareen.app           good for the mobile deep-link scheme
+    aiclassroom.app           good for the mobile deep-link scheme
                             (Apple/Android). $13/yr.
-    salareen.ai            premium TLD, ~$80-120/yr but valuable.
-    salareen.co            common typo target. ~$30/yr.
-    salareen.org           non-profit/community angle.
-    getsalareen.com        affiliate/marketing campaigns.
-    salareen.school        education TLD if you want it.
+    aiclassroom.ai            premium TLD, ~$80-120/yr but valuable.
+    aiclassroom.co            common typo target. ~$30/yr.
+    aiclassroom.org           non-profit/community angle.
+    getaiclassroom.com        affiliate/marketing campaigns.
+    aiclassroom.school        education TLD if you want it.
 
 Email
     Cloudflare Email Routing free tier: forwards
-    hello@salareen.com -> your Gmail/Workspace inbox; lets you NOT
+    hello@aiclassroom.com -> your Gmail/Workspace inbox; lets you NOT
     pay Workspace until you really need real mailboxes.
     For sending: Postmark (transactional) + SES (bulk) once volume
     matters.
 
 Trademark / brand-clear
-    "Salareen" comes from Khmer "salaa rian" (school). Run a USPTO
+    Run a USPTO
     TESS clearance (and WIPO Madrid for international) before
     investing heavily in marketing. The mark is uncommon-coined and
     should be more registrable than a descriptive phrase like "AI
@@ -314,7 +314,7 @@ Database). Move there when SLA/latency demands it, not before.
 -----------------------------------------------------------------------------
 6. WHAT TO DO RIGHT NOW (in order)
 -----------------------------------------------------------------------------
-1. Register salareen.com via Cloudflare Registrar (verify with RDAP).
+1. Register aiclassroom.com via Cloudflare Registrar (verify with RDAP).
    Add it to a new Cloudflare account (use a shared team email +
    password manager + mandatory 2FA).
 
@@ -331,14 +331,14 @@ Database). Move there when SLA/latency demands it, not before.
    work.
 
 5. Front the cluster with Cloudflare:
-   - Add api.salareen.com, app.salareen.com proxied CNAMEs to the
+   - Add api.aiclassroom.com, app.aiclassroom.com proxied CNAMEs to the
      ALB. Enable "Full (strict)" SSL. Issue ACM cert on AWS for the
      ALB; CF gets a Universal Edge cert.
    - Turn on the Cloudflare WAF managed ruleset.
    - Configure the page rules / cache rules to honour our origin
      Cache-Control headers (default behaviour).
 
-6. Smoke-test with qa/loadtest.py against api.salareen.com. Confirm
+6. Smoke-test with qa/loadtest.py against api.aiclassroom.com. Confirm
    ETag 304s, X-RateLimit-Remaining headers, p95 within budget.
 
 7. Run a 10-minute load test at 2x your projected peak (we already

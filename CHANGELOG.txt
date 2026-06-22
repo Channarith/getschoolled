@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- README restoration: expanded GitHub README with brand/logo, setup/run/test
+  commands, API and webhook map, integrations, mobile platform, security/legal/
+  compliance/restrictions, hosting/scale, and checked-in web/mobile screenshots
+  plus platform walkthrough videos. Fixed the mobile web preview rails so the
+  page fits a 400px responsive viewport without horizontal page overflow. Tested.
+
 - README asset note: updated the cleaned GitHub README to mention the newly
   merged secular minimalist logo assets without reintroducing missing screenshot,
   demo, or chart embeds. Tested.

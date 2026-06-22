@@ -1,4 +1,4 @@
-SALAREEN / AOEP - SCALABILITY + REDUNDANCY PLAN
+AI CLASSROOM / AOEP - SCALABILITY + REDUNDANCY PLAN
 ================================================
 Plain text on purpose (repo no-markdown house rule).
 
