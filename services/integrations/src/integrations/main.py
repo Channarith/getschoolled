@@ -38,6 +38,15 @@ from aoep_shared.connectors.lms import (
     parse_lti_launch,
     parse_oneroster,
 )
+from aoep_shared.bridges import (
+    BridgePlatform,
+    BridgeUnavailable,
+    FakeTransport,
+    capabilities,
+    get_bridge,
+    is_ready,
+    missing_credentials,
+)
 
 app = create_service("integrations")
 app.state.subs = SubscriptionStore()
@@ -53,6 +62,7 @@ app.state.lms = MockLMS()           # production: a real Canvas/Moodle/Classroom
 app.state.rosters = {}              # context_id -> [members]
 app.state.notifier = MockNotifier()  # production: Slack/Workspace adapter
 app.state.calendar = MockCalendar()  # production: Google/Microsoft calendar adapter
+app.state.bridge_sessions = {}      # session_id -> live BridgeSession (Zoom/Teams/Meet)
 
 
 # --------------------------------------------------------------------------- #
@@ -265,6 +275,130 @@ def sso_oidc(req: OidcRequest) -> dict:
         raise HTTPException(status_code=401, detail=str(exc))
     return {"subject": ident.subject, "email": ident.email, "name": ident.name,
             "provider": ident.provider}
+
+
+# --------------------------------------------------------------------------- #
+# Live-class media bridges: Zoom (phase 7), Teams (phase 8, .NET), Meet (phase 9)
+#
+# Bridges an external meeting's media in/out of the LiveKit room the teaching
+# brain runs in. The platform-agnostic engine (aoep_shared.bridges) is real and
+# wired here; the vendor native SDKs are not installed in this environment, so a
+# live connect fails closed with the reason. ``simulate`` (local/test only) runs
+# the full lifecycle through an in-memory transport to demonstrate the flow.
+# --------------------------------------------------------------------------- #
+def _simulation_allowed() -> bool:
+    deploy_mode = (os.environ.get("DEPLOY_MODE", "local") or "local").lower()
+    flag = os.environ.get("ENABLE_TEST_ENDPOINTS", "").lower() in ("1", "true", "yes")
+    return deploy_mode != "cloud" or flag
+
+
+def _platform(name: str) -> BridgePlatform:
+    try:
+        return BridgePlatform(name)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"unknown bridge platform: {name}")
+
+
+@app.get("/bridges")
+def list_bridges() -> dict:
+    out = []
+    for p in BridgePlatform:
+        caps = capabilities(p)
+        out.append({
+            "platform": p.value,
+            "phase": caps.phase,
+            "runtime": caps.runtime,
+            "capabilities": {"audio": caps.audio, "video": caps.video,
+                             "screen_share": caps.screen_share, "chat": caps.chat},
+            "required_credentials": list(caps.required_credentials),
+            "ready": is_ready(p),
+            "missing_credentials": missing_credentials(p),
+        })
+    return {"bridges": out, "simulation_allowed": _simulation_allowed()}
+
+
+@app.get("/bridges/{platform}")
+def bridge_info(platform: str) -> dict:
+    p = _platform(platform)
+    caps = capabilities(p)
+    return {
+        "platform": p.value, "phase": caps.phase, "runtime": caps.runtime,
+        "capabilities": {"audio": caps.audio, "video": caps.video,
+                         "screen_share": caps.screen_share, "chat": caps.chat},
+        "required_credentials": list(caps.required_credentials),
+        "ready": is_ready(p), "missing_credentials": missing_credentials(p),
+    }
+
+
+class BridgeConnectRequest(BaseModel):
+    meeting_ref: str
+    livekit_room: str = ""
+    recording: bool = False
+    retention_days: int | None = None
+    simulate: bool = False
+
+
+@app.post("/bridges/{platform}/connect")
+def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
+    p = _platform(platform)
+    room = req.livekit_room or f"class-{uuid.uuid4().hex[:8]}"
+    token = app.state.factory.media().issue_token(room=room, identity="aoep-bridge")
+    transport = None
+    if req.simulate:
+        if not _simulation_allowed():
+            raise HTTPException(status_code=403, detail="bridge simulation disabled in this mode")
+        transport = FakeTransport()
+    try:
+        session = get_bridge(p).connect(
+            req.meeting_ref, livekit_room=room, room_url=token.url,
+            room_token=token.token, recording=req.recording,
+            retention_days=req.retention_days, transport=transport,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except BridgeUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    sid = uuid.uuid4().hex[:12]
+    app.state.bridge_sessions[sid] = session
+    return {"session_id": sid, "simulated": bool(transport), **session.status()}
+
+
+def _session(session_id: str):
+    session = app.state.bridge_sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown bridge session")
+    return session
+
+
+@app.get("/bridges/sessions/{session_id}")
+def bridge_session_status(session_id: str) -> dict:
+    return _session(session_id).status()
+
+
+class BridgeChatRequest(BaseModel):
+    text: str
+    reply: str = ""
+
+
+@app.post("/bridges/sessions/{session_id}/chat")
+def bridge_session_chat(session_id: str, req: BridgeChatRequest) -> dict:
+    session = _session(session_id)
+    try:
+        session.route_chat_question(req.text)
+        if req.reply:
+            session.post_to_chat(req.reply)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"session_id": session_id, "chat_log": session.chat_log}
+
+
+@app.post("/bridges/sessions/{session_id}/disconnect")
+def bridge_session_disconnect(session_id: str) -> dict:
+    session = _session(session_id)
+    session.stop()
+    out = session.status()
+    app.state.bridge_sessions.pop(session_id, None)
+    return out
 
 
 # --------------------------------------------------------------------------- #

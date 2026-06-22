@@ -12,4 +12,17 @@ CONTRACT
   Zoom.
 - Surface recording + data-retention disclosures in the meeting.
 
-STATUS: scaffold only. Implemented in phase7.
+STATUS
+- IMPLEMENTED + TESTED (platform-agnostic): the bridge engine lives in
+  aoep_shared.bridges (meeting-URL parsing, Zoom Meeting SDK signature minting,
+  the join->bridge->leave lifecycle, bidirectional track wiring, chat->Tutor
+  routing, and recording/retention disclosures). Wired into the integrations
+  service at GET /bridges, POST /bridges/zoom/connect,
+  POST /bridges/sessions/{id}/chat|disconnect. Exercised end-to-end via an
+  in-memory transport (packages/shared tests + integrations API tests, and the
+  `simulate` flag on the connect endpoint).
+- REQUIRES TO GO LIVE: the Zoom Linux Meeting SDK native binding (the actual
+  audio/video transport) plus ZOOM_SDK_KEY / ZOOM_SDK_SECRET. The binding is not
+  bundled in this environment, so a real connect fails closed with
+  BridgeUnavailable until it is installed and a ZoomMeetingTransport is wired in
+  behind aoep_shared.bridges.session.MediaTransport.

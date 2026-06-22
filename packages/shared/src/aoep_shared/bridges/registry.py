@@ -1,16 +1,13 @@
-"""Phases 7-9 - platform media bridges (scaffold behind a stable interface).
+"""Bridge platform capability registry + credential readiness.
 
-Each external platform (Zoom, Teams, Meet) is bridged into the LiveKit room the
-teaching brain already runs in, so the brain is written once. The real bots need
-platform SDKs and credentials that aren't available in this environment, so the
-concrete connect/bridge calls raise ``BridgeUnavailable``. This module provides
-the stable interface, a capability registry, and credential-readiness checks so
-the rest of the system can be wired (and tested) without the SDKs.
+The registry is the single source of truth for what each external meeting
+platform can bridge, which runtime its real bot is written in, and which
+credentials it needs. It has no third-party dependencies, so it is fully
+usable (and testable) without any platform SDK installed.
 """
 
 from __future__ import annotations
 
-import abc
 import enum
 import os
 from dataclasses import dataclass, field
@@ -90,36 +87,3 @@ def missing_credentials(
 
 def is_ready(platform: BridgePlatform, env: Optional[Mapping[str, str]] = None) -> bool:
     return not missing_credentials(platform, env)
-
-
-class MediaBridge(abc.ABC):
-    """Bridges an external meeting's media in/out of a LiveKit room."""
-
-    def __init__(self, platform: BridgePlatform) -> None:
-        self.platform = platform
-        self.capabilities = REGISTRY[platform]
-
-    @abc.abstractmethod
-    def connect(self, meeting_ref: str, *, livekit_room: str) -> None:
-        """Join the external meeting and bridge media into ``livekit_room``."""
-
-
-class _StubBridge(MediaBridge):
-    """Scaffold bridge: validates readiness, then reports the SDK is needed."""
-
-    def connect(self, meeting_ref: str, *, livekit_room: str) -> None:
-        missing = missing_credentials(self.platform)
-        if missing:
-            raise BridgeUnavailable(
-                f"{self.platform.value} bridge missing credentials: "
-                f"{', '.join(missing)}"
-            )
-        raise BridgeUnavailable(
-            f"{self.platform.value} media SDK (phase {self.capabilities.phase}, "
-            f"{self.capabilities.runtime}) not installed in this environment."
-        )
-
-
-def get_bridge(platform: BridgePlatform) -> MediaBridge:
-    """Factory for a platform bridge (returns the scaffold implementation)."""
-    return _StubBridge(platform)

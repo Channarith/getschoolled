@@ -160,9 +160,13 @@ ARCHITECTURE ROADMAP (phase0..phase10)
   [x] phase5  Assessment (quizzes, definition checks, polls, mastery feedback)
   [x] phase6  Curriculum CMS (deck CRUD + import + presentation)
   [x] phase6b Monetization & billing (entitlements + all payment methods; sandbox)
-  [~] phase7  Zoom bridge   (scaffolded behind MediaBridge; needs Zoom SDK+creds)
-  [~] phase8  Teams bridge  (scaffolded; needs Azure/Graph + .NET media bot)
-  [~] phase9  Meet/Chat bridge (scaffolded; needs Google Workspace creds)
+  [~] phase7  Zoom bridge   (engine impl+tested in aoep_shared.bridges + /bridges
+              API; live media needs the Zoom Meeting SDK binding + creds)
+  [~] phase8  Teams bridge  (engine + HTTP control-plane client impl+tested; .NET
+              Graph media sidecar source in bridges/teams/dotnet, needs .NET SDK
+              + Azure bot registration to build/run)
+  [~] phase9  Meet/Chat bridge (engine impl+tested + /bridges API; live media
+              needs a Google Workspace service account + Meet automation runtime)
   [~] phase10 Hardening & scale (latency budget + recorder done; GPU/autoscale/
               observability need infra)
 
