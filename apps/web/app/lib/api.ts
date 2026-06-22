@@ -938,6 +938,57 @@ export async function verifyProvenance(
   );
 }
 
+// --- hybrid (on-device) face recognition --------------------------------- //
+// The browser runs YuNet+SFace locally (see ./vision) and sends ONLY the
+// resulting embedding here; the raw camera frame never leaves the device. The
+// server matches the embedding against the consented gallery and enforces the
+// region/consent compliance gates.
+export type WireFace = {
+  embedding: number[];
+  landmarks?: number[][];
+  bbox?: number[];
+  frame_size?: number[];
+};
+
+export type IdentifiedFace = {
+  track_id: string;
+  matched_student_id: string | null;
+  attention: number;
+  gaze_frontal: number;
+  expression: string;
+  identified: boolean;
+};
+
+export function visionModelUrl(name: string): string {
+  return `${PERCEPTION_URL}/vision/models/${encodeURIComponent(name)}`;
+}
+
+export async function identifyEmbedding(
+  faces: WireFace[],
+  consentedStudentIds: string[]
+): Promise<{ faces: IdentifiedFace[] }> {
+  return jsonOrThrow(
+    await fetch(`${PERCEPTION_URL}/identify-embedding`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ faces, consented_student_ids: consentedStudentIds }),
+    })
+  );
+}
+
+export async function enrollEmbedding(
+  studentId: string,
+  embedding: number[]
+): Promise<{ student_id: string; enrollments: number }> {
+  return jsonOrThrow(
+    await fetch(`${PERCEPTION_URL}/enroll-embedding/${encodeURIComponent(studentId)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ embedding }),
+    })
+  );
+}
+
 export async function ask(sessionId: string, text: string): Promise<Answer> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {

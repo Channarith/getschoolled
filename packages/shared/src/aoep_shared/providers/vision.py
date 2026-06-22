@@ -11,11 +11,11 @@ fallback is used instead. Raw embeddings are never returned to callers.
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 from ..config import AppConfig
 from ..vision import FaceGallery, FaceRecognitionEngine, estimate_engagement
-from .base import FaceObservation, ProviderInfo, VisionProvider
+from .base import EmbeddedFace, FaceObservation, ProviderInfo, VisionProvider
 
 
 class _BaseVisionProvider(VisionProvider):
@@ -57,6 +57,11 @@ class _BaseVisionProvider(VisionProvider):
         return True
 
     # --- enrollment / recognition ----------------------------------------- #
+    def _persist_gallery(self) -> None:
+        # Persist so the student is remembered across sessions.
+        if self._gallery_path:
+            self._gallery.save_json(self._gallery_path)
+
     def enroll(self, student_id: str, image: bytes | str) -> int:
         """Enroll a face for ``student_id``; returns the enrollment count.
 
@@ -66,51 +71,108 @@ class _BaseVisionProvider(VisionProvider):
         if not faces:
             raise ValueError("no face detected in enrollment image")
         count = self._gallery.enroll(student_id, faces[0].embedding)
-        # Persist so the student is remembered across sessions.
-        if self._gallery_path:
-            self._gallery.save_json(self._gallery_path)
+        self._persist_gallery()
+        return count
+
+    def enroll_embedding(self, student_id: str, embedding: Sequence[float]) -> int:
+        """Enroll a precomputed (on-device) embedding for ``student_id``.
+
+        The hybrid path: the client device runs YuNet+SFace locally and sends
+        only the 128-d embedding, so the server never loads the model or sees the
+        raw frame. Raises ``ValueError`` on an empty embedding.
+        """
+        vec = [float(x) for x in embedding]
+        if not vec:
+            raise ValueError("empty embedding")
+        count = self._gallery.enroll(student_id, vec)
+        self._persist_gallery()
         return count
 
     def gallery(self) -> FaceGallery:
         return self._gallery
 
+    def _apply_identity_gate(self, consented_student_ids: Iterable[str]) -> None:
+        """Resolve who may be matched given the region compliance gate.
+
+        Where real-time biometric identification is prohibited (e.g. EU AI Act),
+        run in anonymous mode - detect/engage but never match an identity,
+        regardless of the consented set.
+        """
+        from ..compliance import FEATURE_REALTIME_BIOMETRIC_ID, feature_allowed
+
+        region = getattr(self._config, "region", "us")
+        rt_id_allowed = feature_allowed(region, FEATURE_REALTIME_BIOMETRIC_ID)
+        self._consented = (
+            frozenset(consented_student_ids) if rt_id_allowed else frozenset()
+        )
+
+    def _observe(
+        self,
+        idx: int,
+        embedding: Sequence[float],
+        landmarks: Sequence[Tuple[float, float]],
+        bbox: Optional[Tuple[int, int, int, int]],
+        frame_size: Optional[Tuple[int, int]],
+    ) -> FaceObservation:
+        """Build a single FaceObservation from an embedding (+ optional geometry).
+
+        Matching is restricted to the consented set (resolved by the identity
+        gate). Engagement is derived from landmarks only when supplied. Raw
+        biometrics are never returned to callers.
+        """
+        from ..compliance import emotion_recognition_allowed
+
+        match = self._gallery.identify(embedding, allowed_ids=self._consented)
+        attention = 0.0
+        gaze_frontal = 0.0
+        expression: Optional[str] = None
+        if landmarks and bbox is not None and frame_size is not None:
+            eng = estimate_engagement(landmarks, bbox, frame_size)
+            attention = eng.attention
+            gaze_frontal = eng.gaze_frontal
+            # The EU AI Act prohibits emotion recognition in education, so
+            # expression inference is suppressed where disallowed.
+            if emotion_recognition_allowed(getattr(self._config, "region", "us")):
+                expression = eng.expression
+        return FaceObservation(
+            track_id=f"face-{idx}",
+            embedding_ref=None,  # never expose raw biometrics
+            attention_score=attention,
+            gaze_frontal=gaze_frontal,
+            expression=expression,
+            matched_student_id=match.student_id if match.matched else None,
+        )
+
     def analyze_image(
         self, image: bytes | str, *, consented_student_ids: Iterable[str]
     ) -> List[FaceObservation]:
         """Detect faces and match only against the consented set."""
-        from ..compliance import FEATURE_REALTIME_BIOMETRIC_ID, feature_allowed
-
-        region = getattr(self._config, "region", "us")
-        # Compliance gate: where real-time biometric identification is prohibited
-        # (e.g. EU AI Act), run in anonymous mode - detect/engage but never match
-        # an identity, regardless of the consented set.
-        rt_id_allowed = feature_allowed(region, FEATURE_REALTIME_BIOMETRIC_ID)
-        self._consented = frozenset(consented_student_ids) if rt_id_allowed else frozenset()
-        observations: List[FaceObservation] = []
-        for idx, face in enumerate(self.engine().detect_faces(image)):
-            match = self._gallery.identify(
-                face.embedding, allowed_ids=self._consented
+        self._apply_identity_gate(consented_student_ids)
+        return [
+            self._observe(
+                idx, face.embedding, face.landmarks, face.bbox, face.frame_size
             )
-            # Real engagement signals from face geometry (gaze + expression).
-            eng = estimate_engagement(face.landmarks, face.bbox, face.frame_size)
-            # Compliance gate: the EU AI Act prohibits emotion recognition in
-            # education, so expression inference is suppressed where disallowed.
-            from ..compliance import emotion_recognition_allowed
+            for idx, face in enumerate(self.engine().detect_faces(image))
+        ]
 
-            expression = eng.expression if emotion_recognition_allowed(
-                getattr(self._config, "region", "us")
-            ) else None
-            observations.append(
-                FaceObservation(
-                    track_id=f"face-{idx}",
-                    embedding_ref=None,  # never expose raw biometrics
-                    attention_score=eng.attention,
-                    gaze_frontal=eng.gaze_frontal,
-                    expression=expression,
-                    matched_student_id=match.student_id if match.matched else None,
-                )
-            )
-        return observations
+    def analyze_embedding(
+        self,
+        faces: Sequence[EmbeddedFace],
+        *,
+        consented_student_ids: Iterable[str],
+    ) -> List[FaceObservation]:
+        """Match precomputed (on-device) embeddings against the consented set.
+
+        The hybrid path: detection + embedding happen on the client/edge device,
+        so this never calls the model engine. The same consent + region gates and
+        the same gallery matching as :meth:`analyze_image` apply, so behaviour is
+        identical whether the embedding was produced on the server or the client.
+        """
+        self._apply_identity_gate(consented_student_ids)
+        return [
+            self._observe(idx, f.embedding, f.landmarks, f.bbox, f.frame_size)
+            for idx, f in enumerate(faces)
+        ]
 
     def analyze_frame(
         self, frame_object_key: str, *, consented_student_ids: Iterable[str]
