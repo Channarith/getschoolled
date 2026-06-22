@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars and fill in. NEVER commit terraform.tfvars.
+
+project            = "salareen"
+environment        = "prod"
+region             = "us-east-1"
+az_count           = 3
+vpc_cidr           = "10.0.0.0/16"
+kubernetes_version = "1.30"
+
+node_pool_min      = 6
+node_pool_max      = 200
+
+# 0 saves ~$2k/mo when no GPU traffic; bump >=2 when you start serving
+# vLLM / XTTS / face-recognition.
+gpu_pool_min       = 0
+gpu_pool_max       = 20
+
+db_instance_class  = "db.r6g.xlarge"
+db_password        = "REPLACE-ME-FROM-SECRETS-MANAGER"
+
+redis_node_type    = "cache.r6g.large"
+redis_shards       = 2

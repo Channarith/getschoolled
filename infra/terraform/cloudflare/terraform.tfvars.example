@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and fill in. NEVER commit terraform.tfvars.
+
+# https://dash.cloudflare.com/profile/api-tokens - create a token with:
+#   Zone:Read, Zone:Edit on salareen.com
+#   Account:Read on the account
+cloudflare_api_token = "REPLACE-ME"
+
+# Account Home -> right sidebar -> "Account ID".
+account_id           = "REPLACE-ME"
+
+domain               = "salareen.com"
+
+# Set this AFTER `terraform apply` in infra/terraform/aws prints the
+# ALB hostname (output: `lb_dns_name` once you wire the ALB Ingress).
+aws_alb_hostname     = "REPLACE-AFTER-AWS-APPLY"
+
+# false on first apply (DNS-only). Flip true once the AWS origin is up.
+proxied              = false
