@@ -1,0 +1,54 @@
+# Redis StatefulSet - rate-limit + HTTP cache + session backplane.
+#
+# Single replica is fine for rate-limit + cache (data is regeneratable),
+# but production should swap this for a managed Redis (ElastiCache /
+# MemoryStore / Upstash) or a Sentinel HA pair so a node failure doesn't
+# burst-load every backend at once. The aoep_shared.ratelimit module
+# falls back to per-replica memory if Redis is briefly unreachable, so
+# Redis being down degrades rate-limiting consistency but doesn't cause
+# user-facing 5xx.
+---
+apiVersion: v1
+kind: Service
+metadata: { name: redis, namespace: aoep }
+spec:
+  selector: { app: redis }
+  ports: [{ port: 6379, targetPort: 6379, name: redis }]
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: redis, namespace: aoep }
+spec:
+  serviceName: redis
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args:
+            - redis-server
+            - --maxmemory
+            - "256mb"
+            - --maxmemory-policy
+            - allkeys-lru
+            - --appendonly
+            - "no"
+            - --save
+            - ""
+          ports: [{ containerPort: 6379, name: redis }]
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 384Mi }
+          readinessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["redis-cli", "ping"] }
+            initialDelaySeconds: 20
+            periodSeconds: 20

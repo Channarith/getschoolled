@@ -15,6 +15,8 @@ from typing import Optional
 
 from .config import AppConfig, load_config
 from .factory import ProviderFactory
+from .http_cache import install as _install_http_cache, standard_registry as _std_cache_registry
+from .ratelimit import RateLimit, build_rate_limiter
 from .schemas import HealthStatus
 from .telemetry import TelemetryStore, init_external_exporters
 from .version import API_VERSION, build_info, get_version
@@ -59,8 +61,60 @@ def create_service(
     import time as _time
     import uuid as _uuid
 
-    from fastapi import Request
-    from fastapi.responses import PlainTextResponse
+    from fastapi import HTTPException, Request
+    from fastapi.responses import JSONResponse, PlainTextResponse
+
+    # ----- Rate limiting (per-IP token bucket; Redis-backed when REDIS_URL set) -
+    # The default rule is intentionally generous so the platform behaves the
+    # same as before for everything except egregious abuse. Tighten via env
+    # (RATE_LIMIT / RATE_LIMIT_WINDOW). Bypass paths cover health/metrics so
+    # liveness probes never get throttled.
+    _rl_limit = int(os.environ.get("RATE_LIMIT", "120"))
+    _rl_window = float(os.environ.get("RATE_LIMIT_WINDOW", "60"))
+    _bypass_paths = (
+        "/health", "/version", "/metrics", "/__meta",
+        "/telemetry/summary", "/telemetry/errors", "/telemetry/logs",
+        "/openapi.json", "/docs", "/redoc",
+    )
+    # Always build the limiter so middleware can be installed and toggled
+    # at runtime via env. Disabling/enabling without restart matters for
+    # test sessions and emergency throttling tweaks in production.
+    app.state.rate_limiter = build_rate_limiter(RateLimit(_rl_limit, _rl_window))
+
+    @app.middleware("http")
+    async def _ratelimit_mw(request: Request, call_next):
+        if os.environ.get("RATE_LIMIT_DISABLED", "").lower() in ("1", "true", "yes"):
+            return await call_next(request)
+        if request.url.path in _bypass_paths:
+            return await call_next(request)
+        limiter = app.state.rate_limiter
+        # Prefer authenticated principal (X-User-Id) over IP so a single
+        # logged-in user sharing a CGNAT egress doesn't share the bucket
+        # with strangers.
+        ident = (
+            request.headers.get("x-user-id")
+            or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (request.client.host if request.client else "anon")
+        )
+        decision = limiter.allow(f"{name}:{ident}")
+        if not decision.allowed:
+            resp = JSONResponse(
+                {"detail": "rate limit exceeded", "retry_after": round(decision.retry_after_seconds, 2)},
+                status_code=429,
+            )
+            resp.headers["Retry-After"] = str(int(decision.retry_after_seconds + 0.999))
+            resp.headers["X-RateLimit-Limit"] = str(decision.limit)
+            resp.headers["X-RateLimit-Remaining"] = "0"
+            return resp
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(decision.limit)
+        response.headers["X-RateLimit-Remaining"] = str(int(decision.remaining))
+        return response
+
+    # ----- HTTP cache (Cache-Control + ETag) for hot read endpoints -----------
+    if os.environ.get("HTTP_CACHE_DISABLED", "").lower() not in ("1", "true", "yes"):
+        _install_http_cache(app, _std_cache_registry(), etag=True)
+    _ = HTTPException  # silence unused-import warning when callers don't raise here
 
     @app.middleware("http")
     async def _telemetry_mw(request: Request, call_next):

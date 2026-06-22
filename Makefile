@@ -10,7 +10,8 @@ COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install test test-py web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
-	mobile-install mobile-typecheck mobile-build mobile-prebuild
+	mobile-install mobile-typecheck mobile-build mobile-prebuild \
+	loadtest scale-up scale-down
 
 help:
 	@echo "Targets:"
@@ -19,6 +20,7 @@ help:
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
+	@echo "  loadtest       Sustained-RPS load test against one URL"
 	@echo "  qa             Comprehensive gate: tests+coverage + web + stress smoke"
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
@@ -27,6 +29,7 @@ help:
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
+	@echo "  scale-up/down  Start / stop multi-replica local compose overlay"
 	@echo "  up / down      Start / stop the full local stack"
 
 venv:
@@ -53,6 +56,15 @@ lint:
 # Stress/perf the running APIs (start services first, e.g. `make up`).
 stress:
 	$(VENV_PY) qa/stress.py --concurrency 16 --requests 300
+
+# Sustained-RPS load test against a single URL with latency histogram +
+# cache-hit / rate-limit / 5xx ratios. Override URL/RPS/DURATION via env:
+#   make loadtest URL=http://localhost:8005/audio/categories RPS=500 DURATION=15
+URL ?= http://localhost:8005/audio/categories
+RPS ?= 200
+DURATION ?= 15
+loadtest:
+	$(VENV_PY) qa/loadtest.py "$(URL)" --rps $(RPS) --duration $(DURATION)
 
 # One comprehensive gate: backend tests (+coverage) + web typecheck/lint + stress smoke.
 qa regression:
@@ -95,6 +107,16 @@ up:
 
 down:
 	docker compose -f $(COMPOSE) down
+
+# Multi-replica + nginx-LB local stack. See infra/compose/scale.yml +
+# infra/compose/nginx-edge.conf. Hit http://localhost:18500 for the
+# load-balanced curriculum service, :18000 for orchestrator.
+scale-up:
+	docker compose -f $(COMPOSE) -f infra/compose/scale.yml up -d --build \
+		--scale curriculum=4 --scale orchestrator=3
+
+scale-down:
+	docker compose -f $(COMPOSE) -f infra/compose/scale.yml down
 
 clean:
 	rm -rf $(VENV) apps/web/node_modules apps/web/.next

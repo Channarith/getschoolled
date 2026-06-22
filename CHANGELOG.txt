@@ -2,6 +2,34 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Scaling + redundancy hardening: every service now ships with a
+  per-identity token-bucket rate limiter (aoep_shared.ratelimit:
+  in-memory + Redis-backed Lua, atomic single round-trip, falls back
+  cleanly when Redis is unreachable) and a Cache-Control + ETag
+  middleware (aoep_shared.http_cache: per-prefix rule registry, GET/HEAD
+  only, drains streaming responses to compute the ETag, returns 304 on
+  If-None-Match). Wired automatically in create_service() so every
+  service inherits both. Standard registry covers /audio/courses,
+  /audio/categories, /catalog, /courses, /programs, /notifications/
+  locales, /learn/languages, /version, /__meta. Toggleable per request
+  via RATE_LIMIT_DISABLED / HTTP_CACHE_DISABLED env. New k8s manifests:
+  infra/k8s/services.yaml gets minReplicas=3, anti-affinity across AZs,
+  topology spread, resource requests/limits, preStop drain, sane probes;
+  new infra/k8s/autoscaling.yaml adds HPAs (3 -> 30 replicas on
+  CPU/memory) + PodDisruptionBudgets (minAvailable=2); new
+  infra/k8s/redis.yaml StatefulSet for the rate-limit/cache backplane;
+  new infra/k8s/ingress.yaml NGINX Ingress with edge limit-rps + TLS +
+  HSTS. New infra/compose/scale.yml + nginx-edge.conf overlay so the
+  local stack runs N curriculum + orchestrator replicas behind nginx
+  (`make scale-up`). New qa/loadtest.py: open-loop sustained-RPS
+  harness with latency histogram + percentiles + cache-hit / 429 / 5xx
+  ratios + SLA gating; `make loadtest`. New docs/scalability.txt:
+  capacity model for 5M DAU, layered redundancy, what-breaks-first, DR
+  drills, cost envelope. Tests: 22 new (8 ratelimit + 6 http_cache +
+  8 service-scaling); 685 backend tests pass overall. Measured locally:
+  4-worker uvicorn serves ~940 RPS at p95=6.3 ms on /audio/categories;
+  with ETag-driven 304s p50 drops to 1.6 ms and bandwidth 40x.
+
 - Hosting plan + Terraform skeletons: docs/hosting.txt (full
   recommendation: AWS EKS in us-east-1 for compute + GPU + stateful;
   Cloudflare for domain registrar + DNS + CDN + WAF + DDoS + R2; rough

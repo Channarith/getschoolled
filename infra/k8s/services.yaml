@@ -1,5 +1,26 @@
 # Stateless Python services. Each loads config from the shared ConfigMap +
 # Secret (envFrom), so the local/cloud split is config-only -- no image forks.
+#
+# Production scaling defaults (every Deployment below):
+#   * minReplicas: 3 across at least 2 AZs (anti-affinity below). HA at one
+#     replica down for rolling deploys, one node-AZ outage still leaves a
+#     working pair.
+#   * resources.requests/limits set so the HPA has signal and one runaway
+#     pod can't OOM neighbours.
+#   * topologySpreadConstraints + podAntiAffinity push replicas onto
+#     different nodes / AZs so a single AZ failure can't take a service
+#     fully offline.
+#   * preStop sleep + terminationGracePeriodSeconds gives the in-flight
+#     request the time to drain through the load balancer before SIGKILL.
+#   * readinessProbe is what cuts traffic during rolling deploys; the
+#     livenessProbe is intentionally lenient so a slow GC doesn't trigger
+#     a restart loop under load.
+#   * HPA scales on CPU + memory; PDB protects N-1 during voluntary
+#     disruptions (node drains, autoscaler down-scales).
+#
+# A backing Redis (rate-limit + cache + sessions) StatefulSet is in
+# redis.yaml, an Ingress with TLS termination + WAF in ingress.yaml, and
+# the HPAs / PDBs in autoscaling.yaml.
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7,51 +28,92 @@ metadata:
   name: orchestrator
   namespace: aoep
 spec:
-  replicas: 2
-  selector:
-    matchLabels: { app: orchestrator }
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 }
+  selector: { matchLabels: { app: orchestrator } }
   template:
     metadata:
-      labels: { app: orchestrator }
+      labels: { app: orchestrator, tier: api }
     spec:
+      terminationGracePeriodSeconds: 45
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: orchestrator } }
+            - weight: 50
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector: { matchLabels: { app: orchestrator } }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: orchestrator } }
       containers:
         - name: orchestrator
           image: ghcr.io/aoep/orchestrator:latest
+          imagePullPolicy: IfNotPresent
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
           readinessProbe:
             httpGet: { path: /health, port: 8000 }
             initialDelaySeconds: 5
-            periodSeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 2
           livenessProbe:
             httpGet: { path: /health, port: 8000 }
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 20
+            failureThreshold: 6
+            timeoutSeconds: 3
+          lifecycle:
+            preStop:
+              exec: { command: ["sh", "-c", "sleep 10"] }
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: orchestrator
   namespace: aoep
+  annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" }
 spec:
   selector: { app: orchestrator }
   ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: speech
-  namespace: aoep
+metadata: { name: speech, namespace: aoep }
 spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: speech }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: speech } }
   template:
-    metadata:
-      labels: { app: speech }
+    metadata: { labels: { app: speech, tier: api } }
     spec:
+      terminationGracePeriodSeconds: 45
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: speech } }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: speech } }
       containers:
         - name: speech
           image: ghcr.io/aoep/speech:latest
@@ -59,31 +121,38 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
-          readinessProbe:
-            httpGet: { path: /health, port: 8100 }
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+          readinessProbe: { httpGet: { path: /health, port: 8100 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8100 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: speech
-  namespace: aoep
+metadata: { name: speech, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8100" } }
 spec:
   selector: { app: speech }
   ports: [{ port: 8100, targetPort: 8100 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: perception
-  namespace: aoep
+metadata: { name: perception, namespace: aoep }
 spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: perception }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: perception } }
   template:
-    metadata:
-      labels: { app: perception }
+    metadata: { labels: { app: perception, tier: api } }
     spec:
+      terminationGracePeriodSeconds: 45
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: perception } }
       containers:
         - name: perception
           image: ghcr.io/aoep/perception:latest
@@ -91,31 +160,31 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
-          readinessProbe:
-            httpGet: { path: /health, port: 8200 }
+          resources:
+            requests: { cpu: 250m, memory: 768Mi }
+            limits:   { cpu: "1",  memory: 1.5Gi }
+          readinessProbe: { httpGet: { path: /health, port: 8200 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8200 }, initialDelaySeconds: 30, periodSeconds: 30, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: perception
-  namespace: aoep
+metadata: { name: perception, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8200" } }
 spec:
   selector: { app: perception }
   ports: [{ port: 8200, targetPort: 8200 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: memory
-  namespace: aoep
+metadata: { name: memory, namespace: aoep }
 spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: memory }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: memory } }
   template:
-    metadata:
-      labels: { app: memory }
+    metadata: { labels: { app: memory, tier: api } }
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: memory
           image: ghcr.io/aoep/memory:latest
@@ -123,31 +192,38 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
-          readinessProbe:
-            httpGet: { path: /health, port: 8400 }
+          resources:
+            requests: { cpu: 150m, memory: 256Mi }
+            limits:   { cpu: 750m, memory: 768Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8400 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8400 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: memory
-  namespace: aoep
+metadata: { name: memory, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8400" } }
 spec:
   selector: { app: memory }
   ports: [{ port: 8400, targetPort: 8400 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: curriculum
-  namespace: aoep
+metadata: { name: curriculum, namespace: aoep }
 spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: curriculum }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: curriculum } }
   template:
-    metadata:
-      labels: { app: curriculum }
+    metadata: { labels: { app: curriculum, tier: api } }
     spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: curriculum } }
       containers:
         - name: curriculum
           image: ghcr.io/aoep/curriculum:latest
@@ -155,31 +231,31 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
-          readinessProbe:
-            httpGet: { path: /health, port: 8500 }
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+          readinessProbe: { httpGet: { path: /health, port: 8500 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8500 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: curriculum
-  namespace: aoep
+metadata: { name: curriculum, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8500" } }
 spec:
   selector: { app: curriculum }
   ports: [{ port: 8500, targetPort: 8500 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: billing
-  namespace: aoep
+metadata: { name: billing, namespace: aoep }
 spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: billing }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: billing } }
   template:
-    metadata:
-      labels: { app: billing }
+    metadata: { labels: { app: billing, tier: api } }
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: billing
           image: ghcr.io/aoep/billing:latest
@@ -187,43 +263,53 @@ spec:
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
-          readinessProbe:
-            httpGet: { path: /health, port: 8600 }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8600 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8600 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: billing
-  namespace: aoep
+metadata: { name: billing, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8600" } }
 spec:
   selector: { app: billing }
   ports: [{ port: 8600, targetPort: 8600 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata:
-  name: web
-  namespace: aoep
+metadata: { name: web, namespace: aoep }
 spec:
-  replicas: 2
-  selector:
-    matchLabels: { app: web }
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: web } }
   template:
-    metadata:
-      labels: { app: web }
+    metadata: { labels: { app: web, tier: edge } }
     spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: web } }
       containers:
         - name: web
           image: ghcr.io/aoep/web:latest
           ports: [{ containerPort: 3000 }]
-          envFrom:
-            - configMapRef: { name: aoep-config }
+          envFrom: [ { configMapRef: { name: aoep-config } } ]
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits:   { cpu: "1",  memory: 768Mi }
+          readinessProbe: { httpGet: { path: /, port: 3000 }, initialDelaySeconds: 5, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /, port: 3000 }, initialDelaySeconds: 20, periodSeconds: 30, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 5"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: web
-  namespace: aoep
+metadata: { name: web, namespace: aoep }
 spec:
   selector: { app: web }
   ports: [{ port: 80, targetPort: 3000 }]

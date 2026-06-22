@@ -5,6 +5,9 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - services.yaml
+  - autoscaling.yaml
+  - redis.yaml
+  - ingress.yaml
   - llm-vllm.yaml
   - harvester.yaml
   - retention-cronjob.yaml
