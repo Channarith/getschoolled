@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Design neutrality: removed non-secular visual context from the Khmer audience
+  theme and seasonal background design labels, added an explicit secular
+  mascot/design guardrail to docs/brand/branding.txt, and renamed
+  religion-adjacent Drive Mode course labels to secular culture/focus wording.
+  Tested.
+
 - README cleanup: removed broken logo/screenshot/demo/chart references from the
   GitHub README, replaced stale architecture imagery with current Mermaid
   diagrams, updated run/test/mobile commands, and aligned docs/architecture.txt
@@ -592,8 +598,8 @@ Format: newest first. No markdown per project convention.
   expression. GestureRecognizer interface scaffolded. Engagement feeds the
   phase-4 adaptive policy.
 - web: audience-tailored landing templates. Data-driven theme registry
-  (apps/web/app/lib/themes.ts) + a Template switcher: Corporate, Khmer Heritage
-  (Angkor Wat), Culinary, Kids & Gamified, Academic. Selection persists and is
+  (apps/web/app/lib/themes.ts) + a Template switcher: Corporate, Khmer Language,
+  Culinary, Kids & Gamified, Academic. Selection persists and is
   shareable via ?theme=. Themed art under apps/web/public/themes/.
 - format: AOEPLX layered live-teaching scene format (aoep_shared.scene +
   docs/aoeplx-format.txt). Ordered layers (video/audio/image/whiteboard/text/

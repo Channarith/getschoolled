@@ -148,15 +148,15 @@ _TOPICS: Dict[str, List[str]] = {
         "How Smartphones Work", "What Are Algorithms", "How Wi-Fi Works",
         "Intro to Machine Learning",
     ],
-    "Mindfulness & Philosophy": [
-        "An Introduction to Stoicism", "What Is Mindfulness", "The Art of Focus",
+    "Focus & Philosophy": [
+        "An Introduction to Stoicism", "What Is Focused Attention", "The Art of Focus",
         "Understanding Happiness", "Dealing with Uncertainty", "The Power of Habits",
-        "Ethics in Everyday Life", "Eastern vs Western Philosophy",
+        "Ethics in Everyday Life", "Comparing Philosophical Traditions",
         "The Meaning of Resilience", "Living with Intention",
     ],
     "Arts & Culture": [
         "The Story of Jazz", "Understanding Classical Music", "A Tour of Impressionism",
-        "The History of Cinema", "World Mythologies", "The Origins of Theater",
+        "The History of Cinema", "Folklore Around the World", "The Origins of Theater",
         "Architecture Through the Ages", "The Evolution of Pop Music",
         "Famous Painters and Their Styles", "Poetry for Everyone",
     ],
@@ -179,7 +179,7 @@ _TOPICS: Dict[str, List[str]] = {
         "Climate Zones", "Famous Landmarks", "How Maps Work",
     ],
     "World Cultures": [
-        "Festivals Around the World", "Tea Cultures of the World", "World Religions in Brief",
+        "Festivals Around the World", "Tea Cultures of the World", "World Cultural Traditions",
         "Etiquette for Travelers", "The Story of Coffee", "Global Music Traditions",
         "Wedding Traditions Worldwide", "Street Food Around the World",
         "Body Language Across Cultures", "Gift-Giving Customs",
@@ -199,7 +199,7 @@ _TOPICS: Dict[str, List[str]] = {
     "Sports & Games": [
         "The Rules of Soccer", "Chess Strategy Basics", "How Scoring Works in Tennis",
         "The History of the Olympics", "Basketball Fundamentals", "Understanding Cricket",
-        "The Science of Running", "Poker Odds Explained", "Yoga for Beginners",
+        "The Science of Running", "Poker Odds Explained", "Stretching and Mobility Basics",
         "The Mental Game in Sports",
     ],
 }

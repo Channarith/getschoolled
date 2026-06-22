@@ -1,8 +1,8 @@
 // Audience-tailored landing-page templates.
 //
 // Each Theme is a self-contained design (palette, fonts, hero copy, background
-// art, layout flavor) so the front page can be re-skinned per audience —
-// corporate, cultural heritage, culinary, kids/gamified, academic — without
+// art, layout flavor) so the front page can be re-skinned per audience -
+// corporate, language learning, culinary, kids/gamified, academic - without
 // code changes. Add a new audience by adding a Theme here.
 
 export type ThemePalette = {
@@ -89,31 +89,31 @@ export const THEMES: Record<string, Theme> = {
 
   khmer: {
     id: "khmer",
-    name: "Khmer Heritage",
-    audience: "Cambodian / Khmer-language learning",
-    font: "'Georgia', 'Times New Roman', serif",
-    radius: "14px",
+    name: "Khmer Language",
+    audience: "Khmer-language learning",
+    font: "'Inter', ui-sans-serif, system-ui, sans-serif",
+    radius: "12px",
     palette: {
-      bg: "#1a0f08",
-      panel: "rgba(54,28,14,0.78)",
-      accent: "#e8b54d",
-      accent2: "#d98246",
-      text: "#fdefd6",
-      muted: "#d7b48a",
-      border: "#6b4423",
+      bg: "#101827",
+      panel: "rgba(20,31,52,0.82)",
+      accent: "#6ee7b7",
+      accent2: "#60a5fa",
+      text: "#ecfeff",
+      muted: "#a7c7d9",
+      border: "#2f4b66",
     },
-    background: "/themes/khmer.png",
+    background: null,
     overlay:
-      "linear-gradient(180deg, rgba(20,10,4,0.55) 0%, rgba(20,10,4,0.35) 40%, rgba(20,10,4,0.85) 100%)",
+      "radial-gradient(900px 500px at 80% 0%, rgba(96,165,250,0.2), transparent), linear-gradient(180deg, #0f172a, #101827)",
     hero: {
       title: "សិក្សា — Learn in your language, rooted in your culture",
       subtitle:
-        "Khmer-first classes with an AI teacher, honoring heritage while opening a world of knowledge.",
-      badge: "Khmer heritage edition",
+        "Khmer-first classes with an AI teacher, focused on language, family, and everyday learning.",
+      badge: "Khmer language edition",
     },
     cards: COMMON_CARDS("ចូលរៀន · Enter class"),
     gamified: false,
-    decoration: "🛕",
+    decoration: "អ",
   },
 
   culinary: {
