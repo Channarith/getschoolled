@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Mobile native build + profile context sharing prep: apps/mobile Android
+  prebuild now patches the generated Gradle wrapper to the official Gradle
+  GitHub distribution URL and adds a native debug APK build command; the
+  auto-push build workflow now runs fresh mobile bundle + Android native builds.
+  Identity adds authenticated per-student class-context memory, owner profile
+  context export, and short-lived scoped profile-share tokens for future
+  database-backed integrations; db/migrations/0004_profile_context_sharing.sql
+  adds the schema-of-record tables for that persistence path. Tested.
+
 - Mobile build: apps/mobile now has a reproducible local Expo build (`npm run
   build`) that exports production Android + iOS bundles under dist/, plus an
   Android prebuild helper. Direct Expo runtime deps are pinned in package.json

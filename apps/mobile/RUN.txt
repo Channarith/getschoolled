@@ -46,6 +46,13 @@ BUILDING NATIVE BINARIES (later)
   Android native project generation:
     npm run native:prebuild:android
 
+  Android debug APK build:
+    npm run native:build:android
+
+  The prebuild command patches the generated Gradle wrapper to download Gradle
+  8.8 from the official Gradle GitHub distribution release. Override with
+  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror.
+
   To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
   run the Gradle assemble/bundle task from apps/mobile/android. To produce
   store-ready Android/iOS apps in the cloud, use EAS Build

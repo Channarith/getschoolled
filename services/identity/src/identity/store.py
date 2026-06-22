@@ -40,6 +40,29 @@ class Enrollment(BaseModel):
     updated_at: float = Field(default_factory=lambda: time.time())
 
 
+class ClassContext(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    course_id: str
+    class_id: str = ""
+    title: str = ""
+    summary: str = ""
+    skills: List[str] = Field(default_factory=list)
+    source: str = "class"
+    external_refs: Dict[str, str] = Field(default_factory=dict)
+    created_at: float = Field(default_factory=lambda: time.time())
+    updated_at: float = Field(default_factory=lambda: time.time())
+
+
+class ProfileShareGrant(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    student_id: str
+    integration: str = ""
+    scopes: List[str] = Field(default_factory=list)
+    created_at: float = Field(default_factory=lambda: time.time())
+    expires_at: float = 0.0
+    revoked: bool = False
+
+
 class StudentProfile(BaseModel):
     """A learner sub-profile under an account (one account, many students -
     like Netflix profiles). Each carries its own mastery + history so Foresight
@@ -50,6 +73,7 @@ class StudentProfile(BaseModel):
     mastery: Dict[str, float] = Field(default_factory=dict)   # skill -> [0,1]
     completed_course_ids: List[str] = Field(default_factory=list)
     interests: List[str] = Field(default_factory=list)
+    class_contexts: List[ClassContext] = Field(default_factory=list)
     created_at: float = Field(default_factory=lambda: time.time())
 
 
@@ -67,6 +91,7 @@ class Account(BaseModel):
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
+    profile_share_grants: Dict[str, ProfileShareGrant] = Field(default_factory=dict)
     # Rewards: points ledger + redemptions (pydantic-excluded; managed in-store).
     points: PointsLedger = Field(default_factory=PointsLedger, exclude=True)
     redemptions: List[dict] = Field(default_factory=list)
@@ -271,15 +296,19 @@ class AccountStore:
     def get_student(self, account_id: str, student_id: str) -> Optional[StudentProfile]:
         return self._by_id[account_id].students.get(student_id)
 
-    def set_mastery(self, account_id: str, student_id: str, skill: str, value: float) -> StudentProfile:
+    def set_mastery(
+        self, account_id: str, student_id: str, skill: str, value: float
+    ) -> StudentProfile:
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
         prof.mastery[skill] = max(0.0, min(1.0, float(value)))
         return prof
 
-    def record_completion(self, account_id: str, student_id: str, course_id: str,
-                          skills: Optional[List[str]] = None, *, mastery: float = 0.8) -> StudentProfile:
+    def record_completion(
+        self, account_id: str, student_id: str, course_id: str,
+        skills: Optional[List[str]] = None, *, mastery: float = 0.8
+    ) -> StudentProfile:
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
@@ -288,3 +317,64 @@ class AccountStore:
         for s in (skills or []):
             prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
         return prof
+
+    def record_class_context(self, account_id: str, student_id: str,
+                             context: ClassContext) -> ClassContext:
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        context.skills = sorted({s.strip() for s in context.skills if s.strip()})
+        now = time.time()
+        context.updated_at = now
+        for idx, existing in enumerate(prof.class_contexts):
+            same_class = context.class_id and existing.class_id == context.class_id
+            same_course = not context.class_id and existing.course_id == context.course_id
+            if same_class or same_course:
+                context.id = existing.id
+                context.created_at = existing.created_at
+                prof.class_contexts[idx] = context
+                return context
+        prof.class_contexts.append(context)
+        return context
+
+    def create_profile_share_grant(self, account_id: str, student_id: str, *,
+                                   integration: str = "", scopes: Optional[List[str]] = None,
+                                   ttl_s: int = 3600) -> ProfileShareGrant:
+        if student_id not in self._by_id[account_id].students:
+            raise KeyError(student_id)
+        grant = ProfileShareGrant(
+            student_id=student_id,
+            integration=integration,
+            scopes=list(scopes or []),
+            expires_at=time.time() + max(60, min(int(ttl_s), 86_400)),
+        )
+        self._by_id[account_id].profile_share_grants[grant.id] = grant
+        return grant
+
+    def profile_share_grant(self, account_id: str, grant_id: str) -> Optional[ProfileShareGrant]:
+        return self._by_id[account_id].profile_share_grants.get(grant_id)
+
+    def profile_context(self, account_id: str, student_id: str, *,
+                        scopes: Optional[List[str]] = None) -> dict:
+        acct = self._by_id[account_id]
+        prof = acct.students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        wanted = set(scopes or ["profile", "interests", "mastery", "completions", "class_context"])
+        student = {"id": prof.id, "display_name": prof.display_name, "age_band": prof.age_band}
+        if "interests" in wanted or "profile" in wanted:
+            student["interests"] = list(prof.interests)
+        out = {
+            "schema_version": "aoep.profile_context.v1",
+            "account_id": acct.id,
+            "student": student,
+            "exported_at": time.time(),
+            "scopes": sorted(wanted),
+        }
+        if "mastery" in wanted:
+            out["mastery"] = dict(prof.mastery)
+        if "completions" in wanted:
+            out["completed_course_ids"] = list(prof.completed_course_ids)
+        if "class_context" in wanted:
+            out["class_contexts"] = [c.model_dump() for c in prof.class_contexts]
+        return out
