@@ -1,0 +1,85 @@
+LESSON: Python - Chapter 8: Loops and Iteration
+LANGUAGE: en
+
+SLIDE 1 | Why Loops?
+A loop repeats a block of code so you do not have to write it many times. Loops
+are how programs process every item in a collection or repeat until a goal is
+met.
+NARRATION: Loops repeat work automatically instead of copying the same code over and over.
+
+SLIDE 2 | The for Loop
+A for loop runs its body once for each item in a sequence such as a list or
+string. The loop variable takes each value in turn.
+
+  for name in ["Ada", "Alan"]:
+      print(name)
+
+NARRATION: A for loop walks through each item in a sequence, one at a time.
+
+SLIDE 3 | The range Function
+range generates a sequence of numbers, often used to repeat something a fixed
+number of times. range(5) yields the numbers zero through four.
+
+  for i in range(5):
+      print(i)
+
+NARRATION: range produces a sequence of numbers, handy for counting loops.
+
+SLIDE 4 | The while Loop
+A while loop repeats as long as its condition stays true. It is best when you do
+not know in advance how many repetitions you need.
+
+  while balance > 0:
+      balance -= 1
+
+NARRATION: A while loop keeps going as long as its condition remains true.
+
+SLIDE 5 | break and continue
+break exits a loop immediately, and continue skips to the next iteration. Both
+give you finer control over how a loop runs.
+
+  for n in numbers:
+      if n < 0:
+          continue
+      if n > 100:
+          break
+
+NARRATION: break leaves the loop early; continue jumps to the next round.
+
+SLIDE 6 | Avoiding Infinite Loops
+A while loop that never makes its condition false will run forever. Make sure
+something inside the loop moves toward ending it.
+NARRATION: Always change something inside a while loop so it can eventually stop.
+
+SLIDE 7 | Looping with enumerate
+enumerate gives you both the index and the value while looping, which is cleaner
+than tracking a counter yourself.
+
+  for i, name in enumerate(names):
+      print(i, name)
+
+NARRATION: enumerate hands you the position and the value together while looping.
+
+SLIDE 8 | Looping Over a Dictionary
+Looping over a dictionary yields its keys by default; use items to get keys and
+values together. This is the standard way to process labeled data.
+
+  for key, value in data.items():
+      print(key, value)
+
+NARRATION: Use items to loop over a dictionary's keys and values together.
+
+SLIDE 9 | List Comprehensions
+A comprehension builds a new list in one readable line by transforming each item
+of a sequence. It often replaces a short for loop that just appends.
+
+  squares = [n * n for n in range(5)]
+
+NARRATION: A list comprehension builds a new list in a single clear line.
+
+FACT: A for loop iterates over each item in a sequence.
+FACT: The range function generates a sequence of numbers for counting loops.
+FACT: A while loop repeats as long as its condition is true.
+FACT: break exits a loop early and continue skips to the next iteration.
+FACT: enumerate yields both the index and the value during iteration.
+FACT: A list comprehension builds a new list from a sequence in one line.

@@ -1,0 +1,81 @@
+LESSON: Python - Chapter 9: Functions
+LANGUAGE: en
+
+SLIDE 1 | What is a Function?
+A function is a named block of reusable code that performs a task. You define it
+once and call it as many times as you need, which keeps programs short and
+organized.
+NARRATION: A function is reusable, named code you define once and call many times.
+
+SLIDE 2 | Defining a Function
+Use the def keyword, a name, parentheses for parameters, and an indented body.
+The body runs only when the function is called.
+
+  def greet():
+      print("Hello!")
+
+NARRATION: Define a function with def, a name, parentheses, and an indented body.
+
+SLIDE 3 | Parameters and Arguments
+Parameters are the names listed in the definition; arguments are the actual
+values you pass when calling. They let the same function work on different data.
+
+  def greet(name):
+      print("Hello", name)
+
+  greet("Ada")
+
+NARRATION: Parameters are placeholders; arguments are the real values you pass in.
+
+SLIDE 4 | Returning Values
+The return statement sends a value back to the caller and ends the function. A
+function with no return gives back None.
+
+  def add(a, b):
+      return a + b
+
+NARRATION: return hands a result back to the caller and ends the function.
+
+SLIDE 5 | Default Arguments
+A parameter can have a default value used when the caller leaves it out. Defaults
+make functions flexible without extra versions.
+
+  def greet(name, greeting="Hello"):
+      print(greeting, name)
+
+NARRATION: A default value is used when the caller does not supply that argument.
+
+SLIDE 6 | Keyword Arguments
+You can pass arguments by name, which makes calls clearer and lets you skip over
+defaults. Order does not matter when you use names.
+
+  greet(name="Ada", greeting="Hi")
+
+NARRATION: Passing arguments by name makes calls clear and order-independent.
+
+SLIDE 7 | Scope
+Variables created inside a function are local and disappear when the function
+ends. Code outside cannot see them, which prevents accidental interference.
+NARRATION: Variables inside a function are local and vanish when it finishes.
+
+SLIDE 8 | Docstrings
+A docstring is a string at the top of a function that describes what it does.
+Tools and the help function can read it, so it serves as built-in documentation.
+
+  def add(a, b):
+      "Return the sum of a and b."
+      return a + b
+
+NARRATION: A docstring documents a function and can be read by the help function.
+
+SLIDE 9 | Why Functions Matter
+Functions remove duplication, give names to ideas, and let you test small pieces
+in isolation. Well-named functions turn a long script into readable steps.
+NARRATION: Functions remove repetition and turn long code into clear, testable steps.
+
+FACT: A function is defined with the def keyword and runs only when called.
+FACT: Parameters are names in the definition; arguments are the values passed in.
+FACT: The return statement sends a value back; a function with no return yields None.
+FACT: Default arguments are used when the caller omits that value.
+FACT: Variables created inside a function are local to that function.
+FACT: A docstring documents a function and is readable via the help function.

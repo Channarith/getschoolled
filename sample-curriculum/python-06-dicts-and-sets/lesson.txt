@@ -1,0 +1,79 @@
+LESSON: Python - Chapter 6: Dictionaries and Sets
+LANGUAGE: en
+
+SLIDE 1 | What is a Dictionary?
+A dictionary stores data as key-value pairs inside curly braces. Each key maps to
+a value, giving you fast lookup by name instead of by position.
+
+  student = {"name": "Ada", "age": 30}
+
+NARRATION: A dictionary maps keys to values for fast lookup by name.
+
+SLIDE 2 | Accessing Values
+You read a value by putting its key in square brackets. The get method does the
+same but returns a default instead of an error when the key is missing.
+
+  student["name"]          # 'Ada'
+  student.get("grade", 0)  # 0 if missing
+
+NARRATION: Look up a value by its key; get returns a default when the key is absent.
+
+SLIDE 3 | Adding and Updating
+Assigning to a key adds it if new or updates it if it already exists. There is no
+separate add and update step.
+
+  student["grade"] = "A"
+
+NARRATION: Assigning to a key adds or updates that entry in the dictionary.
+
+SLIDE 4 | Removing Entries
+Use del to remove a key, or pop to remove it and return its value. Removing a key
+that is not present raises an error unless you provide a default.
+
+  del student["age"]
+
+NARRATION: del removes a key; pop removes it and hands back its value.
+
+SLIDE 5 | Looping Over a Dictionary
+You can loop over keys, values, or both. The items method yields each key and
+value together as a pair.
+
+  for key, value in student.items():
+      print(key, value)
+
+NARRATION: The items method lets you loop over each key and value together.
+
+SLIDE 6 | Keys Must Be Unique and Hashable
+Each key in a dictionary is unique; assigning to an existing key replaces its
+value. Keys must be immutable types like strings, numbers, or tuples.
+NARRATION: Keys are unique and must be immutable, like strings, numbers, or tuples.
+
+SLIDE 7 | What is a Set?
+A set is an unordered collection of unique values written in curly braces.
+Duplicates are automatically removed, which makes sets ideal for membership
+tests.
+
+  tags = {"math", "science", "math"}   # {'math', 'science'}
+
+NARRATION: A set holds unique values with no duplicates and no order.
+
+SLIDE 8 | Set Operations
+Sets support union, intersection, and difference to combine or compare groups.
+These mirror the operations you know from mathematics.
+
+  {1,2,3} & {2,3,4}   # intersection {2,3}
+  {1,2,3} | {3,4}     # union {1,2,3,4}
+
+NARRATION: Sets support union, intersection, and difference like math sets.
+
+SLIDE 9 | Choosing a Collection
+Use a list for an ordered sequence, a tuple for a fixed group, a dictionary for
+labeled lookups, and a set for unique membership. Picking the right one makes
+code clearer and faster.
+NARRATION: Lists order, tuples fix, dictionaries label, and sets keep things unique.
+
+FACT: A dictionary stores key-value pairs and looks up values by key.
+FACT: The get method returns a default value instead of raising an error for a missing key.
+FACT: Dictionary keys must be unique and of an immutable type.
+FACT: A set is an unordered collection of unique values.
+FACT: Sets support union, intersection, and difference operations.

@@ -1,0 +1,76 @@
+LESSON: Python - Chapter 10: Modules and Packages
+LANGUAGE: en
+
+SLIDE 1 | What is a Module?
+A module is simply a Python file containing functions, classes, and variables you
+can reuse. Splitting code into modules keeps large programs organized.
+NARRATION: A module is a Python file of reusable code that keeps programs organized.
+
+SLIDE 2 | Importing a Module
+The import statement loads a module so you can use its contents through its name.
+You then reach inside with a dot.
+
+  import math
+  math.sqrt(16)   # 4.0
+
+NARRATION: import loads a module, and you reach its contents with a dot.
+
+SLIDE 3 | Importing Specific Names
+The from-import form brings specific names directly into your file, so you can use
+them without the module prefix.
+
+  from math import sqrt
+  sqrt(16)   # 4.0
+
+NARRATION: from-import pulls specific names in so you can use them directly.
+
+SLIDE 4 | Aliasing with as
+The as keyword gives an import a shorter or clearer name. This is common for
+libraries with long names.
+
+  import statistics as stats
+
+NARRATION: The as keyword renames an import to something shorter or clearer.
+
+SLIDE 5 | The Standard Library
+Python ships with a large standard library covering math, dates, random numbers,
+files, and JSON, among many others. Much of what you need is already included.
+NARRATION: Python's standard library already includes tools for math, dates, JSON, and more.
+
+SLIDE 6 | A Few Handy Modules
+The random module makes random choices, datetime handles dates and times, and
+json reads and writes JSON text. Knowing what exists saves you from rewriting it.
+
+  import random
+  random.randint(1, 6)
+
+NARRATION: random, datetime, and json are everyday modules worth knowing.
+
+SLIDE 7 | Packages
+A package is a folder of related modules, letting you group code into a tidy
+namespace. You import from a package using dotted paths.
+
+  from package.module import thing
+
+NARRATION: A package is a folder of modules, imported with dotted paths.
+
+SLIDE 8 | Installing Third-Party Packages
+Beyond the standard library, the Python Package Index hosts thousands of
+packages. You install them with the pip tool, usually into a virtual environment.
+
+  pip install requests
+
+NARRATION: Use pip to install third-party packages from the Python Package Index.
+
+SLIDE 9 | Virtual Environments
+A virtual environment is an isolated set of packages for one project, so projects
+do not interfere with each other. Create one with the venv module before
+installing dependencies.
+NARRATION: A virtual environment isolates a project's packages so projects stay independent.
+
+FACT: A module is a Python file of reusable code.
+FACT: The import statement loads a module; from-import brings in specific names.
+FACT: The as keyword creates an alias for an imported module or name.
+FACT: Python includes a large standard library, such as math, random, datetime, and json.
+FACT: pip installs third-party packages from the Python Package Index.
+FACT: A virtual environment isolates a project's installed packages.

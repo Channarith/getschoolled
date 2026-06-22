@@ -17,11 +17,57 @@ You can find them by multiplying or dividing numerator and denominator by the
 same number.
 NARRATION: One half equals two quarters; equivalent fractions name the same amount.
 
-SLIDE 4 | Adding Fractions
+SLIDE 4 | Simplifying Fractions
+A fraction is in lowest terms when the numerator and denominator share no common
+factor other than one. Divide both by their greatest common factor to simplify,
+so 4/8 becomes 1/2.
+NARRATION: Divide top and bottom by their greatest common factor to write it simply.
+
+SLIDE 5 | Comparing Fractions
+To compare fractions, give them the same denominator and compare the numerators.
+For example, 2/3 and 3/5 become 10/15 and 9/15, so 2/3 is larger.
+NARRATION: Make the denominators match, then the bigger numerator is the bigger fraction.
+
+SLIDE 6 | Adding Fractions
 To add fractions with the same denominator, add the numerators and keep the
-denominator. For different denominators, first find a common denominator.
+denominator. For different denominators, first rewrite them over a common
+denominator, then add.
 NARRATION: With the same bottom number, just add the top numbers.
+
+SLIDE 7 | Subtracting Fractions
+Subtraction works the same way as addition: use a common denominator, then
+subtract the numerators. For example, 3/4 minus 1/4 equals 2/4, which simplifies
+to 1/2.
+NARRATION: Find a common denominator, then subtract the top numbers.
+
+SLIDE 8 | Multiplying Fractions
+To multiply fractions, multiply the numerators together and the denominators
+together. You do not need a common denominator. For example, 2/3 times 4/5
+equals 8/15.
+NARRATION: Multiply the tops, multiply the bottoms - no common denominator needed.
+
+SLIDE 9 | Dividing Fractions
+To divide by a fraction, multiply by its reciprocal - flip the second fraction
+upside down. For example, 1/2 divided by 3/4 equals 1/2 times 4/3, which is 4/6
+or 2/3.
+NARRATION: Dividing by a fraction is the same as multiplying by its flipped form.
+
+SLIDE 10 | Mixed Numbers and Improper Fractions
+A mixed number combines a whole number and a fraction, like 1 1/2. An improper
+fraction has a numerator larger than its denominator, like 3/2. You can convert
+between the two.
+NARRATION: One and a half can also be written as the improper fraction three halves.
+
+SLIDE 11 | Fractions, Decimals, and Percents
+A fraction can be written as a decimal by dividing the numerator by the
+denominator, and as a percent by multiplying that decimal by one hundred. So 1/2
+equals 0.5 equals 50 percent.
+NARRATION: One half is the same as the decimal 0.5 and as 50 percent.
 
 FACT: The denominator of a fraction can never be zero.
 FACT: A fraction equals one whole when the numerator equals the denominator.
 FACT: Equivalent fractions have the same value but different numbers.
+FACT: A fraction is in lowest terms when numerator and denominator share no common factor but one.
+FACT: To divide by a fraction, multiply by its reciprocal.
+FACT: To multiply fractions, multiply the numerators and multiply the denominators.
+FACT: One half equals the decimal 0.5 and 50 percent.
