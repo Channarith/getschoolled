@@ -1,29 +1,79 @@
-# AI Classroom - Agentic Online Education Platform
+# Salareen - Agentic Online Education Platform
 
 <p align="center">
-  <img src="apps/web/public/logo-mark.svg" alt="AI Classroom minimalist graduation mark" width="96" />
+  <img src="docs/brand/salareen_bayon_buddy_mascot.png" alt="Salareen study buddy — a secular Bayon-inspired face forming an S, beside a bodhi-style leaf of knowledge" width="200" />
 </p>
 
-AI Classroom is a multi-service education platform for live AI-taught classes,
-mobile Drive Mode audio lessons, adaptive learning, language learning, rewards,
-careers-to-skills matching, compliance controls, and third-party integrations.
-The same codebase runs local, cloud, or edge by environment configuration only.
+Salareen (referred to as AI Classroom across parts of the codebase) is a
+multi-service education platform for live AI-taught classes, mobile Drive Mode
+audio lessons, adaptive learning, language learning, rewards, careers-to-skills
+matching, compliance controls, and third-party integrations. The same codebase
+runs local, cloud, or edge by environment configuration only.
+
+## Our Story
+
+**Salareen** comes from the Khmer *salaa rian* — "to go to school." Our mission
+is to make world-class, AI-taught education accessible, affordable, and adaptive
+for everyone — in their language, on any device — without replacing human
+teachers, but by making expert, one-on-one instruction abundant.
+
+The Salareen study buddy is a friendly, **secular** mascot: a calm, welcoming
+face in the spirit of classical Khmer craftsmanship (drawn as a modern
+character, not a monument), whose silhouette forms an **"S"** for Salareen,
+paired with a stylized **leaf of knowledge** — a heart-shaped, bodhi-style leaf
+whose veins double as a learning network. It stands for curiosity, growth, and
+lifelong learning, not religion. The full story lives in the web app at
+`/our-story` (`apps/web/app/our-story`).
+
+## The platform at a glance
+
+One AI learning platform, many ways to learn:
+
+![Salareen platform ecosystem: homework grader, private tutor agent, mobile apps, drive-mode audio agent, human-in-the-loop / group / private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and 26 languages](docs/brand/salareen_platform_ecosystem.png)
+
+| Sub-app | What it does |
+| --- | --- |
+| Privately-trained tutor agent | Our own education model, grounded in a curated knowledge base |
+| Homework grader | Grades typed or handwritten work with rationale + citations |
+| Human-in-the-loop courses | AI teaches; a human reviews/approves where it matters |
+| Live group courses | Scheduled, synchronous classes |
+| Private on-demand courses | Self-paced lessons any time |
+| Drive Mode (audio agent) | Eyes-free audio classes for commutes |
+| Mobile apps | Android & iOS (Expo) |
+| AI adaptive learning + profiles | Per-learner mastery tracking and sequencing |
+| Machine vision (camera & voice) | Opt-in recognition that can run on-device |
+| Mini-games arcade | Subject mini-games and leaderboards |
+| Rewards & points | Points, prizes, and redemptions |
+| Course scraper / harvester | Builds fresh courses from the open web |
+| Knowledge base (RAG) | Keeps answers grounded and citable |
+| Integrations | LMS, finance, and cloud connectors |
+| 26+ languages | Multilingual delivery and language learning |
+| Humanoid-robot ready | The same teaching brain can drive an embodied tutor |
 
 ## Brand
 
-The current brand uses a secular, minimalist graduation mark. Source vectors and
-raster assets live in `docs/brand/` and `apps/web/public/`. Usage rules are in
+Salareen has two complementary marks: the **Salareen study buddy** (a secular,
+Bayon-inspired character with an "S" monogram and a bodhi-style leaf of
+knowledge) used as the friendly product mascot, and a **minimalist graduation
+monogram** used as the lightweight app/browser icon. Source vectors and raster
+assets live in `docs/brand/` and `apps/web/public/`. Usage rules are in
 `docs/brand/branding.txt`.
 
 | Asset | Path | Purpose |
 | --- | --- | --- |
+| Study buddy mascot | `docs/brand/salareen_bayon_buddy_mascot.png` | Friendly product mascot (hero, about, app store) |
+| Mascot (web) | `apps/web/public/salareen-mascot.webp` | Web-optimized mascot |
+| Platform ecosystem poster | `docs/brand/salareen_platform_ecosystem.png` | One-glance map of every sub-app |
+| Ecosystem (web) | `apps/web/public/salareen-ecosystem.webp` | Web-optimized ecosystem poster |
 | Mark SVG | `apps/web/public/logo-mark.svg` | Browser/app icon and lightweight web mark |
 | Mark source | `docs/brand/aiclassroom_mark.svg` | Single source of truth for the icon |
 | Wordmark source | `docs/brand/aiclassroom_wordmark.svg` | Horizontal lockup |
 | Favicon | `apps/web/public/favicon.ico` | Browser favicon |
 
-Design guardrail: mascot/theme art stays secular and classroom-focused. Avoid
-ceremonial monuments, faith-based symbols, or devotional visual cues.
+Design guardrail: brand and theme art stays **secular**. The Salareen buddy is a
+culturally-inspired *character*, presented as a friendly study companion — not a
+temple, monument, or devotional object — and the leaf is framed as a symbol of
+knowledge and growth, not faith. Keep it respectful, never appropriative.
 
 ## Screens and videos
 

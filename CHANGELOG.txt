@@ -2,6 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Salareen brand + Our Story + platform map: added the secular
+  Salareen "study buddy" mascot (a Bayon-inspired friendly face forming an "S",
+  with a bodhi-style "leaf of knowledge") and a sub-app ecosystem poster that
+  maps every part of the platform (homework grader, privately-trained tutor
+  agent, mobile apps, drive-mode audio agent, human-in-the-loop / live-group /
+  private on-demand courses, integrations, mini-games arcade, rewards & points,
+  course scraper, knowledge base/RAG, adaptive learning + profiles, machine
+  vision for camera & voice, humanoid-robot readiness, and 26+ languages).
+  New assets: docs/brand/salareen_bayon_buddy_mascot.png,
+  docs/brand/salareen_platform_ecosystem.png, and web-optimized
+  apps/web/public/salareen-mascot.webp + salareen-ecosystem.webp. Added an
+  "Our Story" page (apps/web/app/our-story) plus an "Our Story" nav link, and a
+  matching README "Our Story" + "platform at a glance" section. Updated
+  docs/brand/branding.txt to document the secular mascot direction and the
+  bodhi-style knowledge leaf. README title now leads with Salareen. Tested
+  (web typecheck + build).
+
 - 2026-06-22 - Vultr Kubernetes Engine conversion start: added
   infra/k8s-vke overlay for VKE-specific image registry rewrites, hostnames,
   Object Storage config placeholders, Redis service DNS, cert-manager ingress
