@@ -73,7 +73,7 @@ export const BACKGROUNDS: Background[] = [
     css: pat(snow("rgba(255,255,255,.5)"), lin(135, "#064e3b", "#7f1d1d")) },
   { id: "winter-blue", name: "Winter Blue", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(255,255,255,.4)"), lin(135, "#0c4a6e", "#0369a1", "#38bdf8")) },
-  { id: "kwanzaa", name: "Kwanzaa", category: "holiday", kind: "css",
+  { id: "color-bands", name: "Color Bands", category: "holiday", kind: "css",
     css: lin(135, "#7f1d1d", "#166534", "#111827") },
 
   // -------------------- seasonal -------------------- //
