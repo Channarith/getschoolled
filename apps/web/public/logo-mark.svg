@@ -1,43 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  AI Classroom mark.
+  Salarean - canonical brand mark.
 
-  Single-color minimalist symbol in the spirit of Apple / X / Micron.
-  A graduation mortarboard whose tassel curls back into a small G-bowl -
-  the cap is the "top stroke" of the G, the tassel curl is the body. Reads
-  as a graduation cap at favicon size and as a clean monogram at any scale.
+  Capital S inside a thin circular seal, crowned by a Bodhi-leaf
+  silhouette. The Bodhi (peepal / Ficus religiosa) is the tree under
+  which the Buddha attained enlightenment - the universal SE Asian
+  symbol of learning and wisdom. Salarean derives from the Khmer word
+  for school (sala-rean), so a Bodhi-leaf-crowned S reads in two ways
+  at once: letter-as-monogram + leaf-as-wisdom-emblem.
 
-  Uses currentColor so the same file inverts cleanly on light or dark
-  backgrounds (set fill via CSS).
+  Single ink, themable via currentColor. Works at favicon size,
+  prints cleanly in 1-bit.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img"
-     aria-label="AI Classroom">
+     aria-label="Salarean">
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="128" cy="128" r="106" stroke-width="11"/>
+    <path d="M 174 96
+             C 174 80, 154 70, 128 70
+             C 102 70, 86 82, 86 100
+             C 86 118, 108 124, 128 130
+             C 148 136, 170 142, 170 162
+             C 170 180, 152 192, 128 192
+             C 106 192, 88 184, 84 172"
+          stroke-width="22"/>
+  </g>
   <g fill="currentColor">
-
-    <!-- Mortarboard (flat board on top): rhombus / tilted square -->
-    <path d="M 128 40
-             L 232 96
-             L 128 152
-             L 24  96
-             Z"/>
-
-    <!--
-      Tassel cord + knot, drawn as one filled path: drops from the centre
-      of the board, sweeps right, curls back left forming the bowl of a
-      small letter G, and closes onto the board. The curl deliberately
-      mimics the lower bowl of a capital G.
-    -->
-    <path d="M 128 130
-             C 168 138, 198 162, 206 196
-             C 212 222, 188 240, 162 230
-             C 142 222, 130 202, 134 182
-             C 138 168, 152 162, 164 168
-             C 176 174, 178 192, 168 198
-             C 162 202, 154 200, 152 194
-             L 138 194
-             C 142 214, 168 222, 184 212
-             C 200 200, 198 178, 184 168
-             C 168 156, 144 154, 128 158
-             Z"/>
+    <path d="M 128 30
+             C 116 38, 108 50, 110 60
+             C 112 68, 122 70, 128 64
+             C 134 70, 144 68, 146 60
+             C 148 50, 140 38, 128 30 Z"/>
   </g>
 </svg>

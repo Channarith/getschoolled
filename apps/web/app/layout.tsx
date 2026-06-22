@@ -9,7 +9,7 @@ import LocalizedNav from "./components/LocalizedNav";
 import { LocaleProvider } from "./lib/i18n";
 
 export const metadata: Metadata = {
-  title: "AI Classroom — Agentic Online Education Platform",
+  title: "Salareen — Agentic Online Education Platform",
   description: "A multi-agent AI instructor that teaches live online classes.",
   icons: {
     icon: [

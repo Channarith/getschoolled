@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "AI Classroom",
+    "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "splash": { "resizeMode": "contain", "backgroundColor": "#0b1020" },
+    "icon": "./assets/salareen_icon_1024.png",
+    "splash": { "image": "./assets/salareen_icon_1024.png", "resizeMode": "contain", "backgroundColor": "#0b1020" },
     "assetBundlePatterns": ["**/*"],
     "notification": {
       "iosDisplayInForeground": true,
@@ -30,6 +31,10 @@
     },
     "android": {
       "package": "com.aiclassroom.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/salareen_icon_1024.png",
+        "backgroundColor": "#0b1020"
+      },
       "permissions": ["RECORD_AUDIO", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
       "useNextNotificationsApi": true
     },
