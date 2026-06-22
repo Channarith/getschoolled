@@ -10,6 +10,12 @@ chalkboard that melts and morphs into a swirling galaxy of chalk equations,
 planets and a graduation cap, floating on a small surreal island. Dali-esque
 surrealism in a clean, modern flat-vector emblem style.
 
+Mascot/design guardrail:
+  - Keep mascot and theme art secular and classroom-focused.
+  - Avoid ceremonial monuments, faith-based symbols, or devotional visual cues.
+  - For Khmer-language or Cambodian audience designs, use neutral language,
+    family, study, food, music, pattern, landscape, or everyday-learning motifs.
+
 Assets (docs/brand/):
   aiclassroom_logo.webp / .png        full-color emblem (primary)
   aiclassroom_logo_binary.png         1-bit B/W, dithered - best for grayscale

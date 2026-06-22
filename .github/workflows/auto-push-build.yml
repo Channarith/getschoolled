@@ -42,6 +42,15 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Set up Java for Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Fresh web build (no cache)
         run: |
           if [ -f apps/web/package.json ]; then
@@ -51,6 +60,19 @@ jobs:
             pnpm run build
           else
             echo "apps/web not present yet; skipping web build"
+          fi
+
+      - name: Fresh mobile build (no cache)
+        run: |
+          if [ -f apps/mobile/package.json ]; then
+            echo "Building apps/mobile (fresh, no cache)"
+            cd apps/mobile
+            npm ci
+            npm run typecheck
+            npm run build
+            npm run native:build:android
+          else
+            echo "apps/mobile not present yet; skipping mobile build"
           fi
 
       - name: Fresh python build (no cache)

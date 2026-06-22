@@ -1,11 +1,11 @@
 AOEP - DESIGN & ARCHITECTURE
 ============================
 Agentic Online Education Platform. This is the text source-of-truth for the
-system design; rendered block diagrams, flow charts, sequence diagrams and
-time-series charts live in the README (mermaid) and docs/diagrams/*.png.
+system design; GitHub-facing rendered diagrams live in the README as mermaid.
+No generated diagram/image assets are currently checked in.
 
 No-markdown house rule: this file is plain text on purpose. Diagrams here are
-ASCII; the polished versions are in the README.
+ASCII; the README keeps the rendered GitHub version.
 
 -----------------------------------------------------------------------------
 1. SYSTEM CONTEXT (who uses it)
@@ -135,11 +135,7 @@ ASCII; the polished versions are in the README.
 -----------------------------------------------------------------------------
 7. RENDERED DIAGRAMS & CHARTS
 -----------------------------------------------------------------------------
-  README "Architecture & design" - mermaid block diagram, teaching-loop flow
-    chart, ask sequence diagram, survey->data-mart flow.
-  docs/diagrams/chart_api_latency.png        mean p95 per service (measured)
-  docs/diagrams/chart_latency_vs_load.png    latency vs concurrency (measured)
-  docs/diagrams/chart_mastery_over_sessions.png  BKT mastery curve (model)
-  docs/diagrams/chart_engagement_timeseries.png  WAU + reward points (illustrative)
-  docs/diagrams/chart_user_funnel.png        user/customer-type funnel (illustrative)
-  docs/demos/persona_*.gif                    per-persona screen recordings
+  README "Architecture" - mermaid block diagram, teaching-loop sequence, and
+    profile-sharing flow.
+  Generated screenshots, charts, demos, and logo files are intentionally not
+    referenced until real assets are committed.

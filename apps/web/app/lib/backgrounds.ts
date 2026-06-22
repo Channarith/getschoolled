@@ -49,15 +49,15 @@ export const BACKGROUNDS: Background[] = [
     css: pat(sparkle("rgba(255,215,0,.5)"), rad("#1e293b", "#0b1020 60%")) },
   { id: "lunar", name: "Lunar New Year", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(255,221,148,.5)"), lin(135, "#7f1d1d", "#b91c1c", "#dc2626")) },
-  { id: "valentines", name: "Valentine's Hearts", category: "holiday", kind: "css",
+  { id: "february-hearts", name: "February Hearts", category: "holiday", kind: "css",
     css: pat(hearts("rgba(244,114,182,.35)"), lin(135, "#831843", "#be185d", "#f472b6")) },
-  { id: "stpatricks", name: "St. Patrick's Green", category: "holiday", kind: "css",
+  { id: "march-green", name: "March Green", category: "holiday", kind: "css",
     css: pat(diag("rgba(255,255,255,.06)"), lin(135, "#064e3b", "#047857", "#10b981")) },
-  { id: "easter", name: "Easter Pastels", category: "holiday", kind: "css",
+  { id: "spring-pastels", name: "Spring Pastels", category: "holiday", kind: "css",
     css: lin(135, "#fbcfe8", "#bae6fd", "#bbf7d0", "#fef9c3") },
   { id: "earthday", name: "Earth Day", category: "holiday", kind: "css",
     css: rad("#34d399", "#0ea5e9 55%", "#1e3a8a") },
-  { id: "ramadan", name: "Ramadan Nights", category: "holiday", kind: "css",
+  { id: "evening-lights", name: "Evening Lights", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(250,204,21,.4)"), lin(160, "#1e1b4b", "#4c1d95", "#6d28d9")) },
   { id: "pride", name: "Pride Spectrum", category: "holiday", kind: "css",
     css: lin(120, "#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787") },
@@ -65,15 +65,15 @@ export const BACKGROUNDS: Background[] = [
     css: pat(sparkle("rgba(255,255,255,.4)"), lin(135, "#7f1d1d", "#1e3a8a", "#b91c1c")) },
   { id: "halloween", name: "Halloween Spooky", category: "holiday", kind: "css",
     css: rad("#f59e0b", "#7c2d12 45%", "#1c1917") },
-  { id: "diwali", name: "Diwali Lights", category: "holiday", kind: "css",
+  { id: "autumn-lights", name: "Autumn Lights", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(255,191,0,.55)"), con("#7c2d12", "#b45309", "#f59e0b", "#7c2d12")) },
   { id: "thanksgiving", name: "Thanksgiving Harvest", category: "holiday", kind: "css",
     css: pat(leaves("rgba(180,83,9,.25)"), lin(135, "#78350f", "#b45309", "#d97706")) },
-  { id: "christmas", name: "Christmas Eve", category: "holiday", kind: "css",
+  { id: "winter-eve", name: "Winter Eve", category: "holiday", kind: "css",
     css: pat(snow("rgba(255,255,255,.5)"), lin(135, "#064e3b", "#7f1d1d")) },
-  { id: "hanukkah", name: "Hanukkah Blue", category: "holiday", kind: "css",
+  { id: "winter-blue", name: "Winter Blue", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(255,255,255,.4)"), lin(135, "#0c4a6e", "#0369a1", "#38bdf8")) },
-  { id: "kwanzaa", name: "Kwanzaa", category: "holiday", kind: "css",
+  { id: "color-bands", name: "Color Bands", category: "holiday", kind: "css",
     css: lin(135, "#7f1d1d", "#166534", "#111827") },
 
   // -------------------- seasonal -------------------- //
@@ -210,10 +210,10 @@ export function seasonalBackgroundId(d: Date = new Date()): string {
   const md = m * 100 + day;
   // Fixed-window holidays.
   if (md >= 1231 || md <= 102) return "newyear";        // New Year's Eve / Day
-  if (md >= 1215) return "christmas";                    // mid-late December
-  if (m === 2 && day >= 10 && day <= 16) return "valentines";
+  if (md >= 1215) return "winter-eve";                    // mid-late December
+  if (m === 2 && day >= 10 && day <= 16) return "february-hearts";
   if ((m === 1 && day >= 21) || (m === 2 && day <= 12)) return "lunar"; // approx LNY
-  if (m === 3 && day >= 15 && day <= 18) return "stpatricks";
+  if (m === 3 && day >= 15 && day <= 18) return "march-green";
   if (md === 422 || (m === 4 && day >= 18 && day <= 24)) return "earthday";
   if (m === 6) return "pride";
   if (m === 7 && day <= 6) return "july4";

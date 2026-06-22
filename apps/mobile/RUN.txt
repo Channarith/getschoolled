@@ -11,8 +11,21 @@ RUN (development)
   cd apps/mobile
   npm install
   npm run start          # then scan the QR with Expo Go, or:
-  npm run android        # Android emulator/device
-  npm run ios            # iOS simulator (macOS)
+  npm run start:android  # Expo Go / dev client on Android
+  npm run start:ios      # Expo Go / dev client on iOS
+  npm run android        # native Android run after prebuild + Android SDK
+  npm run ios            # native iOS run after prebuild + Xcode (macOS)
+
+BUILD (local production bundles)
+  npm run typecheck
+  npm run build
+
+  Outputs:
+    dist/android/_expo/static/js/android/*.hbc
+    dist/ios/_expo/static/js/ios/*.hbc
+
+  These are Expo production bundles/assets for Android and iOS. They verify the
+  React Native app compiles and packages locally without Expo cloud credentials.
 
 BACKEND URL
   The app reads the curriculum API from app.json -> expo.extra.curriculumUrl.
@@ -30,8 +43,24 @@ WHAT'S HERE
   src/screens/DriveModeScreen.tsx      hands-free player (expo-speech narration)
 
 BUILDING NATIVE BINARIES (later)
-  Use EAS Build (eas build -p android / -p ios) to produce store-ready apps.
-  android.package / ios.bundleIdentifier are set in app.json.
+  Android native project generation:
+    npm run native:prebuild:android
+
+  Android debug APK build:
+    npm run native:build:android
+
+  The prebuild command patches the generated Gradle wrapper to download Gradle
+  8.8 from the official Gradle GitHub distribution release. Override with
+  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror. It
+  also disables React Native's Foojay Java-toolchain resolver plugin for the
+  local build because Java is supplied by CI/local setup and some restricted
+  networks block plugins.gradle.org.
+
+  To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
+  run the Gradle assemble/bundle task from apps/mobile/android. To produce
+  store-ready Android/iOS apps in the cloud, use EAS Build
+  (eas build -p android / -p ios). android.package / ios.bundleIdentifier are
+  set in app.json.
 
 NEXT STEPS (roadmap)
   - Add auth (reuse identity /auth + token) and sync points/streaks.

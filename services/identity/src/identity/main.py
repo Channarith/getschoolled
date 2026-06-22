@@ -9,14 +9,15 @@ service is the account + enrollment system of record.
 from __future__ import annotations
 
 import os
+import time
 
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
 from fastapi import Depends, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from .store import AccountStore, Enrollment, EnrollmentStatus
+from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
@@ -39,6 +40,35 @@ def current_account(authorization: str = Header(default="")):
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
     return acct
+
+
+PROFILE_SHARE_SCOPES = {"profile", "interests", "mastery", "completions", "class_context"}
+
+
+def _normalize_share_scopes(scopes: list[str]) -> list[str]:
+    if not scopes:
+        return ["profile", "interests", "mastery", "completions", "class_context"]
+    cleaned = sorted({s.strip() for s in scopes if s.strip()})
+    unknown = [s for s in cleaned if s not in PROFILE_SHARE_SCOPES]
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"unknown profile share scope: {unknown[0]}")
+    return cleaned
+
+
+def current_profile_share(authorization: str = Header(default="")):
+    token = authorization[7:] if authorization.lower().startswith("bearer ") else authorization
+    claims = verify_token(token, _token_key()) if token else None
+    if not claims or claims.get("kind") != "profile_share":
+        raise HTTPException(status_code=401, detail="invalid or expired profile share token")
+    acct = app.state.accounts.by_id(claims.get("sub", ""))
+    if acct is None:
+        raise HTTPException(status_code=401, detail="profile share account not found")
+    grant = app.state.accounts.profile_share_grant(acct.id, claims.get("grant_id", ""))
+    if grant is None or grant.revoked or grant.student_id != claims.get("student_id"):
+        raise HTTPException(status_code=401, detail="profile share grant is not active")
+    if grant.expires_at < time.time():
+        raise HTTPException(status_code=401, detail="profile share grant expired")
+    return acct, grant
 
 
 # --------------------------------------------------------------------------- #
@@ -201,6 +231,65 @@ def complete_course(student_id: str, req: CompleteCourse, acct=Depends(current_a
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()
+
+
+class ClassContextRequest(BaseModel):
+    course_id: str
+    class_id: str = ""
+    title: str = ""
+    summary: str = ""
+    skills: list[str] = Field(default_factory=list)
+    source: str = "class"
+    external_refs: dict[str, str] = Field(default_factory=dict)
+
+
+@app.post("/students/{student_id}/class-context")
+def record_class_context(student_id: str, req: ClassContextRequest,
+                         acct=Depends(current_account)) -> dict:
+    try:
+        context = app.state.accounts.record_class_context(
+            acct.id, student_id, ClassContext(**req.model_dump()))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return context.model_dump()
+
+
+@app.get("/students/{student_id}/profile-context")
+def profile_context(student_id: str, acct=Depends(current_account)) -> dict:
+    try:
+        return app.state.accounts.profile_context(acct.id, student_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+
+
+class ProfileShareGrantRequest(BaseModel):
+    integration: str = ""
+    scopes: list[str] = Field(default_factory=list)
+    ttl_s: int = 3600
+
+
+@app.post("/students/{student_id}/profile-share-grants")
+def create_profile_share_grant(student_id: str, req: ProfileShareGrantRequest,
+                               acct=Depends(current_account)) -> dict:
+    scopes = _normalize_share_scopes(req.scopes)
+    try:
+        grant = app.state.accounts.create_profile_share_grant(
+            acct.id, student_id, integration=req.integration, scopes=scopes, ttl_s=req.ttl_s)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    token = sign_token(
+        {"kind": "profile_share", "sub": acct.id, "student_id": student_id,
+         "grant_id": grant.id, "scopes": scopes, "aud": req.integration},
+        _token_key(),
+        ttl_s=max(60, min(int(req.ttl_s), 86_400)),
+    )
+    return {"grant": grant.model_dump(), "token": token}
+
+
+@app.get("/profile-shares/context")
+def shared_profile_context(share=Depends(current_profile_share)) -> dict:
+    acct, grant = share
+    return app.state.accounts.profile_context(acct.id, grant.student_id, scopes=grant.scopes)
 
 
 # --------------------------------------------------------------------------- #
