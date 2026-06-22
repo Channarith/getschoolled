@@ -9,35 +9,35 @@ patches:
   - path: pvc-vke.yaml
 images:
   - name: ghcr.io/aoep/orchestrator
-    newName: registry.vultr.com/aiclassroom/orchestrator
+    newName: registry.vultr.com/salareen/orchestrator
     newTag: latest
   - name: ghcr.io/aoep/speech
-    newName: registry.vultr.com/aiclassroom/speech
+    newName: registry.vultr.com/salareen/speech
     newTag: latest
   - name: ghcr.io/aoep/perception
-    newName: registry.vultr.com/aiclassroom/perception
+    newName: registry.vultr.com/salareen/perception
     newTag: latest
   - name: ghcr.io/aoep/memory
-    newName: registry.vultr.com/aiclassroom/memory
+    newName: registry.vultr.com/salareen/memory
     newTag: latest
   - name: ghcr.io/aoep/curriculum
-    newName: registry.vultr.com/aiclassroom/curriculum
+    newName: registry.vultr.com/salareen/curriculum
     newTag: latest
   - name: ghcr.io/aoep/billing
-    newName: registry.vultr.com/aiclassroom/billing
+    newName: registry.vultr.com/salareen/billing
     newTag: latest
   - name: ghcr.io/aoep/integrations
-    newName: registry.vultr.com/aiclassroom/integrations
+    newName: registry.vultr.com/salareen/integrations
     newTag: latest
   - name: ghcr.io/aoep/identity
-    newName: registry.vultr.com/aiclassroom/identity
+    newName: registry.vultr.com/salareen/identity
     newTag: latest
   - name: ghcr.io/aoep/web
-    newName: registry.vultr.com/aiclassroom/web
+    newName: registry.vultr.com/salareen/web
     newTag: latest
   - name: aoep/harvester
-    newName: registry.vultr.com/aiclassroom/harvester
+    newName: registry.vultr.com/salareen/harvester
     newTag: latest
   - name: aoep/memory
-    newName: registry.vultr.com/aiclassroom/memory
+    newName: registry.vultr.com/salareen/memory
     newTag: latest

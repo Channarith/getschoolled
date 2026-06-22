@@ -16,16 +16,22 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: [api.aiclassroom.com, app.aiclassroom.com]
-      secretName: aiclassroom-tls
+    - hosts: [api.salareen.com, www.salareen.com, salareen.com]
+      secretName: salareen-tls
   rules:
-    - host: app.aiclassroom.com
+    - host: www.salareen.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
-    - host: api.aiclassroom.com
+    - host: salareen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
+    - host: api.salareen.com
       http:
         paths:
           - path: /api/

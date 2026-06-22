@@ -10,10 +10,10 @@ generic infra/k8s manifests plus the provider overlay in infra/k8s-vke.
 What the VKE overlay changes
 ----------------------------
   - Rewrites container images to Vultr Container Registry:
-      registry.vultr.com/aiclassroom/<service>:latest
+      registry.vultr.com/salareen/<service>:latest
   - Sets public hosts to:
-      app.aiclassroom.com
-      api.aiclassroom.com
+      www.salareen.com
+      api.salareen.com
   - Sets Object Storage placeholders to Vultr Object Storage.
   - Uses the in-cluster Redis service DNS.
   - Changes the LLM model PVC from ReadOnlyMany to ReadWriteOnce because Vultr
@@ -24,8 +24,8 @@ Prerequisites
 -------------
   - Vultr account with API token.
   - VKE cluster.
-  - Vultr Container Registry named aiclassroom.
-  - DNS for aiclassroom.com managed where you can add records.
+  - Vultr Container Registry named salareen.
+  - DNS for salareen.com managed where you can add records.
   - kubectl, kustomize, helm, docker.
   - Built and pushed images for every service.
   - Managed Postgres and Object Storage credentials, or external equivalents.
@@ -34,7 +34,7 @@ Create VKE cluster (example)
 ----------------------------
   vultr-cli kubernetes create \
     --region ewr \
-    --label aiclassroom-prod \
+    --label salareen-prod \
     --version latest \
     --node-pools '[{"node_quantity":3,"label":"api-pool","tag":"api","plan":"vc2-4c-8gb","auto_scaler":true,"min_nodes":3,"max_nodes":12}]'
 
@@ -58,8 +58,9 @@ Find the Vultr LoadBalancer IP:
 DNS
 ---
 Create A records:
-  app.aiclassroom.com -> ingress LoadBalancer IP
-  api.aiclassroom.com -> ingress LoadBalancer IP
+  salareen.com -> ingress LoadBalancer IP
+  www.salareen.com -> ingress LoadBalancer IP
+  api.salareen.com -> ingress LoadBalancer IP
 
 Install cert-manager
 --------------------
@@ -77,7 +78,7 @@ Create a ClusterIssuer named letsencrypt-prod (replace email):
     name: letsencrypt-prod
   spec:
     acme:
-      email: ops@aiclassroom.com
+      email: ops@salareen.com
       server: https://acme-v02.api.letsencrypt.org/directory
       privateKeySecretRef:
         name: letsencrypt-prod
@@ -104,9 +105,9 @@ If the namespace does not exist yet, first:
 Build and push images
 ---------------------
 Example:
-  docker build -t registry.vultr.com/aiclassroom/orchestrator:latest \
+  docker build -t registry.vultr.com/salareen/orchestrator:latest \
     -f services/orchestrator/Dockerfile .
-  docker push registry.vultr.com/aiclassroom/orchestrator:latest
+  docker push registry.vultr.com/salareen/orchestrator:latest
 
 Repeat for:
   orchestrator, speech, perception, memory, curriculum, billing, integrations,
@@ -114,7 +115,7 @@ Repeat for:
 
 Render manifests
 ----------------
-  kustomize build infra/k8s-vke > /tmp/aiclassroom-vke.yaml
+  kustomize build infra/k8s-vke > /tmp/salareen-vke.yaml
 
 Apply
 -----
@@ -124,8 +125,9 @@ Verify
 ------
   kubectl -n aoep get pods
   kubectl -n aoep get ingress
-  curl -I https://api.aiclassroom.com/health
-  curl -I https://app.aiclassroom.com
+  curl -I https://api.salareen.com/health
+  curl -I https://salareen.com
+  curl -I https://www.salareen.com
 
 Operational notes
 -----------------
