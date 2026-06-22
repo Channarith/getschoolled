@@ -16,6 +16,8 @@ Format: newest first. No markdown per project convention.
       "Salareen" wordmark; app.json name -> "Salareen" with a new square app icon
       + Android adaptive icon + splash (assets/salareen_icon_1024.png, generated
       from the S badge); notification channel + about/UI strings say Salareen.
+    * README: title + brand section rebranded to Salareen (Bayon Buddy mascot +
+      Bodhi-leaf "S" mark, corrected asset table, secular-character guardrail).
   Verified: web typecheck + build pass and the rendered home matches the prior
   approved design; mobile typecheck passes.
 
