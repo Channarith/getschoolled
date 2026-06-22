@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- README asset note: updated the cleaned GitHub README to mention the newly
+  merged secular minimalist logo assets without reintroducing missing screenshot,
+  demo, or chart embeds. Tested.
+
 - Branding: simplified the AI Classroom logo to a single-color minimalist
   mark (Apple/X/Micron-style). New mark is a graduation mortarboard whose
   tassel curls back into the bowl of a capital G - the cap is the G's top

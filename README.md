@@ -5,11 +5,11 @@ audio-only Drive Mode lessons, adaptive learning, rewards, compliance controls,
 and future integrations with LMS, finance, cloud collaboration, and external
 classroom technology.
 
-The repository is intentionally text-first. The old README referenced logo,
-screenshot, demo, and chart files that are not currently checked in, so this
-README does not embed those broken assets. Brand notes remain in
-`docs/brand/branding.txt`; add real logo assets before reintroducing README
-images.
+The repository is intentionally text-first. The old README referenced missing
+screenshot, demo, and chart files, so this README does not embed those broken
+assets. The current logo is a secular, minimalist graduation mark with source
+files in `docs/brand/` and web delivery assets in `apps/web/public/`; brand
+notes and usage rules live in `docs/brand/branding.txt`.
 
 ## Current status
 
@@ -23,7 +23,8 @@ images.
 - Data path: in-memory stores for local/test flows, SQL schema-of-record under
   `db/migrations`, and provider interfaces for Postgres, Redis, object storage,
   LLM, speech, vision, media, OCR, and payments.
-- Assets: no logo/screenshots/diagram images are present in this checkout.
+- Assets: logo assets are present; screenshots, demos, and generated chart
+  images are not currently checked in.
 
 ## What is implemented
 
