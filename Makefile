@@ -9,7 +9,8 @@ PYTHON_PKGS := packages/shared services/orchestrator services/speech \
 COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install test test-py web-install web-typecheck web-build \
-	compose-config k8s-build up down clean qa stress coverage lint regression
+	compose-config k8s-build up down clean qa stress coverage lint regression \
+	mobile-install mobile-typecheck mobile-build mobile-prebuild
 
 help:
 	@echo "Targets:"
@@ -21,6 +22,9 @@ help:
 	@echo "  qa             Comprehensive gate: tests+coverage + web + stress smoke"
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
+	@echo "  mobile-install Install Expo mobile deps (apps/mobile)"
+	@echo "  mobile-build   Bundle production iOS+Android JS (apps/mobile/dist)"
+	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
 	@echo "  up / down      Start / stop the full local stack"
@@ -62,6 +66,23 @@ web-typecheck:
 
 web-build:
 	cd apps/web && npm run build
+
+# --- Mobile (Expo: Android + iOS) ----------------------------------------- #
+mobile-install:
+	cd apps/mobile && pnpm install
+
+mobile-typecheck:
+	cd apps/mobile && pnpm typecheck
+
+# Produce production JS bundles for iOS + Android (apps/mobile/dist).
+# Native binaries (.apk/.aab/.ipa) build via EAS - see apps/mobile/RUN.txt.
+mobile-build: mobile-typecheck
+	cd apps/mobile && pnpm run export
+
+# Generate native ios/ + android/ Gradle/Xcode projects from app.json.
+# (Requires network access to fetch the prebuild template.)
+mobile-prebuild:
+	cd apps/mobile && pnpm run prebuild
 
 compose-config:
 	docker compose -f $(COMPOSE) config

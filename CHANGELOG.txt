@@ -2,6 +2,163 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Vietnamese (vi) is now first-class across web + mobile + homework
+  generator, in addition to the catalog/notification i18n already
+  shipped. New apps/web/app/lib/i18n.tsx (LocaleProvider + useT()
+  hook + 14-locale strings dict, mirroring the mobile i18n shape -
+  no react-intl/i18next dep). New apps/web/app/components/
+  LanguagePicker.tsx (footer + nav-compact dropdowns) and
+  LocalizedNav.tsx; the home page hero + CTA buttons + footer +
+  every nav link now flips per locale. Persisted to localStorage so
+  return visits land in the user's last pick. RTL locales (ar)
+  flip document.documentElement.dir. The strings dict ships full
+  Vietnamese + Khmer (brand language) + partial coverage of 11
+  other locales, all with English fallback for missing keys.
+  Backend: aoep_shared/homework/generate.py adds a 14-locale
+  prompt + rubric translation table (SUPPORTED_HOMEWORK_LOCALES,
+  _PROMPT_I18N), so when the AI teacher agent calls /homework/
+  generate with locale=vi the student sees prompts like
+  "Hãy dùng lời của em để giải thích: …" + rubrics in Vietnamese.
+  Falls back to English for unknown locales. Curriculum
+  POST /homework/generate accepts locale=. Tests: 15 new in
+  packages/shared/tests/test_homework_i18n.py covering vi/km/es/
+  fr/de/ja/zh/ko/ar localization, rubric translation, locale
+  normalisation (vi-VN -> vi), and English fallback for unsupported
+  locales. Backend test sweep: 693 tests pass overall (was 671;
+  +22 across this PR's i18n + internal-auth additions).
+
+- Homework tool is now INTERNAL-ONLY (AI teacher agent, not students).
+  All six /homework/* endpoints in the curriculum service
+  (/homework/generate, /grade, /scan, /authorship, /grade-reviews,
+  /grade-reviews/{id}/decision) are now gated behind a new
+  Depends(require_internal) so a student client can't grade their
+  own paper. New aoep_shared/internal_auth.py provides
+  is_internal_caller + require_internal: accepts either a static
+  INTERNAL_TOKEN (local dev) or a signed agent token (HMAC via
+  INTERNAL_TOKEN_KEY) with scope in {internal, agent, teacher}.
+  Failure-mode is fail-closed: if no key is configured, every
+  call is denied (so the gate can never accidentally ship open).
+  Tests: 7 new in services/curriculum/tests/
+  test_homework_internal_only.py covering deny-by-default,
+  static-token, signed-agent-token, wrong-scope rejection, and
+  the Authorization: Bearer alternate header. Existing
+  homework-API tests bypass the gate via INTERNAL_AUTH_DISABLED=1
+  set in the service conftest.
+
+- Khmer (km) is now a first-class supported language across the
+  platform - hard requirement for the Salareen brand (sala-rian
+  literally means 'school' in Khmer). aoep_shared.languages
+  SUPPORTED_LANGUAGES grows from 26 to 27 (km routes to cloud-TTS
+  fallback since XTTS-v2 doesn't ship a Khmer voice).
+  language_learning.LANGUAGE_META gains the km row (Khmer / khmae,
+  KH flag); km is added to RICH_LANGUAGES with a full 13-concept
+  phrasebook (greetings, conversation, travel-survival in Khmer
+  script + ALA-LC romanization), a grammar tip, and a culture note
+  about the sampeah greeting. catalog_i18n grows from 13 to 14
+  locales: km translations for all 15 categories, 3 levels, 3
+  language-lesson types, 6 segment headings, and 6 narration
+  templates. audio_courses._LANGUAGE_NAME_TRANSLATIONS gets a km
+  column on every existing row + a brand new km row, so the
+  language-being-taught name renders in Khmer and 'Khmer' renders in
+  every other locale. notifications gains a km i18n entry; build_feed
+  now passes the active locale through to build_catalog so course
+  titles embedded inside notification text render in the same
+  language as the framing. Mobile: km added to
+  apps/mobile/src/i18n/languages.ts (full tier) + a 82-string KM
+  translation dict in strings.ts; HomeScreen now refreshes Continue
+  Listening + My List rows from the freshly loaded locale-correct
+  catalog so a row stored when the user was browsing in JA doesn't
+  retain its old Japanese title after switching to KM. Tests: 11 new
+  test_khmer_support.py covering the full Khmer surface; existing
+  '26 supported languages' assertions in test_languages_speech.py +
+  services/speech/tests/test_speech.py + test_catalog_i18n.py
+  updated to 27. 671 backend tests pass overall (323 shared, 100
+  curriculum, plus the rest unchanged). Verified live via
+  GET /audio/categories?locale=km, /audio/courses?locale=km,
+  /audio/courses/<id>?locale=km, /notifications/feed?locale=km, and
+  the mobile web preview switching to ខ្មែរ in Settings re-renders
+  Home rails, course cards, Drive Mode player + notification inbox
+  fully in Khmer.
+
+- Catalog content i18n: course names, category labels, level labels,
+  segment headings, and templated narration now translate alongside the
+  UI chrome (previously only the static UI strings translated; catalog
+  rows remained in English). New aoep_shared/catalog_i18n.py with
+  hand-translated tables for 13 locales (en, es, fr, de, it, pt, ru,
+  ar, hi, zh, ja, ko, vi) covering: 15 categories, 3 levels, 3
+  language-lesson types, 6 segment heading templates, 6 narration
+  template fragments (intro/recap/per-phrase/repeat). audio_courses.py
+  now takes a `locale=` parameter through build_catalog / categories /
+  list_courses / get_course (per-locale LRU cache, 16-locale capacity);
+  language-course titles use the UI-locale's word for the language
+  being taught (e.g. an es-locale browser sees "Francés:" instead of
+  "French:"). Language NAMES translated for 13 target languages × 13
+  UI locales; less-common languages fall back to their English name.
+  Curriculum endpoints accept `locale=`: GET /audio/categories,
+  /audio/courses, /audio/courses/{id}; the categories response now
+  carries both `category` (localized label) and `category_id`
+  (canonical English filter id), and /audio/courses?category= accepts
+  either form. Mobile API client + HomeScreen + AudioCoursesScreen +
+  MyListScreen + DriveModeScreen all thread the active locale through
+  every catalog call and re-fetch on language change. Tests: 21 new
+  unit (aoep_shared.catalog_i18n + audio_courses) + 6 new API
+  (curriculum); 319 shared + 104 curriculum tests pass overall.
+
+- Mobile multi-language UI (i18n): the entire AI Classroom mobile app is now
+  translated into 13 languages out of the box (English, Spanish, French,
+  German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese, Japanese,
+  Korean, Vietnamese), with the other 13 platform-supported languages wired
+  into the picker as graceful fallback-to-English. New apps/mobile/src/i18n/
+  package: `languages.ts` (locale registry, RTL flags), `strings.ts` (full
+  hand-translated string dictionary), `index.tsx` (LocaleProvider, useT()
+  hook, AsyncStorage-backed persistence, expo-localization device-locale
+  detection, English fallback for missing keys). Every screen + BottomTabs
+  routes through `t(...)`. Settings gains a LANGUAGE section with a
+  flag-chip language picker (single-select, instant re-render). RTL locales
+  apply `direction: rtl` to the root view. Backend localized too:
+  aoep_shared.notifications builds rendered titles/bodies in 13 languages
+  via the new locale param; curriculum service: GET /notifications/feed
+  takes `locale=`, GET /notifications/locales lists supported codes;
+  unknown locales fall back to English cleanly. expo-localization added.
+  Tests: 4 new shared (test_notifications.py) + 3 new API
+  (test_notifications_api.py); 94 + 291 backend tests pass. Mobile
+  typecheck clean, Metro bundles iOS (1.81 MB / 698 modules) + Android
+  (1.82 MB / 701 modules) + web (≈580 kB).
+
+- Mobile Netflix-style features + push/local notifications: apps/mobile is now
+  a real multi-screen app (5-tab bottom nav: Home, Drive, My List, Alerts,
+  Settings). New screens: HomeScreen with rails (Continue Listening, My List,
+  New This Week, Picked for You, Trending, Categories), MyListScreen,
+  NotificationsScreen (server-rendered inbox + read-state), SettingsScreen
+  (notification toggles, daily-reminder hour picker, permission request,
+  send-test, scheduled count). Real notifications via expo-notifications:
+  permission request + Android channel, repeating daily class reminder,
+  staggered "new class" / "picked for you" alerts, immediate "class complete"
+  alert; foreground notifications surface as an in-app top banner that
+  deep-links into Drive Mode. Continue Listening + My List + streak persist
+  via @react-native-async-storage/async-storage. New Banner / Rail /
+  BottomTabs components. Backend: aoep_shared/notifications.py builds a
+  personalized notification feed (new_class / continue / recommended /
+  streak / daily reminder) deterministically from the audio catalog and
+  optional student state; curriculum service exposes GET /notifications/feed
+  with student_id / interests / in_progress / completed / streak_days
+  query params. Tests: 5 unit (aoep_shared.notifications) + 5 API
+  (curriculum). End-to-end: mobile typecheck clean, Metro bundles iOS
+  (1.76 MB / 693 modules) + Android (1.78 MB / 696 modules), live
+  /notifications/feed returns rich personalized items.
+
+- Mobile app build pipeline: apps/mobile is now buildable. Added expo-constants
+  to package.json (fixes Metro resolve), an .npmrc that forces a hoisted
+  node_modules so Metro can resolve through it (pnpm's symlinked layout breaks
+  RN's Node-style resolution), eas.json with development/preview/production
+  build profiles (com.aiclassroom.app, AAB for Play Store / IPA for App Store),
+  and pnpm scripts for export/prebuild/EAS Build. New Makefile targets
+  mobile-install / mobile-typecheck / mobile-build / mobile-prebuild. Verified
+  end-to-end: `pnpm typecheck` clean and `pnpm run export` produces production
+  Hermes bytecode bundles for both platforms
+  (dist/_expo/static/js/{ios,android}/index-*.hbc, ~1.5 MB each, 540+ modules).
+  RUN.txt rewritten with the full local + EAS Build instructions.
+
 - Design neutrality: removed non-secular visual context from the Khmer audience
   theme and seasonal background design labels, added an explicit secular
   mascot/design guardrail to docs/brand/branding.txt, and renamed

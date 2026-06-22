@@ -8,17 +8,30 @@
     "userInterfaceStyle": "automatic",
     "splash": { "resizeMode": "contain", "backgroundColor": "#0b1020" },
     "assetBundlePatterns": ["**/*"],
+    "notification": {
+      "iosDisplayInForeground": true,
+      "color": "#0ea5e9"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#0ea5e9"
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.aiclassroom.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": ["audio", "remote-notification"],
         "NSMicrophoneUsageDescription": "Used for pronunciation practice."
       }
     },
     "android": {
       "package": "com.aiclassroom.app",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": ["RECORD_AUDIO", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
+      "useNextNotificationsApi": true
     },
     "extra": {
       "//": "Set CURRICULUM_URL to your reachable backend (LAN IP for a device, or deployed URL).",

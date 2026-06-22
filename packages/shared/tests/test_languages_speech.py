@@ -1,4 +1,4 @@
-"""26-language coverage and TTS fallback routing."""
+"""27-language coverage (26 base + Khmer for the Salareen brand) and TTS fallback routing."""
 
 import pytest
 
@@ -11,9 +11,12 @@ from aoep_shared.languages import (
 )
 
 
-def test_exactly_26_supported_languages():
-    assert len(SUPPORTED_LANGUAGES) == 26
-    assert len(set(SUPPORTED_LANGUAGES)) == 26
+def test_exactly_27_supported_languages():
+    # 26 base languages + Khmer (km), which is brand-required because
+    # "Salareen" is the Khmer word for "school".
+    assert len(SUPPORTED_LANGUAGES) == 27
+    assert len(set(SUPPORTED_LANGUAGES)) == 27
+    assert "km" in SUPPORTED_LANGUAGES
 
 
 def test_english_is_native_tts():

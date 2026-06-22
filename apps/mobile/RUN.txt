@@ -1,31 +1,66 @@
 AI CLASSROOM - MOBILE APP (Android + iOS)
 =========================================
-Expo + React Native scaffold. This is the starting point for the native mobile
-apps; it opens into "Drive Mode" (audio-only classes) for learning on the go.
+Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
+on the go.
 
 PREREQUISITES
-  - Node 18+ and the Expo tooling (npx expo). Install Expo Go on your phone, or
-    use an Android emulator / iOS simulator.
+  - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
+    installs pnpm already.
+  - Expo Go on your phone, an Android emulator (Android Studio), or the iOS
+    Simulator (macOS / Xcode) for live dev.
 
-RUN (development)
+INSTALL (one-time)
   cd apps/mobile
-  npm install
-  npm run start          # then scan the QR with Expo Go, or:
-  npm run start:android  # Expo Go / dev client on Android
-  npm run start:ios      # Expo Go / dev client on iOS
-  npm run android        # native Android run after prebuild + Android SDK
-  npm run ios            # native iOS run after prebuild + Xcode (macOS)
+  pnpm install
+  # Or, from the repo root:
+  make mobile-install
+  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` because Metro/React
+  # Native cannot resolve through pnpm's strict symlink layout. Re-run
+  # `pnpm install` if you switch package managers.
 
-BUILD (local production bundles)
-  npm run typecheck
-  npm run build
+DEV LOOP
+  cd apps/mobile
+  pnpm start             # then scan the Expo Go QR, or:
+  pnpm android           # Android emulator/device
+  pnpm ios               # iOS simulator (macOS)
 
-  Outputs:
-    dist/android/_expo/static/js/android/*.hbc
-    dist/ios/_expo/static/js/ios/*.hbc
+TYPECHECK
+  pnpm typecheck         # or: make mobile-typecheck
 
-  These are Expo production bundles/assets for Android and iOS. They verify the
-  React Native app compiles and packages locally without Expo cloud credentials.
+BUILD (production JS bundles - iOS + Android)
+  pnpm run export        # writes apps/mobile/dist/
+  # or: make mobile-build
+  # Produces:
+  #   dist/_expo/static/js/ios/index-<sha>.js     (~970 kB minified)
+  #   dist/_expo/static/js/android/index-<sha>.js (~978 kB minified)
+  #   dist/metadata.json
+  # These are the JS bundles that EAS Build / OTA updates ship.
+  # `pnpm run export:ios` / `pnpm run export:android` build just one platform.
+
+NATIVE BINARIES (.apk / .aab / .ipa)
+  Use EAS Build - it provisions Android SDK + Xcode in the cloud, no local
+  Android Studio / Mac needed.
+    npm i -g eas-cli            # one-time
+    eas login                   # one-time, requires an Expo account
+    cd apps/mobile
+    pnpm run eas:build:android          # production AAB
+    pnpm run eas:build:ios              # production IPA (needs Apple Developer team)
+    pnpm run eas:build:preview:android  # internal-distribution APK
+  Build profiles live in apps/mobile/eas.json. App identifiers:
+    ios.bundleIdentifier: com.aiclassroom.app
+    android.package:      com.aiclassroom.app
+
+NATIVE PROJECT FILES (offline / custom CI)
+  pnpm run prebuild       # writes apps/mobile/{android,ios}/ (gitignored)
+  # Run this if you need Gradle / Xcode projects to build locally without EAS.
+  pnpm run native:prebuild:android  # Android-only clean prebuild + Gradle patch
+  pnpm run native:build:android     # local Android debug APK build
+  The Android prebuild command patches the generated Gradle wrapper to download
+  Gradle 8.8 from the official Gradle GitHub distribution release. Override with
+  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror. It
+  also disables React Native's Foojay Java-toolchain resolver plugin for the
+  local build because Java is supplied by CI/local setup and some restricted
+  networks block plugins.gradle.org.
 
 BACKEND URL
   The app reads the curriculum API from app.json -> expo.extra.curriculumUrl.
@@ -37,33 +72,60 @@ BACKEND URL
       uvicorn curriculum.main:app --port 8005
 
 WHAT'S HERE
-  App.tsx                       root (list <-> drive player)
-  src/api.ts                    fetches /audio/courses from curriculum
-  src/screens/AudioCoursesScreen.tsx   browse audio classes (search + categories)
-  src/screens/DriveModeScreen.tsx      hands-free player (expo-speech narration)
+  App.tsx                       root: bottom-tab nav, banner, notification listeners
+  src/api.ts                    typed client (audio courses, home rails, notifications)
+  src/storage.ts                AsyncStorage helpers (continue, my-list, settings, streak)
+  src/notifications.ts          expo-notifications wrapper (perms, daily reminder,
+                                 staggered new-content alerts, completion banners)
+  src/components/Banner.tsx     in-app top alert (info/success/warn/live)
+  src/components/Rail.tsx       Netflix-style horizontal rails + cards / category tiles
+  src/components/BottomTabs.tsx 5-tab bottom nav with unread badge
+  src/screens/HomeScreen.tsx           Netflix home: Continue, My List, New, For You,
+                                        Trending, Categories rails
+  src/screens/AudioCoursesScreen.tsx   browse + search + category chips (with star)
+  src/screens/DriveModeScreen.tsx      hands-free player (expo-speech, progress saved,
+                                        completion notification, streak bump, save)
+  src/screens/MyListScreen.tsx         saved-classes list (Netflix My List)
+  src/screens/NotificationsScreen.tsx  alerts inbox (server feed, mark-read, deep-link)
+  src/screens/SettingsScreen.tsx       notification prefs (toggles, hour picker,
+                                        permission request, send-test, scheduled count)
+  eas.json                       EAS Build profiles (development/preview/production)
+  .npmrc                         forces hoisted node_modules for Metro
 
-BUILDING NATIVE BINARIES (later)
-  Android native project generation:
-    npm run native:prebuild:android
+LANGUAGES (i18n)
+  The UI is translated into 13 languages out of the box: English, Spanish,
+  French, German, Italian, Portuguese, Russian, Arabic, Hindi, Chinese
+  (Mandarin), Japanese, Korean, Vietnamese. The other 13 supported languages
+  (Dutch, Polish, Ukrainian, Turkish, Hebrew, Bengali, Urdu, Persian, Thai,
+  Indonesian, Swahili, Greek, Czech) appear in the picker and inherit
+  English until they're translated.
+  - Initial locale: AsyncStorage user pick > device locale (expo-localization)
+    > English fallback.
+  - Switch language: Settings -> LANGUAGE section -> tap a flag chip.
+  - RTL: Arabic / Hebrew / Urdu / Persian flip layout via `direction: rtl`.
+  - Backend: GET /notifications/feed accepts `locale=es|fr|de|...` and renders
+    titles/bodies in 13 languages. Unknown locales fall back to English.
+    Source: aoep_shared/notifications.py.
 
-  Android debug APK build:
-    npm run native:build:android
+NETFLIX-STYLE FEATURES (all on the audio catalog)
+  Push / local notifications via expo-notifications:
+    * Daily class reminder (user-configurable hour, OS-scheduled, repeating)
+    * "New class" + "Picked for you" banners (staggered local alerts)
+    * Completion alert when a class finishes
+    * Tappable - deep-links into Drive Mode for the right course
+  In-app alerts: top banner that surfaces foreground notifications with CTA.
+  Inbox: GET /notifications/feed renders a personalized list (new / continue /
+    recommended / streak / daily); read-state stored in AsyncStorage; unread
+    count appears as a badge on the Alerts tab.
+  Continue Listening: every play tick records progress; the Home screen rail
+    resumes from the saved segment.
+  My List: star icon on every card / row toggles a saved-courses list.
+  Streak: each completed class extends a daily streak (used by the inbox feed).
+  Browse rails: Continue, My List, New This Week, Picked for You, Trending,
+    and a Categories tile grid.
 
-  The prebuild command patches the generated Gradle wrapper to download Gradle
-  8.8 from the official Gradle GitHub distribution release. Override with
-  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror. It
-  also disables React Native's Foojay Java-toolchain resolver plugin for the
-  local build because Java is supplied by CI/local setup and some restricted
-  networks block plugins.gradle.org.
-
-  To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
-  run the Gradle assemble/bundle task from apps/mobile/android. To produce
-  store-ready Android/iOS apps in the cloud, use EAS Build
-  (eas build -p android / -p ios). android.package / ios.bundleIdentifier are
-  set in app.json.
-
-NEXT STEPS (roadmap)
-  - Add auth (reuse identity /auth + token) and sync points/streaks.
-  - Add expo-av for real audio files / background playback + lock-screen controls.
-  - Add the live class, browse, and language-learning screens (reuse the same APIs).
+ROADMAP
+  - expo-av for real recorded-audio playback + lock-screen controls (TTS only today).
+  - Auth (reuse identity /auth + token) so my-list and progress sync across devices.
+  - Remote push tokens (Expo / FCM / APNs) for server-driven announcements.
   - Offline download of audio lessons for tunnels / no-signal drives.
