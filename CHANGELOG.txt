@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Drive Mode agentic interruptions: mobile Drive Mode now has a
+  Sala Drive Assistant with "Hey Sala" / "Salareen" wake-word handling on web
+  speech recognition, tap/type fallback for native, voice/text commands for
+  pause/resume/next/previous, course-grounded Q&A during narration, and
+  automatic resume after answers. Tested.
+
 - 2026-06-22 - Mobile mascot logo: added a tappable AI Classroom logo on the
   mobile home screen that opens the photo-real Bayon Buddy mascot hugging the
   S + Bodhi leaf mark, using a mobile-only bundled image asset. Tested.
