@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Salareen VKE deployment defaults: updated the Vultr runbook to
+  default to SJC, Kubernetes v1.36.1+1, a 3-node vc2-4c-8gb API pool, optional
+  vcg-a16-6c-64g-16vram GPU capacity, and a startup managed Postgres plan for
+  first demos. Tested.
+
 - 2026-06-22 - Vultr Kubernetes Engine conversion start: added
   infra/k8s-vke overlay for VKE-specific image registry rewrites, hostnames,
   Object Storage config placeholders, Redis service DNS, cert-manager ingress
