@@ -51,7 +51,10 @@ BUILDING NATIVE BINARIES (later)
 
   The prebuild command patches the generated Gradle wrapper to download Gradle
   8.8 from the official Gradle GitHub distribution release. Override with
-  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror.
+  GRADLE_DISTRIBUTION_URL if your build network requires a different mirror. It
+  also disables React Native's Foojay Java-toolchain resolver plugin for the
+  local build because Java is supplied by CI/local setup and some restricted
+  networks block plugins.gradle.org.
 
   To produce an APK/AAB locally after prebuild, install Android SDK/Gradle and
   run the Gradle assemble/bundle task from apps/mobile/android. To produce

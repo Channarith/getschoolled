@@ -4,8 +4,9 @@ Format: newest first. No markdown per project convention.
 
 - Mobile native build + profile context sharing prep: apps/mobile Android
   prebuild now patches the generated Gradle wrapper to the official Gradle
-  GitHub distribution URL and adds a native debug APK build command; the
-  auto-push build workflow now runs fresh mobile bundle + Android native builds.
+  GitHub distribution URL, disables the restricted-network Foojay toolchain
+  plugin hook, and adds a native debug APK build command; the auto-push build
+  workflow now runs fresh mobile bundle + Android native builds.
   Identity adds authenticated per-student class-context memory, owner profile
   context export, and short-lived scoped profile-share tokens for future
   database-backed integrations; db/migrations/0004_profile_context_sharing.sql
