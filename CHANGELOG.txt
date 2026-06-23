@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Fix recurring "404 creating an account" by making the web server
+  self-route API calls. apps/web/next.config.mjs now proxies the same-origin API
+  prefixes the browser uses (/identity/*, /curriculum/*, /orchestrator/*,
+  /memory/*, /billing/*, /integrations/*, /speech/*, /perception/*) to each
+  backend service (default http://<service>:8000, overridable via <NAME>_ORIGIN).
+  This removes the dependency on a separately-configured edge gateway / ingress:
+  the web container only needs network access to the services (always true in
+  docker-compose and k8s), so /identity/auth/signup is proxied to the identity
+  service and account creation works. Verified end-to-end (POST
+  /identity/auth/signup -> 200, signed in, no 404). Local dev is unaffected (it
+  calls the per-port localhost URLs directly, never the /<svc>/ prefixes).
+
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded
