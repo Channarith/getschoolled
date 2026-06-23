@@ -386,6 +386,17 @@ service scaling, internal-auth gates, profile context sharing, and mobile builds
 
 ## API map
 
+For the full, route-by-route reference (every endpoint, auth tier, webhooks,
+use cases, and cost analysis) see:
+
+- `docs/api-reference.txt` — every HTTP API + webhook, conventions, auth tiers
+  (kept in sync by `scripts/check_api_docs.py`; the per-service `/openapi.json`
+  is the machine-readable source of truth).
+- `docs/api-use-cases.txt` — end-to-end recipes (curl) for real flows.
+- `docs/api-cost-value.txt` — cost-to-value analysis per API/provider.
+- `docs/integrations-jobs-careers.txt` — how Careers connects to job sites.
+- `docs/payments-and-security.txt` — how transactions connect and are secured.
+
 | Service | Important endpoints |
 | --- | --- |
 | orchestrator | `GET /api/lessons`, `POST /api/sessions`, `POST /api/sessions/{id}/advance`, `POST /api/sessions/{id}/ask`, `/director/plan`, `/assessment/quiz`, `/api/hil/*` |

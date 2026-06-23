@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Comprehensive API/webhook documentation (plain-text, no markdown
+  per house rule). New docs: docs/api-reference.txt (every HTTP route across all
+  8 services + webhooks + the auth/rate-limit/error conventions; 167 routes),
+  docs/api-use-cases.txt (end-to-end curl recipes: onboarding+class, careers
+  match, payments+entitlements, internal homework grading, scheduled group class
+  via Zoom/Teams/Meet, webhook subscription, hybrid vision, language learning,
+  ops), docs/api-cost-value.txt (free/self-hosted baseline vs paid/metered
+  upgrades, cost drivers ranked, value-per-dollar, controls),
+  docs/integrations-jobs-careers.txt (how Careers connects to LinkedIn/Indeed via
+  free boards + JSearch/Adzuna aggregators, selection logic, resilience,
+  compliance), and docs/payments-and-security.txt (transaction flow, HMAC webhook
+  verification, PCI posture, authz on money endpoints, secrets, threat checklist).
+  Added scripts/check_api_docs.py which parses every services/*/main.py and
+  asserts each route is documented (167/167) - run it in CI to prevent drift.
+  README "API map" now links the new reference docs.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account
