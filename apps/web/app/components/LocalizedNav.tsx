@@ -42,6 +42,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/arcade">{t("nav.arcade")}</Link>
       <Link href="/watch">{t("nav.watch")}</Link>
       <Link href="/class">{t("nav.liveClass")}</Link>
+      <Link href="/group-classes">{t("nav.groupClasses")}</Link>
       <Link href="/homework">{t("nav.homework")}</Link>
       <span
         title="This platform is AI-instructed; see the Transparency page."

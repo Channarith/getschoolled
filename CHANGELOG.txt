@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Scheduled group classes (AI presents through Zoom / Teams / Meet /
+  Salareen room). New aoep_shared.group_classes engine (GroupClass +
+  GroupClassStore + bridge_plan): educators schedule a lesson on a platform at a
+  time with a capacity; learners browse the upcoming schedule and register
+  (capacity + idempotent-by-email rules). Orchestrator exposes /api/group-classes
+  (list/schedule/get/register) and /api/group-classes/{id}/start, which spins up
+  the teaching session and returns the bridge plan + LiveKit room/token that pipes
+  the AI's room into the external meeting (via the integrations bridges engine) so
+  the AI drives the slides/narration/Q&A inside that meeting; "salareen" classes
+  join the built-in live room directly. New web /group-classes page (schedule
+  form, upcoming list with platform badges + seats, register/join/start, live
+  bridge-plan modal) + localized nav link in all 14 locales and group.* page
+  strings (en + vi). Tests: packages/shared/tests/test_group_classes.py and
+  services/orchestrator/tests/test_group_classes_api.py.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account
