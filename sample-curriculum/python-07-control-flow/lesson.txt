@@ -1,0 +1,74 @@
+LESSON: Python - Chapter 7: Control Flow
+LANGUAGE: en
+
+SLIDE 1 | Making Decisions
+Control flow lets a program choose what to do based on conditions. The if
+statement runs a block of code only when its condition is true.
+
+  if score >= 60:
+      print("Pass")
+
+NARRATION: An if statement runs code only when its condition is true.
+
+SLIDE 2 | else and elif
+else provides an alternative when the if condition is false, and elif checks
+another condition before falling through to else.
+
+  if score >= 90:
+      grade = "A"
+  elif score >= 80:
+      grade = "B"
+  else:
+      grade = "C"
+
+NARRATION: elif checks more conditions, and else handles everything left over.
+
+SLIDE 3 | Indentation Defines Blocks
+Python uses indentation, not braces, to group the statements that belong to an if
+or else. Every line in a block must be indented the same amount.
+NARRATION: Indentation, not braces, decides which lines belong to a block.
+
+SLIDE 4 | Comparison Operators
+Conditions are built from comparisons: equal to, not equal, less than, greater
+than, and their or-equal variants. A comparison evaluates to True or False.
+
+  x == y, x != y, x < y, x >= y
+
+NARRATION: Comparisons like equal, less than, and greater than produce True or False.
+
+SLIDE 5 | Boolean Operators
+The keywords and, or, and not combine or invert conditions. and is true only when
+both sides are true; or is true when at least one side is.
+
+  if age >= 13 and age <= 19:
+      print("teenager")
+
+NARRATION: and needs both true, or needs one true, and not flips a condition.
+
+SLIDE 6 | Truthiness
+Values themselves count as true or false in a condition. Zero, empty strings,
+empty lists, and None are falsy, while most other values are truthy.
+
+  if items:    # true when the list is non-empty
+      ...
+
+NARRATION: Empty or zero values are falsy; most other values count as true.
+
+SLIDE 7 | Nested Conditions
+An if statement can contain another if, letting you check conditions inside
+conditions. Keep nesting shallow, since deep nesting is hard to read.
+NARRATION: You can put an if inside an if, but keep the nesting shallow and clear.
+
+SLIDE 8 | The Conditional Expression
+Python offers a compact one-line form for choosing between two values. It reads
+as a value if a condition else another value.
+
+  label = "pass" if score >= 60 else "fail"
+
+NARRATION: A one-line conditional picks one of two values based on a test.
+
+FACT: An if statement runs its block only when the condition is true.
+FACT: elif checks an additional condition and else handles the remaining case.
+FACT: Python uses indentation to define which statements belong to a block.
+FACT: The boolean operators are and, or, and not.
+FACT: Falsy values include zero, empty strings, empty collections, and None.

@@ -1,0 +1,83 @@
+LESSON: Python - Chapter 4: Numbers and Operators
+LANGUAGE: en
+
+SLIDE 1 | Integers and Floats
+Python has two everyday number types: int for whole numbers and float for
+numbers with a decimal point. Integers can be arbitrarily large, limited only by
+memory.
+NARRATION: Whole numbers are ints; decimals are floats, and ints can be very large.
+
+SLIDE 2 | Basic Arithmetic
+The operators plus, minus, star, and slash perform addition, subtraction,
+multiplication, and division. Division with a single slash always produces a
+float.
+
+  7 / 2     # 3.5
+
+NARRATION: Plus, minus, star, and slash do the basic math; slash always gives a float.
+
+SLIDE 3 | Floor Division and Modulo
+Double slash does floor division, which drops the remainder, while the percent
+sign gives the remainder itself.
+
+  7 // 2    # 3
+  7 % 2     # 1
+
+NARRATION: Double slash divides and drops the remainder; percent gives the remainder.
+
+SLIDE 4 | Exponents
+The double star operator raises a number to a power. For example, two to the
+power of ten is written 2 ** 10.
+
+  2 ** 10   # 1024
+
+NARRATION: Double star raises a number to a power, like two to the tenth.
+
+SLIDE 5 | Operator Precedence
+Python follows the usual order of operations: exponents first, then
+multiplication and division, then addition and subtraction. Parentheses override
+the default order.
+
+  2 + 3 * 4    # 14
+  (2 + 3) * 4  # 20
+
+NARRATION: Exponents, then times and divide, then add and subtract; parentheses win.
+
+SLIDE 6 | Mixing ints and floats
+When you combine an int and a float, Python promotes the result to a float so no
+precision is lost. The result type follows the more general type.
+
+  3 + 0.5    # 3.5
+
+NARRATION: Mixing an int and a float gives a float so nothing is lost.
+
+SLIDE 7 | Floating-Point Caution
+Floats are stored in binary and cannot represent every decimal exactly, so
+0.1 + 0.2 is slightly off from 0.3. For exact money math, round results or use
+the decimal module.
+NARRATION: Floats are approximate, so round results or use decimal for exact money.
+
+SLIDE 8 | Useful Number Functions
+Built-in functions include abs for absolute value, round for rounding, min, and
+max. The math module adds more, such as sqrt and floor.
+
+  abs(-5)        # 5
+  round(3.14159, 2)  # 3.14
+
+NARRATION: abs, round, min, and max help with numbers; the math module adds more.
+
+SLIDE 9 | Augmented Assignment
+Shortcuts like plus-equals update a variable using its current value. Writing
+total += 5 means the same as total = total + 5.
+
+  total = 10
+  total += 5   # 15
+
+NARRATION: Plus-equals and similar shortcuts update a variable in place.
+
+FACT: A single slash always performs float division in Python 3.
+FACT: Double slash is floor division and the percent sign returns the remainder.
+FACT: The double star operator raises a number to a power.
+FACT: Parentheses override the default operator precedence.
+FACT: Floating-point numbers are approximate, so 0.1 + 0.2 is not exactly 0.3.
+FACT: Augmented assignment like += updates a variable using its current value.

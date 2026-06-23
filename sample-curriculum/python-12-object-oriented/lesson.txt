@@ -1,0 +1,83 @@
+LESSON: Python - Chapter 12: Object-Oriented Programming
+LANGUAGE: en
+
+SLIDE 1 | Objects and Classes
+Object-oriented programming organizes code around objects that bundle data and
+behavior. A class is a blueprint, and an object is a specific thing built from
+that blueprint.
+NARRATION: A class is a blueprint, and an object is a real thing built from it.
+
+SLIDE 2 | Defining a Class
+Use the class keyword followed by a name, conventionally in CapWords. The body
+holds the methods and shared values for objects of that type.
+
+  class Dog:
+      pass
+
+NARRATION: Define a class with the class keyword and a CapWords name.
+
+SLIDE 3 | The __init__ Method
+The special __init__ method runs when an object is created and sets up its
+initial data. It is often called the constructor.
+
+  class Dog:
+      def __init__(self, name):
+          self.name = name
+
+NARRATION: The __init__ method sets up a new object's starting data.
+
+SLIDE 4 | The self Parameter
+Every method's first parameter is self, which refers to the particular object the
+method is acting on. Through self you read and set that object's attributes.
+NARRATION: self refers to the specific object a method is working on.
+
+SLIDE 5 | Attributes
+Attributes are the data stored on an object, such as a dog's name. You set them
+through self and read them with a dot on the object.
+
+  d = Dog("Rex")
+  d.name   # 'Rex'
+
+NARRATION: Attributes are the data on an object, read and set with a dot.
+
+SLIDE 6 | Methods
+A method is a function defined inside a class that acts on the object. You call it
+with a dot, and self is passed automatically.
+
+  class Dog:
+      def speak(self):
+          return f"{self.name} says woof"
+
+NARRATION: A method is a function inside a class that acts on the object.
+
+SLIDE 7 | Inheritance
+A class can inherit from another, gaining its attributes and methods and adding
+or overriding behavior. This lets you reuse and specialize code.
+
+  class Puppy(Dog):
+      def speak(self):
+          return f"{self.name} says yip"
+
+NARRATION: Inheritance lets one class reuse and extend another's behavior.
+
+SLIDE 8 | Dunder Methods
+Special methods with double underscores customize how objects behave with
+built-in operations. For example, __str__ controls what print shows.
+
+  def __str__(self):
+      return f"Dog({self.name})"
+
+NARRATION: Dunder methods like __str__ control how objects work with built-ins.
+
+SLIDE 9 | When to Use Classes
+Classes shine when you have many things that share structure and behavior, or
+when data and the functions that act on it belong together. For simple scripts,
+plain functions are often enough.
+NARRATION: Use classes when data and behavior belong together; otherwise functions suffice.
+
+FACT: A class is a blueprint and an object is an instance created from it.
+FACT: The __init__ method initializes a new object's data.
+FACT: The first parameter of a method, self, refers to the current object.
+FACT: Attributes are data stored on an object, accessed with a dot.
+FACT: Inheritance lets a class reuse and override another class's behavior.
+FACT: Dunder methods like __str__ customize how objects work with built-in operations.

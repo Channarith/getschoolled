@@ -1,0 +1,88 @@
+LESSON: Python - Chapter 11: Files and Exceptions
+LANGUAGE: en
+
+SLIDE 1 | Reading a File
+The open function opens a file and returns an object you can read from. Always
+read text with a clear mode, and remember files must be closed when done.
+
+  f = open("notes.txt", "r")
+  content = f.read()
+  f.close()
+
+NARRATION: open gives you a file object to read from, and the file must be closed afterward.
+
+SLIDE 2 | The with Statement
+The with statement opens a file and closes it automatically, even if an error
+happens. This is the recommended way to work with files.
+
+  with open("notes.txt") as f:
+      content = f.read()
+
+NARRATION: The with statement closes the file for you, even when errors occur.
+
+SLIDE 3 | Reading Line by Line
+You can loop over a file object to read it one line at a time, which is memory
+friendly for large files.
+
+  with open("notes.txt") as f:
+      for line in f:
+          print(line.strip())
+
+NARRATION: Looping over a file reads it line by line without loading it all at once.
+
+SLIDE 4 | Writing to a File
+Opening a file in write mode replaces its contents, while append mode adds to the
+end. The write method puts text into the file.
+
+  with open("out.txt", "w") as f:
+      f.write("Hello\n")
+
+NARRATION: Write mode replaces contents; append mode adds to the end.
+
+SLIDE 5 | What is an Exception?
+An exception is an error that occurs while a program runs, such as dividing by
+zero or opening a missing file. If unhandled, it stops the program.
+NARRATION: An exception is a runtime error that stops the program if not handled.
+
+SLIDE 6 | try and except
+The try block holds code that might fail, and except catches the error so the
+program can continue. You can catch specific exception types.
+
+  try:
+      n = int(text)
+  except ValueError:
+      n = 0
+
+NARRATION: try runs risky code, and except catches the error so you can recover.
+
+SLIDE 7 | else and finally
+An optional else block runs when no exception occurred, and finally always runs,
+making it ideal for cleanup such as closing resources.
+
+  try:
+      ...
+  finally:
+      print("always runs")
+
+NARRATION: finally always runs, which is perfect for cleanup steps.
+
+SLIDE 8 | Raising Exceptions
+You can signal an error yourself with the raise keyword, which is useful for
+rejecting invalid input. Choose a clear exception type and message.
+
+  if age < 0:
+      raise ValueError("age cannot be negative")
+
+NARRATION: Use raise to signal your own errors when something is invalid.
+
+SLIDE 9 | Handling Errors Well
+Catch only the exceptions you can actually handle, and let unexpected ones
+surface so bugs are not hidden. Clear messages make failures easy to diagnose.
+NARRATION: Catch only what you can handle, and let unexpected errors surface.
+
+FACT: The with statement automatically closes a file, even if an error occurs.
+FACT: Write mode replaces a file's contents while append mode adds to the end.
+FACT: An exception is an error that occurs while a program is running.
+FACT: A try block holds risky code and except catches the resulting error.
+FACT: The finally block always runs and is used for cleanup.
+FACT: The raise keyword signals an exception yourself.

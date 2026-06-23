@@ -3,7 +3,8 @@ LANGUAGE: en
 
 SLIDE 1 | What is Photosynthesis?
 Photosynthesis is the process by which green plants, algae, and some bacteria
-convert light energy into chemical energy stored in sugars.
+convert light energy into chemical energy stored in sugars. It is the foundation
+of almost every food chain on Earth.
 NARRATION: Welcome! Today we learn how plants make their own food using sunlight.
 
 SLIDE 2 | The Inputs
@@ -22,6 +23,59 @@ The balanced equation is: six carbon dioxide plus six water, using light energy,
 yields one glucose plus six oxygen. This happens mainly in the leaves.
 NARRATION: Six CO2 plus six water, with light, makes glucose and six oxygen.
 
+SLIDE 5 | Where It Happens: The Chloroplast
+Photosynthesis takes place in organelles called chloroplasts, found mostly in
+the cells of leaves. Inside the chloroplast, stacks of disc-shaped thylakoids
+hold the chlorophyll, while the fluid around them is called the stroma.
+NARRATION: It happens inside chloroplasts, in the thylakoids and the surrounding stroma.
+
+SLIDE 6 | The Light-Dependent Reactions
+In the thylakoid membranes, chlorophyll absorbs sunlight and splits water
+molecules. This releases oxygen and stores energy in two carrier molecules, ATP
+and NADPH.
+NARRATION: Light splits water in the thylakoids, releasing oxygen and making ATP and NADPH.
+
+SLIDE 7 | The Calvin Cycle
+The light-independent reactions, called the Calvin cycle, happen in the stroma.
+They use the ATP and NADPH to fix carbon dioxide into glucose. No light is used
+directly, but the cycle depends on the products of the light reactions.
+NARRATION: The Calvin cycle uses ATP and NADPH to turn carbon dioxide into sugar.
+
+SLIDE 8 | Chlorophyll and Light
+Chlorophyll absorbs light most strongly in the blue and red parts of the
+spectrum and reflects green, which is why leaves look green. Some plants have
+extra pigments that capture other colors of light.
+NARRATION: Chlorophyll absorbs blue and red light and reflects green, so leaves look green.
+
+SLIDE 9 | Leaf Structure and Gas Exchange
+Leaves are adapted for photosynthesis: they are broad and flat to catch light,
+and tiny pores called stomata let carbon dioxide in and oxygen out. Guard cells
+open and close the stomata to control water loss.
+NARRATION: Stomata are tiny pores that let gases in and out, controlled by guard cells.
+
+SLIDE 10 | Limiting Factors
+The rate of photosynthesis is limited by light intensity, carbon dioxide
+concentration, and temperature. If any one is too low, it slows the whole
+process, even when the others are plentiful.
+NARRATION: Light, carbon dioxide, and temperature each can limit how fast photosynthesis goes.
+
+SLIDE 11 | Why Photosynthesis Matters
+Photosynthesis provides the food energy for nearly all living things and the
+oxygen most organisms need to breathe. It also removes carbon dioxide from the
+atmosphere, helping regulate Earth's climate.
+NARRATION: Photosynthesis feeds the planet, supplies oxygen, and removes carbon dioxide.
+
+SLIDE 12 | Photosynthesis and Respiration
+Cellular respiration is almost the reverse of photosynthesis: organisms break
+glucose back down with oxygen to release energy, producing carbon dioxide and
+water. Together the two processes cycle carbon and energy through ecosystems.
+NARRATION: Respiration reverses photosynthesis, cycling carbon and energy through life.
+
 FACT: Chlorophyll is the green pigment that absorbs light for photosynthesis.
 FACT: Photosynthesis occurs in the chloroplasts of plant cells.
 FACT: Oxygen is a byproduct of photosynthesis and is essential for animal life.
+FACT: The light-dependent reactions produce ATP and NADPH and release oxygen from water.
+FACT: The Calvin cycle fixes carbon dioxide into glucose using ATP and NADPH.
+FACT: Stomata are pores in the leaf that allow carbon dioxide in and oxygen out.
+FACT: Light intensity, carbon dioxide, and temperature are the main limiting factors of photosynthesis.
+FACT: Cellular respiration releases energy from glucose and is roughly the reverse of photosynthesis.

@@ -1,0 +1,77 @@
+LESSON: Python - Chapter 2: Variables and Data Types
+LANGUAGE: en
+
+SLIDE 1 | What is a Variable?
+A variable is a name that refers to a value stored in memory. You create one by
+assigning a value with the equals sign, and you can use the name anywhere you
+need that value.
+
+  age = 30
+
+NARRATION: A variable is a name for a value; you create it with the equals sign.
+
+SLIDE 2 | Dynamic Typing
+In Python you do not declare a type explicitly; the type is inferred from the
+value you assign. The same variable can later be reassigned to a value of a
+different type.
+NARRATION: Python figures out the type from the value, and a variable can change type.
+
+SLIDE 3 | Numbers: int and float
+Integers are whole numbers like 30, while floats are numbers with a decimal
+point like 9.99. Python switches between them automatically when needed during
+arithmetic.
+
+  price = 9.99
+
+NARRATION: Whole numbers are ints; numbers with decimals are floats.
+
+SLIDE 4 | Strings
+A string is a sequence of characters written in single or double quotes. Strings
+hold text such as names, messages, and labels.
+
+  name = "Ada"
+
+NARRATION: A string holds text and is written inside quotes.
+
+SLIDE 5 | Booleans
+A boolean is a value that is either True or False. Booleans are the result of
+comparisons and are used to make decisions in a program.
+
+  is_active = True
+
+NARRATION: A boolean is either True or False and drives decisions.
+
+SLIDE 6 | Checking a Type
+The type function reveals an object's type at runtime. This is useful for
+debugging and for understanding data you did not create yourself.
+
+  type(9.99)   # <class 'float'>
+
+NARRATION: The type function tells you what kind of value something is.
+
+SLIDE 7 | Converting Between Types
+You can convert values with functions like int, float, and str. For example,
+input always returns text, so you often convert it to a number before doing
+math.
+
+  count = int("42")
+
+NARRATION: Use int, float, and str to convert values from one type to another.
+
+SLIDE 8 | Naming Variables
+Use descriptive names so code explains itself, and prefer snake_case, which
+joins lowercase words with underscores. Names cannot start with a digit or be a
+Python keyword.
+NARRATION: Choose clear snake_case names; they make code read like a description.
+
+SLIDE 9 | Constants by Convention
+Python has no true constants, but programmers signal a value should not change by
+writing its name in all capital letters, such as MAX_SCORE. This is a convention,
+not enforced by the language.
+NARRATION: All-capital names are a convention for values meant to stay constant.
+
+FACT: Variables in Python are dynamically typed; the type comes from the assigned value.
+FACT: The core numeric types are int for whole numbers and float for decimals.
+FACT: The type() function returns an object's type at runtime.
+FACT: Use snake_case for variable names by Python convention.
+FACT: The input function returns a string, so convert it with int() or float() for math.

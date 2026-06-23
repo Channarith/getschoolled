@@ -1,0 +1,64 @@
+LESSON: Python - Chapter 1: Getting Started
+LANGUAGE: en
+
+SLIDE 1 | What is Python?
+Python is a high-level, general-purpose programming language known for clear,
+readable syntax. It is used for web development, data science, automation,
+scripting, and artificial intelligence.
+NARRATION: Python is a popular, readable language used almost everywhere in software.
+
+SLIDE 2 | Why Python is Readable
+Python uses indentation and plain English-like keywords instead of braces and
+semicolons. This makes programs easier to read and reduces the chance of small
+syntax mistakes.
+NARRATION: Python uses indentation and simple keywords, so code reads almost like English.
+
+SLIDE 3 | Running Python Code
+You can run Python in two main ways: interactively in the REPL, where you type
+one line at a time and see results immediately, or by saving code in a file that
+ends in .py and running it all at once.
+NARRATION: Run code line by line in the REPL, or save it in a .py file and run the whole thing.
+
+SLIDE 4 | Your First Program
+The classic first program prints a message to the screen. The print function
+displays whatever you put inside its parentheses.
+
+  print("Hello, world!")
+
+NARRATION: The print function shows text on the screen; this prints Hello, world.
+
+SLIDE 5 | Comments
+Comments are notes for humans that Python ignores when running the program. A
+comment starts with a hash symbol and continues to the end of the line.
+
+  # This line is a comment and does not run
+
+NARRATION: Anything after a hash on a line is a comment and is ignored by Python.
+
+SLIDE 6 | The print Function
+print can take several values separated by commas and will put spaces between
+them. By default it adds a new line at the end of its output.
+
+  print("Score:", 95)
+
+NARRATION: print can show several values at once, separated by spaces.
+
+SLIDE 7 | Getting Input
+The input function pauses the program and waits for the user to type something.
+Whatever the user types comes back as a string of text.
+
+  name = input("What is your name? ")
+
+NARRATION: The input function reads what the user types and gives it back as text.
+
+SLIDE 8 | Errors are Normal
+When Python cannot run a line, it stops and prints an error message describing
+what went wrong and where. Reading these messages carefully is one of the most
+important programming skills.
+NARRATION: Errors are normal; the message tells you what went wrong and where to look.
+
+FACT: Python is a high-level, general-purpose programming language with readable syntax.
+FACT: The print function displays output to the screen.
+FACT: A comment in Python starts with a hash symbol and is ignored when the program runs.
+FACT: The input function reads text typed by the user and returns it as a string.
+FACT: Python source files use the .py extension.

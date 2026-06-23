@@ -49,6 +49,18 @@ Format: newest first. No markdown per project convention.
   default to SJC, Kubernetes v1.36.1+1, a 3-node vc2-4c-8gb API pool, optional
   vcg-a16-6c-64g-16vram GPU capacity, and a startup managed Postgres plan for
   first demos. Tested.
+- 2026-06-22 - Sample curriculum expanded from a stub to a textbook. The live-
+  class loader (services/orchestrator) only saw 2 lesson.txt units (~8 slides
+  total). Added a complete 12-chapter "Introduction to Python Programming"
+  textbook (sample-curriculum/python-01..12, each a lesson.txt with 8-9 slides +
+  4-6 FACT passages) covering getting started, variables/types, strings,
+  numbers/operators, lists/tuples, dicts/sets, control flow, loops, functions,
+  modules/packages, files/exceptions, and OOP. Also expanded the existing
+  intro-to-fractions (4->11 slides) and intro-to-photosynthesis (4->12 slides)
+  lessons (lesson ids and early slides preserved for the orchestrator tests).
+  Total now 14 lessons / 129 slides / 211 RAG passages (was ~2 / ~8). Verified:
+  all 39 orchestrator tests pass and a live session teaches + answers grounded
+  questions from the new content.
 
 - 2026-06-22 - Vultr Kubernetes Engine conversion start: added
   infra/k8s-vke overlay for VKE-specific image registry rewrites, hostnames,

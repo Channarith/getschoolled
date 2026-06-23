@@ -1,0 +1,84 @@
+LESSON: Python - Chapter 5: Lists and Tuples
+LANGUAGE: en
+
+SLIDE 1 | What is a List?
+A list is an ordered, changeable collection of values written in square brackets
+and separated by commas. A list can hold values of different types at once.
+
+  scores = [90, 85, 100]
+
+NARRATION: A list is an ordered, changeable collection written in square brackets.
+
+SLIDE 2 | Accessing Items
+List items have positions starting at zero, and you read one with square bracket
+indexing. Negative indexes count from the end.
+
+  scores[0]    # 90
+  scores[-1]   # 100
+
+NARRATION: Read a list item by its position; zero is first and minus one is last.
+
+SLIDE 3 | Lists are Mutable
+Unlike strings, lists can be changed in place. You can replace an item by
+assigning to its index.
+
+  scores[1] = 88
+
+NARRATION: Lists can change in place; assign to an index to replace an item.
+
+SLIDE 4 | Adding and Removing
+Use append to add an item to the end, insert to add at a position, and pop or
+remove to take items out.
+
+  scores.append(75)
+  scores.pop()       # removes and returns the last item
+
+NARRATION: append adds to the end; pop and remove take items out.
+
+SLIDE 5 | Slicing Lists
+Like strings, lists support slicing to get a sublist. The start is included and
+the stop is excluded, and the original list is unchanged.
+
+  scores[0:2]   # first two items
+
+NARRATION: Slicing a list returns a sublist without changing the original.
+
+SLIDE 6 | Useful List Operations
+The len function counts items, in tests membership, sorted returns a new ordered
+list, and sort orders the list in place.
+
+  len(scores)
+  90 in scores
+  sorted(scores)
+
+NARRATION: len counts, in checks membership, and sorted or sort orders items.
+
+SLIDE 7 | Tuples
+A tuple is like a list but immutable, written with parentheses. Use a tuple for
+a fixed group of values that should not change, such as a coordinate.
+
+  point = (3, 4)
+
+NARRATION: A tuple is an unchangeable list, great for fixed groups of values.
+
+SLIDE 8 | Unpacking
+You can assign the items of a list or tuple to several variables at once, which
+is called unpacking. The number of names must match the number of items.
+
+  x, y = point   # x = 3, y = 4
+
+NARRATION: Unpacking assigns each item of a tuple or list to its own variable.
+
+SLIDE 9 | Copying vs Referencing
+Assigning a list to a new name does not copy it; both names point to the same
+list. To make an independent copy, use the copy method or a full slice.
+
+  copy = scores[:]
+
+NARRATION: Assigning shares the same list; use a slice or copy to get a separate one.
+
+FACT: A list is an ordered, mutable collection written in square brackets.
+FACT: A tuple is an ordered, immutable collection written in parentheses.
+FACT: append adds an item to the end of a list; pop removes and returns one.
+FACT: Unpacking assigns the elements of a tuple or list to separate variables.
+FACT: Assigning a list to a new name shares it; slicing with [:] makes a copy.
