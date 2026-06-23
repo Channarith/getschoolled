@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
+  Drive Mode previously used the default Web Speech / expo-speech voice with no
+  language set, so non-English content was mispronounced and English sounded
+  robotic. Added voice-selection helpers (apps/web/app/lib/tts.ts,
+  apps/mobile/src/tts.ts): map the UI locale to a BCP-47 tag, pick the device's
+  best *natural/neural* voice for that language (Google/Microsoft "Natural"/
+  "Online", Apple "Enhanced"/Siri, expo Enhanced quality), and use warmer
+  prosody (pitch ~0.95). Course narration AND the Sala assistant now use it, and
+  web voice recognition listens in the selected language. Unit-tested the voice
+  ranking (prefers Natural over the legacy voice; picks the right language).
+  Note: true human-grade audio needs a neural TTS backend (XTTS/cloud via the
+  speech service) - proposed as the follow-up; this maximizes on-device quality.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account

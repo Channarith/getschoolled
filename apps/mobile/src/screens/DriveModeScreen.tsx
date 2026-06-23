@@ -11,6 +11,7 @@ import {
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
+import { speakNatural, warmVoices } from "../tts";
 
 // Hands-free audio player: large controls, on-device TTS narration, auto-advance,
 // progress persisted to AsyncStorage so Continue Listening works.
@@ -31,6 +32,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
+    void warmVoices();
     getAudioCourse(courseId, locale)
       .then((c) => { setCourse(c); playFrom(c, 0); })
       .catch(() => {});
@@ -57,7 +59,8 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
       segment: i, total: c.segments.length,
     });
     const s = c.segments[i];
-    Speech.speak(`${s.heading}. ${s.text}`, {
+    speakNatural(`${s.heading}. ${s.text}`, {
+      locale,
       onDone: () => { if (segRef.current === i) playFrom(c, i + 1); },
     });
   }
@@ -192,7 +195,8 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     setAssistantAnswer(answer);
     setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
     Speech.stop();
-    Speech.speak(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
+    speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
+      locale,
       onDone: () => resumeCourse(6500),
     });
   }

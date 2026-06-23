@@ -10,11 +10,12 @@ import {
 } from "../lib/api";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
+import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
 export default function DrivePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
   const [cat, setCat] = useState<string>("");
   const [q, setQ] = useState("");
@@ -37,6 +38,8 @@ export default function DrivePage() {
 
   useEffect(() => {
     getAudioCategories().then(setCats).catch(() => setCats([]));
+    // Warm the voice list so the first segment already uses the natural voice.
+    ensureVoices();
   }, []);
   const refresh = useCallback(() => {
     listAudioCourses({ category: cat, q, limit: "60" })
@@ -47,12 +50,11 @@ export default function DrivePage() {
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = rate;
-      u.onend = () => onEnd?.();
-      window.speechSynthesis.speak(u);
+      // Pick the best natural/neural voice for the current language + lifelike
+      // prosody (see lib/tts) instead of the default robotic voice.
+      speakNaturally(text, { locale, rate, onend: onEnd });
     } catch { onEnd?.(); }
-  }, [rate]);
+  }, [rate, locale]);
 
   const playSeg = useCallback((c: AudioCourse, i: number) => {
     window.speechSynthesis.cancel();
@@ -137,7 +139,7 @@ export default function DrivePage() {
     }
     stopVoiceRecognition();
     const recognition = new SpeechRecognition();
-    recognition.lang = "en";
+    recognition.lang = localeToBcp47(locale);
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onresult = (event: any) => {
