@@ -42,6 +42,27 @@ Format: newest first. No markdown per project convention.
   docs/brand/branding.txt to document the secular mascot direction and the
   bodhi-style knowledge leaf. README title now leads with Salareen. Tested
   (web typecheck + build).
+- 2026-06-23 - Web app UX pass (i18n, IA, auth, error handling):
+    * i18n: every top-nav label is now localized via t(); previously Watch, Live
+      Class, Homework, Rewards (and Themes) were hard-coded English so they never
+      translated. Completed the full nav translation set for all 14 first-class
+      locales (en, es, fr, de, it, pt, ru, ar, hi, zh, ja, ko, vi, km) so
+      switching language updates the entire bar.
+    * Navigation IA: removed Admin, Console, Dashboard, Consent, Legal, and
+      Transparency from the top nav. They now live under Account (a profile hub
+      with a "Settings & tools" card) and the footer. The bar is auth-aware:
+      "Sign in" when logged out, "Account" when logged in (so login/signup is
+      discoverable).
+    * Consent/legal: the one-time "Before you begin" disclaimer now appears ONCE
+      AFTER LOGIN instead of blocking anonymous visitors and instead of separate
+      Consent/Legal nav tabs (Consent/Legal/Transparency are in the footer +
+      account hub).
+    * Error handling: "TypeError: Failed to fetch" (backend unreachable) is now
+      shown as a clear, localized "Can't reach the server..." message on the home
+      and Drive pages (aoep_shared lib/errors.ts isOfflineError/friendlyError).
+  Verified: web typecheck + build pass; GUI walkthrough confirms full-nav
+  translation, consolidated nav, consent-after-login, and the account hub.
+
 - 2026-06-22 - Restore Salareen branding on web + mobile (regressed after branch
   merges). The home page had lost the Bayon Buddy mascot, the brand reverted to
   "AI Classroom", the nav had no logo, and logo-mark.* was the old graduation

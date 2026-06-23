@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Rail } from "./components/CourseRail";
 import { getHomeFeed, getToken, type HomeRail } from "./lib/api";
+import { friendlyError } from "./lib/errors";
 import { useT } from "./lib/i18n";
 
 export default function HomePage() {
@@ -61,7 +62,12 @@ export default function HomePage() {
       </section>
 
       <div className="feed">
-        {error && <p style={{ color: "#b00" }}>{t("home.error")} {error}</p>}
+        {error && (
+          <div className="card" style={{ borderColor: "#ff6b6b" }}>
+            <strong>{t("home.error")}</strong>
+            <div className="muted" style={{ marginTop: 4 }}>{friendlyError(error, t("error.offline"))}</div>
+          </div>
+        )}
         {rails === null && !error && <p className="muted">{t("home.loading")}</p>}
         {rails && rails.length === 0 && (
           <p className="muted">{t("home.empty")} <Link href="/browse">{t("home.browse")}</Link> {t("home.toGetStarted")}</p>

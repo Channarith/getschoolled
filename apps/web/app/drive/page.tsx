@@ -8,10 +8,13 @@ import {
   type AudioCourse,
   type AudioCourseRow,
 } from "../lib/api";
+import { friendlyError } from "../lib/errors";
+import { useT } from "../lib/i18n";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
 export default function DrivePage() {
+  const { t } = useT();
   const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
   const [cat, setCat] = useState<string>("");
   const [q, setQ] = useState("");
@@ -238,7 +241,7 @@ export default function DrivePage() {
         plays hands-free with on-device narration, auto-advancing to the next.
         Keep your eyes on the road. 🛣️
       </p>
-      {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
+      {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
       {/* Now playing */}
       {course && (
