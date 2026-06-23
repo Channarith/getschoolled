@@ -4,10 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
+  enrollCourse,
   getDisclosure,
+  grantReward,
   getPostClassSurvey,
+  getRewards,
+  getToken,
   listLessons,
   reportIssue,
+  setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
   type Answer,
@@ -41,6 +46,9 @@ export default function ClassPage() {
   const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
   const [surveyDone, setSurveyDone] = useState(false);
+  const [finish, setFinish] = useState<
+    { kind: "earned" | "complete" | "guest"; earned?: number; balance?: number } | null
+  >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -104,24 +112,49 @@ export default function ClassPage() {
     }
   }
 
-  // End the class: if the post-class survey flag is on, prompt the survey.
+  // End the class: reward the completion (logged-in learners earn points), then
+  // prompt the post-class survey if enabled.
   async function onFinish() {
     if (!view) return;
     setBusy(true);
     try {
+      await awardCompletion();
       const res = await getPostClassSurvey();
       if (res.enabled && res.template) {
         setSurvey(res.template);
         setSurveyAnswers({});
         setSurveyDone(false);
       } else {
-        window.alert("Class complete. Thanks for attending!");
         setView(null);
       }
     } catch (e) {
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Mark this lesson passed so identity awards reward points on the first pass
+  // (idempotent server-side). Signed-out learners are nudged to sign in.
+  async function awardCompletion() {
+    if (!view) return;
+    if (!getToken()) {
+      setFinish({ kind: "guest" });
+      return;
+    }
+    try {
+      await enrollCourse(lessonId, view.lesson.title, "enrolled");
+      const before = await getRewards().then((r) => r.balance).catch(() => 0);
+      const res = await setEnrollmentStatus(lessonId, "passed");
+      const earned = Math.max(0, res.points_balance - before);
+      setFinish(
+        earned > 0
+          ? { kind: "earned", earned, balance: res.points_balance }
+          : { kind: "complete", balance: res.points_balance }
+      );
+    } catch {
+      /* not enrollable / offline: don't block finishing the class */
+      setFinish({ kind: "complete" });
     }
   }
 
@@ -192,6 +225,21 @@ export default function ClassPage() {
           unsupported: a.unsupported,
         },
       ]);
+      // The AI teacher may grant points for a good question. Redeem the signed
+      // voucher to the learner's account (server-verified) and show it.
+      if (a.reward?.grant_token && getToken()) {
+        try {
+          const r = await grantReward(a.reward.grant_token);
+          if (r.earned > 0) {
+            setChat((c) => [
+              ...c,
+              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${a.reward!.reason} (balance: ${r.balance})` },
+            ]);
+          }
+        } catch {
+          /* reward grants not configured / offline: skip silently */
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -212,6 +260,37 @@ export default function ClassPage() {
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
           <strong>Could not reach the orchestrator.</strong>
           <div className="muted">{error}</div>
+        </div>
+      )}
+
+      {finish && (
+        <div className="card" style={{ borderColor: "#16a34a" }}>
+          {finish.kind === "earned" && (
+            <>
+              <strong>🎉 Course complete — you earned {finish.earned} reward points!</strong>
+              <div className="muted">
+                Balance: {finish.balance} points · <a href="/rewards">Redeem for discounts or prizes →</a>
+              </div>
+            </>
+          )}
+          {finish.kind === "complete" && (
+            <>
+              <strong>✅ Course complete!</strong>
+              <div className="muted">
+                {finish.balance !== undefined
+                  ? <>Reward balance: {finish.balance} points · <a href="/rewards">Rewards →</a></>
+                  : "Nice work."}
+              </div>
+            </>
+          )}
+          {finish.kind === "guest" && (
+            <>
+              <strong>✅ Course complete!</strong>
+              <div className="muted">
+                <a href="/login">Sign in</a> to earn reward points for completing courses.
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -275,7 +354,10 @@ export default function ClassPage() {
             </div>
             <div className="chat">
               {chat.map((m, i) => (
-                <div key={i} className={`bubble ${m.role}`}>
+                <div key={i} className={`bubble ${m.role}`}
+                  style={m.role === "reward"
+                    ? { background: "#052e16", color: "#bbf7d0", border: "1px solid #16a34a", fontWeight: 600 }
+                    : undefined}>
                   {m.text}
                   {m.role === "teacher" && m.grounded !== undefined && (
                     <div className="cite" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>

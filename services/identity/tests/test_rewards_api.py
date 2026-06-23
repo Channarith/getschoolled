@@ -29,6 +29,48 @@ def test_points_awarded_on_pass_and_idempotent():
     assert again["points_balance"] == bal
 
 
+def test_ai_agent_reward_grant(monkeypatch):
+    """The AI agent mints a signed voucher; identity verifies it and credits the
+    learner. Forged vouchers are rejected; replays don't double-credit."""
+    from aoep_shared.auth import sign_token
+
+    key = "shared-internal-key"
+    monkeypatch.setenv("INTERNAL_TOKEN_KEY", key)
+    h = _auth(_new_user("grant1@example.com"))
+
+    voucher = sign_token(
+        {"scope": "reward", "points": 15, "reason": "Great question!",
+         "ref": "sess1", "nonce": "n-abc"}, key.encode("utf-8"), ttl_s=3600)
+    out = client.post("/rewards/grant", headers=h, json={"grant": voucher}).json()
+    assert out["earned"] == 15 and out["balance"] >= 15
+
+    # Replaying the same voucher is idempotent (nonce already used).
+    again = client.post("/rewards/grant", headers=h, json={"grant": voucher}).json()
+    assert again["earned"] == 0 and again["balance"] == out["balance"]
+
+    # A voucher signed with the WRONG key is rejected.
+    forged = sign_token({"scope": "reward", "points": 999, "nonce": "n-x"},
+                        b"attacker-key", ttl_s=3600)
+    assert client.post("/rewards/grant", headers=h, json={"grant": forged}).status_code == 403
+
+    # Wrong scope is rejected.
+    wrong = sign_token({"scope": "internal", "points": 10, "nonce": "n-y"},
+                       key.encode("utf-8"), ttl_s=3600)
+    assert client.post("/rewards/grant", headers=h, json={"grant": wrong}).status_code == 403
+
+    # Over-cap amount is rejected.
+    big = sign_token({"scope": "reward", "points": 9999, "nonce": "n-z"},
+                     key.encode("utf-8"), ttl_s=3600)
+    assert client.post("/rewards/grant", headers=h, json={"grant": big}).status_code == 400
+
+
+def test_reward_grant_not_configured(monkeypatch):
+    monkeypatch.delenv("INTERNAL_TOKEN_KEY", raising=False)
+    h = _auth(_new_user("grant2@example.com"))
+    r = client.post("/rewards/grant", headers=h, json={"grant": "x.y"})
+    assert r.status_code == 503
+
+
 def test_rewards_summary_and_catalog():
     h = _auth(_new_user("rw2@example.com"))
     client.post("/enrollments", headers=h, json={"course_id": "c2", "title": "X"})

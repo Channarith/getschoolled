@@ -209,6 +209,22 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+// Update an enrollment's status. On the FIRST transition to "passed" the
+// identity service awards reward points (scaled by level + score + hands-on),
+// and returns the new points_balance. Idempotent: re-passing doesn't re-award.
+export async function setEnrollmentStatus(
+  courseId: string,
+  status: "enrolled" | "in_progress" | "passed" | "failed",
+  opts: { score?: number; level?: string; hands_on?: boolean } = {}
+): Promise<Enrollment & { points_balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/status`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ status, ...opts }),
+    })
+  );
+}
+
 // --- student sub-profiles + Foresight recommendations -------------------- //
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
@@ -573,7 +589,22 @@ export type Answer = {
   grounded?: boolean;
   hallucination_risk?: number;
   unsupported?: string[];
+  // Set when the AI teacher grants points for this question; the client redeems
+  // grant_token at /rewards/grant (server-verified).
+  reward?: { points: number; reason: string; grant_token: string } | null;
 };
+
+// Redeem an AI-agent reward voucher to the current account. The identity
+// service verifies the agent's HMAC signature before crediting.
+export async function grantReward(grant: string):
+  Promise<{ earned: number; balance: number; reason: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/rewards/grant`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ grant }),
+    })
+  );
+}
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {

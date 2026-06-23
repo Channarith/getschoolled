@@ -48,6 +48,11 @@ class Answer(BaseModel):
     # review before/after delivery.
     pending_review: bool = False
     review_id: Optional[str] = None
+    # AI-agent reward: when the teacher decides to award points (e.g. for a
+    # substantive, on-topic question), this carries a signed grant voucher the
+    # learner's client redeems at identity /rewards/grant. {points, reason,
+    # grant_token}. None when no reward is granted.
+    reward: Optional[dict] = None
 
 
 class SessionView(BaseModel):

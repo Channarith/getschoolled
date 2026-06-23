@@ -141,6 +141,33 @@ Format: newest first. No markdown per project convention.
   Added scripts/check_api_docs.py which parses every services/*/main.py and
   asserts each route is documented (167/167) - run it in CI to prevent drift.
   README "API map" now links the new reference docs.
+- 2026-06-23 - The AI teacher can award reward points. When a learner asks a
+  substantive, on-topic question that yields a grounded answer, the orchestrator
+  (the agent) mints a short-lived HMAC-signed reward voucher (scope=reward,
+  bounded points, per-session cap via AGENT_REWARD_POINTS / AGENT_REWARD_SESSION_CAP)
+  and returns it on the answer. The web Live Class redeems it at the new identity
+  endpoint POST /rewards/grant, which verifies the agent's signature (shared
+  INTERNAL_TOKEN_KEY) + expiry + one-time nonce before crediting the learner -
+  so the agent authorizes the points while a user cannot forge or replay them.
+  The chat shows "🎉 The AI teacher awarded you N points". New: Answer.reward
+  (orchestrator), AccountStore.award_grant + /rewards/grant (identity),
+  grantReward() web helper. Tests: services/identity/tests/test_rewards_api.py
+  (valid/forged/replay/over-cap/unconfigured) and
+  services/orchestrator/tests/test_agent_reward.py (voucher minted, per-session
+  cap, no key -> no reward, trivial question -> no reward). Requires
+  INTERNAL_TOKEN_KEY shared by orchestrator + identity.
+
+- 2026-06-23 - Reward course completion in the live-class flow (close the gap
+  between the rewards engine and the learner UI). The points engine
+  (aoep_shared.rewards) and identity's /enrollments/{course}/status already award
+  points on the first "passed" (scaled by level + score + hands-on; idempotent;
+  redeemable for discounts/swag/raffle entries), and arcade games + language
+  practice already feed the same ledger - but finishing a Live Class never called
+  it. Now "Finish class" marks the lesson passed for signed-in learners and shows
+  "you earned N points" with a link to Rewards; signed-out learners are nudged to
+  sign in to earn. New web helper setEnrollmentStatus() in apps/web/app/lib/api.ts.
+  (Good-grade scaling already flows through the score param wherever a score is
+  provided - e.g. the rewards API/tests and graded arcade play.)
 
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a

@@ -213,7 +213,41 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
         ))
         answer.pending_review = True
         answer.review_id = item.id
+
+    # AI-agent reward: the teacher grants a few points for a substantive,
+    # on-topic question that produced a grounded answer (bounded per session).
+    # We MINT a short-lived, HMAC-signed voucher; the learner's client redeems it
+    # at identity /rewards/grant, which verifies the signature before crediting -
+    # so the agent authorizes the reward and a user cannot forge or replay it.
+    _maybe_grant_reward(session_id, req.text, answer)
     return answer
+
+
+_AGENT_REWARD_POINTS = int(os.environ.get("AGENT_REWARD_POINTS", "10"))
+_AGENT_REWARD_SESSION_CAP = int(os.environ.get("AGENT_REWARD_SESSION_CAP", "30"))
+_session_reward_total: dict[str, int] = {}
+
+
+def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
+    key = os.environ.get("INTERNAL_TOKEN_KEY", "")
+    if not key or not answer.grounded or answer.pending_review:
+        return
+    if len(question.strip()) < 12:   # ignore trivial/empty questions
+        return
+    awarded = _session_reward_total.get(session_id, 0)
+    if awarded >= _AGENT_REWARD_SESSION_CAP:
+        return
+    pts = min(_AGENT_REWARD_POINTS, _AGENT_REWARD_SESSION_CAP - awarded)
+    _session_reward_total[session_id] = awarded + pts
+    from aoep_shared.auth import sign_token
+
+    reason = "Great question — keep engaging!"
+    grant = sign_token(
+        {"scope": "reward", "points": pts, "reason": reason,
+         "ref": session_id, "nonce": uuid.uuid4().hex},
+        key.encode("utf-8"), ttl_s=3600,
+    )
+    answer.reward = {"points": pts, "reason": reason, "grant_token": grant}
 
 
 # --------------------------------------------------------------------------- #

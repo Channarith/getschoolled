@@ -112,6 +112,8 @@ class AccountStore:
         self._id_by_email: Dict[str, str] = {}
         # Arcade leaderboard: account_id -> aggregate game stats.
         self._game_stats: Dict[str, dict] = {}
+        # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
+        self._used_grant_nonces: set = set()
 
     def create(self, email: str, password: str, *, display_name: str = "",
                tier: PlanTier = PlanTier.FREE, region: Region = Region.US) -> Account:
@@ -196,6 +198,19 @@ class AccountStore:
     # --- rewards ----------------------------------------------------------- #
     def points_balance(self, account_id: str) -> int:
         return self._by_id[account_id].points.balance
+
+    def award_grant(self, account_id: str, points: int, *, reason: str,
+                    ref: str = "", nonce: Optional[str] = None) -> tuple[int, int]:
+        """Credit an AI-agent reward voucher to an account. Returns
+        (new_balance, points_earned). Idempotent on the voucher nonce so a
+        re-submitted voucher does not double-credit."""
+        acct = self._by_id[account_id]
+        if nonce and nonce in self._used_grant_nonces:
+            return acct.points.balance, 0
+        if nonce:
+            self._used_grant_nonces.add(nonce)
+        acct.points.earn(points, reason=reason, ref=ref)
+        return acct.points.balance, points
 
     def redeem(self, account_id: str, prize) -> dict:
         from aoep_shared.rewards import redeem_prize
