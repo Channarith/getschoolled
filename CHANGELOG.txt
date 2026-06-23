@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Deploy workflow: preflight check for missing GitHub secrets. The
+  Deploy workflow (.github/workflows/deploy.yml) now runs a preflight job that
+  fails fast with a clear error when VULTR_REGISTRY_USERNAME,
+  VULTR_REGISTRY_PASSWORD, or KUBE_CONFIG_B64 are unset (instead of 10 parallel
+  matrix jobs all dying with "Username and password required"). Split
+  REGISTRY_LOGIN (docker login host) from REGISTRY (image tag prefix). Documented
+  how to obtain and set all three secrets in infra/k8s-vke/RUNBOOK.txt.
+
 - 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
   the default-admin seed into release config. Root cause of "code is on main but
   the live site behaves like an old build" (e.g. admin login 401 on a deployed

@@ -30,6 +30,43 @@ Prerequisites
   - Built and pushed images for every service.
   - Managed Postgres and Object Storage credentials, or external equivalents.
 
+GitHub Actions deploy secrets (required for .github/workflows/deploy.yml)
+-------------------------------------------------------------------------
+The Deploy workflow builds every service image and rolls the VKE cluster. It
+FAILS with "Username and password required" when these repo secrets are missing.
+
+Add all three under GitHub > Settings > Secrets and variables > Actions >
+Secrets (repo: getschoolled / Channarith/getschoolled):
+
+  VULTR_REGISTRY_USERNAME
+      Vultr Customer Portal > Products > Container Registry > salareen >
+      Overview tab > Username (NOT your Vultr account email).
+
+  VULTR_REGISTRY_PASSWORD
+      Same Overview tab > API Key (the registry API key, NOT your account
+      password). You can also generate time-limited Docker credentials under
+      Docker/Kubernetes on that page (enable Push Access).
+
+  KUBE_CONFIG_B64
+      Base64 of a kubeconfig that can reach the VKE cluster (no newlines):
+        vultr-cli kubernetes config <cluster-id> > kubeconfig-vke.yaml
+        base64 -i kubeconfig-vke.yaml | tr -d '\n' | pbcopy   # macOS
+      Paste the one-line output as the secret value.
+
+Optional repo variables (Settings > Variables):
+  AUTO_DEPLOY=true     auto-run Deploy on every push to main (after secrets exist)
+  REGISTRY             image prefix (default sjc.vultrcr.com/salareen)
+  REGISTRY_LOGIN       docker login host (default sjc.vultrcr.com/salareen)
+
+From your laptop (after secrets are set):
+  gh workflow run deploy.yml
+  gh run watch
+
+Or set secrets via CLI (replace ... with real values):
+  gh secret set VULTR_REGISTRY_USERNAME --body "..."
+  gh secret set VULTR_REGISTRY_PASSWORD --body "..."
+  gh secret set KUBE_CONFIG_B64 --body "$(base64 -i kubeconfig-vke.yaml | tr -d '\n')"
+
 Create VKE cluster (Salareen demo default)
 ------------------------------------------
   vultr-cli kubernetes create \
