@@ -363,7 +363,8 @@ make loadtest URL=http://localhost:18500/audio/categories RPS=500 DURATION=30
 make scale-down
 ```
 
-Mobile preview:
+Mobile (static export preview of the JS bundle; for the live app use
+`pnpm start` — see "Set up, run, and build the mobile app" under Mobile platform):
 
 ```bash
 cd apps/mobile
@@ -496,9 +497,45 @@ The Expo app supports Android and iOS with:
 - Locale picker with 13 translated UI locales plus supported-language fallback.
 - EAS build profiles for development, preview APK, and production app bundle/IPA.
 
-Build locally with `pnpm run export`; build native binaries through EAS or with
-`native:build:android` when Android SDK and Maven/Gradle repository access are
-available.
+### Set up, run, and build the mobile app
+
+Prerequisites: Node 18+ and `pnpm` (`npm i -g pnpm`); for live dev, Expo Go on
+your phone, an Android emulator (Android Studio), or the iOS Simulator (Xcode).
+
+```bash
+# 1. Install (one-time)
+cd apps/mobile
+pnpm install                 # or: make mobile-install
+
+# 2. Run / launch in development (hot-reload)
+pnpm start                   # opens Expo Dev Tools; scan the QR with Expo Go
+pnpm android                 # launch on an Android emulator/device
+pnpm ios                     # launch on the iOS Simulator (macOS)
+pnpm run web                 # run the app in a browser
+
+# 3. Typecheck
+pnpm run typecheck           # or: make mobile-typecheck
+
+# 4. Build the JS bundles (iOS + Android) for OTA / EAS
+pnpm run export              # writes apps/mobile/dist/  (or: make mobile-build)
+
+# 5. Build installable native binaries via EAS (no local Android Studio/Xcode)
+npm i -g eas-cli && eas login            # one-time (needs an Expo account)
+pnpm run eas:build:preview:android       # internal-distribution APK
+pnpm run eas:build:android               # production app bundle (AAB)
+pnpm run eas:build:ios                   # production IPA (needs Apple Developer team)
+```
+
+Backend URL: the app reads the API from `app.json` -> `expo.extra.curriculumUrl`.
+On a physical device `localhost` is the phone, so point it at your machine's LAN
+IP (e.g. `http://192.168.1.20:8005`) or your deployed backend, and make sure the
+curriculum service is running (`uvicorn curriculum.main:app --port 8005`).
+
+Offline / custom CI native builds (Gradle/Xcode projects without EAS):
+`pnpm run prebuild`, then `pnpm run native:build:android` (Android debug APK;
+needs Android SDK + Maven/Gradle access). Build profiles + app identifiers live
+in `apps/mobile/eas.json`. The full, authoritative guide (prereqs, EAS profiles,
+Gradle patching, backend wiring) is in **`apps/mobile/RUN.txt`**.
 
 ## Hosting and scale
 

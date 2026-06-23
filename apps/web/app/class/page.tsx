@@ -22,6 +22,7 @@ import {
   type Slide,
   type SurveyTemplate,
 } from "../lib/api";
+import SignInToUse from "../components/SignInToUse";
 
 export default function ClassPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -51,9 +52,11 @@ export default function ClassPage() {
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
+    setLoggedIn(Boolean(getToken()));
     listLessons()
       .then((ls) => {
         setLessons(ls);
@@ -85,6 +88,7 @@ export default function ClassPage() {
   }
 
   async function onStart() {
+    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
     setError("");
     setBusy(true);
     try {
@@ -294,9 +298,14 @@ export default function ClassPage() {
         </div>
       )}
 
+      {!view && !loggedIn && <SignInToUse />}
+
       {!view && (
         <div className="card">
           <h3>Start a session</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Browse the lessons below. Starting a class requires an account.
+          </p>
           <div className="row">
             <select value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
               {lessons.map((l) => (
@@ -309,7 +318,8 @@ export default function ClassPage() {
               <option value="group">Group class</option>
               <option value="solo">Solo (1:1)</option>
             </select>
-            <button onClick={onStart} disabled={busy || !lessonId}>
+            <button onClick={onStart} disabled={busy || !lessonId || !loggedIn}
+              title={!loggedIn ? "Sign in to take classes" : undefined}>
               Start class
             </button>
           </div>
