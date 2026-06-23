@@ -73,6 +73,26 @@ Format: newest first. No markdown per project convention.
   configmaps' NEXT_PUBLIC_*_URL to the relative prefixes. Verified end-to-end:
   signup now POSTs /identity/auth/signup through the gateway and returns 200,
   logging the user in.
+- 2026-06-23 - Careers: connect to REAL job sites instead of a static board.
+  aoep_shared.jobs gains live providers behind the existing JobsProvider
+  interface: RemotiveJobsProvider + ArbeitnowJobsProvider (free, no key),
+  AdzunaJobsProvider and JSearchJobsProvider (keyed aggregators that index
+  LinkedIn/Indeed/Glassdoor/ZipRecruiter), and a CompositeJobsProvider that
+  merges + de-dups. Each live posting is normalized to JobPosting with the real
+  apply URL, the originating source label (e.g. linkedin/indeed), and skills
+  derived from the title/description so course-matching still works; results are
+  TTL-cached and resolvable by /jobs/{id}. Every live path falls back to the
+  curated board on any network/parse failure, so /jobs never breaks offline.
+  Selection is by env (dual-mode): default = curated board; JOBS_LIVE=1 enables
+  the free boards; RAPIDAPI_KEY (JSearch) or ADZUNA_APP_ID/ADZUNA_APP_KEY enable
+  LinkedIn/Indeed-sourced listings and take precedence; JOBS_PROVIDER pins one.
+  Enabled JOBS_LIVE=1 in cloud configs (config/cloud.env, k8s + VKE configmaps,
+  compose curriculum). Web /jobs now shows the live source per card and adds
+  "View / Apply" links that open the original posting. Tests: real-shaped payload
+  parsing (incl. a LinkedIn-sourced JSearch row), offline fallback, /jobs/{id}
+  caching, and env-based provider selection. Note: real LinkedIn has no open API,
+  so LinkedIn-sourced listings come via the JSearch/Adzuna aggregators or a
+  LinkedIn partner key; live fetching needs cluster egress (falls back otherwise).
 
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a

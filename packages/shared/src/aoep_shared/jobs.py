@@ -231,7 +231,116 @@ SAMPLE_JOBS: List[JobPosting] = [
 
 # --------------------------------------------------------------------------- #
 # Providers (connect to LinkedIn / other job sites)
+#
+# LinkedIn has no open public jobs API (partner-only), so "connect to LinkedIn"
+# in practice means one of:
+#   * Free public job boards with open APIs (Remotive, Arbeitnow, RemoteOK) -
+#     real listings, no key.
+#   * Keyed aggregators that index LinkedIn/Indeed/Glassdoor postings: JSearch
+#     (RapidAPI, indexes Google-for-Jobs incl. LinkedIn) and Adzuna.
+#   * A real LinkedIn partner key (LINKEDIN_API_KEY).
+# Selection is by env only (dual-mode): with no flag/keys we serve the curated
+# offline board (so tests + air-gapped demos work); set JOBS_LIVE=1 (or a key,
+# or JOBS_PROVIDER) to pull real openings. Every live provider falls back to the
+# sample board on any network/parse failure, so /jobs never breaks.
 # --------------------------------------------------------------------------- #
+import html as _html  # noqa: E402
+import json as _json  # noqa: E402
+import time as _time  # noqa: E402
+import urllib.request as _urlreq  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+
+_HTTP_TIMEOUT = float(os.environ.get("JOBS_HTTP_TIMEOUT", "8"))
+_CACHE_TTL = int(os.environ.get("JOBS_CACHE_TTL", "900"))   # 15 min
+_USER_AGENT = "SalareenCareers/1.0 (+https://salareen.com)"
+
+# Live results cached by id so /jobs/{id} (the course-match view) resolves jobs
+# that aren't in SAMPLE_JOBS.
+_LIVE_BY_ID: Dict[str, JobPosting] = {}
+# TTL cache: key -> (expires_at, postings).
+_RESULT_CACHE: Dict[str, tuple] = {}
+
+
+def _truthy(v: Optional[str]) -> bool:
+    return str(v or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _strip_html(text: str, *, limit: int = 320) -> str:
+    if not text:
+        return ""
+    plain = _html.unescape(re.sub(r"<[^>]+>", " ", text))
+    plain = re.sub(r"\s+", " ", plain).strip()
+    return plain[:limit].rstrip() + ("…" if len(plain) > limit else "")
+
+
+def _days_ago(value) -> int:
+    """Days since an ISO-8601 string or epoch seconds; 0 if unparseable."""
+    if value in (None, "", 0):
+        return 0
+    try:
+        if isinstance(value, (int, float)):
+            dt = datetime.fromtimestamp(float(value), tz=timezone.utc)
+        else:
+            dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        return max(0, (datetime.now(timezone.utc) - dt).days)
+    except (ValueError, OSError, OverflowError):
+        return 0
+
+
+def _category_for(text: str, fallback: str = "") -> str:
+    low = (text or "").lower()
+    table = [
+        ("Engineering", ("software", "developer", "engineer", "backend", "frontend", "devops")),
+        ("Data", ("data", "analyst", "machine learning", "ml", "scientist")),
+        ("Design", ("design", "ux", "ui", "product design")),
+        ("Marketing", ("marketing", "seo", "growth", "content")),
+        ("Sales", ("sales", "account executive", "business development")),
+        ("Customer", ("customer", "support", "success")),
+        ("Finance", ("finance", "accountant", "financial")),
+        ("Operations", ("operations", "project manager", "program manager")),
+        ("Healthcare", ("nurse", "clinical", "medical", "health")),
+        ("IT", ("it support", "help desk", "system admin", "network")),
+    ]
+    for cat, kws in table:
+        if any(k in low for k in kws):
+            return cat
+    return fallback or "General"
+
+
+def _derive_skills(title: str, description: str, tags: Optional[Sequence[str]] = None) -> List[str]:
+    """Best-effort required-skill tokens from a real posting (so the catalog
+    matcher and skill pills work for live jobs too)."""
+    parsed = parse_job_description(f"{title}\n{description}")
+    skills = list(parsed.get("skills", []))
+    for t in tags or []:
+        s = str(t).strip().lower().replace(" ", "-")
+        if s and s in SKILL_SYNONYMS and s not in skills:
+            skills.append(s)
+    return skills[:8]
+
+
+def _http_get_json(url: str, headers: Optional[dict] = None, timeout: Optional[float] = None):
+    req = _urlreq.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json",
+                                        **(headers or {})})
+    with _urlreq.urlopen(req, timeout=timeout or _HTTP_TIMEOUT) as resp:
+        return _json.loads(resp.read().decode("utf-8", "replace"))
+
+
+def _cache_get(key: str) -> Optional[List[JobPosting]]:
+    hit = _RESULT_CACHE.get(key)
+    if hit and hit[0] > _time.time():
+        return hit[1]
+    return None
+
+
+def _cache_put(key: str, postings: List[JobPosting]) -> None:
+    _RESULT_CACHE[key] = (_time.time() + _CACHE_TTL, postings)
+    for j in postings:
+        _LIVE_BY_ID[j.id] = j
+
+
 class JobsProvider(abc.ABC):
     source = "sample"
 
@@ -258,8 +367,186 @@ class MockJobsProvider(JobsProvider):
         return rows[:limit]
 
 
+class _LiveJobsProvider(JobsProvider):
+    """Base for network-backed providers: cache + graceful fallback to sample.
+
+    Subclasses implement ``_fetch`` (the raw HTTP call) and ``_parse`` (rows ->
+    JobPosting). ``search`` adds TTL caching and, on any failure or empty result,
+    falls back to the curated board so the careers page always renders.
+    """
+
+    source = "live"
+
+    def _fetch(self, query: str, location: str, limit: int):  # -> raw rows
+        raise NotImplementedError
+
+    def _parse(self, rows) -> List[JobPosting]:
+        raise NotImplementedError
+
+    def search(self, *, query: str = "", location: str = "", limit: int = 50) -> List[JobPosting]:
+        key = f"{self.source}|{query}|{location}|{limit}"
+        cached = _cache_get(key)
+        if cached is not None:
+            return cached
+        try:
+            rows = self._fetch(query, location, limit)
+            postings = [p for p in self._parse(rows) if p][:limit]
+        except Exception:  # noqa: BLE001 - any network/parse error -> fallback
+            postings = []
+        if not postings:
+            # Air-gapped or provider down: serve the curated board (clearly sample).
+            fallback = MockJobsProvider().search(query=query, location=location, limit=limit)
+            self.source = "sample"
+            return fallback
+        _cache_put(key, postings)
+        return postings
+
+
+class RemotiveJobsProvider(_LiveJobsProvider):
+    """Real remote jobs from remotive.com (free, no key)."""
+
+    source = "remotive"
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        qs = urlencode({k: v for k, v in {"search": query, "limit": max(limit, 1)}.items() if v})
+        data = _http_get_json(f"https://remotive.com/api/remote-jobs?{qs}")
+        return data.get("jobs", []) if isinstance(data, dict) else []
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("title", "")
+            desc = _strip_html(r.get("description", ""))
+            tags = r.get("tags") or []
+            out.append(JobPosting(
+                id=f"remotive-{r.get('id')}",
+                title=title, company=r.get("company_name", ""),
+                location=r.get("candidate_required_location") or "Remote",
+                source="remotive", url=r.get("url", ""),
+                employment_type=(r.get("job_type") or "full_time").replace("_", "-").title(),
+                salary_range=r.get("salary", "") or "",
+                posted_days_ago=_days_ago(r.get("publication_date")),
+                category=_category_for(f"{title} {r.get('category','')}", r.get("category", "")),
+                skills=_derive_skills(title, desc, tags), description=desc))
+        return out
+
+
+class ArbeitnowJobsProvider(_LiveJobsProvider):
+    """Real jobs from arbeitnow.com job board (free, no key)."""
+
+    source = "arbeitnow"
+
+    def _fetch(self, query, location, limit):
+        data = _http_get_json("https://www.arbeitnow.com/api/job-board-api")
+        rows = data.get("data", []) if isinstance(data, dict) else []
+        ql = query.lower()
+        if ql:
+            rows = [r for r in rows if ql in (r.get("title", "") + " "
+                    + " ".join(r.get("tags") or [])).lower()]
+        return rows
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("title", "")
+            desc = _strip_html(r.get("description", ""))
+            tags = r.get("tags") or []
+            loc = r.get("location") or ("Remote" if r.get("remote") else "")
+            out.append(JobPosting(
+                id=f"arbeitnow-{r.get('slug')}",
+                title=title, company=r.get("company_name", ""), location=loc or "Remote",
+                source="arbeitnow", url=r.get("url", ""),
+                employment_type=(", ".join(r.get("job_types") or []) or "Full-time").title(),
+                posted_days_ago=_days_ago(r.get("created_at")),
+                category=_category_for(f"{title} {' '.join(tags)}"),
+                skills=_derive_skills(title, desc, tags), description=desc))
+        return out
+
+
+class AdzunaJobsProvider(_LiveJobsProvider):
+    """Adzuna aggregator (real, multi-board). Needs ADZUNA_APP_ID + ADZUNA_APP_KEY."""
+
+    source = "adzuna"
+
+    def __init__(self, app_id: str, app_key: str, country: str = "us") -> None:
+        self.app_id, self.app_key, self.country = app_id, app_key, country
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        params = {"app_id": self.app_id, "app_key": self.app_key,
+                  "results_per_page": max(min(limit, 50), 1), "content-type": "application/json"}
+        if query:
+            params["what"] = query
+        if location:
+            params["where"] = location
+        url = f"https://api.adzuna.com/v1/api/jobs/{self.country}/search/1?{urlencode(params)}"
+        data = _http_get_json(url)
+        return data.get("results", []) if isinstance(data, dict) else []
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("title", "")
+            desc = _strip_html(r.get("description", ""))
+            smin, smax = r.get("salary_min"), r.get("salary_max")
+            salary = f"${int(smin/1000)}k-${int(smax/1000)}k" if smin and smax else ""
+            out.append(JobPosting(
+                id=f"adzuna-{r.get('id')}",
+                title=title, company=(r.get("company") or {}).get("display_name", ""),
+                location=(r.get("location") or {}).get("display_name", "") or "Remote",
+                source="adzuna", url=r.get("redirect_url", ""),
+                employment_type=(r.get("contract_time") or "full_time").replace("_", "-").title(),
+                salary_range=salary, posted_days_ago=_days_ago(r.get("created")),
+                category=_category_for(f"{title} {(r.get('category') or {}).get('label','')}"),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
+class JSearchJobsProvider(_LiveJobsProvider):
+    """JSearch (RapidAPI) - indexes Google-for-Jobs incl. LinkedIn, Indeed,
+    Glassdoor, ZipRecruiter. Needs RAPIDAPI_KEY (the closest to real LinkedIn)."""
+
+    source = "jsearch"
+
+    def __init__(self, rapidapi_key: str) -> None:
+        self.rapidapi_key = rapidapi_key
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        q = (f"{query} in {location}" if location else query) or "software engineer"
+        url = f"https://jsearch.p.rapidapi.com/search?{urlencode({'query': q, 'num_pages': 1})}"
+        data = _http_get_json(url, headers={
+            "X-RapidAPI-Key": self.rapidapi_key,
+            "X-RapidAPI-Host": "jsearch.p.rapidapi.com"})
+        return data.get("data", []) if isinstance(data, dict) else []
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("job_title", "")
+            desc = _strip_html(r.get("job_description", ""))
+            city, country = r.get("job_city"), r.get("job_country")
+            loc = ", ".join([p for p in (city, country) if p]) or (
+                "Remote" if r.get("job_is_remote") else "")
+            smin, smax = r.get("job_min_salary"), r.get("job_max_salary")
+            salary = f"${int(smin/1000)}k-${int(smax/1000)}k" if smin and smax else ""
+            publisher = r.get("job_publisher") or "jsearch"   # e.g. "LinkedIn"
+            out.append(JobPosting(
+                id=f"jsearch-{r.get('job_id')}",
+                title=title, company=r.get("employer_name", ""), location=loc or "Remote",
+                source=publisher.lower(), url=r.get("job_apply_link") or r.get("job_google_link", ""),
+                employment_type=(r.get("job_employment_type") or "FULLTIME").title(),
+                salary_range=salary, posted_days_ago=_days_ago(r.get("job_posted_at_timestamp")),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
 class LinkedInJobsProvider(JobsProvider):
-    """Real LinkedIn jobs (requires LINKEDIN_API_KEY + network); stub offline."""
+    """Real LinkedIn jobs via a partner key (LINKEDIN_API_KEY). LinkedIn has no
+    open public API, so without partner access use JSearch/Adzuna instead; this
+    raises so the caller falls back to the curated board."""
 
     source = "linkedin"
 
@@ -268,15 +555,87 @@ class LinkedInJobsProvider(JobsProvider):
 
     def search(self, *, query: str = "", location: str = "", limit: int = 50) -> List[JobPosting]:
         raise NotImplementedError(
-            "LinkedIn jobs integration requires LINKEDIN_API_KEY and network access; "
-            "not available in this environment.")
+            "Direct LinkedIn jobs need LinkedIn partner API access. Set RAPIDAPI_KEY "
+            "(JSearch indexes LinkedIn postings) or ADZUNA_APP_ID/ADZUNA_APP_KEY for "
+            "real listings instead.")
+
+
+class CompositeJobsProvider(_LiveJobsProvider):
+    """Query several live providers, merge + de-dup, fall back to sample."""
+
+    def __init__(self, providers: Sequence[JobsProvider]) -> None:
+        self.providers = list(providers)
+        self.source = "+".join(p.source for p in providers) or "live"
+
+    def search(self, *, query: str = "", location: str = "", limit: int = 50) -> List[JobPosting]:
+        merged: List[JobPosting] = []
+        seen = set()
+        used = []
+        for p in self.providers:
+            try:
+                rows = p.search(query=query, location=location, limit=limit)
+            except Exception:  # noqa: BLE001
+                rows = []
+            if getattr(p, "source", "") == "sample":
+                continue  # a provider already fell back; ignore its sample rows here
+            for j in rows:
+                dedup = (j.title.lower(), j.company.lower())
+                if dedup in seen:
+                    continue
+                seen.add(dedup)
+                merged.append(j)
+            if rows:
+                used.append(p.source)
+        if not merged:
+            self.source = "sample"
+            return MockJobsProvider().search(query=query, location=location, limit=limit)
+        self.source = "+".join(dict.fromkeys(used)) or "live"
+        for j in merged:
+            _LIVE_BY_ID[j.id] = j
+        return merged[:limit]
 
 
 def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
     env = env if env is not None else os.environ
-    key = env.get("LINKEDIN_API_KEY") or env.get("JOBS_API_KEY")
-    if key:
-        return LinkedInJobsProvider(key)
+    choice = (env.get("JOBS_PROVIDER") or "").strip().lower()
+
+    def _build(name: str) -> Optional[JobsProvider]:
+        if name in ("sample", "mock"):
+            return MockJobsProvider()
+        if name == "remotive":
+            return RemotiveJobsProvider()
+        if name == "arbeitnow":
+            return ArbeitnowJobsProvider()
+        if name == "jsearch" and env.get("RAPIDAPI_KEY"):
+            return JSearchJobsProvider(env["RAPIDAPI_KEY"])
+        if name == "adzuna" and env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
+            return AdzunaJobsProvider(env["ADZUNA_APP_ID"], env["ADZUNA_APP_KEY"],
+                                      env.get("ADZUNA_COUNTRY", "us"))
+        if name == "linkedin" and (env.get("LINKEDIN_API_KEY") or env.get("JOBS_API_KEY")):
+            return LinkedInJobsProvider(env.get("LINKEDIN_API_KEY") or env["JOBS_API_KEY"])
+        if name == "live":
+            return None  # handled below
+        return None
+
+    if choice and choice != "live":
+        prov = _build(choice)
+        if prov:
+            return prov
+
+    # Keyed aggregators that index LinkedIn/Indeed take precedence when available.
+    if env.get("RAPIDAPI_KEY"):
+        return JSearchJobsProvider(env["RAPIDAPI_KEY"])
+    if env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
+        return AdzunaJobsProvider(env["ADZUNA_APP_ID"], env["ADZUNA_APP_KEY"],
+                                  env.get("ADZUNA_COUNTRY", "us"))
+    if env.get("LINKEDIN_API_KEY") or env.get("JOBS_API_KEY"):
+        return LinkedInJobsProvider(env.get("LINKEDIN_API_KEY") or env["JOBS_API_KEY"])
+
+    # Live free boards when explicitly enabled (JOBS_LIVE=1 or JOBS_PROVIDER=live).
+    if _truthy(env.get("JOBS_LIVE")) or choice == "live":
+        return CompositeJobsProvider([RemotiveJobsProvider(), ArbeitnowJobsProvider()])
+
+    # Default (tests / air-gapped): the curated sample board.
     return MockJobsProvider()
 
 
@@ -284,7 +643,7 @@ def get_job(job_id: str) -> Optional[JobPosting]:
     for j in SAMPLE_JOBS:
         if j.id == job_id:
             return j
-    return None
+    return _LIVE_BY_ID.get(job_id)
 
 
 # --------------------------------------------------------------------------- #

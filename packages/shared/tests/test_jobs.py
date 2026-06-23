@@ -4,8 +4,13 @@ import pytest
 
 from aoep_shared.jobs import (
     SAMPLE_JOBS,
+    AdzunaJobsProvider,
+    ArbeitnowJobsProvider,
+    CompositeJobsProvider,
+    JSearchJobsProvider,
     LinkedInJobsProvider,
     MockJobsProvider,
+    RemotiveJobsProvider,
     get_job,
     get_jobs_provider,
     jobs_for_course,
@@ -73,3 +78,106 @@ def test_real_provider_needs_network():
 
 def test_unknown_job_none():
     assert get_job("nope") is None
+
+
+# --------------------------------------------------------------------------- #
+# Live providers: parse real-shaped payloads (no network) + offline fallback +
+# env-based selection.
+# --------------------------------------------------------------------------- #
+def test_remotive_parses_real_shaped_payload():
+    rows = [{
+        "id": 123, "url": "https://remotive.com/remote-jobs/123",
+        "title": "Senior Python Engineer", "company_name": "Acme Remote",
+        "candidate_required_location": "Worldwide", "salary": "$120k-$150k",
+        "job_type": "full_time", "category": "Software Development",
+        "tags": ["python", "sql", "aws"],
+        "description": "<p>Build APIs in <b>Python</b> with SQL and AWS.</p>",
+        "publication_date": "2026-06-20T00:00:00",
+    }]
+    [job] = RemotiveJobsProvider()._parse(rows)
+    assert job.id == "remotive-123"
+    assert job.title == "Senior Python Engineer" and job.company == "Acme Remote"
+    assert job.source == "remotive"
+    assert job.url == "https://remotive.com/remote-jobs/123"
+    assert "<" not in job.description           # HTML stripped
+    assert "python" in job.skills and "sql" in job.skills   # skills derived
+    assert job.category == "Engineering"
+
+
+def test_jsearch_parses_and_labels_publisher_source():
+    rows = [{
+        "job_id": "abc", "job_title": "Data Analyst", "employer_name": "Globex",
+        "job_city": "Austin", "job_country": "US", "job_publisher": "LinkedIn",
+        "job_apply_link": "https://www.linkedin.com/jobs/view/abc",
+        "job_employment_type": "FULLTIME", "job_min_salary": 70000, "job_max_salary": 95000,
+        "job_description": "Analyze data with SQL and Excel.",
+        "job_posted_at_timestamp": 1781990000,
+    }]
+    [job] = JSearchJobsProvider("k")._parse(rows)
+    assert job.id == "jsearch-abc"
+    assert job.source == "linkedin"            # carries the real publisher
+    assert "linkedin.com" in job.url
+    assert job.salary_range == "$70k-$95k"
+    assert "sql" in job.skills
+
+
+def test_arbeitnow_and_adzuna_parse():
+    [a] = ArbeitnowJobsProvider()._parse([{
+        "slug": "x1", "title": "Frontend Developer", "company_name": "Berlin Co",
+        "description": "React and JavaScript.", "remote": True, "url": "https://arbeitnow.com/x1",
+        "tags": ["javascript"], "job_types": ["full_time"], "created_at": 1781990000}])
+    assert a.id == "arbeitnow-x1" and a.source == "arbeitnow" and a.location
+
+    [d] = AdzunaJobsProvider("id", "key")._parse([{
+        "id": "9", "title": "DevOps Engineer", "company": {"display_name": "Cloud Inc"},
+        "location": {"display_name": "Remote"}, "salary_min": 120000, "salary_max": 150000,
+        "redirect_url": "https://adzuna.com/9", "created": "2026-06-18T00:00:00",
+        "category": {"label": "IT Jobs"}, "description": "Run cloud infra."}])
+    assert d.id == "adzuna-9" and d.salary_range == "$120k-$150k"
+
+
+def test_live_provider_falls_back_to_sample_offline(monkeypatch):
+    p = RemotiveJobsProvider()
+    monkeypatch.setattr(p, "_fetch", lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
+    rows = p.search(limit=5)
+    assert len(rows) >= 5                       # served the curated board
+    assert p.source == "sample"                 # and reported as sample, not remotive
+
+
+def test_live_provider_caches_for_get_job(monkeypatch):
+    p = RemotiveJobsProvider()
+    monkeypatch.setattr(p, "_fetch", lambda *a, **k: [{
+        "id": 777, "url": "u", "title": "ML Engineer", "company_name": "C",
+        "tags": ["python"], "description": "ML in python", "publication_date": ""}])
+    rows = p.search(limit=5)
+    assert rows and rows[0].source == "remotive"
+    assert get_job("remotive-777") is not None  # resolvable by /jobs/{id}
+
+
+def test_composite_merges_dedups_and_falls_back():
+    class _Fake(MockJobsProvider):
+        source = "remotive"
+        def __init__(self, jobs): self._jobs = jobs
+        def search(self, *, query="", location="", limit=50): return self._jobs
+
+    j = SAMPLE_JOBS[0]
+    comp = CompositeJobsProvider([_Fake([j]), _Fake([j])])  # same job twice
+    out = comp.search(limit=10)
+    assert len([x for x in out if x.id == j.id]) == 1        # de-duplicated
+
+    empty = CompositeJobsProvider([])
+    assert len(empty.search(limit=5)) >= 5                   # falls back to sample
+    assert empty.source == "sample"
+
+
+def test_get_jobs_provider_selection():
+    assert isinstance(get_jobs_provider({}), MockJobsProvider)
+    assert isinstance(get_jobs_provider({"JOBS_LIVE": "1"}), CompositeJobsProvider)
+    assert isinstance(get_jobs_provider({"JOBS_PROVIDER": "remotive"}), RemotiveJobsProvider)
+    assert isinstance(get_jobs_provider({"JOBS_PROVIDER": "arbeitnow"}), ArbeitnowJobsProvider)
+    assert isinstance(get_jobs_provider({"RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
+    assert isinstance(
+        get_jobs_provider({"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b"}), AdzunaJobsProvider)
+    # keyed aggregator wins over the generic live flag
+    assert isinstance(
+        get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"}), JSearchJobsProvider)

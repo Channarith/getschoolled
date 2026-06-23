@@ -18,6 +18,11 @@ data:
   OBJECT_STORE_BUCKET: "aoep-prod"
   REDIS_URL: "redis://redis.aoep.internal:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
+  # Careers: serve REAL job openings from public boards (Remotive + Arbeitnow;
+  # no key, falls back to the curated board if egress is blocked). Add a
+  # RAPIDAPI_KEY (JSearch -> LinkedIn/Indeed/Glassdoor) or ADZUNA_APP_ID/KEY via
+  # the Secret to index those sources too.
+  JOBS_LIVE: "1"
   ORCHESTRATOR_URL: "https://api.aoep.example"
   # Browser-facing API bases for the web app. By DEFAULT the web bundle derives
   # these from the page origin + a same-origin path prefix (apps/web/app/lib/api.ts),
