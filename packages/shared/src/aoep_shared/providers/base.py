@@ -122,6 +122,26 @@ class FaceObservation:
     expression: Optional[str] = "unknown"
 
 
+@dataclass
+class EmbeddedFace:
+    """A face already detected + embedded by an on-device (client/edge) pipeline.
+
+    The hybrid path lets the camera-bearing device run YuNet+SFace locally and
+    send only the resulting 128-d embedding (plus the 5 landmarks/bbox needed for
+    engagement) to the server. The raw frame never leaves the device; the server
+    only matches the embedding against the consented gallery and enforces the
+    region/consent compliance gates.
+    """
+
+    embedding: Sequence[float]
+    # YuNet's 5 landmarks (right_eye, left_eye, nose, right_mouth, left_mouth)
+    # plus the bbox + frame_size let the server derive attention/gaze without the
+    # pixels. Empty/None => identity-only (no engagement signals).
+    landmarks: Sequence[tuple[float, float]] = ()
+    bbox: Optional[tuple[int, int, int, int]] = None
+    frame_size: Optional[tuple[int, int]] = None
+
+
 class VisionProvider(Provider):
     """Face recognition (identity) + attention/gaze scoring.
 
@@ -135,6 +155,20 @@ class VisionProvider(Provider):
         self, frame_object_key: str, *, consented_student_ids: Iterable[str]
     ) -> list[FaceObservation]:
         ...
+
+    # --- hybrid (on-device embedding) path --------------------------------- #
+    # These accept embeddings computed by the client/edge device so the server
+    # never sees the raw frame and never needs to load/run the model itself.
+    def analyze_embedding(
+        self,
+        faces: Sequence["EmbeddedFace"],
+        *,
+        consented_student_ids: Iterable[str],
+    ) -> list[FaceObservation]:
+        raise NotImplementedError
+
+    def enroll_embedding(self, student_id: str, embedding: Sequence[float]) -> int:
+        raise NotImplementedError
 
 
 # --------------------------------------------------------------------------- #

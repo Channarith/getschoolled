@@ -91,6 +91,36 @@ Format: newest first. No markdown per project convention.
   page fits a 400px responsive viewport without horizontal page overflow. Tested.
 
 - 2026-06-22 - README asset note: updated the cleaned GitHub README to mention the newly
+- Hybrid (on-device) face recognition path: the camera-bearing client
+  (browser/mobile/edge) can now run YuNet+SFace locally and send only the
+  resulting 128-d embedding to the server, so the raw frame never leaves the
+  device while the gallery + consent/region compliance gates stay server-side.
+    * aoep_shared.providers.base: new EmbeddedFace dataclass + VisionProvider
+      analyze_embedding()/enroll_embedding() hooks.
+    * aoep_shared.providers.vision: implemented analyze_embedding() and
+      enroll_embedding() on the base provider; refactored analyze_image() to
+      share the identity gate + observation builder, so server-side and
+      client-supplied embeddings take the exact same consent + EU-AI-Act
+      (real-time biometric ID + emotion) gating and gallery matching. These
+      paths never load the OpenCV model, so a deployment expecting on-device
+      embedding does not download the ~37MB SFace weights server-side.
+    * perception service: new POST /enroll-embedding/{student_id} (internal-auth
+      gated) and POST /identify-embedding (consent-gated) endpoints that match a
+      supplied embedding, plus GET /vision/models/{name} which serves the
+      YuNet/SFace ONNX weights to on-device clients from our own origin.
+    * apps/web: new on-device pipeline in app/lib/vision.ts (loads OpenCV.js +
+      FaceDetectorYN/SFace, fetches models from /vision/models, returns
+      embeddings) and a /vision demo page; app/lib/api.ts gains
+      identifyEmbedding/enrollEmbedding/visionModelUrl. Override the OpenCV.js
+      asset via NEXT_PUBLIC_OPENCV_JS_URL to self-host it.
+    * Tests: packages/shared/tests/test_vision_embedding.py (consent + region
+      gates, engagement-from-landmarks, no-model path) and
+      services/perception/tests/test_identify_embedding.py (real-model
+      end-to-end: a client-simulated embedding round-trips through the new
+      endpoints and the consent gate holds; model-serving endpoint). Verified
+      end-to-end against a live perception server. Tested.
+
+- README asset note: updated the cleaned GitHub README to mention the newly
   merged secular minimalist logo assets without reintroducing missing screenshot,
   demo, or chart embeds. Tested.
 
