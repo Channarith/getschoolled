@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
+  "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
+  [test] extra (not requirements-dev.txt), and services/curriculum's test extra
+  omitted fpdf2 (the test fixtures call fpdf to generate PDFs). Added
+  fpdf2==2.7.9 to services/curriculum/pyproject.toml [project.optional-
+  dependencies].test, and guarded test_ingest.py's _make_pdf with
+  pytest.importorskip("fpdf") so the PDF tests skip cleanly instead of erroring
+  if the dep is ever absent. services/curriculum tests: 9/9 ingest tests pass.
+
 - 2026-06-23 - VKE direct-IP and same-origin web APIs: web now falls back to
   browser same-origin service URLs when deployed outside localhost, and the VKE
   ingress serves raw LoadBalancer IP traffic plus same-origin public catalog,

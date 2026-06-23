@@ -19,7 +19,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28"]
+# fpdf2 is test-only: it generates the PDF fixtures the scraper tests feed to
+# extract_pdf / the /ingest/pdf endpoint (CI installs this extra, not
+# requirements-dev.txt).
+test = ["pytest>=8.2,<9", "httpx>=0.27,<0.28", "fpdf2==2.7.9"]
 # Optional runtime dep for /ingest/youtube (import-guarded; not needed for tests).
 youtube = ["youtube-transcript-api>=0.6,<1"]
 

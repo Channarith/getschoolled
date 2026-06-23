@@ -1,5 +1,6 @@
 """Content scraper tests: PDF / HTML / transcript -> decks."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from curriculum.ingest import (
@@ -28,7 +29,11 @@ HTML = """
 
 
 def _make_pdf(lines: list[str]) -> bytes:
-    from fpdf import FPDF
+    # fpdf2 (provides the `fpdf` module) is a test-only dependency declared in the
+    # package's [test] extra; skip cleanly if it isn't installed so the PDF
+    # fixtures never error the suite.
+    fpdf = pytest.importorskip("fpdf")
+    FPDF = fpdf.FPDF
 
     pdf = FPDF()
     pdf.add_page()
