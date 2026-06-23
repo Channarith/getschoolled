@@ -593,23 +593,26 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   },
 };
 
-// Preview is view-only: browse + Watch are allowed, but taking classes / audio
-// requires an account. Strings for that gate (en + vi; others fall back to en).
-const PREVIEW: Partial<Record<Locale, Record<string, string>>> = {
-  en: {
-    "preview.lockedTitle": "Preview is view-only",
-    "preview.lockedBody": "Sign in to take classes and audio lessons. In preview you can browse everything and watch course videos, but not start a class.",
-    "preview.signIn": "Sign in →",
-    "preview.watchInstead": "Watch a course instead",
-  },
-  vi: {
-    "preview.lockedTitle": "Chế độ xem trước chỉ để xem",
-    "preview.lockedBody": "Đăng nhập để tham gia lớp học và bài học âm thanh. Ở chế độ xem trước, bạn có thể duyệt mọi thứ và xem video khóa học, nhưng không thể bắt đầu lớp.",
-    "preview.signIn": "Đăng nhập →",
-    "preview.watchInstead": "Xem một khóa học",
-  },
+// Footer (shared chrome on every page) translations for all 14 first-class
+// locales, merged into STRINGS below. Kept as one block so the footer actually
+// localizes instead of falling back to English.
+const FOOTER: Partial<Record<Locale, Record<string, string>>> = {
+  en: { "footer.legal": "Legal & Compliance", "footer.disclaimer": "AI-assisted instruction. Use only in compliance with applicable laws.", "footer.transparency": "Transparency", "footer.consent": "Consent", "footer.getApp": "Get the app", "footer.language": "Language" },
+  es: { "footer.legal": "Legal y cumplimiento", "footer.disclaimer": "Instrucción asistida por IA. Úsese solo conforme a las leyes aplicables.", "footer.transparency": "Transparencia", "footer.consent": "Consentimiento", "footer.getApp": "Obtener la app", "footer.language": "Idioma" },
+  fr: { "footer.legal": "Mentions légales et conformité", "footer.disclaimer": "Enseignement assisté par IA. À utiliser conformément aux lois applicables.", "footer.transparency": "Transparence", "footer.consent": "Consentement", "footer.getApp": "Obtenir l'application", "footer.language": "Langue" },
+  de: { "footer.legal": "Rechtliches & Compliance", "footer.disclaimer": "KI-gestützter Unterricht. Nur unter Einhaltung geltender Gesetze nutzen.", "footer.transparency": "Transparenz", "footer.consent": "Einwilligung", "footer.getApp": "App holen", "footer.language": "Sprache" },
+  it: { "footer.legal": "Legale e conformità", "footer.disclaimer": "Istruzione assistita dall'IA. Usare solo nel rispetto delle leggi vigenti.", "footer.transparency": "Trasparenza", "footer.consent": "Consenso", "footer.getApp": "Scarica l'app", "footer.language": "Lingua" },
+  pt: { "footer.legal": "Jurídico e conformidade", "footer.disclaimer": "Ensino assistido por IA. Use apenas em conformidade com as leis aplicáveis.", "footer.transparency": "Transparência", "footer.consent": "Consentimento", "footer.getApp": "Obter o app", "footer.language": "Idioma" },
+  ru: { "footer.legal": "Правовые вопросы и соответствие", "footer.disclaimer": "Обучение с помощью ИИ. Используйте только в соответствии с применимым законодательством.", "footer.transparency": "Прозрачность", "footer.consent": "Согласие", "footer.getApp": "Установить приложение", "footer.language": "Язык" },
+  ar: { "footer.legal": "القانونية والامتثال", "footer.disclaimer": "تعليم بمساعدة الذكاء الاصطناعي. يُستخدم فقط وفقًا للقوانين المعمول بها.", "footer.transparency": "الشفافية", "footer.consent": "الموافقة", "footer.getApp": "احصل على التطبيق", "footer.language": "اللغة" },
+  hi: { "footer.legal": "कानूनी और अनुपालन", "footer.disclaimer": "एआई-सहायता प्राप्त शिक्षण। केवल लागू कानूनों के अनुपालन में उपयोग करें।", "footer.transparency": "पारदर्शिता", "footer.consent": "सहमति", "footer.getApp": "ऐप पाएं", "footer.language": "भाषा" },
+  zh: { "footer.legal": "法律与合规", "footer.disclaimer": "人工智能辅助教学。请仅在遵守适用法律的前提下使用。", "footer.transparency": "透明度", "footer.consent": "同意", "footer.getApp": "获取应用", "footer.language": "语言" },
+  ja: { "footer.legal": "法務とコンプライアンス", "footer.disclaimer": "AI支援による指導。適用法令を遵守してご利用ください。", "footer.transparency": "透明性", "footer.consent": "同意", "footer.getApp": "アプリを入手", "footer.language": "言語" },
+  ko: { "footer.legal": "법률 및 규정 준수", "footer.disclaimer": "AI 보조 교육. 관련 법규를 준수하여 사용하세요.", "footer.transparency": "투명성", "footer.consent": "동의", "footer.getApp": "앱 받기", "footer.language": "언어" },
+  vi: { "footer.legal": "Pháp lý & tuân thủ", "footer.disclaimer": "Giảng dạy có hỗ trợ AI. Chỉ sử dụng theo quy định pháp luật hiện hành.", "footer.transparency": "Minh bạch", "footer.consent": "Đồng ý", "footer.getApp": "Tải ứng dụng", "footer.language": "Ngôn ngữ" },
+  km: { "footer.legal": "ច្បាប់ និងការអនុលោម", "footer.disclaimer": "ការបង្រៀនដោយមានជំនួយ AI។ ប្រើតាមច្បាប់ជាធរមានប៉ុណ្ណោះ។", "footer.transparency": "តម្លាភាព", "footer.consent": "ការយល់ព្រម", "footer.getApp": "ទាញយកកម្មវិធី", "footer.language": "ភាសា" },
 };
 
-for (const [loc, kv] of Object.entries(PREVIEW)) {
+for (const [loc, kv] of Object.entries(FOOTER)) {
   STRINGS[loc as Locale] = { ...(STRINGS[loc as Locale] || {}), ...kv };
 }
