@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Web container runtime fix: switched apps/web Docker runtime from
+  pnpm start to npm start so Kubernetes pods do not run pnpm install/reconcile at
+  startup and OOM on small VKE nodes. Tested.
+
 - 2026-06-22 - Restore Salareen branding on web + mobile (regressed after branch
   merges). The home page had lost the Bayon Buddy mascot, the brand reverted to
   "AI Classroom", the nav had no logo, and logo-mark.* was the old graduation
