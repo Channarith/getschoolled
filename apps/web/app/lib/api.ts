@@ -536,7 +536,22 @@ export type Answer = {
   grounded?: boolean;
   hallucination_risk?: number;
   unsupported?: string[];
+  // Set when the AI teacher grants points for this question; the client redeems
+  // grant_token at /rewards/grant (server-verified).
+  reward?: { points: number; reason: string; grant_token: string } | null;
 };
+
+// Redeem an AI-agent reward voucher to the current account. The identity
+// service verifies the agent's HMAC signature before crediting.
+export async function grantReward(grant: string):
+  Promise<{ earned: number; balance: number; reason: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/rewards/grant`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ grant }),
+    })
+  );
+}
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {

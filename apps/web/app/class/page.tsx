@@ -6,6 +6,7 @@ import {
   ask,
   enrollCourse,
   getDisclosure,
+  grantReward,
   getPostClassSurvey,
   getRewards,
   getToken,
@@ -224,6 +225,21 @@ export default function ClassPage() {
           unsupported: a.unsupported,
         },
       ]);
+      // The AI teacher may grant points for a good question. Redeem the signed
+      // voucher to the learner's account (server-verified) and show it.
+      if (a.reward?.grant_token && getToken()) {
+        try {
+          const r = await grantReward(a.reward.grant_token);
+          if (r.earned > 0) {
+            setChat((c) => [
+              ...c,
+              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${a.reward!.reason} (balance: ${r.balance})` },
+            ]);
+          }
+        } catch {
+          /* reward grants not configured / offline: skip silently */
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -338,7 +354,10 @@ export default function ClassPage() {
             </div>
             <div className="chat">
               {chat.map((m, i) => (
-                <div key={i} className={`bubble ${m.role}`}>
+                <div key={i} className={`bubble ${m.role}`}
+                  style={m.role === "reward"
+                    ? { background: "#052e16", color: "#bbf7d0", border: "1px solid #16a34a", fontWeight: 600 }
+                    : undefined}>
                   {m.text}
                   {m.role === "teacher" && m.grounded !== undefined && (
                     <div className="cite" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>

@@ -410,6 +410,41 @@ def rewards_catalog() -> dict:
     ]}
 
 
+class GrantRequest(BaseModel):
+    grant: str   # HMAC-signed reward voucher minted by the AI agent (orchestrator)
+
+
+@app.post("/rewards/grant")
+def rewards_grant(req: GrantRequest, acct=Depends(current_account)) -> dict:
+    """Redeem an AI-agent reward voucher to the CURRENT account.
+
+    The voucher is an HMAC-signed token (scope=reward) minted by the teaching
+    agent with the shared INTERNAL_TOKEN_KEY; we verify the signature + expiry
+    here so the agent authorizes the points while the learner cannot forge or
+    replay them. Bounded amount; one-time per voucher nonce.
+    """
+    import os
+
+    from aoep_shared.auth import verify_token
+
+    key = os.environ.get("INTERNAL_TOKEN_KEY", "")
+    if not key:
+        raise HTTPException(status_code=503, detail="reward grants are not configured")
+    body = verify_token(req.grant, key.encode("utf-8"))
+    if not body or body.get("scope") != "reward":
+        raise HTTPException(status_code=403, detail="invalid or expired reward grant")
+    try:
+        pts = int(body.get("points", 0))
+    except (TypeError, ValueError):
+        pts = 0
+    if pts <= 0 or pts > 200:
+        raise HTTPException(status_code=400, detail="invalid grant amount")
+    balance, earned = app.state.accounts.award_grant(
+        acct.id, pts, reason=str(body.get("reason", "AI teacher reward")),
+        ref=str(body.get("ref", "")), nonce=body.get("nonce"))
+    return {"earned": earned, "balance": balance, "reason": body.get("reason")}
+
+
 class RedeemRequest(BaseModel):
     prize_id: str
 
