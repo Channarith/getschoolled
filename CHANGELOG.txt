@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Enforce a consistent password policy. Previously only password
+  CHANGE required 8+ chars and SIGNUP enforced nothing (any non-empty password).
+  New shared aoep_shared.passwords (validate_password / password_problems /
+  is_strong_password): minimum 8 characters, at least one letter and one number,
+  not a single repeated character, and a small common-password blocklist. Wired
+  into identity /auth/signup AND /auth/password (consistent 400 with a clear
+  message). The web login/signup form mirrors the rules (inline pre-submit check
+  + a requirements hint). Tests: packages/shared/tests/test_passwords.py and
+  services/identity/tests/test_password_policy.py.
+
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded
