@@ -5,6 +5,13 @@ metadata:
   namespace: aoep
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    # Sticky sessions so live-class sessions (kept in-memory by the orchestrator)
+    # don't 404 across its replicas. See infra/k8s/ingress.yaml for rationale.
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "salareen_aff"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
     nginx.ingress.kubernetes.io/limit-rps: "60"
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
     nginx.ingress.kubernetes.io/limit-connections: "200"

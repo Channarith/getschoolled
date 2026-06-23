@@ -1,0 +1,110 @@
+# Build + push the service/web container images to the Vultr Container Registry
+# and roll the VKE deployments. THIS is what makes a merge to main actually reach
+# the running cluster - the other workflows only run tests / bump the version and
+# never rebuild or redeploy the images, so until now the cluster kept running
+# whatever images were pushed by hand.
+#
+# Triggers:
+#   * workflow_dispatch  - click "Run workflow" to deploy on demand (recommended
+#                          for the demo).
+#   * push to main       - auto-deploys ONLY when the repo variable
+#                          AUTO_DEPLOY == "true" (Settings > Variables), so it
+#                          never fails for forks / before secrets are set.
+#
+# Required repo secrets:
+#   VULTR_REGISTRY_USERNAME / VULTR_REGISTRY_PASSWORD  (Vultr Container Registry creds)
+#   KUBE_CONFIG_B64                                     (base64 of a kubeconfig for the VKE cluster)
+# Optional repo variables:
+#   REGISTRY  (default sjc.vultrcr.com/salareen)
+#   AUTO_DEPLOY ("true" to deploy on every push to main)
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build/deploy (default: commit SHA)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
+
+jobs:
+  build-push:
+    # Skip auto-deploy on push unless AUTO_DEPLOY is explicitly enabled; always
+    # allow manual runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: orchestrator, dockerfile: services/orchestrator/Dockerfile, context: . }
+          - { name: speech,       dockerfile: services/speech/Dockerfile,       context: . }
+          - { name: perception,   dockerfile: services/perception/Dockerfile,   context: . }
+          - { name: memory,       dockerfile: services/memory/Dockerfile,       context: . }
+          - { name: curriculum,   dockerfile: services/curriculum/Dockerfile,   context: . }
+          - { name: billing,      dockerfile: services/billing/Dockerfile,      context: . }
+          - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
+          - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
+          - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
+          - { name: web,          dockerfile: apps/web/Dockerfile,              context: apps/web }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Vultr Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build + push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-push
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+      - name: Roll deployments to the new tag
+        env:
+          TAG: ${{ github.event.inputs.tag || github.sha }}
+        run: |
+          set -euo pipefail
+          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+            echo "::group::$svc"
+            # Container names match the deployment name in infra/k8s.
+            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" --record || \
+              echo "deployment/$svc not found (skipping)"
+            echo "::endgroup::"
+          done
+          for svc in orchestrator speech perception memory curriculum billing identity integrations web; do
+            kubectl -n aoep rollout status "deployment/$svc" --timeout=240s || true
+          done

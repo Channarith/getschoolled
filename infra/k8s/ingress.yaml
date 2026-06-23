@@ -18,6 +18,15 @@ metadata:
   namespace: aoep
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    # Session affinity: the orchestrator keeps live class sessions in-memory, so
+    # with multiple replicas a client must stick to the pod that created its
+    # session or /api/sessions/{id}/advance|ask 404s. A cookie pins each client
+    # to one backend pod. (Durable alternative: a Redis-backed session store.)
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "salareen_aff"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
     # Edge rate limit (defence in depth alongside aoep_shared.ratelimit).
     nginx.ingress.kubernetes.io/limit-rps: "60"
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"

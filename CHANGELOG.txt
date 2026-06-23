@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Deploy pipeline + live-class session fix (why merged changes
+  weren't showing on the cluster). Root cause: no workflow built/pushed the
+  service+web container images or rolled the VKE deployments, so merges to main
+  never reached the running pods (e.g. photosynthesis still showed 4 slides
+  instead of the merged 12). Added .github/workflows/deploy.yml: builds + pushes
+  every image to the Vultr Container Registry and `kubectl set image` +
+  rollout-status the deployments. Runs on manual dispatch, or on push to main
+  when the AUTO_DEPLOY repo variable is "true" (needs VULTR_REGISTRY_USERNAME/
+  PASSWORD + KUBE_CONFIG_B64 secrets). Also fixed the "Could not reach the
+  orchestrator - 404" on /api/sessions/{id}/advance|ask: the orchestrator keeps
+  sessions in-memory but runs 3 replicas with no ingress affinity, so requests
+  round-robined to a pod that never saw the session. Added cookie session
+  affinity to the aoep Ingress (base + VKE). Validated with kustomize build.
+
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
   [test] extra (not requirements-dev.txt), and services/curriculum's test extra
