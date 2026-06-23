@@ -25,3 +25,9 @@ data:
   NEXT_PUBLIC_BILLING_URL: "https://api.salareen.com/billing"
   NEXT_PUBLIC_INTEGRATIONS_URL: "https://api.salareen.com/integrations"
   NEXT_PUBLIC_PERCEPTION_URL: "https://api.salareen.com/perception"
+  # Mobile app download targets for /download (empty -> "Coming soon"). Set these
+  # to the hosted APK + Play/App Store links once published; inlined at build.
+  NEXT_PUBLIC_ANDROID_APK_URL: "https://api.salareen.com/downloads/salareen-android.apk"
+  NEXT_PUBLIC_PLAY_STORE_URL: ""
+  NEXT_PUBLIC_IOS_APP_URL: ""
+  NEXT_PUBLIC_APP_STORE_URL: ""

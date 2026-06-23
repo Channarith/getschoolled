@@ -53,6 +53,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/homework">{t("nav.homework")}</Link>
       <Link href="/rewards">{t("nav.rewards")}</Link>
       <Link href="/backgrounds">{t("nav.themes")}</Link>
+      <Link href="/download">{t("nav.getApp")}</Link>
       <span
         title="This platform is AI-instructed; see the Transparency page."
         style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px",

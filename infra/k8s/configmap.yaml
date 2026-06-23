@@ -32,6 +32,12 @@ data:
   NEXT_PUBLIC_BILLING_URL: "https://api.aoep.example/billing"
   NEXT_PUBLIC_INTEGRATIONS_URL: "https://api.aoep.example/integrations"
   NEXT_PUBLIC_PERCEPTION_URL: "https://api.aoep.example/perception"
+  # Mobile app download targets for the /download page (empty -> "Coming soon").
+  # Like other NEXT_PUBLIC_*, these are inlined at web build time.
+  NEXT_PUBLIC_ANDROID_APK_URL: ""
+  NEXT_PUBLIC_PLAY_STORE_URL: ""
+  NEXT_PUBLIC_IOS_APP_URL: ""
+  NEXT_PUBLIC_APP_STORE_URL: ""
 ---
 # Placeholder secret. Replace values via your cluster's secret manager / CI.
 apiVersion: v1
