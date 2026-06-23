@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Merge-conflict policy: auto-resolve CHANGELOG/README so the
+  auto-push into main never blocks. CHANGELOG.txt keeps its union driver (combine
+  BOTH sides' appended entries; also honored by GitHub server-side merge) and
+  README.md now binds to a custom `theirs` driver that accepts the INCOMING
+  version on conflict (.gitattributes). The custom driver is configured by
+  scripts/setup-git.sh (run once per clone/CI via `make git-setup`); it applies
+  to local/agent merges. GitHub's server-side PR merge does not run custom
+  drivers, so README conflicts in PR auto-merge still need a local merge with the
+  driver set. Documented the rule in AGENTS.md.
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded

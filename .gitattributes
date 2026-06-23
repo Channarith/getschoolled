@@ -1,3 +1,14 @@
-# CHANGELOG is append-only (newest entry on top). Use the union merge driver so
-# concurrent branch entries auto-combine instead of producing merge conflicts.
+# Conflict policy for high-churn docs so concurrent branches never block a merge
+# (and the auto-push into main keeps flowing). See scripts/setup-git.sh / AGENTS.md.
+#
+# CHANGELOG is append-only (newest entry on top). Use the built-in union merge
+# driver so concurrent branch entries auto-combine (keep BOTH sides) instead of
+# producing merge conflicts. union is also honored by GitHub's server-side merge.
 CHANGELOG.txt merge=union
+#
+# README conflicts auto-resolve by accepting the INCOMING (theirs) version. This
+# uses the custom `theirs` driver configured by scripts/setup-git.sh, so it
+# applies to local/agent merges (run that script once per clone). GitHub's
+# server-side merge does not execute custom drivers, so for PR auto-merge README
+# conflicts still need a local merge with the driver configured.
+README.md merge=theirs
