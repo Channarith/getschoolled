@@ -117,23 +117,23 @@ spec:
       containers:
         - name: speech
           image: ghcr.io/aoep/speech:latest
-          ports: [{ containerPort: 8100 }]
+          ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 200m, memory: 384Mi }
             limits:   { cpu: "1",  memory: 1Gi }
-          readinessProbe: { httpGet: { path: /health, port: 8100 }, initialDelaySeconds: 5, periodSeconds: 5 }
-          livenessProbe:  { httpGet: { path: /health, port: 8100 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
           lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: speech, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8100" } }
+metadata: { name: speech, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
 spec:
   selector: { app: speech }
-  ports: [{ port: 8100, targetPort: 8100 }]
+  ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -156,23 +156,23 @@ spec:
       containers:
         - name: perception
           image: ghcr.io/aoep/perception:latest
-          ports: [{ containerPort: 8200 }]
+          ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 250m, memory: 768Mi }
             limits:   { cpu: "1",  memory: 1.5Gi }
-          readinessProbe: { httpGet: { path: /health, port: 8200 }, initialDelaySeconds: 10, periodSeconds: 10 }
-          livenessProbe:  { httpGet: { path: /health, port: 8200 }, initialDelaySeconds: 30, periodSeconds: 30, failureThreshold: 6 }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 10, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 30, periodSeconds: 30, failureThreshold: 6 }
           lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: perception, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8200" } }
+metadata: { name: perception, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
 spec:
   selector: { app: perception }
-  ports: [{ port: 8200, targetPort: 8200 }]
+  ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -188,23 +188,23 @@ spec:
       containers:
         - name: memory
           image: ghcr.io/aoep/memory:latest
-          ports: [{ containerPort: 8400 }]
+          ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 150m, memory: 256Mi }
             limits:   { cpu: 750m, memory: 768Mi }
-          readinessProbe: { httpGet: { path: /health, port: 8400 }, initialDelaySeconds: 5, periodSeconds: 5 }
-          livenessProbe:  { httpGet: { path: /health, port: 8400 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
           lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: memory, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8400" } }
+metadata: { name: memory, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
 spec:
   selector: { app: memory }
-  ports: [{ port: 8400, targetPort: 8400 }]
+  ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -227,23 +227,23 @@ spec:
       containers:
         - name: curriculum
           image: ghcr.io/aoep/curriculum:latest
-          ports: [{ containerPort: 8500 }]
+          ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 200m, memory: 384Mi }
             limits:   { cpu: "1",  memory: 1Gi }
-          readinessProbe: { httpGet: { path: /health, port: 8500 }, initialDelaySeconds: 5, periodSeconds: 5 }
-          livenessProbe:  { httpGet: { path: /health, port: 8500 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
           lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: curriculum, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8500" } }
+metadata: { name: curriculum, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
 spec:
   selector: { app: curriculum }
-  ports: [{ port: 8500, targetPort: 8500 }]
+  ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -259,23 +259,23 @@ spec:
       containers:
         - name: billing
           image: ghcr.io/aoep/billing:latest
-          ports: [{ containerPort: 8600 }]
+          ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
             - secretRef: { name: aoep-secrets }
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits:   { cpu: 500m, memory: 512Mi }
-          readinessProbe: { httpGet: { path: /health, port: 8600 }, initialDelaySeconds: 5, periodSeconds: 5 }
-          livenessProbe:  { httpGet: { path: /health, port: 8600 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
           lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: billing, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8600" } }
+metadata: { name: billing, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
 spec:
   selector: { app: billing }
-  ports: [{ port: 8600, targetPort: 8600 }]
+  ports: [{ port: 8000, targetPort: 8000 }]
 ---
 apiVersion: apps/v1
 kind: Deployment

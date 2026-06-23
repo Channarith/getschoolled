@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Kubernetes service port fix: aligned speech, perception,
+  memory, curriculum, and billing Deployment ports, Service targetPorts, probes,
+  and Prometheus annotations with their Dockerfiles, which all listen on 8000.
+  Tested.
+
 - 2026-06-23 - Web container runtime fix: switched apps/web Docker runtime from
   pnpm start to npm start so Kubernetes pods do not run pnpm install/reconcile at
   startup and OOM on small VKE nodes. Tested.
