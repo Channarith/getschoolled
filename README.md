@@ -30,7 +30,7 @@ lifelong learning, not religion. The full story lives in the web app at
 
 One AI learning platform, many ways to learn:
 
-![Salareen platform ecosystem: homework grader, private tutor agent, mobile apps, drive-mode audio agent, human-in-the-loop / group / private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and 26 languages](docs/brand/salareen_platform_ecosystem.png)
+![Salareen platform ecosystem: homework grader, private tutor agent, mobile apps, drive-mode audio agent, human-in-the-loop / group / private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and 27 languages](docs/brand/salareen_platform_ecosystem.png)
 
 | Sub-app | What it does |
 | --- | --- |
@@ -48,7 +48,7 @@ One AI learning platform, many ways to learn:
 | Course scraper / harvester | Builds fresh courses from the open web |
 | Knowledge base (RAG) | Keeps answers grounded and citable |
 | Integrations | LMS, finance, and cloud connectors |
-| 26+ languages | Multilingual delivery and language learning |
+| 27 languages | Multilingual delivery and language learning (UI fully localized in 14; all 27 supported via ASR + translation + speech, with more UI localization rolling out) |
 | Humanoid-robot ready | The same teaching brain can drive an embodied tutor |
 
 ## Brand

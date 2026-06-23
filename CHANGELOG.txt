@@ -114,6 +114,18 @@ Format: newest first. No markdown per project convention.
   (en + vi). The Expo mobile app (apps/mobile) already builds via EAS (preview =
   APK, production = app-bundle + iOS Release); these badges surface those builds
   once their store/download URLs are configured.
+- 2026-06-23 - Fix language-count mismatch (advertised "26+" but the web picker
+  only listed 14). The web language list now mirrors the backend
+  aoep_shared.languages.SUPPORTED_LANGUAGES (27) and the mobile list: LOCALES +
+  LANGUAGE_LIST in apps/web/app/lib/i18n-strings.ts expanded from 14 to 27, each
+  tagged tier "full" (hand-written UI translation, 14) or "fallback" (supported
+  via ASR + translation + speech; UI inherits English until localized, 13). The
+  web LanguagePicker now groups them ("Fully localized" vs "More languages (UI
+  rolling out)") so all 27 are selectable and the depth is transparent. RTL set
+  derives from the list (adds he, ur, fa alongside ar). Advertised counts are now
+  derived from the list so they can't drift: Our Story shows the live total (27)
+  and full-UI count (14); README updated from "26"/"26+" to 27 with the same
+  clarification. STRINGS is now Partial so fallback languages need no dictionary.
 
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a

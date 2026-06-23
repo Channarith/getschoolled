@@ -27,11 +27,18 @@ export default function LanguagePicker({
           padding: "4px 8px", fontSize: 13,
         }}
       >
-        {languages.map((l) => (
-          <option key={l.code} value={l.code}>
-            {l.flag} {l.native}
-          </option>
-        ))}
+        {/* Fully-localized UI first, then the rest (supported via AI + content;
+            UI shows English until their translation lands). */}
+        <optgroup label={t("lang.groupFull")}>
+          {languages.filter((l) => l.tier === "full").map((l) => (
+            <option key={l.code} value={l.code}>{l.flag} {l.native}</option>
+          ))}
+        </optgroup>
+        <optgroup label={t("lang.groupMore")}>
+          {languages.filter((l) => l.tier !== "full").map((l) => (
+            <option key={l.code} value={l.code}>{l.flag} {l.native}</option>
+          ))}
+        </optgroup>
       </select>
     </label>
   );

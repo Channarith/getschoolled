@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+import { LANGUAGE_LIST } from "../lib/i18n-strings";
+
+// Keep advertised language counts in lockstep with the actual language list so
+// the number can never drift from what the picker offers.
+const LANG_TOTAL = LANGUAGE_LIST.length;
+const LANG_FULL = LANGUAGE_LIST.filter((l) => l.tier === "full").length;
+
 export const metadata: Metadata = {
   title: "Our Story — Salareen",
   description:
@@ -126,9 +133,9 @@ const ECOSYSTEM_TOOLS: EcosystemTool[] = [
     ],
   },
   {
-    name: "26 languages",
+    name: `${LANG_TOTAL} languages`,
     description:
-      "Full UI and teaching in 26 languages with localized voices and accents, and graceful fallback for partial translations.",
+      `Teaching across ${LANG_TOTAL} languages with localized voices and accents; the interface is fully localized in ${LANG_FULL}, with graceful English fallback for the rest while their UI localization rolls out.`,
     examples: [
       "Switch the entire app to Khmer or Vietnamese in one tap.",
       "Hear Drive Mode narrated with your language’s accent.",
@@ -197,7 +204,7 @@ export default function OurStoryPage() {
       <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
         <Image
           src="/salareen-ecosystem.webp"
-          alt="Salareen platform map: homework grader, private tutor agent, mobile apps, drive mode audio agent, human-in-the-loop and group and private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and 26 languages"
+          alt={`Salareen platform map: homework grader, private tutor agent, mobile apps, drive mode audio agent, human-in-the-loop and group and private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and ${LANG_TOTAL} languages`}
           width={1536}
           height={1024}
           style={{ width: "100%", height: "auto", borderRadius: 12 }}
