@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - README video walkthroughs now actually render. GitHub does not
+  embed repo-relative <video src="docs/demos/*.mp4"> tags, so the "Screens and
+  videos" section showed only the screenshots (no videos). Reworked the section
+  to embed recorded walkthroughs as inline animated GIFs (which GitHub renders
+  and loops): added docs/demos/platform_walkthrough.gif (720x450, from the
+  platform_walkthrough.mp4 tour) and docs/demos/mobile_preview_walkthrough.gif,
+  plus an "More recorded flows" grid of the existing per-feature GIFs (live AI
+  class, Drive Mode, catalog, arcade, languages, careers, kids, rewards). The
+  full-quality .mp4 recordings (with audio) are now linked under each preview
+  rather than embedded with a tag that GitHub ignores.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account

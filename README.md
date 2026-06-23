@@ -98,17 +98,42 @@ and growth, not faith. Keep it respectful and never appropriative.
 
 ## Screens and videos
 
-<video src="docs/demos/platform_walkthrough.mp4" controls></video>
+### Video walkthroughs
 
-Mobile preview walkthrough: <video src="docs/demos/mobile_preview_walkthrough.mp4" controls></video>
+Recorded screen walkthroughs play inline below (animated previews). GitHub does
+not embed repo-relative `.mp4` files, so the full-quality recordings (with
+audio) are linked underneath each preview - click to open/play them.
+
+Full platform tour:
+
+![Platform walkthrough](docs/demos/platform_walkthrough.gif)
+
+Full-quality video (with audio): [docs/demos/platform_walkthrough.mp4](docs/demos/platform_walkthrough.mp4)
+
+Mobile preview tour:
+
+![Mobile preview walkthrough](docs/demos/mobile_preview_walkthrough.gif)
+
+Full-quality video (with audio): [docs/demos/mobile_preview_walkthrough.mp4](docs/demos/mobile_preview_walkthrough.mp4)
+
+### More recorded flows (animated)
+
+| Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
+| --- | --- | --- | --- |
+| ![Live AI class walkthrough](docs/demos/persona_live_ai_class_student.gif) | ![Drive Mode audio courses](docs/demos/drive_mode_audio_courses_demo.gif) | ![Netflix-style catalog](docs/demos/home_netflix_catalog_demo.gif) | ![Learning arcade games](docs/demos/learning_arcade_games_demo.gif) |
+| Language learning | Careers / JD parsing | Kids mode | Member rewards |
+| ![Language learning](docs/demos/language_learning_demo.gif) | ![Careers and job matching](docs/demos/careers_jobs_matching_demo.gif) | ![Kids mode](docs/demos/kids_mode_platform_demo.gif) | ![Member account and rewards](docs/demos/persona_member_account_rewards.gif) |
+
+All recorded walkthroughs live in `docs/demos/` (animated `.gif` previews render
+inline; matching `.mp4` files hold the full-quality recordings).
+
+### Screenshots
 
 | Web home | Live class answer | Mobile preview | Themes |
 | --- | --- | --- | --- |
 | <img src="docs/screens/homepage.webp" alt="Web homepage" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/mobile_preview.webp" alt="Mobile web preview" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Neutral backgrounds gallery" /> |
 
-Additional walkthroughs checked into `docs/demos/` include Drive Mode, language
-learning, arcade, careers, kids mode, corporate training, admin, educator HIL,
-and member rewards flows. Additional screenshots live in `docs/screens/`.
+Additional screenshots live in `docs/screens/`.
 
 ## What is implemented
 
