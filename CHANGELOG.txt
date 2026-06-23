@@ -168,6 +168,21 @@ Format: newest first. No markdown per project convention.
   sign in to earn. New web helper setEnrollmentStatus() in apps/web/app/lib/api.ts.
   (Good-grade scaling already flows through the score param wherever a score is
   provided - e.g. the rewards API/tests and graded arcade play.)
+- 2026-06-23 - Major-release (x.0) testing policy + test inventory + first
+  exhaustive expansion. Documented the x.0 gate in docs/release-testing.txt
+  (run the ENTIRE suite + per-sub-app minimums + manual GUI matrix + security/
+  admin/flags checks; the 16 ecosystem sub-apps and what to test per surface;
+  the roadmap to thousands via parametrized/data-driven tests and standing up
+  web/mobile runners). Added scripts/test_inventory.py + `make test-inventory`,
+  which collects the authoritative test count (pytest --collect-only, expands
+  parametrization) and maps every case to one of the 16 sub-apps, with a --min
+  gate for CI. Baseline today: ~1,010+ collected backend cases across 160+ files
+  (frontend + mobile still have 0 automated tests -> flagged as the top gap).
+  First exhaustive expansion: services/speech/tests/test_languages_exhaustive.py
+  parametrizes all 27 supported languages across course/phrases/delivery/tts/
+  exercise (+~135 cases; speech 16 -> 152) and
+  services/memory/tests/test_flags_exhaustive.py covers every registered feature
+  flag. No product code changed.
 
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a

@@ -8,7 +8,7 @@ PYTHON_PKGS := packages/shared services/orchestrator services/speech \
 	apps/agent-runtime
 COMPOSE := infra/compose/docker-compose.yml
 
-.PHONY: help venv install test test-py web-install web-typecheck web-build \
+.PHONY: help venv install test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke
@@ -17,6 +17,7 @@ help:
 	@echo "Targets:"
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
+	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -45,6 +46,12 @@ install: venv
 
 test test-py:
 	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
+
+# Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
+# MIN ratchets the per-sub-app minimum upward over time (0 = report only).
+MIN ?= 0
+test-inventory:
+	$(VENV_PY) scripts/test_inventory.py --min $(MIN)
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
