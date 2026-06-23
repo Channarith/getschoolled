@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken } from "../lib/api";
+import { applyAdmin, login, signup, setToken } from "../lib/api";
 
 // Mirror of aoep_shared.passwords policy for inline (pre-submit) feedback; the
 // identity service is the authoritative enforcer.
@@ -48,6 +48,8 @@ export default function LoginPage() {
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
+      // Admins (e.g. the seeded default account) unlock operator surfaces.
+      applyAdmin(Boolean(res.account?.is_admin));
       // Land on the Netflix-style home feed (popular / category / age) on login.
       router.push("/");
     } catch (err) {
@@ -70,8 +72,10 @@ export default function LoginPage() {
             </label>
           )}
           <label style={{ display: "block", marginBottom: 8 }}>
-            Email
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+            {mode === "login" ? "Email or username" : "Email"}
+            <input type={mode === "login" ? "text" : "email"} required value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoCapitalize="none" autoCorrect="off"
               style={{ width: "100%", padding: 8 }} />
           </label>
           <label style={{ display: "block", marginBottom: 8 }}>

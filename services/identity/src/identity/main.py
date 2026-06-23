@@ -22,6 +22,16 @@ from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+
+# Seed a default admin account so the platform is usable out of the box (and the
+# operator can reach admin-only surfaces). Idempotent; configurable; disable with
+# SEED_DEFAULT_ADMIN=0. CHANGE THE PASSWORD for any real deployment.
+if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
+    app.state.accounts.seed_admin(
+        os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@salareen.com"),
+        os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
+        username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
+    )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()

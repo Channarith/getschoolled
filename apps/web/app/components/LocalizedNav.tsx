@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { AUTH_EVENT, getPreview, getToken, setPreview } from "../lib/api";
+import { AUTH_EVENT, getPreview, getToken, isAdminUnlocked, setPreview } from "../lib/api";
 import { useT } from "../lib/i18n";
 import ProfileMenu from "./ProfileMenu";
 
@@ -19,9 +19,14 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const pathname = usePathname() ?? "/";
 
   // unlocked = logged in OR previewing. Until then, hide the content tabs.
+  // admin = the operator-only surfaces (Homework grader) are unlocked.
   const [unlocked, setUnlocked] = useState(false);
+  const [admin, setAdmin] = useState(false);
   useEffect(() => {
-    const sync = () => setUnlocked(Boolean(getToken()) || getPreview());
+    const sync = () => {
+      setUnlocked(Boolean(getToken()) || getPreview());
+      setAdmin(isAdminUnlocked());
+    };
     sync();
     window.addEventListener(AUTH_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -61,7 +66,9 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           <Link href="/watch">{t("nav.watch")}</Link>
           <Link href="/class">{t("nav.liveClass")}</Link>
           <Link href="/group-classes">{t("nav.groupClasses")}</Link>
-          <Link href="/homework">{t("nav.homework")}</Link>
+          {/* Homework grader is an operator-only tool: only shown when the admin
+              surface is unlocked (password-gated), never for learners/preview. */}
+          {admin && <Link href="/homework">{t("nav.homework")}</Link>}
         </>
       ) : (
         // Signed-out + not previewing: offer Sign in and a Preview toggle that

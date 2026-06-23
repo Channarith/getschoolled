@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getAudioCategories,
   getAudioCourse,
+  getToken,
   listAudioCourses,
   type AudioCourse,
   type AudioCourseRow,
 } from "../lib/api";
+import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
@@ -32,11 +34,13 @@ export default function DrivePage() {
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    setLoggedIn(Boolean(getToken()));
     getAudioCategories().then(setCats).catch(() => setCats([]));
     // Warm the voice list so the first segment already uses the natural voice.
     ensureVoices();
@@ -64,6 +68,7 @@ export default function DrivePage() {
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function startCourse(id: string) {
+    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
     setError("");
     try {
       const c = await getAudioCourse(id);
@@ -244,6 +249,8 @@ export default function DrivePage() {
         Keep your eyes on the road. 🛣️
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
+
+      {!loggedIn && !course && <SignInToUse />}
 
       {/* Now playing */}
       {course && (

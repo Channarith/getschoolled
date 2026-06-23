@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  getToken,
   listGroupClasses,
   listLessons,
   registerGroupClass,
@@ -12,6 +13,7 @@ import {
   type GroupClassStart,
   type Lesson,
 } from "../lib/api";
+import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 
@@ -57,6 +59,7 @@ export default function GroupClassesPage() {
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [started, setStarted] = useState<GroupClassStart | null>(null);
+  const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
 
   // schedule form
   const [title, setTitle] = useState("");
@@ -78,6 +81,7 @@ export default function GroupClassesPage() {
   }
 
   useEffect(() => {
+    setLoggedIn(Boolean(getToken()));
     refresh();
     listLessons()
       .then((ls) => {
@@ -88,7 +92,15 @@ export default function GroupClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function requireAccount(): boolean {
+    if (getToken()) return true;
+    setLoggedIn(false);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    return false;
+  }
+
   async function onSchedule() {
+    if (!requireAccount()) return;
     setError("");
     setBusy(true);
     try {
@@ -115,6 +127,7 @@ export default function GroupClassesPage() {
   }
 
   async function onRegister(gc: GroupClass) {
+    if (!requireAccount()) return;
     const name = window.prompt(t("group.registerPrompt"));
     if (!name) return;
     setBusy(true);
@@ -129,6 +142,7 @@ export default function GroupClassesPage() {
   }
 
   function onJoin(gc: GroupClass) {
+    if (!requireAccount()) return;
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
     } else {
@@ -137,6 +151,7 @@ export default function GroupClassesPage() {
   }
 
   async function onStart(gc: GroupClass) {
+    if (!requireAccount()) return;
     setError("");
     setBusy(true);
     try {
@@ -156,6 +171,8 @@ export default function GroupClassesPage() {
       <p className="muted" style={{ maxWidth: 720 }}>
         {t("group.intro")}
       </p>
+
+      {!loggedIn && <SignInToUse />}
 
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
