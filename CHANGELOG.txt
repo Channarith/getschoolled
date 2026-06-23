@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Preview is now VIEW-ONLY. Signed-out/preview visitors can still
+  browse every page and use Watch, but the interactive features now require an
+  account: starting a Live Class, playing a Drive Mode audio class, and Group
+  Class register/start/join/schedule are gated behind sign-in (the action shows
+  a "Preview is view-only — sign in to take classes" card with sign-in + "Watch
+  instead" CTAs, via the new SignInToUse component). Watch stays fully usable in
+  preview. New preview.* i18n strings (en + vi). Watch remains the only clickable
+  interactive surface in preview.
+
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded

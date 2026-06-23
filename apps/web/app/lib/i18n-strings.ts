@@ -592,3 +592,24 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "lang.choose": "ជ្រើសរើសភាសា",
   },
 };
+
+// Preview is view-only: browse + Watch are allowed, but taking classes / audio
+// requires an account. Strings for that gate (en + vi; others fall back to en).
+const PREVIEW: Partial<Record<Locale, Record<string, string>>> = {
+  en: {
+    "preview.lockedTitle": "Preview is view-only",
+    "preview.lockedBody": "Sign in to take classes and audio lessons. In preview you can browse everything and watch course videos, but not start a class.",
+    "preview.signIn": "Sign in →",
+    "preview.watchInstead": "Watch a course instead",
+  },
+  vi: {
+    "preview.lockedTitle": "Chế độ xem trước chỉ để xem",
+    "preview.lockedBody": "Đăng nhập để tham gia lớp học và bài học âm thanh. Ở chế độ xem trước, bạn có thể duyệt mọi thứ và xem video khóa học, nhưng không thể bắt đầu lớp.",
+    "preview.signIn": "Đăng nhập →",
+    "preview.watchInstead": "Xem một khóa học",
+  },
+};
+
+for (const [loc, kv] of Object.entries(PREVIEW)) {
+  STRINGS[loc as Locale] = { ...(STRINGS[loc as Locale] || {}), ...kv };
+}
