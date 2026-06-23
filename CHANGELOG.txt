@@ -2,6 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Fix "can't create an account" (signup/login 404) on deployed
+  single-origin hosts (bare IP / one domain). Root cause: the web bundle resolved
+  every backend to its own page origin and then called bare paths (e.g.
+  /auth/signup), which nothing routed -> 404. The NEXT_PUBLIC_*_URL contract was
+  build-time-only and pointed at absolute api.* hosts that don't exist for a bare
+  IP. Fix: apps/web/app/lib/api.ts now resolves backend bases in deployed mode to
+  SAME-ORIGIN relative path prefixes (/identity, /curriculum, /orchestrator, ...)
+  so calls hit the gateway on whatever host/IP/domain served the page - no DNS or
+  build args needed. Added a single-origin edge gateway for docker-compose
+  (infra/compose/edge.conf + an `edge` nginx service on port 80) that serves the
+  web app at "/" and rewrites /<svc>/... to each service, and a hostless
+  single-origin Ingress for Kubernetes (infra/k8s/ingress-origin.yaml, inherited
+  by the VKE overlay) so the LB IP works without app/api subdomains. Updated the
+  configmaps' NEXT_PUBLIC_*_URL to the relative prefixes. Verified end-to-end:
+  signup now POSTs /identity/auth/signup through the gateway and returns 200,
+  logging the user in.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account
