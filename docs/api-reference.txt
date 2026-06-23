@@ -147,6 +147,8 @@ Auth = session JWT (Authorization: Bearer) except signup/login.
   GET  /games ; POST /games/new ; POST /games/submit ; GET /games/leaderboard
   POST /language/practice
   GET  /rewards ; GET /rewards/catalog ; POST /rewards/redeem {prize_id}
+  POST /rewards/grant {grant}    redeem an AI-agent reward voucher (HMAC-signed by
+                                 the orchestrator; verified here) -> credits points
 
 ============================================================================
 4. CURRICULUM (catalog, RAG, careers, homework)  -  :8005
