@@ -50,6 +50,19 @@ export const SERVICE_URLS: Record<string, string> = {
 
 // --- account / session (token in localStorage) --------------------------- //
 const TOKEN_KEY = "aoep_token";
+const PREVIEW_KEY = "aoep_preview";
+
+// Fired whenever auth/preview state changes so the nav (and other components)
+// can re-gate immediately without a full reload.
+export const AUTH_EVENT = "aoep-auth-change";
+
+export function notifyAuthChange(): void {
+  try {
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  } catch {
+    /* no window (SSR) */
+  }
+}
 
 export function getToken(): string | null {
   try {
@@ -65,6 +78,7 @@ export function setToken(token: string): void {
   } catch {
     /* ignore */
   }
+  notifyAuthChange();
 }
 
 export function clearToken(): void {
@@ -73,6 +87,28 @@ export function clearToken(): void {
   } catch {
     /* ignore */
   }
+  notifyAuthChange();
+}
+
+// "Preview" lets a signed-out visitor browse the catalog before creating an
+// account. It is persisted so the choice survives navigation/reload, and gates
+// the content nav tabs (hidden until the visitor logs in OR opts into preview).
+export function getPreview(): boolean {
+  try {
+    return localStorage.getItem(PREVIEW_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setPreview(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(PREVIEW_KEY, "1");
+    else localStorage.removeItem(PREVIEW_KEY);
+  } catch {
+    /* ignore */
+  }
+  notifyAuthChange();
 }
 
 function authHeaders(): Record<string, string> {

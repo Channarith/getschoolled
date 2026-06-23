@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Gate the content nav behind login/preview. A signed-out visitor
+  no longer sees the Browse / For You / Kids / Corporate / Languages / Drive /
+  Careers / Arcade / Watch / Live Class / Homework tabs; the top nav shows only
+  the brand, Our Story, a Sign in link, and a "Preview what's inside" toggle.
+  Logging in OR opting into preview reveals the full nav + catalog. Preview is now
+  a shared, persisted flag (apps/web/app/lib/api.ts getPreview/setPreview) so the
+  landing page and the nav agree and the choice survives navigation/reload; an
+  AUTH_EVENT fires on login/logout/preview so the nav re-gates instantly without
+  a reload. Signing out clears preview and returns to the gated landing.
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account
