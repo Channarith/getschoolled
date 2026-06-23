@@ -517,3 +517,119 @@ def assessment_grade(req: GradeRequest) -> GradeResponse:
         mastery_target=result.mastery_target,
         difficulty=result.difficulty,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Scheduled group classes (the AI drives the coursework through Zoom / Teams /
+# Google Meet, or the built-in Salareen room). Educators schedule a lesson on a
+# platform at a time; learners browse the schedule and register. ``start`` spins
+# up the teaching session and returns the bridge plan that pipes the AI's
+# LiveKit room into the external meeting so it presents through that platform.
+# --------------------------------------------------------------------------- #
+from aoep_shared.group_classes import (  # noqa: E402
+    ClassFullError,
+    GroupClassError,
+    GroupClassStore,
+    bridge_plan,
+)
+
+app.state.group_classes = GroupClassStore()
+
+
+def _group_store() -> GroupClassStore:
+    return app.state.group_classes
+
+
+class ScheduleGroupClassRequest(BaseModel):
+    title: str
+    lesson_id: str
+    start_time: str
+    platform: str = "salareen"
+    meeting_url: str = ""
+    duration_min: int = 60
+    host: str = "Salareen AI"
+    capacity: int = 100
+    language: str = "en"
+    description: str = ""
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str = ""
+
+
+@app.get("/api/group-classes")
+def list_group_classes(upcoming: bool = True) -> dict:
+    classes = _group_store().list(upcoming_only=upcoming)
+    return {"classes": [c.to_dict() for c in classes]}
+
+
+@app.post("/api/group-classes")
+def schedule_group_class(req: ScheduleGroupClassRequest) -> dict:
+    try:
+        gc = _group_store().schedule(**req.model_dump())
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return gc.to_dict()
+
+
+@app.get("/api/group-classes/{class_id}")
+def get_group_class(class_id: str) -> dict:
+    gc = _group_store().get(class_id)
+    if gc is None:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    return gc.to_dict()
+
+
+@app.post("/api/group-classes/{class_id}/register")
+def register_group_class(class_id: str, req: RegisterRequest) -> dict:
+    store = _group_store()
+    try:
+        store.register(class_id, req.name, req.email)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    except ClassFullError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return store.require(class_id).to_dict()
+
+
+@app.post("/api/group-classes/{class_id}/start")
+def start_group_class(class_id: str) -> dict:
+    """Go live: create the teaching session and return the meeting bridge plan.
+
+    The AI's coursework runs as a normal teaching session; the returned
+    ``bridge`` describes how to pipe its LiveKit room into the scheduled
+    meeting (Zoom/Teams/Meet) so the AI presents through that platform. For
+    built-in "salareen" classes, learners join the live room directly.
+    """
+    store = _group_store()
+    gc = store.get(class_id)
+    if gc is None:
+        raise HTTPException(status_code=404, detail="unknown group class")
+
+    sessions = get_sessions()
+    try:
+        state = sessions.start_session(gc.lesson_id, "group")
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {gc.lesson_id}")
+
+    gc.session_id = state.session_id
+    store.set_status(gc.id, "live")
+
+    room = f"class-{gc.id}"
+    plan = dict(bridge_plan(gc, livekit_room=room))
+    media = app.state.factory.media()
+    token = media.issue_token(room=room, identity="aoep-teacher")
+    plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
+
+    return {
+        "class": gc.to_dict(),
+        "session": SessionView(
+            session=state,
+            lesson=sessions.lesson_for(state.session_id),
+            slide=sessions.current_slide(state.session_id),
+        ).model_dump(),
+        "bridge": plan,
+    }

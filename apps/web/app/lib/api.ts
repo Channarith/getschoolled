@@ -546,6 +546,94 @@ export async function startSession(
   );
 }
 
+// --- scheduled group classes (AI presents via Zoom/Teams/Meet/Salareen) --- //
+export type GroupClass = {
+  id: string;
+  title: string;
+  lesson_id: string;
+  platform: string;
+  meeting_url: string;
+  start_time: string;
+  duration_min: number;
+  host: string;
+  capacity: number;
+  language: string;
+  description: string;
+  status: string;
+  seats_left: number;
+  registered: number;
+  needs_bridge: boolean;
+  session_id: string;
+};
+
+export type ScheduleGroupClassInput = {
+  title: string;
+  lesson_id: string;
+  start_time: string;
+  platform?: string;
+  meeting_url?: string;
+  duration_min?: number;
+  host?: string;
+  capacity?: number;
+  language?: string;
+  description?: string;
+};
+
+export type GroupClassStart = {
+  class: GroupClass;
+  session: SessionView;
+  bridge: {
+    needs_bridge: boolean;
+    platform: string;
+    livekit_room: string;
+    meeting_ref?: string;
+    join_url?: string;
+    connect_endpoint?: string;
+    note?: string;
+    livekit?: { room: string; token: string; url: string };
+  };
+};
+
+export async function listGroupClasses(upcoming = true): Promise<GroupClass[]> {
+  const r = await jsonOrThrow<{ classes: GroupClass[] }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes?upcoming=${upcoming}`, { cache: "no-store" })
+  );
+  return r.classes;
+}
+
+export async function scheduleGroupClass(input: ScheduleGroupClassInput): Promise<GroupClass> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function registerGroupClass(
+  classId: string,
+  name: string,
+  email = ""
+): Promise<GroupClass> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, email }),
+    })
+  );
+}
+
+export async function startGroupClass(classId: string): Promise<GroupClassStart> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    })
+  );
+}
+
 export async function advance(sessionId: string): Promise<Slide> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/advance`, {
