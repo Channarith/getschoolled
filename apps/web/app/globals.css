@@ -456,3 +456,95 @@ textarea {
   align-items: center;
   justify-content: center;
 }
+
+/* ---------------- Ecosystem tools with hover/focus tooltips (Our Story) ---------------- */
+.tools {
+  list-style: none;
+  margin: 12px 0 8px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.tool {
+  position: relative;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+  cursor: help;
+  outline: none;
+}
+
+.tool:hover,
+.tool:focus-within {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.tool .tool-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.tool .tool-name::after {
+  content: "ⓘ";
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tool:hover .tool-name::after,
+.tool:focus-within .tool-name::after {
+  color: var(--accent);
+}
+
+.tool .tool-tip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  display: none;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+}
+
+.tool:hover .tool-tip,
+.tool:focus-within .tool-tip {
+  display: block;
+}
+
+.tool .tool-tip p {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tool .tool-tip .ex-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-2);
+  margin-bottom: 4px;
+}
+
+.tool .tool-tip .examples {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tool .tool-tip .examples li {
+  margin: 2px 0;
+}
