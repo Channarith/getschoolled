@@ -19,19 +19,22 @@ data:
   REDIS_URL: "redis://redis.aoep.internal:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
   ORCHESTRATOR_URL: "https://api.aoep.example"
-  # Browser-facing API bases for the web app. The Ingress routes each /<svc>/
-  # path prefix to the matching Service (see ingress.yaml). NOTE: Next.js inlines
-  # NEXT_PUBLIC_* at BUILD time, so the web image must be built with these values
-  # (pass as build args) for the browser bundle to use them; this ConfigMap
-  # documents the contract and covers any runtime-config shim.
-  NEXT_PUBLIC_ORCHESTRATOR_URL: "https://api.aoep.example"
-  NEXT_PUBLIC_CURRICULUM_URL: "https://api.aoep.example/curriculum"
-  NEXT_PUBLIC_IDENTITY_URL: "https://api.aoep.example/identity"
-  NEXT_PUBLIC_MEMORY_URL: "https://api.aoep.example/memory"
-  NEXT_PUBLIC_SPEECH_URL: "https://api.aoep.example/speech"
-  NEXT_PUBLIC_BILLING_URL: "https://api.aoep.example/billing"
-  NEXT_PUBLIC_INTEGRATIONS_URL: "https://api.aoep.example/integrations"
-  NEXT_PUBLIC_PERCEPTION_URL: "https://api.aoep.example/perception"
+  # Browser-facing API bases for the web app. By DEFAULT the web bundle derives
+  # these from the page origin + a same-origin path prefix (apps/web/app/lib/api.ts),
+  # which the Ingress rewrites to each Service - so the values below are RELATIVE
+  # prefixes and work on a bare LB IP or any domain with no DNS for api/app
+  # subdomains. They are only needed if you want to pin the web image to absolute
+  # cross-origin API hosts (Next.js inlines NEXT_PUBLIC_* at BUILD time, so they
+  # must be passed as build args to take effect; left as relative defaults, the
+  # browser's same-origin resolution already works without any build args).
+  NEXT_PUBLIC_ORCHESTRATOR_URL: "/orchestrator"
+  NEXT_PUBLIC_CURRICULUM_URL: "/curriculum"
+  NEXT_PUBLIC_IDENTITY_URL: "/identity"
+  NEXT_PUBLIC_MEMORY_URL: "/memory"
+  NEXT_PUBLIC_SPEECH_URL: "/speech"
+  NEXT_PUBLIC_BILLING_URL: "/billing"
+  NEXT_PUBLIC_INTEGRATIONS_URL: "/integrations"
+  NEXT_PUBLIC_PERCEPTION_URL: "/perception"
   # Mobile app download targets for the /download page (empty -> "Coming soon").
   # Like other NEXT_PUBLIC_*, these are inlined at web build time.
   NEXT_PUBLIC_ANDROID_APK_URL: ""

@@ -1,40 +1,57 @@
 // Client for the orchestrator (Teaching Director) API.
 // Base URL is configurable so the SAME UI runs against local or cloud backends.
 
-function deployedOrigin(): string | undefined {
-  if (typeof window === "undefined") return undefined;
+// Are we running on a deployed host (not local dev)? On localhost the UI talks
+// to each service on its own port; when deployed it shares ONE origin with the
+// backends and reaches them through same-origin path prefixes that the edge
+// gateway / ingress rewrites to each service (see infra/compose/edge.conf and
+// infra/k8s ingress).
+function isDeployedHost(): boolean {
+  if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return undefined;
-  return window.location.origin;
+  return host !== "localhost" && host !== "127.0.0.1" && host !== "::1";
 }
 
-function serviceUrl(env: string | undefined, localDefault: string): string {
-  return env ?? deployedOrigin() ?? localDefault;
+// Resolve a service base URL. Precedence:
+//   1. An explicit NEXT_PUBLIC_*_URL build-time override (absolute URL).
+//   2. Deployed: a SAME-ORIGIN relative path prefix (e.g. "/identity"), so the
+//      browser hits the gateway on whatever host/IP/domain served the page -
+//      no DNS or build-time host baking required. The gateway strips the prefix
+//      and forwards to the matching service.
+//   3. Local dev: the service's localhost port.
+function serviceUrl(
+  env: string | undefined,
+  deployedPrefix: string,
+  localDefault: string,
+): string {
+  if (env) return env;
+  if (isDeployedHost()) return deployedPrefix;
+  return localDefault;
 }
 
 export const ORCHESTRATOR_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL, "http://localhost:8000");
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL, "/orchestrator", "http://localhost:8000");
 
 export const CURRICULUM_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_CURRICULUM_URL, "http://localhost:8005");
+  process.env.NEXT_PUBLIC_CURRICULUM_URL, "/curriculum", "http://localhost:8005");
 
 export const MEMORY_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_MEMORY_URL, "http://localhost:8004");
+  process.env.NEXT_PUBLIC_MEMORY_URL, "/memory", "http://localhost:8004");
 
 export const IDENTITY_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_IDENTITY_URL, "http://localhost:8008");
+  process.env.NEXT_PUBLIC_IDENTITY_URL, "/identity", "http://localhost:8008");
 
 export const BILLING_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_BILLING_URL, "http://localhost:8006");
+  process.env.NEXT_PUBLIC_BILLING_URL, "/billing", "http://localhost:8006");
 
 export const INTEGRATIONS_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_INTEGRATIONS_URL, "http://localhost:8007");
+  process.env.NEXT_PUBLIC_INTEGRATIONS_URL, "/integrations", "http://localhost:8007");
 
 export const SPEECH_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_SPEECH_URL, "http://localhost:8002");
+  process.env.NEXT_PUBLIC_SPEECH_URL, "/speech", "http://localhost:8002");
 
 export const PERCEPTION_URL = serviceUrl(
-  process.env.NEXT_PUBLIC_PERCEPTION_URL, "http://localhost:8003");
+  process.env.NEXT_PUBLIC_PERCEPTION_URL, "/perception", "http://localhost:8003");
 
 // All backend services keyed by name -> base URL (each exposes /version + /health).
 export const SERVICE_URLS: Record<string, string> = {

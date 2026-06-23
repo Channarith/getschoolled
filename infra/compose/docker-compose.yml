@@ -143,9 +143,31 @@ services:
     build:
       context: ../../apps/web
       dockerfile: Dockerfile
-    environment:
-      NEXT_PUBLIC_ORCHESTRATOR_URL: http://localhost:8000
+    # No NEXT_PUBLIC_*_URL needed: the browser bundle derives backend URLs from
+    # the page origin and same-origin path prefixes (see apps/web/app/lib/api.ts),
+    # which the `edge` gateway rewrites to each service. Port 3000 stays exposed
+    # for direct debugging; real traffic comes through `edge` on port 80.
     ports:
       - "3000:3000"
     depends_on:
       - orchestrator
+
+  # Single public origin: serves the web app and routes /<svc>/... to each
+  # backend so account creation, login, catalog, and live class all work over a
+  # bare IP or any domain. This is the container to publish on port 80/443.
+  edge:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./edge.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - orchestrator
+      - identity
+      - curriculum
+      - integrations
+      - memory
+      - speech
+      - billing
+      - perception

@@ -8,6 +8,7 @@ resources:
   - autoscaling.yaml
   - redis.yaml
   - ingress.yaml
+  - ingress-origin.yaml
   - llm-vllm.yaml
   - harvester.yaml
   - retention-cronjob.yaml
