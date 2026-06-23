@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Our Story ecosystem tools now have hover tooltips. The static
+  bullet list of platform tools on /our-story is now a grid of hoverable/
+  focusable cards; hovering (or tapping/focusing) a tool reveals a tooltip with
+  a plain-language description plus two concrete examples for all 14 tools
+  (tutor agent, homework grader, human-in-the-loop, live/private courses, Drive
+  Mode, mobile apps, adaptive learning, machine vision, arcade & rewards, course
+  scraper, knowledge base/RAG, integrations, 26 languages, humanoid-robot ready).
+  Pure-CSS tooltips (no client JS) styled with the dark theme tokens and
+  keyboard-accessible via :focus-within.
+
 - 2026-06-23 - README video walkthroughs now actually render. GitHub does not
   embed repo-relative <video src="docs/demos/*.mp4"> tags, so the "Screens and
   videos" section showed only the screenshots (no videos). Reworked the section
