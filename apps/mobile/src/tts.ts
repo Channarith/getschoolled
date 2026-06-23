@@ -61,8 +61,8 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
   Speech.speak(text, {
     language: lang,
     voice: pickVoiceId(lang),
-    pitch: opts.pitch ?? 0.95,
-    rate: opts.rate ?? 1.0,
+    pitch: opts.pitch ?? 1.0,
+    rate: opts.rate ?? 0.95,
     onDone: opts.onDone,
     onStopped: opts.onStopped,
     onError: opts.onError,

@@ -2,6 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Textbook-depth course content (standard + first chapter) and more
+  natural Drive Mode audio. CONTENT: expanded python-09-functions from a 9-slide
+  ~500-word stub into a comprehensive 32-section, ~3,500-word textbook chapter
+  (anatomy, positional/keyword/default/*args/**kwargs/keyword-only/positional-only,
+  unpacking, returns + multiple returns, guard clauses, docstrings, type hints,
+  scope/LEGB/closures/nonlocal/global, first-class & higher-order functions,
+  lambdas, recursion, decorators, pure functions, pitfalls incl. the mutable-
+  default trap, best practices, a worked toolkit, exercises, and a summary +
+  ~20 facts; 52 RAG passages). Added scripts/check_curriculum_depth.py to review
+  per-lesson slide/word/fact counts and flag stubs (currently 1/14 at textbook
+  depth - the rest are queued for the same expansion / the LLM generation
+  pipeline). TTS: apps/web/app/lib/tts.ts now demotes robotic formant voices via
+  a blocklist, strongly prefers neural/cloud voices, and splits narration into
+  sentence/clause chunks queued for natural pacing (slightly slower rate); mobile
+  tts.ts prosody tuned to match. Browser speech still has a quality ceiling - the
+  fully human-grade path is neural TTS via the speech service.
+
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded
