@@ -5,6 +5,18 @@ new markdown beyond this operational file), always `python3`, dual-mode via env
 (no code forks), pin dependency versions, update CHANGELOG.txt on meaningful
 changes.
 
+Merge-conflict policy (keeps the auto-push into main flowing): conflicts in the
+two high-churn docs auto-resolve instead of blocking a merge. This is wired via
+`.gitattributes` merge drivers — run `make git-setup` (or `./scripts/setup-git.sh`)
+once per clone/CI runner that performs a local merge, then merge as usual:
+- `CHANGELOG.txt` -> `union` (built-in): keep BOTH sides' appended entries; also
+  honored by GitHub's server-side merge.
+- `README.md` -> `theirs` (custom driver): accept the INCOMING (theirs) version.
+  Custom drivers run only on local merges; GitHub's server-side PR merge does not
+  execute them, so README conflicts in PR auto-merge need a local merge with the
+  driver configured. When a local merge is impractical, default to accepting the
+  incoming branch's `README.md`/`CHANGELOG.txt` and re-running the README cleanup.
+
 ## Push-to-main checklist (required every time main is updated)
 
 1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)

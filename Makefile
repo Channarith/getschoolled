@@ -8,13 +8,14 @@ PYTHON_PKGS := packages/shared services/orchestrator services/speech \
 	apps/agent-runtime
 COMPOSE := infra/compose/docker-compose.yml
 
-.PHONY: help venv install test test-py test-inventory web-install web-typecheck web-build \
+.PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke
 
 help:
 	@echo "Targets:"
+	@echo "  git-setup      Configure merge drivers (CHANGELOG=union, README=theirs)"
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
@@ -33,6 +34,9 @@ help:
 	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
 	@echo "  scale-up/down  Start / stop multi-replica local compose overlay"
 	@echo "  up / down      Start / stop the full local stack"
+
+git-setup:
+	./scripts/setup-git.sh
 
 venv:
 	$(PY) -m venv $(VENV)
