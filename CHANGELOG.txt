@@ -61,6 +61,32 @@ Format: newest first. No markdown per project convention.
   Total now 14 lessons / 129 slides / 211 RAG passages (was ~2 / ~8). Verified:
   all 39 orchestrator tests pass and a live session teaches + answers grounded
   questions from the new content.
+- 2026-06-22 - Media bridges (phases 7-9) promoted from scaffold to a real,
+  tested bridge engine. Previously bridges/{zoom,teams,meet} were text scaffolds
+  and aoep_shared.bridges was a stub whose connect() only raised. Now:
+    * aoep_shared.bridges is a package implementing the platform-agnostic engine:
+      meeting-URL parsing (parse_meeting_ref for Zoom/Teams/Meet), Zoom Meeting
+      SDK signature minting (zoom_sdk_signature), a MediaTransport boundary, and
+      a BridgeSession lifecycle (join->bridge->leave) that wires audio/video/
+      screen tracks bidirectionally per capabilities, routes meeting chat to the
+      Tutor, and surfaces recording/data-retention disclosures. The vendor SDKs
+      are isolated behind MediaTransport, so the whole flow runs end-to-end with
+      an in-memory FakeTransport and fails closed (BridgeUnavailable) offline.
+    * Concrete ZoomMediaBridge / MeetMediaBridge (python) and TeamsMediaBridge,
+      which drives a .NET sidecar over an HTTP control plane (HttpSidecarTransport).
+    * integrations service: new GET /bridges, GET /bridges/{platform},
+      POST /bridges/{platform}/connect (with a local/test-only `simulate` flag),
+      POST /bridges/sessions/{id}/chat, GET/POST .../disconnect.
+    * bridges/teams/dotnet: a real ASP.NET (net8.0) Graph Communications Calling
+      sidecar implementing the control plane (Program.cs + TeamsCallingBridge.cs
+      + csproj + Dockerfile). SOURCE-COMPLETE but NOT built here (no .NET SDK in
+      the sandbox; live media also needs an Azure bot registration + media cert).
+    * Tests: packages/shared/tests/test_bridges_engine.py (parsing, Zoom JWT,
+      full FakeTransport lifecycle, fail-closed paths) and
+      services/integrations/tests/test_bridges_api.py (endpoints incl. simulated
+      bridge + chat + disconnect). Corrected the misleading "Implemented in
+      phaseN" wording in bridges/*/bridge.txt and docs/plan.txt to state exactly
+      what is implemented vs. what needs vendor SDKs/credentials. Tested.
 
 - 2026-06-22 - Vultr Kubernetes Engine conversion start: added
   infra/k8s-vke overlay for VKE-specific image registry rewrites, hostnames,

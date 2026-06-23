@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Teams <-> LiveKit media bridge sidecar (phase 8).
+
+    The Graph Communications Calling/Media SDK is .NET-only, so the Teams media
+    bot runs here and is driven by the Python bridge over the HTTP control plane
+    (see ../bridge.txt). Build where a .NET 8 SDK is available:  dotnet build
+    Not compiled in the Cursor sandbox (no .NET toolchain installed).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Aoep.Bridges.Teams</RootNamespace>
+    <AssemblyName>aoep-teams-bridge</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Graph Communications Calling + Media (real-time audio/video access). -->
+    <PackageReference Include="Microsoft.Graph.Communications.Calling" Version="1.2.0.10465" />
+    <PackageReference Include="Microsoft.Graph.Communications.Calling.Media" Version="1.2.0.10465" />
+    <PackageReference Include="Microsoft.Graph.Communications.Client" Version="1.2.0.10465" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.61.3" />
+  </ItemGroup>
+
+</Project>

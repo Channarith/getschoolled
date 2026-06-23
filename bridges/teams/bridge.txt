@@ -11,4 +11,28 @@ CONTRACT
 - Bridge Teams <-> LiveKit both directions; honor platform ToS for automated
   bots and recording.
 
-STATUS: scaffold only. Implemented in phase8 (note: .NET, not Python).
+WHY .NET (and a sidecar)
+- The Graph Communications Calling/Media SDK is .NET-only, so the media bot
+  cannot run in the Python process. The Python bridge therefore drives a small
+  .NET sidecar over an HTTP control plane; the sidecar owns the actual
+  Teams<->LiveKit media. The control-plane contract is:
+      POST /call/join     {threadId, tenantId, livekitUrl, livekitRoom, livekitToken}
+      POST /call/bridge   {kind, direction}
+      POST /call/announce {text, recording}
+      POST /call/chat     {text}
+      POST /call/leave    {}
+
+STATUS
+- IMPLEMENTED + TESTED (Python control side): the platform-agnostic engine
+  (aoep_shared.bridges) plus HttpSidecarTransport, which issues the control-plane
+  calls above. Wired into the integrations service at POST /bridges/teams/connect
+  (set TEAMS_BRIDGE_SIDECAR_URL). Exercised end-to-end via an in-memory transport
+  and verified to fail closed with BridgeUnavailable when no sidecar/credentials
+  are present.
+- SOURCE-COMPLETE, NOT BUILT HERE (.NET sidecar): see bridges/teams/dotnet/. It
+  is a real ASP.NET minimal-API service implementing the control plane on top of
+  the Graph Communications Calling SDK. It is NOT compiled/tested in this
+  environment because no .NET SDK is installed here, and going live additionally
+  requires an Azure bot registration (TEAMS_APP_ID/SECRET/TENANT_ID), a media
+  platform certificate, and a public media endpoint. Build with `dotnet build`
+  where a .NET 8 SDK is available.

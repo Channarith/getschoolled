@@ -9,4 +9,14 @@ CONTRACT
 - Integrate Chat for text Q&A routed to the Tutor agent.
 - Honor platform ToS and surface recording/retention disclosures.
 
-STATUS: scaffold only. Implemented in phase9.
+STATUS
+- IMPLEMENTED + TESTED (platform-agnostic): uses the same engine as the Zoom
+  bridge (aoep_shared.bridges) for meeting-code parsing, the join->bridge->leave
+  lifecycle, track wiring, chat->Tutor routing, and disclosures. Wired into the
+  integrations service at POST /bridges/meet/connect (and the shared session
+  endpoints). Exercised end-to-end via an in-memory transport.
+- REQUIRES TO GO LIVE: a Google Workspace service account (GOOGLE_SA_JSON +
+  GOOGLE_WORKSPACE_CUSTOMER) and the Meet automation/media runtime, which are
+  not available in this environment. Honor Google Meet's automation/ToS limits.
+  Until a MeetMediaTransport is wired in, a real connect fails closed with
+  BridgeUnavailable.
