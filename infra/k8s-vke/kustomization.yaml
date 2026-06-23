@@ -9,35 +9,35 @@ patches:
   - path: pvc-vke.yaml
 images:
   - name: ghcr.io/aoep/orchestrator
-    newName: registry.vultr.com/salareen/orchestrator
+    newName: sjc.vultrcr.com/salareen/orchestrator
     newTag: latest
   - name: ghcr.io/aoep/speech
-    newName: registry.vultr.com/salareen/speech
+    newName: sjc.vultrcr.com/salareen/speech
     newTag: latest
   - name: ghcr.io/aoep/perception
-    newName: registry.vultr.com/salareen/perception
+    newName: sjc.vultrcr.com/salareen/perception
     newTag: latest
   - name: ghcr.io/aoep/memory
-    newName: registry.vultr.com/salareen/memory
+    newName: sjc.vultrcr.com/salareen/memory
     newTag: latest
   - name: ghcr.io/aoep/curriculum
-    newName: registry.vultr.com/salareen/curriculum
+    newName: sjc.vultrcr.com/salareen/curriculum
     newTag: latest
   - name: ghcr.io/aoep/billing
-    newName: registry.vultr.com/salareen/billing
+    newName: sjc.vultrcr.com/salareen/billing
     newTag: latest
   - name: ghcr.io/aoep/integrations
-    newName: registry.vultr.com/salareen/integrations
+    newName: sjc.vultrcr.com/salareen/integrations
     newTag: latest
   - name: ghcr.io/aoep/identity
-    newName: registry.vultr.com/salareen/identity
+    newName: sjc.vultrcr.com/salareen/identity
     newTag: latest
   - name: ghcr.io/aoep/web
-    newName: registry.vultr.com/salareen/web
+    newName: sjc.vultrcr.com/salareen/web
     newTag: latest
   - name: aoep/harvester
-    newName: registry.vultr.com/salareen/harvester
+    newName: sjc.vultrcr.com/salareen/harvester
     newTag: latest
   - name: aoep/memory
-    newName: registry.vultr.com/salareen/memory
+    newName: sjc.vultrcr.com/salareen/memory
     newTag: latest

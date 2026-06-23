@@ -10,7 +10,7 @@ generic infra/k8s manifests plus the provider overlay in infra/k8s-vke.
 What the VKE overlay changes
 ----------------------------
   - Rewrites container images to Vultr Container Registry:
-      registry.vultr.com/salareen/<service>:latest
+      sjc.vultrcr.com/salareen/<service>:latest
   - Sets public hosts to:
       www.salareen.com
       api.salareen.com
@@ -123,9 +123,9 @@ If the namespace does not exist yet, first:
 Build and push images
 ---------------------
 Example:
-  docker build -t registry.vultr.com/salareen/orchestrator:latest \
+  docker build -t sjc.vultrcr.com/salareen/orchestrator:latest \
     -f services/orchestrator/Dockerfile .
-  docker push registry.vultr.com/salareen/orchestrator:latest
+  docker push sjc.vultrcr.com/salareen/orchestrator:latest
 
 Repeat for:
   orchestrator, speech, perception, memory, curriculum, billing, integrations,
