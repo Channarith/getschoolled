@@ -102,6 +102,18 @@ Format: newest first. No markdown per project convention.
   landing page and the nav agree and the choice survives navigation/reload; an
   AUTH_EVENT fires on login/logout/preview so the nav re-gates instantly without
   a reload. Signing out clears preview and returns to the gated landing.
+- 2026-06-23 - Front-page app download badges. Added an AppBadges component
+  (apps/web/app/components/AppBadges.tsx) with proper App Store (Apple logo) and
+  Google Play (multicolor triangle) icon badges, and placed it on the front page:
+  the signed-out landing hero and the catalog hero, under a "Get the Salareen app"
+  heading. Badges link to the configured store URLs (NEXT_PUBLIC_APP_STORE_URL /
+  NEXT_PUBLIC_PLAY_STORE_URL, falling back to the iOS/Android install URLs) and,
+  when none are set yet, to the in-app /download page (direct APK + TestFlight +
+  "coming soon") so the icons are never a dead end. Replaced the plain "Get the
+  app" text button in the hero with the badges. New i18n key hero.getAppTitle
+  (en + vi). The Expo mobile app (apps/mobile) already builds via EAS (preview =
+  APK, production = app-bundle + iOS Release); these badges surface those builds
+  once their store/download URLs are configured.
 
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
