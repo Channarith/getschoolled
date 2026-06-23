@@ -121,6 +121,12 @@ export const BACKGROUNDS: Background[] = [
     css: rad("#4ade80", "#166534 55%", "#052e16") },
   { id: "library", name: "Warm Library", category: "realistic", kind: "image",
     css: lin(135, "#3b2410", "#1c1206"), src: "/wallpapers/realistic_library.webp" },
+  { id: "wisdom-bodhi", name: "Wisdom Bodhi", category: "realistic", kind: "image",
+    css: lin(135, "#1c1206", "#0b1020"), src: "/wallpapers/wisdom_bodhi.webp" },
+  { id: "wisdom-library", name: "Temple Library", category: "realistic", kind: "image",
+    css: lin(135, "#221a0e", "#0b1020"), src: "/wallpapers/wisdom_library.webp" },
+  { id: "wisdom-manuscript", name: "Palm-leaf Manuscript", category: "realistic", kind: "image",
+    css: lin(135, "#2a1d0c", "#0b1020"), src: "/wallpapers/wisdom_manuscript.webp" },
 
   // -------------------- surreal -------------------- //
   { id: "aurora", name: "Aurora Dream", category: "surreal", kind: "css",

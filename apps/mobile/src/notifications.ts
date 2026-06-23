@@ -35,7 +35,7 @@ export function installNotificationHandler() {
 async function ensureChannel() {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: "AI Classroom",
+    name: "Salareen",
     importance: Notifications.AndroidImportance.DEFAULT,
     sound: "default",
     enableVibrate: true,

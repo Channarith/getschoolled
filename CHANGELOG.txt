@@ -2,6 +2,25 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-22 - Restore Salareen branding on web + mobile (regressed after branch
+  merges). The home page had lost the Bayon Buddy mascot, the brand reverted to
+  "AI Classroom", the nav had no logo, and logo-mark.* was the old graduation
+  mark. Restored the brand assets (bayon-mark.webp mascot, logo-mark.* "S" badge,
+  kids mascots, wisdom wallpapers) from the brand-rollout work and re-wired them:
+    * web: nav now shows the Bodhi-leaf "S" badge (cartoon variant on /kids);
+      the home hero shows the Bayon Buddy mascot over the wisdom_bodhi wallpaper;
+      nav.brand + page <title> are now "Salareen"; the jobs page copy says
+      Salareen; added the wisdom_bodhi / wisdom_library / wisdom_manuscript
+      wallpapers to the Themes catalog.
+    * mobile: HomeScreen logo is the "S" badge (was a plain "AI" box) with the
+      "Salareen" wordmark; app.json name -> "Salareen" with a new square app icon
+      + Android adaptive icon + splash (assets/salareen_icon_1024.png, generated
+      from the S badge); notification channel + about/UI strings say Salareen.
+    * README: title + brand section rebranded to Salareen (Bayon Buddy mascot +
+      Bodhi-leaf "S" mark, corrected asset table, secular-character guardrail).
+  Verified: web typecheck + build pass and the rendered home matches the prior
+  approved design; mobile typecheck passes.
+
 - 2026-06-22 - Salareen VKE deployment defaults: updated the Vultr runbook to
   default to SJC, Kubernetes v1.36.1+1, a 3-node vc2-4c-8gb API pool, optional
   vcg-a16-6c-64g-16vram GPU capacity, and a startup managed Postgres plan for

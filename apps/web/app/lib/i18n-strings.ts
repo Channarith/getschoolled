@@ -30,7 +30,7 @@ export const RTL_LOCALES = new Set<Locale>(["ar"]);
 
 export const STRINGS: Record<Locale, Record<string, string>> = {
   "en": {
-    "nav.brand": "AI Classroom",
+    "nav.brand": "Salareen",
     "nav.home": "Home",
     "nav.browse": "Browse",
     "nav.kids": "Kids",
@@ -168,7 +168,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     "lang.choose": "언어 선택",
   },
   "vi": {
-    "nav.brand": "AI Classroom",
+    "nav.brand": "Salareen",
     "nav.home": "Trang chủ",
     "nav.browse": "Khám phá",
     "nav.careers": "Nghề nghiệp",
