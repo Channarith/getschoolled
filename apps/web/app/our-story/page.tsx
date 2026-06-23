@@ -8,6 +8,143 @@ export const metadata: Metadata = {
     "Why Salareen exists: world-class, AI-taught education that is accessible, affordable, adaptive, private, and respectful — in your language, on any device.",
 };
 
+// Ecosystem tools shown on the Our Story page. Each renders as a hoverable
+// card; hovering or focusing reveals a tooltip with the description + examples.
+type EcosystemTool = {
+  name: string;
+  description: string;
+  examples: string[];
+};
+
+const ECOSYSTEM_TOOLS: EcosystemTool[] = [
+  {
+    name: "Privately-trained tutor agent",
+    description:
+      "Our own education-tuned model teaches lessons and answers questions, grounded in a curated knowledge base so replies stay citable.",
+    examples: [
+      "“Explain photosynthesis like I’m 10, then quiz me.”",
+      "Asks a follow-up question when you’re stuck instead of just handing over the answer.",
+    ],
+  },
+  {
+    name: "Homework grader",
+    description:
+      "Submit typed or handwritten work and get a grade with step-by-step rationale and citations back to the source material.",
+    examples: [
+      "Snap a photo of a math worksheet → per-question feedback.",
+      "Flags the exact line where a proof goes wrong and why.",
+    ],
+  },
+  {
+    name: "Human-in-the-loop courses",
+    description:
+      "The AI teaches and drafts answers, but a human educator reviews and approves high-stakes or low-confidence responses before they ship.",
+    examples: [
+      "A medical-course answer is routed to a human for sign-off.",
+      "An educator edits the AI’s explanation; the learner sees the approved version.",
+    ],
+  },
+  {
+    name: "Live group & private courses",
+    description:
+      "Scheduled multi-learner classes the AI presents live (via Zoom, Teams, Meet, or the built-in room), plus 1:1 private lessons on demand any time.",
+    examples: [
+      "Join “Evening Fractions” at 7pm with 30 classmates.",
+      "Start a solo lesson at 2am and go at your own pace.",
+    ],
+  },
+  {
+    name: "Drive Mode",
+    description:
+      "Eyes-free, voice-only audio classes for commutes — the AI narrates lessons and answers spoken questions in natural, localized speech.",
+    examples: [
+      "“Continue my Spanish course” while driving.",
+      "Say “repeat that last part” completely hands-free.",
+    ],
+  },
+  {
+    name: "Mobile apps (Android & iOS)",
+    description:
+      "Native apps with offline lessons, Drive Mode, rewards, and push notifications so learning travels with you.",
+    examples: [
+      "Download lessons before a flight and learn offline.",
+      "Get a push notification when your live class is about to start.",
+    ],
+  },
+  {
+    name: "AI adaptive learning",
+    description:
+      "Per-learner profiles track mastery and adjust pace and difficulty, automatically re-teaching weak spots.",
+    examples: [
+      "Speeds through topics you’ve mastered, slows down on new ones.",
+      "Re-asks a concept you missed two lessons later to check retention.",
+    ],
+  },
+  {
+    name: "Machine vision (on-device)",
+    description:
+      "Opt-in camera and face/voice recognition for attention and presence — detection runs on your device, so raw frames never leave it.",
+    examples: [
+      "Notices when a student looks away and gently re-engages them.",
+      "Recognizes an enrolled learner to resume their profile.",
+    ],
+  },
+  {
+    name: "Mini-games arcade & rewards",
+    description:
+      "Quiz games, matching, and leaderboards plus a points and rewards system that keeps learning fun and motivating.",
+    examples: [
+      "Earn points for a quiz streak and redeem a reward.",
+      "Climb the weekly class leaderboard with friends.",
+    ],
+  },
+  {
+    name: "Course scraper",
+    description:
+      "Builds fresh, structured courses from the open web, then validates and grounds them in the knowledge base.",
+    examples: [
+      "Turn a set of public articles into a 10-slide lesson.",
+      "Refresh a course automatically when its source material changes.",
+    ],
+  },
+  {
+    name: "Knowledge base (RAG)",
+    description:
+      "A retrieval-augmented knowledge store so every answer is grounded in real passages and shows its citations.",
+    examples: [
+      "“Where did that fact come from?” → links the exact source slide.",
+      "Flags an unverified claim as unsupported rather than guessing.",
+    ],
+  },
+  {
+    name: "Integrations",
+    description:
+      "Connects to LMS/SIS, finance and billing, and cloud collaboration tools, plus meeting bridges for live classes.",
+    examples: [
+      "Sync rosters and pass grades back to your LMS.",
+      "Bridge a class into Zoom, Microsoft Teams, or Google Meet.",
+    ],
+  },
+  {
+    name: "26 languages",
+    description:
+      "Full UI and teaching in 26 languages with localized voices and accents, and graceful fallback for partial translations.",
+    examples: [
+      "Switch the entire app to Khmer or Vietnamese in one tap.",
+      "Hear Drive Mode narrated with your language’s accent.",
+    ],
+  },
+  {
+    name: "Humanoid-robot ready",
+    description:
+      "The same teaching brain can drive an embodied tutor — a screen avatar today, a physical robot tomorrow — through one embodiment interface.",
+    examples: [
+      "Render a teaching beat as avatar gestures and speech.",
+      "Send the same lesson actions to a physical robot.",
+    ],
+  },
+];
+
 // Static marketing/about page. Server component (no client interactivity).
 export default function OurStoryPage() {
   return (
@@ -67,21 +204,30 @@ export default function OurStoryPage() {
         />
       </div>
 
-      <ul style={{ lineHeight: 1.8 }}>
-        <li><strong>Privately-trained tutor agent</strong> — our own education model, grounded in a curated knowledge base.</li>
-        <li><strong>Homework grader</strong> — typed or handwritten, with rationale and citations.</li>
-        <li><strong>Human-in-the-loop courses</strong> — AI teaches, a human reviews and approves where it matters.</li>
-        <li><strong>Live group courses</strong> at scheduled times and <strong>private courses</strong> on demand.</li>
-        <li><strong>Drive Mode</strong> — eyes-free audio classes with an AI agent for commutes.</li>
-        <li><strong>Mobile apps</strong> for Android &amp; iOS.</li>
-        <li><strong>AI adaptive learning</strong> with per-learner profiles and mastery tracking.</li>
-        <li><strong>Machine vision</strong> — opt-in camera and voice recognition that runs <em>on your device</em>.</li>
-        <li><strong>Mini-games arcade</strong> and a <strong>rewards &amp; points</strong> system to keep learning fun.</li>
-        <li><strong>Course scraper</strong> that builds fresh courses from the open web.</li>
-        <li><strong>Knowledge base (RAG)</strong> so answers stay grounded and citable.</li>
-        <li><strong>Integrations</strong> with LMS, finance, and cloud tools.</li>
-        <li><strong>26 languages</strong>, with more on the way.</li>
-        <li><strong>Humanoid-robot ready</strong> — the same teaching brain can drive an embodied tutor.</li>
+      <p className="muted">
+        Hover over (or tap/focus) any tool below to see what it does and a couple
+        of concrete examples.
+      </p>
+      <ul className="tools">
+        {ECOSYSTEM_TOOLS.map((tool) => (
+          <li
+            key={tool.name}
+            className="tool"
+            tabIndex={0}
+            aria-label={`${tool.name}: ${tool.description}`}
+          >
+            <span className="tool-name">{tool.name}</span>
+            <span className="tool-tip" role="tooltip">
+              <p>{tool.description}</p>
+              <span className="ex-label">Examples</span>
+              <ul className="examples">
+                {tool.examples.map((ex) => (
+                  <li key={ex}>{ex}</li>
+                ))}
+              </ul>
+            </span>
+          </li>
+        ))}
       </ul>
 
       <h2>How we build</h2>

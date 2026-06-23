@@ -77,20 +77,45 @@ and growth, not faith. Keep it respectful and never appropriative.
 
 ## Screens and videos
 
-Current UI walkthrough — Netflix-style signed-out landing, Preview, the profile
-dropdown, and instant language switching:
+### Video walkthroughs
 
-<video src="docs/demos/netflix_ui_walkthrough.mp4" controls></video>
+Recorded screen walkthroughs play inline below (animated previews). GitHub does
+not embed repo-relative `.mp4` files, so the full-quality recordings (with
+audio) are linked underneath each preview - click to open/play them.
 
-Mobile preview walkthrough: <video src="docs/demos/mobile_preview_walkthrough.mp4" controls></video>
+Netflix-style UI tour (signed-out landing, Preview, profile dropdown, instant
+language switching): [docs/demos/netflix_ui_walkthrough.mp4](docs/demos/netflix_ui_walkthrough.mp4)
+
+Full platform tour:
+
+![Platform walkthrough](docs/demos/platform_walkthrough.gif)
+
+Full-quality video (with audio): [docs/demos/platform_walkthrough.mp4](docs/demos/platform_walkthrough.mp4)
+
+Mobile preview tour:
+
+![Mobile preview walkthrough](docs/demos/mobile_preview_walkthrough.gif)
+
+Full-quality video (with audio): [docs/demos/mobile_preview_walkthrough.mp4](docs/demos/mobile_preview_walkthrough.mp4)
+
+### More recorded flows (animated)
+
+| Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
+| --- | --- | --- | --- |
+| ![Live AI class walkthrough](docs/demos/persona_live_ai_class_student.gif) | ![Drive Mode audio courses](docs/demos/drive_mode_audio_courses_demo.gif) | ![Netflix-style catalog](docs/demos/home_netflix_catalog_demo.gif) | ![Learning arcade games](docs/demos/learning_arcade_games_demo.gif) |
+| Language learning | Careers / JD parsing | Kids mode | Member rewards |
+| ![Language learning](docs/demos/language_learning_demo.gif) | ![Careers and job matching](docs/demos/careers_jobs_matching_demo.gif) | ![Kids mode](docs/demos/kids_mode_platform_demo.gif) | ![Member account and rewards](docs/demos/persona_member_account_rewards.gif) |
+
+All recorded walkthroughs live in `docs/demos/` (animated `.gif` previews render
+inline; matching `.mp4` files hold the full-quality recordings).
+
+### Screenshots
 
 | Signed-out landing | Profile dropdown | Live class answer | Themes |
 | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
-Additional walkthroughs checked into `docs/demos/` include Drive Mode, language
-learning, arcade, careers, kids mode, corporate training, admin, educator HIL,
-and member rewards flows. Additional screenshots live in `docs/screens/`.
+Additional screenshots live in `docs/screens/`.
 
 > Per AGENTS.md, refresh these screenshots/videos whenever the UI changes.
 
