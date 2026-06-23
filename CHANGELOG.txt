@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Reward course completion in the live-class flow (close the gap
+  between the rewards engine and the learner UI). The points engine
+  (aoep_shared.rewards) and identity's /enrollments/{course}/status already award
+  points on the first "passed" (scaled by level + score + hands-on; idempotent;
+  redeemable for discounts/swag/raffle entries), and arcade games + language
+  practice already feed the same ledger - but finishing a Live Class never called
+  it. Now "Finish class" marks the lesson passed for signed-in learners and shows
+  "you earned N points" with a link to Rewards; signed-out learners are nudged to
+  sign in to earn. New web helper setEnrollmentStatus() in apps/web/app/lib/api.ts.
+  (Good-grade scaling already flows through the score param wherever a score is
+  provided - e.g. the rewards API/tests and graded arcade play.)
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account

@@ -156,6 +156,22 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+// Update an enrollment's status. On the FIRST transition to "passed" the
+// identity service awards reward points (scaled by level + score + hands-on),
+// and returns the new points_balance. Idempotent: re-passing doesn't re-award.
+export async function setEnrollmentStatus(
+  courseId: string,
+  status: "enrolled" | "in_progress" | "passed" | "failed",
+  opts: { score?: number; level?: string; hands_on?: boolean } = {}
+): Promise<Enrollment & { points_balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/status`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ status, ...opts }),
+    })
+  );
+}
+
 // --- student sub-profiles + Foresight recommendations -------------------- //
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
