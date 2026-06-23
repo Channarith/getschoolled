@@ -132,10 +132,46 @@ ASCII; the README keeps the rendered GitHub version.
   overridden independently by <COMPONENT>_MODE without forking code, e.g. keep
   biometrics local even in cloud for compliance.
 
+  Cloud is deployed on Kubernetes (currently Vultr Kubernetes Engine, VKE).
+  Manifests: infra/k8s (kustomize base) + infra/k8s-vke (Vultr overlay). Images
+  are built/pushed and the deployments rolled by .github/workflows/deploy.yml
+  (Vultr Container Registry, sjc.vultrcr.com/salareen). In-cluster every service
+  listens on :8000 and is addressed by Service name; the browser reaches them
+  through one nginx Ingress.
+
+    Cloudflare DNS + TLS (salareen.com / api.salareen.com)
+                         |
+            +------------v-------------+
+            |   nginx Ingress          |  host + path routing
+            |   - / -> web             |  cookie session affinity (pins a
+            |   - /api/ -> orchestrator|  learner to the orchestrator replica
+            |   - /<svc>/ -> <svc>     |  that holds their in-memory session)
+            |   cert-manager TLS       |
+            +------------+-------------+
+                         |  (namespace: aoep)
+   +----------+----------+----------+----------+-----------+
+   |          |          |          |          |           |
+   v          v          v          v          v           v
+  web      orchestr.  curriculum  identity   memory   integrations  ...
+  x3       x3         x3          x3         x3        x3            (speech,
+  HPA/PDB  HPA/PDB    HPA/PDB     HPA/PDB    HPA/PDB   HPA/PDB        perception,
+  :8000    :8000      :8000       :8000      :8000     :8000          billing :8000)
+       \        \        |          /          /          /
+        \        \       v         /          /          /
+         +--------+--> Redis (rate-limit/cache) ; Postgres+pgvector ; Object Storage
+  orchestrator --> vLLM / LLM (GPU pool; deterministic grounded fallback if absent)
+
+  HA defaults (infra/k8s): minReplicas 3 across zones (pod anti-affinity +
+  topology spread), HPA on CPU/memory, PDB minAvailable 2 (N-1 under drains),
+  rolling updates with maxUnavailable 0 + preStop drain. CI/CD: deploy.yml runs
+  on manual dispatch or push-to-main (AUTO_DEPLOY var); needs the registry creds
+  + kubeconfig secrets.
+
 -----------------------------------------------------------------------------
 7. RENDERED DIAGRAMS & CHARTS
 -----------------------------------------------------------------------------
-  README "Architecture" - mermaid block diagram, teaching-loop sequence, and
-    profile-sharing flow.
+  README "Architecture" - logical service topology, the Kubernetes (VKE)
+    deployment diagram, the in-cluster live-class request flow, the teaching-loop
+    sequence, and the profile-sharing flow (all mermaid).
   Generated screenshots, charts, demos, and logo files are intentionally not
     referenced until real assets are committed.

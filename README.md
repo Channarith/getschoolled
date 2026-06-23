@@ -164,6 +164,79 @@ flowchart TB
   SHARED --> DATA
 ```
 
+The `:800x` ports above are the **local-dev** ports (docker compose / `uvicorn`). In
+the Kubernetes cluster every service listens on **`:8000`** and is reached by its
+Service name (e.g. `http://curriculum:8000`); the browser reaches them through the
+Ingress (see below).
+
+### Kubernetes deployment (Vultr VKE)
+
+Manifests: `infra/k8s` (base, kustomize) + `infra/k8s-vke` (Vultr overlay: image
+registry rewrite, `salareen.com` hosts, cert-manager TLS, object storage). Images
+are built and rolled by `.github/workflows/deploy.yml`.
+
+```mermaid
+flowchart TB
+  DNS[Cloudflare DNS + TLS → salareen.com / api.salareen.com]
+  subgraph cluster["VKE cluster — namespace aoep"]
+    ING["nginx Ingress<br/>host + path routing · cookie session affinity · cert-manager TLS"]
+    WEBD["web Deployment ×3<br/>(HPA 3→30, PDB)"]
+    subgraph api["API tier — each Deployment ×3 · HPA · PDB · zone anti-affinity · :8000"]
+      ORCH2[orchestrator]
+      CUR2[curriculum]
+      ID2[identity]
+      MEM2[memory]
+      SP2[speech]
+      PER2[perception]
+      BILL2[billing]
+      INT2[integrations]
+    end
+    LLM2["vLLM / LLM (GPU pool)"]
+    REDIS[("Redis — rate-limit, cache, sessions")]
+  end
+  PG[("Postgres + pgvector")]
+  OBJ[("Vultr Object Storage")]
+  REG[("Vultr Container Registry<br/>sjc.vultrcr.com/salareen")]
+  CD["GitHub Actions deploy.yml<br/>build + push images, kubectl rollout"]
+
+  DNS --> ING
+  ING -->|"/"| WEBD
+  ING -->|"/api/"| ORCH2
+  ING -->|"/curriculum /identity /integrations /memory /speech /billing /perception"| api
+  api --> REDIS
+  api --> PG
+  api --> OBJ
+  ORCH2 --> LLM2
+  CD -->|push| REG
+  REG -. pull .-> cluster
+  CD -->|set image + rollout| cluster
+```
+
+### Live-class request flow (in cluster)
+
+The orchestrator keeps class sessions in-memory, so the Ingress uses a **cookie
+session affinity** to pin each learner to the replica that created their session
+(otherwise `…/advance|ask` would round-robin to a pod that never saw the session
+and 404). A Redis-backed session store is the durable follow-up.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser (web)
+  participant I as nginx Ingress (sticky)
+  participant O as orchestrator (pinned replica)
+  participant C as curriculum (RAG)
+  participant L as LLM (vLLM or grounded fallback)
+  B->>I: POST /api/sessions (start class)
+  I->>O: route + set affinity cookie (B↔O)
+  O-->>B: session + first slide
+  B->>I: POST /api/sessions/{id}/ask
+  I->>O: same pinned replica (no 404)
+  O->>C: retrieve RAG passages
+  C-->>O: citations + passages
+  O->>L: compose grounded answer (deterministic fallback if no LLM)
+  O-->>B: answer + confidence + citations
+```
+
 ## Repository layout
 
 | Path | Purpose |
@@ -181,7 +254,9 @@ flowchart TB
 | `services/speech` | Language coverage, TTS routing, translation, learning APIs |
 | `services/perception` | Face recognition and attention/engagement |
 | `infra/compose` | Local Docker compose stack and scaling overlay |
-| `infra/k8s` | Kubernetes manifests, HPA/PDB/Ingress/Redis |
+| `infra/k8s` | Kubernetes base manifests (kustomize): Deployments/Services, HPA/PDB, Ingress (+ per-service API routes), Redis, configmap |
+| `infra/k8s-vke` | Vultr VKE overlay: registry rewrite, salareen.com hosts, cert-manager TLS, object storage, runbook |
+| `.github/workflows` | CI (tests/lint), QA, and `deploy.yml` (build+push images → roll the cluster) |
 | `infra/terraform` | AWS and Cloudflare skeletons |
 | `db/migrations` | SQL schema-of-record |
 | `docs` | Architecture, brand, hosting, scalability, payments, screenshots, demos |
