@@ -1,29 +1,40 @@
 // Client for the orchestrator (Teaching Director) API.
 // Base URL is configurable so the SAME UI runs against local or cloud backends.
 
-export const ORCHESTRATOR_URL =
-  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? "http://localhost:8000";
+function deployedOrigin(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") return undefined;
+  return window.location.origin;
+}
 
-export const CURRICULUM_URL =
-  process.env.NEXT_PUBLIC_CURRICULUM_URL ?? "http://localhost:8005";
+function serviceUrl(env: string | undefined, localDefault: string): string {
+  return env ?? deployedOrigin() ?? localDefault;
+}
 
-export const MEMORY_URL =
-  process.env.NEXT_PUBLIC_MEMORY_URL ?? "http://localhost:8004";
+export const ORCHESTRATOR_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_ORCHESTRATOR_URL, "http://localhost:8000");
 
-export const IDENTITY_URL =
-  process.env.NEXT_PUBLIC_IDENTITY_URL ?? "http://localhost:8008";
+export const CURRICULUM_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_CURRICULUM_URL, "http://localhost:8005");
 
-export const BILLING_URL =
-  process.env.NEXT_PUBLIC_BILLING_URL ?? "http://localhost:8006";
+export const MEMORY_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_MEMORY_URL, "http://localhost:8004");
 
-export const INTEGRATIONS_URL =
-  process.env.NEXT_PUBLIC_INTEGRATIONS_URL ?? "http://localhost:8007";
+export const IDENTITY_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_IDENTITY_URL, "http://localhost:8008");
 
-export const SPEECH_URL =
-  process.env.NEXT_PUBLIC_SPEECH_URL ?? "http://localhost:8002";
+export const BILLING_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_BILLING_URL, "http://localhost:8006");
 
-export const PERCEPTION_URL =
-  process.env.NEXT_PUBLIC_PERCEPTION_URL ?? "http://localhost:8003";
+export const INTEGRATIONS_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_INTEGRATIONS_URL, "http://localhost:8007");
+
+export const SPEECH_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_SPEECH_URL, "http://localhost:8002");
+
+export const PERCEPTION_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_PERCEPTION_URL, "http://localhost:8003");
 
 // All backend services keyed by name -> base URL (each exposes /version + /health).
 export const SERVICE_URLS: Record<string, string> = {

@@ -12,6 +12,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
@@ -22,21 +23,104 @@ spec:
     - host: www.salareen.com
       http:
         paths:
+          - path: /api/
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /health
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /home
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /audio
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /courses
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /notifications
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
     - host: salareen.com
       http:
         paths:
+          - path: /api/
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /health
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /home
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /audio
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /courses
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /notifications
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
     - host: api.salareen.com
       http:
         paths:
+          - path: /home
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /audio
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /courses
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /notifications
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
           - path: /
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /health
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /home
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /audio
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /courses
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /notifications
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }

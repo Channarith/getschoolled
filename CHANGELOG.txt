@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - VKE direct-IP and same-origin web APIs: web now falls back to
+  browser same-origin service URLs when deployed outside localhost, and the VKE
+  ingress serves raw LoadBalancer IP traffic plus same-origin public catalog,
+  audio, jobs, notifications, and health/API paths without forcing HTTPS while
+  DNS/cert propagation is still settling. Tested.
+
 - 2026-06-23 - Kubernetes service port fix: aligned speech, perception,
   memory, curriculum, and billing Deployment ports, Service targetPorts, probes,
   and Prometheus annotations with their Dockerfiles, which all listen on 8000.
