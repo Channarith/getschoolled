@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Login: password show/hide eye toggle. The Sign in / Create
+  account password field now has an inline eye button (inline SVG, no new deps)
+  that toggles the input between masked and plain text; the glyph switches to an
+  eye-with-slash while revealed. Accessible (type=button, aria-label/aria-pressed,
+  title) so it never submits the form. apps/web/app/login/page.tsx.
+
 - 2026-06-23 - Default admin account (login out of the box). Identity seeds a
   default admin at startup (idempotent, env-gated SEED_DEFAULT_ADMIN): email
   admin@salareen.com, password 88888888 (DEFAULT_ADMIN_*), with a bare "admin"
