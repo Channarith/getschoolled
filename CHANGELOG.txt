@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - README: consolidated mobile app build/setup/launch instructions.
+  The "Mobile platform" section now has a "Set up, run, and build the mobile app"
+  guide with the real commands: install (pnpm install / make mobile-install), run
+  in dev (pnpm start / android / ios / web via Expo Go + emulator/simulator),
+  typecheck, build JS bundles (pnpm run export), and build installable native
+  binaries via EAS (preview APK + production AAB/IPA), plus the device backend-URL
+  note (expo.extra.curriculumUrl / LAN IP) and the offline prebuild path. Points
+  to apps/mobile/RUN.txt as the authoritative guide, and clarified the static
+  export-preview run block to avoid confusion with running the live app.
+
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
   language set, so non-English content was mispronounced and English sounded
