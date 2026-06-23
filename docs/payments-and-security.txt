@@ -1,0 +1,120 @@
+SALAREEN / AOEP — TRANSACTIONS: HOW WE CONNECT & SECURE THEM
+===========================================================
+Plain text on purpose (repo no-markdown house rule).
+
+How money flows through the platform and how every step is secured. Source of
+truth: services/billing (checkout, entitlement gate), services/integrations
+(payment webhooks, payouts, entitlements), packages/shared/src/aoep_shared/
+{payments.py, providers/payment.py, webhooks.py, connectors/finance.py,
+entitlements.py, internal_auth.py}. See also docs/payments.txt (the 44 methods)
+and docs/secrets.txt (the keys).
+
+============================================================================
+1. THE TRANSACTION FLOW (end to end)
+============================================================================
+  1. GATE      billing POST /entitlements/can-start checks whether a customer
+               can start a course given tier/entitlements -> allow or upsell.
+  2. METHODS   billing GET /payment-methods/by-country?country returns the
+               localized set (e.g. UPI/Paytm in IN, PIX/boleto in BR, iDEAL in
+               NL) from the 44-method catalog (docs/payments.txt).
+  3. CHECKOUT  billing POST /checkout {customer_id, plan, method} asks the
+               configured PaymentProvider to create a checkout session and
+               returns {session_id, url, provider, method, instructions}. The
+               browser is redirected to `url` (hosted by the PSP) — card data
+               never touches our servers (see 3.1).
+  4. CALLBACK  the PSP notifies integrations POST /payments/webhook/{provider}.
+               We VERIFY the signature (section 2), then parse_payment_event()
+               normalizes it to grant|revoke|ignore.
+  5. UNLOCK    on "grant" we add the entitlement for the customer, record
+               revenue (finance connector), and EMIT a signed outbound
+               enrollment.paid webhook to any subscribers. On "revoke" we remove
+               it. integrations GET /entitlements/{customer} reflects the state,
+               and billing's gate (step 1) honors it on the next start.
+  6. PAYOUTS   creator/educator payouts go through integrations POST
+               /finance/payout (INTERNAL-only) via the finance connector.
+
+============================================================================
+2. SECURING INBOUND PAYMENT WEBHOOKS (the critical trust boundary)
+============================================================================
+A payment webhook is the moment an external party tells us "this customer paid."
+If we trusted it blindly, anyone could grant themselves entitlements. So:
+
+  - We read the RAW request body (never a re-serialized copy) and the header
+    X-AOEP-Signature (or X-Signature), and verify
+        HMAC_SHA256(secret, raw_body)  with constant-time compare.
+  - Secret resolution (fail-CLOSED in cloud):
+        1. {PROVIDER}_WEBHOOK_SECRET   (per-provider)
+        2. WEBHOOK_SIGNING_KEY         (platform default)
+        3. "dev-webhook-secret"        (DEPLOY_MODE=local ONLY)
+    In cloud, if neither secret env is set the effective secret is "" and EVERY
+    signature fails -> HTTP 401. We never accept payloads signed with a
+    well-known dev key in production.
+  - Invalid/missing signature -> 401 "invalid webhook signature"; nothing is
+    granted.
+  - Idempotency: entitlement grants are set-based (adding an already-present
+    entitlement is a no-op), so duplicate deliveries don't double-grant.
+  Source: integrations.main.payment_webhook + aoep_shared.webhooks.verify_signature
+          + aoep_shared.connectors.finance.parse_payment_event.
+
+============================================================================
+3. PCI / CARD-DATA POSTURE
+============================================================================
+3.1 We do NOT store or process raw card numbers.
+  - Checkout delegates to a PaymentProvider that returns a hosted PSP URL; the
+    cardholder enters card data on the PSP's page (PCI-DSS SAQ-A posture).
+  - Offline/sandbox mode uses a deterministic sandbox provider (no real charges)
+    so the flow is demoable without keys; a real provider that needs network/keys
+    returns 503 rather than pretending to charge.
+3.2 Method breadth without storing instruments: the 44-method catalog
+  (docs/payments.txt) is metadata only — it tells the UI which localized options
+  to render; the actual instrument lives with the PSP.
+
+============================================================================
+4. AUTHN/AUTHZ ON MONEY-MOVING ENDPOINTS
+============================================================================
+  - Payouts (integrations /finance/payout) and membership changes
+    (identity /membership/tier) are INTERNAL-only: Depends(require_internal),
+    header X-Internal-Token (static INTERNAL_TOKEN for dev, or an HMAC-signed
+    token via INTERNAL_TOKEN_KEY with scope internal|agent|teacher). Fail-closed
+    when unconfigured. Source: aoep_shared.internal_auth.
+  - Admin feature-flag writes (memory /admin/flags*) additionally require the
+    X-Admin-Secret header (ADMIN_SECRET).
+  - User-scoped reads/writes (enrollments, portfolio, password) require the
+    session JWT (Authorization: Bearer) from identity /auth/login.
+  - Outbound webhooks are signed with each subscriber's secret so PARTNERS can
+    likewise verify that events truly came from us.
+
+============================================================================
+5. SECRETS & KEY HYGIENE
+============================================================================
+  - All secrets come from ENV / a k8s Secret, never the ConfigMap and never the
+    repo. Non-secret config (URLs, flags) lives in config/*.env + configmaps.
+  - Relevant keys (full list + usage in docs/secrets.txt):
+        WEBHOOK_SIGNING_KEY, {PROVIDER}_WEBHOOK_SECRET   (webhook HMAC)
+        INTERNAL_TOKEN / INTERNAL_TOKEN_KEY              (internal-only gate)
+        ADMIN_SECRET                                     (admin writes)
+        AUTH_SIGNING_KEY                                 (user session JWTs)
+        PAYMENT_API_KEY / PSP creds                      (real checkout)
+  - Rotate by changing the env/Secret; HMAC verification picks up the new value
+    on the next request (no code change).
+
+============================================================================
+6. AUDIT, RATE-LIMITING, AND ABUSE
+============================================================================
+  - require_internal returns the caller's claims so handlers can audit-log who
+    moved money (orchestrator/agent/teacher/sub).
+  - Per-service rate limiting + the ingress edge limit cap brute-force and
+    runaway-cost attempts; money endpoints inherit these.
+  - Every response carries X-Request-ID for correlation across services; /metrics
+    + /telemetry/errors expose failures for alerting.
+
+============================================================================
+7. THREAT CHECKLIST (what each control stops)
+============================================================================
+  Forged "paid" webhook        -> HMAC signature verify (401 on mismatch)
+  Replayed dev-signed webhook  -> fail-closed secret in cloud (no dev key)
+  Student self-granting access -> internal-only payout/membership + entitlement
+                                  comes only from a verified PSP event
+  Card data liability          -> hosted PSP checkout; we never see the PAN
+  Stolen internal token        -> short-lived HMAC tokens + rotation; scope-limited
+  Brute force / cost abuse     -> token-bucket rate limit + edge limit + autoscale caps

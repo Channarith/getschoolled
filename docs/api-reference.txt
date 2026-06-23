@@ -1,0 +1,312 @@
+SALAREEN / AOEP — API & WEBHOOK REFERENCE
+=========================================
+Plain text on purpose (repo no-markdown house rule; see AGENTS.md).
+
+This is the canonical reference for every HTTP API and webhook the platform
+exposes. It is generated from and kept in lockstep with the service source
+(services/<name>/src/<pkg>/main.py) and the shared library
+(packages/shared/src/aoep_shared/*). Companion docs:
+
+  docs/api-use-cases.txt          - end-to-end recipes (curl) for real flows
+  docs/api-cost-value.txt         - cost-to-value analysis per API/provider
+  docs/integrations-jobs-careers.txt - how Careers connects to job sites
+  docs/payments-and-security.txt  - transactions + how they are secured
+  docs/payments.txt               - the 44 supported payment methods
+  docs/secrets.txt                - every secret/env var and where it is used
+
+============================================================================
+0. SERVICES AT A GLANCE
+============================================================================
+Backend = Python/FastAPI microservices behind a provider abstraction
+(packages/shared). Each service listens on container port 8000; locally they
+are mapped to distinct host ports (infra/compose/docker-compose.yml). In the
+cluster they are reached service-to-service by name (http://<svc>:8000) and
+from the browser through the ingress (infra/k8s/ingress.yaml).
+
+  Service        Local URL                Package           Owns
+  -----------    ----------------------   ---------------   -------------------------
+  orchestrator   http://localhost:8000    orchestrator      live class loop, director, assessment, HIL, group classes
+  speech         http://localhost:8002    speech_gw         TTS/ASR planning, translation, language learning
+  perception     http://localhost:8003    perception        face detect/identify (on-device + server), consent gate
+  memory         http://localhost:8004    memory            consent, legal notices, retention, feature flags, surveys
+  curriculum     http://localhost:8005    curriculum        catalog, decks, RAG, jobs/careers, homework, audio courses
+  billing        http://localhost:8006    billing            plans, entitlement checks, payment methods, checkout
+  integrations   http://localhost:8007    integrations      webhooks, payment webhooks, LMS/SIS, calendar, SSO, media bridges
+  identity       http://localhost:8008    identity          auth, students, enrollments, rewards, games, portfolio
+
+The Next.js web app (apps/web) is the browser client; it resolves each service
+base URL from NEXT_PUBLIC_*_URL or the page origin (apps/web/app/lib/api.ts).
+
+============================================================================
+1. CONVENTIONS (apply to EVERY service)
+============================================================================
+Every service is built by aoep_shared.service.create_service(), which adds a
+uniform contract:
+
+1.1 Standard endpoints (present on all services)
+  GET  /health        -> {service, status:"ok", deploy_mode, components, version}
+  GET  /version       -> {service, deploy_mode, git_sha, built_at, ...}
+  GET  /metrics       -> Prometheus exposition (text/plain)
+  GET  /telemetry/summary | /telemetry/errors | /telemetry/logs -> in-proc telemetry
+  GET  /openapi.json, /docs (Swagger UI), /redoc -> live, per-service API schema
+  ==> The single most authoritative spec is the live /openapi.json of each
+      service; this document is the human-readable companion to it.
+
+1.2 Auth model (three tiers)
+  a) PUBLIC            - most read + learner-facing endpoints. No auth.
+  b) USER (bearer)     - identity routes use a session JWT in
+                         Authorization: Bearer <token> (see /auth/login). The
+                         web client stores it in localStorage (aoep_token).
+  c) INTERNAL-ONLY     - agent/teacher tools (homework grader, corrections
+                         bulk apply, payouts, retention purge, catalog export,
+                         webhook emit, admin flag writes). Gated by
+                         Depends(require_internal): supply header
+                         X-Internal-Token: <token>. Fail-CLOSED: if no internal
+                         key is configured the gate DENIES (never ships open).
+                         Token is either a static INTERNAL_TOKEN (dev) or an
+                         HMAC-signed token (INTERNAL_TOKEN_KEY) with scope in
+                         {internal, agent, teacher}. Bypass for local tests:
+                         INTERNAL_AUTH_DISABLED=1.
+     Source: packages/shared/src/aoep_shared/internal_auth.py
+
+1.3 Rate limiting
+  Per-principal token bucket (default 120 req / 60s; tune with RATE_LIMIT,
+  RATE_LIMIT_WINDOW). Key = X-User-Id, else X-Forwarded-For, else client IP.
+  Over limit -> HTTP 429 with Retry-After + X-RateLimit-Limit/Remaining headers.
+  Health/metrics/docs are never throttled. Disable: RATE_LIMIT_DISABLED=1.
+  The nginx ingress adds a second, edge-level limit (limit-rps).
+
+1.4 Caching, tracing, CORS
+  - Hot GETs send Cache-Control + ETag (conditional GET -> 304). Disable:
+    HTTP_CACHE_DISABLED=1.
+  - Every response carries X-Request-ID (echoes inbound x-request-id) and
+    Server-Timing: app;dur=<ms>.
+  - CORS allow-list via CORS_ORIGINS (comma-separated; default "*" for local).
+
+1.5 Errors
+  Standard FastAPI JSON: {"detail": "..."} with conventional status codes:
+  400 bad input, 401 bad webhook signature, 403 internal-only,
+  404 unknown id, 409 conflict (e.g. class full), 422 validation,
+  429 rate limited, 503 real provider unavailable (offline/no key).
+
+============================================================================
+2. ORCHESTRATOR (live class brain)  -  :8000
+============================================================================
+Public unless noted. The teaching loop the web app drives.
+
+  GET  /api/disclosure?persona&human_of_record   AI-disclosure line (Trust layer)
+  POST /classes                                  create a class (room + token shell)
+  GET  /classes/{room}/join?identity             LiveKit join token for {room}
+  GET  /api/lessons                              list curriculum lessons
+  POST /api/sessions {lesson_id,class_type}      start a teaching session
+  GET  /api/sessions/{id}                         session view (slide + lesson)
+  POST /api/sessions/{id}/advance                 next slide
+  POST /api/sessions/{id}/ask {text,language}     ask the AI tutor (RAG-grounded;
+                                                  may escalate to HIL queue)
+  POST /api/embody {text,gesture,language}        render a teaching beat to avatar/robot
+  GET  /api/hil/queue            [INTERNAL]        human-in-the-loop review queue
+  POST /api/hil/{item_id}/decision [INTERNAL]     approve/edit/reject/takeover
+  POST /api/optimization/commit  [INTERNAL]        record an optimization step
+  GET  /api/optimization/champion/{stage}         current champion params
+  GET  /api/optimization/history?stage            step history
+  POST /api/optimization/revert  [INTERNAL]        revert to a prior step
+  POST /api/groundedness/check {answer,context}   hallucination/groundedness score
+  POST /api/slang/normalize {text,language,region} idiom/slang -> plain text
+  POST /director/tick                             one Director decision (next state)
+  POST /director/plan                             Director + adaptive pacing/difficulty
+  POST /assessment/quiz {topic,passages}          generate quiz items
+  POST /assessment/grade {item_id,...}            grade a quiz answer
+
+  Scheduled group classes (the AI presents via Zoom/Teams/Meet/Salareen):
+  GET  /api/group-classes?upcoming                list scheduled classes
+  POST /api/group-classes {title,lesson_id,platform,meeting_url,start_time,...}
+  GET  /api/group-classes/{id}
+  POST /api/group-classes/{id}/register {name,email}
+  POST /api/group-classes/{id}/start             go live -> session + meeting bridge plan
+  (See docs/api-use-cases.txt 5; bridges are wired in the integrations service.)
+
+============================================================================
+3. IDENTITY (accounts, students, rewards)  -  :8008
+============================================================================
+Auth = session JWT (Authorization: Bearer) except signup/login.
+
+  POST /auth/signup {email,password,display_name}  -> {token, account}
+  POST /auth/login  {email,password}               -> {token, account}
+  GET  /auth/me                                     current account
+  POST /auth/password {current_password,new_password}
+  POST /membership/tier {tier}   [INTERNAL]         set membership tier
+  POST /enrollments {course_id,title,status}        enroll in a course
+  POST /enrollments/{course_id}/status {status}
+  GET  /portfolio                                   learner portfolio
+  Students (multi-learner / family / classroom):
+  POST /students ; GET /students ; GET /students/{id}
+  POST /students/{id}/mastery ; POST /students/{id}/complete
+  POST /students/{id}/class-context ; GET /students/{id}/profile-context
+  POST /students/{id}/profile-share-grants ; GET /profile-shares/context
+  Engagement (gamified):
+  GET  /games ; POST /games/new ; POST /games/submit ; GET /games/leaderboard
+  POST /language/practice
+  GET  /rewards ; GET /rewards/catalog ; POST /rewards/redeem {prize_id}
+
+============================================================================
+4. CURRICULUM (catalog, RAG, careers, homework)  -  :8005
+============================================================================
+Mostly public reads; authoring/teacher tools are INTERNAL.
+
+  Catalog + search:
+  GET  /curriculum/count ; GET /curriculum/search?q  (RAG over lesson passages)
+  GET  /courses ; POST /courses ; GET /courses/search ; GET /courses/{id}
+  GET  /courses/facets ; GET /catalog ; GET /home ; GET /model-cards
+  GET  /programs ; POST /programs ; GET /programs/{id} ; POST /programs/{id}/plan
+  POST /courses/{id}/view ; POST /recommend ; GET /courses/{id}/ad-breaks
+  GET  /catalog/export  [INTERNAL]
+  Decks + ingestion (build courses from sources):
+  POST /decks ; POST /decks/import ; GET /decks ; GET /decks/{id}
+  GET  /decks/{id}/presentation ; POST /decks/{id}/validate
+  POST /ingest/pdf | /ingest/html | /ingest/url | /ingest/transcript | /ingest/youtube
+  Careers (jobs <-> skills <-> courses):  [see docs/integrations-jobs-careers.txt]
+  GET  /jobs?q&location&limit          live openings (or curated board)
+  GET  /jobs/{job_id}                   job + course coverage / gap / path
+  POST /jobs/parse {description}        JD -> skills, certs, recommended classes
+  GET  /courses/{id}/jobs               roles this course helps qualify for
+  GET  /skills/professions ; GET /courses/{id}/relevance
+  Audio courses (Drive Mode):
+  GET  /audio/categories ; GET /audio/courses ; GET /audio/courses/{id}
+  Trust / corrections / provenance:
+  POST /corrections ; POST /report ; GET /corrections ; GET /corrections/{id}
+  POST /corrections/{id}/approve ; POST /corrections/{id}/reject ; POST /corrections/{id}/apply
+  POST /corrections/bulk [INTERNAL]
+  POST /validate/claim
+  Scenes (structured visual objects + signing):
+  POST /scenes ; GET /scenes/{scene_id} ; POST /scenes/{scene_id}/delta
+  POST /scenes/{scene_id}/extract ; POST /scenes/{scene_id}/sign ; POST /scenes/verify
+  POST /provenance/sign [INTERNAL] ; POST /provenance/verify  (C2PA-style signing)
+  Homework (INTERNAL — the AI teacher agent, never the student):
+  POST /homework/grade ; POST /homework/generate ; POST /homework/scan
+  POST /homework/authorship ; GET /homework/grade-reviews
+  POST /homework/grade-reviews/{item_id}/decision
+  Notifications:
+  GET  /notifications/feed ; GET /notifications/locales
+
+============================================================================
+5. SPEECH (speech_gw)  -  :8002
+============================================================================
+  GET  /languages                 27 supported languages + count
+  GET  /tts/engine                resolved TTS engine + native/fallback routing
+  POST /delivery/plan             plan spoken delivery (prosody, voice, ssml)
+  POST /translate {text,target}   NLLB-200 translation (real provider or stub)
+  Language learning:
+  GET  /learn/languages ; GET /learn/{language}/course
+  GET  /learn/{language}/phrases ; GET /learn/{language}/slang
+  POST /learn/exercise ; POST /learn/pronounce
+
+============================================================================
+6. PERCEPTION (machine vision, opt-in + on-device)  -  :8003
+============================================================================
+Real, self-hosted OpenCV YuNet (detect) + SFace (embed) on CPU. The HYBRID
+path runs detect+embed in the browser and sends only the 128-d embedding.
+
+  POST /enroll/{student_id}            enroll from an image (server-side)
+  POST /identify                       identify faces in an image (server-side)
+  POST /enroll-embedding/{student_id}  enroll from a precomputed embedding (hybrid)
+  POST /identify-embedding             match precomputed embeddings (hybrid)
+  GET  /vision/models/{name}           serve ONNX model weights to the browser
+  POST /analyze/consent-check          compliance/consent gate before matching
+  GET  /gallery                        enrolled gallery summary
+  Privacy: identification is gated on per-student consent (memory service) and
+  the EU-AI-Act-aware policy engine; raw frames never leave the device on the
+  hybrid path.
+
+============================================================================
+7. MEMORY (consent, legal, flags, retention, surveys)  -  :8004
+============================================================================
+  POST /students ; POST /consent ; GET /consent/{student_id}/{scope}
+  GET  /legal/notices ; POST /legal/accept ; GET /legal/acceptance/{user_id}
+  GET  /compliance/{region}            region policy (us|us_il|eu|other)
+  POST /retention/purge  [INTERNAL]    data-retention purge job
+  Feature flags:
+  GET  /flags/evaluate ; GET /flags/{key}
+  GET  /admin/flags ; PUT /admin/flags/{key} ; POST /admin/flags/{key}/override
+  POST /admin/flags/{key}/reset   (admin writes also require X-Admin-Secret)
+  Post-class surveys + learner signals:
+  GET  /survey/post-class ; POST /survey/post-class ; GET /survey/summary/{course_id}
+  GET  /admin/survey/insights ; POST /mastery ; POST /behavior
+  GET  /learner/{student_id}/{topic}
+  Test hooks (local/test only): POST /admin/test/reset ; POST /admin/test/seed
+
+============================================================================
+8. BILLING (plans, entitlements, checkout)  -  :8006
+============================================================================
+  GET  /plans                                list subscription plans
+  POST /entitlements/can-start {customer,...} can this customer start? (gate)
+  GET  /payment-methods                      available methods (provider-aware)
+  GET  /payment-methods/by-country?country   localized method list (44 methods)
+  POST /checkout {customer_id,plan,method}    create a checkout session
+       -> {session_id, url, provider, method, instructions}
+       422 if method invalid; 503 if a real provider is required but unset.
+  See docs/payments-and-security.txt + docs/payments.txt.
+
+============================================================================
+9. INTEGRATIONS (webhooks, payments, LMS, calendar, SSO, media bridges)  -  :8007
+============================================================================
+  Outbound webhooks (HMAC-signed delivery to subscribers):
+  POST /webhooks/subscriptions  [INTERNAL]   register a subscriber {url,event_types,secret}
+  GET  /webhooks/subscriptions  [INTERNAL]   list subscribers
+  POST /webhooks/emit           [INTERNAL]   emit an event -> signed delivery + retries
+  Inbound webhooks (signature-verified):
+  POST /webhooks/inbound/{provider}          generic verified inbound
+  POST /payments/webhook/{provider}          payment provider events -> entitlements
+  GET  /entitlements/{customer}              current entitlements for a customer
+  POST /finance/payout {account,amount,currency} [INTERNAL]  educator/creator payout
+  LMS / SIS:
+  POST /lms/lti/launch ; POST /lms/roster ; POST /lms/grade-passback
+  Cloud / collaboration:
+  POST /notify ; POST /calendar/schedule ; POST /sso/oidc
+  Live-class media bridges (Zoom phase 7, Teams phase 8 .NET, Meet phase 9):
+  GET  /bridges ; GET /bridges/{platform}
+  POST /bridges/{platform}/connect {meeting_ref,livekit_room,recording,simulate}
+  GET  /bridges/sessions/{id} ; POST /bridges/sessions/{id}/chat
+  POST /bridges/sessions/{id}/disconnect
+  Client registry: POST /clients [INTERNAL] ; GET /clients [INTERNAL]
+
+============================================================================
+10. WEBHOOKS — SIGNING & VERIFICATION  (the security contract)
+============================================================================
+Source of truth: packages/shared/src/aoep_shared/webhooks.py and the
+integrations service handlers.
+
+10.1 Outbound (we -> subscriber)
+  - Register a subscriber via POST /webhooks/subscriptions with an optional
+    per-subscriber `secret`.
+  - On each event we POST the canonical JSON body and set header
+        X-AOEP-Signature: hex( HMAC_SHA256(secret, body_bytes) )
+    body_bytes = json.dumps(event, sort_keys=True, separators=(",",":")).
+  - Delivery retries with backoff; results are reported by /webhooks/emit.
+  - Subscriber MUST recompute the HMAC over the RAW body and compare in
+    constant time (hmac.compare_digest) before trusting the payload.
+
+10.2 Inbound (provider -> us)  POST /webhooks/inbound/{provider},
+                               POST /payments/webhook/{provider}
+  - We read the RAW request body and the header X-AOEP-Signature (or
+    X-Signature) and verify HMAC_SHA256 against the provider secret.
+  - Secret resolution order (fail-closed in cloud):
+        1. {PROVIDER}_WEBHOOK_SECRET   (per-provider override)
+        2. WEBHOOK_SIGNING_KEY         (platform default)
+        3. "dev-webhook-secret"        (DEPLOY_MODE=local ONLY)
+    In cloud, if neither env is set the secret is "" so verification FAILS
+    (401) rather than accepting payloads signed with a known dev key.
+  - Invalid/missing signature -> HTTP 401 "invalid webhook signature".
+
+10.3 Event types emitted (examples)
+  enrollment.paid           (after a verified payment grant)
+  ...register a subscriber with empty event_types to receive ALL events.
+
+============================================================================
+11. EVOLVING THIS DOC
+============================================================================
+When you add or change a route, update this file AND verify it stays in sync:
+  python3 scripts/check_api_docs.py
+That script parses every services/*/main.py for route decorators and asserts
+each path is mentioned here (and flags documented paths that no longer exist).
+Run it in CI alongside the service tests. The per-service /openapi.json remains
+the machine-readable source of truth.

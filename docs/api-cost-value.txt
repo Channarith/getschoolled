@@ -1,0 +1,117 @@
+SALAREEN / AOEP — API COST-TO-VALUE ANALYSIS
+============================================
+Plain text on purpose (repo no-markdown house rule).
+
+Goal: make the unit economics of every API explicit so we can scale to millions
+of learners affordably. The design principle (AGENTS.md) is dual-mode by ENV:
+the offline/self-hosted path keeps the whole teaching loop working with NO paid
+provider, and paid providers are opt-in upgrades for quality/scale. This doc
+maps each capability to its cost driver, the value it unlocks, and how we keep
+cost near zero by default.
+
+Companion: docs/api-reference.txt (the APIs), docs/scalability.txt + docs/hosting.txt
+(infra economics), docs/payments-and-security.txt (transaction fees).
+
+============================================================================
+1. THE FREE / SELF-HOSTED BASELINE (cost ~= compute only)
+============================================================================
+These run with zero per-call vendor fees. They are the demo + low-cost tier.
+
+  Capability            API / module                 Cost driver        Why it's cheap
+  --------------------  ---------------------------  -----------------  -------------------------------
+  Catalog + RAG search  curriculum /curriculum/search Local CPU/RAM      embeddings + lexical, in-proc
+  Live class loop       orchestrator /api/sessions    Local CPU          deterministic director + RAG
+  Tutor grounded answer orchestrator /api/.../ask      Local CPU (no LLM) grounded fallback cites passages
+  Assessment/quizzes    orchestrator /assessment/*     Local CPU          generated from passages
+  Adaptive pacing       orchestrator /director/plan    Local CPU          pure logic
+  Machine vision        perception /identify*          CPU (OpenCV)       self-hosted YuNet+SFace; on-device hybrid sends only embeddings
+  Careers (free boards) curriculum /jobs (Remotive,    Network egress     free public APIs, no key, TTL-cached
+                        Arbeitnow)
+  Identity/rewards/games identity /*                   Local CPU + DB     no external calls
+  Consent/flags/surveys memory /*                      Local CPU + DB     no external calls
+  Webhooks (HMAC)       integrations /webhooks/*        Network egress     stdlib HMAC; only delivery bandwidth
+  Payment methods list  billing /payment-methods*      Local CPU          static, localized catalog
+
+VALUE: a fully working, demoable, multi-language teaching platform at the cost
+of a single small VM (see docs/hosting.txt). This is what a VC demo runs on.
+
+============================================================================
+2. PAID / METERED UPGRADES (opt-in by ENV; off by default)
+============================================================================
+Each is behind the provider abstraction; absent a key the code uses the free
+path or returns 503 rather than silently incurring cost.
+
+  Capability         Provider(s)              Cost driver               Mitigation (built in)
+  -----------------  -----------------------  ------------------------  ---------------------------------
+  LLM tutor (rich)   vLLM/Ollama (self-host)  GPU hours (self) OR       Self-host on owned GPU = fixed
+                     or cloud LLM (per-token) per-1k-token (cloud)      cost; else deterministic grounded
+                                                                        fallback (free). Cache + short ctx.
+  TTS (natural)      XTTS self-host (free) or Per-char (cloud TTS)      16 langs use free XTTS; only the
+                     Azure/Google/Polly       on the fallback subset    fallback subset hits cloud TTS.
+                                                                        Client Web-Speech/expo-speech = $0.
+  ASR (Whisper)      self-host or cloud        GPU (self) / per-min     Self-host Whisper; push-to-talk
+                                               (cloud)                   limits minutes.
+  Translation        NLLB-200 self-host or     GPU (self) / per-char    Self-host; cache translations.
+                     cloud MT
+  Careers (deep)     JSearch (RapidAPI),       Per-request / monthly     Only used when RAPIDAPI_KEY /
+                     Adzuna                    quota                     ADZUNA_* set; TTL cache (15m);
+                                                                        else free boards / curated board.
+  Media bridges      Zoom/Teams/Meet SDKs     SDK/license + LiveKit      LiveKit self-hostable; bridges
+                     + LiveKit                egress                    opt-in per class; fail-closed.
+  Object storage     S3 / Vultr Object Store  GB-month + egress         Lifecycle/retention purge job.
+  Payments           Stripe/PSPs + 44 methods % + fixed per txn         Pass-through; see section 4.
+  SMS/push/email     notify providers          Per-message               Batch + prefer in-app/push.
+
+============================================================================
+3. COST DRIVERS RANKED (where the money actually goes at scale)
+============================================================================
+  1. LLM inference (if cloud LLM enabled) — dominant variable cost. Mitigate by
+     self-hosting on reserved GPU, the grounded fallback, caching, RAG to keep
+     prompts short, and the optimization ledger to promote cheaper-but-equal
+     configs.
+  2. Realtime media (LiveKit + bridge egress) for live group classes — scales
+     with concurrent minutes. Mitigate by self-hosting LiveKit, capacity caps,
+     and recording-on-demand.
+  3. Cloud TTS/ASR minutes — only the fallback language subset; on-device speech
+     in web/mobile drives this toward $0 for most sessions.
+  4. Job-aggregator quotas (JSearch/Adzuna) — bounded by the 15-minute result
+     cache and only when keys are configured.
+  5. Egress + storage — standard infra; controlled by CDN/cache + retention.
+
+============================================================================
+4. VALUE PER DOLLAR (why each paid call is worth it — or skipped)
+============================================================================
+  - Cloud LLM: highest quality free-form tutoring. Worth it for paid tiers;
+    free tier stays on the grounded fallback so we never pay to serve free users
+    a feature they didn't pay for.
+  - Cloud TTS on the fallback subset: unlocks natural audio for languages XTTS
+    can't voice (e.g. Khmer) — directly serves the brand's core audience, so the
+    per-char cost buys real reach.
+  - JSearch/Adzuna: turns "Careers" from a demo board into real, LinkedIn/Indeed-
+    sourced openings -> a concrete acquisition + retention hook. Cache makes the
+    per-listing cost negligible.
+  - Payments providers: the fee IS the revenue path; localized methods (UPI/PIX/
+    etc.) materially raise conversion in target markets (docs/payments.txt).
+
+============================================================================
+5. CONTROLLING + MEASURING COST
+============================================================================
+  - Toggle everything by ENV (config/local.env vs config/cloud.env). Nothing
+    paid is on by default; see docs/secrets.txt for the exact keys.
+  - Per-service /metrics (Prometheus) exposes request counts + latency; add a
+    provider-call counter per metered path to attribute spend.
+  - Rate limits (RATE_LIMIT) + the ingress edge limit cap abusive/runaway spend.
+  - Caching (ETag/Cache-Control on reads; TTL caches on jobs/translation) cuts
+    repeat provider calls.
+  - HPA/PDB (infra/k8s/autoscaling.yaml) scale compute with demand so we don't
+    pay for idle capacity.
+
+============================================================================
+6. RULE OF THUMB FOR ADDING A NEW PROVIDER CALL
+============================================================================
+  1. Put it behind the provider abstraction with a free/offline fallback.
+  2. Gate it on an explicit ENV key; fail-closed (free path or 503), never
+     silently bill.
+  3. Cache results (with a sane TTL) and add a metric.
+  4. Document the cost driver + mitigation in THIS file and the key in
+     docs/secrets.txt.

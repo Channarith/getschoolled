@@ -1,0 +1,161 @@
+SALAREEN / AOEP — API USE CASES & RECIPES
+=========================================
+Plain text on purpose (repo no-markdown house rule).
+
+End-to-end, copy-pasteable flows that chain the APIs in docs/api-reference.txt.
+Local base URLs assumed (see api-reference.txt 0). In the cluster, swap to the
+ingress host + /<svc>/ prefix. Set $ORCH=http://localhost:8000,
+$ID=http://localhost:8008, $CUR=http://localhost:8005, $INT=http://localhost:8007,
+$BILL=http://localhost:8006, $PERC=http://localhost:8003, $SPEECH=http://localhost:8002.
+
+Internal-only calls below show: -H "X-Internal-Token: $INTERNAL_TOKEN".
+
+============================================================================
+1. LEARNER ONBOARDING + A LIVE AI CLASS
+============================================================================
+Persona: a new self-serve learner. Value: zero-to-teaching in 4 calls.
+
+  # 1) create an account -> session token
+  TOKEN=$(curl -s -X POST $ID/auth/signup -H 'content-type: application/json' \
+    -d '{"email":"ada@example.com","password":"secret123","display_name":"Ada"}' \
+    | jq -r .token)
+
+  # 2) pick a lesson and start a session
+  LESSON=$(curl -s $ORCH/api/lessons | jq -r '.[0].lesson_id')
+  SID=$(curl -s -X POST $ORCH/api/sessions -H 'content-type: application/json' \
+    -d "{\"lesson_id\":\"$LESSON\",\"class_type\":\"group\"}" | jq -r .session.session_id)
+
+  # 3) advance slides + ask the AI tutor (RAG-grounded answer w/ citations)
+  curl -s -X POST $ORCH/api/sessions/$SID/advance
+  curl -s -X POST $ORCH/api/sessions/$SID/ask -H 'content-type: application/json' \
+    -d '{"text":"What gas do plants release?","language":"en"}'
+  # -> {text, citations[], grounded, hallucination_risk, ...}
+  # If risk/sensitivity is high (or the learner asks for a human) the answer is
+  # queued to the orchestrator HIL review queue and pending_review=true.
+
+  # 4) enroll so progress/rewards track
+  curl -s -X POST $ID/enrollments -H "authorization: Bearer $TOKEN" \
+    -H 'content-type: application/json' \
+    -d "{\"course_id\":\"$LESSON\",\"title\":\"Intro\",\"status\":\"enrolled\"}"
+
+============================================================================
+2. CAREERS: MATCH A JOB TO COURSES, THEN APPLY
+============================================================================
+Persona: a learner exploring a career. Value: "take these classes to get hired."
+(Live source connectivity is in docs/integrations-jobs-careers.txt.)
+
+  # browse openings (live boards when JOBS_LIVE=1; curated board offline)
+  curl -s "$CUR/jobs?q=python&limit=20"            # -> {source, count, jobs[]}
+  # for a specific job: course coverage %, the skill gap, a learning path
+  curl -s $CUR/jobs/<job_id>                        # -> {coverage_pct, matched_courses, missing, recommended_path}
+  # paste a real JD (e.g. from LinkedIn) -> skills, certs, targeted classes
+  curl -s -X POST $CUR/jobs/parse -H 'content-type: application/json' \
+    -d '{"description":"... requires Python, AWS, CCNA ..."}'
+  # the web Careers page then deep-links "View / Apply" to the original posting.
+
+============================================================================
+3. PAYMENTS: SUBSCRIBE + UNLOCK ENTITLEMENTS
+============================================================================
+Persona: upgrading to a paid plan. Value: localized checkout + automatic unlock.
+Security details in docs/payments-and-security.txt.
+
+  # what can this customer do right now?
+  curl -s -X POST $BILL/entitlements/can-start -H 'content-type: application/json' \
+    -d '{"customer":"ada","course_id":"adv-ml","tier":"free"}'
+  # localized payment methods (44 supported; e.g. UPI in IN, PIX in BR)
+  curl -s "$BILL/payment-methods/by-country?country=IN"
+  # create a checkout session (sandbox provider offline; real provider w/ keys)
+  curl -s -X POST $BILL/checkout -H 'content-type: application/json' \
+    -d '{"customer_id":"ada","plan":"pro","method":"card"}'
+  # -> {session_id, url, provider, method, instructions}
+  # The provider later calls our verified webhook, which grants entitlements:
+  curl -s $INT/entitlements/ada     # -> {"customer":"ada","entitlements":[...]}
+
+============================================================================
+4. THE AI TEACHER GRADES HOMEWORK (INTERNAL)
+============================================================================
+Persona: the agentic teacher (NOT the student) grading submitted work. Value:
+graded with rationale + citations, kept out of student reach.
+
+  curl -s -X POST $CUR/homework/grade -H "X-Internal-Token: $INTERNAL_TOKEN" \
+    -H 'content-type: application/json' \
+    -d '{"assignment_id":"a1","submission":"...","rubric":{...}}'
+  # low-confidence/edge grades land in a human review queue:
+  curl -s $CUR/homework/grade-reviews -H "X-Internal-Token: $INTERNAL_TOKEN"
+  # a calling student (no internal token) gets 403 — by design.
+
+============================================================================
+5. SCHEDULED GROUP CLASS, AI PRESENTS THROUGH ZOOM/TEAMS/MEET
+============================================================================
+Persona: an educator scheduling a cohort. Value: the AI drives the coursework
+live inside the meeting platform learners already use.
+
+  # schedule (platform: salareen | zoom | teams | meet; external needs meeting_url)
+  CID=$(curl -s -X POST $ORCH/api/group-classes -H 'content-type: application/json' \
+    -d '{"title":"Evening Fractions","lesson_id":"intro-to-fractions","platform":"zoom",
+         "meeting_url":"https://zoom.us/j/123456789","start_time":"2026-06-24T19:00:00Z",
+         "capacity":30}' | jq -r .id)
+  # learners browse + register
+  curl -s $ORCH/api/group-classes?upcoming=true
+  curl -s -X POST $ORCH/api/group-classes/$CID/register -H 'content-type: application/json' \
+    -d '{"name":"Ada","email":"ada@example.com"}'
+  # go live: starts the teaching session AND returns the bridge plan
+  curl -s -X POST $ORCH/api/group-classes/$CID/start
+  # -> {class, session, bridge:{platform, meeting_ref, livekit:{room,token,url}, connect_endpoint}}
+  # operator connects the bridge so the AI's LiveKit room is piped into the meeting:
+  curl -s -X POST $INT/bridges/zoom/connect -H 'content-type: application/json' \
+    -d '{"meeting_ref":"https://zoom.us/j/123456789","livekit_room":"class-<id>"}'
+  # (vendor SDK/creds required for a real connect; fails closed otherwise.)
+
+============================================================================
+6. WEBHOOKS: SUBSCRIBE TO PLATFORM EVENTS
+============================================================================
+Persona: a partner system reacting to enrollments/payments. Value: real-time,
+HMAC-verified events.
+
+  # register a subscriber (empty event_types = receive all)
+  curl -s -X POST $INT/webhooks/subscriptions -H "X-Internal-Token: $INTERNAL_TOKEN" \
+    -H 'content-type: application/json' \
+    -d '{"url":"https://partner.example/hooks","event_types":["enrollment.paid"],
+         "secret":"shared-secret"}'
+  # your endpoint verifies every delivery:
+  #   sig = request.headers["X-AOEP-Signature"]
+  #   expected = hmac_sha256(secret, raw_body).hexdigest()
+  #   if not hmac.compare_digest(sig, expected): reject(401)
+  # test an emit (internal):
+  curl -s -X POST $INT/webhooks/emit -H "X-Internal-Token: $INTERNAL_TOKEN" \
+    -H 'content-type: application/json' \
+    -d '{"event_type":"enrollment.paid","data":{"customer":"ada"}}'
+
+============================================================================
+7. MACHINE VISION (HYBRID, ON-DEVICE) FOR ATTENTION/PRESENCE
+============================================================================
+Persona: a consented classroom session. Value: privacy-preserving — raw frames
+never leave the device.
+
+  # browser detects+embeds locally (loads ONNX from /vision/models/<name>),
+  # then sends ONLY the 128-d embedding for matching:
+  curl -s -X POST $PERC/identify-embedding -H 'content-type: application/json' \
+    -d '{"faces":[{"embedding":[...128 floats...]}],"consented_student_ids":["s1"]}'
+  # enrollment is consent-gated; check compliance/consent first:
+  curl -s -X POST $PERC/analyze/consent-check -H 'content-type: application/json' \
+    -d '{"student_id":"s1","region":"eu"}'
+
+============================================================================
+8. LANGUAGE LEARNING + TRANSLATION (27 LANGUAGES)
+============================================================================
+  curl -s $SPEECH/languages                      # 27 supported + count
+  curl -s $SPEECH/learn/es/course                 # a Spanish learning course
+  curl -s -X POST $SPEECH/translate -H 'content-type: application/json' \
+    -d '{"text":"Hello","target":"vi"}'
+  curl -s -X POST $SPEECH/delivery/plan -H 'content-type: application/json' \
+    -d '{"text":"...","language":"vi"}'           # prosody/voice plan for natural TTS
+
+============================================================================
+9. OPERATIONS / SRE
+============================================================================
+  for p in 8000 8002 8003 8004 8005 8006 8007 8008; do
+    curl -s localhost:$p/health | jq '{service,status,version}'; done
+  curl -s localhost:8005/metrics            # Prometheus scrape
+  curl -s localhost:8005/telemetry/errors   # recent in-proc errors
+  curl -s localhost:8005/version            # git sha + build metadata

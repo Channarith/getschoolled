@@ -1,0 +1,99 @@
+SALAREEN / AOEP — HOW CAREERS CONNECTS TO JOB SITES
+===================================================
+Plain text on purpose (repo no-markdown house rule).
+
+This explains exactly how the Careers feature pulls real openings, how it maps
+them to courses, and how to enable LinkedIn/Indeed-sourced listings. Source of
+truth: packages/shared/src/aoep_shared/jobs.py and curriculum /jobs endpoints.
+
+============================================================================
+1. THE MODEL: JOBS <-> SKILLS <-> COURSES
+============================================================================
+A JobsProvider abstracts the source of openings. Each opening is normalized to
+a JobPosting {id, title, company, location, source, url, salary_range,
+posted_days_ago, category, skills[], description}. The matcher
+(match_courses_to_job) maps a job's required skills onto catalog courses and
+returns coverage %, the skill gap, and a recommended learning path. So the user
+always sees "take these classes to qualify for THIS role," and "View / Apply"
+deep-links to the original posting.
+
+============================================================================
+2. WHY NOT A DIRECT "LINKEDIN API"
+============================================================================
+LinkedIn has NO open public jobs API (partner-only), and scraping it violates
+their ToS. So "connect to LinkedIn" in practice means one of:
+  a) Free public job boards with open APIs (real listings, no key).
+  b) Keyed aggregators that INDEX LinkedIn/Indeed/Glassdoor/ZipRecruiter
+     postings (JSearch via RapidAPI; Adzuna).
+  c) A real LinkedIn partner key (rare; LINKEDIN_API_KEY) if you have one.
+We support all three behind one interface, with graceful fallback.
+
+============================================================================
+3. PROVIDERS (all behind aoep_shared.jobs.JobsProvider)
+============================================================================
+  Provider                 Source label     Key needed                 Notes
+  -----------------------  ---------------  -------------------------  ---------------------------
+  MockJobsProvider         sample           none                       curated offline board (demo/CI)
+  RemotiveJobsProvider     remotive         none                       real remote jobs (remotive.com)
+  ArbeitnowJobsProvider    arbeitnow        none                       real jobs (arbeitnow.com)
+  JSearchJobsProvider      <publisher>*     RAPIDAPI_KEY               indexes Google-for-Jobs -> LinkedIn,
+                                                                      Indeed, Glassdoor, ZipRecruiter
+  AdzunaJobsProvider       adzuna           ADZUNA_APP_ID+ADZUNA_APP_KEY multi-board aggregator
+  LinkedInJobsProvider     linkedin         LINKEDIN_API_KEY           partner API; else raises -> fallback
+  CompositeJobsProvider    a+b+...          (composes the above)        merges + de-dups several sources
+  * JSearch tags each posting with its real publisher, so a LinkedIn-sourced row
+    has source="linkedin" and url=https://www.linkedin.com/jobs/view/...
+
+============================================================================
+4. SELECTION LOGIC (dual-mode, by ENV)  — get_jobs_provider()
+============================================================================
+  1. JOBS_PROVIDER pins one explicitly: remotive|arbeitnow|jsearch|adzuna|
+     linkedin|sample|live.
+  2. else if RAPIDAPI_KEY set            -> JSearch (LinkedIn/Indeed/...).
+  3. else if ADZUNA_APP_ID + ADZUNA_APP_KEY -> Adzuna.
+  4. else if LINKEDIN_API_KEY set        -> LinkedIn partner.
+  5. else if JOBS_LIVE=1 (or JOBS_PROVIDER=live) -> Composite(Remotive+Arbeitnow)
+     (free, real).
+  6. else                                 -> curated sample board.
+Keyed aggregators take precedence so the richest source wins automatically.
+
+============================================================================
+5. RESILIENCE (the page never breaks)
+============================================================================
+  - Every live provider wraps the HTTP fetch; on ANY network/parse failure or
+    empty result it falls back to the curated board and reports source="sample"
+    (honest about what was served).
+  - Results are TTL-cached (JOBS_CACHE_TTL, default 900s) to cut provider calls
+    and latency; fetched jobs are cached by id so /jobs/{id} (the course-match
+    view) resolves live results too.
+  - HTTP timeout JOBS_HTTP_TIMEOUT (default 8s).
+
+============================================================================
+6. ENABLING IT
+============================================================================
+  Demo / free real jobs:   set JOBS_LIVE=1 (already set in config/cloud.env,
+                           the k8s/VKE configmaps, and the compose curriculum
+                           service). Needs cluster/host egress to the job APIs.
+  LinkedIn/Indeed-sourced: add RAPIDAPI_KEY (JSearch) or ADZUNA_APP_ID +
+                           ADZUNA_APP_KEY as secrets (see docs/secrets.txt).
+                           They then take precedence automatically.
+  Offline / CI:            leave unset -> curated sample board (tests stay green).
+
+============================================================================
+7. ENDPOINTS (curriculum service, :8005)
+============================================================================
+  GET  /jobs?q&location&limit   -> {source, count, jobs[]}
+  GET  /jobs/{job_id}            -> {coverage_pct, matched_courses, missing, recommended_path}
+  POST /jobs/parse {description} -> {skills, certifications, professions, recommended classes}
+  GET  /courses/{id}/jobs       -> roles this course helps qualify for
+See docs/api-use-cases.txt section 2 for a full recipe.
+
+============================================================================
+8. COMPLIANCE / GOOD CITIZENSHIP
+============================================================================
+  - We only call APIs whose terms permit programmatic access; we do not scrape
+    LinkedIn directly. Aggregators (JSearch/Adzuna) are the supported path to
+    LinkedIn/Indeed-sourced data.
+  - We link out to the original posting (we don't re-host listings), preserving
+    attribution and sending applicants to the source.
+  - Cache TTL respects provider rate/quota limits.
