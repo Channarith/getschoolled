@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { clearToken, getToken, setPreview } from "../lib/api";
+import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
 import { useT } from "../lib/i18n";
 import LanguagePicker from "./LanguagePicker";
 
@@ -43,6 +43,7 @@ export default function ProfileMenu() {
   function signOut() {
     clearToken();
     setPreview(false);   // back to the gated landing, not the preview catalog
+    lockAdmin();         // drop operator access on sign-out
     setLoggedIn(false);
     setOpen(false);
     router.push("/");

@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Default admin account (login out of the box). Identity seeds a
+  default admin at startup (idempotent, env-gated SEED_DEFAULT_ADMIN): email
+  admin@salareen.com, password 88888888 (DEFAULT_ADMIN_*), with a bare "admin"
+  username alias so you can log in with either. Account.is_admin is now exposed
+  on /auth/me + login; the web login page accepts an email OR username and, when
+  the account is_admin, auto-unlocks operator surfaces (the Homework grader tab).
+  Sign-out drops admin access. SECURITY: change DEFAULT_ADMIN_PASSWORD before any
+  public deployment (or set SEED_DEFAULT_ADMIN=0). Tests in test_admin_seed.py.
+
 - 2026-06-23 - Web UI polish + admin-gated Homework + footer i18n + Careers
   restyle. (1) Transparency: body is now transparent so the full-bleed wallpaper
   (already scrimmed) shows through the whole page, and cards/slides are

@@ -156,6 +156,15 @@ export function lockAdmin(): void {
   notifyAuthChange();
 }
 
+// Set the admin flag from a server-confirmed signal (e.g. account.is_admin on
+// login) without requiring the password prompt.
+export function applyAdmin(isAdmin: boolean): void {
+  if (isAdmin) {
+    try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
+    notifyAuthChange();
+  }
+}
+
 function authHeaders(): Record<string, string> {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
@@ -167,6 +176,7 @@ export type Account = {
   display_name: string;
   tier: string;
   region: string;
+  is_admin?: boolean;
 };
 
 export async function signup(email: string, password: string, displayName: string):
