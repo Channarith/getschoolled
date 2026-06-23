@@ -277,6 +277,94 @@ spec:
   selector: { app: billing }
   ports: [{ port: 8000, targetPort: 8000 }]
 ---
+# Identity: accounts, auth/session tokens, students, portfolio, rewards, games,
+# language XP, enrollments. Auth-critical, so it gets the same zone anti-affinity
+# + N-1 PDB as the other API tiers (see autoscaling.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: identity, namespace: aoep }
+spec:
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: identity } }
+  template:
+    metadata: { labels: { app: identity, tier: api } }
+    spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: identity } }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: identity } }
+      containers:
+        - name: identity
+          image: ghcr.io/aoep/identity:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 150m, memory: 256Mi }
+            limits:   { cpu: 750m, memory: 768Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: identity, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
+spec:
+  selector: { app: identity }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+# Integrations gateway: outbound/inbound webhooks, payment/LMS/cloud connectors,
+# API clients, and the Zoom/Teams/Meet live-class media bridge control plane.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: integrations, namespace: aoep }
+spec:
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 25%, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: integrations } }
+  template:
+    metadata: { labels: { app: integrations, tier: api } }
+    spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: topology.kubernetes.io/zone
+                labelSelector: { matchLabels: { app: integrations } }
+      containers:
+        - name: integrations
+          image: ghcr.io/aoep/integrations:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: aoep-config }
+            - secretRef: { name: aoep-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          readinessProbe: { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 5, periodSeconds: 5 }
+          livenessProbe:  { httpGet: { path: /health, port: 8000 }, initialDelaySeconds: 20, periodSeconds: 20, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sh", "-c", "sleep 10"] } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: integrations, namespace: aoep, annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8000" } }
+spec:
+  selector: { app: integrations }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata: { name: web, namespace: aoep }
