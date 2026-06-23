@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Rail } from "./components/CourseRail";
-import { getHomeFeed, getToken, type HomeRail } from "./lib/api";
+import {
+  getHomeFeed,
+  getPreview,
+  getToken,
+  setPreview as persistPreview,
+  type HomeRail,
+} from "./lib/api";
 import { friendlyError } from "./lib/errors";
 import { useT } from "./lib/i18n";
 
@@ -20,9 +26,15 @@ export default function HomePage() {
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    setPreview(getPreview());
     setAuthResolved(true);
     getHomeFeed().then(setRails).catch((e) => setError(String(e)));
   }, []);
+
+  function startPreview() {
+    persistPreview(true);   // shared flag so the nav unlocks too
+    setPreview(true);
+  }
 
   function onGetStarted(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +71,7 @@ export default function HomePage() {
           </form>
           <div className="hero-cta" style={{ justifyContent: "center", marginTop: 18 }}>
             <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("landing.signIn")}</button></Link>
-            <button className="theme-btn" onClick={() => setPreview(true)}
+            <button className="theme-btn" onClick={startPreview}
                     style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,.6)" }}>
               ▶ {t("landing.preview")}
             </button>
