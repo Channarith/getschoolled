@@ -11,10 +11,25 @@ A graduation mortarboard whose tassel curls back into the bowl of a capital G
 "graduation" at favicon size and as a clean monogram at any scale. No
 gradients, no detail, one solid silhouette.
 
+Salareen study buddy (product mascot):
+  Concept: a friendly, SECULAR character - a calm, gently-smiling face in the
+  spirit of classical Khmer (Bayon) craftsmanship, drawn as a modern mascot
+  rather than a monument. Its silhouette forms a capital "S" for Salareen, and
+  beside it grows a stylized "leaf of knowledge": a heart-shaped, bodhi-style
+  leaf whose veins double as a learning/circuit network. It signals curiosity,
+  growth, and lifelong learning - explicitly NOT religion.
+  Files:
+    docs/brand/salareen_bayon_buddy_mascot.png     mascot, color on navy
+    apps/web/public/salareen-mascot.webp           web-optimized mascot
+    docs/brand/salareen_platform_ecosystem.png     sub-app ecosystem poster
+    apps/web/public/salareen-ecosystem.webp        web-optimized poster
+
 Mascot/design guardrail:
-  - Keep mascot and theme art secular and classroom-focused.
-  - Avoid ceremonial monuments, faith-based symbols, or devotional visual cues.
-  - For Khmer-language or Cambodian audience designs, use neutral language,
+  - Keep brand and theme art SECULAR. The Salareen buddy is a culturally-
+    inspired *character* presented as a friendly study companion - never a
+    temple, monument, or devotional object; the leaf is a symbol of knowledge
+    and growth, not faith. Keep it respectful and never appropriative.
+  - For Khmer-language or Cambodian audience designs, lean on neutral language,
     family, study, food, music, pattern, landscape, or everyday-learning motifs.
 
 Sources (vector, single-source-of-truth):
