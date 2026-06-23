@@ -15,6 +15,13 @@ Format: newest first. No markdown per project convention.
   sessions in-memory but runs 3 replicas with no ingress affinity, so requests
   round-robined to a pod that never saw the session. Added cookie session
   affinity to the aoep Ingress (base + VKE). Validated with kustomize build.
+- 2026-06-23 - Web "Get the app" page: added /download with Android (direct APK +
+  Google Play) and iOS (TestFlight + App Store) buttons, a scan-to-install QR, and
+  feature highlights; buttons show "Coming soon" until their NEXT_PUBLIC_* URL is
+  set (NEXT_PUBLIC_ANDROID_APK_URL / PLAY_STORE_URL / IOS_APP_URL / APP_STORE_URL,
+  documented in the k8s ConfigMaps). Linked from the nav ("Get the app", localized
+  in all 14 locales), the home hero, and the footer. Tested (web typecheck+build,
+  GUI screenshot).
 
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's

@@ -35,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span> · AI-assisted instruction. Use only in compliance with applicable laws. </span>
             <Link href="/transparency">Transparency</Link>
             <Link href="/consent">Consent</Link>
+            <Link href="/download">Get the app</Link>
             <span style={{ marginLeft: "auto" }}><LanguagePicker /></span>
           </footer>
         </LocaleProvider>
