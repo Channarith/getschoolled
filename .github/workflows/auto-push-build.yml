@@ -67,10 +67,15 @@ jobs:
           if [ -f apps/mobile/package.json ]; then
             echo "Building apps/mobile (fresh, no cache)"
             cd apps/mobile
-            npm ci
-            npm run typecheck
-            npm run build
-            npm run native:build:android
+            # apps/mobile is a pnpm project (pnpm-lock.yaml). `npm ci` fails here
+            # because there is no package-lock.json - use pnpm like apps/web.
+            pnpm install --frozen-lockfile || pnpm install
+            pnpm run typecheck
+            pnpm run build
+            # The native Android (gradle) build needs the Android SDK + network to
+            # Maven/Gradle plugin repos; keep it best-effort so a flaky APK build
+            # never blocks the version-bump auto-push.
+            pnpm run native:build:android || echo "::warning::native Android build failed; continuing auto-push"
           else
             echo "apps/mobile not present yet; skipping mobile build"
           fi

@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - CI fix: auto-push-build.yml mobile step failed with "npm ci can
+  only install with an existing package-lock.json", which aborted the whole
+  workflow (so the version-bump auto-push to main never ran). apps/mobile is a
+  pnpm project (committed pnpm-lock.yaml, like apps/web), so the step now uses
+  `pnpm install --frozen-lockfile` + `pnpm run typecheck|build`, and the native
+  Android (gradle) build is best-effort so a flaky APK build can't block the
+  auto-push. Verified locally: pnpm install --frozen-lockfile + typecheck pass.
+
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
   [test] extra (not requirements-dev.txt), and services/curriculum's test extra
