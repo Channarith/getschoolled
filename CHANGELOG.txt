@@ -1468,6 +1468,9 @@ were lost to the changelog-rolling bug fixed in [unreleased]; their content is
 [unreleased]
 - (no changes yet)
 
+[0.3.82] - 2026-06-23
+- (no changes yet)
+
 [0.3.81] - 2026-06-23
 - (no changes yet)
 
