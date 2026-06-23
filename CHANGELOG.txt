@@ -2,7 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-23 - VKE direct-IP and same-origin web APIs: web now falls back to
+- 2026-06-23 - k8s: deploy identity + integrations (were missing) and fix API
+  reachability. infra/k8s/services.yaml gained identity and integrations
+  Deployments + Services (port 8000, zone anti-affinity, probes, preStop drain),
+  and autoscaling.yaml gained their HPAs + PDBs - so /auth, /students, /rewards,
+  /portfolio (identity) and webhooks/LMS/cloud/bridges (integrations) now have
+  running backends. Added a collision-free per-service API Ingress (aoep-apis):
+  each https://<api-host>/<svc>/... prefix (curriculum, identity, integrations,
+  memory, speech, billing, perception) is rewritten and routed to its Service,
+  with a VKE patch pinning it to api.salareen.com + cert-manager TLS. ConfigMap
+  now publishes the browser-facing NEXT_PUBLIC_<svc>_URL bases (note: inlined at
+  web build time) and fixes the stale in-cluster SPEECH_BASE_URL/VISION_BASE_URL
+  (8100/8200 -> 8000, matching the uniform :8000 services). Validated with
+  `kustomize build` of both the base and VKE overlays.
   browser same-origin service URLs when deployed outside localhost, and the VKE
   ingress serves raw LoadBalancer IP traffic plus same-origin public catalog,
   audio, jobs, notifications, and health/API paths without forcing HTTPS while

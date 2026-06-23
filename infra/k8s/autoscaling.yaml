@@ -145,6 +145,51 @@ spec: { minAvailable: 2, selector: { matchLabels: { app: billing } } }
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
+metadata: { name: identity, namespace: aoep }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: identity }
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource: { name: cpu,    target: { type: Utilization, averageUtilization: 60 } }
+    - type: Resource
+      resource: { name: memory, target: { type: Utilization, averageUtilization: 75 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 50, periodSeconds: 60 }] }
+    scaleUp:
+      stabilizationWindowSeconds: 15
+      policies:
+        - { type: Percent, value: 100, periodSeconds: 30 }
+        - { type: Pods,    value: 4,   periodSeconds: 30 }
+      selectPolicy: Max
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: identity, namespace: aoep }
+spec: { minAvailable: 2, selector: { matchLabels: { app: identity } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: integrations, namespace: aoep }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: integrations }
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 50, periodSeconds: 60 }] }
+    scaleUp:   { stabilizationWindowSeconds: 15,  policies: [{ type: Percent, value: 100, periodSeconds: 30 }] }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: integrations, namespace: aoep }
+spec: { minAvailable: 2, selector: { matchLabels: { app: integrations } } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
 metadata: { name: web, namespace: aoep }
 spec:
   scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: web }

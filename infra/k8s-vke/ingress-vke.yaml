@@ -124,3 +124,48 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
+---
+# VKE patch for the per-service API Ingress (base: infra/k8s/ingress.yaml,
+# name: aoep-apis). Re-points the rewrite-prefix API routes at api.salareen.com
+# with the Salareen TLS secret + cert-manager. The web app reaches every backend
+# collision-free via https://api.salareen.com/<svc>/... (see NEXT_PUBLIC_*_URL in
+# configmap-vke.yaml). Each /<svc>/ prefix is stripped before forwarding.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep-apis
+  namespace: aoep
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.salareen.com]
+      secretName: salareen-tls
+  rules:
+    - host: api.salareen.com
+      http:
+        paths:
+          - path: /curriculum(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: identity, port: { number: 8000 } } }
+          - path: /integrations(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: integrations, port: { number: 8000 } } }
+          - path: /memory(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: memory, port: { number: 8000 } } }
+          - path: /speech(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: speech, port: { number: 8000 } } }
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: billing, port: { number: 8000 } } }
+          - path: /perception(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: perception, port: { number: 8000 } } }
