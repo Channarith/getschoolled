@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Docs: updated architecture for the Kubernetes (VKE) deployment.
+  README now has a Kubernetes deployment diagram (Cloudflare/DNS -> nginx Ingress
+  with host+path routing + cookie session affinity -> web + per-service
+  Deployments x3 with HPA/PDB/anti-affinity on :8000 -> Redis/Postgres+pgvector/
+  Object Storage, GPU LLM pool, Vultr Container Registry, and the deploy.yml
+  CI/CD), an in-cluster live-class request flow, and a note that services use
+  :8000 in-cluster (the :800x ports are local-dev only). Added infra/k8s-vke and
+  .github/workflows to the repo-layout table. Expanded docs/architecture.txt
+  section 6 with the VKE topology + an ASCII deployment diagram.
+
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
   [test] extra (not requirements-dev.txt), and services/curriculum's test extra
