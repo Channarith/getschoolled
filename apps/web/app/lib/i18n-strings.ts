@@ -4,31 +4,66 @@
 // gracefully fall back to English via the t() helper. Add a new locale
 // by extending LANGUAGE_LIST + STRINGS below.
 
+// All 27 platform-supported languages (mirrors aoep_shared.languages
+// .SUPPORTED_LANGUAGES and apps/mobile/src/i18n/languages.ts). ASR + translation
+// cover every one; `tier: "full"` marks languages with a hand-written UI
+// translation, while `tier: "fallback"` languages inherit English for any
+// untranslated key via t() until their translation lands - so the picker can
+// offer all 27 without shipping 27 complete dictionaries.
 export const LOCALES = [
+  // Fully-localized UI (14):
   "en", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "zh", "ja", "ko", "vi", "km",
+  // Supported, UI rolling out (13) - English fallback for untranslated keys:
+  "nl", "pl", "uk", "tr", "he", "bn", "ur", "fa", "th", "id", "sw", "el", "cs",
 ] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const LANGUAGE_LIST: { code: Locale; native: string; flag: string }[] = [
-  { code: "en", native: "English", flag: "🇺🇸" },
-  { code: "es", native: "Español", flag: "🇪🇸" },
-  { code: "fr", native: "Français", flag: "🇫🇷" },
-  { code: "de", native: "Deutsch", flag: "🇩🇪" },
-  { code: "it", native: "Italiano", flag: "🇮🇹" },
-  { code: "pt", native: "Português", flag: "🇵🇹" },
-  { code: "ru", native: "Русский", flag: "🇷🇺" },
-  { code: "ar", native: "العربية", flag: "🇸🇦" },
-  { code: "hi", native: "हिन्दी", flag: "🇮🇳" },
-  { code: "zh", native: "中文", flag: "🇨🇳" },
-  { code: "ja", native: "日本語", flag: "🇯🇵" },
-  { code: "ko", native: "한국어", flag: "🇰🇷" },
-  { code: "vi", native: "Tiếng Việt", flag: "🇻🇳" },
-  { code: "km", native: "ខ្មែរ", flag: "🇰🇭" },
+export type LanguageEntry = {
+  code: Locale;
+  native: string;
+  flag: string;
+  tier: "full" | "fallback";
+  rtl?: boolean;
+};
+
+export const LANGUAGE_LIST: LanguageEntry[] = [
+  { code: "en", native: "English", flag: "🇺🇸", tier: "full" },
+  { code: "es", native: "Español", flag: "🇪🇸", tier: "full" },
+  { code: "fr", native: "Français", flag: "🇫🇷", tier: "full" },
+  { code: "de", native: "Deutsch", flag: "🇩🇪", tier: "full" },
+  { code: "it", native: "Italiano", flag: "🇮🇹", tier: "full" },
+  { code: "pt", native: "Português", flag: "🇵🇹", tier: "full" },
+  { code: "ru", native: "Русский", flag: "🇷🇺", tier: "full" },
+  { code: "ar", native: "العربية", flag: "🇸🇦", tier: "full", rtl: true },
+  { code: "hi", native: "हिन्दी", flag: "🇮🇳", tier: "full" },
+  { code: "zh", native: "中文", flag: "🇨🇳", tier: "full" },
+  { code: "ja", native: "日本語", flag: "🇯🇵", tier: "full" },
+  { code: "ko", native: "한국어", flag: "🇰🇷", tier: "full" },
+  { code: "vi", native: "Tiếng Việt", flag: "🇻🇳", tier: "full" },
+  { code: "km", native: "ខ្មែរ", flag: "🇰🇭", tier: "full" },
+  // Supported via ASR + translation + speech; UI localization rolling out.
+  { code: "nl", native: "Nederlands", flag: "🇳🇱", tier: "fallback" },
+  { code: "pl", native: "Polski", flag: "🇵🇱", tier: "fallback" },
+  { code: "uk", native: "Українська", flag: "🇺🇦", tier: "fallback" },
+  { code: "tr", native: "Türkçe", flag: "🇹🇷", tier: "fallback" },
+  { code: "he", native: "עברית", flag: "🇮🇱", tier: "fallback", rtl: true },
+  { code: "bn", native: "বাংলা", flag: "🇧🇩", tier: "fallback" },
+  { code: "ur", native: "اردو", flag: "🇵🇰", tier: "fallback", rtl: true },
+  { code: "fa", native: "فارسی", flag: "🇮🇷", tier: "fallback", rtl: true },
+  { code: "th", native: "ไทย", flag: "🇹🇭", tier: "fallback" },
+  { code: "id", native: "Bahasa Indonesia", flag: "🇮🇩", tier: "fallback" },
+  { code: "sw", native: "Kiswahili", flag: "🇰🇪", tier: "fallback" },
+  { code: "el", native: "Ελληνικά", flag: "🇬🇷", tier: "fallback" },
+  { code: "cs", native: "Čeština", flag: "🇨🇿", tier: "fallback" },
 ];
 
-export const RTL_LOCALES = new Set<Locale>(["ar"]);
+export const RTL_LOCALES = new Set<Locale>(
+  LANGUAGE_LIST.filter((l) => l.rtl).map((l) => l.code),
+);
 
-export const STRINGS: Record<Locale, Record<string, string>> = {
+// Hand-written translations. Languages without an entry fall back to English
+// (see translateWith), so this need not cover every Locale.
+export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "en": {
     "nav.brand": "Salareen",
     "nav.home": "Home",
@@ -105,6 +140,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     "error.offline": "Can't reach the server. Make sure the backend services are running (see the README \"Running the web teaching loop\"), then refresh.",
     "lang.label": "Language",
     "lang.choose": "Choose your language",
+    "lang.groupFull": "Fully localized",
+    "lang.groupMore": "More languages (UI rolling out)",
   },
   "es": {
     "nav.home": "Inicio",
@@ -451,6 +488,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     "error.offline": "Không kết nối được máy chủ. Hãy đảm bảo các dịch vụ backend đang chạy (xem README), rồi tải lại trang.",
     "lang.label": "Ngôn ngữ",
     "lang.choose": "Chọn ngôn ngữ của bạn",
+    "lang.groupFull": "Đã bản địa hóa đầy đủ",
+    "lang.groupMore": "Ngôn ngữ khác (giao diện đang hoàn thiện)",
   },
   "km": {
     "nav.home": "ដើម",

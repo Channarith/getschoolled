@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+import { LANGUAGE_LIST } from "../lib/i18n-strings";
+
+// Keep advertised language counts in lockstep with the actual language list so
+// the number can never drift from what the picker offers.
+const LANG_TOTAL = LANGUAGE_LIST.length;
+const LANG_FULL = LANGUAGE_LIST.filter((l) => l.tier === "full").length;
+
 export const metadata: Metadata = {
   title: "Our Story — Salareen",
   description:
@@ -60,7 +67,7 @@ export default function OurStoryPage() {
       <div style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}>
         <Image
           src="/salareen-ecosystem.webp"
-          alt="Salareen platform map: homework grader, private tutor agent, mobile apps, drive mode audio agent, human-in-the-loop and group and private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and 26 languages"
+          alt={`Salareen platform map: homework grader, private tutor agent, mobile apps, drive mode audio agent, human-in-the-loop and group and private courses, integrations, arcade, rewards, course scraper, knowledge base, adaptive learning, machine vision, humanoid-robot readiness, and ${LANG_TOTAL} languages`}
           width={1536}
           height={1024}
           style={{ width: "100%", height: "auto", borderRadius: 12 }}
@@ -80,7 +87,7 @@ export default function OurStoryPage() {
         <li><strong>Course scraper</strong> that builds fresh courses from the open web.</li>
         <li><strong>Knowledge base (RAG)</strong> so answers stay grounded and citable.</li>
         <li><strong>Integrations</strong> with LMS, finance, and cloud tools.</li>
-        <li><strong>26 languages</strong>, with more on the way.</li>
+        <li><strong>{LANG_TOTAL} languages</strong> — the interface is fully localized in {LANG_FULL}, and the rest are supported through AI translation, speech, and content, with their UI localization rolling out.</li>
         <li><strong>Humanoid-robot ready</strong> — the same teaching brain can drive an embodied tutor.</li>
       </ul>
 
