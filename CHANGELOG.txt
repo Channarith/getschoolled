@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Repo hygiene rule + README cleanup. Added a "Push-to-main
+  checklist" to AGENTS.md: every main update must (1) add a dated CHANGELOG
+  entry, (2) clean the README of legacy/redundant/duplicate wording, and (3)
+  refresh docs/screens + docs/demos walkthroughs whenever the UI changes. Applied
+  it now: merged the two duplicate "## Brand" sections (left over from the #92/#95
+  merge) into one and dropped the legacy aiclassroom_* mark rows; refreshed the
+  "Screens and videos" section to the current Netflix-style UI (new
+  docs/screens/landing.webp + profile_menu.webp and
+  docs/demos/netflix_ui_walkthrough.mp4).
+
 - 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
   (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
   "Preview what's inside" button that reveals the catalog before account

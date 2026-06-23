@@ -53,62 +53,46 @@ One AI learning platform, many ways to learn:
 
 ## Brand
 
-Salareen has two complementary marks: the **Salareen study buddy** (a secular,
-Bayon-inspired character with an "S" monogram and a bodhi-style leaf of
-knowledge) used as the friendly product mascot, and a **minimalist graduation
-monogram** used as the lightweight app/browser icon. Source vectors and raster
-assets live in `docs/brand/` and `apps/web/public/`. Usage rules are in
-
-## Brand
-
-The Salareen brand pairs the friendly **Bayon Buddy** mascot (a secular,
-Bayon-inspired character cradling a gold "S" medallion crowned with a Bodhi-leaf
-"leaf of knowledge") with a minimalist circular **"S" badge** used as the
-app/browser icon. The "S" and the leaf stand for school, curiosity, and growth -
-it is a cultural character, not a religious symbol. Web delivery assets live in
-`apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
+Salareen pairs the friendly **Bayon Buddy** mascot (a secular, Bayon-inspired
+character cradling a gold "S" medallion crowned with a bodhi-style "leaf of
+knowledge") with a minimalist circular **"S" badge** used as the app/browser
+icon. The "S" and the leaf stand for school, curiosity, and growth — it is a
+cultural character, not a religious symbol. Source assets live in `docs/brand/`
+and `apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 `docs/brand/branding.txt`.
 
 | Asset | Path | Purpose |
 | --- | --- | --- |
-| Study buddy mascot | `docs/brand/salareen_bayon_buddy_mascot.png` | Friendly product mascot (hero, about, app store) |
-| Mascot (web) | `apps/web/public/salareen-mascot.webp` | Web-optimized mascot |
-| Platform ecosystem poster | `docs/brand/salareen_platform_ecosystem.png` | One-glance map of every sub-app |
-| Ecosystem (web) | `apps/web/public/salareen-ecosystem.webp` | Web-optimized ecosystem poster |
-| Mark SVG | `apps/web/public/logo-mark.svg` | Browser/app icon and lightweight web mark |
-| Mark source | `docs/brand/aiclassroom_mark.svg` | Single source of truth for the icon |
-| Wordmark source | `docs/brand/aiclassroom_wordmark.svg` | Horizontal lockup |
-| Favicon | `apps/web/public/favicon.ico` | Browser favicon |
-
-Design guardrail: brand and theme art stays **secular**. The Salareen buddy is a
-culturally-inspired *character*, presented as a friendly study companion — not a
-temple, monument, or devotional object — and the leaf is framed as a symbol of
-knowledge and growth, not faith. Keep it respectful, never appropriative.
-| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot |
-| Logo mark (web) | `apps/web/public/logo-mark.webp` | Nav + browser/app "S" badge |
-| Logo mark (SVG) | `apps/web/public/logo-mark.svg` | Themable vector "S" badge |
+| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
+| Logo mark | `apps/web/public/logo-mark.webp` + `logo-mark.svg` | Nav + browser/app "S" badge |
 | Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
-| App icon (mobile) | `apps/mobile/assets/salareen_icon_1024.png` | iOS/Android app icon + splash |
+| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` | iOS/Android icon + splash |
 | Favicon | `apps/web/public/favicon.ico` | Browser favicon |
+| Platform diagrams | `docs/brand/salareen_platform_ecosystem.png`, `salareen_workstreams_diagram.png` | Ecosystem poster + workstream map |
 
 Design guardrail: brand and theme art stays **secular**. The Bayon Buddy is a
-culturally-inspired character presented as a friendly study companion - never a
-temple, monument, or devotional object - and the leaf is a symbol of knowledge
+culturally-inspired character presented as a friendly study companion — never a
+temple, monument, or devotional object — and the leaf is a symbol of knowledge
 and growth, not faith. Keep it respectful and never appropriative.
 
 ## Screens and videos
 
-<video src="docs/demos/platform_walkthrough.mp4" controls></video>
+Current UI walkthrough — Netflix-style signed-out landing, Preview, the profile
+dropdown, and instant language switching:
+
+<video src="docs/demos/netflix_ui_walkthrough.mp4" controls></video>
 
 Mobile preview walkthrough: <video src="docs/demos/mobile_preview_walkthrough.mp4" controls></video>
 
-| Web home | Live class answer | Mobile preview | Themes |
+| Signed-out landing | Profile dropdown | Live class answer | Themes |
 | --- | --- | --- | --- |
-| <img src="docs/screens/homepage.webp" alt="Web homepage" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/mobile_preview.webp" alt="Mobile web preview" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Neutral backgrounds gallery" /> |
+| <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
 Additional walkthroughs checked into `docs/demos/` include Drive Mode, language
 learning, arcade, careers, kids mode, corporate training, admin, educator HIL,
 and member rewards flows. Additional screenshots live in `docs/screens/`.
+
+> Per AGENTS.md, refresh these screenshots/videos whenever the UI changes.
 
 ## What is implemented
 
