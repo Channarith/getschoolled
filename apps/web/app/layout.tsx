@@ -1,11 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { APP_VERSION } from "./lib/version";
 import DisclaimerGate from "./components/DisclaimerGate";
 import BackgroundProvider from "./components/BackgroundProvider";
-import LanguagePicker from "./components/LanguagePicker";
 import LocalizedNav from "./components/LocalizedNav";
+import SiteFooter from "./components/SiteFooter";
 import { LocaleProvider } from "./lib/i18n";
 
 export const metadata: Metadata = {
@@ -29,15 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <DisclaimerGate />
           <LocalizedNav appVersion={APP_VERSION} />
           {children}
-          <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333", fontSize: 12, opacity: 0.75, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <span>© 2026 AOEP · </span>
-            <Link href="/legal">Legal &amp; Compliance</Link>
-            <span> · AI-assisted instruction. Use only in compliance with applicable laws. </span>
-            <Link href="/transparency">Transparency</Link>
-            <Link href="/consent">Consent</Link>
-            <Link href="/download">Get the app</Link>
-            <span style={{ marginLeft: "auto" }}><LanguagePicker /></span>
-          </footer>
+          <SiteFooter />
         </LocaleProvider>
       </body>
     </html>
