@@ -2,24 +2,30 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { acceptLegal } from "../lib/api";
+import { usePathname } from "next/navigation";
+import { acceptLegal, getToken } from "../lib/api";
 
-// One-time AI & consent disclaimer. Blocks the app on first visit until the user
-// acknowledges. Acceptance is remembered in localStorage (so it shows once) and
-// best-effort recorded on the backend acceptance store.
+// One-time AI & consent + legal disclaimer, shown ONCE AFTER LOGIN. Anonymous
+// visitors can browse the catalog freely; the consent/legal acknowledgement
+// appears the first time a signed-in user is seen and is then remembered in
+// localStorage (and best-effort recorded on the backend acceptance store).
 const STORAGE_KEY = "aoep_disclaimer_accepted_v1";
 const REQUIRED = ["disclaimer", "terms", "privacy", "aup"];
 
 export default function DisclaimerGate() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
+  // Re-evaluate on every route change so it triggers right after login (which
+  // redirects, changing the pathname).
   useEffect(() => {
     try {
-      if (!localStorage.getItem(STORAGE_KEY)) setOpen(true);
+      const accepted = Boolean(localStorage.getItem(STORAGE_KEY));
+      setOpen(Boolean(getToken()) && !accepted);
     } catch {
-      setOpen(true);
+      setOpen(false);
     }
-  }, []);
+  }, [pathname]);
 
   async function onConsent() {
     try {

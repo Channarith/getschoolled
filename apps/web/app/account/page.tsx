@@ -142,6 +142,20 @@ export default function AccountPage() {
           </div>
 
           <div className="card">
+            <h3>Settings &amp; tools</h3>
+            <p className="muted">Everything for your account in one place.</p>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <Link href="/dashboard"><button>Dashboard</button></Link>
+              <Link href="/console"><button>Service console</button></Link>
+              <Link href="/admin"><button>Admin</button></Link>
+              <Link href="/backgrounds"><button>Themes</button></Link>
+              <Link href="/consent"><button>Consent</button></Link>
+              <Link href="/transparency"><button>Transparency</button></Link>
+              <Link href="/legal"><button>Legal &amp; notices</button></Link>
+            </div>
+          </div>
+
+          <div className="card">
             <h3>Membership</h3>
             <div className="row" style={{ gap: 8 }}>
               {TIERS.map((t) => (
