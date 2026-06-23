@@ -2,22 +2,31 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-23 - Textbook-depth course content (standard + first chapter) and more
-  natural Drive Mode audio. CONTENT: expanded python-09-functions from a 9-slide
-  ~500-word stub into a comprehensive 32-section, ~3,500-word textbook chapter
-  (anatomy, positional/keyword/default/*args/**kwargs/keyword-only/positional-only,
-  unpacking, returns + multiple returns, guard clauses, docstrings, type hints,
-  scope/LEGB/closures/nonlocal/global, first-class & higher-order functions,
-  lambdas, recursion, decorators, pure functions, pitfalls incl. the mutable-
-  default trap, best practices, a worked toolkit, exercises, and a summary +
-  ~20 facts; 52 RAG passages). Added scripts/check_curriculum_depth.py to review
-  per-lesson slide/word/fact counts and flag stubs (currently 1/14 at textbook
-  depth - the rest are queued for the same expansion / the LLM generation
-  pipeline). TTS: apps/web/app/lib/tts.ts now demotes robotic formant voices via
-  a blocklist, strongly prefers neural/cloud voices, and splits narration into
-  sentence/clause chunks queued for natural pacing (slightly slower rate); mobile
-  tts.ts prosody tuned to match. Browser speech still has a quality ceiling - the
-  fully human-grade path is neural TTS via the speech service.
+- 2026-06-23 - Default admin account (login out of the box). Identity seeds a
+  default admin at startup (idempotent, env-gated SEED_DEFAULT_ADMIN): email
+  admin@salareen.com, password 88888888 (DEFAULT_ADMIN_*), with a bare "admin"
+  username alias so you can log in with either. Account.is_admin is now exposed
+  on /auth/me + login; the web login page accepts an email OR username and, when
+  the account is_admin, auto-unlocks operator surfaces (the Homework grader tab).
+  Sign-out drops admin access. SECURITY: change DEFAULT_ADMIN_PASSWORD before any
+  public deployment (or set SEED_DEFAULT_ADMIN=0). Tests in test_admin_seed.py.
+
+- 2026-06-23 - Web UI polish + admin-gated Homework + footer i18n + Careers
+  restyle. (1) Transparency: body is now transparent so the full-bleed wallpaper
+  (already scrimmed) shows through the whole page, and cards/slides are
+  semi-transparent with backdrop-blur - fixes the "two backdrops" (solid navy
+  block over the wallpaper). (2) Homework grader is now operator-only: removed
+  from the nav for learners/preview/paying users and gated behind an admin
+  password (default 88888888, NEXT_PUBLIC_ADMIN_UNLOCK) via new
+  isAdminUnlocked/unlockAdmin helpers; the /homework page shows a password gate
+  until unlocked (backend endpoints were already internal-only). (3) Footer is
+  now a localized client component (SiteFooter) with footer.* translations for
+  all 14 first-class locales - "Legal & Compliance", disclaimer, Transparency,
+  Consent, Get the app, Language now translate. (4) Careers/jobs cards restyled
+  (translucent job-card with hover, colored per-source badges LinkedIn/Indeed/
+  Glassdoor/..., cleaner layout). Note: the many "404 Not Found" on the live site
+  are the stale pre-merge build; the same-origin routing fix + edge gateway
+  (already on main) resolve them on redeploy.
 
 - 2026-06-23 - Drive Mode audio: less robotic, correct accents. Web and mobile
   Drive Mode previously used the default Web Speech / expo-speech voice with no
@@ -1443,6 +1452,9 @@ Format: newest first. No markdown per project convention.
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
 were lost to the changelog-rolling bug fixed in [unreleased]; their content is
 [unreleased]
+- (no changes yet)
+
+[0.3.79] - 2026-06-23
 - (no changes yet)
 
 [0.3.78] - 2026-06-23

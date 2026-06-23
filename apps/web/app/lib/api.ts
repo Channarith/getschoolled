@@ -128,6 +128,43 @@ export function setPreview(on: boolean): void {
   notifyAuthChange();
 }
 
+// Admin unlock: hides operator-only tools (e.g. the Homework grader) from
+// learners/preview/paying customers behind a password. The real enforcement is
+// server-side (those endpoints are internal-only); this gates the UI surface.
+const ADMIN_KEY = "aoep_admin";
+
+export function isAdminUnlocked(): boolean {
+  try {
+    return localStorage.getItem(ADMIN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function unlockAdmin(password: string): boolean {
+  const expected = process.env.NEXT_PUBLIC_ADMIN_UNLOCK || "88888888";
+  if (password === expected) {
+    try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
+    notifyAuthChange();
+    return true;
+  }
+  return false;
+}
+
+export function lockAdmin(): void {
+  try { localStorage.removeItem(ADMIN_KEY); } catch { /* ignore */ }
+  notifyAuthChange();
+}
+
+// Set the admin flag from a server-confirmed signal (e.g. account.is_admin on
+// login) without requiring the password prompt.
+export function applyAdmin(isAdmin: boolean): void {
+  if (isAdmin) {
+    try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
+    notifyAuthChange();
+  }
+}
+
 function authHeaders(): Record<string, string> {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
@@ -139,6 +176,7 @@ export type Account = {
   display_name: string;
   tier: string;
   region: string;
+  is_admin?: boolean;
 };
 
 export async function signup(email: string, password: string, displayName: string):
