@@ -4,25 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { getToken } from "../lib/api";
 import { useT } from "../lib/i18n";
-import LanguagePicker from "./LanguagePicker";
+import ProfileMenu from "./ProfileMenu";
 
-// Top navigation. Every label is localized via t(...) so switching language
-// updates the whole bar. Account-area surfaces (Dashboard, Console, Admin) and
-// the legal/consent/transparency notices are intentionally NOT top-level tabs -
-// they live under Account (the profile hub) and the footer. The brand mark flips
-// to the kid-friendly cartoon variant on /kids.
+// Top navigation: content tabs only. Personal/settings surfaces (profile,
+// rewards, themes, language, get-the-app, sign in/out) live in the Netflix-style
+// ProfileMenu dropdown on the right; Dashboard/Console/Admin under the Account
+// hub; legal/consent/transparency in the footer. Every label is localized via
+// t(...). The brand mark flips to the kid-friendly cartoon variant on /kids.
 export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t } = useT();
   const pathname = usePathname() ?? "/";
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  // Re-check auth on every route change so the bar updates right after
-  // login/logout (both navigate, changing the pathname).
-  useEffect(() => {
-    setLoggedIn(Boolean(getToken()));
-  }, [pathname]);
 
   const logoSrc = pathname.startsWith("/kids")
     ? "/logo-cartoon-mark.webp"
@@ -39,7 +31,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
         {t("nav.brand")}
       </Link>
       <Link href="/">{t("nav.home")}</Link>
-      <Link href="/our-story">Our Story</Link>
+      <Link href="/our-story">{t("nav.ourStory")}</Link>
       <Link href="/browse">{t("nav.browse")}</Link>
       <Link href="/recommended">{t("nav.forYou")}</Link>
       <Link href="/kids">{t("nav.kids")}</Link>
@@ -51,9 +43,6 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/watch">{t("nav.watch")}</Link>
       <Link href="/class">{t("nav.liveClass")}</Link>
       <Link href="/homework">{t("nav.homework")}</Link>
-      <Link href="/rewards">{t("nav.rewards")}</Link>
-      <Link href="/backgrounds">{t("nav.themes")}</Link>
-      <Link href="/download">{t("nav.getApp")}</Link>
       <span
         title="This platform is AI-instructed; see the Transparency page."
         style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px",
@@ -61,10 +50,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       >
         AI-instructed
       </span>
-      {loggedIn
-        ? <Link href="/account">{t("nav.account")}</Link>
-        : <Link href="/login">{t("nav.signin")}</Link>}
-      <LanguagePicker compact />
+      <ProfileMenu />
       <span className="version" title="App version"
             style={{ opacity: 0.7, fontSize: 12 }}>
         v{appVersion}

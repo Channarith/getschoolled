@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Netflix-style web UX: (1) a signed-out full-page landing hero
+  (live wallpaper, glowing text, email "Get Started" -> signup, "Sign In", and a
+  "Preview what's inside" button that reveals the catalog before account
+  creation); (2) a profile dropdown menu in the nav (Netflix-style) that holds
+  the personal surfaces - profile/account, rewards, themes, the UI language
+  selector, get-the-app, and sign in/create-account/sign-out - decluttering the
+  top bar to content tabs only; (3) text glow/shadow on hero copy over the
+  wallpaper; (4) login reads ?mode=signup&email= from the landing. New i18n keys
+  (nav.ourStory now localized, profile.*, landing.*) in en + vi (English
+  fallback elsewhere). Tested: web typecheck+build; GUI walkthrough (landing ->
+  preview -> profile dropdown -> language switch translates the nav).
+
 - 2026-06-23 - Deploy pipeline + live-class session fix (why merged changes
   weren't showing on the cluster). Root cause: no workflow built/pushed the
   service+web container images or rolled the VKE deployments, so merges to main

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, signup, setToken } from "../lib/api";
 
@@ -12,6 +12,15 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Honor ?mode=signup&email=... from the home landing "Get Started" flow.
+  // Read from window (not useSearchParams) to avoid a Suspense boundary at build.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("mode") === "signup") setMode("signup");
+    const em = p.get("email");
+    if (em) setEmail(em);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
