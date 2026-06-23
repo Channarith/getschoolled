@@ -1,81 +1,481 @@
-LESSON: Python - Chapter 9: Functions
+LESSON: Python - Chapter 9: Functions (Comprehensive)
 LANGUAGE: en
 
-SLIDE 1 | What is a Function?
-A function is a named block of reusable code that performs a task. You define it
-once and call it as many times as you need, which keeps programs short and
-organized.
-NARRATION: A function is reusable, named code you define once and call many times.
+SLIDE 1 | Why Functions Exist
+Every non-trivial program repeats work: the same calculation, the same check,
+the same sequence of steps. Copying that code everywhere makes programs long,
+hard to read, and dangerous to change - fix a bug in one copy and the other
+copies still break. A function packages a piece of behaviour under a name so you
+write it once, give it a clear label, and reuse it everywhere. Functions are the
+first and most important tool for managing complexity: they let you think in
+terms of "what" (the name and purpose) instead of "how" (the lines of code).
+Three big wins follow: (1) you stop repeating yourself (the "DRY" principle),
+(2) you can name an idea, which makes code self-documenting, and (3) you can
+test a small piece in isolation instead of running the whole program.
+NARRATION: Functions let you write a behaviour once, name it, reuse it, and test it in isolation - the core tool for managing complexity.
 
-SLIDE 2 | Defining a Function
-Use the def keyword, a name, parentheses for parameters, and an indented body.
-The body runs only when the function is called.
-
-  def greet():
-      print("Hello!")
-
-NARRATION: Define a function with def, a name, parentheses, and an indented body.
-
-SLIDE 3 | Parameters and Arguments
-Parameters are the names listed in the definition; arguments are the actual
-values you pass when calling. They let the same function work on different data.
+SLIDE 2 | The Anatomy of a Function
+A function definition has five parts: the def keyword, a name, a parenthesised
+parameter list, a colon, and an indented body. Indentation is not cosmetic in
+Python - it is how the language knows which lines belong to the function.
 
   def greet(name):
-      print("Hello", name)
+      message = "Hello, " + name
+      return message
 
-  greet("Ada")
+Here `def` starts the definition, `greet` is the name, `name` is a parameter,
+the colon ends the header, and the two indented lines are the body. The body
+does not run when Python reads the definition; it runs only when the function is
+called. Defining a function is like writing a recipe; calling it is cooking.
+NARRATION: A definition is def, a name, parameters in parentheses, a colon, and an indented body that runs only when called.
 
-NARRATION: Parameters are placeholders; arguments are the real values you pass in.
+SLIDE 3 | Calling Functions and the Call Stack
+You run a function by writing its name followed by parentheses. Python jumps
+into the body, runs it, and returns to where you called it - resuming the next
+line. Each call gets its own private workspace (a "stack frame") holding its
+local variables; when the call finishes, that frame is discarded.
 
-SLIDE 4 | Returning Values
-The return statement sends a value back to the caller and ends the function. A
-function with no return gives back None.
+  print(greet("Ada"))    # -> Hello, Ada
+  print(greet("Bo"))     # -> Hello, Bo
 
-  def add(a, b):
-      return a + b
+Calling the same function twice creates two independent frames, which is exactly
+why functions are reusable: each call starts clean.
+NARRATION: Calling a function runs its body in a fresh private workspace, then returns to the caller; each call is independent.
 
-NARRATION: return hands a result back to the caller and ends the function.
+SLIDE 4 | Parameters vs Arguments
+These two words are often confused. A PARAMETER is the placeholder name in the
+definition; an ARGUMENT is the actual value you pass when calling. In
+`def add(a, b)`, `a` and `b` are parameters. In `add(2, 3)`, `2` and `3` are
+arguments. The distinction matters when you read errors and documentation:
+"missing 1 required positional argument" means you called with too few values.
+NARRATION: Parameters are the names in the definition; arguments are the real values you pass when you call.
 
-SLIDE 5 | Default Arguments
-A parameter can have a default value used when the caller leaves it out. Defaults
-make functions flexible without extra versions.
+SLIDE 5 | Positional Arguments
+By default, arguments are matched to parameters by POSITION - first to first,
+second to second. Order is therefore meaningful.
 
-  def greet(name, greeting="Hello"):
-      print(greeting, name)
+  def power(base, exponent):
+      return base ** exponent
 
-NARRATION: A default value is used when the caller does not supply that argument.
+  power(2, 10)   # 1024  (base=2, exponent=10)
+  power(10, 2)   # 100   (order changed the meaning)
+
+Positional calls are concise but easy to get wrong when a function has several
+parameters; that is when keyword arguments (next) earn their keep.
+NARRATION: Positional arguments match parameters by order, so the order you pass them changes the meaning.
 
 SLIDE 6 | Keyword Arguments
-You can pass arguments by name, which makes calls clearer and lets you skip over
-defaults. Order does not matter when you use names.
+You can pass arguments by name with `name=value`. This makes calls
+self-explanatory and order-independent, and lets you skip over earlier optional
+parameters.
 
-  greet(name="Ada", greeting="Hi")
+  power(exponent=10, base=2)   # 1024 - order no longer matters
+  open("data.txt", mode="r", encoding="utf-8")
 
-NARRATION: Passing arguments by name makes calls clear and order-independent.
+A useful rule: use positional for the obvious first argument(s) and keywords for
+flags or anything whose meaning is not clear from position alone. You cannot put
+a positional argument after a keyword argument in a call.
+NARRATION: Keyword arguments pass values by name, making calls clear and order-independent; positional cannot follow keyword.
 
-SLIDE 7 | Scope
-Variables created inside a function are local and disappear when the function
-ends. Code outside cannot see them, which prevents accidental interference.
-NARRATION: Variables inside a function are local and vanish when it finishes.
+SLIDE 7 | Default Parameter Values
+A parameter can declare a default used when the caller omits it. Defaults turn
+one flexible function into what would otherwise be several near-duplicates.
 
-SLIDE 8 | Docstrings
-A docstring is a string at the top of a function that describes what it does.
-Tools and the help function can read it, so it serves as built-in documentation.
+  def greet(name, greeting="Hello", punctuation="!"):
+      return f"{greeting}, {name}{punctuation}"
+
+  greet("Ada")                      # Hello, Ada!
+  greet("Ada", "Welcome")           # Welcome, Ada!
+  greet("Ada", punctuation=".")     # Hello, Ada.
+
+Parameters with defaults must come AFTER parameters without them, otherwise
+Python cannot tell which value you meant.
+NARRATION: A default value is used when the caller omits that argument; defaulted parameters must come after required ones.
+
+SLIDE 8 | The Mutable Default Argument Trap
+This is one of Python's most famous gotchas. A default value is evaluated ONCE,
+when the function is defined - not on every call. If the default is a mutable
+object (a list or dict), every call that relies on it shares the SAME object.
+
+  def add_item(item, basket=[]):     # BUG: one shared list
+      basket.append(item)
+      return basket
+
+  add_item("a")   # ['a']
+  add_item("b")   # ['a', 'b']  <- surprise! the list persisted
+
+The fix is the `None` sentinel pattern: default to None and create a fresh object
+inside the function.
+
+  def add_item(item, basket=None):
+      if basket is None:
+          basket = []
+      basket.append(item)
+      return basket
+
+NARRATION: Mutable defaults are created once and shared across calls; default to None and build a fresh object inside the function.
+
+SLIDE 9 | Variable Positional Arguments (*args)
+Prefix a parameter with `*` to collect any number of extra positional arguments
+into a tuple. This lets a function accept a variable count of inputs.
+
+  def total(*numbers):
+      result = 0
+      for n in numbers:
+          result += n
+      return result
+
+  total(1, 2, 3)        # 6
+  total(1, 2, 3, 4, 5)  # 15
+  total()               # 0
+
+`numbers` is an ordinary tuple inside the function. The name `args` is only a
+convention - what matters is the single star.
+NARRATION: A *args parameter gathers any number of extra positional arguments into a tuple.
+
+SLIDE 10 | Variable Keyword Arguments (**kwargs)
+Two stars collect extra keyword arguments into a dictionary, which is how
+functions accept flexible, named options.
+
+  def make_user(**fields):
+      return fields
+
+  make_user(name="Ada", role="admin")   # {'name': 'Ada', 'role': 'admin'}
+
+You can combine all forms in one signature, and Python fills them in this order:
+positional, *args, keyword, **kwargs.
+
+  def f(a, b, *args, key="x", **kwargs): ...
+
+NARRATION: A **kwargs parameter gathers extra keyword arguments into a dict; the full order is positional, *args, keyword, **kwargs.
+
+SLIDE 11 | Unpacking Arguments at the Call Site
+The same `*` and `**` work in reverse when calling: they UNPACK a sequence or
+dict into separate arguments. This is the mirror image of collecting them.
+
+  nums = [2, 10]
+  power(*nums)                 # same as power(2, 10)
+
+  opts = {"base": 2, "exponent": 10}
+  power(**opts)                # same as power(base=2, exponent=10)
+
+This is how you forward arguments from one function to another without listing
+them by hand - common in wrappers and decorators.
+NARRATION: At the call site, * unpacks a sequence into positional args and ** unpacks a dict into keyword args.
+
+SLIDE 12 | Keyword-Only and Positional-Only Parameters
+A bare `*` in the signature forces every parameter after it to be passed by
+keyword - useful for options that should always be explicit. A `/` forces every
+parameter before it to be positional - useful when a name is an implementation
+detail you may rename later.
+
+  def connect(host, *, timeout=30, retries=3):   # timeout/retries must be named
+      ...
+  connect("db", timeout=5)        # ok
+  connect("db", 5)                # TypeError: too many positional arguments
+
+  def distance(x, y, /):          # x, y must be positional
+      ...
+
+NARRATION: A star forces keyword-only arguments after it; a slash forces positional-only arguments before it.
+
+SLIDE 13 | Returning Values
+`return` hands a value back to the caller and immediately ends the function. A
+function with no return statement (or a bare `return`) yields `None`.
+
+  def square(n):
+      return n * n
+
+  x = square(5)     # 25
+  def shout(msg):
+      print(msg.upper())   # prints but returns None
+  y = shout("hi")          # y is None
+
+Distinguish printing from returning: print shows text to a human; return gives a
+value back to the program so further code can use it.
+NARRATION: return sends a value back and ends the function; printing is not returning, and no return means None.
+
+SLIDE 14 | Returning Multiple Values
+Python functions return one object, but that object can be a tuple, which feels
+like returning several values. Callers can unpack it on the spot.
+
+  def min_max(numbers):
+      return min(numbers), max(numbers)   # a 2-tuple
+
+  low, high = min_max([4, 1, 9, 2])       # low=1, high=9
+
+This is cleaner than out-parameters in other languages. For many fields, prefer
+a small dataclass or a named tuple so callers read fields by name.
+NARRATION: Return a tuple to hand back several values at once, and let the caller unpack them.
+
+SLIDE 15 | Early Returns and Guard Clauses
+You do not have to wrap a whole function in one big if/else. Returning early on
+the exceptional cases first (a "guard clause") keeps the main logic flat and
+readable.
+
+  def withdraw(balance, amount):
+      if amount <= 0:
+          return balance, "amount must be positive"
+      if amount > balance:
+          return balance, "insufficient funds"
+      return balance - amount, "ok"
+
+Each guard handles one bad case and leaves; the happy path lives at the end with
+no deep nesting.
+NARRATION: Guard clauses return early on bad cases first, keeping the main success path flat and readable.
+
+SLIDE 16 | Docstrings: Built-in Documentation
+A string literal as the first statement of a function is its docstring. Tools,
+IDEs, and the built-in help() read it, so it is documentation that travels with
+the code.
 
   def add(a, b):
-      "Return the sum of a and b."
+      """Return the sum of a and b.
+
+      Both arguments should be numbers; strings will concatenate instead.
+      """
       return a + b
 
-NARRATION: A docstring documents a function and can be read by the help function.
+  help(add)     # prints the docstring
 
-SLIDE 9 | Why Functions Matter
-Functions remove duplication, give names to ideas, and let you test small pieces
-in isolation. Well-named functions turn a long script into readable steps.
-NARRATION: Functions remove repetition and turn long code into clear, testable steps.
+A good docstring states what the function does, what it expects, and what it
+returns - not how it does it.
+NARRATION: A docstring is the function's first string; it documents what, expects, and returns, and is readable via help().
 
-FACT: A function is defined with the def keyword and runs only when called.
-FACT: Parameters are names in the definition; arguments are the values passed in.
-FACT: The return statement sends a value back; a function with no return yields None.
-FACT: Default arguments are used when the caller omits that value.
-FACT: Variables created inside a function are local to that function.
-FACT: A docstring documents a function and is readable via the help function.
+SLIDE 17 | Type Hints (Annotations)
+Annotations declare the expected types of parameters and the return value. They
+do not change runtime behaviour, but they make intent explicit and let tools
+(mypy, your editor) catch mismatches before you run.
+
+  def repeat(text: str, times: int = 2) -> str:
+      return text * times
+
+Hints are especially valuable in larger codebases and on team projects, where
+they act as machine-checked documentation.
+NARRATION: Type hints declare expected types for clarity and tooling; they document intent without changing runtime behaviour.
+
+SLIDE 18 | Local Scope
+Names created inside a function are LOCAL: they exist only during the call and
+are invisible outside. This isolation is a feature - it stops functions from
+accidentally clobbering each other's variables.
+
+  def f():
+      secret = 42
+      return secret
+
+  f()
+  print(secret)   # NameError: name 'secret' is not defined
+
+Local scope is why you can reuse the variable name `i` in many functions without
+them interfering.
+NARRATION: Variables created inside a function are local and disappear when the call ends, preventing accidental interference.
+
+SLIDE 19 | Global Scope and the global Keyword
+Functions can READ module-level (global) variables, but assigning to a name
+inside a function makes it local unless you declare it `global`. Reassigning
+globals from inside functions is usually a design smell - prefer returning a
+value and letting the caller assign it.
+
+  count = 0
+  def bump():
+      global count      # without this, the next line would create a local
+      count += 1
+
+Overusing globals couples functions together and makes them hard to test;
+parameters and return values are almost always better.
+NARRATION: Functions read globals freely, but assigning needs the global keyword; prefer parameters and returns over mutating globals.
+
+SLIDE 20 | Nested Functions, Closures, and nonlocal
+A function defined inside another can capture variables from the enclosing
+function - that captured combination is a CLOSURE. Use `nonlocal` to assign to
+an enclosing (but non-global) variable.
+
+  def make_counter():
+      n = 0
+      def increment():
+          nonlocal n
+          n += 1
+          return n
+      return increment
+
+  c = make_counter()
+  c(); c(); c()      # 1, 2, 3 - n is remembered between calls
+
+Closures let a function carry private state without a class.
+NARRATION: A closure is an inner function that remembers variables from its enclosing scope; nonlocal lets it reassign them.
+
+SLIDE 21 | The LEGB Rule
+When you use a name, Python searches four scopes in order: Local (this function),
+Enclosing (any outer functions), Global (the module), and Built-in (names like
+len and print). The first match wins. Knowing LEGB explains why a local variable
+"shadows" a global of the same name, and why redefining `list = [1,2]` breaks the
+built-in list() afterwards.
+NARRATION: Name lookup follows LEGB: Local, then Enclosing, then Global, then Built-in - first match wins.
+
+SLIDE 22 | Functions Are First-Class Objects
+In Python a function is just an object: you can store it in a variable, put it in
+a list, pass it as an argument, and return it from another function. This is the
+foundation of a lot of elegant Python.
+
+  def shout(s): return s.upper()
+  f = shout            # store the function itself (no parentheses)
+  f("hi")              # 'HI'
+  handlers = [str.strip, str.lower]
+
+Note the difference: `shout` is the function; `shout("hi")` is the result of
+calling it.
+NARRATION: Functions are objects you can store, pass, and return; refer to a function without parentheses to pass it along.
+
+SLIDE 23 | Higher-Order Functions
+A higher-order function takes a function as an argument or returns one. Many
+built-ins are higher-order, which lets you describe WHAT to do, not loop
+mechanics.
+
+  nums = [3, 1, 2]
+  sorted(nums, key=lambda x: -x)        # [3, 2, 1] - sort by a function
+  list(map(str.upper, ["a", "b"]))      # ['A', 'B']
+  list(filter(lambda n: n % 2 == 0, range(10)))   # [0, 2, 4, 6, 8]
+
+Passing a small function to sorted/map/filter is often clearer than an explicit
+loop.
+NARRATION: Higher-order functions take or return functions; sorted, map, and filter use this to express intent concisely.
+
+SLIDE 24 | Lambda Expressions
+A lambda is a small, anonymous function written inline: `lambda params:
+expression`. It can hold a single expression (no statements) and is handy as a
+one-off argument.
+
+  add = lambda a, b: a + b      # usually prefer def for anything reusable
+  pairs.sort(key=lambda p: p[1])
+
+Use lambdas for short throwaway callbacks; if it needs a name, a docstring, or
+more than one line, write a normal def instead.
+NARRATION: A lambda is a one-line anonymous function for short callbacks; use def for anything reusable or multi-line.
+
+SLIDE 25 | Recursion
+A recursive function calls itself on a smaller version of the problem until it
+reaches a BASE CASE that stops the recursion. Every recursion needs a base case,
+or it runs forever (until Python raises RecursionError).
+
+  def factorial(n):
+      if n <= 1:          # base case
+          return 1
+      return n * factorial(n - 1)   # recursive case
+
+  factorial(5)   # 120
+
+Recursion shines on naturally nested data (trees, nested lists); for simple
+counting, a loop is usually clearer and faster.
+NARRATION: Recursion solves a problem in terms of a smaller copy of itself and must always have a base case to stop.
+
+SLIDE 26 | Decorators (An Introduction)
+A decorator is a function that takes a function and returns a new function that
+wraps it - adding behaviour (logging, timing, caching, auth) without editing the
+original. The `@name` syntax applies one.
+
+  import functools, time
+  def timed(fn):
+      @functools.wraps(fn)
+      def wrapper(*args, **kwargs):
+          start = time.time()
+          result = fn(*args, **kwargs)
+          print(fn.__name__, "took", round(time.time() - start, 3), "s")
+          return result
+      return wrapper
+
+  @timed
+  def slow():
+      time.sleep(0.1)
+
+`*args, **kwargs` forwarding and functools.wraps (to keep the name/docstring) are
+the standard decorator pattern.
+NARRATION: A decorator wraps a function to add behaviour without changing it; the @name syntax applies it, using args forwarding.
+
+SLIDE 27 | Pure Functions and Side Effects
+A PURE function depends only on its arguments and changes nothing outside itself
+- same inputs always give the same output. A SIDE EFFECT is any change to the
+outside world: printing, writing a file, mutating a global or a passed-in list.
+Pure functions are far easier to test, reuse, and reason about. Keep your core
+logic pure and push side effects (I/O, prints) to the edges of the program.
+NARRATION: Pure functions depend only on inputs and change nothing outside; isolate side effects to make code easy to test.
+
+SLIDE 28 | Common Pitfalls to Avoid
+1) Mutable default arguments (Slide 8) - default to None. 2) Shadowing built-ins
+(naming a variable list, dict, sum, id) - it disables the original for the rest
+of the scope. 3) Too many parameters - more than ~4 usually means the function
+does too much or wants a small object. 4) Returning different types from
+different branches (sometimes a list, sometimes None) - be consistent. 5) Doing
+real work at import time inside a module instead of inside functions.
+NARRATION: Watch for mutable defaults, shadowed built-ins, too many parameters, inconsistent return types, and work done at import time.
+
+SLIDE 29 | Best Practices
+Give each function one clear responsibility and a verb-based name (load_users,
+calculate_total). Keep functions short enough to see at a glance. Prefer
+parameters and return values over reading and writing globals. Write a docstring
+for anything non-obvious. Add type hints on public functions. If you find
+yourself passing the same group of values around, that group probably wants to
+become an object.
+NARRATION: One responsibility, a clear verb name, small size, params over globals, a docstring, and type hints on public functions.
+
+SLIDE 30 | Worked Example: A Small Text Toolkit
+Let us combine the chapter into one tiny, well-built module of pure, documented,
+hinted functions.
+
+  def word_count(text: str) -> int:
+      """Return the number of whitespace-separated words in text."""
+      return len(text.split())
+
+  def title_case(text: str) -> str:
+      """Return text with the first letter of each word capitalised."""
+      return " ".join(w.capitalize() for w in text.split())
+
+  def truncate(text: str, limit: int = 80) -> str:
+      """Return text shortened to `limit` characters with an ellipsis."""
+      return text if len(text) <= limit else text[: limit - 1].rstrip() + "..."
+
+Notice: each function is small, pure, named for its job, documented, and hinted -
+exactly the habits from this chapter.
+NARRATION: A good module is a set of small, pure, named, documented, and type-hinted functions, as shown in this text toolkit.
+
+SLIDE 31 | Exercises
+1) Write average(*numbers) that returns the mean, returning 0.0 for no args.
+2) Write greet(name, greeting="Hello") and call it three ways (positional,
+keyword, default). 3) Fix this buggy function so each call starts with an empty
+log: def record(event, log=[]): log.append(event); return log. 4) Write a
+make_multiplier(factor) that returns a function multiplying its input by factor
+(a closure); test make_multiplier(3)(10) == 30. 5) Write a @count_calls decorator
+that prints how many times the wrapped function has been called.
+NARRATION: Practice with varargs, default and keyword arguments, the mutable-default fix, a closure factory, and a decorator.
+
+SLIDE 32 | Chapter Summary and Key Terms
+A function packages named, reusable behaviour. You pass arguments to parameters
+(positional, keyword, default, *args, **kwargs, keyword-only, positional-only),
+and get values back with return (use a tuple for several). Names inside are local
+(LEGB lookup); closures remember enclosing variables; nonlocal/global control
+assignment. Functions are first-class objects, enabling higher-order functions,
+lambdas, and decorators. Favour small, pure, single-purpose, documented, hinted
+functions, and remember the mutable-default trap. Key terms: parameter,
+argument, default, *args, **kwargs, return, scope, closure, LEGB, higher-order
+function, lambda, recursion, decorator, pure function, side effect, docstring.
+NARRATION: Functions package named reusable behaviour with flexible arguments, return values, scope rules, and first-class power - keep them small, pure, and well documented.
+
+FACT: A function is defined with def and runs only when it is called, each call getting its own local scope.
+FACT: Parameters are the names in the definition; arguments are the values passed in a call.
+FACT: Arguments match by position by default; keyword arguments pass by name and are order-independent.
+FACT: Default parameter values are evaluated once at definition time, so mutable defaults are shared - default to None instead.
+FACT: *args collects extra positional arguments into a tuple; **kwargs collects extra keyword arguments into a dict.
+FACT: At a call, * unpacks a sequence into positional arguments and ** unpacks a dict into keyword arguments.
+FACT: A bare * makes following parameters keyword-only; a / makes preceding parameters positional-only.
+FACT: return sends a value back and ends the function; a function with no return yields None.
+FACT: Returning a tuple lets a function hand back multiple values that the caller can unpack.
+FACT: Name lookup follows LEGB: Local, Enclosing, Global, Built-in.
+FACT: The global keyword is needed to assign to a module-level variable inside a function; nonlocal assigns to an enclosing one.
+FACT: A closure is an inner function that remembers variables from its enclosing scope.
+FACT: Functions are first-class objects: they can be stored, passed as arguments, and returned.
+FACT: Higher-order functions take or return functions; sorted, map, and filter accept a function argument.
+FACT: A lambda is a one-expression anonymous function suited to short callbacks.
+FACT: Every recursive function needs a base case or it raises RecursionError.
+FACT: A decorator wraps a function to add behaviour without modifying it, applied with @name.
+FACT: A pure function depends only on its inputs and produces no side effects, which makes it easy to test.
+FACT: A docstring is the function's first string literal and is readable via help().
+FACT: Type hints document expected types for tools and readers without changing runtime behaviour.

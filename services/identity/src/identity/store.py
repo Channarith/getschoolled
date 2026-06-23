@@ -84,6 +84,7 @@ class Account(BaseModel):
     password_hash: str = ""
     tier: PlanTier = PlanTier.FREE
     region: Region = Region.US
+    is_admin: bool = False
     created_at: float = Field(default_factory=lambda: time.time())
     # Security signals.
     last_login_at: Optional[float] = None
@@ -102,6 +103,7 @@ class Account(BaseModel):
         return {
             "id": self.id, "email": self.email, "display_name": self.display_name,
             "tier": self.tier.value, "region": self.region.value,
+            "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
         }
 
@@ -126,6 +128,26 @@ class AccountStore:
                        password_hash=hash_password(password), tier=tier, region=region)
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
+        return acct
+
+    def seed_admin(self, email: str, password: str, *, username: str = "admin",
+                   display_name: str = "Administrator") -> Account:
+        """Create (idempotently) a default admin account. Also registers a bare
+        `username` alias so you can log in with just "admin". Marked is_admin so
+        the web unlocks operator surfaces (e.g. the Homework grader)."""
+        email = email.strip().lower()
+        existing = self.by_email(email) or (
+            self._by_id.get(self._id_by_email.get(username.strip().lower(), "")))
+        if existing is not None:
+            existing.is_admin = True
+            return existing
+        acct = Account(email=email, display_name=display_name,
+                       password_hash=hash_password(password), is_admin=True)
+        self._by_id[acct.id] = acct
+        self._id_by_email[email] = acct.id
+        alias = username.strip().lower()
+        if alias and alias not in self._id_by_email:
+            self._id_by_email[alias] = acct.id   # allow login with just "admin"
         return acct
 
     def by_email(self, email: str) -> Optional[Account]:

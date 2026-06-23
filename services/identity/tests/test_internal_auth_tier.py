@@ -24,7 +24,7 @@ def _signup_and_session(client: TestClient) -> str:
     """Create a fresh account and return its session token."""
     r = client.post("/auth/signup", json={
         "email": "audit-test@example.com",
-        "password": "correct-horse-battery-staple",
+        "password": "correct-horse-battery-staple-1",
         "region": "us",
     })
     assert r.status_code == 200, r.text
