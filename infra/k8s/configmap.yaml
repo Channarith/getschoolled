@@ -18,6 +18,13 @@ data:
   OBJECT_STORE_BUCKET: "aoep-prod"
   REDIS_URL: "redis://redis.aoep.internal:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
+  # Default admin seeding (identity service). The identity store is in-memory, so
+  # it re-seeds this admin on every (re)start, making the platform usable out of
+  # the box. SEED_DEFAULT_ADMIN=0 disables it. The PASSWORD lives in the Secret
+  # (aoep-secrets/DEFAULT_ADMIN_PASSWORD) - rotate it for any real deployment.
+  SEED_DEFAULT_ADMIN: "1"
+  DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
+  DEFAULT_ADMIN_USERNAME: "admin"
   # Careers: serve REAL job openings from public boards (Remotive + Arbeitnow;
   # no key, falls back to the curated board if egress is blocked). Add a
   # RAPIDAPI_KEY (JSearch -> LinkedIn/Indeed/Glassdoor) or ADZUNA_APP_ID/KEY via
@@ -61,3 +68,6 @@ stringData:
   OBJECT_STORE_SECRET_KEY: "__INJECT__"
   DATABASE_URL: "postgresql://aoep:__INJECT__@postgres.aoep.internal:5432/aoep"
   PAYMENT_API_KEY: "__INJECT__"
+  # Seed password for the default admin (identity). Demo default; ROTATE for prod
+  # (or set SEED_DEFAULT_ADMIN=0 in the ConfigMap and create the admin manually).
+  DEFAULT_ADMIN_PASSWORD: "88888888"

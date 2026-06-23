@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
+  the default-admin seed into release config. Root cause of "code is on main but
+  the live site behaves like an old build" (e.g. admin login 401 on a deployed
+  identity image that predated the seed code): service Deployments used the
+  mutable :latest tag while orchestrator pinned imagePullPolicy: IfNotPresent and
+  the rest relied on defaults, so a node kept a cached image and a plain
+  `kubectl apply -k` never restarted pods. Set imagePullPolicy: Always on all
+  service Deployments + harvester (infra/k8s/services.yaml, harvester.yaml) so a
+  rollout re-pulls the freshest :latest. Made the admin seed first-class in the
+  release config: SEED_DEFAULT_ADMIN / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_USERNAME
+  in the ConfigMaps (infra/k8s/configmap.yaml + infra/k8s-vke/configmap-vke.yaml)
+  and DEFAULT_ADMIN_PASSWORD (=88888888, rotate for prod) in the aoep-secrets
+  Secret. Documented the redeploy procedure (deploy.yml or `kubectl rollout
+  restart`) and a verify-the-running-image check in infra/k8s-vke/RUNBOOK.txt.
 - 2026-06-23 - Default admin account (login out of the box). Identity seeds a
   default admin at startup (idempotent, env-gated SEED_DEFAULT_ADMIN): email
   admin@salareen.com, password 88888888 (DEFAULT_ADMIN_*), with a bare "admin"
