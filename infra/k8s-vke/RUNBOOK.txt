@@ -30,13 +30,31 @@ Prerequisites
   - Built and pushed images for every service.
   - Managed Postgres and Object Storage credentials, or external equivalents.
 
-Create VKE cluster (example)
-----------------------------
+Create VKE cluster (Salareen demo default)
+------------------------------------------
   vultr-cli kubernetes create \
-    --region ewr \
+    --region sjc \
     --label salareen-prod \
-    --version latest \
+    --version v1.36.1+1 \
     --node-pools '[{"node_quantity":3,"label":"api-pool","tag":"api","plan":"vc2-4c-8gb","auto_scaler":true,"min_nodes":3,"max_nodes":12}]'
+
+GPU for first demo
+------------------
+The desired A16 plan is available in SJC:
+  vcg-a16-6c-64g-16vram
+
+Vultr may or may not accept Cloud GPU plans directly in VKE node pools in every
+account/region. If VKE rejects a GPU node pool, create the A16 GPU as a separate
+Vultr instance and point LLM_BASE_URL at the model server on that instance.
+
+CPU/API pool demo baseline:
+  3 x vc2-4c-8gb  (~$120/mo)
+
+GPU demo baseline:
+  1 x vcg-a16-6c-64g-16vram (~$344/mo)
+
+Managed Postgres demo baseline:
+  vultr-dbaas-startup-cc-hp-amd-1-64-2 (~$36/mo, pg supported)
 
 Get kubeconfig
 --------------

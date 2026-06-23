@@ -14,6 +14,7 @@ import Rail, { CategoryTile, CourseCard } from "../components/Rail";
 import { useT } from "../i18n";
 
 const BAYON_BUDDY = require("../../assets/bayon_buddy_s_bodhi_512.png");
+const LOGO_MARK = require("../../assets/salareen_mark_256.png");
 
 const EMOJIS_BY_CATEGORY: Record<string, string> = {
   Languages: "🌍", History: "🏛", Science: "🧪",
@@ -123,10 +124,8 @@ export default function HomeScreen({
           onPress={() => setShowMascot(true)}
           style={styles.logoButton}
         >
-          <View style={styles.logoMark}>
-            <Text style={styles.logoMarkText}>AI</Text>
-          </View>
-          <Text style={styles.logoText}>AI Classroom</Text>
+          <Image source={LOGO_MARK} style={styles.logoImg} resizeMode="contain" />
+          <Text style={styles.logoText}>Salareen</Text>
         </Pressable>
         <Text style={styles.kicker}>{t("home.kicker")}</Text>
         <Text style={styles.hero}>{t("home.hero")}</Text>
@@ -260,11 +259,7 @@ const styles = StyleSheet.create({
     alignItems: "center", alignSelf: "flex-start", flexDirection: "row",
     gap: 8, marginBottom: 12,
   },
-  logoMark: {
-    alignItems: "center", backgroundColor: "#e8ecf6", borderRadius: 10,
-    height: 34, justifyContent: "center", width: 34,
-  },
-  logoMarkText: { color: "#0b1020", fontSize: 12, fontWeight: "900" },
+  logoImg: { height: 38, width: 38 },
   logoText: { color: "#e8ecf6", fontSize: 14, fontWeight: "800", letterSpacing: 0.8 },
   kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },

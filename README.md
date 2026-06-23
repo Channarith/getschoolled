@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="docs/brand/salareen_bayon_buddy_mascot.png" alt="Salareen study buddy — a secular Bayon-inspired face forming an S, beside a bodhi-style leaf of knowledge" width="200" />
+  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark" width="180" />
 </p>
 
 Salareen (referred to as AI Classroom across parts of the codebase) is a
@@ -57,6 +58,15 @@ Bayon-inspired character with an "S" monogram and a bodhi-style leaf of
 knowledge) used as the friendly product mascot, and a **minimalist graduation
 monogram** used as the lightweight app/browser icon. Source vectors and raster
 assets live in `docs/brand/` and `apps/web/public/`. Usage rules are in
+
+## Brand
+
+The Salareen brand pairs the friendly **Bayon Buddy** mascot (a secular,
+Bayon-inspired character cradling a gold "S" medallion crowned with a Bodhi-leaf
+"leaf of knowledge") with a minimalist circular **"S" badge** used as the
+app/browser icon. The "S" and the leaf stand for school, curiosity, and growth -
+it is a cultural character, not a religious symbol. Web delivery assets live in
+`apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 `docs/brand/branding.txt`.
 
 | Asset | Path | Purpose |
@@ -74,6 +84,17 @@ Design guardrail: brand and theme art stays **secular**. The Salareen buddy is a
 culturally-inspired *character*, presented as a friendly study companion — not a
 temple, monument, or devotional object — and the leaf is framed as a symbol of
 knowledge and growth, not faith. Keep it respectful, never appropriative.
+| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot |
+| Logo mark (web) | `apps/web/public/logo-mark.webp` | Nav + browser/app "S" badge |
+| Logo mark (SVG) | `apps/web/public/logo-mark.svg` | Themable vector "S" badge |
+| Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
+| App icon (mobile) | `apps/mobile/assets/salareen_icon_1024.png` | iOS/Android app icon + splash |
+| Favicon | `apps/web/public/favicon.ico` | Browser favicon |
+
+Design guardrail: brand and theme art stays **secular**. The Bayon Buddy is a
+culturally-inspired character presented as a friendly study companion - never a
+temple, monument, or devotional object - and the leaf is a symbol of knowledge
+and growth, not faith. Keep it respectful and never appropriative.
 
 ## Screens and videos
 

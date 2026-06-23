@@ -20,10 +20,23 @@ export default function HomePage() {
   return (
     <main>
       <section className="theme-hero" style={{
-        background: "linear-gradient(120deg, #0b1020 0%, #4338ca 60%, #7c3aed 100%)",
+        backgroundImage:
+          "linear-gradient(120deg, rgba(11,16,32,.82) 0%, rgba(67,56,202,.55) 60%, rgba(124,58,237,.5) 100%), url(/wallpapers/wisdom_bodhi.webp)",
+        backgroundSize: "cover", backgroundPosition: "center",
         color: "#fff", padding: "40px 24px 44px",
       }}>
-        <div className="theme-hero-inner">
+        <div className="theme-hero-inner"
+             style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
+          {/* Salareen brand mascot: the Bayon Buddy cradling the gold
+              S-medallion with the Bodhi leaf. Transparent webp so the
+              character floats over the wisdom wallpaper. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/bayon-mark.webp"
+               alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
+               width={200} height={409}
+               style={{ flex: "0 0 auto", width: 200, height: "auto",
+                        filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }} />
+          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title" style={{ marginTop: 14 }}>
             {t("hero.title")}
@@ -42,6 +55,7 @@ export default function HomePage() {
             {loggedIn
               ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
               : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("nav.signin")}</button></Link>}
+          </div>
           </div>
         </div>
       </section>
