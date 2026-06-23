@@ -18,6 +18,17 @@ const SOURCE_ICON: Record<string, string> = {
   sample: "Demo board",
 };
 
+const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
+  linkedin: { bg: "#0a66c2", fg: "#ffffff" },
+  indeed: { bg: "#2557a7", fg: "#ffffff" },
+  glassdoor: { bg: "#0caa41", fg: "#ffffff" },
+  ziprecruiter: { bg: "#1a7f37", fg: "#ffffff" },
+  remotive: { bg: "#5b21b6", fg: "#ede9fe" },
+  arbeitnow: { bg: "#334155", fg: "#e2e8f0" },
+  adzuna: { bg: "#7c3aed", fg: "#ffffff" },
+  sample: { bg: "#1e293b", fg: "#94a3b8" },
+};
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [source, setSource] = useState("");
@@ -183,25 +194,30 @@ export default function JobsPage() {
       </div>
 
       {/* Openings */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px,1fr))", gap: 12 }}>
-        {jobs.map((j) => (
+      <div className="job-grid">
+        {jobs.map((j) => {
+          const badge = SOURCE_BADGE[j.source] ?? { bg: "#1e293b", fg: "#cbd5e1" };
+          return (
           <div key={j.id} role="button" tabIndex={0} onClick={() => openJob(j.id)}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openJob(j.id); } }}
-            style={{ textAlign: "left", background: "var(--panel)", color: "var(--text)",
-              border: match?.job.id === j.id ? "2px solid #0ea5e9" : "1px solid var(--border)",
-              borderRadius: 12, padding: 14, cursor: "pointer" }}>
-            <div style={{ fontWeight: 700 }}>{j.title}</div>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {j.company} · {j.location} · {j.salary_range}
+            className={`job-card${match?.job.id === j.id ? " selected" : ""}`}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <div className="job-title">{j.title}</div>
+              <span className="source-badge" style={{ background: badge.bg, color: badge.fg }}>
+                {SOURCE_ICON[j.source] ?? pretty(j.source)}
+              </span>
             </div>
-            <div className="row" style={{ flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+            <div className="job-meta">
+              {j.company}{j.location ? ` · ${j.location}` : ""}{j.salary_range ? ` · ${j.salary_range}` : ""}
+            </div>
+            <div className="row" style={{ flexWrap: "wrap", gap: 4 }}>
               {j.skills.slice(0, 5).map((s) => (
-                <span key={s} className="pill" style={{ fontSize: 10, color: "#9aa6c2" }}>{pretty(s)}</span>
+                <span key={s} className="pill" style={{ fontSize: 10, color: "var(--accent)" }}>{pretty(s)}</span>
               ))}
             </div>
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+            <div className="job-foot">
               <span className="muted" style={{ fontSize: 11 }}>
-                via {SOURCE_ICON[j.source] ?? j.source}{j.posted_days_ago ? ` · ${j.posted_days_ago}d ago` : ""} →
+                {j.posted_days_ago ? `${j.posted_days_ago}d ago` : "recently"} · tap for course match →
               </span>
               {j.url && (
                 <a href={j.url} target="_blank" rel="noopener noreferrer"
@@ -212,7 +228,8 @@ export default function JobsPage() {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
         {jobs.length === 0 && <div className="muted">No openings match.</div>}
       </div>
     </main>

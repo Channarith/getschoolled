@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken } from "../lib/api";
+import { applyAdmin, login, signup, setToken } from "../lib/api";
+
+// Mirror of aoep_shared.passwords policy for inline (pre-submit) feedback; the
+// identity service is the authoritative enforcer.
+function passwordProblems(pw: string): string[] {
+  const problems: string[] = [];
+  if (pw.length < 8) problems.push("at least 8 characters");
+  if (!/[a-zA-Z]/.test(pw)) problems.push("at least one letter");
+  if (!/[0-9]/.test(pw)) problems.push("at least one number");
+  return problems;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,12 +35,21 @@ export default function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (mode === "signup") {
+      const problems = passwordProblems(password);
+      if (problems.length) {
+        setError("Password must have " + problems.join(", ") + ".");
+        return;
+      }
+    }
     setBusy(true);
     try {
       const res = mode === "login"
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
+      // Admins (e.g. the seeded default account) unlock operator surfaces.
+      applyAdmin(Boolean(res.account?.is_admin));
       // Land on the Netflix-style home feed (popular / category / age) on login.
       router.push("/");
     } catch (err) {
@@ -53,15 +72,23 @@ export default function LoginPage() {
             </label>
           )}
           <label style={{ display: "block", marginBottom: 8 }}>
-            Email
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+            {mode === "login" ? "Email or username" : "Email"}
+            <input type={mode === "login" ? "text" : "email"} required value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoCapitalize="none" autoCorrect="off"
               style={{ width: "100%", padding: 8 }} />
           </label>
           <label style={{ display: "block", marginBottom: 8 }}>
             Password
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+              minLength={mode === "signup" ? 8 : undefined}
               style={{ width: "100%", padding: 8 }} />
           </label>
+          {mode === "signup" && (
+            <p className="muted" style={{ fontSize: 12, marginTop: -2, marginBottom: 8 }}>
+              At least 8 characters, with a letter and a number.
+            </p>
+          )}
           <button type="submit" disabled={busy}>
             {busy ? "..." : mode === "login" ? "Sign in" : "Sign up"}
           </button>

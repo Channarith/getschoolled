@@ -22,6 +22,16 @@ from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+
+# Seed a default admin account so the platform is usable out of the box (and the
+# operator can reach admin-only surfaces). Idempotent; configurable; disable with
+# SEED_DEFAULT_ADMIN=0. CHANGE THE PASSWORD for any real deployment.
+if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
+    app.state.accounts.seed_admin(
+        os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@salareen.com"),
+        os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
+        username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
+    )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()
@@ -94,7 +104,10 @@ def _session(acct) -> dict:
 
 @app.post("/auth/signup")
 def signup(req: SignupRequest) -> dict:
+    from aoep_shared.passwords import validate_password
+
     try:
+        validate_password(req.password)
         acct = app.state.accounts.create(
             req.email, req.password, display_name=req.display_name, region=req.region)
     except ValueError as exc:
@@ -122,10 +135,14 @@ class PasswordChange(BaseModel):
 
 @app.post("/auth/password")
 def change_password(req: PasswordChange, acct=Depends(current_account)) -> dict:
+    from aoep_shared.passwords import validate_password
+
     if not app.state.accounts.authenticate(acct.email, req.current_password):
         raise HTTPException(status_code=400, detail="current password is incorrect")
-    if len(req.new_password) < 8:
-        raise HTTPException(status_code=400, detail="new password must be >= 8 characters")
+    try:
+        validate_password(req.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     app.state.accounts.set_password(acct.id, req.new_password)
     return {"changed": True}
 
