@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import AppBadges from "./components/AppBadges";
 import { Rail } from "./components/CourseRail";
 import { getHomeFeed, getToken, type HomeRail } from "./lib/api";
 import { friendlyError } from "./lib/errors";
@@ -64,6 +65,11 @@ export default function HomePage() {
               ▶ {t("landing.preview")}
             </button>
           </div>
+          {/* Get the app: App Store + Google Play badges right on the front page. */}
+          <p className="glow" style={{ marginTop: 22, marginBottom: 0, opacity: 0.95 }}>
+            {t("hero.getAppTitle")}
+          </p>
+          <AppBadges center />
         </div>
       </main>
     );
@@ -109,11 +115,13 @@ export default function HomePage() {
             <Link href="/jobs"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.careers")}</button></Link>
             <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>{t("hero.kids")}</button></Link>
             <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>{t("hero.corporate")}</button></Link>
-            <Link href="/download"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("hero.getApp")}</button></Link>
             {loggedIn
               ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
               : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("nav.signin")}</button></Link>}
           </div>
+          {/* Get the app: store badges right in the hero. */}
+          <p className="muted" style={{ marginTop: 16, marginBottom: 0 }}>{t("hero.getAppTitle")}</p>
+          <AppBadges />
           </div>
         </div>
       </section>
