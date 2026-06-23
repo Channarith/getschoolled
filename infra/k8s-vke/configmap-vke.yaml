@@ -14,6 +14,10 @@ data:
   OBJECT_STORE_BUCKET: "salareen-prod"
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
+  # Careers: real job openings from public boards (free) + keyed aggregators
+  # (RAPIDAPI_KEY / ADZUNA_*) for LinkedIn/Indeed-sourced listings. Falls back to
+  # the curated board if the cluster has no egress.
+  JOBS_LIVE: "1"
   ORCHESTRATOR_URL: "https://api.salareen.com"
   # Browser-facing API bases (Ingress routes each /<svc>/ prefix to its Service).
   # NEXT_PUBLIC_* are inlined at web BUILD time, so build the web image with these.

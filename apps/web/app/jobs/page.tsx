@@ -12,7 +12,11 @@ import {
 } from "../lib/api";
 
 const pretty = (s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-const SOURCE_ICON: Record<string, string> = { linkedin: "in", indeed: "Indeed", sample: "Board" };
+const SOURCE_ICON: Record<string, string> = {
+  linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor", ziprecruiter: "ZipRecruiter",
+  remotive: "Remotive", arbeitnow: "Arbeitnow", adzuna: "Adzuna", jsearch: "JSearch",
+  sample: "Demo board",
+};
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
@@ -50,8 +54,12 @@ export default function JobsPage() {
       <p className="muted">
         Real job openings matched to Salareen courses. See exactly which classes
         cover a role&rsquo;s skills, your coverage, and the gap to close.
-        {source && source !== "sample" ? ` Live source: ${source}.`
-          : " (Demo board representative of LinkedIn/Indeed; connect a provider with an API key for live listings.)"}
+        {source && source !== "sample"
+          ? ` Live openings from ${
+              (Array.from(new Set(jobs.map((j) => j.source))).filter(Boolean) as string[])
+                .map((s) => SOURCE_ICON[s] ?? pretty(s)).join(", ") || source
+            } — click “View / Apply” to open the original posting.`
+          : " (Showing a demo board while live sources are unavailable — set JOBS_LIVE=1, or a RAPIDAPI_KEY/Adzuna key for LinkedIn/Indeed-sourced listings.)"}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
@@ -61,7 +69,15 @@ export default function JobsPage() {
           <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
             <div>
               <h2 style={{ margin: 0 }}>{match.job.title}</h2>
-              <div className="muted">{match.job.company} · {match.job.location} · {match.job.salary_range} · via {match.job.source}</div>
+              <div className="muted">
+                {match.job.company} · {match.job.location} · {match.job.salary_range} · via {SOURCE_ICON[match.job.source] ?? match.job.source}
+              </div>
+              {match.job.url && (
+                <a href={match.job.url} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 13 }}>
+                  View / Apply on {SOURCE_ICON[match.job.source] ?? match.job.source} ↗
+                </a>
+              )}
             </div>
             <button onClick={() => setMatch(null)}>✕ Close</button>
           </div>
@@ -169,7 +185,8 @@ export default function JobsPage() {
       {/* Openings */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px,1fr))", gap: 12 }}>
         {jobs.map((j) => (
-          <button key={j.id} onClick={() => openJob(j.id)}
+          <div key={j.id} role="button" tabIndex={0} onClick={() => openJob(j.id)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openJob(j.id); } }}
             style={{ textAlign: "left", background: "var(--panel)", color: "var(--text)",
               border: match?.job.id === j.id ? "2px solid #0ea5e9" : "1px solid var(--border)",
               borderRadius: 12, padding: 14, cursor: "pointer" }}>
@@ -182,10 +199,19 @@ export default function JobsPage() {
                 <span key={s} className="pill" style={{ fontSize: 10, color: "#9aa6c2" }}>{pretty(s)}</span>
               ))}
             </div>
-            <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-              via {SOURCE_ICON[j.source] ?? j.source} · {j.posted_days_ago}d ago →
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+              <span className="muted" style={{ fontSize: 11 }}>
+                via {SOURCE_ICON[j.source] ?? j.source}{j.posted_days_ago ? ` · ${j.posted_days_ago}d ago` : ""} →
+              </span>
+              {j.url && (
+                <a href={j.url} target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ fontSize: 11 }}>
+                  View / Apply ↗
+                </a>
+              )}
             </div>
-          </button>
+          </div>
         ))}
         {jobs.length === 0 && <div className="muted">No openings match.</div>}
       </div>

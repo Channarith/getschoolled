@@ -63,3 +63,17 @@ def test_course_related_jobs():
 def test_unknown_job_404():
     _seed()
     assert client.get("/jobs/nope").status_code == 404
+
+
+def test_jobs_live_mode_falls_back_gracefully(monkeypatch):
+    """With JOBS_LIVE=1 but no egress (as in CI), /jobs must still return a
+    populated board rather than erroring."""
+    _seed()
+    monkeypatch.setenv("JOBS_LIVE", "1")
+    # Force the live HTTP fetch to fail (simulates blocked egress).
+    import aoep_shared.jobs as jobs_mod
+    monkeypatch.setattr(jobs_mod, "_http_get_json",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
+    body = client.get("/jobs").json()
+    assert body["count"] >= 5
+    assert body["source"] == "sample"

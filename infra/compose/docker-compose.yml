@@ -88,6 +88,11 @@ services:
       dockerfile: services/curriculum/Dockerfile
     env_file:
       - ../../config/local.env
+    environment:
+      # Careers: pull REAL openings from public boards (Remotive + Arbeitnow; no
+      # key, falls back to the curated board if the host has no internet). Add
+      # RAPIDAPI_KEY / ADZUNA_APP_ID+ADZUNA_APP_KEY to index LinkedIn/Indeed too.
+      JOBS_LIVE: "1"
     ports:
       - "8005:8000"
 
