@@ -1,0 +1,162 @@
+SALAREEN / AOEP — MAJOR RELEASE (x.0) TESTING POLICY
+====================================================
+Plain text on purpose (repo no-markdown house rule; see AGENTS.md).
+
+This defines the testing GATE for a major x.0 release and the standard we are
+building toward: exhaustive, automated coverage of every surface and all 16
+ecosystem sub-apps. Companion: docs/api-reference.txt (the surfaces under test),
+scripts/test_inventory.py (counts + maps tests to sub-apps + CI gate).
+
+============================================================================
+1. HOW MANY TESTS RUN ON A MAJOR RELEASE?
+============================================================================
+ALL of them. A major x.0 release must run the ENTIRE automated suite plus the
+manual GUI smoke matrix (section 5). For the live, authoritative count:
+
+  python3 scripts/test_inventory.py        # collected cases, mapped to sub-apps
+
+Baseline today (backend, Python; parametrized cases expanded):
+  ~1,010+ collected test cases across 160+ files (run `make test`). Per-sub-app
+  breakdown + gaps come from the inventory script. Frontend (apps/web) and mobile
+  (apps/mobile) currently have 0 automated tests (typecheck + build + manual GUI
+  only) — closing that is the top roadmap item (section 6).
+
+The target is THOUSANDS of cases spanning backend + frontend + mobile, reached
+mainly through data-driven/parametrized tests (section 6), not hand-written
+one-offs.
+
+============================================================================
+2. THE x.0 RELEASE GATE (all must pass)
+============================================================================
+  [ ] make test            - full backend suite green (0 failures)
+  [ ] make lint            - ruff clean
+  [ ] make coverage        - coverage report reviewed; no regressions on core
+  [ ] python3 scripts/test_inventory.py --min <N>   - every sub-app >= N tests
+  [ ] python3 scripts/check_api_docs.py             - API docs in sync (167/167)
+  [ ] cd apps/web && pnpm run typecheck && pnpm run lint && pnpm run build
+  [ ] cd apps/web && pnpm run test        - (once the web runner lands; section 6)
+  [ ] cd apps/mobile && pnpm run typecheck && pnpm run build
+  [ ] cd apps/mobile && pnpm run test     - (once the mobile runner lands)
+  [ ] make qa              - regression.py: tests + web typecheck/lint + stress smoke
+  [ ] Feature-flag matrix  - every flag evaluates (services/memory flags tests)
+  [ ] Admin surfaces       - admin-gated writes require the secret; audited
+  [ ] Manual GUI smoke     - the per-sub-app matrix in section 5
+  [ ] Security             - internal-only gates, webhook HMAC, payments (section 4d)
+  [ ] docker compose config / kustomize build   - infra renders
+
+The `--min` threshold ratchets UP each release (e.g. 20 -> 40 -> ...), forcing
+coverage to grow toward thousands.
+
+============================================================================
+3. THE 16 ECOSYSTEM SUB-APPS (each needs its own test coverage)
+============================================================================
+  #   Sub-app                         Primary code                         Tests live in
+  --  ------------------------------  -----------------------------------  -----------------------------
+  1   AI tutor (live class)           orchestrator, agent-runtime          services/orchestrator/tests
+  2   Live & group classes            orchestrator group-classes + bridges services/orchestrator, integrations
+  3   Human-in-the-loop               orchestrator HIL, curriculum cograde services/orchestrator/tests
+  4   Homework grader                 curriculum /homework (internal)      services/curriculum/tests
+  5   Adaptive learning               director/adaptive + foresight        services/orchestrator, packages/shared
+  6   Knowledge base (RAG) & trust    rag/knowledge, scenes, provenance    packages/shared, services/curriculum
+  7   Courses & catalog               curriculum catalog/decks/programs    services/curriculum/tests
+  8   Careers                         curriculum jobs + skills taxonomy    services/curriculum, packages/shared
+  9   Drive Mode (audio)              curriculum audio + speech delivery   services/curriculum, services/speech
+  10  Languages & speech (27)         speech_gw + language_learning        services/speech, packages/shared
+  11  Machine vision                  perception (+ embodiment/robot)      services/perception, packages/shared
+  12  Arcade & rewards                identity games/rewards               services/identity, packages/shared
+  13  Accounts & profiles             identity auth/students/portfolio     services/identity/tests
+  14  Consent, flags & compliance     memory consent/flags/legal/surveys   services/memory, packages/shared
+  15  Integrations, webhooks, payments integrations + billing              services/integrations, services/billing
+  16  Course scraper                  harvester                            services/harvester, packages/shared
+
+Plus cross-cutting buckets the inventory tracks separately: "Platform core /
+shared infra" (auth, rate limiting, telemetry, caching, service scaffolding) and
+"Model training" (training/).
+
+============================================================================
+4. WHAT TO TEST PER SURFACE
+============================================================================
+4a. Backend (every service)
+  - The standard contract: /health, /version, /metrics, /openapi.json respond.
+  - Every public route: happy path + validation (4xx) + not-found (404).
+  - Internal-only routes: 403 without X-Internal-Token, allowed with it.
+  - Provider abstraction: offline fallback works; real-provider path returns 503
+    when unconfigured (never silently degrades).
+  - Parametrize over the natural axes: 27 languages, 44 payment methods, every
+    feature flag, every catalog course/program, every region policy.
+
+4b. Frontend (apps/web)  [runner pending — section 6]
+  - Pure logic: i18n fallback across all 27 locales, api URL resolution
+    (same-origin prefixes), errors.isOfflineError, jobs source labels, rewards
+    types, AppBadges URL fallback.
+  - Components: nav gating (signed-out vs preview vs logged-in), ProfileMenu,
+    LanguagePicker (27 grouped), CourseRail.
+  - Routes: every page renders without crashing (smoke), plus key flows
+    (signup, class finish -> reward, careers match, group-class schedule).
+  - E2E: Playwright against a running stack for the critical journeys.
+
+4c. Mobile (apps/mobile)  [runner pending — section 6]
+  - Pure logic: i18n strings, tts locale->BCP-47 mapping, languages list parity
+    with backend SUPPORTED_LANGUAGES, notifications config.
+  - Screens: render smoke for each screen; Drive Mode speak/recognize wiring.
+  - Build: EAS preview (APK) + production bundles must build.
+
+4d. Security / admin / sub-tools (always, every release)
+  - Internal auth: homework grader, corrections bulk, payouts, retention purge,
+    catalog export, webhook emit are 403 without a valid token (fail-closed).
+  - Admin: feature-flag writes require X-Admin-Secret.
+  - Webhooks: inbound HMAC verification (401 on bad/missing signature; fail-closed
+    in cloud). Outbound: signed deliveries.
+  - Payments: hosted-checkout posture (no PAN stored); reward vouchers + payment
+    webhooks are signature-verified (docs/payments-and-security.txt).
+  - Rate limiting: 429 + Retry-After under abuse.
+
+============================================================================
+5. MANUAL GUI SMOKE MATRIX (per release, per sub-app)
+============================================================================
+Run against a deployed/built stack; capture a screenshot/clip per row.
+  - Landing + nav gating (signed-out, preview, signed-in)
+  - Signup/login (200, not 404) + Account/profile
+  - Live class: start -> advance -> ask -> Finish -> reward points
+  - AI teacher awards points on a good question
+  - Group class: schedule (Zoom/Teams/Meet) -> register -> start
+  - Careers: live jobs + course match + View/Apply
+  - Drive Mode audio (web + mobile), correct language/voice
+  - Arcade games + Rewards redeem
+  - Kids / Corporate / Languages (27 picker) / Watch / Homework
+  - Machine vision (on-device hybrid) consent + identify
+  - Our Story tool tooltips + app-store badges
+  - Mobile app: install (APK/TestFlight), home, drive mode, notifications
+
+============================================================================
+6. ROADMAP TO THOUSANDS (how we get there)
+============================================================================
+Quality over vanity counts — but several axes legitimately scale into the
+hundreds/thousands via parametrization:
+  - 27 languages x {course, phrases, delivery, tts, exercise, translate}  (done
+    in services/speech/tests/test_languages_exhaustive.py: ~135 cases).
+  - 44 payment methods x country/locale (services/billing).
+  - every feature flag x context (services/memory; data-driven).
+  - every catalog course/program loads + validates.
+  - every service x standard-contract endpoints.
+  - every web route renders; every mobile screen renders.
+Immediate next steps:
+  1. Stand up a web test runner (vitest + @testing-library + jsdom) and a mobile
+     runner (jest-expo); add `pnpm run test` to both. (Requires `pnpm install`,
+     i.e. an environment change — run an env-setup agent.)
+  2. Seed the pure-logic + component tests in 4b/4c.
+  3. Add the cross-service standard-contract suite + per-sub-app route coverage.
+  4. Ratchet scripts/test_inventory.py --min upward each release.
+
+============================================================================
+7. RUNNING IT
+============================================================================
+  make test                              # full backend suite
+  make coverage                          # + coverage
+  make lint                              # ruff
+  make qa                                # regression gate (backend + web + stress)
+  make test-inventory                    # counts + per-sub-app map + gaps
+  python3 scripts/test_inventory.py --min 20   # CI gate per sub-app
+  python3 scripts/check_api_docs.py      # API docs coverage (167/167)
+  cd apps/web && pnpm run typecheck && pnpm run lint && pnpm run build
+  cd apps/mobile && pnpm run typecheck && pnpm run build
