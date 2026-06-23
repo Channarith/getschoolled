@@ -5,6 +5,20 @@ new markdown beyond this operational file), always `python3`, dual-mode via env
 (no code forks), pin dependency versions, update CHANGELOG.txt on meaningful
 changes.
 
+## Push-to-main checklist (required every time main is updated)
+
+1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)
+   for the change. CHANGELOG uses a union merge driver (.gitattributes) so
+   concurrent entries auto-combine - keep one dated bullet per change.
+2. README.md: review and clean it up - remove legacy/unsupported/redundant
+   wording, fix stale references (ports, paths, removed features), and ensure
+   there are NO duplicate sections (e.g. a single `## Brand`). The README must
+   reflect the current shipped state, not historical merges.
+3. UI changes: capture FRESH artifacts every time the UI changes - screenshots
+   into `docs/screens/` and a short video walkthrough into `docs/demos/` - and
+   reference the current ones from the README "Screens and videos" section.
+   Replace stale screenshots/videos rather than accumulating outdated ones.
+
 ## Cursor Cloud specific instructions
 
 Single canonical stack: shared lib is `aoep_shared` (in `packages/shared`,
