@@ -371,6 +371,42 @@ textarea {
   margin-right: 6px;
 }
 
+/* ---------------- Netflix-style full-page landing + text glow ---------------- */
+.landing-hero {
+  min-height: calc(100vh - 64px);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 24px 72px;
+  color: #fff;
+}
+
+.landing-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.landing-mascot {
+  width: 160px;
+  height: auto;
+  margin: 0 auto 8px;
+  display: block;
+  filter: drop-shadow(0 16px 30px rgba(2, 6, 23, 0.6));
+}
+
+/* Soft glow + readable shadow for hero text over the live wallpaper. */
+.glow {
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6), 0 0 26px rgba(110, 168, 254, 0.32);
+}
+
+.theme-title.glow {
+  text-shadow: 0 3px 28px rgba(0, 0, 0, 0.66), 0 0 38px rgba(124, 58, 237, 0.4);
+}
+
 .hero-cta {
   display: flex;
   gap: 12px;

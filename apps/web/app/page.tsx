@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Rail } from "./components/CourseRail";
 import { getHomeFeed, getToken, type HomeRail } from "./lib/api";
@@ -9,14 +10,64 @@ import { useT } from "./lib/i18n";
 
 export default function HomePage() {
   const { t } = useT();
+  const router = useRouter();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    setAuthResolved(true);
     getHomeFeed().then(setRails).catch((e) => setError(String(e)));
   }, []);
+
+  function onGetStarted(e: React.FormEvent) {
+    e.preventDefault();
+    router.push(`/login?mode=signup${email ? `&email=${encodeURIComponent(email)}` : ""}`);
+  }
+
+  // Netflix-style landing for signed-out visitors: a full-page live wallpaper
+  // with glowing text, "Get Started" / "Sign In", and a Preview button that
+  // reveals the catalog so they can see what's inside before creating an account.
+  if (authResolved && !loggedIn && !preview) {
+    return (
+      <main className="landing-hero" style={{
+        backgroundImage:
+          "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
+      }}>
+        <div className="landing-inner">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/bayon-mark.webp" alt="Salareen mascot" className="landing-mascot"
+               width={160} height={328} />
+          <span className="theme-badge">{t("hero.kicker")}</span>
+          <h1 className="theme-title glow" style={{ fontSize: 52, maxWidth: "20ch", margin: "14px auto 12px" }}>
+            {t("hero.title")}
+          </h1>
+          <p className="theme-subtitle glow" style={{ margin: "0 auto" }}>{t("hero.subLoggedOut")}</p>
+          <p className="glow" style={{ marginTop: 18, opacity: 0.95 }}>{t("landing.emailCta")}</p>
+          <form onSubmit={onGetStarted} className="row" style={{ justifyContent: "center", gap: 8, marginTop: 8 }}>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                   placeholder={t("landing.email")} aria-label={t("landing.email")}
+                   style={{ minWidth: 260, padding: "14px 12px" }} />
+            <button type="submit" className="theme-btn"
+                    style={{ background: "#e50914", color: "#fff", fontSize: 18, padding: "13px 22px" }}>
+              {t("landing.getStarted")} →
+            </button>
+          </form>
+          <div className="hero-cta" style={{ justifyContent: "center", marginTop: 18 }}>
+            <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("landing.signIn")}</button></Link>
+            <button className="theme-btn" onClick={() => setPreview(true)}
+                    style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,.6)" }}>
+              ▶ {t("landing.preview")}
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main>
@@ -39,12 +90,17 @@ export default function HomePage() {
                         filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }} />
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
-          <h1 className="theme-title" style={{ marginTop: 14 }}>
+          <h1 className="theme-title glow" style={{ marginTop: 14 }}>
             {t("hero.title")}
           </h1>
-          <p className="theme-subtitle">
+          <p className="theme-subtitle glow">
             {loggedIn ? t("hero.subLoggedIn") : t("hero.subLoggedOut")}
           </p>
+          {!loggedIn && preview && (
+            <p className="muted" style={{ marginTop: 8 }}>
+              <Link href="/login">{t("landing.signIn")}</Link>
+            </p>
+          )}
           <div className="hero-cta">
             <Link href="/class"><button className="theme-btn">{t("hero.trySample")}</button></Link>
             <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>{t("hero.browseAll")}</button></Link>
