@@ -1,29 +1,38 @@
-# AI Classroom - Agentic Online Education Platform
+# Salareen - Agentic Online Education Platform
 
 <p align="center">
-  <img src="apps/web/public/logo-mark.svg" alt="AI Classroom minimalist graduation mark" width="96" />
+  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark" width="180" />
 </p>
 
-AI Classroom is a multi-service education platform for live AI-taught classes,
-mobile Drive Mode audio lessons, adaptive learning, language learning, rewards,
-careers-to-skills matching, compliance controls, and third-party integrations.
-The same codebase runs local, cloud, or edge by environment configuration only.
+Salareen (referred to as AI Classroom across parts of the codebase) is a
+multi-service education platform for live AI-taught classes, mobile Drive Mode
+audio lessons, adaptive learning, language learning, rewards, careers-to-skills
+matching, compliance controls, and third-party integrations. The same codebase
+runs local, cloud, or edge by environment configuration only.
 
 ## Brand
 
-The current brand uses a secular, minimalist graduation mark. Source vectors and
-raster assets live in `docs/brand/` and `apps/web/public/`. Usage rules are in
+The Salareen brand pairs the friendly **Bayon Buddy** mascot (a secular,
+Bayon-inspired character cradling a gold "S" medallion crowned with a Bodhi-leaf
+"leaf of knowledge") with a minimalist circular **"S" badge** used as the
+app/browser icon. The "S" and the leaf stand for school, curiosity, and growth -
+it is a cultural character, not a religious symbol. Web delivery assets live in
+`apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 `docs/brand/branding.txt`.
 
 | Asset | Path | Purpose |
 | --- | --- | --- |
-| Mark SVG | `apps/web/public/logo-mark.svg` | Browser/app icon and lightweight web mark |
-| Mark source | `docs/brand/aiclassroom_mark.svg` | Single source of truth for the icon |
-| Wordmark source | `docs/brand/aiclassroom_wordmark.svg` | Horizontal lockup |
+| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot |
+| Logo mark (web) | `apps/web/public/logo-mark.webp` | Nav + browser/app "S" badge |
+| Logo mark (SVG) | `apps/web/public/logo-mark.svg` | Themable vector "S" badge |
+| Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
+| App icon (mobile) | `apps/mobile/assets/salareen_icon_1024.png` | iOS/Android app icon + splash |
 | Favicon | `apps/web/public/favicon.ico` | Browser favicon |
 
-Design guardrail: mascot/theme art stays secular and classroom-focused. Avoid
-ceremonial monuments, faith-based symbols, or devotional visual cues.
+Design guardrail: brand and theme art stays **secular**. The Bayon Buddy is a
+culturally-inspired character presented as a friendly study companion - never a
+temple, monument, or devotional object - and the leaf is a symbol of knowledge
+and growth, not faith. Keep it respectful and never appropriative.
 
 ## Screens and videos
 

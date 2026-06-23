@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { useT } from "../lib/i18n";
 import LanguagePicker from "./LanguagePicker";
@@ -9,13 +10,23 @@ import LanguagePicker from "./LanguagePicker";
 // the active locale via t(...). Routes themselves are NOT localized
 // (e.g. /browse stays /browse) - that's a separate URL-routing-i18n
 // piece we can layer on later via Next's built-in i18n routing.
+//
+// The brand mark is the Salareen Bodhi-leaf "S" badge; on /kids it flips
+// to the kid-friendly cartoon variant.
 export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t } = useT();
+  const pathname = usePathname() ?? "/";
+  const logoSrc = pathname.startsWith("/kids")
+    ? "/logo-cartoon-mark.webp"
+    : "/logo-mark.webp";
   return (
     <nav className="nav">
       <Link href="/" className="brand"
             style={{ display: "inline-flex", alignItems: "center", gap: 8,
                      textDecoration: "none", color: "inherit" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoSrc} alt={t("nav.brand")} height={30}
+             style={{ height: 30, width: "auto", borderRadius: 6 }} />
         {t("nav.brand")}
       </Link>
       <Link href="/">{t("nav.home")}</Link>

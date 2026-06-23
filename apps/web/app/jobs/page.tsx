@@ -48,7 +48,7 @@ export default function JobsPage() {
     <main className="container" style={{ maxWidth: 1000 }}>
       <h1>💼 Careers — courses that get you hired</h1>
       <p className="muted">
-        Real job openings matched to AI Classroom courses. See exactly which classes
+        Real job openings matched to Salareen courses. See exactly which classes
         cover a role&rsquo;s skills, your coverage, and the gap to close.
         {source && source !== "sample" ? ` Live source: ${source}.`
           : " (Demo board representative of LinkedIn/Indeed; connect a provider with an API key for live listings.)"}
@@ -68,7 +68,7 @@ export default function JobsPage() {
           <p>{match.job.description}</p>
 
           <div style={{ margin: "10px 0" }}>
-            <strong>You can cover {match.coverage_pct}% of this role with AI Classroom.</strong>
+            <strong>You can cover {match.coverage_pct}% of this role with Salareen.</strong>
             <div style={{ height: 12, background: "#1d2746", borderRadius: 6, overflow: "hidden", marginTop: 6 }}>
               <div style={{ height: "100%", width: `${match.coverage_pct}%`,
                 background: match.coverage_pct >= 75 ? "#16a34a" : "#0ea5e9" }} />
