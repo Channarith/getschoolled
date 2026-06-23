@@ -1,0 +1,3 @@
+# CHANGELOG is append-only (newest entry on top). Use the union merge driver so
+# concurrent branch entries auto-combine instead of producing merge conflicts.
+CHANGELOG.txt merge=union
