@@ -107,6 +107,29 @@ export function clearToken(): void {
   notifyAuthChange();
 }
 
+// Stable per-browser learner id for the adaptive teaching loop. The memory
+// service keys mastery/behavior by (student_id, topic), so a persisted id lets
+// quizzes adapt to this learner across reloads. A real deployment would use the
+// authenticated account id; this keeps the loop working without the identity
+// service running.
+const STUDENT_KEY = "aoep_student_id";
+
+export function getStudentId(): string {
+  try {
+    let id = localStorage.getItem(STUDENT_KEY);
+    if (!id) {
+      id =
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `stu-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(STUDENT_KEY, id);
+    }
+    return id;
+  } catch {
+    return "anon-student";
+  }
+}
+
 // "Preview" lets a signed-out visitor browse the catalog before creating an
 // account. It is persisted so the choice survives navigation/reload, and gates
 // the content nav tabs (hidden until the visitor logs in OR opts into preview).
@@ -632,6 +655,15 @@ export type Answer = {
   reward?: { points: number; reason: string; grant_token: string } | null;
 };
 
+// Re-engagement beat: the Director's REENGAGING action rendered as a short,
+// slide-grounded recap plus a low-stakes prompt to pull a drifting learner back
+// in. Returned by POST /api/sessions/{id}/reengage.
+export type Reengagement = {
+  text: string;
+  prompt?: string | null;
+  citations: string[];
+};
+
 // Redeem an AI-agent reward voucher to the current account. The identity
 // service verifies the agent's HMAC signature before crediting.
 export async function grantReward(grant: string):
@@ -657,13 +689,86 @@ export async function listLessons(): Promise<Lesson[]> {
 
 export async function startSession(
   lessonId: string,
-  classType: string
+  classType: string,
+  studentId?: string
 ): Promise<SessionView> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lesson_id: lessonId, class_type: classType }),
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        class_type: classType,
+        student_id: studentId ?? null,
+      }),
+    })
+  );
+}
+
+// --- adaptive quiz + grade (per-student difficulty) ---------------------- //
+export type QuizItemView = {
+  item_id: string;
+  topic: string;
+  prompt: string;
+  options: string[];
+  answer_index: number;
+  difficulty: string;
+};
+
+export type QuizGrade = {
+  item_id: string;
+  correct: boolean;
+  mastery_target: number;
+  difficulty: string;
+};
+
+// Fetch an adaptive quiz. When studentId is set, the orchestrator picks
+// difficulty from this learner's mastery signals (memory service); otherwise it
+// stays MEDIUM. Pass topic == lessonId so quiz/grade and the live loop's
+// slide/question signals aggregate under the same key.
+export async function getQuiz(args: {
+  topic: string;
+  passages: string[];
+  studentId?: string;
+  classType?: string;
+  maxItems?: number;
+}): Promise<{ items: QuizItemView[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/quiz`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        topic: args.topic,
+        passages: args.passages,
+        max_items: args.maxItems ?? 3,
+        student_id: args.studentId ?? null,
+        class_type: args.classType ?? "group",
+      }),
+    })
+  );
+}
+
+// Grade an answered item. When studentId + topic are set, the outcome updates
+// this learner's mastery (BKT) so the NEXT quiz adapts its difficulty.
+export async function gradeQuiz(args: {
+  item: QuizItemView;
+  chosenIndex: number;
+  studentId?: string;
+  topic?: string;
+}): Promise<QuizGrade> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        item_id: args.item.item_id,
+        options: args.item.options,
+        answer_index: args.item.answer_index,
+        chosen_index: args.chosenIndex,
+        difficulty: args.item.difficulty,
+        topic: args.topic ?? args.item.topic,
+        student_id: args.studentId ?? null,
+      }),
     })
   );
 }
@@ -759,6 +864,16 @@ export async function startGroupClass(classId: string): Promise<GroupClassStart>
 export async function advance(sessionId: string): Promise<Slide> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/advance`, {
+      method: "POST",
+    })
+  );
+}
+
+// Ask the teaching brain to re-engage a drifting learner: a recap of the current
+// slide plus a quick prompt. Surfaced as the "I'm lost — refocus" action.
+export async function reengage(sessionId: string): Promise<Reengagement> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/reengage`, {
       method: "POST",
     })
   );

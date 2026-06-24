@@ -6,11 +6,15 @@ import {
   ask,
   enrollCourse,
   getDisclosure,
+  getQuiz,
   grantReward,
   getPostClassSurvey,
   getRewards,
+  getStudentId,
   getToken,
+  gradeQuiz,
   listLessons,
+  reengage,
   reportIssue,
   setEnrollmentStatus,
   startSession,
@@ -18,11 +22,21 @@ import {
   type Answer,
   type Disclosure,
   type Lesson,
+  type QuizGrade,
+  type QuizItemView,
+  type Reengagement,
   type SessionView,
   type Slide,
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+
+// Color the adaptive difficulty badge so the learner can see it shift.
+function difficultyStyle(d: string): { background: string; color: string; border: string } {
+  if (d === "hard") return { background: "#fee2e2", color: "#991b1b", border: "1px solid #dc2626" };
+  if (d === "easy") return { background: "#dcfce7", color: "#166534", border: "1px solid #16a34a" };
+  return { background: "#fef9c3", color: "#854d0e", border: "1px solid #ca8a04" }; // medium / default
+}
 
 export default function ClassPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -54,6 +68,12 @@ export default function ClassPage() {
   const [speaking, setSpeaking] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Adaptive quiz state (difficulty personalizes via the memory service).
+  const [quiz, setQuiz] = useState<QuizItemView[] | null>(null);
+  const [quizIdx, setQuizIdx] = useState(0);
+  const [quizDifficulty, setQuizDifficulty] = useState<string>("");
+  const [quizPick, setQuizPick] = useState<number | null>(null);
+  const [quizGrade, setQuizGrade] = useState<QuizGrade | null>(null);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -92,10 +112,11 @@ export default function ClassPage() {
     setError("");
     setBusy(true);
     try {
-      const v = await startSession(lessonId, classType);
+      const v = await startSession(lessonId, classType, getStudentId());
       setView(v);
       setSlide(v.slide);
       setChat([]);
+      setQuiz(null);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -113,6 +134,83 @@ export default function ClassPage() {
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Learner is drifting/lost: ask the teaching brain to re-engage. Renders the
+  // Director's REENGAGING beat (a recap of the current slide) into the chat,
+  // speaks it, and pre-fills the ask box with its check-in prompt.
+  async function onReengage() {
+    if (!view) return;
+    setBusy(true);
+    try {
+      const r: Reengagement = await reengage(view.session.session_id);
+      speak(r.text);
+      setChat((c) => [...c, { role: "reengage", text: r.text, citations: r.citations }]);
+      if (r.prompt) setQuestion(r.prompt);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Fetch an adaptive quiz built from the lesson's slides. With a student id the
+  // orchestrator picks difficulty from this learner's mastery (memory service);
+  // topic == lesson_id keeps quiz/grade and the live-loop signals on one key.
+  async function onQuiz() {
+    if (!view) return;
+    setBusy(true);
+    try {
+      const passages = view.lesson.slides.map((s) => `${s.title}: ${s.body}`);
+      const res = await getQuiz({
+        topic: view.lesson.lesson_id,
+        passages,
+        studentId: getStudentId(),
+        classType: view.session.class_type,
+        maxItems: 3,
+      });
+      setQuiz(res.items);
+      setQuizIdx(0);
+      setQuizDifficulty(res.items[0]?.difficulty ?? "");
+      setQuizPick(null);
+      setQuizGrade(null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Grade the picked option. The outcome updates mastery server-side, so the
+  // NEXT quiz ("Quiz me again") reflects an adapted difficulty.
+  async function onAnswer(idx: number) {
+    if (!view || !quiz || quizGrade) return; // ignore re-clicks once answered
+    setQuizPick(idx);
+    setBusy(true);
+    try {
+      const g = await gradeQuiz({
+        item: quiz[quizIdx],
+        chosenIndex: idx,
+        studentId: getStudentId(),
+        topic: view.lesson.lesson_id,
+      });
+      setQuizGrade(g);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onNextQuestion() {
+    if (!quiz) return;
+    if (quizIdx + 1 < quiz.length) {
+      setQuizIdx(quizIdx + 1);
+      setQuizPick(null);
+      setQuizGrade(null);
+    } else {
+      onQuiz(); // round done -> refetch; difficulty reflects updated mastery
     }
   }
 
@@ -339,6 +437,16 @@ export default function ClassPage() {
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →
               </button>
+              <button onClick={onReengage} disabled={busy}
+                title="Lost or distracted? The AI teacher recaps this slide and checks in."
+                style={{ background: "#fff7ed", color: "#b45309", border: "1px solid #f59e0b" }}>
+                🧭 I&apos;m lost — refocus
+              </button>
+              <button onClick={onQuiz} disabled={busy}
+                title="Take a quick quiz. Difficulty adapts to your mastery."
+                style={{ background: "#eef2ff", color: "#4338ca", border: "1px solid #6366f1" }}>
+                🎯 Quiz me
+              </button>
               <button onClick={onFinish} disabled={busy}
                 style={{ background: "#111", color: "#fff" }}>
                 Finish class
@@ -367,7 +475,10 @@ export default function ClassPage() {
                 <div key={i} className={`bubble ${m.role}`}
                   style={m.role === "reward"
                     ? { background: "#052e16", color: "#bbf7d0", border: "1px solid #16a34a", fontWeight: 600 }
+                    : m.role === "reengage"
+                    ? { background: "#fff7ed", color: "#7c2d12", border: "1px solid #f59e0b" }
                     : undefined}>
+                  {m.role === "reengage" && <strong>🧭 Let&apos;s refocus. </strong>}
                   {m.text}
                   {m.role === "teacher" && m.grounded !== undefined && (
                     <div className="cite" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -443,6 +554,69 @@ export default function ClassPage() {
               </button>
             </div>
           </div>
+
+          {quiz && quiz.length > 0 && (
+            <div className="card">
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ margin: 0 }}>Quiz</h3>
+                <span
+                  title="Difficulty adapts to your mastery via the memory service"
+                  style={{
+                    padding: "2px 10px", borderRadius: 999, fontWeight: 600, fontSize: 13,
+                    ...difficultyStyle(quizDifficulty),
+                  }}
+                >
+                  {quizDifficulty || "medium"} difficulty
+                </span>
+              </div>
+              <div className="muted" style={{ marginTop: 4 }}>
+                Question {quizIdx + 1} of {quiz.length} · answer correctly and the next quiz gets harder.
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <p style={{ fontWeight: 600 }}>{quiz[quizIdx].prompt}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {quiz[quizIdx].options.map((opt, i) => {
+                    const answered = quizGrade !== null;
+                    const isCorrect = i === quiz[quizIdx].answer_index;
+                    const isPicked = i === quizPick;
+                    const bg = answered && isCorrect ? "#dcfce7" : answered && isPicked ? "#fee2e2" : "#fff";
+                    const bd = answered && isCorrect ? "#16a34a" : answered && isPicked ? "#dc2626" : "#cbd5e1";
+                    const col = answered && isCorrect ? "#14532d" : answered && isPicked ? "#7f1d1d" : "#0f172a";
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => onAnswer(i)}
+                        disabled={busy || answered}
+                        style={{
+                          textAlign: "left", padding: "8px 12px", borderRadius: 8,
+                          background: bg, border: `1px solid ${bd}`, color: col,
+                          cursor: answered ? "default" : "pointer",
+                        }}
+                      >
+                        {opt}
+                        {answered && isCorrect ? "  ✓" : answered && isPicked && !isCorrect ? "  ✗" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                {quizGrade && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontWeight: 600, color: quizGrade.correct ? "#16a34a" : "#dc2626" }}>
+                      {quizGrade.correct ? "Correct!" : "Not quite."}
+                      <span className="muted" style={{ fontWeight: 400 }}>
+                        {" "}· mastery target {Math.round(quizGrade.mastery_target * 100)}%
+                      </span>
+                    </div>
+                    <button onClick={onNextQuestion} disabled={busy} style={{ marginTop: 8 }}>
+                      {quizIdx + 1 < quiz.length
+                        ? "Next question →"
+                        : "Quiz me again (adapts difficulty) ↻"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 
