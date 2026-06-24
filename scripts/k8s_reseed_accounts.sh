@@ -25,6 +25,8 @@ if [[ -z "$POD" ]]; then
   exit 1
 fi
 
-echo "Reseeding accounts via pod/$POD ..."
-kubectl -n "$NS" cp "$SCRIPT" "$POD:/tmp/identity_reseed_redis.py"
-kubectl -n "$NS" exec "$POD" -- python3 /tmp/identity_reseed_redis.py
+echo "Reseeding accounts via pod/$POD (pipe script to python3) ..."
+kubectl -n "$NS" exec -i "$POD" -- python3 - < "$SCRIPT"
+echo ""
+echo "If persisted=true, restart all identity replicas so they reload Redis:"
+echo "  kubectl -n $NS rollout restart deployment/$DEPLOY"

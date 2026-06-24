@@ -184,10 +184,11 @@ The script picks a Running identity pod automatically (kubectl cp does not accep
 deploy/identity). If it fails, pick a pod manually:
 
   POD=$(kubectl -n aoep get pods -l app=identity -o jsonpath='{.items[0].metadata.name}')
-  kubectl -n aoep cp scripts/identity_reseed_redis.py "$POD:/tmp/identity_reseed_redis.py"
-  kubectl -n aoep exec "$POD" -- python3 /tmp/identity_reseed_redis.py
+  kubectl -n aoep exec -i "$POD" -- python3 - < scripts/identity_reseed_redis.py
+  kubectl -n aoep rollout restart deployment/identity
 
-That execs into identity, reseeds admin + QA, and writes Redis. Expect login_ok
+Works on old identity images (e.g. 0.3.82) that lack identity.persistence — the
+script inlines Redis read/write. Always restart identity after persisted=true.
 all true in the printed JSON.
 
 After deploying a newer identity image (0.3.91+), you can also reseed over HTTP:

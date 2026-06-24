@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix identity_reseed_redis.py for pre-persistence images (~0.3.82):
+  inline Redis load/save when identity.persistence is missing; pipe script via
+  kubectl exec -i (no kubectl cp). Restart identity after persisted=true.
 - 2026-06-24 - Fix k8s_reseed_accounts.sh: resolve a Running identity pod before
   kubectl cp/exec (deploy/identity is not valid for cp; caused "pods identity not
   found").
