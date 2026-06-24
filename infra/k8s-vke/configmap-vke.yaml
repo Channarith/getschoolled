@@ -20,6 +20,7 @@ data:
   SEED_DEFAULT_ADMIN: "1"
   DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
   DEFAULT_ADMIN_USERNAME: "admin"
+  SEED_QA_ACCOUNTS: "1"
   # Careers: real job openings from public boards (free) + keyed aggregators
   # (RAPIDAPI_KEY / ADZUNA_*) for LinkedIn/Indeed-sourced listings. Falls back to
   # the curated board if the cluster has no egress.

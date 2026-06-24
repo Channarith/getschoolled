@@ -112,6 +112,23 @@ shared infra" (auth, rate limiting, telemetry, caching, service scaffolding) and
   - Rate limiting: 429 + Retry-After under abuse.
 
 ============================================================================
+4e. QA TEST ACCOUNTS (seeded at identity startup)
+============================================================================
+Three fixed personas for manual GUI smoke and release QA. Enabled by default
+(SEED_QA_ACCOUNTS=1); set SEED_QA_ACCOUNTS=0 before a public production cut if
+you do not want them. Shared password from QA_ACCOUNTS_PASSWORD (default
+QaTest123). Log in with the email OR the short username alias.
+
+  Email                      Username   Tier   Notes
+  -------------------------  ---------  -----  --------------------------------
+  qa-learner@salareen.com    qa1        Free   Standard learner smoke tests
+  qa-parent@salareen.com     qa2        Free   Has child profile "QA Kid"
+  qa-pro@salareen.com        qa3        Pro    Entitlement / premium smoke tests
+
+Operator admin (separate): admin@salareen.com or "admin" / DEFAULT_ADMIN_PASSWORD
+(default 88888888). Not a QA persona — use only for operator/admin surfaces.
+
+============================================================================
 5. MANUAL GUI SMOKE MATRIX (per release, per sub-app)
 ============================================================================
 Run against a deployed/built stack; capture a screenshot/clip per row.

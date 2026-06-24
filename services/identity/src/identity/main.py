@@ -32,6 +32,15 @@ if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
         os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
         username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
     )
+# Three fixed QA personas for manual / release testing (free learner, parent+child,
+# Pro tier). Idempotent; disable with SEED_QA_ACCOUNTS=0.
+if os.environ.get("SEED_QA_ACCOUNTS", "1").lower() in ("1", "true", "yes"):
+    from .qa_seed import seed_qa_accounts
+
+    seed_qa_accounts(
+        app.state.accounts,
+        os.environ.get("QA_ACCOUNTS_PASSWORD", "QaTest123"),
+    )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()
