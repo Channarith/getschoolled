@@ -57,6 +57,7 @@ def seed_qa_accounts(store: AccountStore, password: str) -> List[Account]:
             display_name=persona.display_name,
             tier=persona.tier,
             username=persona.username,
+            force_password=True,
         )
         if persona.student_display_name and not store.list_students(acct.id):
             store.add_student(

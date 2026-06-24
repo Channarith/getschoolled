@@ -9,6 +9,11 @@ Format: newest first. No markdown per project convention.
   main must run scripts/bump_pr_version.py (make bump-version). CI job
   version-bump enforces VERSION > base. Auto Push Build now uses --refresh-only
   (no double bump); Release workflow also runs on push to main.
+- 2026-06-24 - Fix QA test account login on deployed stacks. QA seed now
+  force-resyncs passwords on every identity startup (survives Redis reloads and
+  accidental signups on qa-* emails). VKE ingress adds hostless /identity,
+  /memory, /orchestrator, etc. routes on the bare LB IP (fixes 404 on feature
+  flags and API calls). docs/release-testing.txt §4e troubleshooting.
 
 - 2026-06-24 - One-time onboarding learning survey (post-signup). After the legal
   disclaimer, new members see a learning-behavior gauge (modalities, pace,

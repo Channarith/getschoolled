@@ -155,6 +155,36 @@ spec:
     - host: api.salareen.com
       http:
         paths:
+          - path: /orchestrator(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /curriculum(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: identity, port: { number: 8000 } } }
+          - path: /integrations(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: integrations, port: { number: 8000 } } }
+          - path: /memory(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: memory, port: { number: 8000 } } }
+          - path: /speech(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: speech, port: { number: 8000 } } }
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: billing, port: { number: 8000 } } }
+          - path: /perception(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: perception, port: { number: 8000 } } }
+    # Bare LoadBalancer IP / any host: same-origin /identity, /memory, etc.
+    - http:
+        paths:
+          - path: /orchestrator(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
           - path: /curriculum(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: curriculum, port: { number: 8000 } } }
