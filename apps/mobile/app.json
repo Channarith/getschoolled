@@ -39,7 +39,7 @@
       "useNextNotificationsApi": true
     },
     "extra": {
-      "//": "Set CURRICULUM_URL to your reachable backend (LAN IP for a device, or deployed URL).",
+      "//": "URLs: iOS Simulator uses localhost. Android emulator auto-maps to 10.0.2.2 via src/config.ts. Physical device: use your Mac LAN IP or deployed host.",
       "curriculumUrl": "http://localhost:8005",
       "identityUrl": "http://localhost:8008",
       "memoryUrl": "http://localhost:8004"

@@ -54,6 +54,13 @@ export type StringKey =
   | "settings.permGrantedTitle" | "settings.permDeniedTitle" | "settings.permDeniedBody"
   | "settings.permRequiredTitle" | "settings.permRequiredBody"
   | "settings.testTitle" | "settings.testBody"
+  | "settings.sectionAccount" | "settings.accountSignedIn" | "settings.accountGuest"
+  | "settings.learningProfile" | "settings.learningProfileDone" | "settings.learningProfilePending"
+  | "settings.openSurvey" | "settings.signOut"
+  | "settings.backendUrls"
+  | "auth.email" | "auth.password" | "auth.displayName"
+  | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
+  | "auth.qaHint" | "auth.useQa"
   // Alert banner
   | "banner.open"
   // Time
@@ -148,6 +155,26 @@ const EN: Record<StringKey, string> = {
   "settings.permRequiredBody": "Allow notifications first.",
   "settings.testTitle": "Salareen test alert",
   "settings.testBody": "If you see this, notifications are working. 🎉",
+
+  "settings.sectionAccount": "Account",
+  "settings.accountSignedIn": "Signed in as {email}",
+  "settings.accountGuest": "Sign in to sync your learning profile across devices.",
+  "settings.learningProfile": "Learning profile",
+  "settings.learningProfileDone": "Saved to your account ({category}).",
+  "settings.learningProfilePending": "Not completed — helps us adapt courses to your style.",
+  "settings.openSurvey": "Update learning profile",
+  "settings.signOut": "Sign out",
+  "settings.backendUrls": "Backend: curriculum {curriculum} · identity {identity}",
+
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.displayName": "Display name",
+  "auth.signIn": "Sign in",
+  "auth.signUp": "Create account",
+  "auth.createAccount": "New here? Create an account",
+  "auth.haveAccount": "Already have an account? Sign in",
+  "auth.qaHint": "QA test accounts (dev)",
+  "auth.useQa": "Use {label}",
 
   "banner.open": "Open",
 
