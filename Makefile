@@ -11,7 +11,7 @@ COMPOSE := infra/compose/docker-compose.yml
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild \
-	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke
+	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version
 
 help:
 	@echo "Targets:"
@@ -32,6 +32,8 @@ help:
 	@echo "  mobile-dev-android Launch Expo Go on Android emulator"
 	@echo "  mobile-build   Bundle production iOS+Android JS (apps/mobile/dist)"
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
+	@echo "  bump-version   Advance VERSION for a PR merging to main"
+	@echo "  check-version  Verify VERSION was bumped vs main (CI helper)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
 	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
@@ -150,3 +152,9 @@ scale-down:
 
 clean:
 	rm -rf $(VENV) apps/web/node_modules apps/web/.next
+
+bump-version:
+	$(PY) scripts/bump_pr_version.py
+
+check-version:
+	bash scripts/check_pr_version_bump.sh

@@ -1,7 +1,8 @@
 name: Auto Push Build
 
-# Auto-pushes build changes (version bump, changelog roll, build manifest) back
-# to the repo after a fresh build. Runs on pushes to main and on manual dispatch.
+# Auto-pushes build changes (build manifest refresh) back to the repo after a
+# fresh build. VERSION is bumped in each PR before merge (see scripts/bump_pr_version.py);
+# this workflow only refreshes build-info.txt and syncs web version metadata.
 # The auto-commit carries [skip ci] and is made with GITHUB_TOKEN, so it never
 # retriggers this workflow (no infinite loop).
 on:
@@ -91,7 +92,7 @@ jobs:
           fi
 
       - name: Generate build changes
-        run: python3 scripts/build_release.py
+        run: python3 scripts/build_release.py --refresh-only
 
       - name: Commit and push build changes
         run: |
