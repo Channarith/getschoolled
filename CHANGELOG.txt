@@ -2,14 +2,6 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Add Deploy VKE (identity + web) manual workflow (never skipped).
-  Deploy workflow gate job explains skip on push without AUTO_DEPLOY=true.
-- 2026-06-24 - RUNBOOK: 404 on ops-reseed means stale identity image — run Deploy
-  workflow before rollout restart. k8s_ops_reseed_identity.sh prints deploy hint.
-- 2026-06-24 - Fix k8s ops-reseed scripts: kubectl exec -i required for stdin
-  heredocs (without -i, python3 received no script and printed nothing).
-- 2026-06-24 - scripts/k8s_ops_reseed_identity.sh: ops-reseed via python3 (identity
-  slim images have no curl). k8s_diagnose_identity.sh uses python3 for ops probe.
 - 2026-06-24 - Identity ops-reseed reloads Redis before bootstrap; returns login_ok
   for the live uvicorn store. scripts/k8s_diagnose_identity.sh compares Redis vs
   HTTP login on every pod and probes /admin/ops/reseed-seeded.
