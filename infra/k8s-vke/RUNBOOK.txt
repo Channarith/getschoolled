@@ -173,17 +173,34 @@ Confirm the running image actually has the new code, e.g. the admin seed:
 
 QA personas (qa-pro@ / qa3 / QaTest123) still 401 while admin works
 -------------------------------------------------------------------
-Usually QA accounts were not persisted to Redis on every replica. Pull latest
-identity (startup bootstrap + Redis retry), rollout restart, or reseed as admin:
+Usually QA accounts were not persisted to Redis on every replica, OR the cluster
+Secret QA_ACCOUNTS_PASSWORD differs from QaTest123, OR the running identity image
+predates the bootstrap fix. Immediate fix WITHOUT a new image:
 
+  chmod +x scripts/k8s_reseed_accounts.sh
+  ./scripts/k8s_reseed_accounts.sh
+
+That execs into identity, reseeds admin + QA, and writes Redis. Expect login_ok
+all true in the printed JSON.
+
+After deploying a newer identity image (0.3.91+), you can also reseed over HTTP:
+
+  curl -s -X POST http://<host>/identity/admin/ops/reseed-seeded \
+    -H "X-Admin-Secret: dev-admin-secret"
+
+Do NOT use the browser "admin unlock" password as Authorization: Bearer — that
+is a UI-only gate. Get a real session JWT via login (starts with "eyJ") OR use
+X-Admin-Secret as above.
+
+Verify the identity build exposes the route:
+  curl -s http://<host>/identity/version
+  curl -s http://<host>/identity/__meta | grep reseed
+
+Then rollout restart if you changed the Secret:
   kubectl -n aoep rollout restart deployment/identity
   kubectl -n aoep rollout status deployment/identity
 
-  # optional one-shot (after logging in as admin in the browser, copy Bearer token):
-  curl -s -X POST http://<host>/identity/admin/accounts/reseed-seeded \
-    -H "Authorization: Bearer <admin-token>"
-
-Check the cluster secret matches the docs password:
+Check secret password:
   kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
 
 Verify

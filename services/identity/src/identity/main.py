@@ -12,6 +12,7 @@ import os
 import time
 
 from aoep_shared.auth import sign_token, verify_token
+from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
@@ -67,6 +68,26 @@ def require_admin_account(acct=Depends(current_account)):
     if not acct.is_admin:
         raise HTTPException(status_code=403, detail="admin access required")
     return acct
+
+
+def _admin_secret() -> str:
+    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+
+
+def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
+    """Operator shared secret (same header memory admin routes use)."""
+    if not require_admin(x_admin_secret, _admin_secret()):
+        raise HTTPException(status_code=403, detail="admin secret required")
+    return x_admin_secret
+
+
+def _run_reseed_seeded() -> dict:
+    from .bootstrap import bootstrap_accounts
+    from .persistence import save_to_redis_with_retry
+
+    stats = bootstrap_accounts(app.state.accounts)
+    persisted = save_to_redis_with_retry(app.state.accounts)
+    return {"reseeded": True, "stats": stats, "persisted": persisted}
 
 
 PROFILE_SHARE_SCOPES = {"profile", "interests", "mastery", "completions", "class_context"}
@@ -155,13 +176,14 @@ def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
 
 @app.post("/admin/accounts/reseed-seeded")
 def admin_reseed_seeded(_acct=Depends(require_admin_account)) -> dict:
-    """Re-sync default admin + QA personas and persist to Redis (multi-replica fix)."""
-    from .bootstrap import bootstrap_accounts
-    from .persistence import save_to_redis_with_retry
+    """Re-sync default admin + QA personas and persist to Redis (admin session)."""
+    return _run_reseed_seeded()
 
-    stats = bootstrap_accounts(app.state.accounts)
-    persisted = save_to_redis_with_retry(app.state.accounts)
-    return {"reseeded": True, "stats": stats, "persisted": persisted}
+
+@app.post("/admin/ops/reseed-seeded")
+def ops_reseed_seeded(_: str = Depends(require_admin_secret)) -> dict:
+    """Operator recovery: reseed admin + QA using X-Admin-Secret (no login JWT)."""
+    return _run_reseed_seeded()
 
 
 class PasswordChange(BaseModel):

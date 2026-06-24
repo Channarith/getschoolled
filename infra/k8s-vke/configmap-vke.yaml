@@ -40,6 +40,8 @@ data:
   NEXT_PUBLIC_BILLING_URL: "/billing"
   NEXT_PUBLIC_INTEGRATIONS_URL: "/integrations"
   NEXT_PUBLIC_PERCEPTION_URL: "/perception"
+  # Shared with memory admin routes (X-Admin-Secret) for operator recovery tools.
+  ADMIN_SECRET: "dev-admin-secret"
   # Mobile app download targets for /download (empty -> "Coming soon"). Set these
   # to the hosted APK + Play/App Store links once published; inlined at build.
   NEXT_PUBLIC_ANDROID_APK_URL: "https://api.salareen.com/downloads/salareen-android.apk"
