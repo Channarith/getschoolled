@@ -117,6 +117,15 @@ class AccountStore:
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
 
+    def _persist(self) -> None:
+        from .persistence import persist_hook
+
+        persist_hook(self)
+
+    def list_all_accounts(self) -> List[Account]:
+        """All accounts (operator/admin tooling)."""
+        return list(self._by_id.values())
+
     def create(self, email: str, password: str, *, display_name: str = "",
                tier: PlanTier = PlanTier.FREE, region: Region = Region.US) -> Account:
         email = email.strip().lower()
@@ -128,6 +137,7 @@ class AccountStore:
                        password_hash=hash_password(password), tier=tier, region=region)
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
+        self._persist()
         return acct
 
     def seed_account(
@@ -154,6 +164,7 @@ class AccountStore:
             existing.is_admin = existing.is_admin or is_admin
             if display_name:
                 existing.display_name = display_name
+            self._persist()
             return existing
         acct = Account(
             email=email,
@@ -167,6 +178,7 @@ class AccountStore:
         self._id_by_email[email] = acct.id
         if alias and alias not in self._id_by_email:
             self._id_by_email[alias] = acct.id
+        self._persist()
         return acct
 
     def seed_admin(self, email: str, password: str, *, username: str = "admin",
@@ -198,15 +210,18 @@ class AccountStore:
             return None
         acct.failed_logins = 0
         acct.last_login_at = time.time()
+        self._persist()
         return acct
 
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]
         acct.password_hash = hash_password(new_password)
+        self._persist()
 
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]
         acct.tier = tier
+        self._persist()
         return acct
 
     # --- portfolio --------------------------------------------------------- #
@@ -220,8 +235,10 @@ class AccountStore:
             if enrollment.title:
                 existing.title = enrollment.title
             existing.updated_at = time.time()
+            self._persist()
             return existing
         acct.enrollments[enrollment.course_id] = enrollment
+        self._persist()
         return enrollment
 
     def set_status(self, account_id: str, course_id: str, status: EnrollmentStatus,
@@ -247,6 +264,7 @@ class AccountStore:
                                         hands_on=enr.hands_on)
             acct.points.earn(pts, reason="course_passed", ref=course_id)
             enr.points_awarded = True
+        self._persist()
         return enr
 
     # --- rewards ----------------------------------------------------------- #
@@ -264,6 +282,7 @@ class AccountStore:
         if nonce:
             self._used_grant_nonces.add(nonce)
         acct.points.earn(points, reason=reason, ref=ref)
+        self._persist()
         return acct.points.balance, points
 
     def redeem(self, account_id: str, prize) -> dict:
@@ -278,6 +297,7 @@ class AccountStore:
             "detail": redemption.detail, "created_at": redemption.created_at,
         }
         acct.redemptions.append(rec)
+        self._persist()
         return rec
 
     def rewards_summary(self, account_id: str) -> dict:
@@ -316,6 +336,7 @@ class AccountStore:
         st["best_by_subject"][subject] = max(prev, pts)
         st["points_by_age"][age_group] = st["points_by_age"].get(age_group, 0) + pts
         st["last_age_group"] = age_group
+        self._persist()
         return st
 
     def leaderboard(self, *, subject: Optional[str] = None, age_group: Optional[str] = None,
@@ -357,6 +378,7 @@ class AccountStore:
         prof = StudentProfile(display_name=display_name, age_band=age_band,
                               interests=list(interests or []))
         acct.students[prof.id] = prof
+        self._persist()
         return prof
 
     def list_students(self, account_id: str) -> List[StudentProfile]:
@@ -372,6 +394,7 @@ class AccountStore:
         if prof is None:
             raise KeyError(student_id)
         prof.mastery[skill] = max(0.0, min(1.0, float(value)))
+        self._persist()
         return prof
 
     def record_completion(
@@ -385,6 +408,7 @@ class AccountStore:
             prof.completed_course_ids.append(course_id)
         for s in (skills or []):
             prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
+        self._persist()
         return prof
 
     def record_class_context(self, account_id: str, student_id: str,
@@ -402,8 +426,10 @@ class AccountStore:
                 context.id = existing.id
                 context.created_at = existing.created_at
                 prof.class_contexts[idx] = context
+                self._persist()
                 return context
         prof.class_contexts.append(context)
+        self._persist()
         return context
 
     def create_profile_share_grant(self, account_id: str, student_id: str, *,
@@ -418,6 +444,7 @@ class AccountStore:
             expires_at=time.time() + max(60, min(int(ttl_s), 86_400)),
         )
         self._by_id[account_id].profile_share_grants[grant.id] = grant
+        self._persist()
         return grant
 
     def profile_share_grant(self, account_id: str, grant_id: str) -> Optional[ProfileShareGrant]:

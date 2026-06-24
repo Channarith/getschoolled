@@ -16,12 +16,10 @@ data:
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"
-  REDIS_URL: "redis://redis.aoep.internal:6379/0"
+  REDIS_URL: "redis://redis:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
-  # Default admin seeding (identity service). The identity store is in-memory, so
-  # it re-seeds this admin on every (re)start, making the platform usable out of
-  # the box. SEED_DEFAULT_ADMIN=0 disables it. The PASSWORD lives in the Secret
-  # (aoep-secrets/DEFAULT_ADMIN_PASSWORD) - rotate it for any real deployment.
+  # Default admin seeding (identity service). Accounts persist to Redis when
+  # REDIS_URL is set so multi-replica identity pods share the same members.
   SEED_DEFAULT_ADMIN: "1"
   DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
   DEFAULT_ADMIN_USERNAME: "admin"
@@ -56,6 +54,10 @@ data:
   NEXT_PUBLIC_PLAY_STORE_URL: ""
   NEXT_PUBLIC_IOS_APP_URL: ""
   NEXT_PUBLIC_APP_STORE_URL: ""
+  # Server-side BFF for operator admins (Next.js API routes proxy to memory/identity).
+  ADMIN_SECRET: "dev-admin-secret"
+  IDENTITY_ORIGIN: "http://identity:8000"
+  MEMORY_ORIGIN: "http://memory:8000"
 ---
 # Placeholder secret. Replace values via your cluster's secret manager / CI.
 apiVersion: v1

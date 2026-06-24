@@ -82,3 +82,18 @@ def test_status_update_requires_enrollment():
     tok = _signup("noenr@example.com")["token"]
     r = client.post("/enrollments/ghost/status", headers=_auth(tok), json={"status": "passed"})
     assert r.status_code == 404
+
+
+def test_admin_accounts_forbidden_for_regular_user():
+    tok = _signup("regular@test.com")["token"]
+    assert client.get("/admin/accounts", headers=_auth(tok)).status_code == 403
+
+
+def test_admin_accounts_list_for_operator():
+    app.state.accounts.seed_admin("operator@test.com", "Secret123")
+    tok = client.post("/auth/login", json={"email": "operator@test.com", "password": "Secret123"}).json()["token"]
+    r = client.get("/admin/accounts", headers=_auth(tok))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] >= 1
+    assert any(a["email"] == "operator@test.com" for a in body["accounts"])

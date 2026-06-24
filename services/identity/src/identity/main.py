@@ -19,9 +19,11 @@ from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
+from .persistence import load_from_redis
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+load_from_redis(app.state.accounts)
 
 # Seed a default admin account so the platform is usable out of the box (and the
 # operator can reach admin-only surfaces). Idempotent; configurable; disable with
@@ -59,6 +61,13 @@ def current_account(authorization: str = Header(default="")):
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
+    return acct
+
+
+def require_admin_account(acct=Depends(current_account)):
+    """Operator accounts (is_admin) for admin-only read APIs."""
+    if not acct.is_admin:
+        raise HTTPException(status_code=403, detail="admin access required")
     return acct
 
 
@@ -135,6 +144,14 @@ def login(req: LoginRequest) -> dict:
 @app.get("/auth/me")
 def me(acct=Depends(current_account)) -> dict:
     return acct.public()
+
+
+@app.get("/admin/accounts")
+def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
+    """List every member account (operator admin UI)."""
+    rows = [a.public() for a in app.state.accounts.list_all_accounts()]
+    rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
+    return {"accounts": rows, "count": len(rows)}
 
 
 class PasswordChange(BaseModel):
