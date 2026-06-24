@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1
+# Build context MUST be the repo root (not apps/web): COPY paths below are
+# apps/web/... — see .github/workflows/deploy.yml build-web job (context: .).
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY apps/web/package.json apps/web/package-lock.json* ./

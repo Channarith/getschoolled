@@ -72,10 +72,8 @@ jobs:
           fi
           echo "Deploy secrets present (registry login + kubeconfig)."
 
-  build-push:
+  build-backend:
     needs: preflight
-    # Skip auto-deploy on push unless AUTO_DEPLOY is explicitly enabled; always
-    # allow manual runs.
     if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     strategy:
@@ -91,7 +89,6 @@ jobs:
           - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
           - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
           - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
-          - { name: web,          dockerfile: apps/web/Dockerfile,              context: apps/web }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -116,9 +113,44 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: [preflight, build-push]
+  build-web:
+    needs: preflight
     if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Vultr Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_LOGIN }}
+          username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build + push web
+        uses: docker/build-push-action@v6
+        with:
+          # apps/web/Dockerfile COPY paths are relative to the REPO ROOT (apps/web/...),
+          # not apps/web itself — using context: . here was the CI failure.
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/web:latest
+            ${{ env.REGISTRY }}/web:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [preflight, build-backend, build-web]
+    # Roll backend services whenever backend builds succeed, even if the web
+    # image build failed (so identity/orchestrator fixes still reach the cluster).
+    if: >-
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.build-backend.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,15 +164,27 @@ jobs:
       - name: Roll deployments to the new tag
         env:
           TAG: ${{ github.event.inputs.tag || github.sha }}
+          WEB_BUILT: ${{ needs.build-web.result == 'success' }}
         run: |
           set -euo pipefail
-          for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
+          BACKEND="orchestrator speech perception memory curriculum billing identity integrations harvester"
+          for svc in $BACKEND; do
             echo "::group::$svc"
-            # Container names match the deployment name in infra/k8s.
             kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" --record || \
               echo "deployment/$svc not found (skipping)"
             echo "::endgroup::"
           done
-          for svc in orchestrator speech perception memory curriculum billing identity integrations web; do
+          if [ "$WEB_BUILT" = "true" ]; then
+            echo "::group::web"
+            kubectl -n aoep set image "deployment/web" "web=${REGISTRY}/web:${TAG}" --record || \
+              echo "deployment/web not found (skipping)"
+            echo "::endgroup::"
+          else
+            echo "::warning::web image build failed; skipping web rollout (backend still updated)"
+          fi
+          for svc in orchestrator speech perception memory curriculum billing identity integrations; do
             kubectl -n aoep rollout status "deployment/$svc" --timeout=240s || true
           done
+          if [ "$WEB_BUILT" = "true" ]; then
+            kubectl -n aoep rollout status "deployment/web" --timeout=240s || true
+          fi
