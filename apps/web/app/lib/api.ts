@@ -267,6 +267,11 @@ export async function setEnrollmentStatus(
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
   mastery: Record<string, number>; completed_course_ids: string[]; interests: string[];
+  primary_style?: string; learning_pace?: string; learning_structure?: string;
+  session_length?: string; group_preference?: string; reading_level?: string;
+  motivation?: string; accessibility?: Record<string, boolean>;
+  accommodations_notes?: string; learner_category?: string;
+  onboarding_completed_at?: number | null;
 };
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -874,7 +879,10 @@ export async function adminSetFlag(
 export type SurveyQuestion = {
   id: string; type: string; prompt: string; options: string[]; required: boolean;
 };
-export type SurveyTemplate = { version: string; title: string; questions: SurveyQuestion[] };
+export type SurveyTemplate = {
+  version: string; title: string; subtitle?: string; questions: SurveyQuestion[];
+  categories?: string[];
+};
 
 export async function getPostClassSurvey(
   subject?: string, tier?: string
@@ -895,6 +903,40 @@ export async function submitPostClassSurvey(payload: {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
+    })
+  );
+}
+
+// --- one-time onboarding learning survey (post-signup) ------------------- //
+export async function getOnboardingSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/onboarding?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitOnboardingSurveyAnalytics(payload: {
+  account_id: string; student_id: string; answers: Record<string, unknown>;
+}): Promise<{ id: string; recorded: boolean; learner_category: string }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/onboarding`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function submitLearningProfile(
+  studentId: string, answers: Record<string, unknown>
+): Promise<{ student: StudentProfile; learner_category: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-profile`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ answers }),
     })
   );
 }

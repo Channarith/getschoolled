@@ -174,3 +174,36 @@ def signals_from_events(
         attention_trend=_clamp01(attn_trend),
         question_rate=rate,
     )
+
+
+def pacing_from_declared_profile(
+    *,
+    pace: str = "moderate",
+    reading_level: str = "intermediate",
+    primary_style: str = "mixed",
+) -> PacingPlan:
+    """Cold-start adaptive hints before behavioral signals exist (onboarding survey)."""
+    reasons = ["onboarding_profile"]
+    pacing = Pacing.NORMAL
+    difficulty = Difficulty.MEDIUM
+
+    if pace == "slow":
+        pacing = Pacing.SLOW
+        difficulty = Difficulty.EASY
+        reasons.append("declared_slow_pace")
+    elif pace == "fast":
+        pacing = Pacing.FAST
+        difficulty = Difficulty.MEDIUM
+        reasons.append("declared_fast_pace")
+
+    if reading_level == "beginner":
+        difficulty = Difficulty.EASY
+        reasons.append("beginner_reading_level")
+    elif reading_level == "advanced" and pace != "slow":
+        difficulty = Difficulty.HARD
+        reasons.append("advanced_reading_level")
+
+    if primary_style == "hands_on":
+        reasons.append("hands_on_preference")
+
+    return PacingPlan(pacing=pacing, difficulty=difficulty, reteach=False, reasons=reasons)

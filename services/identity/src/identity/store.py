@@ -74,6 +74,18 @@ class StudentProfile(BaseModel):
     completed_course_ids: List[str] = Field(default_factory=list)
     interests: List[str] = Field(default_factory=list)
     class_contexts: List[ClassContext] = Field(default_factory=list)
+    # One-time onboarding learning-behavior survey (modalities, pace, accessibility).
+    primary_style: str = "mixed"
+    learning_pace: str = "moderate"
+    learning_structure: str = "step_by_step"
+    session_length: str = "medium"
+    group_preference: str = "either"
+    reading_level: str = "intermediate"
+    motivation: str = "personal"
+    accessibility: Dict[str, bool] = Field(default_factory=dict)
+    accommodations_notes: str = ""
+    learner_category: str = ""
+    onboarding_completed_at: Optional[float] = None
     created_at: float = Field(default_factory=lambda: time.time())
 
 
@@ -380,6 +392,33 @@ class AccountStore:
         acct.students[prof.id] = prof
         self._persist()
         return prof
+
+    def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
+        """Persist onboarding survey results on a student profile."""
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        prof.primary_style = profile.primary_style
+        prof.learning_pace = profile.pace
+        prof.learning_structure = profile.structure
+        prof.session_length = profile.session_length
+        prof.group_preference = profile.group_preference
+        prof.reading_level = profile.reading_level
+        prof.motivation = profile.motivation
+        prof.accessibility = dict(profile.accessibility)
+        prof.accommodations_notes = profile.accommodations_notes
+        prof.learner_category = profile.learner_category
+        prof.onboarding_completed_at = profile.completed_at
+        self._persist()
+        return prof
+
+    def ensure_default_student(self, account_id: str) -> StudentProfile:
+        """Create a primary student profile if the account has none (post-signup)."""
+        acct = self._by_id[account_id]
+        if acct.students:
+            return next(iter(acct.students.values()))
+        name = acct.display_name or acct.email.split("@")[0]
+        return self.add_student(account_id, name, age_band="adult")
 
     def list_students(self, account_id: str) -> List[StudentProfile]:
         return list(self._by_id[account_id].students.values())

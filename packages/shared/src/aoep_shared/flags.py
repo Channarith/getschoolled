@@ -54,6 +54,10 @@ FLAG_CATALOG: List[FlagSpec] = [
     FlagSpec("engagement.post_class_survey", FlagType.BOOL, False, "engagement",
              "Show an optional one-time survey at the end of a class to gauge how "
              "good the course was; results feed course improvement + data mining."),
+    FlagSpec("engagement.onboarding_survey", FlagType.BOOL, True, "engagement",
+             "Show a one-time learning-behavior survey after signup to measure "
+             "modalities, pace, structure, and accessibility needs; adapts courses "
+             "and assigns learner categories."),
     FlagSpec("engagement.nps_survey", FlagType.BOOL, False, "engagement",
              "Periodic Net Promoter Score survey for the platform."),
     FlagSpec("engagement.in_class_polls", FlagType.BOOL, False, "engagement",
