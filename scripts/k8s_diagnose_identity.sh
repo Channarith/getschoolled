@@ -102,11 +102,28 @@ echo ""
 echo "-- Ops reseed (updates LIVE uvicorn memory) --"
 echo "ADMIN_SECRET=${ADMIN_SECRET}"
 for p in $(kubectl -n "$NS" get pods -l app=identity -o jsonpath='{.items[*].metadata.name}'); do
-  echo -n "pod $p ops-reseed: "
-  kubectl -n "$NS" exec "$p" -- curl -s -o /dev/null -w "%{http_code}" -X POST \
-    "http://127.0.0.1:8000/admin/ops/reseed-seeded" \
-    -H "X-Admin-Secret: ${ADMIN_SECRET}" || echo "curl failed"
-  echo ""
+  echo "pod $p ops-reseed:"
+  kubectl -n "$NS" exec "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY' || true
+import json
+import os
+import urllib.error
+import urllib.request
+
+secret = os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+req = urllib.request.Request(
+    "http://127.0.0.1:8000/admin/ops/reseed-seeded",
+    data=b"",
+    headers={"X-Admin-Secret": secret},
+    method="POST",
+)
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        print(resp.status, resp.read().decode())
+except urllib.error.HTTPError as exc:
+    print(f"HTTP {exc.code}: {exc.read().decode()[:400]}")
+except Exception as exc:
+    print(f"ERROR: {exc}")
+PY
 done
 
 echo ""

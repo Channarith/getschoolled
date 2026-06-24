@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Identity ops-reseed reloads Redis before bootstrap; returns login_ok
+  for the live uvicorn store. scripts/k8s_diagnose_identity.sh compares Redis vs
+  HTTP login on every pod and probes /admin/ops/reseed-seeded.
 - 2026-06-24 - Fix QA login after k8s reseed (Redis OK but browser still 401).
   The reseed Python script ran in a separate process — login_ok there did not
   update live uvicorn workers. k8s_reseed_accounts.sh now ops-reseeds every
