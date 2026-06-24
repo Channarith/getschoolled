@@ -329,6 +329,15 @@ def submit_learning_profile(student_id: str, req: LearningProfileSubmit,
     }
 
 
+@app.post("/students/{student_id}/learning-profile/skip")
+def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.skip_learning_profile(acct.id, student_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "skipped": True}
+
+
 class MasteryUpdate(BaseModel):
     skill: str
     value: float

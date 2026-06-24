@@ -43,3 +43,15 @@ def test_submit_learning_profile_updates_student():
     prof = client.get(f"/students/{sid}", headers=h).json()
     assert prof["primary_style"] == "hands_on"
     assert prof["onboarding_completed_at"] is not None
+    assert prof["onboarding_answers"]["primary_style"] == _answers()["primary_style"]
+
+
+def test_skip_learning_profile_persists():
+    tok = _signup("skip@example.com")["token"]
+    h = {"Authorization": f"Bearer {tok}"}
+    sid = client.get("/students", headers=h).json()["students"][0]["id"]
+    r = client.post(f"/students/{sid}/learning-profile/skip", headers=h)
+    assert r.status_code == 200
+    prof = client.get(f"/students/{sid}", headers=h).json()
+    assert prof["onboarding_completed_at"] is not None
+    assert prof["learner_category"] == "skipped"

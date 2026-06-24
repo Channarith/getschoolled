@@ -304,6 +304,40 @@ def validate_onboarding_answers(answers: Dict[str, Any]) -> None:
         raise ValueError(f"missing required answers: {', '.join(missing)}")
 
 
+def _invert_choice_map(mapping: Dict[str, str]) -> Dict[str, str]:
+    return {v: k for k, v in mapping.items()}
+
+
+def survey_answers_from_profile_fields(profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Rebuild survey form values from persisted student profile fields."""
+    stored = profile.get("onboarding_answers") or {}
+    if stored:
+        return dict(stored)
+
+    style = _invert_choice_map(_STYLE_KEY).get(profile.get("primary_style", ""), "")
+    pace = _invert_choice_map(_PACE_KEY).get(profile.get("learning_pace", ""), "")
+    structure = _invert_choice_map(_STRUCTURE_KEY).get(profile.get("learning_structure", ""), "")
+    session = _invert_choice_map(_SESSION_KEY).get(profile.get("session_length", ""), "")
+    group = _invert_choice_map(_GROUP_KEY).get(profile.get("group_preference", ""), "")
+    reading = _invert_choice_map(_READING_KEY).get(profile.get("reading_level", ""), "")
+    motivation = _invert_choice_map(_MOTIVATION_KEY).get(profile.get("motivation", ""), "")
+    acc = profile.get("accessibility") or {}
+    return {
+        "primary_style": style,
+        "pace": pace,
+        "structure": structure,
+        "session_length": session,
+        "group_preference": group,
+        "reading_level": reading,
+        "motivation": motivation,
+        "needs_captions": bool(acc.get("needs_captions")),
+        "needs_large_text": bool(acc.get("needs_large_text")),
+        "needs_extra_time": bool(acc.get("needs_extra_time")),
+        "uses_assistive_tech": bool(acc.get("uses_assistive_tech")),
+        "accommodations_notes": profile.get("accommodations_notes") or "",
+    }
+
+
 class OnboardingSurveyStore:
     """Analytics store for onboarding completions."""
 

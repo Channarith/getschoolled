@@ -1,6 +1,5 @@
-# Manual VKE deploy for identity + memory + web (QA login / console 404 fixes).
+# Manual VKE deploy for identity + memory + web (QA login / survey / UI fixes).
 # No skip conditions — always runs when you click "Run workflow".
-# Web Docker build context is repo root (Dockerfile COPY apps/web/...).
 name: Deploy VKE (identity + web)
 
 on:
@@ -11,12 +10,12 @@ on:
         required: false
         default: ""
       include_memory:
-        description: "Also build and roll memory (fixes /memory/* 404s in browser console)"
+        description: "Also build and roll memory (flags, mascots, survey template)"
         type: boolean
         required: false
         default: true
       include_web:
-        description: "Also build and roll web (uncheck for identity-only QA fix)"
+        description: "Also build and roll web (uncheck for backend-only deploy)"
         type: boolean
         required: false
         default: true

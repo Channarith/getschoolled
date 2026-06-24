@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Probe memory pods for version + routes that the web app calls on every page load.
-# 404 on /flags/access.homework_grader, /mascots/resolve, or /survey/onboarding
-# usually means the cluster is still on an old memory image — run Deploy VKE with
-# include_memory enabled (or the full Deploy workflow).
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NS="${NAMESPACE:-aoep}"
 
 echo "=== memory pods ==="
@@ -38,7 +34,7 @@ checks = [
     ("GET", "/survey/onboarding?subject=test&tier=free", None),
 ]
 
-def probe(method: str, path: str, body: bytes | None) -> tuple[int, str]:
+def probe(method, path, body=None):
     req = urllib.request.Request(f"{BASE}{path}", data=body, method=method)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -58,10 +54,7 @@ for method, path, body in checks:
 
 if fail:
     print(
-        f"\n{fail} check(s) failed — memory image is likely stale.\n"
-        "GitHub Actions → Deploy VKE (identity + web) → Run workflow\n"
-        "  (leave include_memory checked, or run full Deploy workflow)\n"
-        "Then: kubectl -n aoep rollout restart deployment/memory",
+        f"\n{fail} check(s) failed — deploy memory (Deploy VKE with include_memory).",
         file=sys.stderr,
     )
     sys.exit(1)

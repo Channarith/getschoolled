@@ -18,6 +18,7 @@ import {
   type Portfolio,
   type StudentProfile,
 } from "../lib/api";
+import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
 
 const TIERS = ["free", "basic", "pro", "premium"];
 const STATUS_ORDER = ["in_progress", "enrolled", "saved", "passed", "failed"];
@@ -38,6 +39,7 @@ export default function AccountPage() {
   const [newStudent, setNewStudent] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
+  const [primaryStudent, setPrimaryStudent] = useState<StudentProfile | null>(null);
 
   async function refresh() {
     try {
@@ -64,9 +66,12 @@ export default function AccountPage() {
       setPoints(null);
     }
     try {
-      setStudents((await listStudents()).students);
+      const listed = (await listStudents()).students;
+      setStudents(listed);
+      setPrimaryStudent(listed[0] ?? null);
     } catch {
       setStudents([]);
+      setPrimaryStudent(null);
     }
   }
 
@@ -97,6 +102,11 @@ export default function AccountPage() {
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (getToken()) refresh();
+    function onProfileSaved() {
+      if (getToken()) refresh();
+    }
+    window.addEventListener("aoep-learning-profile-saved", onProfileSaved);
+    return () => window.removeEventListener("aoep-learning-profile-saved", onProfileSaved);
   }, []);
 
   if (!loggedIn) {
@@ -171,6 +181,30 @@ export default function AccountPage() {
               <Link href="/transparency"><button>Transparency</button></Link>
               <Link href="/legal"><button>Legal &amp; notices</button></Link>
             </div>
+          </div>
+
+          <div className="card">
+            <h3>Learning profile</h3>
+            {primaryStudent?.onboarding_completed_at ? (
+              <p className="muted" style={{ marginTop: 0 }}>
+                Saved to your account
+                {primaryStudent.learner_category && primaryStudent.learner_category !== "skipped" ? (
+                  <> — <strong>{primaryStudent.learner_category.replace(/_/g, " ")}</strong> learner</>
+                ) : primaryStudent.learner_category === "skipped" ? (
+                  <> — skipped (you can complete it anytime)</>
+                ) : null}
+              </p>
+            ) : (
+              <p className="muted" style={{ marginTop: 0 }}>
+                Not completed yet. The one-time survey helps us adapt courses to your style.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LEARNING_PROFILE_EVENT))}
+            >
+              {primaryStudent?.onboarding_completed_at ? "Update learning profile" : "Complete learning profile"}
+            </button>
           </div>
 
           <div className="card">
