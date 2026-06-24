@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from aoep_shared.auth import hash_password
 from aoep_shared.schemas import PlanTier
 
 from identity.qa_seed import QA_PERSONAS, seed_qa_accounts
@@ -46,3 +47,16 @@ def test_seed_qa_accounts_is_idempotent():
     assert [a.id for a in first] == [a.id for a in second]
     parent = next(a for a in second if a.email == "qa-parent@salareen.com")
     assert len(store.list_students(parent.id)) == 1
+
+
+def test_seed_qa_accounts_resets_password_on_restart():
+    store = AccountStore()
+    seed_qa_accounts(store, "QaTest123")
+    # Simulate a prior manual signup or stale Redis hash.
+    acct = store.by_email("qa-pro@salareen.com")
+    assert acct is not None
+    acct.password_hash = hash_password("wrong-password")
+    assert store.authenticate("qa-pro@salareen.com", "QaTest123") is None
+    seed_qa_accounts(store, "QaTest123")
+    assert store.authenticate("qa-pro@salareen.com", "QaTest123") is not None
+    assert store.authenticate("qa3", "QaTest123") is not None

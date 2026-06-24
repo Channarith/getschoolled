@@ -162,10 +162,12 @@ class AccountStore:
         region: Region = Region.US,
         username: str = "",
         is_admin: bool = False,
+        force_password: bool = False,
     ) -> Account:
         """Create (idempotently) a seeded account. Optionally registers a bare
-        username alias for login. Does not reset the password if the account
-        already exists."""
+        username alias for login. When ``force_password`` is True (QA personas),
+        always re-hash the password so known test credentials keep working after
+        Redis reloads or a prior manual signup with a different password."""
         email = email.strip().lower()
         alias = username.strip().lower()
         existing = self.by_email(email)
@@ -176,6 +178,10 @@ class AccountStore:
             existing.is_admin = existing.is_admin or is_admin
             if display_name:
                 existing.display_name = display_name
+            if force_password:
+                existing.password_hash = hash_password(password)
+            if alias and alias not in self._id_by_email:
+                self._id_by_email[alias] = existing.id
             self._persist()
             return existing
         acct = Account(

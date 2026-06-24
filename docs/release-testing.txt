@@ -128,6 +128,12 @@ QaTest123). Log in with the email OR the short username alias.
 Operator admin (separate): admin@salareen.com or "admin" / DEFAULT_ADMIN_PASSWORD
 (default 88888888). Not a QA persona — use only for operator/admin surfaces.
 
+If QA login returns 401 after a deploy: restart identity so startup seed runs
+(`kubectl -n aoep rollout restart deployment/identity`). QA passwords are
+re-synced to QA_ACCOUNTS_PASSWORD on every identity pod start. Verify routing
+with `curl -s http://<host>/identity/health` (should be 200, not 404).
+Try email OR username alias (qa1 / qa2 / qa3).
+
 ============================================================================
 5. MANUAL GUI SMOKE MATRIX (per release, per sub-app)
 ============================================================================
