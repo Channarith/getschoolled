@@ -64,3 +64,8 @@ coverage/
 
 # ---- Root design assets (not source) ----
 /Generated_image*.png
+
+# ---- Local-only (never commit/push) ----
+/local/
+/CLAUDE.md
+.gstack/
