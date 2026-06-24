@@ -1,82 +1,105 @@
 #!/usr/bin/env python3
-"""Generate locale-specific Bayon Buddy SVG mascots for all 27 languages."""
+"""Generate photo-realistic locale Bayon Buddy WebP mascots (27 languages).
+
+The Khmer (km) master is apps/web/public/bayon-mark.webp — the canonical
+stone-carving Salareen mascot. Other locales are the same carving with subtle
+stone hue / warmth / brightness shifts so each language feels distinct while
+staying photo-realistic.
+"""
 
 from __future__ import annotations
 
+import colorsys
+import shutil
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "packages" / "shared" / "src"))
 
-from aoep_shared.mascots import MASCOT_CATALOG  # noqa: E402
+from aoep_shared.mascots import MASCOT_CATALOG, MascotVariant  # noqa: E402
 
+MASTER = ROOT / "apps" / "web" / "public" / "bayon-mark.webp"
 WEB_OUT = ROOT / "apps" / "web" / "public" / "mascots"
 MOBILE_OUT = ROOT / "apps" / "mobile" / "assets" / "mascots"
+MOBILE_TS = ROOT / "apps" / "mobile" / "src" / "mascots" / "imageAssets.ts"
 
 
-def _svg_body(v) -> str:
-    """Bayon-inspired serene face + S-curve body + bodhi leaf (secular mascot)."""
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 360" role="img" aria-label="Salareen Bayon Buddy — {v.region}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0b1020" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#0b1020" stop-opacity="0.15"/>
-    </linearGradient>
-    <linearGradient id="robe" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="{v.robe}"/>
-      <stop offset="100%" stop-color="{v.accent}"/>
-    </linearGradient>
-  </defs>
-  <rect width="200" height="360" fill="url(#bg)"/>
-  <!-- Bodhi leaf -->
-  <path d="M148 250 C170 220 185 195 175 170 C165 150 140 155 128 175 C116 195 125 230 148 250 Z" fill="#16a34a" opacity="0.9"/>
-  <path d="M128 175 C135 190 140 210 148 250" fill="none" stroke="#065f46" stroke-width="2"/>
-  <!-- S-curve body / robe -->
-  <path d="M72 150 C55 190 58 240 78 280 C95 312 118 328 128 340 C138 328 158 310 170 270 C182 230 175 190 158 150 Z" fill="url(#robe)"/>
-  <!-- Cultural band -->
-  <rect x="68" y="248" width="120" height="18" rx="6" fill="{v.accent}" opacity="0.85"/>
-  <text x="128" y="261" text-anchor="middle" font-size="8" fill="#fff" font-family="sans-serif">{v.pattern}</text>
-  <!-- Face (Bayon serene smile) -->
-  <ellipse cx="128" cy="108" rx="58" ry="62" fill="{v.skin_tone}"/>
-  <ellipse cx="128" cy="112" rx="52" ry="54" fill="{v.skin_tone}" opacity="0.95"/>
-  <!-- Closed serene eyes -->
-  <path d="M96 104 Q108 98 120 104" fill="none" stroke="#5c3d2e" stroke-width="3" stroke-linecap="round"/>
-  <path d="M136 104 Q148 98 160 104" fill="none" stroke="#5c3d2e" stroke-width="3" stroke-linecap="round"/>
-  <!-- Gentle smile -->
-  <path d="M108 128 Q128 138 148 128" fill="none" stroke="#5c3d2e" stroke-width="3" stroke-linecap="round"/>
-  <!-- Headpiece hint -->
-  <text x="128" y="58" text-anchor="middle" font-size="9" fill="{v.accent}" font-family="sans-serif">{v.headpiece}</text>
-  <!-- Gold S medallion -->
-  <circle cx="128" cy="210" r="22" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
-  <text x="128" y="217" text-anchor="middle" font-size="22" font-weight="700" fill="#78350f" font-family="Georgia, serif">S</text>
-  <!-- Locale badge -->
-  <rect x="8" y="8" width="44" height="20" rx="6" fill="{v.robe}" opacity="0.9"/>
-  <text x="30" y="22" text-anchor="middle" font-size="11" fill="#fff" font-family="sans-serif">{v.locale.upper()}</text>
-</svg>
-"""
+def _apply_stone_tint(img, variant: MascotVariant):
+    from PIL import Image
+
+    rgba = img.convert("RGBA")
+    pixels = rgba.load()
+    hs = variant.stone_hue_shift / 360.0
+    sat_m = variant.stone_sat_mult
+    bright_m = variant.stone_bright_mult
+    warmth = variant.stone_warmth
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = pixels[x, y]
+            if a < 8:
+                continue
+            rf, gf, bf = r / 255.0, g / 255.0, b / 255.0
+            hue, sat, val = colorsys.rgb_to_hsv(rf, gf, bf)
+            hue = (hue + hs) % 1.0
+            sat = max(0.0, min(1.0, sat * sat_m))
+            val = max(0.0, min(1.0, val * bright_m))
+            rf, gf, bf = colorsys.hsv_to_rgb(hue, sat, val)
+            r, g, b = int(rf * 255), int(gf * 255), int(bf * 255)
+            if warmth > 0:
+                r = min(255, int(r + warmth * 30))
+                b = max(0, int(b - warmth * 20))
+            elif warmth < 0:
+                b = min(255, int(b - warmth * 24))
+                r = max(0, int(r + warmth * 14))
+            pixels[x, y] = (r, g, b, a)
+    return rgba
+
+
+def _render_variant(variant: MascotVariant, master):
+    from PIL import Image
+
+    if variant.locale == "km":
+        return master.copy()
+    return _apply_stone_tint(master, variant)
 
 
 def main() -> None:
+    if not MASTER.is_file():
+        raise SystemExit(f"missing master mascot: {MASTER}")
+
+    from PIL import Image
+
     WEB_OUT.mkdir(parents=True, exist_ok=True)
     MOBILE_OUT.mkdir(parents=True, exist_ok=True)
-    mobile_ts = ROOT / "apps" / "mobile" / "src" / "mascots" / "svgContent.ts"
-    mobile_ts.parent.mkdir(parents=True, exist_ok=True)
+    MOBILE_TS.parent.mkdir(parents=True, exist_ok=True)
+
+    master = Image.open(MASTER)
     entries: list[str] = []
+
+    for old in WEB_OUT.glob("*.svg"):
+        old.unlink()
+
     for locale, variant in sorted(MASCOT_CATALOG.items()):
-        svg = _svg_body(variant)
-        (WEB_OUT / f"{locale}.svg").write_text(svg, encoding="utf-8")
-        (MOBILE_OUT / f"{locale}.svg").write_text(svg, encoding="utf-8")
-        escaped = svg.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
-        entries.append(f'  "{locale}": `{escaped}`,')
-    mobile_ts.write_text(
+        web_path = WEB_OUT / f"{locale}.webp"
+        mobile_path = MOBILE_OUT / f"{locale}.webp"
+        if variant.locale == "km":
+            shutil.copy2(MASTER, web_path)
+        else:
+            out = _render_variant(variant, master)
+            out.save(web_path, format="WEBP", quality=92, method=6)
+        shutil.copy2(web_path, mobile_path)
+        entries.append(f'  {locale}: require("../../assets/mascots/{locale}.webp"),')
+
+    MOBILE_TS.write_text(
         "// Auto-generated by scripts/generate_locale_mascots.py — do not edit.\n"
-        "export const MASCOT_SVG: Record<string, string> = {\n"
+        "export const MASCOT_IMAGES: Record<string, number> = {\n"
         + "\n".join(entries)
         + "\n};\n",
         encoding="utf-8",
     )
-    print(f"Generated {len(MASCOT_CATALOG)} locale mascots -> {WEB_OUT}")
+    print(f"Generated {len(MASCOT_CATALOG)} photo-realistic locale mascots -> {WEB_OUT}")
 
 
 if __name__ == "__main__":

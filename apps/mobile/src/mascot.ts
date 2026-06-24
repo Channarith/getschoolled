@@ -1,6 +1,7 @@
-import { MASCOT_SVG } from "./mascots/svgContent";
+import { MASCOT_IMAGES } from "./mascots/imageAssets";
 
 export const DEFAULT_MASCOT_LOCALE = "en";
+export const DEFAULT_MASCOT_ASSET = require("../../assets/salareen_mark_256.png");
 
 export type MascotResolve = {
   enabled: boolean;
@@ -15,7 +16,7 @@ export type MascotResolve = {
   };
 };
 
-const LOCALES = Object.keys(MASCOT_SVG);
+const LOCALES = Object.keys(MASCOT_IMAGES);
 
 /** Normalize a BCP-47 tag to a supported mascot locale code. */
 export function normalizeMascotLocale(locale: string | null | undefined): string {
@@ -28,23 +29,21 @@ export function resolveMascotLocal(
   locale: string,
   opts?: { enabled?: boolean; previewLocale?: string | null },
 ): MascotResolve {
-  const enabled = opts?.enabled !== false;
-  if (!enabled) {
+  if (opts?.enabled === false) {
     return { enabled: false, locale: DEFAULT_MASCOT_LOCALE, path: "", localized: false };
   }
   const code = normalizeMascotLocale(opts?.previewLocale || locale);
   return {
     enabled: true,
     locale: code,
-    path: `/mascots/${code}.svg`,
+    path: `/mascots/${code}.webp`,
     localized: true,
     variant: { locale: code, region: code.toUpperCase(), cultural_theme: "" },
   };
 }
 
-/** Return embedded SVG markup for a locale (bundled offline). */
-export function mascotSvgForLocale(locale: string, opts?: { enabled?: boolean }): string {
-  if (opts?.enabled === false) return MASCOT_SVG[DEFAULT_MASCOT_LOCALE];
+export function mascotImageForLocale(locale: string, opts?: { enabled?: boolean }): number {
+  if (opts?.enabled === false) return DEFAULT_MASCOT_ASSET;
   const code = normalizeMascotLocale(locale);
-  return MASCOT_SVG[code] || MASCOT_SVG[DEFAULT_MASCOT_LOCALE];
+  return MASCOT_IMAGES[code] || MASCOT_IMAGES[DEFAULT_MASCOT_LOCALE];
 }

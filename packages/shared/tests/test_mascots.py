@@ -25,14 +25,14 @@ def test_normalize_mascot_locale():
 
 
 def test_mascot_asset_path():
-    assert mascot_asset_path("fr") == "/mascots/fr.svg"
-    assert mascot_asset_path("en-US") == "/mascots/en.svg"
+    assert mascot_asset_path("fr") == "/mascots/fr.webp"
+    assert mascot_asset_path("en-US") == "/mascots/en.webp"
 
 
 def test_resolve_mascot_enabled():
     r = resolve_mascot("ko")
     assert r["locale"] == "ko"
-    assert r["path"] == "/mascots/ko.svg"
+    assert r["path"] == "/mascots/ko.webp"
     assert r["localized"] is True
     assert r["variant"]["cultural_theme"] == "Seowon student"
 
@@ -40,7 +40,7 @@ def test_resolve_mascot_enabled():
 def test_resolve_mascot_preview_override():
     r = resolve_mascot("en", preview_locale="th")
     assert r["locale"] == "th"
-    assert r["path"] == "/mascots/th.svg"
+    assert r["path"] == "/mascots/th.webp"
 
 
 def test_resolve_mascot_disabled():

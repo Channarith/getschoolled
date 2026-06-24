@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Photo-realistic locale mascots (27 languages). Replaced flat SVG
+  variants with WebP renditions of the canonical stone-carving Bayon Buddy
+  (apps/web/public/bayon-mark.webp). Khmer (km) uses the master art unchanged;
+  other locales apply subtle stone hue/warmth shifts via
+  scripts/generate_locale_mascots.py. Mobile bundles WebP assets
+  (apps/mobile/src/mascots/imageAssets.ts).
 - 2026-06-24 - Fix localhost admin login and local service startup. Default admin
   seed now force-resyncs password on every identity startup (same as QA personas),
   so admin@salareen.com / DEFAULT_ADMIN_PASSWORD keeps working after manual

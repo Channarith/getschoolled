@@ -21,9 +21,9 @@ export function normalizeMascotLocale(locale: string | null | undefined): Locale
   return (LOCALES as readonly string[]).includes(base) ? (base as Locale) : "en";
 }
 
-/** Build the static asset path for a locale mascot SVG. */
+/** Build the static asset path for a locale mascot WebP. */
 export function mascotAssetPath(locale: string): string {
-  return `/mascots/${normalizeMascotLocale(locale)}.svg`;
+  return `/mascots/${normalizeMascotLocale(locale)}.webp`;
 }
 
 /** Client-side fallback when the memory service is unreachable. */

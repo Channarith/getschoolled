@@ -24,7 +24,7 @@ def test_mascots_resolve_follows_locale():
     assert r.status_code == 200
     body = r.json()
     assert body["locale"] == "vi"
-    assert body["path"] == "/mascots/vi.svg"
+    assert body["path"] == "/mascots/vi.webp"
     assert body["enabled"] is True
 
 
