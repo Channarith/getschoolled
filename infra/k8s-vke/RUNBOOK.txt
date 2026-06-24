@@ -171,6 +171,21 @@ Confirm the running image actually has the new code, e.g. the admin seed:
     python3 -c "import identity.store as s; print('seed_admin' in dir(s.AccountStore))"
   # expect: True   (then admin@salareen.com / 88888888 logs in)
 
+QA personas (qa-pro@ / qa3 / QaTest123) still 401 while admin works
+-------------------------------------------------------------------
+Usually QA accounts were not persisted to Redis on every replica. Pull latest
+identity (startup bootstrap + Redis retry), rollout restart, or reseed as admin:
+
+  kubectl -n aoep rollout restart deployment/identity
+  kubectl -n aoep rollout status deployment/identity
+
+  # optional one-shot (after logging in as admin in the browser, copy Bearer token):
+  curl -s -X POST http://<host>/identity/admin/accounts/reseed-seeded \
+    -H "Authorization: Bearer <admin-token>"
+
+Check the cluster secret matches the docs password:
+  kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
+
 Verify
 ------
   kubectl -n aoep get pods

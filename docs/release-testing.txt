@@ -128,10 +128,18 @@ QaTest123). Log in with the email OR the short username alias.
 Operator admin (separate): admin@salareen.com or "admin" / DEFAULT_ADMIN_PASSWORD
 (default 88888888). Not a QA persona — use only for operator/admin surfaces.
 
-If QA login returns 401 after a deploy: restart identity so startup seed runs
-(`kubectl -n aoep rollout restart deployment/identity`). QA passwords are
-re-synced to QA_ACCOUNTS_PASSWORD on every identity pod start. Verify routing
-with `curl -s http://<host>/identity/health` (should be 200, not 404).
+If QA login returns 401 but admin works: QA accounts may exist only on one
+identity pod (Redis persist failed at seed time) or QA_ACCOUNTS_PASSWORD in the
+cluster Secret differs from QaTest123. Fix:
+
+  1) Confirm secret: kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
+  2) Restart identity: kubectl -n aoep rollout restart deployment/identity
+  3) Or log in as admin, then POST /identity/admin/accounts/reseed-seeded (Bearer
+     admin token) to force re-sync + Redis persist.
+  4) Verify QA in admin account list: GET /identity/admin/accounts (admin token).
+
+QA passwords are re-synced to QA_ACCOUNTS_PASSWORD on every identity pod start.
+Verify routing with `curl -s http://<host>/identity/health` (should be 200, not 404).
 Try email OR username alias (qa1 / qa2 / qa3).
 
 ============================================================================

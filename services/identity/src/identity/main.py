@@ -25,24 +25,22 @@ app = create_service("identity")
 app.state.accounts = AccountStore()
 load_from_redis(app.state.accounts)
 
-# Seed a default admin account so the platform is usable out of the box (and the
-# operator can reach admin-only surfaces). Idempotent; configurable; disable with
-# SEED_DEFAULT_ADMIN=0. CHANGE THE PASSWORD for any real deployment.
-if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
-    app.state.accounts.seed_admin(
-        os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@salareen.com"),
-        os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
-        username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
-    )
-# Three fixed QA personas for manual / release testing (free learner, parent+child,
-# Pro tier). Idempotent; disable with SEED_QA_ACCOUNTS=0.
-if os.environ.get("SEED_QA_ACCOUNTS", "1").lower() in ("1", "true", "yes"):
-    from .qa_seed import seed_qa_accounts
 
-    seed_qa_accounts(
-        app.state.accounts,
-        os.environ.get("QA_ACCOUNTS_PASSWORD", "QaTest123"),
-    )
+def _bootstrap_on_startup() -> None:
+    import logging
+
+    from .bootstrap import bootstrap_accounts
+    from .persistence import save_to_redis_with_retry
+
+    stats = bootstrap_accounts(app.state.accounts)
+    if not save_to_redis_with_retry(app.state.accounts):
+        logging.getLogger(__name__).error(
+            "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
+
+
+@app.on_event("startup")
+def _startup_seed_accounts() -> None:
+    _bootstrap_on_startup()
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()
@@ -153,6 +151,17 @@ def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
     rows = [a.public() for a in app.state.accounts.list_all_accounts()]
     rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
     return {"accounts": rows, "count": len(rows)}
+
+
+@app.post("/admin/accounts/reseed-seeded")
+def admin_reseed_seeded(_acct=Depends(require_admin_account)) -> dict:
+    """Re-sync default admin + QA personas and persist to Redis (multi-replica fix)."""
+    from .bootstrap import bootstrap_accounts
+    from .persistence import save_to_redis_with_retry
+
+    stats = bootstrap_accounts(app.state.accounts)
+    persisted = save_to_redis_with_retry(app.state.accounts)
+    return {"reseeded": True, "stats": stats, "persisted": persisted}
 
 
 class PasswordChange(BaseModel):

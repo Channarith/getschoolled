@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -19,6 +20,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 REDIS_KEY = "aoep:identity:v1:state"
+
+
+def redis_configured() -> bool:
+    return bool(os.environ.get("REDIS_URL", "").strip())
 
 
 def _redis_client():
@@ -127,14 +132,28 @@ def load_from_redis(store: "AccountStore") -> bool:
         return False
 
 
-def save_to_redis(store: "AccountStore") -> None:
+def save_to_redis(store: "AccountStore") -> bool:
     client = _redis_client()
     if client is None:
-        return
+        return not redis_configured()
     try:
         client.set(REDIS_KEY, json.dumps(dump_state(store)))
+        return True
     except Exception as exc:
         logger.warning("failed to persist identity store to Redis (%s)", exc)
+        return False
+
+
+def save_to_redis_with_retry(store: "AccountStore", *, attempts: int = 5, delay_s: float = 0.4) -> bool:
+    """Persist with short retries so multi-replica pods share seeded QA/admin accounts."""
+    if not redis_configured():
+        return True
+    for attempt in range(1, attempts + 1):
+        if save_to_redis(store):
+            return True
+        if attempt < attempts:
+            time.sleep(delay_s)
+    return False
 
 
 def persist_hook(store: "AccountStore") -> None:
