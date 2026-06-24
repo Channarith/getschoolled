@@ -85,12 +85,26 @@ def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
 
 
 def _run_reseed_seeded() -> dict:
-    from .bootstrap import bootstrap_accounts
-    from .persistence import save_to_redis_with_retry
+    from .bootstrap import bootstrap_accounts, env_seed_password
+    from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
 
+    load_from_redis_with_retry(app.state.accounts)
     stats = bootstrap_accounts(app.state.accounts)
     persisted = save_to_redis_with_retry(app.state.accounts)
-    return {"reseeded": True, "stats": stats, "persisted": persisted}
+    qa_pw = env_seed_password("QA_ACCOUNTS_PASSWORD", "QaTest123")
+    admin_pw = env_seed_password("DEFAULT_ADMIN_PASSWORD", "88888888")
+    login_ok = {
+        "admin@salareen.com": app.state.accounts.authenticate("admin@salareen.com", admin_pw) is not None,
+        "qa-pro@salareen.com": app.state.accounts.authenticate("qa-pro@salareen.com", qa_pw) is not None,
+        "qa3": app.state.accounts.authenticate("qa3", qa_pw) is not None,
+    }
+    return {
+        "reseeded": True,
+        "stats": stats,
+        "persisted": persisted,
+        "accounts": len(app.state.accounts._by_id),
+        "login_ok": login_ok,
+    }
 
 
 PROFILE_SHARE_SCOPES = {"profile", "interests", "mastery", "completions", "class_context"}

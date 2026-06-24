@@ -22,6 +22,11 @@ def test_ops_reseed_seeded_with_admin_secret(monkeypatch):
     body = r.json()
     assert body["reseeded"] is True
     assert body["stats"]["qa_count"] == 3
+    assert body.get("login_ok", {}).get("qa-pro@salareen.com") is True
+    # Running server (TestClient) must accept login after ops reseed.
+    login = client.post("/auth/login", json={"email": "qa-pro@salareen.com", "password": "QaTest123"})
+    assert login.status_code == 200
+    assert login.json().get("token")
 
 
 def test_ops_reseed_rejects_bad_secret(monkeypatch):
