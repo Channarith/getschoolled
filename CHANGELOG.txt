@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Mobile emulator docs (macOS). README + apps/mobile/RUN.txt now
+  distinguish Expo Go (pnpm run start:ios / start:android — fastest) from native
+  dev builds (pnpm ios / android). Added macOS Xcode + Android Studio setup,
+  ANDROID_HOME, and a troubleshooting section for simulators that won't launch.
+
 - 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
   the default-admin seed into release config. Root cause of "code is on main but
   the live site behaves like an old build" (e.g. admin login 401 on a deployed

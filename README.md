@@ -499,8 +499,45 @@ The Expo app supports Android and iOS with:
 
 ### Set up, run, and build the mobile app
 
-Prerequisites: Node 18+ and `pnpm` (`npm i -g pnpm`); for live dev, Expo Go on
-your phone, an Android emulator (Android Studio), or the iOS Simulator (Xcode).
+Prerequisites: Node 18+ and `pnpm` (`npm i -g pnpm`). For a **simulator /
+emulator on macOS**, install **Xcode** (iOS Simulator) and/or **Android Studio**
+(Android Virtual Device). Full step-by-step + troubleshooting:
+**`apps/mobile/RUN.txt`**.
+
+Two ways to run locally — pick one:
+
+| Goal | Command | Needs |
+|------|---------|-------|
+| **Fastest** — Expo Go in simulator/emulator (hot reload) | `pnpm run start:ios` or `pnpm run start:android` | Xcode Simulator or a running Android AVD |
+| **Native dev build** — compiles `ios/` / `android/` locally | `pnpm ios` or `pnpm android` | Xcode + CocoaPods (iOS) or Android SDK + JDK (Android); first run runs `prebuild` |
+
+**macOS — iOS Simulator (recommended first try)**
+
+```bash
+# One-time: install Xcode from the App Store, open it once, accept the license.
+# Optional check:
+xcode-select -p && xcrun simctl list devices available | head
+
+cd apps/mobile
+pnpm install                 # or: make mobile-install
+pnpm run start:ios           # starts Metro and opens the iOS Simulator (Expo Go)
+# Or: pnpm start  then press  i  in the terminal
+```
+
+**macOS — Android emulator**
+
+```bash
+# One-time: install Android Studio -> Device Manager -> Create Virtual Device (e.g. Pixel 7).
+# Add to ~/.zshrc (Apple Silicon paths shown; Intel is the same):
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+
+# Boot an AVD (or start it from Android Studio), then:
+cd apps/mobile
+pnpm install
+pnpm run start:android       # starts Metro and opens the app on the emulator
+# Or: pnpm android           # native build (slower; runs prebuild + Gradle on first launch)
+```
 
 ```bash
 # 1. Install (one-time)
@@ -508,9 +545,11 @@ cd apps/mobile
 pnpm install                 # or: make mobile-install
 
 # 2. Run / launch in development (hot-reload)
-pnpm start                   # opens Expo Dev Tools; scan the QR with Expo Go
-pnpm android                 # launch on an Android emulator/device
-pnpm ios                     # launch on the iOS Simulator (macOS)
+pnpm start                   # Metro; press i (iOS) or a (Android) in the terminal
+pnpm run start:ios           # Expo Go on iOS Simulator (macOS) — easiest on a Mac
+pnpm run start:android       # Expo Go on Android emulator/device
+pnpm ios                     # native iOS dev build (expo run:ios; first run is slow)
+pnpm android                 # native Android dev build (expo run:android)
 pnpm run web                 # run the app in a browser
 
 # 3. Typecheck
@@ -527,15 +566,24 @@ pnpm run eas:build:ios                   # production IPA (needs Apple Developer
 ```
 
 Backend URL: the app reads the API from `app.json` -> `expo.extra.curriculumUrl`.
-On a physical device `localhost` is the phone, so point it at your machine's LAN
-IP (e.g. `http://192.168.1.20:8005`) or your deployed backend, and make sure the
-curriculum service is running (`uvicorn curriculum.main:app --port 8005`).
+On a **simulator**, `http://localhost:8005` reaches your Mac. On a **physical
+device**, `localhost` is the phone — use your Mac's LAN IP (e.g.
+`http://192.168.1.20:8005`) or your deployed backend. Start the curriculum
+service first:
+
+```bash
+cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
+  uvicorn curriculum.main:app --port 8005
+```
+
+**Emulator won't launch?** See the troubleshooting section in
+**`apps/mobile/RUN.txt`** (Xcode license, `ANDROID_HOME`, boot the AVD first,
+re-run `pnpm install` after switching package managers, etc.).
 
 Offline / custom CI native builds (Gradle/Xcode projects without EAS):
 `pnpm run prebuild`, then `pnpm run native:build:android` (Android debug APK;
 needs Android SDK + Maven/Gradle access). Build profiles + app identifiers live
-in `apps/mobile/eas.json`. The full, authoritative guide (prereqs, EAS profiles,
-Gradle patching, backend wiring) is in **`apps/mobile/RUN.txt`**.
+in `apps/mobile/eas.json`.
 
 ## Hosting and scale
 
