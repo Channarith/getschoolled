@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi.testclient import TestClient
 from identity.main import app
 from identity.store import AccountStore
@@ -11,9 +9,9 @@ from identity.store import AccountStore
 client = TestClient(app)
 
 
-def test_admin_reseed_seeded_endpoint():
-    os.environ["SEED_DEFAULT_ADMIN"] = "1"
-    os.environ["SEED_QA_ACCOUNTS"] = "1"
+def test_admin_reseed_seeded_endpoint(monkeypatch):
+    monkeypatch.setenv("SEED_DEFAULT_ADMIN", "1")
+    monkeypatch.setenv("SEED_QA_ACCOUNTS", "1")
     app.state.accounts = AccountStore()
     app.state.accounts.seed_admin("admin@salareen.com", "88888888", username="admin")
     login = client.post("/auth/login", json={"email": "admin@salareen.com", "password": "88888888"})
