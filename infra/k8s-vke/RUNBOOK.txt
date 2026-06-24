@@ -212,9 +212,10 @@ The running identity IMAGE is stale — the cluster keeps re-pulling the same ol
 :latest from Vultr registry. Redis reseed + rollout restart cannot fix QA login
 until a NEW image is built and pushed.
 
-  1) GitHub → Actions → Deploy → Run workflow
-     (needs repo secrets VULTR_REGISTRY_USERNAME, VULTR_REGISTRY_PASSWORD,
-      KUBE_CONFIG_B64; optional var AUTO_DEPLOY=true for auto on main push)
+  1) GitHub → Actions → Deploy VKE (identity + web) → Run workflow
+     (fastest for QA login; no skip conditions). OR full Deploy → Run workflow.
+     Needs secrets: VULTR_REGISTRY_USERNAME, VULTR_REGISTRY_PASSWORD, KUBE_CONFIG_B64.
+     Push-to-main runs skip unless repo variable AUTO_DEPLOY=true (Settings → Variables).
   2) Wait for build-push + roll jobs to finish
   3) kubectl -n aoep rollout restart deployment/identity
   4) Verify version + ops route (python3 — identity pods have no curl):
