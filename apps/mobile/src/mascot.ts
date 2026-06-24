@@ -1,7 +1,7 @@
 import { MASCOT_IMAGES } from "./mascots/imageAssets";
 
 export const DEFAULT_MASCOT_LOCALE = "en";
-export const DEFAULT_MASCOT_ASSET = require("../../assets/salareen_mark_256.png");
+export const DEFAULT_MASCOT_ASSET = require("../assets/salareen_mark_256.png");
 
 export type MascotResolve = {
   enabled: boolean;

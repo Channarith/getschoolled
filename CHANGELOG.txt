@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
+  merge-base on local main ref (failed with "Not a valid object name main" on forks).
+- 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist
+  (broke memoize-one). Fix mascot.ts asset path (../assets not ../../assets).
 - 2026-06-24 - Fix mobile typecheck/export OOM: tsconfig scoped to src/ only
   (was **/*.ts which typechecked all of node_modules). assetBundlePatterns
   narrowed to assets/**. export targets ios+android only (not web). Metro
