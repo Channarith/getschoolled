@@ -83,6 +83,8 @@ FLAG_CATALOG: List[FlagSpec] = [
              options=("guest", "standard", "power", "educator", "admin")),
     FlagSpec("access.educator_console", FlagType.BOOL, True, "access",
              "Expose the educator/HIL teaching console."),
+    FlagSpec("access.homework_grader", FlagType.BOOL, False, "access",
+             "Expose the AI homework grader in navigation (operator-only tool)."),
     FlagSpec("access.parental_controls", FlagType.BOOL, True, "access",
              "Parental controls + content maturity gating for minors."),
     FlagSpec("access.beta_program", FlagType.PERCENT, 0, "access",

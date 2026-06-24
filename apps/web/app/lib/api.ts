@@ -830,6 +830,33 @@ export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
   return r.flags;
 }
 
+/** Feature flags for a logged-in operator admin (via Next.js BFF; no secret prompt). */
+export async function adminListFlagsSession(): Promise<FlagSpec[]> {
+  const r = await jsonOrThrow<{ flags: FlagSpec[] }>(
+    await fetch("/api/admin/flags", { cache: "no-store", headers: authHeaders() })
+  );
+  return r.flags;
+}
+
+export async function adminSetFlagSession(
+  key: string,
+  patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }
+): Promise<FlagSpec> {
+  return jsonOrThrow(
+    await fetch(`/api/admin/flags/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    })
+  );
+}
+
+export async function adminListAccounts(): Promise<{ accounts: Account[]; count: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/accounts`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
 export async function adminSetFlag(
   secret: string, key: string,
   patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }

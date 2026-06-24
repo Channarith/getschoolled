@@ -3,15 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  adminListAccounts,
   changePassword,
   clearToken,
   createStudent,
+  getMe,
   getPortfolio,
   getRewards,
   getToken,
   listStudents,
   setMembershipTier,
   setStudentMastery,
+  type Account,
   type Portfolio,
   type StudentProfile,
 } from "../lib/api";
@@ -33,8 +36,23 @@ export default function AccountPage() {
   const [points, setPoints] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [newStudent, setNewStudent] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [allAccounts, setAllAccounts] = useState<Account[]>([]);
 
   async function refresh() {
+    try {
+      const me = await getMe();
+      setIsAdmin(Boolean(me.is_admin));
+      if (me.is_admin) {
+        try {
+          setAllAccounts((await adminListAccounts()).accounts);
+        } catch {
+          setAllAccounts([]);
+        }
+      }
+    } catch {
+      setIsAdmin(false);
+    }
     try {
       setPortfolio(await getPortfolio());
     } catch (e) {
@@ -222,6 +240,40 @@ export default function AccountPage() {
             </form>
             {pwMsg && <p className="muted">{pwMsg}</p>}
           </div>
+
+          {isAdmin && (
+            <div className="card">
+              <h3>Operator admin · All accounts</h3>
+              <p className="muted">
+                Every member on this cluster ({allAccounts.length}). Enable tools like the homework
+                grader on <Link href="/admin">Admin → Feature flags</Link> ({`access.homework_grader`}).
+              </p>
+              {allAccounts.length === 0 ? (
+                <p className="muted">No accounts yet.</p>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Email</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Name</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Tier</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Admin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allAccounts.map((a) => (
+                      <tr key={a.id}>
+                        <td style={{ padding: "6px 4px" }}>{a.email}</td>
+                        <td style={{ padding: "6px 4px" }}>{a.display_name}</td>
+                        <td style={{ padding: "6px 4px" }}>{a.tier}</td>
+                        <td style={{ padding: "6px 4px" }}>{a.is_admin ? "yes" : ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </>
       )}
     </main>
