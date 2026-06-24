@@ -19,9 +19,11 @@ from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
+from .persistence import load_from_redis
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+load_from_redis(app.state.accounts)
 
 # Seed a default admin account so the platform is usable out of the box (and the
 # operator can reach admin-only surfaces). Idempotent; configurable; disable with
@@ -31,6 +33,15 @@ if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
         os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@salareen.com"),
         os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
         username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
+    )
+# Three fixed QA personas for manual / release testing (free learner, parent+child,
+# Pro tier). Idempotent; disable with SEED_QA_ACCOUNTS=0.
+if os.environ.get("SEED_QA_ACCOUNTS", "1").lower() in ("1", "true", "yes"):
+    from .qa_seed import seed_qa_accounts
+
+    seed_qa_accounts(
+        app.state.accounts,
+        os.environ.get("QA_ACCOUNTS_PASSWORD", "QaTest123"),
     )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
@@ -50,6 +61,13 @@ def current_account(authorization: str = Header(default="")):
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
+    return acct
+
+
+def require_admin_account(acct=Depends(current_account)):
+    """Operator accounts (is_admin) for admin-only read APIs."""
+    if not acct.is_admin:
+        raise HTTPException(status_code=403, detail="admin access required")
     return acct
 
 
@@ -126,6 +144,14 @@ def login(req: LoginRequest) -> dict:
 @app.get("/auth/me")
 def me(acct=Depends(current_account)) -> dict:
     return acct.public()
+
+
+@app.get("/admin/accounts")
+def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
+    """List every member account (operator admin UI)."""
+    rows = [a.public() for a in app.state.accounts.list_all_accounts()]
+    rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
+    return {"accounts": rows, "count": len(rows)}
 
 
 class PasswordChange(BaseModel):

@@ -115,7 +115,16 @@ Do NOT commit real secrets. Replace placeholders:
     --from-literal=OBJECT_STORE_ACCESS_KEY=... \
     --from-literal=OBJECT_STORE_SECRET_KEY=... \
     --from-literal=DATABASE_URL='postgresql://user:pass@host:5432/db' \
-    --from-literal=PAYMENT_API_KEY=...
+    --from-literal=PAYMENT_API_KEY=... \
+    --from-literal=DEFAULT_ADMIN_PASSWORD=88888888 \
+    --from-literal=QA_ACCOUNTS_PASSWORD=QaTest123
+
+DEFAULT_ADMIN_PASSWORD seeds the platform's default admin (admin@salareen.com /
+username "admin"). QA_ACCOUNTS_PASSWORD seeds three QA personas (qa-learner@,
+qa-parent@, qa-pro@ — or log in as qa1 / qa2 / qa3). If you omit them, the
+identity code defaults apply (88888888 / QaTest123). ROTATE for a real deployment,
+or set SEED_DEFAULT_ADMIN=0 / SEED_QA_ACCOUNTS=0 in the ConfigMap and create
+accounts manually.
 
 If the namespace does not exist yet, first:
   kubectl apply -f infra/k8s/namespace.yaml
@@ -138,6 +147,29 @@ Render manifests
 Apply
 -----
   kubectl apply -k infra/k8s-vke
+
+Redeploy after a code change (IMPORTANT - avoids running a stale build)
+----------------------------------------------------------------------
+The deployments use the mutable :latest tag with imagePullPolicy: Always, so a
+plain "kubectl apply -k" does NOT restart pods when only the image *contents*
+changed (the manifest is byte-identical). Symptom: code is on main but the live
+site behaves like an old build (e.g. admin login returns 401 because the running
+identity image predates the admin-seed code). Two reliable ways to roll new code:
+
+  1) Preferred - the Deploy workflow (.github/workflows/deploy.yml) builds every
+     image and rolls each Deployment to an immutable :<git-sha> tag:
+       gh workflow run deploy.yml          # or set repo var AUTO_DEPLOY=true
+     (needs VULTR_REGISTRY_USERNAME/PASSWORD + KUBE_CONFIG_B64 secrets.)
+
+  2) Manual - after `docker push ...:latest`, force a re-pull + restart:
+       kubectl -n aoep rollout restart deployment/identity     # or: deploy --all
+       kubectl -n aoep rollout status  deployment/identity
+     Because imagePullPolicy is Always, the new pods pull the freshest :latest.
+
+Confirm the running image actually has the new code, e.g. the admin seed:
+  kubectl -n aoep exec deploy/identity -- \
+    python3 -c "import identity.store as s; print('seed_admin' in dir(s.AccountStore))"
+  # expect: True   (then admin@salareen.com / 88888888 logs in)
 
 Verify
 ------

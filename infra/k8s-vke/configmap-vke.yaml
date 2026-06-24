@@ -14,6 +14,13 @@ data:
   OBJECT_STORE_BUCKET: "salareen-prod"
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
   CURRICULUM_DIR: "/app/sample-curriculum"
+  # Default admin seeding (identity). In-memory store re-seeds on every restart so
+  # admin@salareen.com is usable out of the box; SEED_DEFAULT_ADMIN=0 disables it.
+  # Password is in the Secret (aoep-secrets/DEFAULT_ADMIN_PASSWORD) - rotate it.
+  SEED_DEFAULT_ADMIN: "1"
+  DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
+  DEFAULT_ADMIN_USERNAME: "admin"
+  SEED_QA_ACCOUNTS: "1"
   # Careers: real job openings from public boards (free) + keyed aggregators
   # (RAPIDAPI_KEY / ADZUNA_*) for LinkedIn/Indeed-sourced listings. Falls back to
   # the curated board if the cluster has no egress.

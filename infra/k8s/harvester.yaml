@@ -18,6 +18,7 @@ spec:
       containers:
         - name: harvester
           image: aoep/harvester:latest
+          imagePullPolicy: Always
           command: ["python3", "services/harvester/src/harvester/run.py"]
           envFrom:
             - configMapRef:

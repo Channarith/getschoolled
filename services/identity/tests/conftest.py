@@ -24,3 +24,4 @@ os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 # Don't auto-seed the default admin during tests (keeps account state
 # deterministic); the seed is unit-tested directly via store.seed_admin().
 os.environ.setdefault("SEED_DEFAULT_ADMIN", "0")
+os.environ.setdefault("SEED_QA_ACCOUNTS", "0")

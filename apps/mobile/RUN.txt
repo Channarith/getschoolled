@@ -6,8 +6,10 @@ on the go.
 PREREQUISITES
   - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
     installs pnpm already.
-  - Expo Go on your phone, an Android emulator (Android Studio), or the iOS
-    Simulator (macOS / Xcode) for live dev.
+  - For simulator/emulator dev on macOS:
+      * iOS: Xcode from the App Store (includes the iOS Simulator).
+      * Android: Android Studio + at least one Android Virtual Device (AVD).
+  - Optional: Expo Go on a physical phone (scan the QR from `pnpm start`).
 
 INSTALL (one-time)
   cd apps/mobile
@@ -18,11 +20,76 @@ INSTALL (one-time)
   # Native cannot resolve through pnpm's strict symlink layout. Re-run
   # `pnpm install` if you switch package managers.
 
-DEV LOOP
-  cd apps/mobile
-  pnpm start             # then scan the Expo Go QR, or:
-  pnpm android           # Android emulator/device
-  pnpm ios               # iOS simulator (macOS)
+DEV LOOP — TWO PATHS
+  Path A (recommended): Expo Go in simulator/emulator — fast, hot reload.
+    cd apps/mobile
+    pnpm run start:ios       # macOS: boots iOS Simulator + loads Expo Go
+    pnpm run start:android   # boots/runs on an Android emulator or USB device
+    # Or: pnpm start  then press  i  (iOS) or  a  (Android) in the terminal.
+
+  Path B: native dev build — compiles local ios/ and android/ projects.
+    cd apps/mobile
+    pnpm ios                 # expo run:ios   (first run: prebuild + pod install)
+    pnpm android             # expo run:android (first run: prebuild + Gradle)
+    Use Path B when you need the full native shell (notifications, release-like
+    builds). Path A is enough for most UI / Drive Mode smoke testing.
+
+macOS — iOS SIMULATOR SETUP (one-time)
+  1. Install Xcode from the App Store; open Xcode once and finish setup.
+  2. Accept the license if prompted:
+       sudo xcodebuild -license accept
+  3. Verify the simulator toolchain:
+       xcode-select -p
+       xcrun simctl list devices available | head
+  4. From apps/mobile:
+       pnpm install
+       pnpm run start:ios
+     The first launch downloads Expo Go into the simulator; allow a few minutes.
+
+macOS — ANDROID EMULATOR SETUP (one-time)
+  1. Install Android Studio.
+  2. Device Manager -> Create Virtual Device (e.g. Pixel 7, API 34).
+  3. Add to ~/.zshrc (or ~/.bash_profile):
+       export ANDROID_HOME=$HOME/Library/Android/sdk
+       export ANDROID_SDK_ROOT=$ANDROID_HOME
+       export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+     Reload the shell:  source ~/.zshrc
+  4. List and boot an AVD (or start it from Android Studio):
+       emulator -list-avds
+       emulator -avd Pixel_7_API_34 &
+  5. From apps/mobile (with the emulator running):
+       pnpm install
+       pnpm run start:android
+
+TROUBLESHOOTING — EMULATOR / SIMULATOR WON'T LAUNCH
+  "pnpm ios" or "pnpm android" fails on first run
+    - These run  expo run:ios / expo run:android  (native compile), NOT Expo Go.
+      Try  pnpm run start:ios  or  pnpm run start:android  first.
+    - Native first run needs network for CocoaPods (iOS) and Gradle/Maven
+      (Android). If prebuild is required:  pnpm run prebuild  then retry.
+
+  iOS: "xcodebuild" / "Unable to boot simulator" / no simulators listed
+    - Open Xcode -> Settings -> Platforms; install an iOS simulator runtime.
+    - Run:  sudo xcodebuild -license accept
+    - Pick a device:  pnpm run start:ios -- --simulator "iPhone 16"
+
+  Android: "SDK location not found" / "emulator: command not found"
+    - Set ANDROID_HOME (see above) and ensure  emulator  is on PATH.
+    - Boot the AVD BEFORE  pnpm run start:android  (Android Studio -> Play on
+      the virtual device).
+
+  Metro bundler errors / "Unable to resolve module"
+    - From apps/mobile:  rm -rf node_modules && pnpm install
+    - Clear Metro cache:  pnpm start -- --clear
+
+  App opens but home rails are empty / network errors
+    - Start the curriculum API on your Mac (port 8005 — see BACKEND URL below).
+    - Simulator: localhost works. Physical device: use your Mac's LAN IP in
+      app.json -> expo.extra.curriculumUrl (not localhost).
+
+  pnpm / Metro symlink issues
+    - apps/mobile/.npmrc forces hoisted node_modules; always use pnpm install
+      inside apps/mobile (not npm install at the repo root for mobile).
 
 TYPECHECK
   pnpm typecheck         # or: make mobile-typecheck

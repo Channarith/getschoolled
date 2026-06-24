@@ -57,7 +57,9 @@ spec:
       containers:
         - name: orchestrator
           image: ghcr.io/aoep/orchestrator:latest
-          imagePullPolicy: IfNotPresent
+          # Mutable :latest tag -> always re-pull so a rollout picks up new code
+          # (IfNotPresent would keep a stale node-cached image).
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -117,6 +119,7 @@ spec:
       containers:
         - name: speech
           image: ghcr.io/aoep/speech:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -156,6 +159,7 @@ spec:
       containers:
         - name: perception
           image: ghcr.io/aoep/perception:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -188,6 +192,7 @@ spec:
       containers:
         - name: memory
           image: ghcr.io/aoep/memory:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -227,6 +232,7 @@ spec:
       containers:
         - name: curriculum
           image: ghcr.io/aoep/curriculum:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -259,6 +265,7 @@ spec:
       containers:
         - name: billing
           image: ghcr.io/aoep/billing:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -306,6 +313,7 @@ spec:
       containers:
         - name: identity
           image: ghcr.io/aoep/identity:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -347,6 +355,7 @@ spec:
       containers:
         - name: integrations
           image: ghcr.io/aoep/integrations:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -386,6 +395,7 @@ spec:
       containers:
         - name: web
           image: ghcr.io/aoep/web:latest
+          imagePullPolicy: Always
           ports: [{ containerPort: 3000 }]
           envFrom: [ { configMapRef: { name: aoep-config } } ]
           resources:

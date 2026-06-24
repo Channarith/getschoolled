@@ -47,10 +47,17 @@ export default function HomePage() {
   // reveals the catalog so they can see what's inside before creating an account.
   if (authResolved && !loggedIn && !preview) {
     return (
-      <main className="landing-hero" style={{
-        backgroundImage:
-          "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
-      }}>
+      <main className="landing-hero">
+        <div
+          className="landing-hero-bg site-bg-layer site-bg-kenburns site-bg-motion-2"
+          style={{
+            backgroundImage:
+              "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+          aria-hidden
+        />
         <div className="landing-inner">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/bayon-mark.webp" alt="Salareen mascot" className="landing-mascot"

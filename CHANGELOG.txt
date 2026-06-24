@@ -8,6 +8,46 @@ Format: newest first. No markdown per project convention.
   eye-with-slash while revealed. Accessible (type=button, aria-label/aria-pressed,
   title) so it never submits the form. apps/web/app/login/page.tsx.
 
+- 2026-06-23 - Mobile emulator docs (macOS). README + apps/mobile/RUN.txt now
+  distinguish Expo Go (pnpm run start:ios / start:android — fastest) from native
+  dev builds (pnpm ios / android). Added macOS Xcode + Android Studio setup,
+  ANDROID_HOME, and a troubleshooting section for simulators that won't launch.
+- 2026-06-23 - QA test accounts for manual testing. Identity seeds three fixed
+  personas at startup (env-gated SEED_QA_ACCOUNTS): qa-learner@salareen.com (qa1,
+  free tier), qa-parent@salareen.com (qa2, with child profile "QA Kid"), and
+  qa-pro@salareen.com (qa3, Pro tier). Shared password QA_ACCOUNTS_PASSWORD
+  (default QaTest123). Idempotent; disable with SEED_QA_ACCOUNTS=0. Documented
+  in docs/release-testing.txt.
+- 2026-06-23 - Netflix-style animated site themes. Site-wide wallpapers and the
+  signed-out landing hero now use a slow Ken Burns zoom/pan (image themes) or
+  gentle drift (CSS gradient themes), with four motion variants per theme id.
+  Respects prefers-reduced-motion. Theme picker previews animate on hover.
+- 2026-06-23 - Identity multi-replica fix + admin UX. Root cause of 401 on
+  /identity/rewards, /identity/students, and /account after login: identity used
+  an in-memory AccountStore across 3 replicas — login on pod A, next request on
+  pod B returned "account not found". When REDIS_URL is set, identity now
+  snapshots the full store to Redis after every mutation (services/identity/
+  persistence.py). Homework nav is gated by the access.homework_grader feature
+  flag (default off) instead of auto-unlocking for is_admin logins. Operator
+  admins get GET /admin/accounts (member list on Account page), and /admin
+  feature flags auto-load when signed in as is_admin (Next.js BFF at
+  /api/admin/flags using server ADMIN_SECRET). Fixed REDIS_URL in k8s configmap
+  to redis://redis:6379/0.
+
+- 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
+  the default-admin seed into release config. Root cause of "code is on main but
+  the live site behaves like an old build" (e.g. admin login 401 on a deployed
+  identity image that predated the seed code): service Deployments used the
+  mutable :latest tag while orchestrator pinned imagePullPolicy: IfNotPresent and
+  the rest relied on defaults, so a node kept a cached image and a plain
+  `kubectl apply -k` never restarted pods. Set imagePullPolicy: Always on all
+  service Deployments + harvester (infra/k8s/services.yaml, harvester.yaml) so a
+  rollout re-pulls the freshest :latest. Made the admin seed first-class in the
+  release config: SEED_DEFAULT_ADMIN / DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_USERNAME
+  in the ConfigMaps (infra/k8s/configmap.yaml + infra/k8s-vke/configmap-vke.yaml)
+  and DEFAULT_ADMIN_PASSWORD (=88888888, rotate for prod) in the aoep-secrets
+  Secret. Documented the redeploy procedure (deploy.yml or `kubectl rollout
+  restart`) and a verify-the-running-image check in infra/k8s-vke/RUNBOOK.txt.
 - 2026-06-23 - Default admin account (login out of the box). Identity seeds a
   default admin at startup (idempotent, env-gated SEED_DEFAULT_ADMIN): email
   admin@salareen.com, password 88888888 (DEFAULT_ADMIN_*), with a bare "admin"
@@ -1458,6 +1498,9 @@ Format: newest first. No markdown per project convention.
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
 were lost to the changelog-rolling bug fixed in [unreleased]; their content is
 [unreleased]
+- (no changes yet)
+
+[0.3.82] - 2026-06-23
 - (no changes yet)
 
 [0.3.81] - 2026-06-23
