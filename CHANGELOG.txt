@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - One-time onboarding learning survey (post-signup). After the legal
+  disclaimer, new members see a learning-behavior gauge (modalities, pace,
+  structure, session length, group preference, reading level, motivation, and
+  optional accessibility needs). Answers persist on the student profile
+  (identity), assign a learner_category for grouping/adaptation, and feed memory
+  analytics. Flag: engagement.onboarding_survey (default on). Signup auto-creates
+  a default student profile. Cold-start adaptive hints via pacing_from_declared_profile.
+
+- 2026-06-24 - Mobile macOS dev fixes. Added pnpm run doctor (env check),
+  dev:ios / dev:android / dev:*:offline scripts, metro.config.js, explicit
+  babel-preset-expo, and RUN.txt/README troubleshooting for when nothing
+  happens (wrong directory, pnpm ios vs dev:ios, open Simulator first).
+
 - 2026-06-23 - Login: password show/hide eye toggle. The Sign in / Create
   account password field now has an inline eye button (inline SVG, no new deps)
   that toggles the input between masked and plain text; the glyph switches to an

@@ -128,6 +128,7 @@ def signup(req: SignupRequest) -> dict:
         validate_password(req.password)
         acct = app.state.accounts.create(
             req.email, req.password, display_name=req.display_name, region=req.region)
+        app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return _session(acct)
@@ -254,6 +255,30 @@ def get_student(student_id: str, acct=Depends(current_account)) -> dict:
     if prof is None:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()
+
+
+class LearningProfileSubmit(BaseModel):
+    answers: dict
+
+
+@app.post("/students/{student_id}/learning-profile")
+def submit_learning_profile(student_id: str, req: LearningProfileSubmit,
+                              acct=Depends(current_account)) -> dict:
+    from aoep_shared.learning_profile import derive_learning_profile, validate_onboarding_answers
+
+    try:
+        validate_onboarding_answers(req.answers)
+        profile = derive_learning_profile(req.answers)
+        prof = app.state.accounts.apply_learning_profile(acct.id, student_id, profile)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {
+        "student": prof.model_dump(),
+        "learner_category": profile.learner_category,
+        "recorded": True,
+    }
 
 
 class MasteryUpdate(BaseModel):
