@@ -180,6 +180,13 @@ predates the bootstrap fix. Immediate fix WITHOUT a new image:
   chmod +x scripts/k8s_reseed_accounts.sh
   ./scripts/k8s_reseed_accounts.sh
 
+The script picks a Running identity pod automatically (kubectl cp does not accept
+deploy/identity). If it fails, pick a pod manually:
+
+  POD=$(kubectl -n aoep get pods -l app=identity -o jsonpath='{.items[0].metadata.name}')
+  kubectl -n aoep cp scripts/identity_reseed_redis.py "$POD:/tmp/identity_reseed_redis.py"
+  kubectl -n aoep exec "$POD" -- python3 /tmp/identity_reseed_redis.py
+
 That execs into identity, reseeds admin + QA, and writes Redis. Expect login_ok
 all true in the printed JSON.
 
