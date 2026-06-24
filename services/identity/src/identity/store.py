@@ -200,16 +200,22 @@ class AccountStore:
         return acct
 
     def seed_admin(self, email: str, password: str, *, username: str = "admin",
-                   display_name: str = "Administrator") -> Account:
+                   display_name: str = "Administrator",
+                   force_password: bool = True) -> Account:
         """Create (idempotently) a default admin account. Also registers a bare
         `username` alias so you can log in with just "admin". Marked is_admin so
-        the web unlocks operator surfaces (e.g. the Homework grader)."""
+        the web unlocks operator surfaces (e.g. the Homework grader).
+
+        ``force_password`` re-syncs the hash on every startup (same as QA
+        personas) so DEFAULT_ADMIN_* credentials keep working after Redis reloads
+        or an accidental manual signup on the admin email."""
         return self.seed_account(
             email,
             password,
             display_name=display_name,
             username=username,
             is_admin=True,
+            force_password=force_password,
         )
 
     def by_email(self, email: str) -> Optional[Account]:

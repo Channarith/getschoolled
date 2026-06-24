@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix localhost admin login and local service startup. Default admin
+  seed now force-resyncs password on every identity startup (same as QA personas),
+  so admin@salareen.com / DEFAULT_ADMIN_PASSWORD keeps working after manual
+  signups or stale in-memory stores. New scripts/run_local_service.sh + make
+  run-identity|run-memory|run-orchestrator load config/local.env automatically.
 - 2026-06-24 - Fix CI: identity student API tests account for the default learner
   profile auto-created on signup (onboarding survey, PR #131).
 - 2026-06-24 - Release version bump on every PR to main. New rule (AGENTS.md,

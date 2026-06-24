@@ -32,3 +32,16 @@ def test_regular_accounts_are_not_admin():
     u = store.create("learner@example.com", "password123")
     assert u.is_admin is False
     assert u.public()["is_admin"] is False
+
+
+def test_seed_admin_resyncs_password_after_manual_signup():
+    """Local dev: signing up as admin@ before seed runs must not brick login."""
+    store = AccountStore()
+    manual = store.create("admin@salareen.com", "wrongpass")
+    assert manual.is_admin is False
+    admin = store.seed_admin("admin@salareen.com", "88888888", username="admin")
+    assert admin.id == manual.id
+    assert admin.is_admin is True
+    assert store.authenticate("admin@salareen.com", "88888888") is not None
+    assert store.authenticate("admin", "88888888") is not None
+    assert store.authenticate("admin@salareen.com", "wrongpass") is None
