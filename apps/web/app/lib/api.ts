@@ -274,6 +274,7 @@ export type StudentProfile = {
   motivation?: string; accessibility?: Record<string, boolean>;
   accommodations_notes?: string; learner_category?: string;
   onboarding_completed_at?: number | null;
+  onboarding_answers?: Record<string, unknown>;
 };
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -962,6 +963,17 @@ export async function submitLearningProfile(
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ answers }),
+    })
+  );
+}
+
+export async function skipLearningProfile(
+  studentId: string,
+): Promise<{ student: StudentProfile; skipped: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-profile/skip`, {
+      method: "POST",
+      headers: authHeaders(),
     })
   );
 }

@@ -5,6 +5,7 @@ import pytest
 from aoep_shared.learning_profile import (
     derive_learning_profile,
     onboarding_template,
+    survey_answers_from_profile_fields,
     validate_onboarding_answers,
 )
 
@@ -28,6 +29,24 @@ def test_onboarding_template_has_required_questions():
     assert t["title"]
     assert any(q["id"] == "primary_style" and q["required"] for q in t["questions"])
     assert "categories" in t
+
+
+def test_survey_answers_from_profile_fields_roundtrip():
+    answers = _full_answers()
+    profile = derive_learning_profile(answers)
+    rebuilt = survey_answers_from_profile_fields({
+        "primary_style": profile.primary_style,
+        "learning_pace": profile.pace,
+        "learning_structure": profile.structure,
+        "session_length": profile.session_length,
+        "group_preference": profile.group_preference,
+        "reading_level": profile.reading_level,
+        "motivation": profile.motivation,
+        "accessibility": profile.accessibility,
+        "accommodations_notes": profile.accommodations_notes,
+    })
+    assert rebuilt["primary_style"] == answers["primary_style"]
+    assert rebuilt["pace"] == answers["pace"]
 
 
 def test_validate_requires_primary_style():

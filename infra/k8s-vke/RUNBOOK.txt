@@ -261,6 +261,28 @@ Verify
   curl -I https://salareen.com
   curl -I https://www.salareen.com
 
+Post-deploy smoke tests (new accounts + QA login + memory routes)
+-----------------------------------------------------------------
+After Deploy VKE or full Deploy finishes, run from a machine with kubectl:
+
+  chmod +x scripts/k8s_verify_qa_login.sh scripts/k8s_verify_memory.sh \
+           scripts/k8s_verify_signup_flow.sh
+  ./scripts/k8s_verify_qa_login.sh      # QA/admin HTTP login on every pod
+  ./scripts/k8s_verify_memory.sh        # flags, mascots, onboarding template
+  ./scripts/k8s_verify_signup_flow.sh   # signup → default student → save survey
+
+All three should exit 0 before you tell users the deploy is good.
+
+Learning profile survey (cloud persistence)
+---------------------------------------------
+The post-signup survey saves to identity on the student profile
+(onboarding_completed_at + onboarding_answers). It does NOT rely on browser
+localStorage — clearing site data will NOT re-prompt if already completed.
+Users can reopen or update it from Account → Learning profile.
+
+If "Save my learning profile" shows 404, the identity image is stale (missing
+POST /students/{id}/learning-profile). Deploy identity + web, then retry.
+
 Ingress apply errors (duplicate host "_")
 -----------------------------------------
 If `kubectl apply -k infra/k8s-vke` fails with nginx admission webhook errors

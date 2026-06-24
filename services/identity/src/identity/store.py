@@ -86,6 +86,8 @@ class StudentProfile(BaseModel):
     accommodations_notes: str = ""
     learner_category: str = ""
     onboarding_completed_at: Optional[float] = None
+    # Raw survey answers for re-opening / editing the learning profile from Settings.
+    onboarding_answers: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
 
 
@@ -421,6 +423,19 @@ class AccountStore:
         prof.accommodations_notes = profile.accommodations_notes
         prof.learner_category = profile.learner_category
         prof.onboarding_completed_at = profile.completed_at
+        prof.onboarding_answers = dict(profile.raw_answers)
+        self._persist()
+        return prof
+
+    def skip_learning_profile(self, account_id: str, student_id: str) -> StudentProfile:
+        """Record that the user dismissed the one-time survey (persisted, not local-only)."""
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        if prof.onboarding_completed_at is None:
+            prof.onboarding_completed_at = time.time()
+        if not prof.learner_category:
+            prof.learner_category = "skipped"
         self._persist()
         return prof
 

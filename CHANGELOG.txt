@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Learning profile survey: cloud persistence (onboarding_completed_at
+  + onboarding_answers on student profile). Skip saves to identity, not
+  localStorage. Account → Learning profile reopens/updates the survey.
+  scripts/k8s_verify_signup_flow.sh smoke-tests signup + save + skip on VKE.
+- 2026-06-24 - Deploy VKE manual workflow: include_memory (default on) + verify
+  scripts for memory routes and new-account signup flow.
 - 2026-06-24 - Add Deploy VKE (identity + web) manual workflow (never skipped).
   Deploy workflow gate job explains skip on push without AUTO_DEPLOY=true.
 - 2026-06-24 - RUNBOOK: 404 on ops-reseed means stale identity image — run Deploy

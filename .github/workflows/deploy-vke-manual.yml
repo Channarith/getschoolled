@@ -1,6 +1,5 @@
-# Manual VKE deploy for identity + web (QA login / UI fixes).
+# Manual VKE deploy for identity + memory + web (QA login / survey / UI fixes).
 # No skip conditions — always runs when you click "Run workflow".
-# Web Docker build context is repo root (Dockerfile COPY apps/web/...).
 name: Deploy VKE (identity + web)
 
 on:
@@ -10,8 +9,13 @@ on:
         description: "Image tag (default: commit SHA)"
         required: false
         default: ""
+      include_memory:
+        description: "Also build and roll memory (flags, mascots, survey template)"
+        type: boolean
+        required: false
+        default: true
       include_web:
-        description: "Also build and roll web (uncheck for identity-only QA fix)"
+        description: "Also build and roll web (uncheck for backend-only deploy)"
         type: boolean
         required: false
         default: true
@@ -28,13 +32,17 @@ jobs:
     steps:
       - id: mk
         run: |
-          if [ "${{ inputs.include_web }}" = "true" ]; then
-            MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."},{"name":"web","dockerfile":"apps/web/Dockerfile","context":"."}]'
-            SVCS="identity web"
-          else
-            MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."}]'
-            SVCS="identity"
+          MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."}'
+          SVCS="identity"
+          if [ "${{ inputs.include_memory }}" = "true" ]; then
+            MATRIX="${MATRIX},{\"name\":\"memory\",\"dockerfile\":\"services/memory/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} memory"
           fi
+          if [ "${{ inputs.include_web }}" = "true" ]; then
+            MATRIX="${MATRIX},{\"name\":\"web\",\"dockerfile\":\"apps/web/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} web"
+          fi
+          MATRIX="${MATRIX}]"
           echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
           echo "services=${SVCS}" >> "$GITHUB_OUTPUT"
 
