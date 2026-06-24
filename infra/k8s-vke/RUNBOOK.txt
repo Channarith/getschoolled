@@ -175,7 +175,17 @@ QA personas (qa-pro@ / qa3 / QaTest123) still 401 while admin works
 -------------------------------------------------------------------
 Usually QA accounts were not persisted to Redis on every replica, OR the cluster
 Secret QA_ACCOUNTS_PASSWORD differs from QaTest123, OR the running identity image
-predates the bootstrap fix. Immediate fix WITHOUT a new image:
+predates the bootstrap fix. One-command diagnose + fix (run where kubectl works):
+
+  git pull origin main
+  chmod +x scripts/k8s_verify_qa_login.sh scripts/k8s_reseed_accounts.sh
+  ./scripts/k8s_verify_qa_login.sh
+
+That script prints identity/web/redis pod status, tests login in-cluster (same
+path the browser uses via web -> identity), reseeds Redis, restarts identity,
+and verifies qa-pro + qa3 before you retry the browser.
+
+Manual steps if you prefer:
 
   chmod +x scripts/k8s_reseed_accounts.sh
   ./scripts/k8s_reseed_accounts.sh

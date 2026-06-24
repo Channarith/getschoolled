@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - VKE QA login verify/fix script. scripts/k8s_verify_qa_login.sh
+  diagnoses identity/web/redis, tests login in-cluster, runs reseed + auto
+  rollout restart + post-restart verify. k8s_reseed_accounts.sh now auto-restarts
+  identity, verifies HTTP login, and falls back to redis-cli SET when Python
+  persist fails. identity_reseed_redis.py emits RESULT_JSON for automation.
 - 2026-06-24 - Fix test isolation: identity ops-reseed tests used os.environ for
   ADMIN_SECRET/seed flags (leaked into memory admin API tests → 401). Use
   monkeypatch; give operator admin test a distinct username alias.

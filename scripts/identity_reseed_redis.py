@@ -410,6 +410,9 @@ def main() -> int:
         "qa-pro@salareen.com": store.authenticate("qa-pro@salareen.com", qa_pw) is not None,
         "qa3": store.authenticate("qa3", qa_pw) is not None,
     }
+    if os.environ.get("DUMP_REDIS_JSON", "").strip().lower() in ("1", "true", "yes"):
+        print("REDIS_JSON=" + json.dumps(_inline_dump_state(store)))
+        return 0
     out = {
         "loaded_from_redis": loaded,
         "stats": stats,
@@ -423,6 +426,7 @@ def main() -> int:
     if persist_error:
         out["persist_error"] = persist_error
     print(out)
+    print("RESULT_JSON=" + json.dumps(out))
     redis_required = bool(os.environ.get("REDIS_URL", "").strip())
     ok = all(checks.values()) and (persisted or not redis_required)
     return 0 if ok else 1
