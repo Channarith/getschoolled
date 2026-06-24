@@ -7,7 +7,7 @@ ADMIN_SECRET="${ADMIN_SECRET:-$(kubectl -n "$NS" get configmap aoep-config -o js
 
 for p in $(kubectl -n "$NS" get pods -l app=identity -o jsonpath='{.items[*].metadata.name}'); do
   echo "=== ops reseed $p ==="
-  kubectl -n "$NS" exec -i "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY'
+  kubectl -n "$NS" exec "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY'
 import json
 import os
 import sys
@@ -29,15 +29,7 @@ try:
         if not data.get("reseeded") or not data.get("login_ok", {}).get("qa-pro@salareen.com"):
             sys.exit(1)
 except urllib.error.HTTPError as exc:
-    body = exc.read().decode()[:500]
-    print(f"HTTP {exc.code}: {body}", file=sys.stderr)
-    if exc.code == 404:
-        print(
-            "\n404 = identity image too old (no /admin/ops/reseed-seeded).\n"
-            "Run GitHub Actions → Deploy workflow, then:\n"
-            "  kubectl -n aoep rollout restart deployment/identity\n",
-            file=sys.stderr,
-        )
+    print(f"HTTP {exc.code}: {exc.read().decode()[:500]}", file=sys.stderr)
     sys.exit(1)
 PY
   echo ""

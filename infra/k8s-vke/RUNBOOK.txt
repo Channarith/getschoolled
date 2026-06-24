@@ -253,6 +253,28 @@ Then rollout restart if you changed the Secret:
 Check secret password:
   kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
 
+Browser console 404 on /memory/* (flags, mascots, onboarding survey)
+----------------------------------------------------------------------
+Symptoms (DevTools → Network): repeated 404 for paths like
+  /memory/flags/access.homework_grader
+  /memory/mascots/resolve?locale=en
+  /memory/survey/onboarding?subject=...&tier=free
+These are separate from QA login 401 (identity). The web app calls memory on
+every page for feature flags, locale mascots, and the post-signup survey. A
+stale memory image (same problem as identity 0.3.82) returns 404 for routes
+or flag keys that exist only in newer builds.
+
+Fix:
+  1) GitHub → Actions → Deploy VKE (identity + web) → Run workflow
+     Leave "include_memory" checked (default). Needs VULTR registry + KUBE secrets.
+  2) Or run the full Deploy workflow (builds all services including memory).
+  3) Verify from a machine with kubectl:
+       chmod +x scripts/k8s_verify_memory.sh
+       ./scripts/k8s_verify_memory.sh
+     Expect OK 200 on version, access.homework_grader, mascots/resolve, survey.
+  4) Hard-refresh the browser (Ctrl+Shift+R). Nav and mascots degrade gracefully
+     when memory is down, but the network tab will still show 404 until deployed.
+
 Verify
 ------
   kubectl -n aoep get pods
