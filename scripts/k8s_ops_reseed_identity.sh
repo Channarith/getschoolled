@@ -29,7 +29,15 @@ try:
         if not data.get("reseeded") or not data.get("login_ok", {}).get("qa-pro@salareen.com"):
             sys.exit(1)
 except urllib.error.HTTPError as exc:
-    print(f"HTTP {exc.code}: {exc.read().decode()[:500]}", file=sys.stderr)
+    body = exc.read().decode()[:500]
+    print(f"HTTP {exc.code}: {body}", file=sys.stderr)
+    if exc.code == 404:
+        print(
+            "\n404 = identity image too old (no /admin/ops/reseed-seeded).\n"
+            "Run GitHub Actions → Deploy workflow, then:\n"
+            "  kubectl -n aoep rollout restart deployment/identity\n",
+            file=sys.stderr,
+        )
     sys.exit(1)
 PY
   echo ""
