@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Mobile emulator docs (macOS). README + apps/mobile/RUN.txt now
+  distinguish Expo Go (pnpm run start:ios / start:android — fastest) from native
+  dev builds (pnpm ios / android). Added macOS Xcode + Android Studio setup,
+  ANDROID_HOME, and a troubleshooting section for simulators that won't launch.
 - 2026-06-23 - QA test accounts for manual testing. Identity seeds three fixed
   personas at startup (env-gated SEED_QA_ACCOUNTS): qa-learner@salareen.com (qa1,
   free tier), qa-parent@salareen.com (qa2, with child profile "QA Kid"), and
