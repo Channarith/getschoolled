@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Netflix-style animated site themes. Site-wide wallpapers and the
+  signed-out landing hero now use a slow Ken Burns zoom/pan (image themes) or
+  gentle drift (CSS gradient themes), with four motion variants per theme id.
+  Respects prefers-reduced-motion. Theme picker previews animate on hover.
 - 2026-06-23 - Identity multi-replica fix + admin UX. Root cause of 401 on
   /identity/rewards, /identity/students, and /account after login: identity used
   an in-memory AccountStore across 3 replicas — login on pod A, next request on

@@ -233,14 +233,33 @@ export function seasonalBackgroundId(d: Date = new Date()): string {
   return "winter";
 }
 
-export function backgroundStyle(bg: Background): CSSProperties {
+/** Stable 0..3 variant per theme id so motion direction varies like Netflix hero art. */
+export function backgroundMotionVariant(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % 4;
+}
+
+/** CSS classes for the slow Ken Burns / drift animation (variant per theme id). */
+export function backgroundMotionClass(bg: Background): string {
+  const v = backgroundMotionVariant(bg.id);
+  const base = bg.kind === "image" ? "site-bg-kenburns" : "site-bg-drift";
+  return `${base} site-bg-motion-${v}`;
+}
+
+/** Paint props for the moving layer (parent .site-bg is already fixed). */
+export function backgroundLayerStyle(bg: Background): CSSProperties {
   if (bg.kind === "image" && bg.src) {
     return {
       backgroundImage: `linear-gradient(rgba(7,11,26,0.55), rgba(7,11,26,0.7)), url(${bg.src})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
-      backgroundAttachment: "fixed",
     };
   }
-  return { background: bg.css, backgroundAttachment: "fixed" };
+  return { background: bg.css };
+}
+
+/** Static style for small previews (theme picker, etc.). */
+export function backgroundStyle(bg: Background): CSSProperties {
+  return { ...backgroundLayerStyle(bg), backgroundAttachment: "scroll" };
 }

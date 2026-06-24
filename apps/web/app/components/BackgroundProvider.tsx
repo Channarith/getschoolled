@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  backgroundStyle,
+  backgroundLayerStyle,
+  backgroundMotionClass,
   getBackground,
   seasonalBackgroundId,
   type Background,
@@ -36,5 +37,13 @@ export default function BackgroundProvider() {
   }, []);
 
   if (!bg) return null;
-  return <div className="site-bg" aria-hidden style={backgroundStyle(bg)} />;
+  return (
+    <div className="site-bg" aria-hidden>
+      <div
+        key={bg.id}
+        className={`site-bg-layer ${backgroundMotionClass(bg)}`}
+        style={backgroundLayerStyle(bg)}
+      />
+    </div>
+  );
 }
