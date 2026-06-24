@@ -26,7 +26,11 @@ if [[ -z "$POD" ]]; then
 fi
 
 echo "Reseeding accounts via pod/$POD (pipe script to python3) ..."
-kubectl -n "$NS" exec -i "$POD" -- python3 - < "$SCRIPT"
+if ! kubectl -n "$NS" exec -i "$POD" -- python3 - < "$SCRIPT"; then
+  echo ""
+  echo "Reseed failed. If persist_error mentions redis, check REDIS_URL and that the redis pod is Running." >&2
+  exit 1
+fi
 echo ""
-echo "If persisted=true, restart all identity replicas so they reload Redis:"
+echo "If persisted=true above, restart all identity replicas so they reload Redis:"
 echo "  kubectl -n $NS rollout restart deployment/$DEPLOY"

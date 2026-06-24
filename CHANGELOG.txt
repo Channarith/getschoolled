@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix k8s identity reseed on 0.3.82 images (persisted=false, qa3 401).
+  identity_reseed_redis.py now registers qa1/qa2/qa3 username aliases after bootstrap
+  (old images only create email accounts). Redis save uses a minimal RESP/TCP client
+  when the redis PyPI package is missing from the identity image. Tries REDIS_URL plus
+  cluster fallbacks; prints persist_error/load_error in the result dict.
 - 2026-06-24 - Fix identity_reseed_redis.py for pre-persistence images (~0.3.82):
   inline Redis load/save when identity.persistence is missing; pipe script via
   kubectl exec -i (no kubectl cp). Restart identity after persisted=true.
