@@ -1,6 +1,6 @@
 # Manual VKE deploy for identity + web (QA login / UI fixes).
 # No skip conditions — always runs when you click "Run workflow".
-# Use the full "Deploy" workflow to roll every service.
+# Web Docker build context is repo root (Dockerfile COPY apps/web/...).
 name: Deploy VKE (identity + web)
 
 on:
@@ -10,19 +10,40 @@ on:
         description: "Image tag (default: commit SHA)"
         required: false
         default: ""
+      include_web:
+        description: "Also build and roll web (uncheck for identity-only QA fix)"
+        type: boolean
+        required: false
+        default: true
 
 env:
   REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
 
 jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+      services: ${{ steps.mk.outputs.services }}
+    steps:
+      - id: mk
+        run: |
+          if [ "${{ inputs.include_web }}" = "true" ]; then
+            MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."},{"name":"web","dockerfile":"apps/web/Dockerfile","context":"."}]'
+            SVCS="identity web"
+          else
+            MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."}]'
+            SVCS="identity"
+          fi
+          echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
+          echo "services=${SVCS}" >> "$GITHUB_OUTPUT"
+
   build-push:
+    needs: setup-matrix
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - { name: identity, dockerfile: services/identity/Dockerfile, context: . }
-          - { name: web,      dockerfile: apps/web/Dockerfile,              context: apps/web }
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -46,7 +67,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
 
   roll:
-    needs: build-push
+    needs: [setup-matrix, build-push]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,13 +77,14 @@ jobs:
           mkdir -p "$HOME/.kube"
           echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
-      - name: Roll identity + web
+      - name: Roll deployments
         env:
           TAG: ${{ github.event.inputs.tag || github.sha }}
+          SVCS: ${{ needs.setup-matrix.outputs.services }}
         run: |
           set -euo pipefail
-          for svc in identity web; do
+          for svc in $SVCS; do
             kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" --record
             kubectl -n aoep rollout status "deployment/$svc" --timeout=300s
           done
-          echo "Deployed ${REGISTRY}/identity:${TAG} and web:${TAG}"
+          echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"

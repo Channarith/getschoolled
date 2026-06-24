@@ -74,7 +74,7 @@ jobs:
           - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
           - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
           - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
-          - { name: web,          dockerfile: apps/web/Dockerfile,              context: apps/web }
+          - { name: web,          dockerfile: apps/web/Dockerfile,              context: . }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
