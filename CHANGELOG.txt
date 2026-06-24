@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix QA test account login on multi-replica identity (Redis). Startup
+  bootstrap now seeds admin + QA on FastAPI startup with Redis persist retries so
+  qa-learner/parent/pro accounts sync to every pod (admin could work while QA 401'd
+  when only admin was in Redis). Blank QA_ACCOUNTS_PASSWORD env falls back to
+  QaTest123. Admin POST /admin/accounts/reseed-seeded for one-shot recovery.
 - 2026-06-24 - Fix VKE ingress apply: duplicate host "_" paths. The VKE overlay
   added bare-IP routes on aoep + aoep-apis while base ingress-origin.yaml still
   defined aoep-origin-web/apis (same / and /orchestrator paths). VKE now deletes
