@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Identity multi-replica fix + admin UX. Root cause of 401 on
+  /identity/rewards, /identity/students, and /account after login: identity used
+  an in-memory AccountStore across 3 replicas — login on pod A, next request on
+  pod B returned "account not found". When REDIS_URL is set, identity now
+  snapshots the full store to Redis after every mutation (services/identity/
+  persistence.py). Homework nav is gated by the access.homework_grader feature
+  flag (default off) instead of auto-unlocking for is_admin logins. Operator
+  admins get GET /admin/accounts (member list on Account page), and /admin
+  feature flags auto-load when signed in as is_admin (Next.js BFF at
+  /api/admin/flags using server ADMIN_SECRET). Fixed REDIS_URL in k8s configmap
+  to redis://redis:6379/0.
+
 - 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
   the default-admin seed into release config. Root cause of "code is on main but
   the live site behaves like an old build" (e.g. admin login 401 on a deployed
