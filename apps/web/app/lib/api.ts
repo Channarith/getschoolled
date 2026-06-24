@@ -1,6 +1,8 @@
 // Client for the orchestrator (Teaching Director) API.
 // Base URL is configurable so the SAME UI runs against local or cloud backends.
 
+import type { MascotResolve } from "./mascot";
+
 // Are we running on a deployed host (not local dev)? On localhost the UI talks
 // to each service on its own port; when deployed it shares ONE origin with the
 // backends and reaches them through same-origin path prefixes that the edge
@@ -824,6 +826,29 @@ export async function getFlag(key: string, subject?: string): Promise<unknown> {
     await fetch(`${MEMORY_URL}/flags/${encodeURIComponent(key)}${qs}`, { cache: "no-store" })
   );
   return r.value;
+}
+
+// --- locale-specific Bayon Buddy mascots (27 languages) ----------------- //
+
+export type MascotCatalogEntry = {
+  locale: string; region: string; cultural_theme: string; path: string;
+};
+
+export async function getMascotCatalog(): Promise<{ count: number; mascots: MascotCatalogEntry[] }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mascots/catalog`, { cache: "no-store" }),
+  );
+}
+
+export async function resolveMascot(
+  locale: string, subject?: string, tier?: string,
+): Promise<MascotResolve> {
+  const qs = new URLSearchParams({ locale });
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mascots/resolve?${qs.toString()}`, { cache: "no-store" }),
+  );
 }
 
 export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
