@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix QA login after k8s reseed (Redis OK but browser still 401).
+  The reseed Python script ran in a separate process — login_ok there did not
+  update live uvicorn workers. k8s_reseed_accounts.sh now ops-reseeds every
+  identity pod (POST /admin/ops/reseed-seeded) and verifies HTTP login on each
+  replica. Identity startup reloads Redis with retry before bootstrap.
+  configmap-vke.yaml documents IDENTITY_ORIGIN/MEMORY_ORIGIN for web rewrites.
 - 2026-06-24 - VKE QA login verify/fix script. scripts/k8s_verify_qa_login.sh
   diagnoses identity/web/redis, tests login in-cluster, runs reseed + auto
   rollout restart + post-restart verify. k8s_reseed_accounts.sh now auto-restarts

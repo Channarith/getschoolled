@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Force identity admin + QA personas into Redis on a running VKE/k8s cluster.
-# On success, optionally restarts identity and verifies login in-cluster.
+# Force identity admin + QA personas into Redis AND live identity pods.
+# The piped Python script writes Redis but runs in a separate process — it does
+# NOT update the running uvicorn workers. We therefore ops-reseed every pod
+# (POST /admin/ops/reseed-seeded) and verify HTTP login on each replica.
 set -euo pipefail
 
 NS="${NAMESPACE:-aoep}"
 DEPLOY="${DEPLOYMENT:-identity}"
 LABEL="${APP_LABEL:-app=$DEPLOY}"
 REDIS_KEY="${REDIS_KEY:-aoep:identity:v1:state}"
-AUTO_RESTART="${AUTO_RESTART:-1}"
+AUTO_RESTART="${AUTO_RESTART:-0}"
 VERIFY_LOGIN="${VERIFY_LOGIN:-1}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,10 +24,18 @@ _json_field() {
   python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$1', ''))"
 }
 
-_identity_pod() {
+_admin_secret() {
+  kubectl -n "$NS" get configmap aoep-config -o jsonpath='{.data.ADMIN_SECRET}' 2>/dev/null \
+    || echo "dev-admin-secret"
+}
+
+_identity_pods() {
   kubectl -n "$NS" get pods -l "$LABEL" \
-    -o jsonpath='{range .items[?(@.status.phase=="Running")]}{.metadata.name}{"\n"}{end}' \
-    | head -n1
+    -o jsonpath='{range .items[?(@.status.phase=="Running")]}{.metadata.name}{"\n"}{end}'
+}
+
+_identity_pod() {
+  _identity_pods | head -n1
 }
 
 _redis_pod() {
@@ -57,18 +67,56 @@ _try_redis_cli_persist() {
   echo "redis-cli SET ok on $redis_pod"
 }
 
-_verify_login() {
+_ops_reseed_pod() {
   local pod="$1"
-  echo "Verifying QA login inside pod/$pod ..."
-  kubectl -n "$NS" exec "$pod" -- python3 - <<'PY'
+  local secret="$2"
+  echo "Ops reseed on pod/$pod (live uvicorn memory) ..."
+  kubectl -n "$NS" exec "$pod" -- env "ADMIN_SECRET=$secret" python3 - <<'PY'
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
-for candidate in ("/app/services/identity/src",):
-    if os.path.isdir(candidate) and candidate not in sys.path:
-        sys.path.insert(0, candidate)
+secret = os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+req = urllib.request.Request(
+    "http://127.0.0.1:8000/admin/ops/reseed-seeded",
+    data=b"",
+    headers={"X-Admin-Secret": secret},
+    method="POST",
+)
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        body = json.loads(resp.read().decode())
+        print(json.dumps(body))
+        if resp.status != 200 or not body.get("reseeded"):
+            raise SystemExit(1)
+except urllib.error.HTTPError as exc:
+    print(f"HTTP {exc.code}: {exc.read().decode()[:300]}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
+_ops_reseed_all() {
+  local secret="$1"
+  local pod
+  while IFS= read -r pod; do
+    [[ -z "$pod" ]] && continue
+    _ops_reseed_pod "$pod" "$secret"
+  done < <(_identity_pods)
+}
+
+_verify_all_pods() {
+  local pod failed=0
+  while IFS= read -r pod; do
+    [[ -z "$pod" ]] && continue
+    echo "HTTP login verify on pod/$pod ..."
+    if ! POD_NAME="$pod" kubectl -n "$NS" exec "$pod" -- env POD_NAME="$pod" python3 - <<'PY'
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
 
 qa_pw = os.environ.get("QA_ACCOUNTS_PASSWORD", "QaTest123").strip() or "QaTest123"
 checks = {
@@ -84,9 +132,12 @@ for label, (email, pw) in checks.items():
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             body = json.loads(resp.read().decode())
             results[label] = bool(body.get("token"))
+    except urllib.error.HTTPError as exc:
+        results[label] = False
+        results[f"{label}_error"] = f"HTTP {exc.code}: {exc.read().decode()[:120]}"
     except Exception as exc:
         results[label] = False
         results[f"{label}_error"] = str(exc)
@@ -94,9 +145,17 @@ print(json.dumps(results))
 ok = results.get("qa-pro@salareen.com") and results.get("qa3")
 raise SystemExit(0 if ok else 1)
 PY
+    then
+      echo "  OK on $pod"
+    else
+      echo "  FAIL on $pod" >&2
+      failed=1
+    fi
+  done < <(_identity_pods)
+  return "$failed"
 }
 
-echo "Looking for a running identity pod in namespace $NS ..."
+echo "Looking for running identity pods in namespace $NS ..."
 POD="$(_identity_pod)"
 if [[ -z "$POD" ]]; then
   echo "No Running pod with label $LABEL in namespace $NS." >&2
@@ -104,7 +163,7 @@ if [[ -z "$POD" ]]; then
   exit 1
 fi
 
-echo "Reseeding accounts via pod/$POD (pipe script to python3) ..."
+echo "Step 1/3: write Redis snapshot via pod/$POD (separate Python process) ..."
 set +e
 OUTPUT="$(kubectl -n "$NS" exec -i "$POD" -- python3 - < "$SCRIPT" 2>&1 | tee /dev/stderr)"
 RESEED_RC=$?
@@ -116,32 +175,41 @@ if [[ -z "$RESULT_JSON" ]]; then
 fi
 
 PERSISTED="$(printf '%s' "$RESULT_JSON" | _json_field persisted)"
-LOGIN_OK="$(printf '%s' "$RESULT_JSON" | _json_field login_ok)"
-
 if [[ "$PERSISTED" != "True" && "$PERSISTED" != "true" ]]; then
   echo "persisted=$PERSISTED — trying redis-cli fallback ..."
   _try_redis_cli_persist "$POD" || true
-  PERSISTED="true"
+fi
+
+SECRET="$(_admin_secret)"
+echo ""
+echo "Step 2/3: ops-reseed EVERY running identity pod (updates live uvicorn memory) ..."
+if ! _ops_reseed_all "$SECRET"; then
+  echo ""
+  echo "Ops reseed failed (404 = identity image too old; need Deploy workflow)." >&2
+  echo "Trying rollout restart as fallback ..." >&2
+  kubectl -n "$NS" rollout restart "deployment/$DEPLOY"
+  kubectl -n "$NS" rollout status "deployment/$DEPLOY" --timeout=180s
+  _ops_reseed_all "$SECRET" || true
 fi
 
 if [[ "$AUTO_RESTART" == "1" ]]; then
-  echo "Restarting deployment/$DEPLOY so every replica reloads Redis ..."
+  echo ""
+  echo "Optional restart deployment/$DEPLOY ..."
   kubectl -n "$NS" rollout restart "deployment/$DEPLOY"
   kubectl -n "$NS" rollout status "deployment/$DEPLOY" --timeout=180s
-  POD="$(_identity_pod)"
-fi
-
-if [[ "$VERIFY_LOGIN" == "1" && -n "$POD" ]]; then
-  if ! _verify_login "$POD"; then
-    echo ""
-    echo "QA login still failing after reseed + restart." >&2
-    echo "Check cluster secret password:" >&2
-    echo "  kubectl -n $NS get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo" >&2
-    echo "Expected: QaTest123 (unless you rotated it)." >&2
-    exit 1
-  fi
-  echo "QA login verified OK on pod/$POD"
 fi
 
 echo ""
-echo "Done. Try in browser: qa-pro@salareen.com / QaTest123 (or alias qa3)"
+echo "Step 3/3: verify HTTP login on every identity replica ..."
+if [[ "$VERIFY_LOGIN" == "1" ]]; then
+  if ! _verify_all_pods; then
+    echo ""
+    echo "HTTP login still failing on one or more pods." >&2
+    echo "Check: kubectl -n $NS logs -l app=identity --tail=50" >&2
+    exit 1
+  fi
+fi
+
+echo ""
+echo "Done. Browser login should work now:"
+echo "  qa-pro@salareen.com / QaTest123  (or username qa3)"

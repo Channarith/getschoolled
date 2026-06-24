@@ -132,6 +132,18 @@ def load_from_redis(store: "AccountStore") -> bool:
         return False
 
 
+def load_from_redis_with_retry(store: "AccountStore", *, attempts: int = 5, delay_s: float = 0.4) -> bool:
+    """Load with short retries so pods that start before Redis is ready still hydrate."""
+    if not redis_configured():
+        return False
+    for attempt in range(1, attempts + 1):
+        if load_from_redis(store):
+            return True
+        if attempt < attempts:
+            time.sleep(delay_s)
+    return False
+
+
 def save_to_redis(store: "AccountStore") -> bool:
     client = _redis_client()
     if client is None:

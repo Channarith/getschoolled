@@ -31,8 +31,11 @@ def _bootstrap_on_startup() -> None:
     import logging
 
     from .bootstrap import bootstrap_accounts
-    from .persistence import save_to_redis_with_retry
+    from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
 
+    if not load_from_redis_with_retry(app.state.accounts):
+        logging.getLogger(__name__).info(
+            "identity startup: no Redis snapshot loaded (will bootstrap in-memory)")
     stats = bootstrap_accounts(app.state.accounts)
     if not save_to_redis_with_retry(app.state.accounts):
         logging.getLogger(__name__).error(
