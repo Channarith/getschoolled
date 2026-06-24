@@ -74,6 +74,10 @@ Running things (see Makefile for the canonical targets):
 - Backend tests: per-package/per-service `python -m pytest` run from the service
   dir (each service has a `tests/conftest.py` that puts its `src` on `sys.path`).
   `make test` runs them all.
+- Local services with `config/local.env` loaded (admin seed, QA accounts, etc.):
+  `make run-identity` (:8008), `make run-memory` (:8004), `make run-orchestrator`
+  (:8000). Uses `scripts/run_local_service.sh`; restart identity after pulling
+  auth/seed changes.
 - Orchestrator API (the teaching brain the web app calls, on `/api/lessons`,
   `/api/sessions`, `/api/sessions/{id}/advance|ask`): from
   `services/orchestrator`, `PYTHONPATH=src uvicorn orchestrator.main:app --port 8000`.

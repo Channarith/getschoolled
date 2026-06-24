@@ -11,7 +11,8 @@ COMPOSE := infra/compose/docker-compose.yml
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild \
-	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version
+	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
+	run-identity run-memory run-orchestrator
 
 help:
 	@echo "Targets:"
@@ -34,6 +35,9 @@ help:
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
 	@echo "  bump-version   Advance VERSION for a PR merging to main"
 	@echo "  check-version  Verify VERSION was bumped vs main (CI helper)"
+	@echo "  run-identity   Start identity on :8008 (loads config/local.env)"
+	@echo "  run-memory     Start memory on :8004 (loads config/local.env)"
+	@echo "  run-orchestrator Start orchestrator on :8000 (loads config/local.env)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
 	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
@@ -158,3 +162,12 @@ bump-version:
 
 check-version:
 	bash scripts/check_pr_version_bump.sh
+
+run-identity:
+	./scripts/run_local_service.sh identity
+
+run-memory:
+	./scripts/run_local_service.sh memory
+
+run-orchestrator:
+	./scripts/run_local_service.sh orchestrator
