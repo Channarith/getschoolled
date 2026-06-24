@@ -5,6 +5,12 @@
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
   "main": "index.ts",
   "scripts": {
+    "doctor": "node scripts/mobile-doctor.js",
+    "dev": "expo start --clear",
+    "dev:ios": "expo start --ios --clear",
+    "dev:android": "expo start --android --clear",
+    "dev:ios:offline": "EXPO_OFFLINE=1 expo start --ios --clear",
+    "dev:android:offline": "EXPO_OFFLINE=1 expo start --android --clear",
     "start": "expo start",
     "start:android": "expo start --android",
     "start:ios": "expo start --ios",
@@ -44,6 +50,7 @@
   },
   "devDependencies": {
     "@types/react": "~18.2.45",
+    "babel-preset-expo": "~11.0.0",
     "typescript": "~5.3.3"
   }
 }

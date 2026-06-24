@@ -27,6 +27,9 @@ help:
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
 	@echo "  mobile-install Install Expo mobile deps (apps/mobile)"
+	@echo "  mobile-doctor  Check mobile dev env (Xcode, simulators, deps)"
+	@echo "  mobile-dev-ios Launch Expo Go on iOS Simulator (macOS)"
+	@echo "  mobile-dev-android Launch Expo Go on Android emulator"
 	@echo "  mobile-build   Bundle production iOS+Android JS (apps/mobile/dist)"
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
 	@echo "  compose-config Validate the docker compose file"
@@ -94,6 +97,15 @@ web-build:
 # --- Mobile (Expo: Android + iOS) ----------------------------------------- #
 mobile-install:
 	cd apps/mobile && pnpm install
+
+mobile-doctor:
+	cd apps/mobile && pnpm run doctor
+
+mobile-dev-ios:
+	cd apps/mobile && pnpm run dev:ios
+
+mobile-dev-android:
+	cd apps/mobile && pnpm run dev:android
 
 mobile-typecheck:
 	cd apps/mobile && pnpm typecheck

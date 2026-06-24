@@ -508,20 +508,18 @@ Two ways to run locally — pick one:
 
 | Goal | Command | Needs |
 |------|---------|-------|
-| **Fastest** — Expo Go in simulator/emulator (hot reload) | `pnpm run start:ios` or `pnpm run start:android` | Xcode Simulator or a running Android AVD |
-| **Native dev build** — compiles `ios/` / `android/` locally | `pnpm ios` or `pnpm android` | Xcode + CocoaPods (iOS) or Android SDK + JDK (Android); first run runs `prebuild` |
+| **Fastest** — Expo Go in simulator/emulator (hot reload) | `pnpm run dev:ios` or `pnpm run dev:android` | Xcode Simulator or a running Android AVD |
+| **Native dev build** — compiles `ios/` / `android/` locally | `pnpm ios` or `pnpm android` | Xcode + CocoaPods (iOS) or Android SDK; first run **10–20 min** |
+
+**If nothing happens:** run `pnpm run doctor` from `apps/mobile`. See **`apps/mobile/RUN.txt`**.
 
 **macOS — iOS Simulator (recommended first try)**
 
 ```bash
-# One-time: install Xcode from the App Store, open it once, accept the license.
-# Optional check:
-xcode-select -p && xcrun simctl list devices available | head
-
 cd apps/mobile
-pnpm install                 # or: make mobile-install
-pnpm run start:ios           # starts Metro and opens the iOS Simulator (Expo Go)
-# Or: pnpm start  then press  i  in the terminal
+pnpm install && pnpm run doctor
+open -a Simulator                    # boot Simulator manually if needed
+pnpm run dev:ios                     # NOT pnpm ios on first try
 ```
 
 **macOS — Android emulator**
@@ -545,10 +543,13 @@ cd apps/mobile
 pnpm install                 # or: make mobile-install
 
 # 2. Run / launch in development (hot-reload)
+pnpm run doctor              # check Xcode / Android / deps (run if stuck)
+pnpm run dev:ios             # Expo Go on iOS Simulator — use this first on Mac
+pnpm run dev:android         # Expo Go on Android emulator
 pnpm start                   # Metro; press i (iOS) or a (Android) in the terminal
-pnpm run start:ios           # Expo Go on iOS Simulator (macOS) — easiest on a Mac
-pnpm run start:android       # Expo Go on Android emulator/device
-pnpm ios                     # native iOS dev build (expo run:ios; first run is slow)
+pnpm run start:ios           # same as dev:ios without --clear
+pnpm run start:android       # same as dev:android without --clear
+pnpm ios                     # native iOS dev build (slow; expo run:ios)
 pnpm android                 # native Android dev build (expo run:android)
 pnpm run web                 # run the app in a browser
 

@@ -21,18 +21,56 @@ INSTALL (one-time)
   # `pnpm install` if you switch package managers.
 
 DEV LOOP — TWO PATHS
+  Run the doctor first if anything fails silently:
+    cd apps/mobile
+    pnpm install
+    pnpm run doctor
+
   Path A (recommended): Expo Go in simulator/emulator — fast, hot reload.
     cd apps/mobile
-    pnpm run start:ios       # macOS: boots iOS Simulator + loads Expo Go
-    pnpm run start:android   # boots/runs on an Android emulator or USB device
+    pnpm run dev:ios         # macOS: boots iOS Simulator + loads Expo Go
+    pnpm run dev:android     # boots/runs on an Android emulator or USB device
+    # Aliases: pnpm run start:ios / start:android
     # Or: pnpm start  then press  i  (iOS) or  a  (Android) in the terminal.
 
   Path B: native dev build — compiles local ios/ and android/ projects.
     cd apps/mobile
     pnpm ios                 # expo run:ios   (first run: prebuild + pod install)
     pnpm android             # expo run:android (first run: prebuild + Gradle)
+    First native build can take 10–20 minutes with little visible output.
     Use Path B when you need the full native shell (notifications, release-like
     builds). Path A is enough for most UI / Drive Mode smoke testing.
+
+NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
+  Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
+  with no Simulator window.
+
+  1. Wrong directory — commands MUST run from apps/mobile, not the repo root.
+       cd apps/mobile && pnpm run doctor
+
+  2. Wrong command — pnpm ios is a NATIVE compile (Path B), not Expo Go.
+       Use:  pnpm run dev:ios     (not pnpm ios on first try)
+
+  3. Open the Simulator manually before launching:
+       open -a Simulator
+       pnpm run dev:ios
+
+  4. See verbose Expo logs:
+       EXPO_DEBUG=1 pnpm run dev:ios
+
+  5. Expo cannot reach expo.dev (corporate VPN / offline):
+       pnpm run dev:ios:offline
+
+  6. Xcode license / simulators missing:
+       sudo xcodebuild -license accept
+       open -a Xcode   # Settings -> Platforms -> install iOS simulator runtime
+
+  7. Clean reinstall:
+       rm -rf node_modules .expo && pnpm install && pnpm run dev:ios -- --clear
+
+  8. Native build (pnpm ios) stuck with no output — it may still be compiling.
+       Watch Activity Monitor for node/xcodebuild, or run in another terminal:
+       EXPO_DEBUG=1 pnpm ios
 
 macOS — iOS SIMULATOR SETUP (one-time)
   1. Install Xcode from the App Store; open Xcode once and finish setup.
