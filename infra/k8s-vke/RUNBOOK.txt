@@ -116,12 +116,15 @@ Do NOT commit real secrets. Replace placeholders:
     --from-literal=OBJECT_STORE_SECRET_KEY=... \
     --from-literal=DATABASE_URL='postgresql://user:pass@host:5432/db' \
     --from-literal=PAYMENT_API_KEY=... \
-    --from-literal=DEFAULT_ADMIN_PASSWORD=88888888
+    --from-literal=DEFAULT_ADMIN_PASSWORD=88888888 \
+    --from-literal=QA_ACCOUNTS_PASSWORD=QaTest123
 
 DEFAULT_ADMIN_PASSWORD seeds the platform's default admin (admin@salareen.com /
-username "admin"). If you omit it, the identity code default (88888888) is used.
-ROTATE it for a real deployment, or set SEED_DEFAULT_ADMIN=0 in the ConfigMap and
-create the admin manually.
+username "admin"). QA_ACCOUNTS_PASSWORD seeds three QA personas (qa-learner@,
+qa-parent@, qa-pro@ — or log in as qa1 / qa2 / qa3). If you omit them, the
+identity code defaults apply (88888888 / QaTest123). ROTATE for a real deployment,
+or set SEED_DEFAULT_ADMIN=0 / SEED_QA_ACCOUNTS=0 in the ConfigMap and create
+accounts manually.
 
 If the namespace does not exist yet, first:
   kubectl apply -f infra/k8s/namespace.yaml

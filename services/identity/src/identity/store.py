@@ -140,27 +140,59 @@ class AccountStore:
         self._persist()
         return acct
 
+    def seed_account(
+        self,
+        email: str,
+        password: str,
+        *,
+        display_name: str = "",
+        tier: PlanTier = PlanTier.FREE,
+        region: Region = Region.US,
+        username: str = "",
+        is_admin: bool = False,
+    ) -> Account:
+        """Create (idempotently) a seeded account. Optionally registers a bare
+        username alias for login. Does not reset the password if the account
+        already exists."""
+        email = email.strip().lower()
+        alias = username.strip().lower()
+        existing = self.by_email(email)
+        if existing is None and alias:
+            existing = self._by_id.get(self._id_by_email.get(alias, ""))
+        if existing is not None:
+            existing.tier = tier
+            existing.is_admin = existing.is_admin or is_admin
+            if display_name:
+                existing.display_name = display_name
+            self._persist()
+            return existing
+        acct = Account(
+            email=email,
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(password),
+            tier=tier,
+            region=region,
+            is_admin=is_admin,
+        )
+        self._by_id[acct.id] = acct
+        self._id_by_email[email] = acct.id
+        if alias and alias not in self._id_by_email:
+            self._id_by_email[alias] = acct.id
+        self._persist()
+        return acct
+
     def seed_admin(self, email: str, password: str, *, username: str = "admin",
                    display_name: str = "Administrator") -> Account:
         """Create (idempotently) a default admin account. Also registers a bare
         `username` alias so you can log in with just "admin". Marked is_admin so
         the web unlocks operator surfaces (e.g. the Homework grader)."""
-        email = email.strip().lower()
-        existing = self.by_email(email) or (
-            self._by_id.get(self._id_by_email.get(username.strip().lower(), "")))
-        if existing is not None:
-            existing.is_admin = True
-            self._persist()
-            return existing
-        acct = Account(email=email, display_name=display_name,
-                       password_hash=hash_password(password), is_admin=True)
-        self._by_id[acct.id] = acct
-        self._id_by_email[email] = acct.id
-        alias = username.strip().lower()
-        if alias and alias not in self._id_by_email:
-            self._id_by_email[alias] = acct.id   # allow login with just "admin"
-        self._persist()
-        return acct
+        return self.seed_account(
+            email,
+            password,
+            display_name=display_name,
+            username=username,
+            is_admin=True,
+        )
 
     def by_email(self, email: str) -> Optional[Account]:
         aid = self._id_by_email.get(email.strip().lower())

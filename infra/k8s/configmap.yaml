@@ -23,6 +23,9 @@ data:
   SEED_DEFAULT_ADMIN: "1"
   DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
   DEFAULT_ADMIN_USERNAME: "admin"
+  # QA personas for manual/release testing (password in Secret). SEED_QA_ACCOUNTS=0
+  # disables them on a production deployment.
+  SEED_QA_ACCOUNTS: "1"
   # Careers: serve REAL job openings from public boards (Remotive + Arbeitnow;
   # no key, falls back to the curated board if egress is blocked). Add a
   # RAPIDAPI_KEY (JSearch -> LinkedIn/Indeed/Glassdoor) or ADZUNA_APP_ID/KEY via
@@ -73,3 +76,5 @@ stringData:
   # Seed password for the default admin (identity). Demo default; ROTATE for prod
   # (or set SEED_DEFAULT_ADMIN=0 in the ConfigMap and create the admin manually).
   DEFAULT_ADMIN_PASSWORD: "88888888"
+  # Shared password for the three QA test accounts (qa-learner/parent/pro).
+  QA_ACCOUNTS_PASSWORD: "QaTest123"

@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - QA test accounts for manual testing. Identity seeds three fixed
+  personas at startup (env-gated SEED_QA_ACCOUNTS): qa-learner@salareen.com (qa1,
+  free tier), qa-parent@salareen.com (qa2, with child profile "QA Kid"), and
+  qa-pro@salareen.com (qa3, Pro tier). Shared password QA_ACCOUNTS_PASSWORD
+  (default QaTest123). Idempotent; disable with SEED_QA_ACCOUNTS=0. Documented
+  in docs/release-testing.txt.
 - 2026-06-23 - Netflix-style animated site themes. Site-wide wallpapers and the
   signed-out landing hero now use a slow Ken Burns zoom/pan (image themes) or
   gentle drift (CSS gradient themes), with four motion variants per theme id.
