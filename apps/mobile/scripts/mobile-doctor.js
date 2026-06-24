@@ -60,6 +60,19 @@ if (fs.existsSync(path.join(ROOT, "node_modules", "babel-preset-expo"))) {
 if (fs.existsSync(path.join(ROOT, "app.json"))) ok("app.json found");
 else fail("app.json not found");
 
+try {
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(ROOT, "tsconfig.json"), "utf8"));
+  const includes = tsconfig.include || [];
+  const bad = includes.some((p) => p === "**/*.ts" || p === "**/*.tsx");
+  if (bad) {
+    fail('tsconfig.json include is too broad ("**/*.ts" typechecks node_modules → OOM). Use src/**/*.ts');
+  } else {
+    ok(`tsconfig.json include: ${includes.join(", ")}`);
+  }
+} catch {
+  warn("Could not parse tsconfig.json");
+}
+
 if (isDarwin) {
   console.log("\nmacOS / iOS Simulator checks:");
   const xcode = run("xcode-select -p");

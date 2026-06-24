@@ -2,9 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Mobile: identity auth + cloud learning profile survey (Settings).
-  QA test-account quick fill in dev builds. Verbose launch scripts (launch:ios:debug,
-  doctor:verbose, Makefile targets). Android emulator auto-uses 10.0.2.2 for APIs.
+- 2026-06-24 - Fix mobile typecheck/export OOM: tsconfig scoped to src/ only
+  (was **/*.ts which typechecked all of node_modules). assetBundlePatterns
+  narrowed to assets/**. export targets ios+android only (not web). Metro
+  exclusionList for dist/.expo. typecheck:verbose + export:verbose scripts.
 - 2026-06-24 - Learning profile survey: cloud persistence (onboarding_completed_at
   + onboarding_answers on student profile). Skip saves to identity, not
   localStorage. Account → Learning profile reopens/updates the survey.
