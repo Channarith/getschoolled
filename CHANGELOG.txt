@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Mobile typecheck: dedicated tsconfig.typecheck.json + preflight script
+  (detects stale **/*.ts include, prints src file count). Fixes persistent OOM on Mac.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist
