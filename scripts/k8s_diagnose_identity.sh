@@ -42,7 +42,7 @@ PY
 
 echo ""
 echo "-- Fresh Python load from Redis (NOT the running uvicorn process) --"
-kubectl -n "$NS" exec "$POD" -- python3 - <<'PY'
+kubectl -n "$NS" exec -i "$POD" -- python3 - <<'PY'
 import json
 import os
 import sys
@@ -70,7 +70,7 @@ echo "-- HTTP login on EACH pod (running uvicorn — what the browser hits) --"
 ADMIN_SECRET="$(kubectl -n "$NS" get configmap aoep-config -o jsonpath='{.data.ADMIN_SECRET}')"
 for p in $(kubectl -n "$NS" get pods -l app=identity -o jsonpath='{.items[*].metadata.name}'); do
   echo "pod $p:"
-  kubectl -n "$NS" exec "$p" -- python3 - <<'PY'
+  kubectl -n "$NS" exec -i "$p" -- python3 - <<'PY'
 import json, os, urllib.request, urllib.error
 
 def post(email, password):

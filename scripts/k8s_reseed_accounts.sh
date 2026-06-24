@@ -71,7 +71,7 @@ _ops_reseed_pod() {
   local pod="$1"
   local secret="$2"
   echo "Ops reseed on pod/$pod (live uvicorn memory) ..."
-  kubectl -n "$NS" exec "$pod" -- env "ADMIN_SECRET=$secret" python3 - <<'PY'
+  kubectl -n "$NS" exec -i "$pod" -- env "ADMIN_SECRET=$secret" python3 - <<'PY'
 import json
 import os
 import sys
@@ -111,7 +111,7 @@ _verify_all_pods() {
   while IFS= read -r pod; do
     [[ -z "$pod" ]] && continue
     echo "HTTP login verify on pod/$pod ..."
-    if ! POD_NAME="$pod" kubectl -n "$NS" exec "$pod" -- env POD_NAME="$pod" python3 - <<'PY'
+    if ! POD_NAME="$pod" kubectl -n "$NS" exec -i "$pod" -- env POD_NAME="$pod" python3 - <<'PY'
 import json
 import os
 import sys

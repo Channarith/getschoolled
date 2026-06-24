@@ -37,10 +37,29 @@ env:
   REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Manual Deploy run — will build and roll all services."
+          elif [ "${{ vars.AUTO_DEPLOY }}" = "true" ]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Push to main with AUTO_DEPLOY=true — will deploy."
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipped: this was a push to main without AUTO_DEPLOY=true."
+            echo "::notice::Use Actions → Deploy → Run workflow (manual), or"
+            echo "::notice::Actions → Deploy VKE (identity + web) → Run workflow (faster QA fix)."
+          fi
+
   build-push:
-    # Skip auto-deploy on push unless AUTO_DEPLOY is explicitly enabled; always
-    # allow manual runs.
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    needs: gate
+    if: needs.gate.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -55,7 +74,7 @@ jobs:
           - { name: identity,     dockerfile: services/identity/Dockerfile,     context: . }
           - { name: integrations, dockerfile: services/integrations/Dockerfile, context: . }
           - { name: harvester,    dockerfile: services/harvester/Dockerfile,    context: . }
-          - { name: web,          dockerfile: apps/web/Dockerfile,              context: apps/web }
+          - { name: web,          dockerfile: apps/web/Dockerfile,              context: . }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -81,8 +100,8 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    needs: build-push
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY == 'true' }}
+    needs: [gate, build-push]
+    if: needs.gate.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
