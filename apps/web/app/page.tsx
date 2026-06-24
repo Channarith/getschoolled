@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppBadges from "./components/AppBadges";
 import { Rail } from "./components/CourseRail";
+import MascotImage from "./components/MascotImage";
 import {
   getHomeFeed,
   getPreview,
@@ -59,9 +60,7 @@ export default function HomePage() {
           aria-hidden
         />
         <div className="landing-inner">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/bayon-mark.webp" alt="Salareen mascot" className="landing-mascot"
-               width={160} height={328} />
+          <MascotImage width={160} className="landing-mascot" alt="Salareen mascot" />
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title glow" style={{ fontSize: 52, maxWidth: "20ch", margin: "14px auto 12px" }}>
             {t("hero.title")}
@@ -104,15 +103,12 @@ export default function HomePage() {
       }}>
         <div className="theme-hero-inner"
              style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Salareen brand mascot: the Bayon Buddy cradling the gold
-              S-medallion with the Bodhi leaf. Transparent webp so the
-              character floats over the wisdom wallpaper. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/bayon-mark.webp"
-               alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
-               width={200} height={409}
-               style={{ flex: "0 0 auto", width: 200, height: "auto",
-                        filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }} />
+          <MascotImage
+            width={200}
+            alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
+            style={{ flex: "0 0 auto", width: 200, height: "auto",
+                      filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }}
+          />
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title glow" style={{ marginTop: 14 }}>

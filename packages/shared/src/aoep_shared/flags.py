@@ -128,6 +128,15 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Personalized Netflix-style browse carousels rollout."),
     FlagSpec("ux.new_player", FlagType.PERCENT, 0, "ux",
              "Rollout of the redesigned video player."),
+    FlagSpec("ux.locale_mascots", FlagType.BOOL, True, "ux",
+             "Show locale-specific Bayon Buddy mascot variants for each of the "
+             "27 supported languages (fallback to default when off)."),
+    FlagSpec("ux.locale_mascots_preview_locale", FlagType.STRING, "auto", "ux",
+             "Admin: force a mascot locale for testing (auto = follow user language).",
+             admin_only=True,
+             options=("auto", "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru",
+                      "uk", "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja",
+                      "ko", "vi", "th", "id", "sw", "el", "cs", "km")),
 
     # --- operational kill-switches ------------------------------------------- #
     FlagSpec("ops.maintenance_mode", FlagType.BOOL, False, "ops",

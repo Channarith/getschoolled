@@ -41,7 +41,8 @@
     "extra": {
       "//": "Set CURRICULUM_URL to your reachable backend (LAN IP for a device, or deployed URL).",
       "curriculumUrl": "http://localhost:8005",
-      "identityUrl": "http://localhost:8008"
+      "identityUrl": "http://localhost:8008",
+      "memoryUrl": "http://localhost:8004"
     }
   }
 }

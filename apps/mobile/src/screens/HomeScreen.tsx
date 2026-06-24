@@ -11,9 +11,9 @@ import {
   recordInterest, type ContinueRow,
 } from "../storage";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
+import MascotSvg from "../components/MascotSvg";
 import { useT } from "../i18n";
 
-const BAYON_BUDDY = require("../../assets/bayon_buddy_s_bodhi_512.png");
 const LOGO_MARK = require("../../assets/salareen_mark_256.png");
 
 const EMOJIS_BY_CATEGORY: Record<string, string> = {
@@ -143,8 +143,8 @@ export default function HomeScreen({
         <Pressable style={styles.modalScrim} onPress={() => setShowMascot(false)}>
           <Pressable style={styles.mascotCard} onPress={() => {}}>
             <Text style={styles.mascotTitle}>Bayon Buddy</Text>
-            <Text style={styles.mascotSub}>Photo-real mascot hugging the S + Bodhi leaf mark.</Text>
-            <Image source={BAYON_BUDDY} resizeMode="contain" style={styles.mascotImage} />
+            <Text style={styles.mascotSub}>Locale-aware study buddy with the S + Bodhi leaf mark.</Text>
+            <MascotSvg width={220} height={360} showCaption />
             <Pressable style={styles.closeButton} onPress={() => setShowMascot(false)}>
               <Text style={styles.closeText}>Close</Text>
             </Pressable>
@@ -275,7 +275,6 @@ const styles = StyleSheet.create({
   },
   mascotTitle: { color: "#e8ecf6", fontSize: 22, fontWeight: "900" },
   mascotSub: { color: "#9aa6c2", marginBottom: 8, marginTop: 4, textAlign: "center" },
-  mascotImage: { height: 360, width: 220 },
   closeButton: {
     backgroundColor: "#0ea5e9", borderRadius: 999, marginTop: 10,
     paddingHorizontal: 18, paddingVertical: 9,

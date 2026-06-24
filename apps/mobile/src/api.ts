@@ -6,8 +6,13 @@
 
 import Constants from "expo-constants";
 
+import type { MascotResolve } from "./mascot";
+
 export const CURRICULUM_URL: string =
   (Constants.expoConfig?.extra?.curriculumUrl as string) || "http://localhost:8005";
+
+export const MEMORY_URL: string =
+  (Constants.expoConfig?.extra?.memoryUrl as string) || "http://localhost:8004";
 
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;
@@ -113,4 +118,22 @@ export async function getHomeRails(kids = false): Promise<HomeRail[]> {
   } catch {
     return [];
   }
+}
+
+// --- feature flags + locale mascots (memory service) -------------------- //
+
+async function memoryGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${MEMORY_URL}${path}`);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
+export async function getFlag(key: string): Promise<unknown> {
+  const r = await memoryGet<{ value: unknown }>(`/flags/${encodeURIComponent(key)}`);
+  return r.value;
+}
+
+export async function resolveMascot(locale: string): Promise<MascotResolve> {
+  const qs = new URLSearchParams({ locale });
+  return memoryGet<MascotResolve>(`/mascots/resolve?${qs.toString()}`);
 }

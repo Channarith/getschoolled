@@ -18,6 +18,7 @@ from aoep_shared.learning_profile import (
     onboarding_template,
     validate_onboarding_answers,
 )
+from aoep_shared.mascots import mascot_catalog_list, normalize_mascot_locale, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -305,6 +306,27 @@ def survey_onboarding_submit(req: OnboardingSurveySubmit) -> dict:
 @app.get("/admin/survey/onboarding/summary")
 def survey_onboarding_summary(_: str = Depends(require_admin_header)) -> dict:
     return app.state.onboarding_surveys.summary()
+
+
+# --------------------------------------------------------------------------- #
+# Locale-specific Bayon Buddy mascots (27 languages)
+# --------------------------------------------------------------------------- #
+@app.get("/mascots/catalog")
+def mascots_catalog() -> dict:
+    return {"count": len(mascot_catalog_list()), "mascots": mascot_catalog_list()}
+
+
+@app.get("/mascots/resolve")
+def mascots_resolve(
+    locale: str = "en",
+    subject: str | None = None,
+    tier: str | None = None,
+) -> dict:
+    enabled = bool(app.state.flags.resolve("ux.locale_mascots", subject=subject, tier=tier))
+    preview = app.state.flags.resolve("ux.locale_mascots_preview_locale", subject=subject, tier=tier)
+    preview_locale = None if preview in (None, "", "auto") else str(preview)
+    resolved = resolve_mascot(locale, enabled=enabled, preview_locale=preview_locale)
+    return {"enabled": enabled, "preview_locale": preview_locale, **resolved}
 
 
 @app.get("/survey/summary/{course_id}")
