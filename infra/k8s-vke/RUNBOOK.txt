@@ -181,6 +181,11 @@ predates the bootstrap fix. One-command diagnose + fix (run where kubectl works)
   chmod +x scripts/k8s_verify_qa_login.sh scripts/k8s_reseed_accounts.sh
   ./scripts/k8s_verify_qa_login.sh
 
+Or ops-reseed live pods only (identity images have no curl — use python3):
+
+  chmod +x scripts/k8s_ops_reseed_identity.sh
+  ./scripts/k8s_ops_reseed_identity.sh
+
 That script prints identity/web/redis pod status, tests login in-cluster (same
 path the browser uses via web -> identity), reseeds Redis, restarts identity,
 and verifies qa-pro + qa3 before you retry the browser.
