@@ -131,6 +131,22 @@ TROUBLESHOOTING — EMULATOR / SIMULATOR WON'T LAUNCH
 
 TYPECHECK
   pnpm typecheck         # or: make mobile-typecheck
+  pnpm run typecheck:verbose   # list every file tsc checks (should be ~30, not thousands)
+
+  JavaScript heap out of memory during typecheck or export
+  --------------------------------------------------------
+  Cause: tsconfig.json used to include "**/*.ts" which typechecked all of
+  node_modules (~3800+ files) and exhausted Node's ~4 GB default heap.
+
+  Fix (pull latest main): tsconfig only includes App.tsx, index.ts, src/**/*
+  assetBundlePatterns is assets/**/* only (not "**/*").
+
+  If you still OOM on export, build one platform at a time:
+    pnpm run export:ios
+    pnpm run export:android
+
+  Verbose export (see what Metro is doing):
+    pnpm run export:verbose
 
 BUILD (production JS bundles - iOS + Android)
   pnpm run export        # writes apps/mobile/dist/

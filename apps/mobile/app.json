@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
     "splash": { "image": "./assets/salareen_icon_1024.png", "resizeMode": "contain", "backgroundColor": "#0b1020" },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": ["assets/**/*"],
     "notification": {
       "iosDisplayInForeground": true,
       "color": "#0ea5e9"
