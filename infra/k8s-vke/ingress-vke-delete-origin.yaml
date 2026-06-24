@@ -1,0 +1,16 @@
+# VKE consolidates bare-IP / any-host routes into aoep + aoep-apis (ingress-vke.yaml).
+# Drop the base single-origin Ingress pair so nginx does not reject duplicate
+# host "_" paths (/ on aoep-origin-web, /orchestrator on aoep-origin-apis).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep-origin-web
+  namespace: aoep
+$patch: delete
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep-origin-apis
+  namespace: aoep
+$patch: delete

@@ -7,6 +7,8 @@ patches:
   - path: configmap-vke.yaml
   - path: ingress-vke.yaml
   - path: pvc-vke.yaml
+patchesStrategicMerge:
+  - ingress-vke-delete-origin.yaml
 images:
   - name: ghcr.io/aoep/orchestrator
     newName: sjc.vultrcr.com/salareen/orchestrator
