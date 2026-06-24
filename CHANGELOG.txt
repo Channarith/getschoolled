@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix VKE ingress apply: duplicate host "_" paths. The VKE overlay
+  added bare-IP routes on aoep + aoep-apis while base ingress-origin.yaml still
+  defined aoep-origin-web/apis (same / and /orchestrator paths). VKE now deletes
+  the origin Ingress pair via ingress-vke-delete-origin.yaml. RUNBOOK §Verify.
 - 2026-06-24 - Photo-realistic locale mascots (27 languages). Replaced flat SVG
   variants with WebP renditions of the canonical stone-carving Bayon Buddy
   (apps/web/public/bayon-mark.webp). Khmer (km) uses the master art unchanged;
