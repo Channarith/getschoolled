@@ -7,7 +7,7 @@ ADMIN_SECRET="${ADMIN_SECRET:-$(kubectl -n "$NS" get configmap aoep-config -o js
 
 for p in $(kubectl -n "$NS" get pods -l app=identity -o jsonpath='{.items[*].metadata.name}'); do
   echo "=== ops reseed $p ==="
-  kubectl -n "$NS" exec "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY'
+  kubectl -n "$NS" exec -i "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY'
 import json
 import os
 import sys

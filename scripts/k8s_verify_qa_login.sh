@@ -55,7 +55,7 @@ done
 
 echo ""
 echo "-- Direct identity login (in-cluster, same as web rewrite target) --"
-kubectl -n "$NS" exec "$IDENTITY_POD" -- python3 - <<'PY'
+kubectl -n "$NS" exec -i "$IDENTITY_POD" -- python3 - <<'PY'
 import json
 import urllib.error
 import urllib.request

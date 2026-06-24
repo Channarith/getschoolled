@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix k8s ops-reseed scripts: kubectl exec -i required for stdin
+  heredocs (without -i, python3 received no script and printed nothing).
 - 2026-06-24 - scripts/k8s_ops_reseed_identity.sh: ops-reseed via python3 (identity
   slim images have no curl). k8s_diagnose_identity.sh uses python3 for ops probe.
 - 2026-06-24 - Identity ops-reseed reloads Redis before bootstrap; returns login_ok
