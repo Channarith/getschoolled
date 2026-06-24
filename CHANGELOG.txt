@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Fix k8s_reseed_accounts.sh: resolve a Running identity pod before
+  kubectl cp/exec (deploy/identity is not valid for cp; caused "pods identity not
+  found").
 - 2026-06-24 - Identity operator reseed for QA accounts (no JWT). POST
   /identity/admin/ops/reseed-seeded accepts X-Admin-Secret (same as memory admin).
   scripts/k8s_reseed_accounts.sh + identity_reseed_redis.py reseed via kubectl exec
