@@ -90,7 +90,9 @@ def test_admin_accounts_forbidden_for_regular_user():
 
 
 def test_admin_accounts_list_for_operator():
-    app.state.accounts.seed_admin("operator@test.com", "Secret123")
+    app.state.accounts.seed_admin(
+        "operator@test.com", "Secret123", username="operator",
+    )
     tok = client.post("/auth/login", json={"email": "operator@test.com", "password": "Secret123"}).json()["token"]
     r = client.get("/admin/accounts", headers=_auth(tok))
     assert r.status_code == 200

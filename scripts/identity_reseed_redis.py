@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Force admin + QA seed accounts into Redis (stdin: kubectl exec -i pod -- python3 -).
 
-Works on identity images back to ~0.3.82 (no identity.persistence module).
-After a successful Redis write, restart identity so every replica reloads:
+Works on identity images back to ~0.3.82 (no identity.persistence module, no
+redis PyPI package). Uses a minimal RESP client over TCP when ``redis`` is not
+installed. After a successful Redis write, restart identity so every replica
+reloads:
 
   kubectl -n aoep rollout restart deployment/identity
 """
@@ -11,9 +13,12 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import sys
 import time
 from pathlib import Path
+from typing import List, Optional, Tuple
+from urllib.parse import urlparse
 
 for candidate in (
     Path(__file__).resolve().parents[1] / "services" / "identity" / "src",
@@ -24,6 +29,12 @@ for candidate in (
 
 REDIS_KEY = "aoep:identity:v1:state"
 
+QA_ALIASES = (
+    ("qa1", "qa-learner@salareen.com"),
+    ("qa2", "qa-parent@salareen.com"),
+    ("qa3", "qa-pro@salareen.com"),
+)
+
 
 def _env_password(key: str, default: str) -> str:
     raw = os.environ.get(key, default)
@@ -31,20 +42,149 @@ def _env_password(key: str, default: str) -> str:
     return val or default
 
 
-def _redis_client():
-    url = os.environ.get("REDIS_URL", "").strip()
-    if not url:
-        return None
-    try:
-        import redis  # type: ignore[import-not-found]
-    except ImportError:
-        return None
-    try:
-        client = redis.from_url(url, decode_responses=True, socket_connect_timeout=5)
-        client.ping()
-        return client
-    except Exception:
-        return None
+def _redis_url_candidates() -> List[str]:
+    seen: set[str] = set()
+    urls: List[str] = []
+    for raw in (
+        os.environ.get("REDIS_URL", ""),
+        "redis://redis.aoep.svc.cluster.local:6379/0",
+        "redis://redis:6379/0",
+        "redis://127.0.0.1:6379/0",
+    ):
+        url = str(raw or "").strip()
+        if url and url not in seen:
+            seen.add(url)
+            urls.append(url)
+    return urls
+
+
+def _parse_redis_url(url: str) -> Tuple[str, int, int, Optional[str]]:
+    parsed = urlparse(url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 6379
+    db = 0
+    if parsed.path and parsed.path not in ("", "/"):
+        db = int(parsed.path.lstrip("/").split("/")[0] or "0")
+    return host, port, db, parsed.password
+
+
+def _encode_command(*parts: str) -> bytes:
+    chunks = [f"*{len(parts)}\r\n".encode("ascii")]
+    for part in parts:
+        data = part.encode("utf-8")
+        chunks.append(f"${len(data)}\r\n".encode("ascii"))
+        chunks.append(data + b"\r\n")
+    return b"".join(chunks)
+
+
+def _read_line(sock: socket.socket) -> bytes:
+    buf = bytearray()
+    while True:
+        chunk = sock.recv(1)
+        if not chunk:
+            raise ConnectionError("redis connection closed")
+        buf.extend(chunk)
+        if len(buf) >= 2 and buf[-2:] == b"\r\n":
+            return bytes(buf[:-2])
+
+
+def _read_bulk(sock: socket.socket, length: int) -> bytes:
+    data = b""
+    while len(data) < length + 2:
+        chunk = sock.recv(length + 2 - len(data))
+        if not chunk:
+            raise ConnectionError("redis connection closed while reading bulk")
+        data += chunk
+    return data[:length]
+
+
+def _read_resp(sock: socket.socket):
+    prefix = sock.recv(1)
+    if not prefix:
+        raise ConnectionError("redis connection closed")
+    kind = prefix[0:1]
+    if kind in (b"+", b"-", b":"):
+        line = _read_line(sock)
+        text = line.decode("utf-8", errors="replace")
+        if kind == b"-":
+            raise RuntimeError(text)
+        return text
+    if kind == b"$":
+        line = _read_line(sock)
+        length = int(line)
+        if length < 0:
+            return None
+        return _read_bulk(sock, length).decode("utf-8")
+    raise RuntimeError(f"unsupported redis reply type: {kind!r}")
+
+
+class _RawRedis:
+    def __init__(self, url: str) -> None:
+        host, port, db, password = _parse_redis_url(url)
+        self._url = url
+        self._sock = socket.create_connection((host, port), timeout=5)
+        self._sock.settimeout(5)
+        if password:
+            self._command("AUTH", password)
+        if db:
+            self._command("SELECT", str(db))
+
+    def _command(self, *parts: str):
+        self._sock.sendall(_encode_command(*parts))
+        return _read_resp(self._sock)
+
+    def ping(self) -> bool:
+        return self._command("PING") == "PONG"
+
+    def get(self, key: str) -> Optional[str]:
+        return self._command("GET", key)
+
+    def set(self, key: str, value: str) -> bool:
+        reply = self._command("SET", key, value)
+        return reply == "OK"
+
+    def close(self) -> None:
+        try:
+            self._sock.close()
+        except OSError:
+            pass
+
+
+def _redis_client(url: Optional[str] = None):
+    urls = [url] if url else _redis_url_candidates()
+    last_error: Optional[str] = None
+    for candidate in urls:
+        if not candidate:
+            continue
+        try:
+            import redis  # type: ignore[import-not-found]
+
+            client = redis.from_url(candidate, decode_responses=True, socket_connect_timeout=5)
+            client.ping()
+            return client, None
+        except ImportError:
+            try:
+                raw = _RawRedis(candidate)
+                raw.ping()
+                return raw, None
+            except Exception as exc:
+                last_error = f"{candidate}: {exc}"
+        except Exception as exc:
+            last_error = f"{candidate}: {exc}"
+    return None, last_error
+
+
+def _redis_get(client, key: str) -> Optional[str]:
+    if hasattr(client, "get") and not isinstance(client, _RawRedis):
+        return client.get(key)
+    return client.get(key)
+
+
+def _redis_set(client, key: str, value: str) -> bool:
+    if hasattr(client, "set") and not isinstance(client, _RawRedis):
+        client.set(key, value)
+        return True
+    return bool(client.set(key, value))
 
 
 def _inline_dump_state(store) -> dict:
@@ -112,46 +252,57 @@ def _inline_load_state(store, payload: dict) -> None:
         store._used_grant_nonces.update(payload.get("used_grant_nonces", []))
 
 
-def _load_store(store) -> bool:
+def _load_store(store) -> Tuple[bool, Optional[str]]:
+    if not os.environ.get("REDIS_URL", "").strip():
+        return False, None
     try:
         from identity.persistence import load_from_redis
 
-        return load_from_redis(store)
+        return load_from_redis(store), None
     except ImportError:
-        client = _redis_client()
+        client, err = _redis_client()
         if client is None:
-            return False
+            return False, err
         try:
-            raw = client.get(REDIS_KEY)
+            raw = _redis_get(client, REDIS_KEY)
             if not raw:
-                return False
+                return False, None
             _inline_load_state(store, json.loads(raw))
-            return True
+            return True, None
         except Exception as exc:
-            print("warn: redis load failed:", exc, file=sys.stderr)
-            return False
+            return False, str(exc)
+        finally:
+            if isinstance(client, _RawRedis):
+                client.close()
 
 
-def _save_store(store, *, attempts: int = 5) -> bool:
+def _save_store(store, *, attempts: int = 5) -> Tuple[bool, Optional[str]]:
     if not os.environ.get("REDIS_URL", "").strip():
-        return True
+        return True, None
     try:
         from identity.persistence import save_to_redis_with_retry
 
-        return save_to_redis_with_retry(store, attempts=attempts)
+        return save_to_redis_with_retry(store, attempts=attempts), None
     except ImportError:
+        last_error: Optional[str] = None
+        payload = json.dumps(_inline_dump_state(store))
         for attempt in range(1, attempts + 1):
-            client = _redis_client()
+            client, err = _redis_client()
             if client is None:
-                return False
-            try:
-                client.set(REDIS_KEY, json.dumps(_inline_dump_state(store)))
-                return True
-            except Exception as exc:
-                print("warn: redis save failed:", exc, file=sys.stderr)
+                last_error = err or "no redis client"
+            else:
+                try:
+                    if _redis_set(client, REDIS_KEY, payload):
+                        return True, None
+                    last_error = "redis SET did not return OK"
+                except Exception as exc:
+                    last_error = str(exc)
+                finally:
+                    if isinstance(client, _RawRedis):
+                        client.close()
             if attempt < attempts:
                 time.sleep(0.4)
-        return False
+        return False, last_error
 
 
 def _force_passwords(store, emails: list[str], password: str) -> None:
@@ -162,6 +313,14 @@ def _force_passwords(store, emails: list[str], password: str) -> None:
         acct = store.by_email(email)
         if acct is not None:
             acct.password_hash = h
+
+
+def _register_qa_aliases(store) -> None:
+    """Ensure qa1/qa2/qa3 map to the QA personas (old images lack seed_account)."""
+    for alias, email in QA_ALIASES:
+        acct = store.by_email(email)
+        if acct is not None:
+            store._id_by_email[alias.strip().lower()] = acct.id
 
 
 def _seed_account_compat(store, email: str, password: str, **kwargs) -> None:
@@ -185,7 +344,9 @@ def _bootstrap(store) -> dict:
     try:
         from identity.bootstrap import bootstrap_accounts
 
-        return bootstrap_accounts(store)
+        stats = bootstrap_accounts(store)
+        _register_qa_aliases(store)
+        return stats
     except ImportError:
         pass
 
@@ -214,17 +375,24 @@ def _bootstrap(store) -> dict:
             seeded = seed_qa_accounts(store, qa_pw)
             stats["qa_count"] = len(seeded)
         except ImportError:
-            qa_emails = [
-                "qa-learner@salareen.com",
-                "qa-parent@salareen.com",
-                "qa-pro@salareen.com",
-            ]
-            for email in qa_emails:
-                if store.by_email(email) is None:
-                    store.create(email, qa_pw, display_name=email.split("@")[0])
-            _force_passwords(store, qa_emails + ["qa1", "qa2", "qa3"], qa_pw)
-            stats["qa_count"] = 3
+            from aoep_shared.schemas import PlanTier
 
+            qa_rows = (
+                ("qa-learner@salareen.com", PlanTier.FREE, "QA Learner"),
+                ("qa-parent@salareen.com", PlanTier.FREE, "QA Parent"),
+                ("qa-pro@salareen.com", PlanTier.PRO, "QA Pro"),
+            )
+            for email, tier, display_name in qa_rows:
+                acct = store.by_email(email)
+                if acct is None:
+                    acct = store.create(email, qa_pw, display_name=display_name, tier=tier)
+                else:
+                    acct.tier = tier
+                    acct.display_name = display_name or acct.display_name
+            _force_passwords(store, [email for email, _, _ in qa_rows], qa_pw)
+            stats["qa_count"] = len(qa_rows)
+
+    _register_qa_aliases(store)
     return stats
 
 
@@ -232,9 +400,9 @@ def main() -> int:
     from identity.store import AccountStore
 
     store = AccountStore()
-    loaded = _load_store(store)
+    loaded, load_error = _load_store(store)
     stats = _bootstrap(store)
-    persisted = _save_store(store)
+    persisted, persist_error = _save_store(store)
     qa_pw = _env_password("QA_ACCOUNTS_PASSWORD", "QaTest123")
     admin_pw = _env_password("DEFAULT_ADMIN_PASSWORD", "88888888")
     checks = {
@@ -250,8 +418,13 @@ def main() -> int:
         "login_ok": checks,
         "next_step": "kubectl -n aoep rollout restart deployment/identity",
     }
+    if load_error:
+        out["load_error"] = load_error
+    if persist_error:
+        out["persist_error"] = persist_error
     print(out)
-    ok = all(checks.values()) and (persisted or not os.environ.get("REDIS_URL"))
+    redis_required = bool(os.environ.get("REDIS_URL", "").strip())
+    ok = all(checks.values()) and (persisted or not redis_required)
     return 0 if ok else 1
 
 
