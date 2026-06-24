@@ -22,11 +22,16 @@ once per clone/CI runner that performs a local merge, then merge as usual:
 1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)
    for the change. CHANGELOG uses a union merge driver (.gitattributes) so
    concurrent entries auto-combine - keep one dated bullet per change.
-2. README.md: review and clean it up - remove legacy/unsupported/redundant
+2. **Release version (required on every PR to main):** run
+   `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
+   `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
+   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default;
+   minor when more than 8 pending changelog entries have accumulated.
+3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must
    reflect the current shipped state, not historical merges.
-3. UI changes: capture FRESH artifacts every time the UI changes - screenshots
+4. UI changes: capture FRESH artifacts every time the UI changes - screenshots
    into `docs/screens/` and a short video walkthrough into `docs/demos/` - and
    reference the current ones from the README "Screens and videos" section.
    Replace stale screenshots/videos rather than accumulating outdated ones.

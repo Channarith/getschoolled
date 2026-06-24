@@ -4,6 +4,11 @@ Format: newest first. No markdown per project convention.
 
 - 2026-06-24 - Fix CI: identity student API tests account for the default learner
   profile auto-created on signup (onboarding survey, PR #131).
+- 2026-06-24 - Release version bump on every PR to main. New rule (AGENTS.md,
+  docs/cloud-agent-task.txt, docs/release-testing.txt §8): every PR merging to
+  main must run scripts/bump_pr_version.py (make bump-version). CI job
+  version-bump enforces VERSION > base. Auto Push Build now uses --refresh-only
+  (no double bump); Release workflow also runs on push to main.
 
 - 2026-06-24 - One-time onboarding learning survey (post-signup). After the legal
   disclaimer, new members see a learning-behavior gauge (modalities, pace,
