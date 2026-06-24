@@ -130,7 +130,8 @@ TROUBLESHOOTING — EMULATOR / SIMULATOR WON'T LAUNCH
       inside apps/mobile (not npm install at the repo root for mobile).
 
 TYPECHECK
-  pnpm typecheck         # or: make mobile-typecheck
+  cd apps/mobile          # REQUIRED — do not run from repo root
+  pnpm typecheck         # or from repo root: make mobile-typecheck
   pnpm run typecheck:verbose   # list every file tsc checks (should be ~30, not thousands)
 
   JavaScript heap out of memory during typecheck or export
