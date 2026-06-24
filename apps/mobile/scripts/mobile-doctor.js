@@ -65,12 +65,39 @@ try {
   const includes = tsconfig.include || [];
   const bad = includes.some((p) => p === "**/*.ts" || p === "**/*.tsx");
   if (bad) {
-    fail('tsconfig.json include is too broad ("**/*.ts" typechecks node_modules → OOM). Use src/**/*.ts');
+    fail('tsconfig.json include is too broad ("**/*.ts" typechecks node_modules → OOM). git pull origin main');
   } else {
     ok(`tsconfig.json include: ${includes.join(", ")}`);
   }
 } catch {
   warn("Could not parse tsconfig.json");
+}
+
+if (fs.existsSync(path.join(ROOT, "scripts", "mobile-typecheck.sh"))) {
+  ok("mobile-typecheck.sh present");
+} else {
+  fail("scripts/mobile-typecheck.sh missing — git pull origin main");
+}
+
+if (!fs.existsSync(path.join(ROOT, "tsconfig.typecheck.json"))) {
+  fail("tsconfig.typecheck.json missing — git pull origin main");
+} else {
+  ok("tsconfig.typecheck.json present");
+}
+
+try {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  const tc = pkg.scripts?.typecheck || "";
+  const tcv = pkg.scripts?.["typecheck:verbose"] || "";
+  if (tc.includes("mobile-typecheck.sh")) ok("package.json typecheck uses preflight script");
+  else fail('package.json typecheck still runs raw tsc — git pull origin main');
+  if (tcv.includes("listFilesOnly")) {
+    fail("typecheck:verbose uses --listFilesOnly (OOM on Mac) — git pull origin main");
+  } else if (tcv.includes("mobile-typecheck.sh")) {
+    ok("package.json typecheck:verbose uses preflight script");
+  }
+} catch {
+  warn("Could not read package.json scripts");
 }
 
 if (isDarwin) {

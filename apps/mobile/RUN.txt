@@ -165,25 +165,31 @@ TROUBLESHOOTING — EMULATOR / SIMULATOR WON'T LAUNCH
       inside apps/mobile (not npm install at the repo root for mobile).
 
 TYPECHECK
-  cd apps/mobile          # REQUIRED — do not run from repo root
+  From the monorepo root:
+    cd apps/mobile
+  If your shell prompt already ends in "mobile" and app.json is here, you are
+  in the right place — do NOT run "cd apps/mobile" again (that path is wrong).
+
   pnpm typecheck         # or from repo root: make mobile-typecheck
-  pnpm run typecheck:verbose   # shows file count (expect ~20 src, ~280 total)
+  pnpm run typecheck:verbose   # prints cwd, tsconfig include, src file count
 
   JavaScript heap out of memory during typecheck or export
   --------------------------------------------------------
-  Cause: tsconfig.json used to include "**/*.ts" which typechecked all of
-  node_modules (~3800+ files) and exhausted Node's ~4 GB default heap.
+  Cause: stale tsconfig.json with "**/*.ts" include (typechecks all of
+  node_modules), or typecheck:verbose running tsc --listFilesOnly (OOM on Mac).
 
-  Fix (pull latest main):
-  - tsconfig.json include is scoped to src/** only
-  - pnpm run typecheck uses tsconfig.typecheck.json + a preflight script
+  Fix (git fetch origin && git pull origin main):
+  - tsconfig.json include scoped to src/** only
+  - typecheck uses scripts/mobile-typecheck.sh + tsconfig.typecheck.json
+  - verbose mode does NOT call --listFilesOnly
 
-  Verify on your Mac:
-    cd apps/mobile
-    cat tsconfig.json | grep include -A6    # must NOT show "**/*.ts"
-    pnpm run typecheck:verbose              # listFiles count ~280, src ~20
+  Verify on your Mac (first line must print "==> mobile typecheck"):
+    pwd && test -f app.json && echo "OK in mobile app dir"
+    grep -A6 '"include"' tsconfig.json    # must NOT show "**/*.ts"
+    grep typecheck package.json             # must call mobile-typecheck.sh
+    pnpm run typecheck:verbose              # src ~20, completes in seconds
 
-  If include looks correct but you still OOM:
+  If you still OOM after pull:
     rm -rf node_modules .expo && pnpm install
     pnpm run doctor
     pnpm run typecheck:verbose
