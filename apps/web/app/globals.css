@@ -36,7 +36,107 @@ body {
   position: fixed;
   inset: 0;
   z-index: -1;
+  overflow: hidden;
   pointer-events: none;
+}
+
+/* Netflix-style slow Ken Burns / drift on the animated layer inside .site-bg. */
+.site-bg-layer {
+  position: absolute;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
+  left: -6%;
+  top: -6%;
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+
+.site-bg-kenburns {
+  animation: aoep-kenburns-0 52s ease-in-out infinite alternate;
+}
+
+.site-bg-drift {
+  animation: aoep-drift-0 68s ease-in-out infinite alternate;
+}
+
+.site-bg-motion-1.site-bg-kenburns { animation-name: aoep-kenburns-1; }
+.site-bg-motion-2.site-bg-kenburns { animation-name: aoep-kenburns-2; }
+.site-bg-motion-3.site-bg-kenburns { animation-name: aoep-kenburns-3; }
+
+.site-bg-motion-1.site-bg-drift { animation-name: aoep-drift-1; }
+.site-bg-motion-2.site-bg-drift { animation-name: aoep-drift-2; }
+.site-bg-motion-3.site-bg-drift { animation-name: aoep-drift-3; }
+
+@keyframes aoep-kenburns-0 {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.14) translate(-2.5%, -1.5%); }
+}
+
+@keyframes aoep-kenburns-1 {
+  from { transform: scale(1.12) translate(1.5%, 0); }
+  to { transform: scale(1) translate(-2%, -2%); }
+}
+
+@keyframes aoep-kenburns-2 {
+  from { transform: scale(1) translate(-1.5%, 1%); }
+  to { transform: scale(1.16) translate(2%, -1%); }
+}
+
+@keyframes aoep-kenburns-3 {
+  from { transform: scale(1.1) translate(0, -1.5%); }
+  to { transform: scale(1) translate(-2.5%, 1.5%); }
+}
+
+@keyframes aoep-drift-0 {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.08) translate(1.5%, -1%); }
+}
+
+@keyframes aoep-drift-1 {
+  from { transform: scale(1.06) translate(-1%, 0.5%); }
+  to { transform: scale(1) translate(1.5%, -1.5%); }
+}
+
+@keyframes aoep-drift-2 {
+  from { transform: scale(1) translate(1%, 0); }
+  to { transform: scale(1.07) translate(-1.5%, 1%); }
+}
+
+@keyframes aoep-drift-3 {
+  from { transform: scale(1.05) translate(0, -0.5%); }
+  to { transform: scale(1) translate(-1%, 1.5%); }
+}
+
+/* Theme picker thumbnails: animate on hover only (keeps the grid light). */
+.site-bg-preview {
+  position: relative;
+  overflow: hidden;
+}
+
+.site-bg-preview-layer {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  left: -10%;
+  top: -10%;
+  background-repeat: no-repeat;
+  animation-duration: 16s;
+  animation-play-state: paused;
+}
+
+.site-bg-preview:hover .site-bg-preview-layer {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-bg-layer,
+  .site-bg-preview-layer,
+  .landing-hero-bg {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 a {
@@ -454,10 +554,9 @@ textarea {
 
 /* ---------------- Netflix-style full-page landing + text glow ---------------- */
 .landing-hero {
+  position: relative;
   min-height: calc(100vh - 64px);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,7 +565,14 @@ textarea {
   color: #fff;
 }
 
+.landing-hero-bg {
+  z-index: 0;
+  animation-duration: 48s;
+}
+
 .landing-inner {
+  position: relative;
+  z-index: 1;
   max-width: 760px;
   margin: 0 auto;
 }
