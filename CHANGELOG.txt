@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Identity operator reseed for QA accounts (no JWT). POST
+  /identity/admin/ops/reseed-seeded accepts X-Admin-Secret (same as memory admin).
+  scripts/k8s_reseed_accounts.sh + identity_reseed_redis.py reseed via kubectl exec
+  on running pods (works before a new image is deployed). RUNBOOK troubleshooting.
 - 2026-06-24 - Fix QA test account login on multi-replica identity (Redis). Startup
   bootstrap now seeds admin + QA on FastAPI startup with Redis persist retries so
   qa-learner/parent/pro accounts sync to every pod (admin could work while QA 401'd
