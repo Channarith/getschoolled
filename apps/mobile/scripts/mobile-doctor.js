@@ -9,6 +9,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const isDarwin = process.platform === "darwin";
+const verbose = process.argv.includes("--verbose") || process.argv.includes("-v");
 let failures = 0;
 let warnings = 0;
 
@@ -86,15 +87,50 @@ if (androidHome && fs.existsSync(androidHome)) {
 }
 
 console.log("\nRecommended launch commands (from apps/mobile):");
-console.log("  pnpm run dev:ios       # Expo Go on iOS Simulator (fastest on Mac)");
-console.log("  pnpm run dev:android   # Expo Go on Android emulator");
-console.log("  pnpm ios               # native build (slow; first run 10–20 min)");
+console.log("  pnpm run launch:ios              # doctor + open Simulator + Expo Go");
+console.log("  pnpm run launch:ios:debug        # same with EXPO_DEBUG=1");
+console.log("  pnpm run launch:android          # boot AVD if needed + Expo Go");
+console.log("  pnpm run launch:android:debug    # verbose Android launch");
+console.log("  pnpm run dev:ios                 # Expo Go (manual Simulator open)");
+console.log("  pnpm run dev:ios:debug           # EXPO_DEBUG=1 + DEBUG=expo:*");
+console.log("  pnpm ios                         # native compile (slow; first run 10–20 min)");
+console.log("  pnpm run launch:ios:native:debug # native + verbose");
 console.log("\nIf nothing happens when you run pnpm:");
 console.log("  1. Confirm you are in apps/mobile (not the repo root).");
-console.log("  2. Use dev:ios / dev:android — NOT plain pnpm ios on first try.");
+console.log("  2. Use launch:ios / dev:ios — NOT plain pnpm ios on first try.");
 console.log("  3. macOS: open Simulator first:  open -a Simulator");
-console.log("  4. Verbose logs:  EXPO_DEBUG=1 pnpm run dev:ios");
-console.log("  5. Offline mode:  pnpm run dev:ios:offline");
+console.log("  4. Verbose logs:  pnpm run dev:ios:debug");
+console.log("  5. Full launcher: pnpm run launch:ios:debug");
+console.log("  6. Offline mode:  pnpm run dev:ios:offline");
+
+if (verbose) {
+  console.log("\nVerbose diagnostics:");
+  const pnpmVer = run("pnpm --version");
+  if (pnpmVer) ok(`pnpm ${pnpmVer}`);
+  else warn("pnpm not on PATH — install: npm i -g pnpm");
+
+  const whichExpo = run(`node "${path.join(ROOT, "node_modules", ".bin", "expo")}" --version`);
+  if (whichExpo) ok(`expo binary: ${whichExpo}`);
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+    ok(`package: ${pkg.name}@${pkg.version}`);
+  } catch {
+    warn("Could not read package.json");
+  }
+
+  if (isDarwin) {
+    const simBoot = run("xcrun simctl list devices booted 2>/dev/null | grep -v '== Devices ==' | head -5");
+    if (simBoot) ok(`Booted simulators:\n       ${simBoot.replace(/\n/g, "\n       ")}`);
+    else console.log("  (no booted iOS simulators)");
+  }
+
+  const adb = androidHome ? path.join(androidHome, "platform-tools", "adb") : null;
+  if (adb && fs.existsSync(adb)) {
+    const devices = run(`"${adb}" devices 2>/dev/null`);
+    if (devices) ok(`adb devices:\n       ${devices.replace(/\n/g, "\n       ")}`);
+  }
+}
 
 console.log("");
 if (failures) {

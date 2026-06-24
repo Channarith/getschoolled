@@ -1,23 +1,54 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, Pressable, ScrollView, StyleSheet, Switch, Text,
+  Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput,
   TouchableOpacity, View,
 } from "react-native";
 
+import {
+  CURRICULUM_URL, IDENTITY_URL, getMe, listStudents, login, signup,
+  type Account, type StudentProfile,
+} from "../api";
+import { QA_TEST_ACCOUNTS } from "../config";
 import {
   ensurePermissions, fireImmediate, listScheduled,
   rescheduleDailyReminder,
 } from "../notifications";
 import {
-  DEFAULT_SETTINGS, getSettings, setSettings, type Settings,
+  DEFAULT_SETTINGS, clearAuthToken, getSettings, setAuthToken, setSettings,
+  type Settings,
 } from "../storage";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
 
-export default function SettingsScreen() {
+type Props = {
+  onAuthChange?: () => void;
+  onOpenLearningProfile?: () => void;
+};
+
+export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: Props) {
   const { t, locale, setLocale } = useT();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [scheduled, setScheduled] = useState<number>(0);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [student, setStudent] = useState<StudentProfile | null>(null);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const refreshAccount = useCallback(async () => {
+    try {
+      const me = await getMe();
+      setAccount(me);
+      const students = (await listStudents()).students;
+      setStudent(students[0] ?? null);
+    } catch {
+      setAccount(null);
+      setStudent(null);
+    }
+  }, []);
 
   const refreshScheduled = async () => {
     try { setScheduled((await listScheduled()).length); } catch {}
@@ -26,7 +57,8 @@ export default function SettingsScreen() {
   useEffect(() => {
     void getSettings().then(setS);
     void refreshScheduled();
-  }, []);
+    void refreshAccount();
+  }, [refreshAccount]);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
@@ -41,6 +73,37 @@ export default function SettingsScreen() {
       return next;
     });
   };
+
+  async function onAuthSubmit() {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const res = mode === "login"
+        ? await login(email.trim(), password)
+        : await signup(email.trim(), password, displayName.trim() || email.split("@")[0]);
+      await setAuthToken(res.token);
+      setAccount(res.account);
+      await refreshAccount();
+      onAuthChange?.();
+    } catch (e) {
+      setAuthError(String(e));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function onSignOut() {
+    await clearAuthToken();
+    setAccount(null);
+    setStudent(null);
+    onAuthChange?.();
+  }
+
+  async function fillQa(qaEmail: string, qaPassword: string) {
+    setEmail(qaEmail);
+    setPassword(qaPassword);
+    setMode("login");
+  }
 
   const askPermission = async () => {
     const ok = await ensurePermissions();
@@ -64,12 +127,97 @@ export default function SettingsScreen() {
   };
 
   const current = languageInfo(locale);
+  const categoryLabel = student?.learner_category?.replace(/_/g, " ") || "";
+
   return (
     <ScrollView style={styles.bg} contentContainerStyle={{ paddingTop: 56, paddingBottom: 32 }}>
       <View style={styles.header}>
         <Text style={styles.title}>{t("settings.title")}</Text>
         <Text style={styles.sub}>{t("settings.sub")}</Text>
       </View>
+
+      <Section title={t("settings.sectionAccount")}>
+        {account ? (
+          <>
+            <Text style={styles.about}>{t("settings.accountSignedIn", { email: account.email })}</Text>
+            <Text style={styles.about}>
+              {student?.onboarding_completed_at
+                ? t("settings.learningProfileDone", { category: categoryLabel || "saved" })
+                : t("settings.learningProfilePending")}
+            </Text>
+            <View style={{ padding: 10, gap: 8 }}>
+              <Pressable onPress={onOpenLearningProfile} style={styles.btnWide}>
+                <Text style={styles.btnText}>{t("settings.openSurvey")}</Text>
+              </Pressable>
+              <Pressable onPress={() => void onSignOut()} style={styles.btnWide}>
+                <Text style={styles.btnTextMuted}>{t("settings.signOut")}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.about}>{t("settings.accountGuest")}</Text>
+            <View style={{ paddingHorizontal: 10, gap: 8 }}>
+              {mode === "signup" ? (
+                <TextInput
+                  style={styles.input}
+                  placeholder={t("auth.displayName")}
+                  placeholderTextColor="#6b7280"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                />
+              ) : null}
+              <TextInput
+                style={styles.input}
+                placeholder={t("auth.email")}
+                placeholderTextColor="#6b7280"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder={t("auth.password")}
+                placeholderTextColor="#6b7280"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+              {authError ? <Text style={styles.error}>{authError}</Text> : null}
+              <Pressable disabled={authBusy} onPress={() => void onAuthSubmit()} style={styles.btnWidePrimary}>
+                <Text style={styles.btnTextPrimary}>
+                  {authBusy ? "…" : mode === "login" ? t("auth.signIn") : t("auth.signUp")}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+                <Text style={styles.link}>
+                  {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
+                </Text>
+              </Pressable>
+            </View>
+            {__DEV__ ? (
+              <View style={{ padding: 10 }}>
+                <Text style={styles.desc}>{t("auth.qaHint")}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                  {QA_TEST_ACCOUNTS.map((qa) => (
+                    <Pressable key={qa.email} onPress={() => void fillQa(qa.email, qa.password)}
+                      style={styles.qaChip}>
+                      <Text style={styles.qaText}>{t("auth.useQa", { label: qa.label })}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
+        <Text style={[styles.desc, { padding: 10 }]}>
+          {t("settings.backendUrls", {
+            curriculum: CURRICULUM_URL.replace("http://", ""),
+            identity: IDENTITY_URL.replace("http://", ""),
+          })}
+        </Text>
+      </Section>
 
       <Section title={t("settings.sectionLang")}>
         <Row label={t("settings.language")} desc={t("settings.languageDesc")}>
@@ -212,7 +360,19 @@ const styles = StyleSheet.create({
   label: { color: "#e8ecf6", fontWeight: "700" },
   desc: { color: "#9aa6c2", marginTop: 4, fontSize: 12, lineHeight: 16 },
   btn: { backgroundColor: "#1d2746", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  btnWide: { backgroundColor: "#1d2746", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
+  btnWidePrimary: { backgroundColor: "#0ea5e9", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
   btnText: { color: "#0ea5e9", fontWeight: "700" },
+  btnTextMuted: { color: "#9aa6c2", fontWeight: "700" },
+  btnTextPrimary: { color: "#001022", fontWeight: "800" },
+  link: { color: "#0ea5e9", textAlign: "center", paddingVertical: 8 },
+  input: {
+    backgroundColor: "#1d2746", color: "#e8ecf6", borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  error: { color: "#ff6b6b", fontSize: 13 },
+  qaChip: { backgroundColor: "#1d2746", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  qaText: { color: "#9aa6c2", fontSize: 12, fontWeight: "600" },
   hourChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   hourChipOff: { backgroundColor: "#1d2746" },
   hourChipOn: { backgroundColor: "#0ea5e9" },

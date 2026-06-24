@@ -10,7 +10,11 @@ const KEYS = {
   inboxRead: "@aic/inbox-read.v1",  // string[] (notification ids marked as read)
   streak: "@aic/streak.v1",         // { days: number, lastDayISO: string }
   interests: "@aic/interests.v1",   // string[] (categories the user has opened)
+  authToken: "@aic/auth-token.v1",  // identity JWT
 } as const;
+
+/** In-memory auth cache (AsyncStorage is async; API client reads sync). */
+let tokenCache: string | null = null;
 
 export type ContinueRow = {
   id: string; title: string; category?: string;
@@ -139,4 +143,27 @@ export async function recordInterest(category: string): Promise<void> {
   const set = new Set(await getInterests());
   set.add(category.toLowerCase());
   await writeJSON(KEYS.interests, Array.from(set).slice(-12));
+}
+
+export function getToken(): string | null {
+  return tokenCache;
+}
+
+export async function loadAuthToken(): Promise<string | null> {
+  try {
+    tokenCache = await AsyncStorage.getItem(KEYS.authToken);
+  } catch {
+    tokenCache = null;
+  }
+  return tokenCache;
+}
+
+export async function setAuthToken(token: string): Promise<void> {
+  tokenCache = token;
+  try { await AsyncStorage.setItem(KEYS.authToken, token); } catch { /* ignore */ }
+}
+
+export async function clearAuthToken(): Promise<void> {
+  tokenCache = null;
+  try { await AsyncStorage.removeItem(KEYS.authToken); } catch { /* ignore */ }
 }

@@ -107,11 +107,32 @@ mobile-install:
 mobile-doctor:
 	cd apps/mobile && pnpm run doctor
 
+mobile-doctor-verbose:
+	cd apps/mobile && pnpm run doctor:verbose
+
 mobile-dev-ios:
 	cd apps/mobile && pnpm run dev:ios
 
+mobile-dev-ios-debug:
+	cd apps/mobile && pnpm run dev:ios:debug
+
+mobile-launch-ios:
+	cd apps/mobile && pnpm run launch:ios
+
+mobile-launch-ios-debug:
+	cd apps/mobile && pnpm run launch:ios:debug
+
 mobile-dev-android:
 	cd apps/mobile && pnpm run dev:android
+
+mobile-dev-android-debug:
+	cd apps/mobile && pnpm run dev:android:debug
+
+mobile-launch-android:
+	cd apps/mobile && pnpm run launch:android
+
+mobile-launch-android-debug:
+	cd apps/mobile && pnpm run launch:android:debug
 
 mobile-typecheck:
 	cd apps/mobile && pnpm typecheck

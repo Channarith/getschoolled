@@ -6,12 +6,13 @@ import { I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
 import { LocaleProvider, useT } from "./src/i18n";
+import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
 import {
   ensurePermissions, installNotificationHandler,
   rescheduleDailyReminder, scheduleAlertsFor,
 } from "./src/notifications";
 import {
-  getMyList, getReadIds, getSettings, listContinue,
+  getMyList, getReadIds, getSettings, listContinue, loadAuthToken,
 } from "./src/storage";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
 import DriveModeScreen from "./src/screens/DriveModeScreen";
@@ -37,6 +38,8 @@ function AppInner() {
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
+  const [surveyManualToken, setSurveyManualToken] = useState(0);
+  const [authEpoch, setAuthEpoch] = useState(0);
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
@@ -49,6 +52,7 @@ function AppInner() {
 
   async function bootstrap() {
     installNotificationHandler();
+    await loadAuthToken();
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
@@ -126,7 +130,12 @@ function AppInner() {
   } else if (tab === "notifications") {
     screen = <NotificationsScreen onOpenCourse={openCourse} onUnreadChange={setUnreadCount} />;
   } else if (tab === "settings") {
-    screen = <SettingsScreen />;
+    screen = (
+      <SettingsScreen
+        onAuthChange={() => setAuthEpoch((n) => n + 1)}
+        onOpenLearningProfile={() => setSurveyManualToken((n) => n + 1)}
+      />
+    );
   }
 
   // React-Native-Web honors writingDirection on the root so RTL locales (ar,
@@ -140,6 +149,11 @@ function AppInner() {
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
         {screen}
+        <LearningProfileSurvey
+          key={authEpoch}
+          manualOpenToken={surveyManualToken}
+          onSaved={() => setAuthEpoch((n) => n + 1)}
+        />
       </View>
       <BottomTabs
         active={tab}
