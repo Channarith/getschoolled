@@ -3,6 +3,8 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - i18n follow-up: jobs/careers, corporate, rewards, homework, legal,
+  transparency, recommended, kids (locale feed), consent, arcade, languages, watch.
 - 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum
   service (fixes 500). Watch/ad-breaks resolve learnable IDs (fixes 404). Careers
   USA location filter. Arcade rounds persist in Redis across replicas. Group classes:
