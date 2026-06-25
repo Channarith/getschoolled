@@ -16,7 +16,8 @@ INSTALL (one-time)
   pnpm install
   # Or, from the repo root:
   make mobile-install
-  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` because Metro/React
+  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` and
+  # `optimistic-repeat-install=false` (pnpm v11 no-op when node_modules deleted).
   # Native cannot resolve through pnpm's strict symlink layout. Re-run
   # `pnpm install` if you switch package managers.
 

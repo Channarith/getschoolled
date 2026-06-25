@@ -2,8 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Mobile install: mobile-install.sh removes stale node_modules when
-  pnpm says up-to-date but .bin/tsc is missing; doctor/typecheck show dep status.
+- 2026-06-24 - Mobile pnpm install: disable optimistic-repeat-install (pnpm v11 no-op
+  when node_modules deleted — "Already up to date" but no node_modules). mobile-install.sh
+  retries with npm fallback.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist
