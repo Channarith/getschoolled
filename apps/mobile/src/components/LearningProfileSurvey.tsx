@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Modal, ScrollView, StyleSheet, Switch, Text,
   TextInput, View,
@@ -16,6 +16,8 @@ import { getToken } from "../storage";
 import { theme } from "../theme";
 
 type Props = {
+  /** Bumps when the user signs in or out — gates one auto-prompt per login. */
+  authEpoch?: number;
   /** Increment to open the survey from Settings (manual edit). */
   manualOpenToken?: number;
   onSaved?: () => void;
@@ -78,7 +80,13 @@ function answersFromProfile(student: StudentProfile): Record<string, string | nu
 }
 
 /** One-time learning survey (auto after login) + manual relaunch from Settings. */
-export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: Props) {
+export default function LearningProfileSurvey({
+  authEpoch = 0,
+  manualOpenToken = 0,
+  onSaved,
+}: Props) {
+  const autoPromptedEpochRef = useRef(-1);
+  const visibleRef = useRef(false);
   const [visible, setVisible] = useState(false);
   const [manual, setManual] = useState(false);
   const [template, setTemplate] = useState<SurveyTemplate | null>(null);
@@ -89,8 +97,14 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
   const [error, setError] = useState("");
   const [doneCategory, setDoneCategory] = useState("");
 
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
   async function prepare(force: boolean) {
     if (!getToken()) return;
+    if (!force && visibleRef.current) return;
+
     const me = await getMe();
     const survey = await getOnboardingSurvey(me.id, me.tier);
     if (!survey.enabled || !survey.template) return;
@@ -113,8 +127,14 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
   }
 
   useEffect(() => {
+    if (!getToken()) {
+      autoPromptedEpochRef.current = -1;
+      return;
+    }
+    if (autoPromptedEpochRef.current === authEpoch) return;
+    autoPromptedEpochRef.current = authEpoch;
     void prepare(false).catch(() => undefined);
-  }, []);
+  }, [authEpoch]);
 
   useEffect(() => {
     if (manualOpenToken > 0) {
