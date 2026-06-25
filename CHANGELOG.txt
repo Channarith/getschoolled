@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile app icon: photorealistic gold medallion + bodhi leaf (cropped from
+  bayon-mark.webp) replaces flat vector S badge on launcher, splash, and HomeScreen logo.
+  Regenerate: python3 scripts/generate_salareen_mobile_icon.py
+- 2026-06-25 - Deploy workflows: robust kubeconfig setup (github_configure_kubeconfig.sh)
+  validates YAML, strips whitespace from KUBE_CONFIG_B64, supports raw KUBE_CONFIG
+  secret; removes deprecated kubectl --record. RUNBOOK documents secret encoding.
+- 2026-06-25 - Fix mobile-setup chicken-and-egg: doctor during setup allows missing
+  Expo Go (MOBILE_SETUP=1); installs in step 3; full doctor runs after install.
+- 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
+  Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
+  doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
+- 2026-06-25 - Mobile launch: debug on by default; EXPO_OFFLINE=1 always (local bundled
+  modules); CI=false; separate mobile-install-expo-go-ios.sh for first-time Expo Go.
 - 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the
   simulator (fixes "Expo Go is not installed while running in offline mode" on first run).
 - 2026-06-25 - Mobile Metro: cleanup stale port 8081, CI+EXPO_OFFLINE, --localhost iOS;
