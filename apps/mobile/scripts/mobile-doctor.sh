@@ -72,6 +72,12 @@ elif [ -d node_modules ]; then
   fail "node_modules exists but tsc is missing — run: bash scripts/mobile-install.sh"
 fi
 
+if mobile_deps_has_babel_runtime; then
+  ok "@babel/runtime present (Metro-local copy)"
+elif [ -d node_modules ]; then
+  fail "@babel/runtime missing or symlinked outside project — run: bash scripts/mobile-install.sh"
+fi
+
 if [ -f tsconfig.json ]; then
   if grep -qE '"\*\*/\*\.(ts|tsx)"' tsconfig.json 2>/dev/null; then
     fail 'tsconfig.json include is too broad ("**/*.ts" → OOM). git fetch origin && git pull origin main'
@@ -153,7 +159,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
   elif [ "$MOBILE_SETUP" = "1" ]; then
     warn "Expo Go not on simulator yet — setup installs it in the next step"
   else
-    fail "Expo Go NOT on simulator — run: bash scripts/mobile-setup.sh"
+    fail "Expo Go NOT on simulator — run: bash scripts/mobile-install-expo-go-ios.sh"
   fi
   if mobile_expo_go_ios_cache_present; then
     ok "Expo Go iOS cache present ($(mobile_expo_go_ios_cache_dir))"
@@ -208,7 +214,7 @@ echo
 if [ "$FAILURES" -gt 0 ]; then
   echo "Result: ${FAILURES} failure(s), ${WARNINGS} warning(s) — fix FAIL items first."
   if [ "$(uname -s)" = "Darwin" ] && ! mobile_ios_expo_go_installed 2>/dev/null; then
-    echo "  Expo Go missing? Run: bash scripts/mobile-setup.sh"
+    echo "  Expo Go missing? Run: bash scripts/mobile-install-expo-go-ios.sh"
   fi
   exit 1
 fi

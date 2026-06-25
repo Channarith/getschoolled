@@ -47,13 +47,17 @@ if [[ "$USE_METRO_FALLBACK" != "1" ]]; then
   echo "    Method: direct CDN download (recommended)"
   unset EXPO_OFFLINE
   export CI=false
-  if node "$SCRIPT_DIR/mobile-install-expo-go-direct.js" ios; then
-    if mobile_ios_expo_go_installed; then
-      echo "OK Expo Go installed"
-      exit 0
-    fi
+  direct_rc=0
+  node "$SCRIPT_DIR/mobile-install-expo-go-direct.js" ios || direct_rc=$?
+  if [[ "$direct_rc" -eq 0 ]] && mobile_ios_expo_go_installed; then
+    echo "OK Expo Go installed"
+    exit 0
   fi
-  echo "WARN: direct install did not verify — trying Metro fallback…" >&2
+  if [[ "$direct_rc" -ne 0 ]]; then
+    echo "WARN: direct CDN install failed (exit ${direct_rc}) — trying Metro fallback…" >&2
+  else
+    echo "WARN: download finished but Expo Go not detected on simulator — trying Metro fallback…" >&2
+  fi
 fi
 
 echo "    Method: Metro fallback (temporary server on port 8082)"

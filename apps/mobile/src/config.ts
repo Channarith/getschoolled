@@ -16,7 +16,16 @@ function hostFallback(port: number): string {
 
 function serviceUrl(key: string, port: number): string {
   const configured = extra[key];
-  if (configured && configured.startsWith("http")) return configured.replace(/\/$/, "");
+  if (configured && configured.startsWith("http")) {
+    const normalized = configured.replace(/\/$/, "");
+    // app.json defaults to localhost; Android emulator needs host loopback 10.0.2.2.
+    if (Platform.OS === "android") {
+      return normalized
+        .replace("://localhost", "://10.0.2.2")
+        .replace("://127.0.0.1", "://10.0.2.2");
+    }
+    return normalized;
+  }
   return hostFallback(port);
 }
 

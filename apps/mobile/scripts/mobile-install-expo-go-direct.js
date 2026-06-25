@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Download Expo Go from Expo servers and install on simulator/emulator.
- * Uses @expo/cli internals (same as `expo start --ios`) without starting Metro.
+ * Uses native fetch (Node 18+) — @expo/cli's node-fetch path fails on Node 22
+ * with ERR_STREAM_PREMATURE_CLOSE against exp.host.
  *
  * Usage:
  *   node scripts/mobile-install-expo-go-direct.js ios
@@ -10,10 +11,15 @@
 'use strict';
 
 const { execSync, spawnSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
+const { pipeline } = require('stream/promises');
+const { createWriteStream } = require('fs');
 
 const ROOT = path.join(__dirname, '..');
 const PLATFORM = (process.argv[2] || 'ios').toLowerCase();
+const EXPO_HOME = process.env.EXPO_HOME || path.join(process.env.HOME || '', '.expo');
+const VERSIONS_URL = 'https://exp.host/--/api/v2/versions/latest';
 
 function run(cmd, opts = {}) {
   return execSync(cmd, { stdio: 'inherit', ...opts });
@@ -28,23 +34,87 @@ function fail(msg) {
   process.exit(1);
 }
 
+function getExpoSdkVersion() {
+  try {
+    const { getExpoSDKVersion } = require('@expo/config/build/getExpoSDKVersion');
+    return getExpoSDKVersion(ROOT);
+  } catch (err) {
+    fail(`Could not read Expo SDK version (${err.message})`);
+  }
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { redirect: 'follow' });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} from ${url}`);
+  }
+  return res.json();
+}
+
+async function downloadFile(url, outputPath) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const res = await fetch(url, { redirect: 'follow' });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} downloading ${url}`);
+  }
+  if (!res.body) {
+    throw new Error(`No response body from ${url}`);
+  }
+  await pipeline(res.body, createWriteStream(outputPath));
+}
+
+async function resolveExpoGoUrl(sdkVersion, platform) {
+  const payload = await fetchJson(VERSIONS_URL);
+  const versions = payload?.data?.sdkVersions;
+  if (!versions || !versions[sdkVersion]) {
+    throw new Error(`No Expo Go build listed for SDK ${sdkVersion}`);
+  }
+  const entry = versions[sdkVersion];
+  const url = platform === 'ios' ? entry.iosClientUrl : entry.androidClientUrl;
+  if (!url) {
+    throw new Error(`No Expo Go ${platform} URL for SDK ${sdkVersion}`);
+  }
+  return url;
+}
+
+function archiveBaseName(url) {
+  return path.basename(url).replace(/\.(tar\.gz|tgz|apk)$/i, '');
+}
+
+async function downloadIosExpoGo(url) {
+  const base = archiveBaseName(url);
+  const appDir = path.join(EXPO_HOME, 'ios-simulator-app-cache', `${base}.app`);
+  if (fs.existsSync(appDir) && fs.readdirSync(appDir).length > 0) {
+    console.log(`    Using cached app: ${appDir}`);
+    return appDir;
+  }
+  const archivePath = path.join(EXPO_HOME, 'ios-simulator-app-cache', `${base}.tar.gz`);
+  console.log(`    Downloading ${url}`);
+  await downloadFile(url, archivePath);
+  fs.mkdirSync(appDir, { recursive: true });
+  console.log(`    Extracting to ${appDir}`);
+  run(`tar -xzf "${archivePath}" -C "${appDir}"`);
+  return appDir;
+}
+
+async function downloadAndroidExpoGo(url) {
+  const base = archiveBaseName(url);
+  const apkPath = path.join(EXPO_HOME, 'android-apk-cache', `${base}.apk`);
+  if (fs.existsSync(apkPath)) {
+    console.log(`    Using cached apk: ${apkPath}`);
+    return apkPath;
+  }
+  console.log(`    Downloading ${url}`);
+  await downloadFile(url, apkPath);
+  return apkPath;
+}
+
 async function main() {
   if (!['ios', 'android'].includes(PLATFORM)) {
     fail(`platform must be ios or android, got: ${PLATFORM}`);
   }
 
-  let getExpoSDKVersion;
-  let downloadExpoGoAsync;
-  try {
-    ({ getExpoSDKVersion } = require('@expo/config/build/getExpoSDKVersion'));
-    ({ downloadExpoGoAsync } = require('@expo/cli/build/src/utils/downloadExpoGoAsync'));
-  } catch (err) {
-    fail(
-      `Expo CLI modules missing (${err.message}). Run: bash scripts/mobile-install.sh`
-    );
-  }
-
-  const sdkVersion = getExpoSDKVersion(ROOT);
+  const sdkVersion = getExpoSdkVersion();
   console.log(`==> Expo Go direct install (${PLATFORM}, SDK ${sdkVersion})`);
   console.log('    Needs network once — downloads from Expo CDN (not Metro)');
 
@@ -83,8 +153,12 @@ async function main() {
     }
   }
 
-  const binaryPath = await downloadExpoGoAsync(PLATFORM, { sdkVersion });
-  console.log(`    Downloaded: ${binaryPath}`);
+  const url = await resolveExpoGoUrl(sdkVersion, PLATFORM);
+  const binaryPath =
+    PLATFORM === 'ios'
+      ? await downloadIosExpoGo(url)
+      : await downloadAndroidExpoGo(url);
+  console.log(`    Ready: ${binaryPath}`);
 
   if (PLATFORM === 'ios') {
     run(`xcrun simctl install booted "${binaryPath}"`);
@@ -103,11 +177,13 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err?.message || err);
-  console.error('');
-  console.error('If download failed (VPN/firewall), try:');
-  console.error('  https://expo.dev/go?platform=ios&sdkVersion=51');
-  console.error('  Or: bash scripts/mobile-install-expo-go-ios.sh --metro-fallback');
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err?.message || err);
+    console.error('');
+    console.error('If download failed (VPN/firewall), try:');
+    console.error('  https://expo.dev/go?platform=ios&sdkVersion=51');
+    console.error('  Or: bash scripts/mobile-install-expo-go-ios.sh --metro-fallback');
+    process.exit(1);
+  });

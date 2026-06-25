@@ -32,9 +32,9 @@
     "start:android": "bash scripts/mobile-expo.sh start --android",
     "start:ios": "bash scripts/mobile-expo.sh start --ios",
     "android": "bash scripts/mobile-expo.sh run:android",
-    "ios": "bash scripts/mobile-expo.sh run:ios",
+    "ios": "bash scripts/mobile-run-ios.sh",
     "android:debug": "EXPO_DEBUG=1 bash scripts/mobile-expo.sh run:android",
-    "ios:debug": "EXPO_DEBUG=1 bash scripts/mobile-expo.sh run:ios",
+    "ios:debug": "EXPO_DEBUG=1 bash scripts/mobile-run-ios.sh",
     "xcode:debug": "bash scripts/mobile-xcodebuild-debug.sh",
     "gradle:debug": "bash scripts/mobile-gradle-debug.sh",
     "web": "bash scripts/mobile-expo.sh start --web",
@@ -51,9 +51,11 @@
     "eas:build:android": "eas build -p android --profile production --non-interactive",
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
-    "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive"
+    "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive",
+    "postinstall": "node scripts/patch-expo-localization-ios.js"
   },
   "dependencies": {
+    "@babel/runtime": "7.24.7",
     "@expo/metro-runtime": "~3.2.3",
     "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~51.0.39",
