@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Auto-merge no longer deletes the merged branch (dropped
+  --delete-branch); merged PR branches are kept so releases can be monitored and
+  correlated to their source branch.
 - 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
   Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
   Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
