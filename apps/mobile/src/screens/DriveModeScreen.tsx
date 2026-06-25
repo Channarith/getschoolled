@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, type AudioCourse } from "../api";
+import { getAudioCourse, listStudents, type AudioCourse } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -21,9 +21,12 @@ import {
   getVoiceEngineDetails, getVoiceEngineLabel, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
 } from "../voiceAssistant";
+import { resolveVoiceStyle, type NarrationVoiceStyle } from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
 
-export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+export default function DriveModeScreen({
+  courseId, isDriving = false, onBack,
+}: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
@@ -37,6 +40,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   const [listening, setListening] = useState(false);
   const [voiceEngine, setVoiceEngine] = useState(getVoiceEngineLabel());
   const segRef = useRef(0);
+  const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
 
@@ -44,8 +48,18 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     void getVoiceEngineDetails().then((d) => setVoiceEngine(d.label));
   }, []);
 
+  async function refreshVoiceStyle() {
+    const settings = await getSettings();
+    let student = null;
+    try {
+      student = (await listStudents()).students[0] ?? null;
+    } catch { /* offline / guest */ }
+    voiceStyleRef.current = resolveVoiceStyle(settings.narrationVoicePref, student);
+  }
+
   useEffect(() => {
     void warmVoices();
+    void refreshVoiceStyle();
     getAudioCourse(courseId, locale)
       .then((c) => { setCourse(c); playFrom(c, 0); })
       .catch(() => {});
@@ -74,6 +88,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     const s = c.segments[i];
     speakNatural(`${s.heading}. ${s.text}`, {
       locale,
+      voiceStyle: voiceStyleRef.current,
       onDone: () => { if (segRef.current === i) playFrom(c, i + 1); },
     });
   }
@@ -199,6 +214,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     Speech.stop();
     speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
       locale,
+      voiceStyle: voiceStyleRef.current,
       onDone: () => resumeCourse(6500),
     });
   }
@@ -258,6 +274,12 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
           colors={["transparent", "rgba(0,0,0,0.75)"]}
           style={StyleSheet.absoluteFill}
         />
+        {isDriving ? (
+          <View style={styles.drivingBadge}>
+            <Ionicons name="car" size={14} color="#fff" />
+            <Text style={styles.drivingBadgeText}>{t("drive.drivingBadge")}</Text>
+          </View>
+        ) : null}
         <Ionicons name="headset" size={48} color="rgba(255,255,255,0.9)" />
         <Text style={styles.heroTitle} numberOfLines={2}>{course.title}</Text>
       </LinearGradient>
@@ -394,6 +416,13 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", marginBottom: 16,
     ...theme.shadow.hero,
   },
+  drivingBadge: {
+    position: "absolute", top: 12, right: 12, zIndex: 2,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(229, 9, 20, 0.92)", paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: theme.radius.pill,
+  },
+  drivingBadgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   heroTitle: {
     position: "absolute", bottom: 14, left: 14, right: 14,
     color: "#fff", fontSize: 20, fontWeight: "800",

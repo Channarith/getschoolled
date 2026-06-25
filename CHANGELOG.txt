@@ -5,6 +5,28 @@ Format: newest first. No markdown per project convention.
 - 2026-06-23 - Mobile Drive Mode: fix Hey Sala voice assistant using native speech
   recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
   of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
+- 2026-06-23 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
+- 2026-06-23 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
+- 2026-06-25 - Mobile Drive Mode: Hey Sala voice assistant via native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
+- 2026-06-25 - Narration voice profiles: child-friendly, accessible (slower),
+  calm, and clear styles with auto inference from learning profile (age band,
+  extra time, assistive tech). Web Drive Mode + mobile Settings/Drive pick OS
+  voices by style; shared aoep_shared.voice_profiles prosody + ranking hints.
+- 2026-06-25 - Mobile iOS: patch expo-device UIDevice.swift for Xcode 16.3+/26
+  (TARGET_OS_SIMULATOR not in Swift; use targetEnvironment(simulator) on SDK 51).
+- 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
   /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
   services. app.config.js + mobile-check-backends.sh cloud probes.
 - 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,
