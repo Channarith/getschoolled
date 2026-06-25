@@ -497,94 +497,222 @@ The Expo app supports Android and iOS with:
 - Locale picker with 13 translated UI locales plus supported-language fallback.
 - EAS build profiles for development, preview APK, and production app bundle/IPA.
 
-### Set up, run, and build the mobile app
+### Mobile app on macOS — setup, run, and debug
 
-Prerequisites: Node 18+ and `pnpm` (`npm i -g pnpm`). For a **simulator /
-emulator on macOS**, install **Xcode** (iOS Simulator) and/or **Android Studio**
-(Android Virtual Device). Full step-by-step + troubleshooting:
-**`apps/mobile/RUN.txt`**.
+Salareen mobile is an **Expo SDK 51** app in `apps/mobile`. On a Mac you can run it
+in the **iOS Simulator** and/or an **Android emulator**.
 
-Two ways to run locally — pick one:
+> **Developer note:** Many teams find **native dev builds** (`pnpm run ios` /
+> `pnpm run android`) more reliable than **Expo Go** (no separate Expo Go install,
+> correct launcher icon, closer to production). Expo Go is still documented below
+> for quick JS-only iteration. Full operational detail: **`apps/mobile/RUN.txt`**.
 
-| Goal | Command | Needs |
-|------|---------|-------|
-| **Fastest** — Expo Go in simulator/emulator (hot reload) | `pnpm run dev:ios` or `pnpm run dev:android` | Xcode Simulator or a running Android AVD |
-| **Native dev build** — compiles `ios/` / `android/` locally | `pnpm ios` or `pnpm android` | Xcode + CocoaPods (iOS) or Android SDK; first run **10–20 min** |
+#### Requirements (install once)
 
-**If nothing happens:** run `pnpm run doctor` from `apps/mobile`. See **`apps/mobile/RUN.txt`**.
+| Requirement | Version / notes |
+| --- | --- |
+| macOS | Apple Silicon or Intel |
+| **Xcode** | From the App Store; open once after install |
+| **iOS Simulator runtime** | Xcode → **Settings → Platforms** → install the latest **iOS Simulator** (after every major Xcode update). If simulators fail to boot, **reboot the Mac** once. |
+| **Node.js** | 18+ (22.x is common on Mac; repo sets 12 GB heap for Metro) |
+| **pnpm** | `npm i -g pnpm` — repo standard (`apps/mobile/.npmrc` needs hoisted `node_modules`) |
+| **CocoaPods** | `sudo gem install cocoapods` (iOS native builds) |
+| **Android Studio** | Optional; only for Android emulator / `pnpm run android` |
+| **ANDROID_HOME** | Add to `~/.zshrc`: `export ANDROID_HOME=$HOME/Library/Android/sdk` and `export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH` |
 
-**macOS — iOS Simulator (recommended first try)**
+Verify toolchain (always start with verbose doctor):
 
 ```bash
 cd apps/mobile
-pnpm install && pnpm run doctor
-open -a Simulator                    # boot Simulator manually if needed
-pnpm run dev:ios                     # NOT pnpm ios on first try
+pnpm run setup                    # one-time wizard: deps + doctor + Expo Go (Path A)
+# or if you skip Expo Go:
+bash scripts/mobile-install.sh
+VERBOSE=1 bash scripts/mobile-doctor.sh
 ```
 
-**macOS — Android emulator**
+#### Choose a dev path
+
+| Path | Best for | Daily command (verbose) | First-run time |
+| --- | --- | --- | --- |
+| **B — Native dev build** *(recommended)* | Reliable Mac setup; real app icon; notifications | `pnpm run ios:debug` / `pnpm run android:debug` | **10–20 min** (prebuild + CocoaPods/Gradle) |
+| **A — Expo Go** | Fastest JS hot-reload only; no native compile | `pnpm run launch:ios:debug` / `pnpm run launch:android:debug` | 5 min + **one-time Expo Go install** on each simulator |
+
+`npm run ios` and `npm run android` work the same as `pnpm run ios` / `pnpm run android`
+when run from `apps/mobile`. **Do not** run bare `expo` or `pnpm exec expo` on Mac
+(Node heap OOM); all scripts go through `scripts/mobile-expo.sh`.
+
+---
+
+#### Path B — Native dev build (recommended on Mac)
+
+**One-time** (generates `ios/` and `android/`, installs pods / Gradle deps):
 
 ```bash
-# One-time: install Android Studio -> Device Manager -> Create Virtual Device (e.g. Pixel 7).
-# Add to ~/.zshrc (Apple Silicon paths shown; Intel is the same):
-export ANDROID_HOME=$HOME/Library/Android/sdk
-export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
-
-# Boot an AVD (or start it from Android Studio), then:
 cd apps/mobile
-pnpm install
-pnpm run start:android       # starts Metro and opens the app on the emulator
-# Or: pnpm android           # native build (slower; runs prebuild + Gradle on first launch)
+bash scripts/mobile-install.sh
+VERBOSE=1 bash scripts/mobile-doctor.sh
+open -a Simulator                              # boot iOS Simulator manually
+pnpm run ios:debug                             # first run: prebuild + pod install + compile
 ```
+
+**Android** (boot an AVD in Android Studio first, or let the launch script boot one):
 
 ```bash
-# 1. Install (one-time)
 cd apps/mobile
-pnpm install                 # or: make mobile-install
-
-# 2. Run / launch in development (hot-reload)
-pnpm run doctor              # check Xcode / Android / deps (run if stuck)
-pnpm run dev:ios             # Expo Go on iOS Simulator — use this first on Mac
-pnpm run dev:android         # Expo Go on Android emulator
-pnpm start                   # Metro; press i (iOS) or a (Android) in the terminal
-pnpm run start:ios           # same as dev:ios without --clear
-pnpm run start:android       # same as dev:android without --clear
-pnpm ios                     # native iOS dev build (slow; expo run:ios)
-pnpm android                 # native Android dev build (expo run:android)
-pnpm run web                 # run the app in a browser
-
-# 3. Typecheck
-pnpm run typecheck           # or: make mobile-typecheck
-
-# 4. Build the JS bundles (iOS + Android) for OTA / EAS
-pnpm run export              # writes apps/mobile/dist/  (or: make mobile-build)
-
-# 5. Build installable native binaries via EAS (no local Android Studio/Xcode)
-npm i -g eas-cli && eas login            # one-time (needs an Expo account)
-pnpm run eas:build:preview:android       # internal-distribution APK
-pnpm run eas:build:android               # production app bundle (AAB)
-pnpm run eas:build:ios                   # production IPA (needs Apple Developer team)
+pnpm run android:debug
 ```
 
-Backend URL: the app reads the API from `app.json` -> `expo.extra.curriculumUrl`.
-On a **simulator**, `http://localhost:8005` reaches your Mac. On a **physical
-device**, `localhost` is the phone — use your Mac's LAN IP (e.g.
-`http://192.168.1.20:8005`) or your deployed backend. Start the curriculum
-service first:
+**Daily dev** (after `ios/` / `android/` exist):
+
+```bash
+cd apps/mobile
+pnpm run ios:debug          # iOS Simulator
+pnpm run android:debug      # Android emulator
+```
+
+Start the curriculum API in another terminal (browse/home need it):
 
 ```bash
 cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
   uvicorn curriculum.main:app --port 8005
 ```
 
-**Emulator won't launch?** See the troubleshooting section in
-**`apps/mobile/RUN.txt`** (Xcode license, `ANDROID_HOME`, boot the AVD first,
-re-run `pnpm install` after switching package managers, etc.).
+---
 
-Offline / custom CI native builds (Gradle/Xcode projects without EAS):
-`pnpm run prebuild`, then `pnpm run native:build:android` (Android debug APK;
-needs Android SDK + Maven/Gradle access). Build profiles + app identifiers live
-in `apps/mobile/eas.json`.
+#### Path A — Expo Go (optional; higher setup friction)
+
+Expo Go is a **separate app** that must be installed on each simulator once.
+
+```bash
+cd apps/mobile
+pnpm run setup                # installs deps + Expo Go on iOS Simulator
+pnpm run launch:ios:debug     # Metro + opens project in Expo Go
+pnpm run launch:android:debug # boot AVD + Metro + Expo Go
+```
+
+If Expo Go is missing: `bash scripts/mobile-install-expo-go-ios.sh` (network once).
+Manual: https://expo.dev/go?platform=ios&sdkVersion=51
+
+Expo Orbit is **optional** (desktop helper) — not required.
+
+---
+
+#### macOS — iOS Simulator checklist
+
+1. Install / update **Xcode** from the App Store.
+2. Accept license: `sudo xcodebuild -license accept`
+3. Install simulator runtime: **Xcode → Settings → Platforms → iOS Simulator** (pick the latest, e.g. iOS 18.x for current Xcode).
+4. If simulators hang after an Xcode update: **reboot the Mac**, then:
+   ```bash
+   xcode-select -p
+   xcrun simctl list devices available | head
+   open -a Simulator
+   ```
+5. List simulator UDIDs (for `xcodebuild`):
+   ```bash
+   xcrun simctl list devices available | grep iPhone
+   ```
+
+---
+
+#### macOS — Android emulator checklist
+
+1. Install **Android Studio** → **Device Manager** → **Create Virtual Device** (e.g. Pixel 7, API 34+).
+2. Add to `~/.zshrc` and `source ~/.zshrc`:
+   ```bash
+   export ANDROID_HOME=$HOME/Library/Android/sdk
+   export ANDROID_SDK_ROOT=$ANDROID_HOME
+   export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+   ```
+3. Boot the AVD (Android Studio ▶ or `emulator -avd <name> &`).
+4. Confirm: `adb devices` shows an `emulator-*` device.
+
+---
+
+#### Debugging when something fails
+
+Always use **verbose** commands first.
+
+| Step | Command |
+| --- | --- |
+| 1. Environment check | `VERBOSE=1 bash scripts/mobile-doctor.sh` |
+| 2. Kill stale Metro | `bash scripts/mobile-metro-cleanup.sh` |
+| 3. Reinstall deps | `bash scripts/mobile-install.sh` |
+| 4. iOS native (Expo) | `pnpm run ios:debug` |
+| 5. Android native (Expo) | `pnpm run android:debug` |
+| 6. iOS **xcodebuild** directly | `pnpm run xcode:debug` (after `ios/` exists) |
+| 7. Android **Gradle** directly | `pnpm run gradle:debug` (after `android/` exists) |
+| 8. Typecheck | `VERBOSE=1 bash scripts/mobile-typecheck.sh` |
+
+**iOS — `xcodebuild` directly** (when `pnpm run ios:debug` fails opaquely):
+
+```bash
+cd apps/mobile
+pnpm run prebuild                    # if ios/ missing
+SIM_UDID=<your-simulator-udid> pnpm run xcode:debug
+```
+
+Example (replace UDID with yours from `xcrun simctl list`):
+
+```bash
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -workspace ios/Salareen.xcworkspace \
+  -configuration Debug \
+  -scheme Salareen \
+  -destination id=A701BBF9-D0E2-41D9-AD2B-3E7E1461E8C9 \
+  build
+```
+
+**Android — Gradle verbose** (after prebuild):
+
+```bash
+cd apps/mobile/android
+./gradlew assembleDebug --info --stacktrace
+```
+
+**Common failures**
+
+| Symptom | Fix |
+| --- | --- |
+| JavaScript heap OOM (~4040 MB) | Use bash scripts / `pnpm run launch:*:debug` — never raw `expo` |
+| `pnpm install` says up-to-date but `node_modules` empty | `bash scripts/mobile-install.sh` |
+| Simulator won't boot after Xcode update | Install Platforms runtime; reboot Mac |
+| Stuck at "Fetching bundled native modules" | `bash scripts/mobile-metro-cleanup.sh` then `bash scripts/mobile-install-expo-go-ios.sh` |
+| "Expo Go is not installed" | `pnpm run setup` or `bash scripts/mobile-install-expo-go-ios.sh` |
+| Empty browse/home rails | Start curriculum on port 8005 (see below) |
+| Wrong directory | All commands from **`apps/mobile`**, not repo root |
+
+---
+
+#### Backend URL (simulator vs device)
+
+`app.json` → `expo.extra.curriculumUrl` (default `http://localhost:8005`).
+
+- **iOS Simulator:** `localhost` is your Mac — works as-is.
+- **Android emulator:** app uses `10.0.2.2` automatically (`src/config.ts`).
+- **Physical device:** use your Mac's LAN IP, not `localhost`.
+
+```bash
+cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
+  uvicorn curriculum.main:app --port 8005
+```
+
+---
+
+#### Build, typecheck, and release
+
+```bash
+cd apps/mobile
+pnpm run typecheck:verbose
+pnpm run export:verbose              # JS bundles → apps/mobile/dist/
+pnpm run eas:build:preview:android   # cloud APK (needs eas-cli + Expo account)
+```
+
+Makefile shortcuts from repo root: `make mobile-setup`, `make mobile-doctor-verbose`,
+`make mobile-launch-ios-debug`, `make mobile-build`.
+
+Offline native projects: `pnpm run prebuild` then `pnpm run native:build:android`.
+EAS profiles: `apps/mobile/eas.json`. Deeper troubleshooting: **`apps/mobile/RUN.txt`**.
 
 ## Hosting and scale
 

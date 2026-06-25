@@ -3,44 +3,99 @@ AI CLASSROOM - MOBILE APP (Android + iOS)
 Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
 on the go.
 
-FIRST-TIME SETUP (run once on a new Mac)
-=========================================
-Salareen uses Expo Go on the iOS Simulator (Path A). Expo Go is a separate app
-that must be downloaded and installed on the simulator before daily dev works.
-Expo Orbit is an OPTIONAL desktop helper — you do NOT need Orbit for simulator
-development.
+FIRST-TIME SETUP (macOS — read this first)
+==========================================
+Two ways to run Salareen on a Mac. Most developers should use Path B (native).
 
-  1. Install Xcode from the App Store; open it once; accept the license:
+  Path B (RECOMMENDED) — native dev build
+    • Compiles ios/ and android/ locally (expo prebuild + CocoaPods/Gradle).
+    • No Expo Go install; correct launcher icon; fewer moving parts.
+    • First run: 10–20 min with little output — this is normal.
+    • Daily (verbose):  pnpm run ios:debug   /  pnpm run android:debug
+    • npm equivalent:    npm run ios:debug     /  npm run android:debug
+
+  Path A — Expo Go (optional; higher friction)
+    • Separate Expo Go app must be installed on each simulator (network once).
+    • Good for quick JS-only tweaks; painful for first-time setup.
+    • Setup wizard:  bash scripts/mobile-setup.sh   or   pnpm run setup
+    • Daily (verbose):  pnpm run launch:ios:debug
+
+  NEVER on Mac:  expo start ...   or   pnpm exec expo ...
+  Always use bash wrappers (12 GB Node heap for Metro).
+
+MACOS REQUIREMENTS (install once)
+  1. Xcode from App Store → open once → finish setup.
+  2. Accept license:
        sudo xcodebuild -license accept
-
-  2. Install Node 18+ and pnpm (if missing):
+  3. iOS Simulator runtime (REQUIRED after every major Xcode update):
+       Xcode → Settings → Platforms → download latest iOS Simulator
+     If simulators fail to boot: reboot the Mac, then:
+       open -a Simulator
+       xcrun simctl list devices available | head
+  4. Node 18+ and pnpm:
        npm i -g pnpm
+  5. CocoaPods (iOS native builds):
+       sudo gem install cocoapods
+  6. Android Studio + AVD (Android only):
+       Device Manager → Create Virtual Device (e.g. Pixel 7, API 34+)
+       Add to ~/.zshrc:
+         export ANDROID_HOME=$HOME/Library/Android/sdk
+         export ANDROID_SDK_ROOT=$ANDROID_HOME
+         export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 
-  3. From the repo, run the setup wizard (installs deps + Expo Go + doctor):
-       cd apps/mobile
-       bash scripts/mobile-setup.sh
-     Or via pnpm:
-       pnpm run setup
+ONE-TIME SETUP COMMANDS
+  cd apps/mobile
+  bash scripts/mobile-install.sh
+  VERBOSE=1 bash scripts/mobile-doctor.sh
 
-  4. What setup does:
-       • pnpm install (hoisted node_modules for Metro)
-       • environment doctor (Xcode, simulators, heap settings)
-       • downloads Expo Go for SDK 51 from Expo CDN (network once)
-       • installs Expo Go on the iOS Simulator via simctl
+  Path B (native — recommended):
+    open -a Simulator
+    pnpm run ios:debug              # creates ios/, pod install, builds Salareen.app
+    pnpm run android:debug          # boot AVD first; creates android/, Gradle build
 
-  5. Daily dev (after setup):
-       bash scripts/mobile-launch-ios.sh
-     Or:
-       pnpm run launch:ios
-
-  If setup fails at Expo Go install:
-       bash scripts/mobile-install-expo-go-ios.sh
-     Manual download (drag .app onto Simulator):
-       https://expo.dev/go?platform=ios&sdkVersion=51
+  Path A (Expo Go — optional):
+    pnpm run setup                  # deps + doctor + Expo Go CDN install
+    pnpm run launch:ios:debug
 
   Expo Go vs Expo Orbit:
-    • Expo Go  = runs your JS bundle in the simulator (REQUIRED for Path A)
-    • Expo Orbit = optional GUI for installs / dev builds (NOT required)
+    • Expo Go  = runs JS in simulator (Path A only)
+    • Expo Orbit = optional desktop helper (NOT required)
+
+DAILY DEV (verbose defaults)
+  Path B (native):
+    pnpm run ios:debug
+    pnpm run android:debug
+    pnpm run launch:ios:native:debug      # same via launch script
+    pnpm run launch:android:native:debug
+
+  Path A (Expo Go):
+    pnpm run launch:ios:debug
+    pnpm run launch:android:debug
+
+  Stop Metro / free ports:
+    bash scripts/mobile-metro-cleanup.sh
+    pnpm run stop
+
+DEBUG WHEN BUILD FAILS
+  1. VERBOSE=1 bash scripts/mobile-doctor.sh
+  2. bash scripts/mobile-metro-cleanup.sh
+  3. bash scripts/mobile-install.sh
+  4. iOS native via Expo:     pnpm run ios:debug
+  5. iOS native via xcodebuild: pnpm run xcode:debug
+     (needs ios/ from prebuild; set SIM_UDID or SIM_DEVICE)
+  6. Android Gradle verbose:    pnpm run gradle:debug
+  7. Typecheck:                 VERBOSE=1 bash scripts/mobile-typecheck.sh
+
+  Direct xcodebuild (replace UDID from  xcrun simctl list devices):
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+      -workspace ios/Salareen.xcworkspace \
+      -configuration Debug \
+      -scheme Salareen \
+      -destination id=<SIMULATOR-UDID> \
+      build
+
+  Or use the wrapper:
+    SIM_UDID=A701BBF9-D0E2-41D9-AD2B-3E7E1461E8C9 pnpm run xcode:debug
 
 PREREQUISITES
   - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
@@ -71,28 +126,23 @@ DEV LOOP — TWO PATHS
     pnpm run doctor                        # same via pnpm (may OOM on Mac — use bash)
     VERBOSE=1 bash scripts/mobile-doctor.sh
 
-  Path A (recommended): Expo Go — one-command launchers
+  Path A: Expo Go — optional; use launch:ios:debug (not bare dev:ios on Mac)
     cd apps/mobile
-    pnpm run launch:ios              # opens Simulator + starts Expo Go
-    pnpm run launch:ios:debug         # same + EXPO_DEBUG=1 DEBUG=expo:*
-    pnpm run launch:android            # boots first AVD if needed + Expo Go
-    pnpm run launch:android:debug      # verbose Android launch
+    pnpm run setup                       # first time: installs Expo Go on simulator
+    pnpm run launch:ios:debug            # verbose; boots sim + Metro + Expo Go
+    pnpm run launch:android:debug
+    bash scripts/mobile-install-expo-go-ios.sh   # if Expo Go missing
 
-    Shorter aliases:
-    pnpm run dev:ios         # macOS: boots iOS Simulator + loads Expo Go
-    pnpm run dev:android     # boots/runs on an Android emulator or USB device
-    pnpm run dev:ios:debug   # EXPO_DEBUG=1 DEBUG=expo:*
-    pnpm run dev:android:debug
-
-  Path B: native dev build — compiles local ios/ and android/ projects.
+  Path B (RECOMMENDED): native dev build — compiles local ios/ and android/
     cd apps/mobile
-    pnpm ios                 # expo run:ios   (first run: prebuild + pod install)
-    pnpm android             # expo run:android (first run: prebuild + Gradle)
-    pnpm run launch:ios:native:debug     # native + verbose
+    pnpm run ios:debug           # expo run:ios --verbose (first run: prebuild + pods)
+    pnpm run android:debug       # expo run:android --verbose
+    pnpm run launch:ios:native:debug
     pnpm run launch:android:native:debug
-    First native build can take 10–20 minutes with little visible output.
-    Use Path B when you need the full native shell (notifications, release-like
-    builds). Path A is enough for most UI / Drive Mode smoke testing.
+    pnpm run xcode:debug         # xcodebuild directly (after ios/ exists)
+    pnpm run gradle:debug        # Gradle --info --stacktrace (after android/ exists)
+    npm run ios:debug            # same scripts work with npm from apps/mobile
+    First native build: 10–20 min, little output — use verbose commands above.
 
 VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
   Environment variables:
@@ -106,8 +156,10 @@ VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
     pnpm run dev:android:debug
     pnpm run launch:ios:debug
     pnpm run launch:android:debug
-    pnpm ios:debug            # native iOS compile with EXPO_DEBUG
-    pnpm android:debug        # native Android compile with EXPO_DEBUG
+    pnpm run ios:debug            # native iOS compile with EXPO_DEBUG
+    pnpm run android:debug        # native Android compile with EXPO_DEBUG
+    pnpm run xcode:debug          # xcodebuild -workspace ios/*.xcworkspace
+    pnpm run gradle:debug         # ./gradlew assembleDebug --info --stacktrace
 
   Makefile (from repo root):
     make mobile-launch-ios-debug
@@ -118,7 +170,10 @@ VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
     cd apps/mobile/android && ./gradlew assembleDebug --info --stacktrace
 
   Xcode (iOS native only, after prebuild):
-    cd apps/mobile/ios && xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
+    pnpm run xcode:debug
+    SIM_UDID=<udid> pnpm run xcode:debug
+    cd apps/mobile/ios && xcodebuild -workspace *.xcworkspace -scheme Salareen \
+      -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
   Symptom: launch script sits at "Starting Metro Bundler" or "rebuilding cache"
@@ -163,8 +218,9 @@ NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
   1. Wrong directory — commands MUST run from apps/mobile, not the repo root.
        cd apps/mobile && pnpm run doctor
 
-  2. Wrong command — pnpm ios is a NATIVE compile (Path B), not Expo Go.
-       Use:  pnpm run dev:ios     (not pnpm ios on first try)
+  2. Wrong command — pnpm ios / npm run ios is a NATIVE compile (Path B), not Expo Go.
+       Expo Go:  pnpm run launch:ios:debug
+       Native:   pnpm run ios:debug
 
   3. Open the Simulator manually before launching:
        open -a Simulator
@@ -176,9 +232,10 @@ NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
   5. Expo cannot reach expo.dev (corporate VPN / offline):
        pnpm run dev:ios:offline
 
-  6. Xcode license / simulators missing:
+  6. Xcode license / simulators missing or won't boot:
        sudo xcodebuild -license accept
-       open -a Xcode   # Settings -> Platforms -> install iOS simulator runtime
+       open -a Xcode   # Settings -> Platforms -> install iOS Simulator runtime
+       reboot Mac if simctl still fails after installing runtime
 
   7. Clean reinstall:
        rm -rf node_modules .expo && pnpm install && pnpm run dev:ios -- --clear

@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile Mac setup docs: README step-by-step (native build recommended
+  over Expo Go), Xcode simulator runtime + reboot notes, verbose debug playbook,
+  xcodebuild/Gradle helpers (mobile-xcodebuild-debug.sh, pnpm xcode:debug); RUN.txt
+  aligned with README.
 - 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
   Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
   doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
