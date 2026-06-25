@@ -45,7 +45,7 @@ export default function RewardsPage() {
       } else {
         setMsg(t("rewards.raffleEntered", {
           prize: String(r.redemption.detail.prize),
-          entry: r.redemption.raffle_entry_id,
+          entry: r.redemption.raffle_entry_id ?? "",
           balance: r.balance,
         }));
       }
