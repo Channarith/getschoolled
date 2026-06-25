@@ -115,6 +115,10 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
+| Salareen mobile — Android home | Drive Mode (mockup) |
+| --- | --- |
+| <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |
+
 Additional screenshots live in `docs/screens/`.
 
 > Per AGENTS.md, refresh these screenshots/videos whenever the UI changes.
@@ -507,6 +511,8 @@ The Expo app supports Android and iOS with:
 
 Salareen mobile is an **Expo SDK 51** app in `apps/mobile`. On a Mac you can run it
 in the **iOS Simulator** and/or an **Android emulator**.
+
+![Salareen mobile app — Home on Android (emulator)](docs/screens/mobile_android_home.webp)
 
 > **Developer note:** Many teams find **native dev builds** (`pnpm run ios` /
 > `pnpm run android`) more reliable than **Expo Go** (no separate Expo Go install,
