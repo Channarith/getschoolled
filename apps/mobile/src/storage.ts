@@ -3,6 +3,8 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { NarrationVoicePref } from "./voiceProfiles";
+
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
   myList: "@aic/mylist.v1",         // string[]
@@ -28,6 +30,18 @@ export type Settings = {
   newContentAlerts: boolean;
   completionAlerts: boolean;
   studentId: string;
+  /** Master toggle: GPS + motion driving detection for Drive Mode. */
+  driveDetectionEnabled: boolean;
+  /** Use GPS speed from device location (requires permission). */
+  driveUseLocation: boolean;
+  /** Use accelerometer/gyro to augment motion context (requires permission on iOS). */
+  driveUseMotionSensors: boolean;
+  /** Open Drive tab when driving is detected. */
+  driveAutoLaunch: boolean;
+  /** Local alert when driving starts. */
+  driveDrivingAlerts: boolean;
+  /** auto = infer from learning profile (child, accessibility, pace). */
+  narrationVoicePref: NarrationVoicePref;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +51,12 @@ export const DEFAULT_SETTINGS: Settings = {
   newContentAlerts: true,
   completionAlerts: true,
   studentId: "guest",
+  driveDetectionEnabled: false,
+  driveUseLocation: true,
+  driveUseMotionSensors: true,
+  driveAutoLaunch: false,
+  driveDrivingAlerts: true,
+  narrationVoicePref: "auto",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {

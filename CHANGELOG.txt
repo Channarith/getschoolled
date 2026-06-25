@@ -5,6 +5,22 @@ Format: newest first. No markdown per project convention.
 - 2026-06-23 - Learning profile survey: show once after login (not on every route
   change or tab); persist skip/save to identity student profile; cross-tab debounce
   on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
+- 2026-06-25 - Mobile Drive Mode: Hey Sala voice assistant via native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
+- 2026-06-25 - Narration voice profiles: child-friendly, accessible (slower),
+  calm, and clear styles with auto inference from learning profile (age band,
+  extra time, assistive tech). Web Drive Mode + mobile Settings/Drive pick OS
+  voices by style; shared aoep_shared.voice_profiles prosody + ranking hints.
+- 2026-06-25 - Mobile iOS: patch expo-device UIDevice.swift for Xcode 16.3+/26
+  (TARGET_OS_SIMULATOR not in Swift; use targetEnvironment(simulator) on SDK 51).
+- 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
   /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
   services. app.config.js + mobile-check-backends.sh cloud probes.
 - 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,
@@ -20,6 +36,10 @@ Format: newest first. No markdown per project convention.
   cleartext HTTP for local dev.
 - 2026-06-25 - Mobile: sync pnpm-lock.yaml with expo-linear-gradient (fixes CI Auto Push Build).
 - 2026-06-25 - Mobile: sync pnpm-lock.yaml with @babel/runtime direct dep (fixes CI Auto Push Build).
+- 2026-06-25 - Mobile EAS iOS: pin macos-sequoia-15.6-xcode-26.2 (App Store requires
+  Xcode 26+ from April 2026; SDK 51 auto image was still Xcode 15).
+- 2026-06-25 - Mobile iOS: expo-localization patch uses @unknown default only (fixes EAS
+  on Xcode 16; prior iOS-26-only calendar cases broke cloud builds).
 - 2026-06-25 - Mobile iOS: patch expo-localization for Xcode 26 calendar identifiers
   (fixes Swift "switch must be exhaustive" on native build).
 - 2026-06-25 - Mobile iOS native build: mobile-run-ios.sh boots iPhone 17 on iOS 26.4+
