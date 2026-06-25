@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
 - 2026-06-23 - Learning profile survey: show once after login (not on every route
   change or tab); persist skip/save to identity student profile; cross-tab debounce
   on web; mobile auto-prompt gated per auth session.
