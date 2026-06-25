@@ -5,8 +5,8 @@
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
   "main": "index.ts",
   "scripts": {
-    "doctor": "node scripts/mobile-doctor.js",
-    "doctor:verbose": "node scripts/mobile-doctor.js --verbose",
+    "doctor": "bash scripts/mobile-doctor.sh",
+    "doctor:verbose": "VERBOSE=1 bash scripts/mobile-doctor.sh",
     "dev": "expo start --clear",
     "dev:ios": "expo start --ios --clear",
     "dev:android": "expo start --android --clear",

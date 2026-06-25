@@ -2,9 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Mobile typecheck: tsconfig.typecheck.json + preflight script; verbose
-  mode no longer runs tsc --listFilesOnly (Mac Node 22 OOM). doctor checks for
-  stale package.json typecheck scripts.
+- 2026-06-24 - Mobile doctor: pure bash script (mobile-doctor.sh) so Mac users can
+  diagnose without pnpm/Node heap OOM. make mobile-doctor runs bash directly.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist

@@ -22,10 +22,11 @@ INSTALL (one-time)
 
 DEV LOOP — TWO PATHS
   Run the doctor first if anything fails silently:
-    cd apps/mobile
+    cd apps/mobile          # skip if prompt ends in "mobile" and app.json is here
     pnpm install
-    pnpm run doctor
-    pnpm run doctor:verbose    # extra Simulator/ADB/pnpm diagnostics
+    bash scripts/mobile-doctor.sh          # preferred on Mac (avoids pnpm heap OOM)
+    pnpm run doctor                        # same via pnpm (may OOM on Mac — use bash)
+    VERBOSE=1 bash scripts/mobile-doctor.sh
 
   Path A (recommended): Expo Go — one-command launchers
     cd apps/mobile
@@ -189,10 +190,13 @@ TYPECHECK
     grep typecheck package.json             # must call mobile-typecheck.sh
     pnpm run typecheck:verbose              # src ~20, completes in seconds
 
-  If you still OOM after pull:
-    rm -rf node_modules .expo && pnpm install
-    pnpm run doctor
-    pnpm run typecheck:verbose
+  If pnpm run doctor / typecheck OOM with no output (Mac Node 22):
+    pnpm itself may exhaust ~4 GB heap scanning hoisted node_modules.
+    Skip pnpm — run bash scripts directly:
+      bash scripts/mobile-doctor.sh
+      bash scripts/mobile-typecheck.sh
+      VERBOSE=1 bash scripts/mobile-typecheck.sh
+    Optional: export NODE_OPTIONS=--max-old-space-size=8192 before pnpm commands.
 
   If export still OOM, build one platform at a time:
     pnpm run export:ios

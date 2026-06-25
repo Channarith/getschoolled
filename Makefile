@@ -105,10 +105,13 @@ mobile-install:
 	cd apps/mobile && pnpm install
 
 mobile-doctor:
-	cd apps/mobile && pnpm run doctor
+	cd apps/mobile && bash scripts/mobile-doctor.sh
 
 mobile-doctor-verbose:
-	cd apps/mobile && pnpm run doctor:verbose
+	cd apps/mobile && VERBOSE=1 bash scripts/mobile-doctor.sh
+
+mobile-doctor-pnpm:
+	cd apps/mobile && pnpm run doctor
 
 mobile-dev-ios:
 	cd apps/mobile && pnpm run dev:ios
