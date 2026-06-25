@@ -45,6 +45,7 @@ export type StringKey =
   // Settings
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
+  | "settings.sectionNarration" | "settings.narrationDesc" | "settings.narrationAuto"
   | "settings.sectionDrive"
   | "settings.sectionAbout"
   | "settings.allow" | "settings.allowDesc"
@@ -221,6 +222,10 @@ const EN: Record<StringKey, string> = {
   "settings.openSurvey": "Update learning profile",
   "settings.signOut": "Sign out",
   "settings.backendUrls": "Backend: curriculum {curriculum} · identity {identity}",
+
+  "settings.sectionNarration": "NARRATION VOICE",
+  "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
+  "settings.narrationAuto": "Auto (profile)",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",
