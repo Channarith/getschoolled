@@ -102,6 +102,9 @@ web-build:
 
 # --- Mobile (Expo: Android + iOS) ----------------------------------------- #
 mobile-install:
+	cd apps/mobile && bash scripts/mobile-install.sh
+
+mobile-install-pnpm:
 	cd apps/mobile && pnpm install
 
 mobile-doctor:

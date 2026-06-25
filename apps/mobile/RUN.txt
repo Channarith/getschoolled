@@ -23,8 +23,8 @@ INSTALL (one-time)
 DEV LOOP — TWO PATHS
   Run the doctor first if anything fails silently:
     cd apps/mobile          # skip if prompt ends in "mobile" and app.json is here
-    pnpm install
-    bash scripts/mobile-doctor.sh          # preferred on Mac (avoids pnpm heap OOM)
+  pnpm install
+  bash scripts/mobile-install.sh       # use if pnpm says up-to-date but deps missing
     pnpm run doctor                        # same via pnpm (may OOM on Mac — use bash)
     VERBOSE=1 bash scripts/mobile-doctor.sh
 

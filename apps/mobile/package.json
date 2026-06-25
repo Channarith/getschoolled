@@ -7,6 +7,7 @@
   "scripts": {
     "doctor": "bash scripts/mobile-doctor.sh",
     "doctor:verbose": "VERBOSE=1 bash scripts/mobile-doctor.sh",
+    "install:force": "bash scripts/mobile-install.sh",
     "dev": "expo start --clear",
     "dev:ios": "expo start --ios --clear",
     "dev:android": "expo start --android --clear",
