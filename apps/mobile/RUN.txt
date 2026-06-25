@@ -421,6 +421,12 @@ DRIVE MODE VOICE (Hey Sala)
   Expo Go alone may not include the speech module. Rebuild after pulling:
   npx expo prebuild && npx expo run:android  (or run:ios)
 
+NARRATION VOICE PROFILES
+  Settings -> NARRATION VOICE: Auto (from learning profile), Standard,
+  Child-friendly, Accessible (slower), Calm, or Clear. Drive Mode TTS picks the
+  best OS voice for your locale + style (rate/pitch tuned per profile).
+  Web Drive Mode has the same chips under the player (localStorage).
+
 WHAT'S HERE
   App.tsx                       root: bottom-tab nav, banner, notification listeners
   src/api.ts                    typed client (curriculum, identity, memory)
