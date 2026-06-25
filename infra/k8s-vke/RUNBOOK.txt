@@ -62,6 +62,22 @@ Get kubeconfig
   export KUBECONFIG=$PWD/kubeconfig-vke.yaml
   kubectl get nodes
 
+GitHub Actions secret (KUBE_CONFIG_B64)
+---------------------------------------
+Deploy workflows need cluster access. Store a base64 kubeconfig in repo secret
+KUBE_CONFIG_B64 (Settings → Secrets and variables → Actions):
+
+  vultr-cli kubernetes config <cluster-id> > kubeconfig-vke.yaml
+  base64 -i kubeconfig-vke.yaml | tr -d '\n'     # macOS — paste ONE line into secret
+  base64 -w 0 kubeconfig-vke.yaml                # Linux
+
+Do NOT paste raw YAML into KUBE_CONFIG_B64 unless you base64-encode it first.
+Symptom of a bad secret: "yaml: mapping values are not allowed in this context"
+when the roll job runs kubectl.
+
+Alternative: multiline secret KUBE_CONFIG with the raw kubeconfig YAML (no base64).
+Workflows use scripts/github_configure_kubeconfig.sh to decode and validate.
+
 Install ingress-nginx
 ---------------------
   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -308,6 +324,20 @@ POST /students/{id}/learning-profile). Deploy identity + web, then retry.
 Verify from your laptop:
   ./scripts/k8s_verify_learning_profile.sh http://45.63.91.80
   # expect: OK identity version=... exposes learning-profile routes
+
+Careers page (/jobs) shows raw JSON instead of HTML
+---------------------------------------------------
+The public Careers UI is served by the web (Next.js) app at /jobs. The jobs API
+lives at /curriculum/jobs (aoep-apis rewrite). If /jobs returns curriculum JSON,
+the aoep Ingress still routes /jobs to the curriculum service — apply the VKE
+ingress patch:
+
+  kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+
+Verify:
+  BASE_URL=http://45.63.91.80 bash scripts/k8s_verify_jobs_page.sh
+  # expect: OK /jobs returns HTML (Careers page)
+  #         OK /curriculum/jobs returns JSON job list
 
 Apply ingress (www/salareen.com /identity routing):
   kubectl apply -f infra/k8s-vke/ingress-vke.yaml
