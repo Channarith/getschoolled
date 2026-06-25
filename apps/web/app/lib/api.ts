@@ -337,7 +337,7 @@ export type LearnableItem = {
   category: string; subject: string; format: string; level: string; language: string;
   duration_min: number; tags: string[]; maturity_rating: string; hands_on: boolean;
   drive_safe: boolean; access_tier: string; preview: string; deep_link: string;
-  popularity?: number;
+  popularity?: number; thumbnail?: string | null;
 };
 
 export type LearnSearchResult = {

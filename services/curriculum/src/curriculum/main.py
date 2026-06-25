@@ -616,6 +616,7 @@ def learn_search(
     offset: int = 0,
 ) -> dict:
     """Search all learnable content (catalog, audio, live, languages, games)."""
+    from aoep_shared.course_artwork import resolve_course_poster_from_mapping
     from aoep_shared.learnable import search_learnable
 
     result = search_learnable(
@@ -627,7 +628,16 @@ def learn_search(
     )
     return {
         **result,
-        "items": [i.model_dump() for i in result["items"]],
+        "items": [
+            {
+                **i.model_dump(),
+                "thumbnail": resolve_course_poster_from_mapping({
+                    **i.model_dump(),
+                    "format": i.format,
+                }),
+            }
+            for i in result["items"]
+        ],
     }
 
 
