@@ -8,30 +8,30 @@ from __future__ import annotations
 
 from typing import Iterable, Mapping, Optional, Sequence
 
-# Unsplash photo IDs (slug after photo-) — curated for education subjects.
+# Unsplash photo IDs (slug after photo-) — verified HTTP 200 as of 2026-06.
 _POSTERS: dict[str, str] = {
-    "default": "1524995997473-0922192e7427",       # library / learning
-    "mathematics": "1596495577885-7b0216313667",   # equations / math
-    "science": "1532094349784-aa2b07712477",        # microscope / lab
-    "technology": "1517694712202-8f3797902a10",    # laptop / code
-    "languages": "1524995997473-0922192e7427",    # books / study
-    "history": "1539650116574-8a991d6ac6d0",      # museum / artifacts
-    "business": "1542744173-8c3279b9b0a8",         # office / teamwork
-    "finance": "1611974789855-9c98a0f44d0a",      # charts / finance
-    "wellness": "1506126613408-07c158377075",      # yoga / calm
-    "cooking": "1556910103-1c02745aae4d",          # kitchen
-    "geography": "1526778544-fe3699e2b0c0",        # globe / travel
-    "sports": "1461896836934-ffe607f8210a",        # athletics
-    "civics": "1577412647305-5365e4eee1d5",       # government / civic
+    "default": "1503676260728-1c00da094a0b",       # books / learning
+    "mathematics": "1532012197267-da84d127e765",   # math notebook
+    "science": "1582719471384-894fbb16e074",        # science lab
+    "technology": "1516321318423-f06f85e504b3",    # laptop / code
+    "languages": "1481627834876-b7833e8f5570",    # books / study
+    "history": "1568667256549-094345857637",      # vintage books
+    "business": "1522202176988-66273c2fd55f",         # office / teamwork
+    "finance": "1554224155-6726b3ff858f",      # charts / finance
+    "wellness": "1571019613454-1cb2f99b2d8b",      # fitness / calm
+    "cooking": "1556909114-f6e7ad7d3136",          # kitchen
+    "geography": "1469474968028-56623f02e42e",        # landscape
+    "sports": "1571019613454-1cb2f99b2d8b",        # athletics
+    "civics": "1522202176988-66273c2fd55f",       # meeting / civic
     "mindfulness": "1544367567-0f2fcb009e0b",      # meditation
-    "arcade": "1511512578047-dfb632b44527",       # gaming
-    "audio": "1478737270239-5880992794b7",        # headphones
-    "live_class": "1588196749598-0e4a0a5a9843",   # video classroom
+    "arcade": "1611224923853-80b023f02d71",       # gaming
+    "audio": "1493225457124-a3eb161ffa5f",        # headphones / music
+    "live_class": "1509062522246-3755977927d7",   # classroom
     "ai": "1677442136019-21780ecad995",           # AI / neural
     "python": "1526374965328-7f61d4dc18c5",       # programming
-    "fractions": "1635072833038-7c9468ee2294",    # math workbook
-    "photosynthesis": "1416879595882-ce2fa732bc2c",  # plants / nature
-    "english": "1456514295660-8ba4a0869efa",      # books / reading
+    "fractions": "1554475901-4538ddfbccc2",    # chalkboard / math
+    "photosynthesis": "1542601906990-b4d3fb778b09",  # plants / nature
+    "english": "1503676260728-1c00da094a0b",      # books / reading
     "spanish": "1481627834876-b7833e8f5570",       # language study
 }
 
@@ -100,6 +100,18 @@ def _category_key(category: str, subject: str) -> str:
     return ""
 
 
+def _use_explicit_thumbnail(thumb: Optional[str]) -> bool:
+    """Passthrough custom CDN paths only — re-resolve Unsplash (IDs go stale)."""
+    if not thumb:
+        return False
+    s = str(thumb)
+    if not s.startswith(("http://", "https://", "/")):
+        return False
+    if "images.unsplash.com/" in s:
+        return False
+    return True
+
+
 def resolve_course_poster(
     *,
     title: str = "",
@@ -110,7 +122,7 @@ def resolve_course_poster(
     thumbnail: Optional[str] = None,
 ) -> str:
     """Return a poster image URL for a course card."""
-    if thumbnail and str(thumbnail).startswith(("http://", "https://", "/")):
+    if _use_explicit_thumbnail(thumbnail):
         return str(thumbnail)
 
     hay = _norm(" ".join([title, category, subject, " ".join(tags or [])]))

@@ -26,6 +26,7 @@ import {
 } from "../voiceProfiles";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
 import { theme } from "../theme";
+import { APP_VERSION } from "../version";
 
 type Props = {
   onAuthChange?: () => void;
@@ -490,7 +491,7 @@ export default function SettingsScreen({
       </Section>
 
       <Section title={t("settings.sectionAbout")}>
-        <Text style={styles.about}>{t("settings.aboutBody")}</Text>
+        <Text style={styles.about}>{t("settings.aboutBody", { version: APP_VERSION })}</Text>
       </Section>
     </ScrollView>
   );

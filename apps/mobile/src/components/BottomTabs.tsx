@@ -19,6 +19,7 @@ const TABS: TabSpec[] = [
   { id: "home", labelKey: "tab.home", icon: "home-outline", iconActive: "home" },
   { id: "drive", labelKey: "tab.drive", icon: "headset-outline", iconActive: "headset" },
   { id: "mylist", labelKey: "tab.mylist", icon: "bookmark-outline", iconActive: "bookmark" },
+  { id: "careers", labelKey: "tab.careers", icon: "briefcase-outline", iconActive: "briefcase" },
   { id: "notifications", labelKey: "tab.alerts", icon: "notifications-outline", iconActive: "notifications" },
   { id: "settings", labelKey: "tab.settings", icon: "settings-outline", iconActive: "settings" },
 ];
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, alignItems: "center", paddingVertical: 4 },
   iconWrap: { height: 28, justifyContent: "center" },
   label: {
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 4,
     color: theme.colors.muted,
     fontWeight: "600",

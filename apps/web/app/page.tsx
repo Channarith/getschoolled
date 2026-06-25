@@ -16,7 +16,7 @@ import { friendlyError } from "./lib/errors";
 import { useT } from "./lib/i18n";
 
 export default function HomePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
@@ -30,7 +30,7 @@ export default function HomePage() {
       setLoggedIn(authed);
       setAuthResolved(true);
       if (authed) {
-        getHomeFeed().then(setRails).catch((e) => setError(String(e)));
+        getHomeFeed(false, locale).then(setRails).catch((e) => setError(String(e)));
       } else {
         setRails(null);
         setError("");
@@ -43,7 +43,7 @@ export default function HomePage() {
       window.removeEventListener(AUTH_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
-  }, []);
+  }, [locale]);
 
   function onGetStarted(e: React.FormEvent) {
     e.preventDefault();

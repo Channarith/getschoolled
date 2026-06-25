@@ -24,6 +24,8 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "./SignInToUse";
+import { useT } from "../lib/i18n";
+import { speakNaturally } from "../lib/tts";
 
 export type ClassRoomProps = {
   // Page heading (e.g. "Live Class" or "Corporate training").
@@ -42,14 +44,18 @@ export type ClassRoomProps = {
 };
 
 export default function ClassRoom({
-  title = "Live Class",
+  title,
   lockedLessonId,
   initialLessonId,
   hideCorporate = false,
   backHref,
-  backLabel = "← Back",
-  startLabel = "Start class",
+  backLabel,
+  startLabel,
 }: ClassRoomProps) {
+  const { t, locale } = useT();
+  const heading = title ?? t("class.title");
+  const startBtn = startLabel ?? t("class.startLabel");
+  const back = backLabel ?? t("class.back");
   const locked = Boolean(lockedLessonId);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>(lockedLessonId ?? initialLessonId ?? "");
@@ -127,13 +133,11 @@ export default function ClassRoom({
   function speak(text: string) {
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    speechRef.current = utterance;
+    speakNaturally(text, {
+      locale,
+      onend: () => setSpeaking(false),
+    });
     setSpeaking(true);
-    window.speechSynthesis.speak(utterance);
   }
 
   async function onStart() {
@@ -216,7 +220,7 @@ export default function ClassRoom({
     if (!view) return;
     const overall = Number(surveyAnswers["overall"] ?? 0);
     if (!overall) {
-      setError("Please give an overall rating.");
+      setError(t("class.ratingRequired"));
       return;
     }
     setBusy(true);
@@ -240,7 +244,7 @@ export default function ClassRoom({
   }
 
   async function onDispute(text: string) {
-    const issue = window.prompt("What seems wrong with this answer? A human will review it.");
+    const issue = window.prompt(t("class.reportPrompt"));
     if (!issue) return;
     try {
       const r = await reportIssue({
@@ -250,7 +254,7 @@ export default function ClassRoom({
         issue,
         author: "student",
       });
-      window.alert(`Reported for human review (id ${r.id}, status: ${r.status}).`);
+      window.alert(t("class.reported", { id: r.id, status: r.status }));
     } catch (e) {
       setError(String(e));
     }
@@ -263,7 +267,7 @@ export default function ClassRoom({
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
-      const a: Answer = await ask(view.session.session_id, q);
+      const a: Answer = await ask(view.session.session_id, q, locale);
       speak(a.text);
       setChat((c) => [
         ...c,
@@ -287,7 +291,9 @@ export default function ClassRoom({
           if (r.earned > 0) {
             setChat((c) => [
               ...c,
-              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${a.reward!.reason} (balance: ${r.balance})` },
+              { role: "reward", text: t("class.rewardAwarded", {
+                earned: r.earned, reason: a.reward!.reason, balance: r.balance,
+              }) },
             ]);
           }
         } catch {
@@ -305,19 +311,19 @@ export default function ClassRoom({
     <main className="container">
       {backHref && (
         <div className="row" style={{ marginBottom: 4 }}>
-          <Link href={backHref} className="muted" style={{ fontSize: 14 }}>{backLabel}</Link>
+          <Link href={backHref} className="muted" style={{ fontSize: 14 }}>{back}</Link>
         </div>
       )}
-      <h1>{title}</h1>
+      <h1>{heading}</h1>
       {disclosure && (
         <div className="card" style={{ borderColor: "#6ea8fe" }}>
-          <strong>AI disclosure</strong>
+          <strong>{t("class.aiDisclosure")}</strong>
           <div className="muted">{disclosure.line}</div>
         </div>
       )}
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
-          <strong>Could not reach the orchestrator.</strong>
+          <strong>{t("class.orchestratorError")}</strong>
           <div className="muted">{error}</div>
         </div>
       )}
@@ -326,39 +332,40 @@ export default function ClassRoom({
         <div className="card" style={{ borderColor: "#16a34a" }}>
           {finish.kind === "earned" && (
             <>
-              <strong>🎉 Course complete — you earned {finish.earned} reward points!</strong>
+              <strong>{t("class.completeEarned", { earned: finish.earned })}</strong>
               <div className="muted">
-                Balance: {finish.balance} points · <a href="/rewards">Redeem for discounts or prizes →</a>
+                {t("class.balanceRedeem", { balance: finish.balance })}{" "}
+                <a href="/rewards">{t("class.redeemLink")}</a>
               </div>
             </>
           )}
           {finish.kind === "complete" && (
             <>
-              <strong>✅ Course complete!</strong>
+              <strong>{t("class.complete")}</strong>
               <div className="muted">
                 {finish.balance !== undefined
-                  ? <>Reward balance: {finish.balance} points · <a href="/rewards">Rewards →</a></>
-                  : "Nice work."}
+                  ? <>{t("class.rewardBalance", { balance: finish.balance })} <a href="/rewards">{t("class.rewardsLink")}</a></>
+                  : t("class.niceWork")}
               </div>
             </>
           )}
           {finish.kind === "guest" && (
             <>
-              <strong>✅ Course complete!</strong>
+              <strong>{t("class.complete")}</strong>
               <div className="muted">
-                <a href="/login">Sign in</a> to earn reward points for completing courses.
+                <a href="/login">{t("profile.signIn")}</a> {t("class.guestComplete")}
               </div>
             </>
           )}
           {locked && (
             <div className="row" style={{ marginTop: 10 }}>
               <button onClick={() => { autoStartedRef.current = false; setFinish(null); }}>
-                Take it again
+                {t("class.takeAgain")}
               </button>
               {backHref && (
                 <Link href={backHref}>
                   <button style={{ background: "transparent", border: "1px solid var(--border)" }}>
-                    {backLabel}
+                    {back}
                   </button>
                 </Link>
               )}
@@ -372,10 +379,8 @@ export default function ClassRoom({
       {/* Picker mode (Live Class): choose a lesson and class type. */}
       {!view && !locked && (
         <div className="card">
-          <h3>Start a session</h3>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Browse the lessons below. Starting a class requires an account.
-          </p>
+          <h3>{t("class.startSession")}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>{t("class.startSessionDesc")}</p>
           <div className="row">
             <select value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
               {lessons
@@ -387,12 +392,12 @@ export default function ClassRoom({
                 ))}
             </select>
             <select value={classType} onChange={(e) => setClassType(e.target.value)}>
-              <option value="group">Group class</option>
-              <option value="solo">Solo (1:1)</option>
+              <option value="group">{t("class.groupClass")}</option>
+              <option value="solo">{t("class.solo")}</option>
             </select>
             <button onClick={onStart} disabled={busy || !lessonId || !loggedIn}
-              title={!loggedIn ? "Sign in to take classes" : undefined}>
-              {startLabel}
+              title={!loggedIn ? t("class.signInToTake") : undefined}>
+              {startBtn}
             </button>
           </div>
         </div>
@@ -404,9 +409,9 @@ export default function ClassRoom({
       {!view && locked && loggedIn && !finish && (
         <div className="card">
           {busy ? (
-            <p className="muted" style={{ margin: 0 }}>Starting your course…</p>
+            <p className="muted" style={{ margin: 0 }}>{t("class.startingCourse")}</p>
           ) : (
-            <button onClick={onStart} disabled={!lessonId}>{startLabel}</button>
+            <button onClick={onStart} disabled={!lessonId}>{startBtn}</button>
           )}
         </div>
       )}
@@ -415,26 +420,29 @@ export default function ClassRoom({
         <>
           <div className="slide">
             <div className="muted">
-              {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
+              {view.lesson.title} · {t("class.slideOf", {
+                current: slide.index + 1,
+                total: view.lesson.slides.length,
+              })}
             </div>
             <h2>{slide.title}</h2>
             <p>{slide.body}</p>
             <p className="muted">🔊 {slide.narration}</p>
             <div className="row">
               <button onClick={onAdvance} disabled={busy}>
-                Next slide →
+                {t("class.nextSlide")}
               </button>
               <button onClick={onFinish} disabled={busy}
                 style={{ background: "#111", color: "#fff" }}>
-                Finish class
+                {t("class.finishClass")}
               </button>
-              <span className="muted">Session {view.session.session_id}</span>
+              <span className="muted">{t("class.session", { id: view.session.session_id })}</span>
             </div>
           </div>
 
           <div className="card">
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ margin: 0 }}>Ask the AI teacher</h3>
+              <h3 style={{ margin: 0 }}>{t("class.askTeacher")}</h3>
               <label className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input
                   type="checkbox"
@@ -444,7 +452,7 @@ export default function ClassRoom({
                     if (!e.target.checked) stopSpeaking();
                   }}
                 />
-                Speak answers
+                {t("class.speakAnswers")}
               </label>
             </div>
             <div className="chat">
@@ -457,7 +465,7 @@ export default function ClassRoom({
                   {m.role === "teacher" && m.grounded !== undefined && (
                     <div className="cite" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                       <span
-                        title="Whether the answer is supported by the course material"
+                        title={t("class.groundedTitle")}
                         style={{
                           padding: "1px 8px",
                           borderRadius: 999,
@@ -465,24 +473,26 @@ export default function ClassRoom({
                           color: m.grounded ? "#16a34a" : "#d97706",
                         }}
                       >
-                        {m.grounded ? "Grounded ✓" : "Unverified ⚠"}
+                        {m.grounded ? t("class.grounded") : t("class.unverified")}
                       </span>
                       {m.confidence !== undefined && (
-                        <span title="Confidence = 1 - hallucination risk">
-                          confidence {m.confidence}%
+                        <span title={t("class.confidenceTitle")}>
+                          {t("class.confidence", { pct: m.confidence })}
                         </span>
                       )}
                       {m.citations && m.citations.length > 0 && (
-                        <span>· verified against {m.citations.length} source{m.citations.length > 1 ? "s" : ""}</span>
+                        <span>{m.citations.length > 1
+                          ? t("class.verifiedSourcesPlural", { n: m.citations.length })
+                          : t("class.verifiedSources", { n: m.citations.length })}</span>
                       )}
                     </div>
                   )}
                   {m.citations && m.citations.length > 0 && (
-                    <div className="cite">Sources: {m.citations.join(" | ")}</div>
+                    <div className="cite">{t("class.sources")} {m.citations.join(" | ")}</div>
                   )}
                   {m.unsupported && m.unsupported.length > 0 && (
                     <div className="cite" style={{ color: "#d97706" }}>
-                      Unsupported claims flagged: {m.unsupported.join("; ")}
+                      {t("class.unsupportedClaims")} {m.unsupported.join("; ")}
                     </div>
                   )}
                   {m.role === "teacher" && (
@@ -490,25 +500,25 @@ export default function ClassRoom({
                       <button
                         onClick={() => speak(m.text)}
                         style={{ fontSize: 12, padding: "2px 10px", color: "#075985", background: "#e0f2fe", border: "1px solid #0ea5e9", borderRadius: 999, cursor: "pointer" }}
-                        title="Speak this answer aloud"
+                        title={t("class.speakTitle")}
                       >
-                        🔊 Speak
+                        {t("class.speak")}
                       </button>
                       {speaking && (
                         <button
                           onClick={stopSpeaking}
                           style={{ fontSize: 12, padding: "2px 10px", color: "#334155", background: "#f1f5f9", border: "1px solid #94a3b8", borderRadius: 999, cursor: "pointer" }}
-                          title="Stop speaking"
+                          title={t("class.stopTitle")}
                         >
-                          Stop audio
+                          {t("class.stopAudio")}
                         </button>
                       )}
                       <button
                         onClick={() => onDispute(m.text)}
                         style={{ fontSize: 12, padding: "2px 10px", color: "#b45309", background: "#fff7ed", border: "1px solid #f59e0b", borderRadius: 999, cursor: "pointer" }}
-                        title="Dispute this answer; a human reviews it"
+                        title={t("class.reportTitle")}
                       >
-                        Report / dispute
+                        {t("class.reportDispute")}
                       </button>
                     </div>
                   )}
@@ -518,13 +528,13 @@ export default function ClassRoom({
             <div className="row" style={{ marginTop: 12 }}>
               <input
                 style={{ flex: 1, minWidth: 240 }}
-                placeholder="e.g. What gas do plants release?"
+                placeholder={t("class.askPlaceholder")}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && onAsk()}
               />
               <button onClick={onAsk} disabled={busy || !question.trim()}>
-                Ask
+                {t("class.ask")}
               </button>
             </div>
           </div>
@@ -539,7 +549,7 @@ export default function ClassRoom({
             {!surveyDone ? (
               <>
                 <h3 style={{ marginTop: 0 }}>{survey.title}</h3>
-                <p className="muted">Optional · helps us improve this course.</p>
+                <p className="muted">{t("class.surveyOptional")}</p>
                 {survey.questions.map((q) => (
                   <div key={q.id} style={{ margin: "14px 0" }}>
                     <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
@@ -569,12 +579,12 @@ export default function ClassRoom({
                       <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         <input type="checkbox" checked={Boolean(surveyAnswers[q.id])}
                           onChange={(e) => setSurveyAnswers((a) => ({ ...a, [q.id]: e.target.checked }))} />
-                        Yes
+                        {t("class.surveyYes")}
                       </label>
                     )}
                     {q.type === "text" && (
                       <textarea rows={2} style={{ width: "100%" }}
-                        placeholder="Your suggestion…"
+                        placeholder={t("class.surveySuggestion")}
                         value={(surveyAnswers[q.id] as string) ?? ""}
                         onChange={(e) => setSurveyAnswers((a) => ({ ...a, [q.id]: e.target.value }))} />
                     )}
@@ -583,20 +593,20 @@ export default function ClassRoom({
                 <div className="row" style={{ marginTop: 12 }}>
                   <button onClick={onSubmitSurvey} disabled={busy}
                     style={{ background: "#111", color: "#fff" }}>
-                    Submit feedback
+                    {t("class.surveySubmit")}
                   </button>
                   <button onClick={() => { setSurvey(null); setView(null); }} disabled={busy}>
-                    Skip
+                    {t("class.surveySkip")}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <h3 style={{ marginTop: 0 }}>Thank you! 🙌</h3>
-                <p className="muted">Your feedback helps us improve this course.</p>
+                <h3 style={{ marginTop: 0 }}>{t("class.surveyThanks")}</h3>
+                <p className="muted">{t("class.surveyThanksBody")}</p>
                 <button onClick={() => { setSurvey(null); setView(null); }}
                   style={{ background: "#111", color: "#fff" }}>
-                  Close
+                  {t("class.surveyClose")}
                 </button>
               </>
             )}

@@ -11,9 +11,11 @@ from aoep_shared.jobs import (
     LinkedInJobsProvider,
     MockJobsProvider,
     RemotiveJobsProvider,
+    filter_jobs_by_location,
     get_job,
     get_jobs_provider,
     jobs_for_course,
+    location_matches,
     match_courses_to_job,
 )
 
@@ -181,3 +183,12 @@ def test_get_jobs_provider_selection():
     # keyed aggregator wins over the generic live flag
     assert isinstance(
         get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
+
+
+def test_location_matches_usa_filters_brazil():
+    assert location_matches("usa", "Remote (US)")
+    assert location_matches("us", "Austin, TX")
+    assert not location_matches("usa", "São Paulo, Brazil")
+    assert not location_matches("usa", "Florianópolis, Brazil")
+    filtered = filter_jobs_by_location(SAMPLE_JOBS, "usa")
+    assert all(location_matches("usa", j.location) for j in filtered)

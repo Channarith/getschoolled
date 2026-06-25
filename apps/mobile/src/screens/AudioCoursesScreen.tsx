@@ -29,8 +29,18 @@ const FORMAT_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   video: "play-circle",
 };
 
+const FORMAT_LABELS: Record<string, string> = {
+  audio: "Audio",
+  live_class: "Live",
+  interactive: "Interactive",
+  game: "Games",
+  program: "Programs",
+  video: "Video",
+  language: "Languages",
+};
+
 export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [rows, setRows] = useState<LearnableItem[]>([]);
   const [cats, setCats] = useState<string[]>([]);
   const [formats, setFormats] = useState<string[]>([]);
@@ -59,11 +69,12 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
     if (cat) params.category = cat;
     if (format) params.format = format;
     if (q) params.q = q;
+    if (locale) params.locale = locale;
     searchLearnable(params)
       .then((r) => { setRows(r.items); setTotal(r.total); })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [cat, format, q]);
+  }, [cat, format, q, locale]);
 
   const chips = useMemo(() => ["", ...cats], [cats]);
 
@@ -106,16 +117,24 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={formats}
         keyExtractor={(f) => f}
-        style={{ maxHeight: 44, marginBottom: 8 }}
+        style={{ maxHeight: 52, marginBottom: 8 }}
         contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
-        renderItem={({ item }) => (
-          <AnimatedPressable
-            onPress={() => setFormat(format === item ? "" : item)}
-            style={[styles.chip, format === item && styles.chipOn]}
-          >
-            <Text style={[styles.chipText, format === item && styles.chipTextOn]}>{item}</Text>
-          </AnimatedPressable>
-        )}
+        renderItem={({ item }) => {
+          const on = format === item;
+          const icon = FORMAT_ICON[item] || "ellipse";
+          const label = FORMAT_LABELS[item] || item.replace(/_/g, " ");
+          return (
+            <AnimatedPressable
+              onPress={() => setFormat(format === item ? "" : item)}
+              style={[styles.formatChip, on && styles.formatChipOn]}
+            >
+              <Ionicons name={icon} size={16} color={on ? "#fff" : theme.colors.text} />
+              <Text style={[styles.formatChipText, on && styles.formatChipTextOn]} numberOfLines={1}>
+                {label}
+              </Text>
+            </AnimatedPressable>
+          );
+        }}
       />
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={chips}
@@ -200,17 +219,33 @@ const styles = StyleSheet.create({
   searchIcon: { marginLeft: 12 },
   input: { flex: 1, color: theme.colors.text, padding: 12, ...theme.typography.body },
   chip: {
-    backgroundColor: theme.colors.glass,
+    backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: theme.radius.pill,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: "rgba(255,255,255,0.35)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
   },
   chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
-  chipText: { color: theme.colors.text, fontWeight: "600", fontSize: 13 },
+  chipText: { color: "#f8fafc", fontWeight: "700", fontSize: 13 },
   chipTextOn: { color: "#fff", fontWeight: "800" },
+  formatChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderRadius: theme.radius.pill,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.4)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    minWidth: 72,
+  },
+  formatChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
+  formatChipText: { color: "#f8fafc", fontWeight: "700", fontSize: 12, maxWidth: 88 },
+  formatChipTextOn: { color: "#fff", fontWeight: "800" },
   count: { color: theme.colors.muted, fontSize: 12, marginBottom: 8, paddingHorizontal: theme.spacing.screenX },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   thumb: {

@@ -11,28 +11,28 @@ export type CoursePosterInput = {
 };
 
 const POSTERS: Record<string, string> = {
-  default: "1524995997473-0922192e7427",
-  mathematics: "1596495577885-7b0216313667",
-  science: "1532094349784-aa2b07712477",
-  technology: "1517694712202-8f3797902a10",
-  languages: "1524995997473-0922192e7427",
-  history: "1539650116574-8a991d6ac6d0",
-  business: "1542744173-8c3279b9b0a8",
-  finance: "1611974789855-9c98a0f44d0a",
-  wellness: "1506126613408-07c158377075",
-  cooking: "1556910103-1c02745aae4d",
-  geography: "1526778544-fe3699e2b0c0",
-  sports: "1461896836934-ffe607f8210a",
-  civics: "1577412647305-5365e4eee1d5",
+  default: "1503676260728-1c00da094a0b",
+  mathematics: "1532012197267-da84d127e765",
+  science: "1582719471384-894fbb16e074",
+  technology: "1516321318423-f06f85e504b3",
+  languages: "1481627834876-b7833e8f5570",
+  history: "1568667256549-094345857637",
+  business: "1522202176988-66273c2fd55f",
+  finance: "1554224155-6726b3ff858f",
+  wellness: "1571019613454-1cb2f99b2d8b",
+  cooking: "1556909114-f6e7ad7d3136",
+  geography: "1469474968028-56623f02e42e",
+  sports: "1571019613454-1cb2f99b2d8b",
+  civics: "1522202176988-66273c2fd55f",
   mindfulness: "1544367567-0f2fcb009e0b",
-  arcade: "1511512578047-dfb632b44527",
-  audio: "1478737270239-5880992794b7",
-  live_class: "1588196749598-0e4a0a5a9843",
+  arcade: "1611224923853-80b023f02d71",
+  audio: "1493225457124-a3eb161ffa5f",
+  live_class: "1509062522246-3755977927d7",
   ai: "1677442136019-21780ecad995",
   python: "1526374965328-7f61d4dc18c5",
-  fractions: "1635072833038-7c9468ee2294",
-  photosynthesis: "1416879595882-ce2fa732bc2c",
-  english: "1456514295660-8ba4a0869efa",
+  fractions: "1554475901-4538ddfbccc2",
+  photosynthesis: "1542601906990-b4d3fb778b09",
+  english: "1503676260728-1c00da094a0b",
   spanish: "1481627834876-b7833e8f5570",
 };
 
@@ -63,6 +63,10 @@ function unsplash(photoId: string, w = 480, h = 270): string {
   return `https://images.unsplash.com/photo-${photoId}?w=${w}&h=${h}&fit=crop&q=80&auto=format`;
 }
 
+export function defaultCoursePosterUrl(): string {
+  return unsplash(POSTERS.default);
+}
+
 function categoryKey(category: string, subject: string): string {
   const blob = `${category} ${subject}`.toLowerCase();
   if (blob.includes("math")) return "mathematics";
@@ -81,9 +85,13 @@ function categoryKey(category: string, subject: string): string {
   return "";
 }
 
+function isCustomThumbnail(thumb: string): boolean {
+  return /^(https?:\/\/|\/)/.test(thumb) && !thumb.includes("images.unsplash.com/");
+}
+
 export function coursePosterUrl(input: CoursePosterInput): string {
   const thumb = input.thumbnail;
-  if (thumb && /^(https?:\/\/|\/)/.test(thumb)) return thumb;
+  if (thumb && isCustomThumbnail(thumb)) return thumb;
 
   const hay = [
     input.title, input.category, input.subject, ...(input.tags || []),

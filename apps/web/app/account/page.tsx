@@ -19,15 +19,13 @@ import {
   type StudentProfile,
 } from "../lib/api";
 import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
+import { useT } from "../lib/i18n";
 
 const TIERS = ["free", "basic", "pro", "premium"];
 const STATUS_ORDER = ["in_progress", "enrolled", "saved", "passed", "failed"];
-const STATUS_LABEL: Record<string, string> = {
-  in_progress: "In progress", enrolled: "Enrolled", saved: "My list",
-  passed: "Passed", failed: "Failed",
-};
 
 export default function AccountPage() {
+  const { t } = useT();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [error, setError] = useState("");
   const [pwMsg, setPwMsg] = useState("");
@@ -87,9 +85,9 @@ export default function AccountPage() {
   }
 
   async function bumpMastery(studentId: string) {
-    const skill = window.prompt("Skill name (e.g. algebra):");
+    const skill = window.prompt(t("account.promptSkill"));
     if (!skill) return;
-    const valStr = window.prompt("Mastery 0-1 (e.g. 0.3):", "0.3");
+    const valStr = window.prompt(t("account.promptMastery"), "0.3");
     if (valStr == null) return;
     try {
       await setStudentMastery(studentId, skill, parseFloat(valStr) || 0);
@@ -112,9 +110,13 @@ export default function AccountPage() {
   if (!loggedIn) {
     return (
       <main className="container">
-        <h1>My account</h1>
+        <h1>{t("account.title")}</h1>
         <div className="card">
-          <p>Please <Link href="/login">sign in</Link> to view your portfolio, courses, and membership.</p>
+          <p>
+            {t("account.signInBefore")}{" "}
+            <Link href="/login">{t("account.signIn")}</Link>{" "}
+            {t("account.signInAfter")}
+          </p>
         </div>
       </main>
     );
@@ -134,7 +136,7 @@ export default function AccountPage() {
     setPwMsg("");
     try {
       await changePassword(cur, next);
-      setPwMsg("Password updated.");
+      setPwMsg(t("account.passwordUpdated"));
       setCur(""); setNext("");
     } catch (err) {
       setPwMsg(String(err));
@@ -149,7 +151,7 @@ export default function AccountPage() {
 
   return (
     <main className="container">
-      <h1>My account</h1>
+      <h1>{t("account.title")}</h1>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
       {portfolio && (
@@ -160,82 +162,83 @@ export default function AccountPage() {
                 <strong>{portfolio.account.display_name}</strong>
                 <div className="muted">{portfolio.account.email}</div>
               </div>
-              <button onClick={logout}>Sign out</button>
+              <button onClick={logout}>{t("account.signOut")}</button>
             </div>
             {points != null && (
               <div className="muted" style={{ marginTop: 8 }}>
-                ⭐ {points} reward points — <Link href="/rewards">redeem for discounts or prizes</Link>
+                {t("account.rewardPoints", { points })}{" "}
+                <Link href="/rewards">{t("account.redeem")}</Link>
               </div>
             )}
           </div>
 
           <div className="card">
-            <h3>Settings &amp; tools</h3>
-            <p className="muted">Everything for your account in one place.</p>
+            <h3>{t("account.settingsTools")}</h3>
+            <p className="muted">{t("account.settingsDesc")}</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              <Link href="/dashboard"><button>Dashboard</button></Link>
-              <Link href="/console"><button>Service console</button></Link>
-              <Link href="/admin"><button>Admin</button></Link>
-              <Link href="/backgrounds"><button>Themes</button></Link>
-              <Link href="/consent"><button>Consent</button></Link>
-              <Link href="/transparency"><button>Transparency</button></Link>
-              <Link href="/legal"><button>Legal &amp; notices</button></Link>
+              <Link href="/dashboard"><button>{t("account.dashboard")}</button></Link>
+              <Link href="/console"><button>{t("account.console")}</button></Link>
+              <Link href="/admin"><button>{t("account.admin")}</button></Link>
+              <Link href="/backgrounds"><button>{t("account.themes")}</button></Link>
+              <Link href="/consent"><button>{t("account.consent")}</button></Link>
+              <Link href="/transparency"><button>{t("account.transparency")}</button></Link>
+              <Link href="/legal"><button>{t("account.legal")}</button></Link>
             </div>
           </div>
 
           <div className="card">
-            <h3>Learning profile</h3>
+            <h3>{t("account.learningProfile")}</h3>
             {primaryStudent?.onboarding_completed_at ? (
               <p className="muted" style={{ marginTop: 0 }}>
-                Saved to your account
+                {t("account.profileSaved")}
                 {primaryStudent.learner_category && primaryStudent.learner_category !== "skipped" ? (
-                  <> — <strong>{primaryStudent.learner_category.replace(/_/g, " ")}</strong> learner</>
+                  <> — <strong>{primaryStudent.learner_category.replace(/_/g, " ")}</strong> {t("account.learnerSuffix")}</>
                 ) : primaryStudent.learner_category === "skipped" ? (
-                  <> — skipped (you can complete it anytime)</>
+                  <> — {t("account.profileSkipped")}</>
                 ) : null}
               </p>
             ) : (
-              <p className="muted" style={{ marginTop: 0 }}>
-                Not completed yet. The one-time survey helps us adapt courses to your style.
-              </p>
+              <p className="muted" style={{ marginTop: 0 }}>{t("account.profilePending")}</p>
             )}
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LEARNING_PROFILE_EVENT))}
             >
-              {primaryStudent?.onboarding_completed_at ? "Update learning profile" : "Complete learning profile"}
+              {primaryStudent?.onboarding_completed_at ? t("account.updateProfile") : t("account.completeProfile")}
             </button>
           </div>
 
           <div className="card">
-            <h3>Membership</h3>
+            <h3>{t("account.membership")}</h3>
             <div className="row" style={{ gap: 8 }}>
-              {TIERS.map((t) => (
-                <button key={t} onClick={() => onTier(t)}
-                  style={{ fontWeight: portfolio.tier === t ? 700 : 400,
-                           outline: portfolio.tier === t ? "2px solid #6ea8fe" : "none" }}>
-                  {t}
+              {TIERS.map((tier) => (
+                <button key={tier} onClick={() => onTier(tier)}
+                  style={{ fontWeight: portfolio.tier === tier ? 700 : 400,
+                           outline: portfolio.tier === tier ? "2px solid #6ea8fe" : "none" }}>
+                  {tier}
                 </button>
               ))}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>
-              Current plan: <strong>{portfolio.tier}</strong>. Manage payments on the billing page.
+              {t("account.currentPlan", { tier: portfolio.tier })}
             </p>
           </div>
 
           <div className="card">
-            <h3>My courses</h3>
+            <h3>{t("account.myCourses")}</h3>
             {portfolio.enrollments.length === 0 && (
-              <p className="muted">No courses yet. <Link href="/browse">Browse the catalog</Link>.</p>
+              <p className="muted">{t("account.noCourses")} <Link href="/browse">{t("account.browseCatalog")}</Link>.</p>
             )}
             {STATUS_ORDER.filter((s) => (portfolio.by_status[s] || []).length).map((s) => (
               <div key={s} style={{ marginBottom: 8 }}>
-                <strong>{STATUS_LABEL[s] || s}</strong> ({portfolio.counts[s]})
+                <strong>{t(`account.status.${s}` as "account.status.enrolled")}</strong> ({portfolio.counts[s]})
                 <ul>
                   {portfolio.by_status[s].map((e) => (
                     <li key={e.course_id}>
                       {e.title || e.course_id}
-                      {e.score != null && <span className="muted"> — score {Math.round(e.score * 100)}%</span>}
+                      {e.score != null && (
+                        <span className="muted"> — {t("account.score", { pct: Math.round(e.score * 100) })}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -244,54 +247,56 @@ export default function AccountPage() {
           </div>
 
           <div className="card">
-            <h3>Student profiles</h3>
-            <p className="muted">One account, multiple learners. Each profile gets its own
-              mastery and <Link href="/recommended">Foresight recommendations</Link>.</p>
+            <h3>{t("account.studentProfiles")}</h3>
+            <p className="muted">
+              {t("account.studentProfilesLead")}{" "}
+              <Link href="/recommended">{t("account.foresight")}</Link>.
+            </p>
             <ul>
               {students.map((s) => (
                 <li key={s.id}>
-                  <strong>{s.display_name}</strong> ({s.age_band}) — skills: {Object.keys(s.mastery).length}
+                  <strong>{s.display_name}</strong> ({s.age_band}) — {t("account.skills")}: {Object.keys(s.mastery).length}
                   {" "}
-                  <button onClick={() => bumpMastery(s.id)} style={{ fontSize: 12 }}>+ mastery</button>
+                  <button onClick={() => bumpMastery(s.id)} style={{ fontSize: 12 }}>{t("account.masteryBtn")}</button>
                 </li>
               ))}
             </ul>
             <div className="row">
-              <input placeholder="New learner name" value={newStudent}
+              <input placeholder={t("account.newLearner")} value={newStudent}
                 onChange={(e) => setNewStudent(e.target.value)} style={{ padding: 8 }} />
-              <button onClick={addStudent}>Add profile</button>
+              <button onClick={addStudent}>{t("account.addProfile")}</button>
             </div>
           </div>
 
           <div className="card">
-            <h3>Security</h3>
+            <h3>{t("account.security")}</h3>
             <form onSubmit={onChangePassword}>
-              <input type="password" placeholder="Current password" value={cur}
+              <input type="password" placeholder={t("account.currentPassword")} value={cur}
                 onChange={(e) => setCur(e.target.value)} style={{ padding: 8, marginRight: 8 }} />
-              <input type="password" placeholder="New password (min 8)" value={next}
+              <input type="password" placeholder={t("account.newPassword")} value={next}
                 onChange={(e) => setNext(e.target.value)} style={{ padding: 8, marginRight: 8 }} />
-              <button type="submit">Change password</button>
+              <button type="submit">{t("account.changePassword")}</button>
             </form>
             {pwMsg && <p className="muted">{pwMsg}</p>}
           </div>
 
           {isAdmin && (
             <div className="card">
-              <h3>Operator admin · All accounts</h3>
+              <h3>{t("account.adminTitle")}</h3>
               <p className="muted">
-                Every member on this cluster ({allAccounts.length}). Enable tools like the homework
-                grader on <Link href="/admin">Admin → Feature flags</Link> ({`access.homework_grader`}).
+                {t("account.adminDesc", { count: allAccounts.length, flag: "access.homework_grader" })}{" "}
+                <Link href="/admin">{t("account.admin")} → Feature flags</Link>.
               </p>
               {allAccounts.length === 0 ? (
-                <p className="muted">No accounts yet.</p>
+                <p className="muted">{t("account.noAccounts")}</p>
               ) : (
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Email</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Name</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Tier</th>
-                      <th style={{ textAlign: "left", padding: "6px 4px" }}>Admin</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableEmail")}</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableName")}</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableTier")}</th>
+                      <th style={{ textAlign: "left", padding: "6px 4px" }}>{t("account.tableAdmin")}</th>
                     </tr>
                   </thead>
                   <tbody>

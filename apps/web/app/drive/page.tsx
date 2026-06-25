@@ -24,8 +24,9 @@ import {
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
 export default function DrivePage() {
+  const { t } = useT();
   return (
-    <Suspense fallback={<main className="container"><p className="muted">Loading Drive Mode…</p></main>}>
+    <Suspense fallback={<main className="container"><p className="muted">{t("drive.loading")}</p></main>}>
       <DrivePageInner />
     </Suspense>
   );
@@ -46,7 +47,7 @@ function DrivePageInner() {
   const [rate, setRate] = useState(1);
   const [error, setError] = useState("");
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantStatus, setAssistantStatus] = useState("Say Hey Sala or Salareen to ask a question.");
+  const [assistantStatus, setAssistantStatus] = useState("");
   const [assistantTranscript, setAssistantTranscript] = useState("");
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
@@ -68,19 +69,30 @@ function DrivePageInner() {
   }
 
   useEffect(() => {
+    setAssistantStatus(t("drive.assistantDefault"));
+  }, [t]);
+
+  useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
-    getAudioCategories().then(setCats).catch(() => setCats([]));
+    getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
     void refreshVoiceStyle();
-  }, []);
+  }, [locale]);
   const refresh = useCallback(() => {
     if (!getToken()) return;
-    listAudioCourses({ category: cat, q, limit: "60" })
+    listAudioCourses({ category: cat, q, limit: "60" }, locale)
       .then((r) => { setRows(r.courses); setTotal(r.total); queue.current = r.courses; })
       .catch((e) => setError(String(e)));
-  }, [cat, q]);
+  }, [cat, q, locale]);
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!course || !loggedIn) return;
+    getAudioCourse(course.id, locale)
+      .then((c) => setCourse(c))
+      .catch(() => {});
+  }, [locale, course?.id, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
@@ -102,11 +114,30 @@ function DrivePageInner() {
     speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => playSeg(c, i + 1));
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const replayCurrentSegment = useCallback(() => {
+    if (!course) return;
+    window.speechSynthesis.cancel();
+    const s = course.segments[seg];
+    if (!s) return;
+    setPlaying(true);
+    speak(`${s.heading}. ${s.text}`, () => playSeg(course, seg + 1));
+  }, [course, seg, speak, playSeg]);
+
+  const prevRateRef = useRef(rate);
+  const prevNarrationPrefRef = useRef(narrationPref);
+  useEffect(() => {
+    if (prevRateRef.current === rate && prevNarrationPrefRef.current === narrationPref) return;
+    prevRateRef.current = rate;
+    prevNarrationPrefRef.current = narrationPref;
+    if (!playing || !course) return;
+    replayCurrentSegment();
+  }, [rate, narrationPref, playing, course, replayCurrentSegment]);
+
   async function startCourse(id: string) {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
     setError("");
     try {
-      const c = await getAudioCourse(id);
+      const c = await getAudioCourse(id, locale);
       setCourse(c); setSeg(0);
       playSeg(c, 0);
     } catch (e) { setError(String(e)); }
@@ -142,7 +173,7 @@ function DrivePageInner() {
     setAssistantOpen(false);
   }
 
-  function pauseForAssistant(status = "Listening. Say Hey Sala or Salareen, then ask your question.") {
+  function pauseForAssistant(status = t("drive.listenStatus")) {
     clearResumeTimer();
     window.speechSynthesis.cancel();
     setPlaying(false);
@@ -159,7 +190,7 @@ function DrivePageInner() {
       playSeg(course, seg);
     };
     if (delayMs > 0) {
-      setAssistantStatus(`Resuming in ${Math.round(delayMs / 1000)} seconds. Say or tap pause to stay paused.`);
+      setAssistantStatus(t("drive.resumingIn", { seconds: Math.round(delayMs / 1000) }));
       resumeTimerRef.current = setTimeout(go, delayMs);
     } else {
       go();
@@ -172,14 +203,12 @@ function DrivePageInner() {
     setListening(false);
   }
 
-  function startVoiceRecognition(expectWakeWord = true) {
-    pauseForAssistant(expectWakeWord
-      ? "Listening for Hey Sala or Salareen..."
-      : "Listening for your question or command...");
+  function startVoiceRecognition(expectWakeWord = false) {
+    pauseForAssistant(t("drive.listenQuestion"));
     const root = window as any;
     const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setAssistantStatus("Voice recognition is unavailable in this browser. Type your question or use the controls.");
+      setAssistantStatus(t("drive.voiceUnavailable"));
       return;
     }
     stopVoiceRecognition();
@@ -196,7 +225,7 @@ function DrivePageInner() {
       handleSpokenInput(text, expectWakeWord);
     };
     recognition.onerror = () => {
-      setAssistantStatus("I could not hear that. Try again, or type your question.");
+      setAssistantStatus(t("drive.hearRetry"));
       setListening(false);
     };
     recognition.onend = () => setListening(false);
@@ -205,21 +234,16 @@ function DrivePageInner() {
     recognition.start();
   }
 
-  function handleSpokenInput(raw: string, expectWakeWord: boolean) {
+  function handleSpokenInput(raw: string, _expectWakeWord: boolean) {
     stopVoiceRecognition();
     const text = raw.trim();
-    const hasWake = /\b(hey\s+sala|sala|salareen)\b/i.test(text);
-    if (expectWakeWord && !hasWake) {
-      setAssistantStatus("Wake word not detected. Say Hey Sala or Salareen before your question.");
-      return;
-    }
     const cleaned = text
       .replace(/\bhey\s+sala\b/ig, "")
       .replace(/\bsalareen\b/ig, "")
       .replace(/\bsala\b/ig, "")
       .trim();
     if (!cleaned) {
-      setAssistantStatus("I heard you. Ask a question, say pause, resume, next, or previous.");
+      setAssistantStatus(t("drive.heardPrompt"));
       startVoiceRecognition(false);
       return;
     }
@@ -234,32 +258,32 @@ function DrivePageInner() {
     setAssistantTranscript(command);
     const lower = command.toLowerCase();
     if (/\b(pause|stop|hold)\b/.test(lower)) {
-      setAssistantAnswer("Paused. Say or tap Resume when you want to continue.");
-      setAssistantStatus("Paused for you.");
+      setAssistantAnswer(t("drive.pausedAnswer"));
+      setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
       window.speechSynthesis.cancel();
       return;
     }
     if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
-      setAssistantAnswer("Resuming the lesson.");
+      setAssistantAnswer(t("drive.resumingAnswer"));
       resumeAfterAssistant(1000);
       return;
     }
     if (/\b(next|skip ahead)\b/.test(lower)) {
-      setAssistantAnswer("Skipping to the next segment.");
+      setAssistantAnswer(t("drive.skipAnswer"));
       playSeg(course, Math.min(seg + 1, course.segments.length - 1));
       return;
     }
     if (/\b(previous|back|repeat)\b/.test(lower)) {
-      setAssistantAnswer("Going back so you can hear that part again.");
+      setAssistantAnswer(t("drive.repeatAnswer"));
       playSeg(course, Math.max(0, seg - 1));
       return;
     }
-    const answer = answerFromCourse(course, seg, command);
+    const answer = answerFromCourse(course, seg, command, t);
     setAssistantAnswer(answer);
-    setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
+    setAssistantStatus(t("drive.answeringStatus"));
     window.speechSynthesis.cancel();
-    speak(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, () => {
+    speak(t("drive.resumePrompt", { answer }), () => {
       resumeAfterAssistant(6500);
     });
   }
@@ -268,7 +292,7 @@ function DrivePageInner() {
     const q = typedQuestion.trim();
     if (!q) return;
     setTypedQuestion("");
-    pauseForAssistant("Answering your typed question.");
+    pauseForAssistant(t("drive.typedQuestion"));
     handleAssistantQuestion(q);
   }
 
@@ -282,15 +306,13 @@ function DrivePageInner() {
 
   return (
     <main className="container" style={{ maxWidth: 900 }}>
-      <h1>🚗 Drive Mode — audio classes</h1>
+      <h1>{t("drive.pageTitle")}</h1>
       <p className="muted">
-        {total}+ audio-only, eyes-free classes for the road. Tap a class and it
-        plays hands-free with on-device narration, auto-advancing to the next.
-        Keep your eyes on the road. 🛣️
+        {t("drive.pageIntro", { total })}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
-      {!loggedIn && <SignInToUse body="Sign in to browse and play drive-safe audio classes." />}
+      {!loggedIn && <SignInToUse body={t("drive.signInBody")} />}
 
       {/* Now playing */}
       {loggedIn && course && (
@@ -300,28 +322,44 @@ function DrivePageInner() {
           <div style={{ fontSize: 18, margin: "8px 0" }}>
             ▶ {course.segments[seg]?.heading} <span className="muted">({seg + 1}/{course.segments.length})</span>
           </div>
-          <div style={{ height: 8, background: "#1d2746", borderRadius: 6, overflow: "hidden", margin: "8px 0 14px" }}>
-            <div style={{ height: "100%", width: `${((seg + 1) / course.segments.length) * 100}%`, background: "#0ea5e9" }} />
+          <div style={{ margin: "8px 0 14px" }}>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0, course.segments.length - 1)}
+              value={seg}
+              onChange={(e) => {
+                const i = Number(e.target.value);
+                window.speechSynthesis.cancel();
+                playSeg(course, i);
+              }}
+              style={{ width: "100%", accentColor: "#0ea5e9", cursor: "pointer" }}
+              aria-label="Course progress"
+            />
+            <div style={{ height: 4, background: "#1d2746", borderRadius: 6, overflow: "hidden", marginTop: 6 }}>
+              <div style={{ height: "100%", width: `${((seg + 1) / course.segments.length) * 100}%`, background: "#0ea5e9" }} />
+            </div>
           </div>
           <div className="row" style={{ gap: 12 }}>
             <button onClick={() => playSeg(course, Math.max(0, seg - 1))} style={BIG}>⏮</button>
             {playing
-              ? <button onClick={pause} style={{ ...BIG, background: "#f59e0b" }}>⏸ Pause</button>
-              : <button onClick={resume} style={{ ...BIG, background: "#16a34a", color: "#fff" }}>▶ Play</button>}
+              ? <button onClick={pause} style={{ ...BIG, background: "#f59e0b" }}>{t("drive.pause")}</button>
+              : <button onClick={resume} style={{ ...BIG, background: "#16a34a", color: "#fff" }}>{t("drive.play")}</button>}
             <button onClick={() => playSeg(course, seg + 1)} style={BIG}>⏭</button>
             <button onClick={stop} style={{ ...BIG, background: "#e11d48", color: "#fff" }}>⏹</button>
+            <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
             <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
-              Speed&nbsp;
+              {t("drive.speed")}&nbsp;
               <select value={rate} onChange={(e) => setRate(Number(e.target.value))}>
-                {[0.75, 1, 1.25, 1.5].map((r) => <option key={r} value={r}>{r}x</option>)}
+                {[0.5, 1, 2, 3].map((r) => <option key={r} value={r}>{r}x</option>)}
               </select>
             </label>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="muted" style={{ fontSize: 13 }}>Narration voice:</span>
+            <span className="muted" style={{ fontSize: 13 }}>{t("drive.narrationVoice")}</span>
             {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((pref) => {
               const on = narrationPref === pref;
-              const label = pref === "auto" ? "Auto (profile)" : NARRATION_VOICE_LABELS[pref];
+              const label = pref === "auto" ? t("drive.autoProfile") : NARRATION_VOICE_LABELS[pref];
               return (
                 <button
                   key={pref}
@@ -347,22 +385,8 @@ function DrivePageInner() {
             })}
           </div>
           <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
-            Auto-advances to the next class when this one finishes.
+            {t("drive.autoAdvance")}
           </p>
-          <div style={{ marginTop: 14, padding: 14, borderRadius: 14, background: "#151c34" }}>
-            <strong>Say “Hey Sala” or “Salareen”</strong>
-            <p className="muted" style={{ margin: "4px 0 10px" }}>
-              Interrupt safely to ask a question, pause, resume, repeat, or skip.
-            </p>
-            <div className="row" style={{ gap: 8 }}>
-              <button onClick={() => startVoiceRecognition(true)}>
-                {listening ? "Listening..." : "🎙 Ask"}
-              </button>
-              <button onClick={() => pauseForAssistant("Paused. Ask a question or resume when ready.")}>
-                Pause + Ask
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -372,12 +396,12 @@ function DrivePageInner() {
             display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
           <div className="card" style={{ width: "min(760px, 100%)", margin: 0, borderRadius: "24px 24px 0 0",
             background: "#0b1020", color: "#e8ecf6" }}>
-            <h3 style={{ marginTop: 0 }}>Sala Drive Assistant</h3>
+            <h3 style={{ marginTop: 0 }}>{t("drive.assistantTitle")}</h3>
             <p className="muted">{assistantStatus}</p>
-            {assistantTranscript && <p style={{ color: "#bae6fd" }}>You: {assistantTranscript}</p>}
+            {assistantTranscript && <p style={{ color: "#bae6fd" }}>{t("drive.youSaid")} {assistantTranscript}</p>}
             {assistantAnswer && <p style={{ lineHeight: 1.6 }}>{assistantAnswer}</p>}
             <input
-              placeholder="Ask a question or say pause/resume..."
+              placeholder={t("drive.askPlaceholder")}
               value={typedQuestion}
               onChange={(e) => setTypedQuestion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitTypedQuestion()}
@@ -385,12 +409,12 @@ function DrivePageInner() {
                 color: "#e8ecf6", border: "1px solid #23304f" }}
             />
             <div className="row" style={{ gap: 8, marginTop: 12 }}>
-              <button onClick={() => startVoiceRecognition(false)}>{listening ? "Listening..." : "Mic"}</button>
-              <button onClick={submitTypedQuestion}>Ask</button>
+              <button onClick={() => startVoiceRecognition(false)}>{listening ? t("drive.listening") : t("drive.mic")}</button>
+              <button onClick={submitTypedQuestion}>{t("drive.send")}</button>
               <button onClick={() => resumeAfterAssistant()} style={{ background: "#16a34a", color: "#fff" }}>
-                Resume
+                {t("drive.resume")}
               </button>
-              <button onClick={() => { clearResumeTimer(); setAssistantOpen(false); }}>Stay paused</button>
+              <button onClick={() => { clearResumeTimer(); setAssistantOpen(false); }}>{t("drive.stayPaused")}</button>
             </div>
           </div>
         </div>
@@ -401,10 +425,10 @@ function DrivePageInner() {
       {/* Browse */}
       <div className="card">
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <input placeholder="Search audio classes…" value={q} onChange={(e) => setQ(e.target.value)}
+          <input placeholder={t("drive.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: 10 }} />
           <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ padding: 10 }}>
-            <option value="">All categories</option>
+            <option value="">{t("drive.allCategories")}</option>
             {cats.map((c) => <option key={c.category} value={c.category}>{c.category} ({c.count})</option>)}
           </select>
         </div>
@@ -418,12 +442,12 @@ function DrivePageInner() {
               borderRadius: 12, padding: 14, cursor: "pointer" }}>
             <div style={{ fontWeight: 700 }}>🎧 {r.title}</div>
             <div className="muted" style={{ fontSize: 12 }}>
-              {r.category} · {r.duration_min} min · {r.segments} segments
+              {r.category} · {r.duration_min} min · {r.segments} {t("drive.segments")}
             </div>
-            <span className="pill" style={{ color: "#16a34a", fontSize: 11 }}>eyes-free</span>
+            <span className="pill" style={{ color: "#16a34a", fontSize: 11 }}>{t("drive.eyesFree")}</span>
           </button>
         ))}
-        {rows.length === 0 && <div className="muted">No audio classes match.</div>}
+        {rows.length === 0 && <div className="muted">{t("drive.noMatch")}</div>}
       </div>
       </>
       )}
@@ -431,7 +455,12 @@ function DrivePageInner() {
   );
 }
 
-function answerFromCourse(course: AudioCourse, seg: number, question: string): string {
+function answerFromCourse(
+  course: AudioCourse,
+  seg: number,
+  question: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
   const words = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
   const candidates = course.segments.map((segment, i) => ({
     segment,
@@ -440,7 +469,7 @@ function answerFromCourse(course: AudioCourse, seg: number, question: string): s
   const best = candidates[0]?.segment || course.segments[seg] || course.segments[0];
   const source = (best.text || "").replace(/\s+/g, " ").trim();
   const snippet = source.length > 420 ? `${source.slice(0, 420)}...` : source;
-  return `Here is the course-grounded answer: ${snippet}`;
+  return t("drive.groundedAnswer", { snippet });
 }
 
 function scoreSegment(text: string, words: string[]): number {

@@ -37,6 +37,9 @@ CHANGELOG_FILE = REPO_ROOT / "CHANGELOG.txt"
 BUILD_INFO_FILE = REPO_ROOT / "build-info.txt"
 WEB_VERSION_FILE = REPO_ROOT / "apps" / "web" / "app" / "lib" / "version.ts"
 WEB_PACKAGE_JSON = REPO_ROOT / "apps" / "web" / "package.json"
+MOBILE_VERSION_FILE = REPO_ROOT / "apps" / "mobile" / "src" / "version.ts"
+MOBILE_PACKAGE_JSON = REPO_ROOT / "apps" / "mobile" / "package.json"
+MOBILE_APP_JSON = REPO_ROOT / "apps" / "mobile" / "app.json"
 
 # More than this many unreleased entries triggers a MINOR bump instead of PATCH.
 FEATURE_BUMP_THRESHOLD = 8
@@ -219,6 +222,37 @@ def write_web_version(new_version: str) -> None:
         WEB_PACKAGE_JSON.write_text(text, encoding="utf-8")
 
 
+def write_mobile_version(new_version: str) -> None:
+    """Keep the mobile app version in sync with VERSION (matches web display)."""
+    if MOBILE_VERSION_FILE.exists():
+        text = MOBILE_VERSION_FILE.read_text(encoding="utf-8")
+        text = re.sub(
+            r'export const APP_VERSION = "[^"]*";',
+            f'export const APP_VERSION = "{new_version}";',
+            text,
+        )
+        MOBILE_VERSION_FILE.write_text(text, encoding="utf-8")
+    if MOBILE_PACKAGE_JSON.exists():
+        text = MOBILE_PACKAGE_JSON.read_text(encoding="utf-8")
+        text = re.sub(
+            r'("version"\s*:\s*")[^"]*(")',
+            rf'\g<1>{new_version}\g<2>',
+            text,
+            count=1,
+        )
+        MOBILE_PACKAGE_JSON.write_text(text, encoding="utf-8")
+    if MOBILE_APP_JSON.exists():
+        import json
+
+        data = json.loads(MOBILE_APP_JSON.read_text(encoding="utf-8"))
+        if "expo" in data:
+            data["expo"]["version"] = new_version
+            MOBILE_APP_JSON.write_text(
+                json.dumps(data, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -277,11 +311,12 @@ def main(argv: list[str] | None = None) -> int:
         render_build_info(new_version, sha, components), encoding="utf-8"
     )
     write_web_version(new_version)
+    write_mobile_version(new_version)
 
     if args.refresh_only:
-        print("refreshed build-info.txt and web version (VERSION unchanged)")
+        print("refreshed build-info.txt and web/mobile version (VERSION unchanged)")
     else:
-        print("wrote VERSION, build-info.txt, CHANGELOG.txt, web version")
+        print("wrote VERSION, build-info.txt, CHANGELOG.txt, web and mobile version")
     return 0
 
 

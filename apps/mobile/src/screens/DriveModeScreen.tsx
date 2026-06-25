@@ -18,10 +18,11 @@ import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
 import {
-  getVoiceEngineDetails, getVoiceEngineLabel, hasWakeWord, openPlatformVoiceAssistant,
+  getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
+  type VoiceEngineLabel,
 } from "../voiceAssistant";
-import { resolveVoiceStyle, type NarrationVoiceStyle } from "../voiceProfiles";
+import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
 
 export default function DriveModeScreen({
@@ -38,14 +39,19 @@ export default function DriveModeScreen({
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
-  const [voiceEngine, setVoiceEngine] = useState(getVoiceEngineLabel());
+  const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
+  const [rate, setRate] = useState(1);
+  const rateRef = useRef(rate);
+  rateRef.current = rate;
   const segRef = useRef(0);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
 
   useEffect(() => {
-    void getVoiceEngineDetails().then((d) => setVoiceEngine(d.label));
+    void getVoiceEngineDetails()
+      .then((d) => setVoiceEngine(d.label))
+      .catch(() => setVoiceEngine("System"));
   }, []);
 
   async function refreshVoiceStyle() {
@@ -89,6 +95,7 @@ export default function DriveModeScreen({
     speakNatural(`${s.heading}. ${s.text}`, {
       locale,
       voiceStyle: voiceStyleRef.current,
+      rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
       onDone: () => { if (segRef.current === i) playFrom(c, i + 1); },
     });
   }
@@ -293,6 +300,23 @@ export default function DriveModeScreen({
         <View style={styles.progressTrack}>
           <View style={[styles.progressBar, { width: `${pct}%` }]} />
         </View>
+        <View style={styles.speedRow}>
+          {[0.5, 1, 2, 3].map((r) => (
+            <AnimatedPressable
+              key={r}
+              onPress={() => {
+                setRate(r);
+                if (course) {
+                  Speech.stop();
+                  playFrom(course, seg);
+                }
+              }}
+              style={[styles.speedChip, rate === r && styles.speedChipOn]}
+            >
+              <Text style={[styles.speedChipText, rate === r && styles.speedChipTextOn]}>{r}x</Text>
+            </AnimatedPressable>
+          ))}
+        </View>
         <View style={styles.row}>
           <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
             <Ionicons name="play-skip-back" size={28} color="#fff" />
@@ -432,10 +456,25 @@ const styles = StyleSheet.create({
   seg: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 10 },
   prog: { color: theme.colors.muted, marginTop: 6, marginBottom: 8, ...theme.typography.caption },
   progressTrack: {
-    height: 4, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 2,
-    marginBottom: 20, overflow: "hidden",
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 10,
   },
-  progressBar: { height: 4, backgroundColor: theme.colors.netflix },
+  speedRow: { flexDirection: "row", gap: 8, marginBottom: 12, justifyContent: "center" },
+  speedChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  speedChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
+  speedChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
+  speedChipTextOn: { color: "#fff" },
+  progressBar: { height: 6, backgroundColor: theme.colors.netflix },
   row: { flexDirection: "row", justifyContent: "center", gap: 18 },
   btn: {
     backgroundColor: "rgba(255,255,255,0.08)",

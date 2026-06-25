@@ -29,11 +29,13 @@ QA_PERSONAS: List[QaPersona] = [
     QaPersona(
         "qa-learner@salareen.com",
         "QA Learner",
+        tier=PlanTier.BASIC,
         username="qa1",
     ),
     QaPersona(
         "qa-parent@salareen.com",
         "QA Parent",
+        tier=PlanTier.BASIC,
         username="qa2",
         student_display_name="QA Kid",
         student_age_band="child",

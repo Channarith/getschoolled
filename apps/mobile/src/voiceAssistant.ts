@@ -9,7 +9,16 @@
 import { Linking, Platform } from "react-native";
 
 import { isExpoSpeechRecognitionAvailable, tryRequireModule } from "./nativeModules";
-import { localeToBcp47 } from "./tts";
+
+const LOCALE_TO_BCP47: Record<string, string> = {
+  en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
+  pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN",
+  ja: "ja-JP", ko: "ko-KR", vi: "vi-VN", km: "km-KH",
+};
+
+function localeToBcp47(locale: string): string {
+  return LOCALE_TO_BCP47[locale] || locale || "en-US";
+}
 
 export type VoiceEngineLabel = "Siri" | "Google" | "Alexa" | "System" | "Browser";
 

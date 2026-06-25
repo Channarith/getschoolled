@@ -84,6 +84,47 @@ def _tokens(text: str) -> set:
     return {w for w in re.split(r"[^a-z0-9]+", text.lower()) if w and w not in _STOP}
 
 
+# US-centric location aliases for careers search (Remotive uses "Remote (US)" etc.).
+_US_LOC_ALIASES = frozenset({
+    "usa", "us", "u.s.", "u.s.a.", "united states", "america", "american",
+})
+_US_MARKERS = (
+    "united states", "u.s.", "usa", "remote (us)", "remote us", "anywhere in us",
+    "us only", "us-based", "us based",
+)
+_US_STATE_ABBR = re.compile(r",\s*[a-z]{2}\b")
+_NON_US_MARKERS = (
+    "brazil", "são paulo", "sao paulo", "florianópolis", "florianopolis",
+    "germany", "france", "spain", "portugal", "india", "canada", "mexico",
+    "uk", "united kingdom", "europe", "latam", "latin america",
+)
+
+
+def location_matches(filter_loc: str, job_loc: str) -> bool:
+    """Return True when ``job_loc`` satisfies the user's location filter."""
+    if not filter_loc or not str(filter_loc).strip():
+        return True
+    f = str(filter_loc).lower().strip()
+    j = str(job_loc or "Remote").lower().strip()
+    if f in _US_LOC_ALIASES or f in {"united states", "united states of america"}:
+        if any(m in j for m in _NON_US_MARKERS):
+            return False
+        if any(m in j for m in _US_MARKERS):
+            return True
+        if _US_STATE_ABBR.search(j):
+            return True
+        if j in {"remote", "worldwide", "anywhere"}:
+            return True
+        return False
+    return f in j
+
+
+def filter_jobs_by_location(jobs: Sequence[JobPosting], location: str) -> List[JobPosting]:
+    if not location:
+        return list(jobs)
+    return [j for j in jobs if location_matches(location, j.location)]
+
+
 def course_tokens(course: dict) -> set:
     """All skill-bearing tokens for a course (tags + title + subject + category)."""
     toks: set = set()
@@ -362,8 +403,7 @@ class MockJobsProvider(JobsProvider):
             rows = [j for j in rows if q in j.title.lower() or q in j.company.lower()
                     or q in j.category.lower() or any(q in s for s in j.skills)]
         if location:
-            loc = location.lower()
-            rows = [j for j in rows if loc in j.location.lower()]
+            rows = filter_jobs_by_location(rows, location)
         return rows[:limit]
 
 
@@ -390,7 +430,10 @@ class _LiveJobsProvider(JobsProvider):
             return cached
         try:
             rows = self._fetch(query, location, limit)
-            postings = [p for p in self._parse(rows) if p][:limit]
+            postings = [p for p in self._parse(rows) if p]
+            if location:
+                postings = filter_jobs_by_location(postings, location)
+            postings = postings[:limit]
         except Exception:  # noqa: BLE001 - any network/parse error -> fallback
             postings = []
         if not postings:

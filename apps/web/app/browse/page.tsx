@@ -11,28 +11,12 @@ import {
   type Facets,
   type LearnableItem,
 } from "../lib/api";
-import { coursePosterUrl } from "../lib/courseArtwork";
-
-const FORMAT_LABELS: Record<string, string> = {
-  audio: "Audio / Drive",
-  live_class: "Live class",
-  interactive: "Interactive",
-  game: "Arcade",
-  program: "Program",
-  video: "Video",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  audio: "Drive catalog",
-  lesson: "Live lessons",
-  language: "Languages",
-  catalog: "Catalog",
-  game: "Arcade",
-  program: "Programs",
-};
+import { CoursePosterImg } from "../components/CoursePosterImg";
+import { useT } from "../lib/i18n";
 
 export default function BrowsePage() {
   const router = useRouter();
+  const { t, locale } = useT();
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [facets, setFacets] = useState<Facets | null>(null);
@@ -45,6 +29,9 @@ export default function BrowsePage() {
     hands_on: "", audience: "", core_skill: "",
   });
 
+  const formatLabel = (f: string) => t(`browse.format.${f}`) !== `browse.format.${f}` ? t(`browse.format.${f}`) : f;
+  const sourceLabel = (s: string) => t(`browse.source.${s}`) !== `browse.source.${s}` ? t(`browse.source.${s}`) : s;
+
   useEffect(() => {
     const authed = Boolean(getToken());
     setLoggedIn(authed);
@@ -55,10 +42,10 @@ export default function BrowsePage() {
 
   useEffect(() => {
     if (!loggedIn) return;
-    searchLearnable({ ...filters, limit: "80" })
+    searchLearnable({ ...filters, limit: "80" }, locale)
       .then((r) => { setItems(r.items); setTotal(r.total); })
       .catch((e) => setError(String(e)));
-  }, [filters, loggedIn]);
+  }, [filters, loggedIn, locale]);
 
   function set(key: string, value: string) {
     setFilters((f) => ({ ...f, [key]: value }));
@@ -77,7 +64,7 @@ export default function BrowsePage() {
   async function onEnroll(item: LearnableItem) {
     setMsg("");
     if (!getToken()) {
-      setMsg("Please sign in to enroll.");
+      setMsg(t("browse.signInEnroll"));
       return;
     }
     if (item.source !== "catalog") {
@@ -86,7 +73,7 @@ export default function BrowsePage() {
     }
     try {
       await enrollCourse(item.source_id, item.title);
-      setMsg(`Enrolled in "${item.title}". See it in your Account.`);
+      setMsg(t("browse.enrolled", { title: item.title }));
     } catch (e) {
       setError(String(e));
     }
@@ -95,7 +82,7 @@ export default function BrowsePage() {
   if (!authResolved) {
     return (
       <main className="container">
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("browse.loading")}</p>
       </main>
     );
   }
@@ -103,12 +90,9 @@ export default function BrowsePage() {
   if (!loggedIn) {
     return (
       <main className="container">
-        <h1>Browse all learning</h1>
+        <h1>{t("browse.title")}</h1>
         <div className="card">
-          <p>
-            Please <Link href="/login">sign in</Link> to browse the full catalog of live classes,
-            drive-safe audio, languages, arcade games, and courses.
-          </p>
+          <p>{t("browse.signIn")} <Link href="/login">{t("profile.signIn")}</Link></p>
         </div>
       </main>
     );
@@ -116,33 +100,30 @@ export default function BrowsePage() {
 
   return (
     <main className="container">
-      <h1>Browse all learning</h1>
-      <p className="muted">
-        Search across live classes, drive-safe audio, languages, arcade games, and catalog courses.
-      </p>
+      <h1>{t("browse.heading")}</h1>
+      <p className="muted">{t("browse.subtitle")}</p>
 
       <div className="card">
         <input
-          placeholder="Search everything…"
+          placeholder={t("browse.searchPlaceholder")}
           value={filters.q}
           onChange={(e) => set("q", e.target.value)}
           style={{ width: "100%", padding: 8, marginBottom: 8 }}
         />
         <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
-          <Facet label="Category" value={filters.category} onChange={(v) => set("category", v)} options={facets?.categories} />
-          <Facet label="Type" value={filters.format} onChange={(v) => set("format", v)}
-            options={facets?.formats?.map((f) => FORMAT_LABELS[f] ? `${f}` : f)}
-            optionValues={facets?.formats}
-            formatLabels={FORMAT_LABELS} />
-          <Facet label="Source" value={filters.source} onChange={(v) => set("source", v)}
-            options={facets?.sources?.map((s) => SOURCE_LABELS[s] || s)}
+          <Facet label={t("browse.category")} value={filters.category} onChange={(v) => set("category", v)} options={facets?.categories} />
+          <Facet label={t("browse.type")} value={filters.format} onChange={(v) => set("format", v)}
+            options={facets?.formats?.map((f) => formatLabel(f))}
+            optionValues={facets?.formats} />
+          <Facet label={t("browse.source")} value={filters.source} onChange={(v) => set("source", v)}
+            options={facets?.sources?.map((s) => sourceLabel(s))}
             optionValues={facets?.sources} />
-          <Facet label="Language" value={filters.language} onChange={(v) => set("language", v)} options={facets?.languages} />
-          <Facet label="Level" value={filters.level} onChange={(v) => set("level", v)} options={facets?.levels} />
+          <Facet label={t("browse.language")} value={filters.language} onChange={(v) => set("language", v)} options={facets?.languages} />
+          <Facet label={t("browse.level")} value={filters.level} onChange={(v) => set("level", v)} options={facets?.levels} />
           <label style={{ fontSize: 13 }}>
-            For&nbsp;
+            {t("browse.for")}&nbsp;
             <select value={filters.audience} onChange={(e) => set("audience", e.target.value)}>
-              <option value="">Anyone</option>
+              <option value="">{t("browse.anyone")}</option>
               {(facets?.audiences ?? []).map((a) => (
                 <option key={a.slug} value={a.slug}>{a.label}</option>
               ))}
@@ -151,7 +132,7 @@ export default function BrowsePage() {
           <label className="row">
             <input type="checkbox" checked={filters.hands_on === "true"}
               onChange={(e) => set("hands_on", e.target.checked ? "true" : "")} />
-            &nbsp;Hands-on only
+            &nbsp;{t("browse.handsOn")}
           </label>
         </div>
       </div>
@@ -159,44 +140,43 @@ export default function BrowsePage() {
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
       {msg && <div className="card" style={{ borderColor: "#34d399" }}><div className="muted">{msg}</div></div>}
 
-      <p className="muted" style={{ marginBottom: 8 }}>{total} result{total === 1 ? "" : "s"}</p>
+      <p className="muted" style={{ marginBottom: 8 }}>
+        {total === 1 ? t("browse.resultOne") : t("browse.results", { total })}
+      </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {items.length === 0 && <div className="muted">No matches. Try clearing filters or another keyword.</div>}
+        {items.length === 0 && <div className="muted">{t("browse.noMatches")}</div>}
         {items.map((c) => (
           <div className="tile browse-tile" key={c.id}>
             <div className="tile-art">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <CoursePosterImg
                 className="tile-poster"
-                src={coursePosterUrl({
+                input={{
                   title: c.title,
                   category: c.category,
                   subject: c.subject,
                   tags: c.tags,
                   format: c.format,
                   thumbnail: c.thumbnail,
-                })}
-                alt=""
-                loading="lazy"
+                }}
               />
               <div className="tile-art-scrim" aria-hidden />
             </div>
             <div className="tile-body">
             <h3 style={{ marginBottom: 4, fontSize: 14 }}>{c.title}</h3>
             <div className="muted" style={{ fontSize: 12 }}>
-              {FORMAT_LABELS[c.format] || c.format} · {c.category || c.subject} · {c.level}
+              {formatLabel(c.format)} · {c.category || c.subject} · {c.level}
               {c.duration_min ? ` · ${c.duration_min} min` : ""}
             </div>
             <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <span className="pill" style={{ color: "#0ea5e9" }}>{SOURCE_LABELS[c.source] || c.source}</span>
-              {c.drive_safe && <span className="pill" style={{ color: "#16a34a" }}>drive-safe</span>}
+              <span className="pill" style={{ color: "#0ea5e9" }}>{sourceLabel(c.source)}</span>
+              {c.drive_safe && <span className="pill" style={{ color: "#16a34a" }}>{t("browse.driveSafe")}</span>}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>{c.preview || c.subtitle}</p>
             <div className="row" style={{ marginTop: 8, gap: 8 }}>
-              <button type="button" onClick={() => openItem(c)}>Open</button>
+              <button type="button" onClick={() => openItem(c)}>{t("browse.open")}</button>
               {c.source === "catalog" && (
-                <button type="button" onClick={() => onEnroll(c)}>Enroll</button>
+                <button type="button" onClick={() => onEnroll(c)}>{t("browse.enroll")}</button>
               )}
             </div>
             </div>
@@ -207,20 +187,21 @@ export default function BrowsePage() {
   );
 }
 
-function Facet({ label, value, onChange, options, optionValues, formatLabels }: {
+function Facet({ label, value, onChange, options, optionValues }: {
   label: string; value: string; onChange: (v: string) => void; options?: string[];
-  optionValues?: string[]; formatLabels?: Record<string, string>;
+  optionValues?: string[];
 }) {
+  const { t } = useT();
   const values = optionValues ?? options ?? [];
   const labels = options ?? values;
   return (
     <label style={{ fontSize: 13 }}>
       {label}&nbsp;
       <select value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Any</option>
+        <option value="">{t("browse.any")}</option>
         {values.map((v, i) => (
           <option key={v} value={v}>
-            {formatLabels?.[v] || labels[i] || v}
+            {labels[i] || v}
           </option>
         ))}
       </select>
