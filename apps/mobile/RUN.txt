@@ -408,6 +408,12 @@ ACCOUNT, QA TEST USERS, LEARNING PROFILE SURVEY
   completed on the server (cloud-persisted — clearing app data does NOT reset it).
   Settings -> Account -> "Update learning profile" reopens the survey anytime.
 
+DRIVING DETECTION (opt-in)
+  Settings -> DRIVE MODE: enable "Detect when I'm driving" to request location
+  (GPS speed) and motion (gyro/accelerometer) permissions. Status shows Driving /
+  Not driving. Optional: auto-open Drive tab, driving alerts (local notification
+  + in-app banner). src/drivingDetection.ts — foreground-only while app is open.
+
 WHAT'S HERE
   App.tsx                       root: bottom-tab nav, banner, notification listeners
   src/api.ts                    typed client (curriculum, identity, memory)

@@ -19,7 +19,9 @@ import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
 import { categoryGradient, theme } from "../theme";
 
-export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+export default function DriveModeScreen({
+  courseId, isDriving = false, onBack,
+}: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
@@ -260,6 +262,12 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
           colors={["transparent", "rgba(0,0,0,0.75)"]}
           style={StyleSheet.absoluteFill}
         />
+        {isDriving ? (
+          <View style={styles.drivingBadge}>
+            <Ionicons name="car" size={14} color="#fff" />
+            <Text style={styles.drivingBadgeText}>{t("drive.drivingBadge")}</Text>
+          </View>
+        ) : null}
         <Ionicons name="headset" size={48} color="rgba(255,255,255,0.9)" />
         <Text style={styles.heroTitle} numberOfLines={2}>{course.title}</Text>
       </LinearGradient>
@@ -383,6 +391,13 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", marginBottom: 16,
     ...theme.shadow.hero,
   },
+  drivingBadge: {
+    position: "absolute", top: 12, right: 12, zIndex: 2,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(229, 9, 20, 0.92)", paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: theme.radius.pill,
+  },
+  drivingBadgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
   heroTitle: {
     position: "absolute", bottom: 14, left: 14, right: 14,
     color: "#fff", fontSize: 20, fontWeight: "800",
