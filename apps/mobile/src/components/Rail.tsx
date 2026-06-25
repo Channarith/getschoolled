@@ -1,8 +1,9 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
-// Horizontal scrolling row of cards (Netflix rail). Generic over the row type
-// so it can render audio courses, continue-listening rows, recommendations,
-// or category tiles.
+import AnimatedPressable from "./AnimatedPressable";
+import { categoryGradient, theme } from "../theme";
 
 type Props<T> = {
   title: string;
@@ -31,8 +32,10 @@ export default function Rail<T>({
           data={data}
           keyExtractor={keyExtractor}
           style={styles.list}
-          contentContainerStyle={{ paddingHorizontal: 12 }}
-          renderItem={({ item }) => <View style={{ marginRight: 10 }}>{renderItem(item)}</View>}
+          contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
+          renderItem={({ item }) => (
+            <View style={{ marginRight: theme.spacing.railGap }}>{renderItem(item)}</View>
+          )}
         />
       )}
     </View>
@@ -40,73 +43,126 @@ export default function Rail<T>({
 }
 
 export function CourseCard({
-  emoji = "🎧", title, meta, onPress, savedBadge, progressPct,
+  emoji = "🎧", title, meta, onPress, savedBadge, progressPct, category,
 }: {
-  emoji?: string; title: string; meta?: string;
-  onPress?: () => void; savedBadge?: boolean;
+  emoji?: string;
+  title: string;
+  meta?: string;
+  onPress?: () => void;
+  savedBadge?: boolean;
   progressPct?: number;
+  category?: string;
 }) {
+  const [c1, c2] = categoryGradient(category || title);
   return (
-    <Pressable onPress={onPress} style={styles.card}>
-      <View style={styles.thumb}>
-        <Text style={styles.emoji}>{emoji}</Text>
-        {savedBadge ? <Text style={styles.saved}>★</Text> : null}
+    <AnimatedPressable onPress={onPress} style={styles.card}>
+      <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.poster}>
+        <Text style={styles.posterEmoji}>{emoji}</Text>
+        <Text numberOfLines={2} style={styles.posterTitle}>{title}</Text>
+        {savedBadge ? (
+          <View style={styles.savedBadge}>
+            <Ionicons name="bookmark" size={14} color={theme.colors.gold} />
+          </View>
+        ) : null}
+        {typeof progressPct === "number" ? (
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressBar, { width: `${Math.max(4, Math.min(100, progressPct))}%` }]} />
+          </View>
+        ) : null}
+      </LinearGradient>
+      <View style={styles.cardBody}>
+        <Text numberOfLines={2} style={styles.cardTitle}>{title}</Text>
+        {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
       </View>
-      <Text numberOfLines={2} style={styles.cardTitle}>{title}</Text>
-      {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
-      {typeof progressPct === "number" ? (
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressBar, { width: `${Math.max(2, Math.min(100, progressPct))}%` }]} />
-        </View>
-      ) : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
 export function CategoryTile({ category, count, countLabel, onPress }: {
-  category: string; count: number; countLabel?: string; onPress?: () => void;
+  category: string;
+  count: number;
+  countLabel?: string;
+  onPress?: () => void;
 }) {
-  const colors = HUES[Math.abs(hash(category)) % HUES.length];
+  const [c1, c2] = categoryGradient(category);
   return (
-    <Pressable onPress={onPress} style={[styles.tile, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.tileTitle, { color: colors.fg }]}>{category}</Text>
-      <Text style={[styles.tileCount, { color: colors.fg }]}>
-        {countLabel || `${count} classes`}
-      </Text>
-    </Pressable>
+    <AnimatedPressable onPress={onPress} style={styles.tile}>
+      <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileGrad}>
+        <Text style={styles.tileTitle}>{category}</Text>
+        <Text style={styles.tileCount}>{countLabel || `${count} classes`}</Text>
+        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" style={styles.tileChevron} />
+      </LinearGradient>
+    </AnimatedPressable>
   );
 }
 
-function hash(s: string) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return h;
-}
-const HUES = [
-  { bg: "#0ea5e9", fg: "#001022" }, { bg: "#22c55e", fg: "#04210f" },
-  { bg: "#f59e0b", fg: "#311c01" }, { bg: "#a855f7", fg: "#1a0530" },
-  { bg: "#ef4444", fg: "#310606" }, { bg: "#06b6d4", fg: "#012c34" },
-  { bg: "#84cc16", fg: "#0e1f02" }, { bg: "#ec4899", fg: "#3b0723" },
-];
-
 const styles = StyleSheet.create({
-  rail: { marginBottom: 18, width: "100%", maxWidth: "100%", overflow: "hidden" },
-  list: { width: "100%", maxWidth: "100%" },
-  header: { paddingHorizontal: 16, marginBottom: 8 },
-  title: { color: "#e8ecf6", fontSize: 18, fontWeight: "800" },
-  sub: { color: "#9aa6c2", fontSize: 12, marginTop: 2 },
-  empty: { color: "#9aa6c2", paddingHorizontal: 16, fontStyle: "italic" },
-  card: { width: 154, backgroundColor: "#151c34", borderRadius: 12, padding: 10 },
-  thumb: { backgroundColor: "#0b1020", height: 88, borderRadius: 8,
-           alignItems: "center", justifyContent: "center", marginBottom: 8,
-           position: "relative" },
-  emoji: { fontSize: 36 },
-  saved: { position: "absolute", top: 4, right: 8, color: "#fbbf24", fontSize: 16, fontWeight: "800" },
-  cardTitle: { color: "#e8ecf6", fontSize: 13, fontWeight: "700", lineHeight: 17 },
-  cardMeta: { color: "#9aa6c2", fontSize: 11, marginTop: 4 },
-  progressTrack: { height: 3, backgroundColor: "#23304f", borderRadius: 2, marginTop: 6, overflow: "hidden" },
-  progressBar: { height: 3, backgroundColor: "#0ea5e9" },
-  tile: { width: 132, height: 90, borderRadius: 12, padding: 12, justifyContent: "space-between" },
-  tileTitle: { fontWeight: "800", fontSize: 16 },
-  tileCount: { fontSize: 12, fontWeight: "600", opacity: 0.8 },
+  rail: { marginBottom: theme.spacing.section, width: "100%", overflow: "hidden" },
+  list: { width: "100%" },
+  header: { paddingHorizontal: theme.spacing.screenX, marginBottom: 10 },
+  title: { ...theme.typography.railTitle, color: theme.colors.text },
+  sub: { ...theme.typography.caption, color: theme.colors.muted, marginTop: 2 },
+  empty: {
+    color: theme.colors.muted,
+    paddingHorizontal: theme.spacing.screenX,
+    fontStyle: "italic",
+  },
+  card: {
+    width: 168,
+    borderRadius: theme.radius.md,
+    overflow: "hidden",
+    backgroundColor: theme.colors.panelSolid,
+    ...theme.shadow.card,
+  },
+  poster: {
+    height: 112,
+    padding: 10,
+    justifyContent: "flex-end",
+    position: "relative",
+  },
+  posterEmoji: { fontSize: 28, position: "absolute", top: 10, right: 10, opacity: 0.85 },
+  posterTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 13,
+    lineHeight: 16,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  savedBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderRadius: 6,
+    padding: 4,
+  },
+  progressTrack: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  progressBar: { height: 3, backgroundColor: theme.colors.netflix },
+  cardBody: { padding: 10 },
+  cardTitle: { color: theme.colors.text, fontSize: 13, fontWeight: "700", lineHeight: 17 },
+  cardMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 4 },
+  tile: {
+    width: 148,
+    height: 96,
+    borderRadius: theme.radius.md,
+    overflow: "hidden",
+    ...theme.shadow.card,
+  },
+  tileGrad: {
+    flex: 1,
+    padding: 12,
+    justifyContent: "space-between",
+  },
+  tileTitle: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  tileCount: { color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: "600" },
+  tileChevron: { position: "absolute", right: 10, bottom: 10 },
 });

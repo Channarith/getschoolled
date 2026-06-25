@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput,
-  TouchableOpacity, View,
+  Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from "react-native";
 
 import {
-  CURRICULUM_URL, IDENTITY_URL, getMe, listStudents, login, signup,
+  CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getMe, listStudents, login, signup,
   type Account, type StudentProfile,
 } from "../api";
+import AnimatedPressable from "../components/AnimatedPressable";
+import GlassPanel from "../components/GlassPanel";
+import PrimaryButton from "../components/PrimaryButton";
 import { QA_TEST_ACCOUNTS } from "../config";
 import {
   ensurePermissions, fireImmediate, listScheduled,
@@ -18,6 +20,7 @@ import {
   type Settings,
 } from "../storage";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
+import { theme } from "../theme";
 
 type Props = {
   onAuthChange?: () => void;
@@ -37,6 +40,13 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
   const [displayName, setDisplayName] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [identityUp, setIdentityUp] = useState<boolean | null>(null);
+
+  const probeIdentity = useCallback(async () => {
+    const up = await checkServiceReachable(IDENTITY_URL);
+    setIdentityUp(up);
+    return up;
+  }, []);
 
   const refreshAccount = useCallback(async () => {
     try {
@@ -58,7 +68,8 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
     void getSettings().then(setS);
     void refreshScheduled();
     void refreshAccount();
-  }, [refreshAccount]);
+    void probeIdentity();
+  }, [refreshAccount, probeIdentity]);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
@@ -78,6 +89,13 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
     setAuthBusy(true);
     setAuthError("");
     try {
+      const up = await probeIdentity();
+      if (!up) {
+        setAuthError(t("auth.backendDown", {
+          url: IDENTITY_URL.replace("http://", ""),
+        }));
+        return;
+      }
       const res = mode === "login"
         ? await login(email.trim(), password)
         : await signup(email.trim(), password, displayName.trim() || email.split("@")[0]);
@@ -145,24 +163,20 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
                 ? t("settings.learningProfileDone", { category: categoryLabel || "saved" })
                 : t("settings.learningProfilePending")}
             </Text>
-            <View style={{ padding: 10, gap: 8 }}>
-              <Pressable onPress={onOpenLearningProfile} style={styles.btnWide}>
-                <Text style={styles.btnText}>{t("settings.openSurvey")}</Text>
-              </Pressable>
-              <Pressable onPress={() => void onSignOut()} style={styles.btnWide}>
-                <Text style={styles.btnTextMuted}>{t("settings.signOut")}</Text>
-              </Pressable>
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <PrimaryButton label={t("settings.openSurvey")} onPress={onOpenLearningProfile} variant="brand" />
+              <PrimaryButton label={t("settings.signOut")} onPress={() => void onSignOut()} variant="ghost" />
             </View>
           </>
         ) : (
           <>
             <Text style={styles.about}>{t("settings.accountGuest")}</Text>
-            <View style={{ paddingHorizontal: 10, gap: 8 }}>
+            <View style={{ gap: 10, marginTop: 8 }}>
               {mode === "signup" ? (
                 <TextInput
                   style={styles.input}
                   placeholder={t("auth.displayName")}
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.colors.muted}
                   value={displayName}
                   onChangeText={setDisplayName}
                 />
@@ -170,7 +184,7 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
               <TextInput
                 style={styles.input}
                 placeholder={t("auth.email")}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.colors.muted}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 value={email}
@@ -179,43 +193,56 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
               <TextInput
                 style={styles.input}
                 placeholder={t("auth.password")}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.colors.muted}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
               />
               {authError ? <Text style={styles.error}>{authError}</Text> : null}
-              <Pressable disabled={authBusy} onPress={() => void onAuthSubmit()} style={styles.btnWidePrimary}>
-                <Text style={styles.btnTextPrimary}>
-                  {authBusy ? "…" : mode === "login" ? t("auth.signIn") : t("auth.signUp")}
-                </Text>
-              </Pressable>
-              <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+              <PrimaryButton
+                label={mode === "login" ? t("auth.signIn") : t("auth.signUp")}
+                onPress={() => void onAuthSubmit()}
+                loading={authBusy}
+                disabled={authBusy}
+              />
+              <AnimatedPressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
                 <Text style={styles.link}>
                   {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             </View>
             {__DEV__ ? (
-              <View style={{ padding: 10 }}>
+              <View style={{ marginTop: 12 }}>
                 <Text style={styles.desc}>{t("auth.qaHint")}</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                   {QA_TEST_ACCOUNTS.map((qa) => (
-                    <Pressable key={qa.email} onPress={() => void fillQa(qa.email, qa.password)}
+                    <AnimatedPressable key={qa.email} onPress={() => void fillQa(qa.email, qa.password)}
                       style={styles.qaChip}>
                       <Text style={styles.qaText}>{t("auth.useQa", { label: qa.label })}</Text>
-                    </Pressable>
+                    </AnimatedPressable>
                   ))}
                 </View>
               </View>
             ) : null}
           </>
         )}
-        <Text style={[styles.desc, { padding: 10 }]}>
-          {t("settings.backendUrls", {
-            curriculum: CURRICULUM_URL.replace("http://", ""),
-            identity: IDENTITY_URL.replace("http://", ""),
-          })}
+        <Text style={[
+          styles.desc,
+          { marginTop: 10 },
+          identityUp === false && styles.backendDown,
+          identityUp === true && styles.backendUp,
+        ]}>
+          {identityUp === false
+            ? t("auth.backendDown", { url: IDENTITY_URL.replace("http://", "") })
+            : identityUp === true
+              ? `${t("auth.backendUp")} · ${t("settings.backendUrls", {
+                curriculum: CURRICULUM_URL.replace("http://", ""),
+                identity: IDENTITY_URL.replace("http://", ""),
+              })}`
+              : t("settings.backendUrls", {
+                curriculum: CURRICULUM_URL.replace("http://", ""),
+                identity: IDENTITY_URL.replace("http://", ""),
+              })}
         </Text>
       </Section>
 
@@ -223,12 +250,12 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
         <Row label={t("settings.language")} desc={t("settings.languageDesc")}>
           <Text style={styles.currentLang}>{current.flag}  {current.native}</Text>
         </Row>
-        <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {LANGUAGES.map((lang) => {
               const selected = lang.code === locale;
               return (
-                <TouchableOpacity key={lang.code} activeOpacity={0.7}
+                <AnimatedPressable
+                  key={lang.code}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => setLocale(lang.code)}
@@ -237,11 +264,10 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
                   <Text style={[styles.langText, selected && styles.langTextOn]}>
                     {lang.flag} {lang.native}
                   </Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               );
             })}
           </View>
-        </View>
       </Section>
 
       <Section title={t("settings.sectionNotif")}>
@@ -249,7 +275,7 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
           <Switch
             value={s.notificationsEnabled}
             onValueChange={(v) => update({ notificationsEnabled: v })}
-            thumbColor={s.notificationsEnabled ? "#0ea5e9" : "#666"} />
+            thumbColor={s.notificationsEnabled ? theme.colors.netflix : "#666"} />
         </Row>
         <Row label={t("settings.daily")}
              desc={t("settings.dailyDesc", { hour: pad(s.dailyReminderHour) })}>
@@ -257,7 +283,7 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
             value={s.dailyReminder && s.notificationsEnabled}
             onValueChange={(v) => update({ dailyReminder: v })}
             disabled={!s.notificationsEnabled}
-            thumbColor={s.dailyReminder ? "#0ea5e9" : "#666"} />
+            thumbColor={s.dailyReminder ? theme.colors.netflix : "#666"} />
         </Row>
         <View style={[styles.row, { flexDirection: "column", alignItems: "stretch", gap: 8 }]}>
           <Text style={styles.label}>{t("settings.time")}</Text>
@@ -265,19 +291,17 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
             {[7, 9, 12, 15, 18, 20, 21].map((h) => {
               const selected = s.dailyReminderHour === h;
               return (
-                <TouchableOpacity key={h} activeOpacity={0.7}
+                <AnimatedPressable
+                  key={h}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => update({ dailyReminderHour: h })}
-                  style={[
-                    styles.hourChip,
-                    selected ? styles.hourChipOn : styles.hourChipOff,
-                  ]}
+                  style={[styles.hourChip, selected ? styles.hourChipOn : styles.hourChipOff]}
                 >
                   <Text style={[styles.hourText, selected && styles.hourTextOn]}>
                     {pad(h)}:00
                   </Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
               );
             })}
           </View>
@@ -287,33 +311,33 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
             value={s.newContentAlerts && s.notificationsEnabled}
             onValueChange={(v) => update({ newContentAlerts: v })}
             disabled={!s.notificationsEnabled}
-            thumbColor={s.newContentAlerts ? "#0ea5e9" : "#666"} />
+            thumbColor={s.newContentAlerts ? theme.colors.netflix : "#666"} />
         </Row>
         <Row label={t("settings.completion")} desc={t("settings.completionDesc")}>
           <Switch
             value={s.completionAlerts && s.notificationsEnabled}
             onValueChange={(v) => update({ completionAlerts: v })}
             disabled={!s.notificationsEnabled}
-            thumbColor={s.completionAlerts ? "#0ea5e9" : "#666"} />
+            thumbColor={s.completionAlerts ? theme.colors.netflix : "#666"} />
         </Row>
       </Section>
 
       <Section title={t("settings.sectionDiag")}>
         <Row label={t("settings.scheduled", { n: scheduled })} desc={t("settings.scheduledDesc")}>
-          <Pressable onPress={() => void refreshScheduled()} style={styles.btn}>
+          <AnimatedPressable onPress={() => void refreshScheduled()} style={styles.btn}>
             <Text style={styles.btnText}>{t("settings.refresh")}</Text>
-          </Pressable>
+          </AnimatedPressable>
         </Row>
         <Row label={t("settings.testAlert")} desc={t("settings.testAlertDesc")}>
-          <Pressable onPress={() => void sendTest()} style={styles.btn}>
+          <AnimatedPressable onPress={() => void sendTest()} style={styles.btn}>
             <Text style={styles.btnText}>{t("settings.send")}</Text>
-          </Pressable>
+          </AnimatedPressable>
         </Row>
         <Row label={t("settings.permission", { status: permission })}
              desc={t("settings.permissionDesc")}>
-          <Pressable onPress={() => void askPermission()} style={styles.btn}>
+          <AnimatedPressable onPress={() => void askPermission()} style={styles.btn}>
             <Text style={styles.btnText}>{t("settings.request")}</Text>
-          </Pressable>
+          </AnimatedPressable>
         </Row>
       </Section>
 
@@ -328,10 +352,10 @@ function pad(n: number) { return String(n).padStart(2, "0"); }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={styles.section}>
+    <GlassPanel style={styles.section} padded={false}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
+      <View style={{ padding: 10 }}>{children}</View>
+    </GlassPanel>
   );
 }
 
@@ -350,39 +374,61 @@ function Row({ label, desc, children }: {
 }
 
 const styles = StyleSheet.create({
-  bg: { backgroundColor: "#0b1020", flex: 1 },
-  header: { paddingHorizontal: 16, paddingBottom: 16 },
-  title: { color: "#e8ecf6", fontSize: 24, fontWeight: "800" },
-  sub: { color: "#9aa6c2", marginTop: 4 },
-  section: { marginHorizontal: 12, marginBottom: 14, backgroundColor: "#151c34", borderRadius: 14, padding: 8 },
-  sectionTitle: { color: "#9aa6c2", fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase", margin: 8 },
-  row: { flexDirection: "row", alignItems: "center", padding: 10 },
-  label: { color: "#e8ecf6", fontWeight: "700" },
-  desc: { color: "#9aa6c2", marginTop: 4, fontSize: 12, lineHeight: 16 },
-  btn: { backgroundColor: "#1d2746", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  btnWide: { backgroundColor: "#1d2746", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  btnWidePrimary: { backgroundColor: "#0ea5e9", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  btnText: { color: "#0ea5e9", fontWeight: "700" },
-  btnTextMuted: { color: "#9aa6c2", fontWeight: "700" },
-  btnTextPrimary: { color: "#001022", fontWeight: "800" },
-  link: { color: "#0ea5e9", textAlign: "center", paddingVertical: 8 },
-  input: {
-    backgroundColor: "#1d2746", color: "#e8ecf6", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+  bg: { flex: 1, backgroundColor: "transparent" },
+  header: { paddingHorizontal: theme.spacing.screenX, paddingBottom: 16 },
+  title: { ...theme.typography.title, color: theme.colors.text },
+  sub: { color: theme.colors.muted, marginTop: 4 },
+  section: { marginHorizontal: 12, marginBottom: 14 },
+  sectionTitle: {
+    ...theme.typography.kicker,
+    color: theme.colors.muted,
+    margin: 12,
+    marginBottom: 0,
   },
-  error: { color: "#ff6b6b", fontSize: 13 },
-  qaChip: { backgroundColor: "#1d2746", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  qaText: { color: "#9aa6c2", fontSize: 12, fontWeight: "600" },
-  hourChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  hourChipOff: { backgroundColor: "#1d2746" },
-  hourChipOn: { backgroundColor: "#0ea5e9" },
-  hourText: { color: "#9aa6c2", fontWeight: "700" },
-  hourTextOn: { color: "#001022" },
-  about: { color: "#9aa6c2", padding: 10, lineHeight: 18, fontSize: 13 },
-  currentLang: { color: "#e8ecf6", fontWeight: "700" },
-  langChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
-  langChipOff: { backgroundColor: "#1d2746" },
-  langChipOn: { backgroundColor: "#0ea5e9" },
-  langText: { color: "#9aa6c2", fontWeight: "600" },
-  langTextOn: { color: "#001022", fontWeight: "800" },
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 10 },
+  label: { color: theme.colors.text, fontWeight: "700" },
+  desc: { color: theme.colors.muted, marginTop: 4, fontSize: 12, lineHeight: 16 },
+  btn: {
+    backgroundColor: "rgba(29, 39, 70, 0.85)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  btnText: { color: theme.colors.text, fontWeight: "700" },
+  link: { color: theme.colors.accent, textAlign: "center", paddingVertical: 8 },
+  input: {
+    backgroundColor: "rgba(29, 39, 70, 0.75)",
+    color: theme.colors.text,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  error: { color: "#ff8a8a", fontSize: 13 },
+  backendDown: { color: "#ff8a8a" },
+  backendUp: { color: theme.colors.success },
+  qaChip: {
+    backgroundColor: "rgba(29, 39, 70, 0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  qaText: { color: theme.colors.muted, fontSize: 12, fontWeight: "600" },
+  hourChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.pill },
+  hourChipOff: { backgroundColor: "rgba(29, 39, 70, 0.75)", borderWidth: 1, borderColor: theme.colors.border },
+  hourChipOn: { backgroundColor: theme.colors.netflix },
+  hourText: { color: theme.colors.muted, fontWeight: "700" },
+  hourTextOn: { color: "#fff" },
+  about: { color: theme.colors.muted, lineHeight: 18, fontSize: 13 },
+  currentLang: { color: theme.colors.text, fontWeight: "700" },
+  langChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: theme.radius.pill },
+  langChipOff: { backgroundColor: "rgba(29, 39, 70, 0.75)", borderWidth: 1, borderColor: theme.colors.border },
+  langChipOn: { backgroundColor: theme.colors.netflix },
+  langText: { color: theme.colors.muted, fontWeight: "600" },
+  langTextOn: { color: "#fff", fontWeight: "800" },
 });

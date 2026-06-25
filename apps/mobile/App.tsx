@@ -1,8 +1,9 @@
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
+import { Animated, I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
 
+import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
 import { LocaleProvider, useT } from "./src/i18n";
@@ -22,6 +23,7 @@ import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import CareersScreen from "./src/screens/CareersScreen";
 import { getNotificationsFeed } from "./src/api";
+import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
 
 export default function App() {
@@ -45,6 +47,16 @@ function AppInner() {
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
+  const fade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    fade.setValue(0);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: theme.motion.fadeDuration,
+      useNativeDriver: true,
+    }).start();
+  }, [tab, showCareers, fade]);
 
   useEffect(() => {
     void bootstrap();
@@ -161,31 +173,33 @@ function AppInner() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
+      <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
-        {screen}
+        <Animated.View style={{ flex: 1, opacity: fade }}>
+          {screen}
+        </Animated.View>
         <LearningProfileSurvey
           key={authEpoch}
           manualOpenToken={surveyManualToken}
           onSaved={() => setAuthEpoch((n) => n + 1)}
         />
       </View>
-      <BottomTabs
-        active={tab}
-        onChange={(id) => {
-          if (id === "drive" && tab === "drive") setOpenCourseId(null);
-          // Refresh unread on every tab change so the badge always reflects
-          // the latest read-state - including after the user hits
-          // "Mark all as read" inside the inbox.
-          void refreshUnreadAndAlerts();
-          setTab(id);
-        }}
-        unreadCount={unreadCount}
-      />
+      {!showCareers ? (
+        <BottomTabs
+          active={tab}
+          onChange={(id) => {
+            if (id === "drive" && tab === "drive") setOpenCourseId(null);
+            void refreshUnreadAndAlerts();
+            setTab(id);
+          }}
+          unreadCount={unreadCount}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0b1020" },
+  root: { flex: 1, backgroundColor: theme.colors.bg },
 });

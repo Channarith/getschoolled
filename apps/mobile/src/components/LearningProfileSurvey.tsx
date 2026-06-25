@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Modal, Pressable, ScrollView, StyleSheet, Switch, Text,
+  Modal, ScrollView, StyleSheet, Switch, Text,
   TextInput, View,
 } from "react-native";
 
@@ -9,7 +9,11 @@ import {
   skipLearningProfile, submitLearningProfile, submitOnboardingSurveyAnalytics,
   type StudentProfile, type SurveyTemplate,
 } from "../api";
+import AnimatedPressable from "./AnimatedPressable";
+import GlassPanel from "./GlassPanel";
+import PrimaryButton from "./PrimaryButton";
 import { getToken } from "../storage";
+import { theme } from "../theme";
 
 type Props = {
   /** Increment to open the survey from Settings (manual edit). */
@@ -160,8 +164,8 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={() => setVisible(false)}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 16 }}>
+        <GlassPanel style={styles.card} padded={false}>
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 16 }}>
             <Text style={styles.title}>{template.title}</Text>
             {doneCategory ? (
               <Text style={styles.body}>
@@ -183,11 +187,11 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
                         {q.options.map((opt) => {
                           const on = answers[q.id] === opt;
                           return (
-                            <Pressable key={opt} disabled={busy}
+                            <AnimatedPressable key={opt} disabled={busy}
                               onPress={() => setAnswers((a) => ({ ...a, [q.id]: opt }))}
                               style={[styles.chip, on && styles.chipOn]}>
                               <Text style={[styles.chipText, on && styles.chipTextOn]}>{opt}</Text>
-                            </Pressable>
+                            </AnimatedPressable>
                           );
                         })}
                       </View>
@@ -198,7 +202,9 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
                           value={Boolean(answers[q.id])}
                           disabled={busy}
                           onValueChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
-                          thumbColor={answers[q.id] ? "#0ea5e9" : "#666"} />
+                          trackColor={{ false: "#334155", true: theme.colors.netflix }}
+                          thumbColor="#fff"
+                        />
                         <Text style={styles.body}>Yes</Text>
                       </View>
                     ) : null}
@@ -209,57 +215,66 @@ export default function LearningProfileSurvey({ manualOpenToken = 0, onSaved }: 
                         editable={!busy}
                         value={String(answers[q.id] ?? "")}
                         onChangeText={(t) => setAnswers((a) => ({ ...a, [q.id]: t }))}
-                        placeholderTextColor="#6b7280"
+                        placeholderTextColor={theme.colors.muted}
                       />
                     ) : null}
                   </View>
                 ))}
                 {error ? <Text style={styles.error}>{error}</Text> : null}
                 <View style={styles.actions}>
-                  <Pressable disabled={busy} onPress={() => void onSubmit()} style={styles.primaryBtn}>
-                    <Text style={styles.primaryText}>{busy ? "Saving…" : manual ? "Save changes" : "Save profile"}</Text>
-                  </Pressable>
+                  <PrimaryButton
+                    label={busy ? "Saving…" : manual ? "Save changes" : "Save profile"}
+                    onPress={() => void onSubmit()}
+                    disabled={busy}
+                    loading={busy}
+                  />
                   {!manual ? (
-                    <Pressable disabled={busy} onPress={() => void onSkip()} style={styles.secondaryBtn}>
-                      <Text style={styles.secondaryText}>Skip for now</Text>
-                    </Pressable>
+                    <PrimaryButton
+                      label="Skip for now"
+                      onPress={() => void onSkip()}
+                      disabled={busy}
+                      variant="ghost"
+                    />
                   ) : (
-                    <Pressable disabled={busy} onPress={() => setVisible(false)} style={styles.secondaryBtn}>
-                      <Text style={styles.secondaryText}>Cancel</Text>
-                    </Pressable>
+                    <PrimaryButton
+                      label="Cancel"
+                      onPress={() => setVisible(false)}
+                      disabled={busy}
+                      variant="ghost"
+                    />
                   )}
                 </View>
               </>
             )}
           </ScrollView>
-        </View>
+        </GlassPanel>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "center", padding: 16 },
-  card: { backgroundColor: "#151c34", borderRadius: 16, maxHeight: "90%", padding: 16 },
-  title: { color: "#e8ecf6", fontSize: 22, fontWeight: "800", marginBottom: 8 },
-  sub: { color: "#9aa6c2", marginBottom: 12, lineHeight: 18 },
-  body: { color: "#e8ecf6", lineHeight: 20 },
+  backdrop: { flex: 1, backgroundColor: theme.colors.scrimHeavy, justifyContent: "center", padding: 16 },
+  card: { maxHeight: "90%" },
+  title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", marginBottom: 8 },
+  sub: { color: theme.colors.muted, marginBottom: 12, lineHeight: 18 },
+  body: { color: theme.colors.text, lineHeight: 20 },
   q: { marginBottom: 14 },
-  qPrompt: { color: "#e8ecf6", fontWeight: "700", marginBottom: 8 },
+  qPrompt: { color: theme.colors.text, fontWeight: "700", marginBottom: 8 },
   chips: { gap: 8 },
-  chip: { backgroundColor: "#1d2746", borderRadius: 10, padding: 10, marginBottom: 6 },
-  chipOn: { backgroundColor: "#0ea5e9" },
-  chipText: { color: "#9aa6c2", fontSize: 13 },
-  chipTextOn: { color: "#001022", fontWeight: "700" },
+  chip: {
+    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: theme.radius.md,
+    padding: 10, marginBottom: 6, borderWidth: 1, borderColor: theme.colors.border,
+  },
+  chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
+  chipText: { color: theme.colors.muted, fontSize: 13 },
+  chipTextOn: { color: "#fff", fontWeight: "700" },
   boolRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   input: {
-    backgroundColor: "#1d2746", color: "#e8ecf6", borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.06)", color: theme.colors.text,
+    borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border,
     padding: 10, minHeight: 72, textAlignVertical: "top",
   },
-  error: { color: "#ff6b6b", marginTop: 8 },
+  error: { color: theme.colors.danger, marginTop: 8 },
   actions: { marginTop: 16, gap: 10 },
-  primaryBtn: { backgroundColor: "#0ea5e9", borderRadius: 999, paddingVertical: 12, alignItems: "center" },
-  primaryText: { color: "#001022", fontWeight: "800" },
-  secondaryBtn: { borderWidth: 1, borderColor: "#334155", borderRadius: 999, paddingVertical: 12, alignItems: "center" },
-  secondaryText: { color: "#9aa6c2", fontWeight: "700" },
 });
