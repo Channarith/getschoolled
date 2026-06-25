@@ -11,6 +11,24 @@ Format: newest first. No markdown per project convention.
   localhost→10.0.2.2 on Android for API URLs.
 - 2026-06-25 - Mobile setup: doctor no longer blocks first-time Expo Go install
   (setup step 2 treats missing Expo Go as WARN; step 3 runs CDN install).
+- 2026-06-24 - Corporate training track + chemistry arcade. Lessons can be tagged
+  AUDIENCE: corporate (orchestrator curriculum loader + Lesson.audience); the Live
+  Class picker hides corporate lessons and the /corporate page lists AI-led courses
+  that launch in a dedicated course player (/corporate/learn) reusing a shared
+  ClassRoom component (slides + Ask-the-AI-teacher, auto-start). New Potion Lab
+  real-time arcade game (apps/web/app/arcade/chemistry) with age-scaled difficulty
+  (kids/tween/teen/adult), hazards (bacteria/bombs), level progression, and a
+  guarantee that every required atom is always on the field.
+- 2026-06-24 - Add sample corporate-training curriculum "AI Fluency Essentials"
+  (sample-curriculum/ai-fluency-essentials, 20 slides, FACT-grounded for RAG) plus
+  scripts/demo_ai_fluency.py to drive the orchestrator end-to-end (list -> start ->
+  advance -> ask) for a live teaching demo.
+- 2026-06-24 - Mobile typecheck: tsconfig.typecheck.json + preflight script; verbose
+  mode no longer runs tsc --listFilesOnly (Mac Node 22 OOM). doctor checks for
+  stale package.json typecheck scripts.
+- 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
+  Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
+  doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
 - 2026-06-25 - Mobile launch: debug on by default; EXPO_OFFLINE=1 always (local bundled
   modules); CI=false; separate mobile-install-expo-go-ios.sh for first-time Expo Go.
 - 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the

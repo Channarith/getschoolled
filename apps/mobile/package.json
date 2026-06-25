@@ -35,6 +35,8 @@
     "ios": "bash scripts/mobile-run-ios.sh",
     "android:debug": "EXPO_DEBUG=1 bash scripts/mobile-expo.sh run:android",
     "ios:debug": "EXPO_DEBUG=1 bash scripts/mobile-run-ios.sh",
+    "xcode:debug": "bash scripts/mobile-xcodebuild-debug.sh",
+    "gradle:debug": "bash scripts/mobile-gradle-debug.sh",
     "web": "bash scripts/mobile-expo.sh start --web",
     "typecheck": "bash scripts/mobile-typecheck.sh",
     "typecheck:verbose": "VERBOSE=1 bash scripts/mobile-typecheck.sh",

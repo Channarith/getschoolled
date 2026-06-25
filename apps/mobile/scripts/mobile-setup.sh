@@ -56,8 +56,8 @@ if ! bash "$SCRIPT_DIR/mobile-install.sh"; then
 fi
 echo ""
 
-echo "==> Step 2/4: Environment doctor (missing Expo Go is OK — step 3 installs it)"
-if ! MOBILE_DOCTOR_SETUP=1 bash "$SCRIPT_DIR/mobile-doctor.sh" --setup; then
+echo "==> Step 2/4: Environment doctor (pre-install — Expo Go OK to be missing)"
+if ! MOBILE_SETUP=1 bash "$SCRIPT_DIR/mobile-doctor.sh"; then
   echo ""
   echo "FAIL: fix doctor FAIL items above, then re-run: bash scripts/mobile-setup.sh" >&2
   exit 1
@@ -106,12 +106,13 @@ fi
 echo "==> Step 4/4: Verify Expo Go + Orbit status"
 # shellcheck source=mobile-sim-utils.sh
 . "$SCRIPT_DIR/mobile-sim-utils.sh"
+SETUP_OK=1
 if [[ "$SETUP_IOS" == "1" ]]; then
   if mobile_ios_expo_go_installed; then
     echo "  OK   Expo Go on iOS Simulator"
   else
     echo "  FAIL Expo Go missing on iOS — run: bash scripts/mobile-install-expo-go-ios.sh" >&2
-    exit 1
+    SETUP_OK=0
   fi
   if mobile_expo_go_ios_cache_present; then
     echo "  OK   Expo Go cache: $(mobile_expo_go_ios_cache_dir)"
@@ -123,6 +124,17 @@ if mobile_expo_orbit_installed; then
   echo "  OK   Expo Orbit installed (optional — not required for daily dev)"
 else
   echo "  INFO Expo Orbit not installed (optional — https://expo.dev/orbit)"
+fi
+echo ""
+
+if [[ "$SETUP_OK" != "1" ]]; then
+  exit 1
+fi
+
+echo "==> Final doctor (post-install)"
+if ! bash "$SCRIPT_DIR/mobile-doctor.sh"; then
+  echo ""
+  echo "WARN: post-install doctor reported issues — see above" >&2
 fi
 echo ""
 

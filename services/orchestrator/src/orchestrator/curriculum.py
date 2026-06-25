@@ -28,6 +28,9 @@ class Lesson(BaseModel):
     lesson_id: str
     title: str
     language: str = "en"
+    # Which catalog this lesson belongs to. "general" lessons show in the Live
+    # Class picker; "corporate" lessons are surfaced under Corporate training.
+    audience: str = "general"
     slides: List[Slide] = Field(default_factory=list)
 
 
@@ -44,6 +47,7 @@ def curriculum_root() -> str:
 def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     title = lesson_id
     language = "en"
+    audience = "general"
     slides: List[Slide] = []
     passages: List[str] = []
 
@@ -81,6 +85,9 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
         if line.startswith("LANGUAGE:"):
             language = line.split(":", 1)[1].strip()
             continue
+        if line.startswith("AUDIENCE:"):
+            audience = line.split(":", 1)[1].strip().lower() or "general"
+            continue
         if line.startswith("NARRATION:"):
             cur_narration = line.split(":", 1)[1].strip()
             continue
@@ -98,7 +105,7 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     flush()
 
     return (
-        Lesson(lesson_id=lesson_id, title=title, language=language, slides=slides),
+        Lesson(lesson_id=lesson_id, title=title, language=language, audience=audience, slides=slides),
         passages,
     )
 

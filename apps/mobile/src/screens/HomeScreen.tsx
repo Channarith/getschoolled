@@ -24,10 +24,11 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory,
+  onOpenCourse, onOpenCategory, onOpenCareers,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
+  onOpenCareers: () => void;
 }) {
   const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
@@ -132,6 +133,10 @@ export default function HomeScreen({
         <Text style={styles.heroSub}>
           {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
         </Text>
+        <Pressable style={styles.careersBtn} onPress={onOpenCareers} accessibilityRole="button">
+          <Text style={styles.careersBtnText}>{t("home.careers")}</Text>
+          <Text style={styles.careersBtnSub}>{t("home.careersSub")}</Text>
+        </Pressable>
       </View>
 
       <Modal
@@ -264,6 +269,12 @@ const styles = StyleSheet.create({
   kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },
   heroSub: { color: "#c5cce0", marginTop: 6 },
+  careersBtn: {
+    alignSelf: "flex-start", backgroundColor: "#16a34a", borderRadius: 12,
+    marginTop: 14, paddingHorizontal: 16, paddingVertical: 12,
+  },
+  careersBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  careersBtnSub: { color: "#dcfce7", fontSize: 12, marginTop: 2 },
   err: { color: "#ff6b6b", paddingHorizontal: 16, paddingBottom: 12 },
   modalScrim: {
     alignItems: "center", backgroundColor: "rgba(3,7,18,0.78)", flex: 1,

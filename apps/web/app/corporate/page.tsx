@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   getPrograms,
+  listLessons,
   searchCourses,
   type CatalogCourse,
+  type Lesson,
   type Program,
 } from "../lib/api";
 
 export default function CorporatePage() {
   const [programs, setPrograms] = useState<Program[] | null>(null);
   const [courses, setCourses] = useState<Record<string, CatalogCourse>>({});
+  const [corpLessons, setCorpLessons] = useState<Lesson[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,6 +26,11 @@ export default function CorporatePage() {
         setCourses(byId);
       })
       .catch((e) => setError(String(e)));
+    // AI-led corporate courses come from the orchestrator (lessons tagged
+    // AUDIENCE: corporate). These are taught live by the AI teacher.
+    listLessons()
+      .then((ls) => setCorpLessons(ls.filter((l) => (l.audience ?? "general") === "corporate")))
+      .catch(() => setCorpLessons([]));
   }, []);
 
   return (
@@ -34,6 +42,29 @@ export default function CorporatePage() {
       </p>
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
+
+      {corpLessons.length > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <h2 style={{ marginBottom: 4 }}>AI-led courses</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Taught live by the AI teacher — start anytime, ask questions, learn at your pace.
+          </p>
+          {corpLessons.map((l) => (
+            <div className="card" key={l.lesson_id}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <h3 style={{ margin: 0 }}>{l.title}</h3>
+                <span className="pill" style={{ color: "#0369a1" }}>corporate</span>
+              </div>
+              <p className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
+                {l.slides.length} slide{l.slides.length === 1 ? "" : "s"} · AI teacher · Q&amp;A
+              </p>
+              <Link href={`/corporate/learn?lesson=${encodeURIComponent(l.lesson_id)}`}>
+                <button>Start course</button>
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
       {programs === null && !error && <p className="muted">Loading programs…</p>}
       {programs && programs.length === 0 && (
         <div className="card">

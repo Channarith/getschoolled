@@ -20,6 +20,7 @@ class LearnableItem(BaseModel):
     format: str = "video"
     level: str = "beginner"
     language: str = "en"
+    audio_language: str = ""
     duration_min: int = 0
     tags: List[str] = Field(default_factory=list)
     maturity_rating: str = "all"

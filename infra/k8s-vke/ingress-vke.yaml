@@ -45,7 +45,10 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
+          # Careers UI (Next.js). API lives at /curriculum/jobs via aoep-apis.
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
@@ -70,7 +73,10 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
+          # Careers UI (Next.js). API lives at /curriculum/jobs via aoep-apis.
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
@@ -118,7 +124,10 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
+          # Careers UI (Next.js). API lives at /curriculum/jobs via aoep-apis.
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }

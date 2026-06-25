@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getGamesCatalog,
@@ -20,6 +21,7 @@ const SUBJECT_ICON: Record<string, string> = {
 };
 
 export default function ArcadePage() {
+  const router = useRouter();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [subject, setSubject] = useState("biology");
   const [gameType, setGameType] = useState("quiz");
@@ -67,6 +69,12 @@ export default function ArcadePage() {
   }, [round, timeLeft, finish]);
 
   async function play() {
+    // Potion Lab is a real-time arcade game (its own page); launch it with the
+    // chosen age group so difficulty scales (kids = slow/simple, adults = fast/complex).
+    if (subject === "chemistry" && gameType === "potion") {
+      router.push(`/arcade/chemistry?age=${ageGroup}`);
+      return;
+    }
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     try {
       const r = await newGame(subject, gameType, ageGroup, gameType === "match" ? 4 : 5);
@@ -102,7 +110,8 @@ export default function ArcadePage() {
           <h3 style={{ marginTop: 0 }}>Choose your game</h3>
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
             {cat?.subjects.map((s) => (
-              <button key={s} onClick={() => setSubject(s)}
+              <button key={s}
+                onClick={() => { setSubject(s); if (s !== "chemistry" && gameType === "potion") setGameType("quiz"); }}
                 style={{ opacity: subject === s ? 1 : 0.55, fontSize: 14 }}>
                 {SUBJECT_ICON[s] ?? "📘"} {s}
               </button>
@@ -127,6 +136,13 @@ export default function ArcadePage() {
                 {g.name}
               </button>
             ))}
+            {subject === "chemistry" && (
+              <button onClick={() => setGameType("potion")}
+                title="Arcade: catch flying atoms to build molecules! Difficulty scales with age group."
+                style={{ opacity: gameType === "potion" ? 1 : 0.55, background: gameType === "potion" ? "#7c3aed" : undefined, color: gameType === "potion" ? "#fff" : undefined }}>
+                ⚗️ Potion Lab
+              </button>
+            )}
           </div>
           <div style={{ marginTop: 16 }}>
             <button onClick={play} style={{ background: "#7c3aed", color: "#fff", padding: "10px 22px" }}>
