@@ -3,6 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
+  Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
+  Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
+  (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
+  the Auto-merge workflow completing successfully; it still checks out main and
+  is idempotent (skips if the tag already exists).
 - 2026-06-25 - Fix web typecheck (tsc) errors. ClassRoom finish state is now a
   discriminated union so the "earned" branch guarantees earned/balance are
   numbers (not number|undefined); rewards page coerces a nullable raffle entry id
