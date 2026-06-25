@@ -2,22 +2,50 @@
 # Shared simulator boot helpers for mobile launch scripts.
 
 mobile_ios_pick_simulator() {
-  local name="${SIM_DEVICE:-iPhone 16}"
-  xcrun simctl list devices available 2>/dev/null \
-    | grep -F "${name} (" \
-    | head -n1 \
-    | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'
+  local name="${SIM_DEVICE:-iPhone 17}"
+  local runtime="${SIM_RUNTIME:-}"
+  local list section udid best_udid="" best_ver=""
+
+  list="$(xcrun simctl list devices available 2>/dev/null)" || return 1
+
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^--\ iOS\ (.+)\ --$ ]]; then
+      section="${BASH_REMATCH[1]}"
+      continue
+    fi
+    [[ "$line" == *"${name} ("* ]] || continue
+    udid="$(sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/' <<<"$line")"
+    if [[ -n "$runtime" ]]; then
+      if [[ "$section" == *"$runtime"* ]]; then
+        echo "$udid"
+        return 0
+      fi
+      continue
+    fi
+    # No SIM_RUNTIME: prefer the newest iOS section (skip legacy 18.x when 26.x exists).
+    if [[ -z "$best_ver" ]] || [[ "$(printf '%s\n' "$section" "$best_ver" | sort -V | tail -1)" == "$section" ]]; then
+      best_udid="$udid"
+      best_ver="$section"
+    fi
+  done <<<"$list"
+
+  if [[ -n "$best_udid" ]]; then
+    echo "$best_udid"
+    return 0
+  fi
+
+  sed -nE "s/.*${name} \\(([0-9A-F-]{36})\\).*/\\1/p" <<<"$list" | head -n1
 }
 
 mobile_ios_boot_simulator() {
   local udid
   udid="$(mobile_ios_pick_simulator)"
   if [[ -z "$udid" ]]; then
-    echo "WARN: no iOS simulator matching SIM_DEVICE=${SIM_DEVICE:-iPhone 16}" >&2
+    echo "WARN: no iOS simulator matching SIM_DEVICE=${SIM_DEVICE:-iPhone 17}" >&2
     open -a Simulator || true
     return 0
   fi
-  echo "==> Booting iOS Simulator (${SIM_DEVICE:-iPhone 16}, $udid)"
+  echo "==> Booting iOS Simulator (${SIM_DEVICE:-iPhone 17}, $udid)"
   xcrun simctl boot "$udid" 2>/dev/null || true
   open -a Simulator || true
   echo "    waiting for simulator to finish booting…"

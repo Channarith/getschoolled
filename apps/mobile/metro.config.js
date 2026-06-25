@@ -24,6 +24,9 @@ config.resolver.blockList = exclusionList([
 ]);
 
 config.watchFolders = [path.resolve(__dirname)];
+// Broken Watchman (common on Mac) yields incomplete file maps → Metro 500 on
+// @babel/runtime. Node filesystem crawl is slower but reliable for local dev.
+config.resolver.useWatchman = false;
 config.watcher = {
   ...config.watcher,
   healthCheck: { enabled: false },

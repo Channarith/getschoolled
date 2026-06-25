@@ -18,6 +18,30 @@ mobile_deps_has_expo() {
   [ -e node_modules/.bin/expo ] || [ -f node_modules/expo/bin/cli ] || [ -d node_modules/expo ]
 }
 
+mobile_deps_has_babel_runtime() {
+  local root helper
+  root="$(mobile_deps_root)"
+  helper="$root/node_modules/@babel/runtime/helpers/interopRequireDefault.js"
+  [ -f "$helper" ] || return 1
+  # Metro indexes only files under the project root — reject pnpm symlinks to ~/.
+  if [ -L "$root/node_modules/@babel/runtime" ]; then
+    local target
+    target="$(readlink "$root/node_modules/@babel/runtime" 2>/dev/null || true)"
+    case "$target" in
+      /*) return 1 ;;
+      ../*)
+        local resolved
+        resolved="$(cd "$root/node_modules/@babel" && pwd -P)/$(basename "$target")"
+        case "$resolved" in
+          "$root"/*) return 0 ;;
+          *) return 1 ;;
+        esac
+        ;;
+    esac
+  fi
+  return 0
+}
+
 mobile_deps_tsc_cmd() {
   if [ -f node_modules/typescript/lib/tsc.js ]; then
     printf '%s\n' node node_modules/typescript/lib/tsc.js
@@ -35,6 +59,7 @@ mobile_deps_print_status() {
     echo "    typescript/lib/tsc.js: $([ -f node_modules/typescript/lib/tsc.js ] && echo yes || echo NO)"
     echo "    node_modules/.bin/expo: $([ -e node_modules/.bin/expo ] && echo yes || echo NO)"
     echo "    babel-preset-expo: $([ -d node_modules/babel-preset-expo ] && echo yes || echo NO)"
+    echo "    @babel/runtime (Metro-local): $(mobile_deps_has_babel_runtime && echo yes || echo NO)"
   fi
 }
 

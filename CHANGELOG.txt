@@ -2,9 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
-  Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
-  doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
+- 2026-06-25 - Mobile iOS: patch expo-localization for Xcode 26 calendar identifiers
+  (fixes Swift "switch must be exhaustive" on native build).
+- 2026-06-25 - Mobile iOS native build: mobile-run-ios.sh boots iPhone 17 on iOS 26.4+
+  by default (fixes xcodebuild error 70 when an iOS 18.x simulator is booted).
+- 2026-06-25 - Mobile Android: fix Metro 500 (@babel/runtime must be copied into
+  apps/mobile/node_modules; package-import-method=copy; disable Watchman); map
+  localhost→10.0.2.2 on Android for API URLs.
+- 2026-06-25 - Mobile setup: doctor no longer blocks first-time Expo Go install
+  (setup step 2 treats missing Expo Go as WARN; step 3 runs CDN install).
 - 2026-06-25 - Mobile launch: debug on by default; EXPO_OFFLINE=1 always (local bundled
   modules); CI=false; separate mobile-install-expo-go-ios.sh for first-time Expo Go.
 - 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the

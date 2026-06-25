@@ -35,7 +35,12 @@ fi
 
 # pnpm v11 optimisticRepeatInstall can print "Already up to date" without creating
 # node_modules after a deleted tree — force a real link pass.
-PNPM_FLAGS=(--force --config.optimistic-repeat-install=false --config.node-linker=hoisted)
+PNPM_FLAGS=(
+  --force
+  --config.optimistic-repeat-install=false
+  --config.node-linker=hoisted
+  --config.package-import-method=copy
+)
 
 if [ -d node_modules ] && ! mobile_deps_has_tsc; then
   echo "    node_modules present but typescript/tsc missing — removing stale tree"
@@ -78,12 +83,32 @@ if ! mobile_deps_has_tsc; then
   exit 1
 fi
 
+if ! mobile_deps_has_babel_runtime; then
+  echo "    @babel/runtime missing or symlinked outside project — retry with copy"
+  rm -rf node_modules
+  pnpm install "${PNPM_FLAGS[@]}" || true
+fi
+
+if ! mobile_deps_has_babel_runtime && command -v npm >/dev/null 2>&1; then
+  echo "    falling back to npm install for @babel/runtime (Metro-local copy)"
+  rm -rf node_modules
+  npm install --legacy-peer-deps
+fi
+
+if ! mobile_deps_has_babel_runtime; then
+  echo "ERROR: @babel/runtime must live under apps/mobile/node_modules (Metro red screen if not)." >&2
+  mobile_deps_print_status >&2
+  exit 1
+fi
+
 if ! mobile_deps_has_expo; then
   echo "WARN: expo not found after install — dev server may fail." >&2
   mobile_deps_print_status >&2
 else
-  ok_msg="expo + typescript present"
+  ok_msg="expo + typescript + @babel/runtime present"
 fi
 
 echo "OK install (${ok_msg:-typescript present})"
 mobile_deps_print_status
+
+node scripts/patch-expo-localization-ios.js || true

@@ -56,8 +56,8 @@ if ! bash "$SCRIPT_DIR/mobile-install.sh"; then
 fi
 echo ""
 
-echo "==> Step 2/4: Environment doctor"
-if ! bash "$SCRIPT_DIR/mobile-doctor.sh"; then
+echo "==> Step 2/4: Environment doctor (missing Expo Go is OK — step 3 installs it)"
+if ! MOBILE_DOCTOR_SETUP=1 bash "$SCRIPT_DIR/mobile-doctor.sh" --setup; then
   echo ""
   echo "FAIL: fix doctor FAIL items above, then re-run: bash scripts/mobile-setup.sh" >&2
   exit 1
