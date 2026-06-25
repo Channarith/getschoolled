@@ -57,6 +57,15 @@ export default function DriveModeScreen({
     voiceStyleRef.current = resolveVoiceStyle(settings.narrationVoicePref, student);
   }
 
+  async function refreshVoiceStyle() {
+    const settings = await getSettings();
+    let student = null;
+    try {
+      student = (await listStudents()).students[0] ?? null;
+    } catch { /* offline / guest */ }
+    voiceStyleRef.current = resolveVoiceStyle(settings.narrationVoicePref, student);
+  }
+
   useEffect(() => {
     void warmVoices();
     void refreshVoiceStyle();
