@@ -403,15 +403,13 @@ def _search_learnable_as_courses(**kwargs) -> list[Course]:
     offset = int(kwargs.pop("offset", 0))
     audio = kwargs.pop("audio", None)
     media_format = kwargs.pop("media_format", None)
-    fmt = media_format
-    if audio and not fmt:
-        fmt = "audio"
     result = search_learnable(
         _learnable_index(),
         q=kwargs.get("q"),
         category=kwargs.get("category"),
         language=kwargs.get("language"),
-        format=fmt,
+        audio_language=audio,
+        format=media_format,
         level=kwargs.get("level"),
         tag=kwargs.get("tag"),
         hands_on=kwargs.get("hands_on"),

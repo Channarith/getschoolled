@@ -28,6 +28,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         subject = c.subject
         level = c.level
         language = c.language
+        audio_language = getattr(c, "audio_language", "") or language
         duration_min = int(c.duration_min or 0)
         tags = list(c.tags or [])
         maturity_rating = c.maturity_rating
@@ -44,6 +45,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         subject = c.get("subject", "")
         level = c.get("level", "beginner")
         language = c.get("language", "en")
+        audio_language = c.get("audio_language", "") or language
         duration_min = int(c.get("duration_min", 0) or 0)
         tags = list(c.get("tags", []) or [])
         maturity_rating = c.get("maturity_rating", "all")
@@ -65,6 +67,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         format=fmt,
         level=level,
         language=language,
+        audio_language=audio_language,
         duration_min=duration_min,
         tags=tags,
         maturity_rating=maturity_rating,
@@ -95,6 +98,7 @@ def _from_audio(ac: AudioCourse) -> LearnableItem:
         format="audio",
         level=ac.level,
         language="en",
+        audio_language="en",
         duration_min=ac.duration_min,
         tags=tags,
         drive_safe=ac.drive_safe,
@@ -154,6 +158,7 @@ def _from_language(lang: dict) -> LearnableItem:
         format="interactive",
         level="beginner",
         language=code,
+        audio_language=code,
         duration_min=30,
         tags=["language", tier, code],
         preview=f"Practice {lang['name']} with pronunciation, vocabulary, and phrases.",
@@ -260,6 +265,7 @@ def search_learnable(
     format: Optional[str] = None,
     level: Optional[str] = None,
     language: Optional[str] = None,
+    audio_language: Optional[str] = None,
     maturity: Optional[str] = None,
     hands_on: Optional[bool] = None,
     audience: Optional[str] = None,
@@ -305,6 +311,10 @@ def search_learnable(
         if not _matches_eq(c.level, level):
             return False
         if not _matches_eq(c.language, language):
+            return False
+        if audio_language is not None and not _matches_eq(
+            c.audio_language or c.language, audio_language
+        ):
             return False
         if not _matches_eq(c.maturity_rating, maturity):
             return False
@@ -362,7 +372,9 @@ def learnable_facets(items: Sequence[LearnableItem]) -> dict:
     return {
         "categories": sorted({(c.category or c.subject) for c in items if (c.category or c.subject)}),
         "languages": distinct("language"),
-        "audio_languages": distinct("language"),
+        "audio_languages": sorted(
+            {(c.audio_language or c.language) for c in items if (c.audio_language or c.language)}
+        ),
         "media_formats": formats,
         "formats": formats,
         "sources": sources,
@@ -419,6 +431,7 @@ def learnable_home_rails(
     games = [c for c in pool if c.format == "game"]
 
     rail("live", "Live interactive classes", sorted(live, key=lambda c: c.title))
+    rail("new", "New this week", sorted(audio, key=lambda c: c.title))
     rail("audio", "Drive-safe audio classes", audio[:per_rail * 2])
     rail("languages", "Language learning", languages)
     rail("games", "Arcade practice", games)
@@ -446,7 +459,7 @@ def _item_as_catalog_dict(item: LearnableItem) -> dict:
         "subject": item.subject,
         "category": item.category,
         "language": item.language,
-        "audio_language": item.language,
+        "audio_language": item.audio_language or item.language,
         "media_format": item.catalog_media_format(),
         "level": item.level,
         "duration_min": item.duration_min,

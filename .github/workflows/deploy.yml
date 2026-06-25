@@ -14,6 +14,7 @@
 # Required repo secrets:
 #   VULTR_REGISTRY_USERNAME / VULTR_REGISTRY_PASSWORD  (Vultr Container Registry creds)
 #   KUBE_CONFIG_B64                                     (base64 of a kubeconfig for the VKE cluster)
+#   KUBE_CONFIG                                         (optional: raw kubeconfig YAML multiline secret)
 # Optional repo variables:
 #   REGISTRY  (default sjc.vultrcr.com/salareen)
 #   AUTO_DEPLOY ("true" to deploy on every push to main)
@@ -108,10 +109,10 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
       - name: Configure kubeconfig
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: bash scripts/github_configure_kubeconfig.sh
       - name: Roll deployments to the new tag
         env:
           TAG: ${{ github.event.inputs.tag || github.sha }}
@@ -120,7 +121,7 @@ jobs:
           for svc in orchestrator speech perception memory curriculum billing identity integrations harvester web; do
             echo "::group::$svc"
             # Container names match the deployment name in infra/k8s.
-            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" --record || \
+            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" || \
               echo "deployment/$svc not found (skipping)"
             echo "::endgroup::"
           done
