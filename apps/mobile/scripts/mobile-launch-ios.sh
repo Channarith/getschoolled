@@ -72,5 +72,9 @@ else
   echo "    Metro port: $RCT_METRO_PORT"
   mobile_print_launch_timeline ios
   echo "==> Starting… (watch for 'Bundled' or 'Opening on iOS')"
-  "${EXPO[@]}" start --ios "${EXPO_START_FLAGS[@]}"
+  if [[ ${#EXPO_START_FLAGS[@]} -gt 0 ]]; then
+    "${EXPO[@]}" start --ios "${EXPO_START_FLAGS[@]}"
+  else
+    "${EXPO[@]}" start --ios
+  fi
 fi

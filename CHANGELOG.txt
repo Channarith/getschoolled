@@ -2,8 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Mobile launch: drop --clear from default (faster restarts); boot iOS
-  sim explicitly; print expected timeline; --fresh only when cache corrupt.
+- 2026-06-25 - Fix mobile launch on macOS bash 3.2: empty EXPO_START_FLAGS unbound with set -u.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist

@@ -89,5 +89,9 @@ else
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
   mobile_print_launch_timeline android
   echo "==> Starting… (watch for 'Bundled' or 'Opening on Android')"
-  "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"
+  if [[ ${#EXPO_START_FLAGS[@]} -gt 0 ]]; then
+    "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"
+  else
+    "${EXPO[@]}" start --android
+  fi
 fi
