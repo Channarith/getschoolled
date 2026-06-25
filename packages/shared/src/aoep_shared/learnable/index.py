@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from aoep_shared.audio_courses import AudioCourse, build_catalog
+from aoep_shared.course_artwork import resolve_course_poster_from_mapping
 from aoep_shared.games import GAME_SUBJECTS
 from aoep_shared.language_learning import language_list
 
@@ -453,7 +454,7 @@ def learnable_home_rails(
 
 
 def _item_as_catalog_dict(item: LearnableItem) -> dict:
-    return {
+    base = {
         "course_id": item.source_id,
         "title": item.title,
         "subject": item.subject,
@@ -476,6 +477,8 @@ def _item_as_catalog_dict(item: LearnableItem) -> dict:
         "deep_link": item.deep_link,
         "global_id": item.id,
     }
+    base["thumbnail"] = resolve_course_poster_from_mapping({**base, "format": item.format})
+    return base
 
 
 def item_to_course_dict(item: LearnableItem) -> dict:

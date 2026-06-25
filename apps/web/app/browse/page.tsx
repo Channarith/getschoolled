@@ -11,6 +11,7 @@ import {
   type Facets,
   type LearnableItem,
 } from "../lib/api";
+import { coursePosterUrl } from "../lib/courseArtwork";
 
 const FORMAT_LABELS: Record<string, string> = {
   audio: "Audio / Drive",
@@ -135,8 +136,26 @@ export default function BrowsePage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
         {items.length === 0 && <div className="muted">No matches. Try clearing filters or another keyword.</div>}
         {items.map((c) => (
-          <div className="card" key={c.id}>
-            <h3 style={{ marginBottom: 4 }}>{c.title}</h3>
+          <div className="tile browse-tile" key={c.id}>
+            <div className="tile-art">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="tile-poster"
+                src={coursePosterUrl({
+                  title: c.title,
+                  category: c.category,
+                  subject: c.subject,
+                  tags: c.tags,
+                  format: c.format,
+                  thumbnail: c.thumbnail,
+                })}
+                alt=""
+                loading="lazy"
+              />
+              <div className="tile-art-scrim" aria-hidden />
+            </div>
+            <div className="tile-body">
+            <h3 style={{ marginBottom: 4, fontSize: 14 }}>{c.title}</h3>
             <div className="muted" style={{ fontSize: 12 }}>
               {FORMAT_LABELS[c.format] || c.format} · {c.category || c.subject} · {c.level}
               {c.duration_min ? ` · ${c.duration_min} min` : ""}
@@ -151,6 +170,7 @@ export default function BrowsePage() {
               {c.source === "catalog" && (
                 <button type="button" onClick={() => onEnroll(c)}>Enroll</button>
               )}
+            </div>
             </div>
           </div>
         ))}

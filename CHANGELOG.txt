@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Course posters: subject-aware Unsplash artwork on web rails/browse
+  tiles and mobile CourseCard; aoep_shared.course_artwork resolves thumbnails in
+  /home and /learn/search API responses.
 - 2026-06-25 - Mobile UI: Netflix-style redesign (cinematic wallpaper, glass panels,
   Ionicons tabs, poster rails, spring press feedback) aligned with web; login
   reachability checks, clearer backend errors, mobile-check-backends.sh, Android

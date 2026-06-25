@@ -1,8 +1,9 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, ImageBackground, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import AnimatedPressable from "./AnimatedPressable";
+import { coursePosterUrl } from "../courseArtwork";
 import { categoryGradient, theme } from "../theme";
 
 type Props<T> = {
@@ -43,7 +44,7 @@ export default function Rail<T>({
 }
 
 export function CourseCard({
-  emoji = "🎧", title, meta, onPress, savedBadge, progressPct, category,
+  emoji = "🎧", title, meta, onPress, savedBadge, progressPct, category, format,
 }: {
   emoji?: string;
   title: string;
@@ -52,11 +53,16 @@ export function CourseCard({
   savedBadge?: boolean;
   progressPct?: number;
   category?: string;
+  format?: string;
 }) {
-  const [c1, c2] = categoryGradient(category || title);
+  const poster = coursePosterUrl({ title, category, format });
   return (
     <AnimatedPressable onPress={onPress} style={styles.card}>
-      <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.poster}>
+      <ImageBackground source={{ uri: poster }} style={styles.poster} imageStyle={styles.posterImage}>
+        <LinearGradient
+          colors={["transparent", "rgba(11,16,32,0.85)"]}
+          style={StyleSheet.absoluteFillObject}
+        />
         <Text style={styles.posterEmoji}>{emoji}</Text>
         <Text numberOfLines={2} style={styles.posterTitle}>{title}</Text>
         {savedBadge ? (
@@ -69,7 +75,7 @@ export function CourseCard({
             <View style={[styles.progressBar, { width: `${Math.max(4, Math.min(100, progressPct))}%` }]} />
           </View>
         ) : null}
-      </LinearGradient>
+      </ImageBackground>
       <View style={styles.cardBody}>
         <Text numberOfLines={2} style={styles.cardTitle}>{title}</Text>
         {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
@@ -119,6 +125,11 @@ const styles = StyleSheet.create({
     padding: 10,
     justifyContent: "flex-end",
     position: "relative",
+    overflow: "hidden",
+  },
+  posterImage: {
+    borderTopLeftRadius: theme.radius.md,
+    borderTopRightRadius: theme.radius.md,
   },
   posterEmoji: { fontSize: 28, position: "absolute", top: 10, right: 10, opacity: 0.85 },
   posterTitle: {
