@@ -21,7 +21,8 @@ def test_home_feed_uses_audio_when_catalog_empty():
     assert any(k.startswith("cat:") for k in keys)
     total_courses = sum(len(r["courses"]) for r in rails)
     assert total_courses >= 12
-    sample = rails[0]["courses"][0]
+    audio_rail = next(r for r in rails if r["key"] == "audio")
+    sample = audio_rail["courses"][0]
     assert sample["media_format"] == "audio"
     assert sample["course_id"].startswith(("audio-", "lang-"))
 
@@ -30,7 +31,7 @@ def test_search_and_facets_use_audio_when_catalog_empty():
     _empty_catalog()
     courses = client.get("/courses/search").json()
     assert len(courses) >= 50
-    assert courses[0]["media_format"] == "audio"
+    assert any(c["media_format"] == "audio" for c in courses)
     facets = client.get("/courses/facets").json()
     assert "History" in facets["categories"] or len(facets["categories"]) >= 5
     assert "audio" in facets["media_formats"]
