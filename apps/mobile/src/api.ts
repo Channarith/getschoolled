@@ -22,9 +22,21 @@ export type CategoryRow = {
 };
 
 export type HomeRail = {
-  rail_id: string; title: string; reason?: string;
+  key: string; title: string; reason?: string;
   courses: { course_id: string; title: string; category?: string;
-             tags?: string[]; level?: string; popularity?: number }[];
+             tags?: string[]; level?: string; popularity?: number;
+             source?: string; format?: string; deep_link?: string }[];
+};
+
+export type LearnableItem = {
+  id: string; source: string; source_id: string; title: string; subtitle?: string;
+  category: string; subject: string; format: string; level: string; language: string;
+  duration_min: number; tags: string[]; preview: string; deep_link: string;
+  drive_safe?: boolean;
+};
+
+export type LearnSearchResult = {
+  total: number; offset: number; limit: number; items: LearnableItem[];
 };
 
 export type NotificationItem = {
@@ -140,6 +152,17 @@ export async function getHomeRails(kids = false): Promise<HomeRail[]> {
   } catch {
     return [];
   }
+}
+
+export function searchLearnable(params: Record<string, string> = {}) {
+  const p = new URLSearchParams(params);
+  return get<LearnSearchResult>(CURRICULUM_URL, `/learn/search?${p.toString()}`);
+}
+
+export function getLearnFacets() {
+  return get<{
+    categories: string[]; formats: string[]; sources: string[]; levels: string[];
+  }>(CURRICULUM_URL, "/learn/facets");
 }
 
 export async function signup(email: string, password: string, displayName: string):

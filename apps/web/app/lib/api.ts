@@ -330,6 +330,19 @@ export type CatalogCourse = {
   tags: string[]; access_tier: string; delivery_mode: string;
   maturity_rating?: string; price_usd?: number; thumbnail?: string | null;
   popularity?: number;
+  source?: string; format?: string; deep_link?: string; global_id?: string;
+};
+
+export type LearnableItem = {
+  id: string; source: string; source_id: string; title: string; subtitle?: string;
+  category: string; subject: string; format: string; level: string; language: string;
+  duration_min: number; tags: string[]; maturity_rating: string; hands_on: boolean;
+  drive_safe: boolean; access_tier: string; preview: string; deep_link: string;
+  popularity?: number;
+};
+
+export type LearnSearchResult = {
+  total: number; offset: number; limit: number; items: LearnableItem[];
 };
 
 export type HomeRail = { key: string; title: string; courses: CatalogCourse[] };
@@ -363,7 +376,21 @@ export type Facets = {
   categories: string[]; languages: string[]; audio_languages: string[];
   media_formats: string[]; levels: string[]; tags: string[];
   audiences?: { slug: string; label: string }[];
+  sources?: string[]; formats?: string[];
 };
+
+export async function searchLearnable(params: Record<string, string>): Promise<LearnSearchResult> {
+  const qs = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== "" && v != null)
+  ).toString();
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store" })
+  );
+}
+
+export async function getLearnFacets(): Promise<Facets> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/learn/facets`, { cache: "no-store" }));
+}
 
 export async function searchCourses(params: Record<string, string>): Promise<CatalogCourse[]> {
   const qs = new URLSearchParams(
