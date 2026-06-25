@@ -7,11 +7,8 @@
 // tap Ask/Mic to speak, optionally prefixed with "Hey Sala" or "Salareen".
 
 import { Linking, Platform } from "react-native";
-import {
-  addSpeechRecognitionListener,
-  ExpoSpeechRecognitionModule,
-} from "expo-speech-recognition";
 
+import { isExpoSpeechRecognitionAvailable, tryRequireModule } from "./nativeModules";
 import { localeToBcp47 } from "./tts";
 
 export type VoiceEngineLabel = "Siri" | "Google" | "Alexa" | "System" | "Browser";
@@ -26,6 +23,22 @@ const CONTEXTUAL_PHRASES = [
 
 type ListenerRemover = { remove: () => void };
 
+type SpeechRecognitionModule = {
+  isRecognitionAvailable: () => boolean;
+  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
+  getDefaultRecognitionService: () => Promise<{ packageName?: string } | null>;
+  abort: () => void;
+  stop: () => void;
+  start: (opts: Record<string, unknown>) => void;
+};
+
+type SpeechRecognitionEvents = {
+  addSpeechRecognitionListener: (
+    event: string,
+    listener: (event: Record<string, unknown>) => void,
+  ) => ListenerRemover;
+};
+
 type WebRecognition = {
   lang: string;
   interimResults: boolean;
@@ -39,6 +52,16 @@ type WebRecognition = {
 
 let activeListeners: ListenerRemover[] = [];
 let webRecognition: WebRecognition | null = null;
+
+function getSpeechRecognition(): SpeechRecognitionEvents & {
+  ExpoSpeechRecognitionModule: SpeechRecognitionModule;
+} | null {
+  return tryRequireModule("expo-speech-recognition");
+}
+
+function getSpeechModule(): SpeechRecognitionModule | null {
+  return getSpeechRecognition()?.ExpoSpeechRecognitionModule ?? null;
+}
 
 export function getVoiceEngineLabel(): VoiceEngineLabel {
   if (Platform.OS === "ios") return "Siri";
@@ -67,17 +90,25 @@ export async function isVoiceRecognitionAvailable(): Promise<boolean> {
     };
     return Boolean(root.SpeechRecognition || root.webkitSpeechRecognition);
   }
+  const mod = getSpeechModule();
+  if (!mod) return false;
   try {
-    return ExpoSpeechRecognitionModule.isRecognitionAvailable();
+    return mod.isRecognitionAvailable();
   } catch {
     return false;
   }
 }
 
+export function isNativeVoiceRecognitionLinked(): boolean {
+  return isExpoSpeechRecognitionAvailable();
+}
+
 export async function ensureVoicePermissions(): Promise<boolean> {
   if (Platform.OS === "web") return true;
+  const mod = getSpeechModule();
+  if (!mod) return false;
   try {
-    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    const result = await mod.requestPermissionsAsync();
     return result.granted;
   } catch {
     return false;
@@ -90,8 +121,10 @@ export async function getVoiceEngineDetails(): Promise<{
 }> {
   const label = getVoiceEngineLabel();
   if (Platform.OS === "android") {
+    const mod = getSpeechModule();
+    if (!mod) return { label };
     try {
-      const svc = await ExpoSpeechRecognitionModule.getDefaultRecognitionService();
+      const svc = await mod.getDefaultRecognitionService();
       const pkg = svc?.packageName ?? "";
       if (pkg.includes("google")) return { label: "Google", detail: pkg };
       if (pkg.includes("amazon") || pkg.includes("alexa")) return { label: "Alexa", detail: pkg };
@@ -113,8 +146,10 @@ export function stopVoiceListening(): void {
     return;
   }
 
-  try { ExpoSpeechRecognitionModule.abort(); } catch {
-    try { ExpoSpeechRecognitionModule.stop(); } catch { /* */ }
+  const mod = getSpeechModule();
+  if (!mod) return;
+  try { mod.abort(); } catch {
+    try { mod.stop(); } catch { /* */ }
   }
 }
 
@@ -164,21 +199,27 @@ function startWebListening(opts: StartListeningOpts): boolean {
 }
 
 function startNativeListening(opts: StartListeningOpts): boolean {
+  const speech = getSpeechRecognition();
+  const mod = speech?.ExpoSpeechRecognitionModule;
+  if (!speech || !mod) return false;
+
   activeListeners.push(
-    addSpeechRecognitionListener("result", (event) => {
-      const transcript = event.results?.[0]?.transcript?.trim() ?? "";
-      if (!transcript || !event.isFinal) return;
+    speech.addSpeechRecognitionListener("result", (event) => {
+      const results = event.results as Array<{ transcript?: string }> | undefined;
+      const transcript = results?.[0]?.transcript?.trim() ?? "";
+      if (!transcript || event.isFinal === false) return;
       opts.onResult(transcript);
     }),
-    addSpeechRecognitionListener("error", (event) => {
-      if (event.error === "aborted" || event.error === "no-speech") return;
-      opts.onError(event.error || "recognition_error");
+    speech.addSpeechRecognitionListener("error", (event) => {
+      const error = String(event.error ?? "");
+      if (error === "aborted" || error === "no-speech") return;
+      opts.onError(error || "recognition_error");
     }),
-    addSpeechRecognitionListener("end", () => opts.onEnd()),
+    speech.addSpeechRecognitionListener("end", () => opts.onEnd()),
   );
 
   try {
-    ExpoSpeechRecognitionModule.start({
+    mod.start({
       lang: localeToBcp47(opts.locale),
       interimResults: false,
       continuous: false,

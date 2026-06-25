@@ -78,7 +78,7 @@ if [[ "$FRESH" == "1" ]]; then
   echo "==> --fresh: clearing Metro cache (slower)"
 fi
 
-echo "==> Backend mode: ${MOBILE_DEPLOY_MODE:-cloud} (${MOBILE_CLOUD_BASE_URL:-http://45.63.91.80} when cloud)"
+echo "==> Backend mode: ${MOBILE_DEPLOY_MODE:-cloud} (${MOBILE_CLOUD_BASE_URL:-https://www.salareen.com} when cloud)"
 bash scripts/mobile-check-backends.sh || true
 
 if [[ "$NATIVE" == "1" ]]; then
@@ -91,6 +91,8 @@ if [[ "$NATIVE" == "1" ]]; then
   fi
 else
   echo "==> Expo Go: starting Metro, then opening Android emulator"
+  echo "    NOTE: Drive Mode voice (expo-speech-recognition) and driving"
+  echo "    detection need a native dev build: npm run launch:android:native"
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
   echo "    Metro port: $RCT_METRO_PORT"
   mobile_prepare_expo_go_launch android "$ADB"
