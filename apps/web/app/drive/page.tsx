@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getAudioCategories,
@@ -18,6 +18,14 @@ import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
 export default function DrivePage() {
+  return (
+    <Suspense fallback={<main className="container"><p className="muted">Loading Drive Mode…</p></main>}>
+      <DrivePageInner />
+    </Suspense>
+  );
+}
+
+function DrivePageInner() {
   const { t, locale } = useT();
   const searchParams = useSearchParams();
   const deepLinkCourse = searchParams.get("course");
