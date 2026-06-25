@@ -654,7 +654,16 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
+    let detail = res.statusText;
+    try {
+      const j = (await res.json()) as { detail?: unknown };
+      if (j.detail != null) {
+        detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      }
+    } catch {
+      /* non-JSON body */
+    }
+    throw new Error(`${res.status} ${detail}`);
   }
   return (await res.json()) as T;
 }
@@ -976,6 +985,22 @@ export async function skipLearningProfile(
       headers: authHeaders(),
     })
   );
+}
+
+/** True when identity exposes POST .../learning-profile (needs current deploy). */
+export async function identitySupportsLearningProfile(): Promise<boolean> {
+  try {
+    const res = await fetch(`${IDENTITY_URL}/__meta`, { cache: "no-store" });
+    if (!res.ok) return false;
+    const meta = (await res.json()) as { routes?: { path?: string; methods?: string[] }[] };
+    return (meta.routes ?? []).some(
+      (r) =>
+        r.path?.includes("learning-profile") &&
+        (r.methods ?? []).includes("POST"),
+    );
+  } catch {
+    return false;
+  }
 }
 
 // --- service version / status (automation + admin visibility) ----------- //

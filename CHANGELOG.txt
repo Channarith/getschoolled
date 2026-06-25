@@ -2,9 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Careers /jobs: ingress no longer routes web host /jobs to curriculum JSON;
-  serves Next.js Careers page (cards, search, course match). API stays at /curriculum/jobs.
-  Jobs page: loading skeletons, description excerpts, employment type badges.
+- 2026-06-24 - Learning profile survey: stop 404 re-prompt loop; probe identity __meta;
+  ingress routes /identity on www+salareen.com; k8s_verify_learning_profile.sh.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist

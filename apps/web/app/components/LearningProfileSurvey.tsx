@@ -8,6 +8,7 @@ import {
   getMe,
   getOnboardingSurvey,
   getToken,
+  identitySupportsLearningProfile,
   listStudents,
   skipLearningProfile,
   submitLearningProfile,
@@ -19,6 +20,37 @@ import {
 export const OPEN_LEARNING_PROFILE_EVENT = "aoep-open-learning-profile";
 
 const DISCLAIMER_KEY = "aoep_disclaimer_accepted_v1";
+/** When identity lacks learning-profile API, stop auto-prompt loop until deploy. */
+const SURVEY_LOCAL_DISMISS_KEY = "aoep_learning_profile_local_dismiss_v1";
+
+function isSurveyLocallyDismissed(): boolean {
+  try {
+    return Boolean(localStorage.getItem(SURVEY_LOCAL_DISMISS_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function dismissSurveyLocally(reason: string): void {
+  try {
+    localStorage.setItem(SURVEY_LOCAL_DISMISS_KEY, JSON.stringify({ at: Date.now(), reason }));
+  } catch {
+    /* private mode */
+  }
+}
+
+function clearSurveyLocalDismiss(): void {
+  try {
+    localStorage.removeItem(SURVEY_LOCAL_DISMISS_KEY);
+  } catch {
+    /* */
+  }
+}
+
+function isIdentityApiMissingError(err: unknown): boolean {
+  const msg = String(err);
+  return msg.includes("404") && (msg.includes("Not Found") || msg.toLowerCase().includes("not found"));
+}
 
 function requiredMissing(template: SurveyTemplate, answers: Record<string, unknown>): string[] {
   return template.questions
@@ -102,6 +134,29 @@ export default function LearningProfileSurvey() {
 
   const openForStudent = useCallback(async (force = false) => {
     if (!getToken()) return;
+    if (!force && isSurveyLocallyDismissed()) {
+      if (await identitySupportsLearningProfile()) {
+        clearSurveyLocalDismiss();
+      } else {
+        return;
+      }
+    }
+
+    const apiReady = await identitySupportsLearningProfile();
+    if (!apiReady && !force) {
+      return;
+    }
+    if (!apiReady && force) {
+      setError(
+        "Learning profile API is not available on this server (identity deploy update required). "
+        + "Ask an admin to run Deploy VKE (identity + web), then try again from Account → Learning profile.",
+      );
+      setOpen(true);
+      setManual(true);
+      setTemplate(null);
+      return;
+    }
+
     const me = await getMe();
     const survey = await getOnboardingSurvey(me.id, me.tier);
     if (!survey.enabled || !survey.template) return;
@@ -163,11 +218,22 @@ export default function LearningProfileSurvey() {
         student_id: studentId,
         answers,
       }).catch(() => undefined);
+      clearSurveyLocalDismiss();
       setDoneCategory(res.learner_category);
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
       setTimeout(() => setOpen(false), manual ? 1200 : 1800);
     } catch (e) {
-      setError(String(e));
+      if (isIdentityApiMissingError(e)) {
+        dismissSurveyLocally("identity_learning_profile_missing");
+        setError(
+          "Could not save to the cloud — identity service needs an update (404). "
+          + "Survey hidden for now; retry after Deploy VKE (identity + web). "
+          + "Your answers were not lost if you reopen from Account → Learning profile.",
+        );
+        setTimeout(() => setOpen(false), 4000);
+      } else {
+        setError(String(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -182,16 +248,43 @@ export default function LearningProfileSurvey() {
     setError("");
     try {
       await skipLearningProfile(studentId);
+      clearSurveyLocalDismiss();
       window.dispatchEvent(new CustomEvent("aoep-learning-profile-saved"));
       setOpen(false);
     } catch (e) {
-      setError(String(e));
+      if (isIdentityApiMissingError(e)) {
+        dismissSurveyLocally("identity_learning_profile_missing");
+        setError(
+          "Skip could not sync to the cloud (identity update required). "
+          + "We hid the survey so you can use the app — complete it later from Account.",
+        );
+        setTimeout(() => setOpen(false), 3500);
+      } else {
+        setError(String(e));
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  if (!open || !template) return null;
+  if (!open) return null;
+
+  if (!template) {
+    return (
+      <div role="dialog" aria-modal="true" aria-label="Learning profile survey"
+        style={{
+          position: "fixed", inset: 0, zIndex: 1001, display: "flex",
+          alignItems: "center", justifyContent: "center",
+          background: "rgba(0,0,0,0.65)", padding: 16,
+        }}>
+        <div className="card" style={{ maxWidth: 520, width: "100%" }}>
+          <h2 style={{ marginTop: 0 }}>Learning profile unavailable</h2>
+          {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
+          <button onClick={() => setOpen(false)} style={{ marginTop: 12 }}>Close</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Learning profile survey"
