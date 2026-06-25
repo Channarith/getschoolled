@@ -199,15 +199,19 @@ TYPECHECK
       VERBOSE=1 bash scripts/mobile-typecheck.sh
     Optional: export NODE_OPTIONS=--max-old-space-size=8192 before pnpm commands.
 
-  If export still OOM, build one platform at a time:
-    pnpm run export:ios
-    pnpm run export:android
+  If export OOMs (often on second platform after ios succeeds):
+    export scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=8192 and run each
+    platform in a separate Node process. Prefer bash directly on Mac:
+      bash scripts/mobile-export.sh ios
+      bash scripts/mobile-export.sh android
+    Or: pnpm run export:ios  then  pnpm run export:android  (one at a time)
 
-  Verbose export (see what Metro is doing):
-    pnpm run export:verbose
+  Verbose export:
+    VERBOSE=1 bash scripts/mobile-export.sh ios
 
 BUILD (production JS bundles - iOS + Android)
-  pnpm run export        # writes apps/mobile/dist/
+  bash scripts/mobile-export.sh ios android   # preferred on Mac
+  pnpm run export        # same via package.json
   # or: make mobile-build
   # Produces:
   #   dist/_expo/static/js/ios/index-<sha>.js     (~970 kB minified)

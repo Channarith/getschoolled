@@ -146,7 +146,7 @@ mobile-typecheck:
 # Produce production JS bundles for iOS + Android (apps/mobile/dist).
 # Native binaries (.apk/.aab/.ipa) build via EAS - see apps/mobile/RUN.txt.
 mobile-build: mobile-typecheck
-	cd apps/mobile && pnpm run export
+	cd apps/mobile && bash scripts/mobile-export.sh ios android
 
 # Generate native ios/ + android/ Gradle/Xcode projects from app.json.
 # (Requires network access to fetch the prebuild template.)
