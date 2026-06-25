@@ -1,5 +1,6 @@
 LESSON: AI Fluency: Essentials for the Modern Workplace
 LANGUAGE: en
+AUDIENCE: corporate
 
 SLIDE 1 | What This Course Is About
 Welcome to AI Fluency, a corporate training course that helps any professional

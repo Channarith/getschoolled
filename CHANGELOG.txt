@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Corporate training track + chemistry arcade. Lessons can be tagged
+  AUDIENCE: corporate (orchestrator curriculum loader + Lesson.audience); the Live
+  Class picker hides corporate lessons and the /corporate page lists AI-led courses
+  that launch in a dedicated course player (/corporate/learn) reusing a shared
+  ClassRoom component (slides + Ask-the-AI-teacher, auto-start). New Potion Lab
+  real-time arcade game (apps/web/app/arcade/chemistry) with age-scaled difficulty
+  (kids/tween/teen/adult), hazards (bacteria/bombs), level progression, and a
+  guarantee that every required atom is always on the field.
 - 2026-06-24 - Add sample corporate-training curriculum "AI Fluency Essentials"
   (sample-curriculum/ai-fluency-essentials, 20 slides, FACT-grounded for RAG) plus
   scripts/demo_ai_fluency.py to drive the orchestrator end-to-end (list -> start ->

@@ -637,6 +637,7 @@ export type Lesson = {
   lesson_id: string;
   title: string;
   language: string;
+  audience?: string;
   slides: Slide[];
 };
 
