@@ -62,6 +62,22 @@ Get kubeconfig
   export KUBECONFIG=$PWD/kubeconfig-vke.yaml
   kubectl get nodes
 
+GitHub Actions secret (KUBE_CONFIG_B64)
+---------------------------------------
+Deploy workflows need cluster access. Store a base64 kubeconfig in repo secret
+KUBE_CONFIG_B64 (Settings → Secrets and variables → Actions):
+
+  vultr-cli kubernetes config <cluster-id> > kubeconfig-vke.yaml
+  base64 -i kubeconfig-vke.yaml | tr -d '\n'     # macOS — paste ONE line into secret
+  base64 -w 0 kubeconfig-vke.yaml                # Linux
+
+Do NOT paste raw YAML into KUBE_CONFIG_B64 unless you base64-encode it first.
+Symptom of a bad secret: "yaml: mapping values are not allowed in this context"
+when the roll job runs kubectl.
+
+Alternative: multiline secret KUBE_CONFIG with the raw kubeconfig YAML (no base64).
+Workflows use scripts/github_configure_kubeconfig.sh to decode and validate.
+
 Install ingress-nginx
 ---------------------
   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx

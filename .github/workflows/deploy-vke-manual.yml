@@ -81,10 +81,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v4
       - name: Configure kubeconfig
-        run: |
-          mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: bash scripts/github_configure_kubeconfig.sh
       - name: Roll deployments
         env:
           TAG: ${{ github.event.inputs.tag || github.sha }}
@@ -92,7 +92,7 @@ jobs:
         run: |
           set -euo pipefail
           for svc in $SVCS; do
-            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}" --record
+            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}"
             kubectl -n aoep rollout status "deployment/$svc" --timeout=300s
           done
           echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"
