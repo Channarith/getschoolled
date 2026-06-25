@@ -83,10 +83,20 @@ if ! mobile_deps_has_tsc; then
   exit 1
 fi
 
+if ! mobile_deps_has_metro_local_node_modules; then
+  echo "    external pnpm symlinks detected — materializing Metro-local copies"
+  mobile_deps_ensure_metro_local || true
+fi
+
 if ! mobile_deps_has_babel_runtime; then
   echo "    @babel/runtime missing or symlinked outside project — retry with copy"
   rm -rf node_modules
   pnpm install "${PNPM_FLAGS[@]}" || true
+fi
+
+if ! mobile_deps_has_metro_local_node_modules; then
+  echo "    materializing all external symlinks for Metro"
+  mobile_deps_ensure_metro_local || true
 fi
 
 if ! mobile_deps_has_babel_runtime && command -v npm >/dev/null 2>&1; then
@@ -101,6 +111,13 @@ if ! mobile_deps_has_babel_runtime; then
   exit 1
 fi
 
+if ! mobile_deps_has_metro_local_node_modules; then
+  echo "ERROR: node_modules still has symlinks outside apps/mobile — Metro cannot bundle." >&2
+  mobile_deps_print_status >&2
+  echo "  Fix: node scripts/ensure-metro-local-deps.js" >&2
+  exit 1
+fi
+
 if ! mobile_deps_has_expo; then
   echo "WARN: expo not found after install — dev server may fail." >&2
   mobile_deps_print_status >&2
@@ -112,3 +129,4 @@ echo "OK install (${ok_msg:-typescript present})"
 mobile_deps_print_status
 
 node scripts/patch-expo-localization-ios.js || true
+node scripts/ensure-metro-local-deps.js || true

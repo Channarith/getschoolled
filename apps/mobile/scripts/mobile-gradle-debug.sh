@@ -17,5 +17,6 @@ if [[ ! -d android ]]; then
 fi
 
 echo "==> Gradle assembleDebug (verbose)"
+node scripts/patch-gradle-wrapper.js
 cd android
 ./gradlew assembleDebug --info --stacktrace

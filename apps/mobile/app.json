@@ -7,8 +7,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
-    "splash": { "image": "./assets/salareen_icon_1024.png", "resizeMode": "contain", "backgroundColor": "#0b1020" },
-    "assetBundlePatterns": ["assets/**/*"],
+    "splash": {
+      "image": "./assets/salareen_icon_1024.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b1020"
+    },
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
     "notification": {
       "iosDisplayInForeground": true,
       "color": "#0ea5e9"
@@ -25,7 +31,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.aiclassroom.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "remote-notification"],
+        "UIBackgroundModes": [
+          "audio",
+          "remote-notification"
+        ],
         "NSMicrophoneUsageDescription": "Used for pronunciation practice."
       }
     },
@@ -35,15 +44,26 @@
         "foregroundImage": "./assets/salareen_icon_1024.png",
         "backgroundColor": "#0b1020"
       },
-      "permissions": ["RECORD_AUDIO", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
       "useNextNotificationsApi": true,
       "usesCleartextTraffic": true
     },
     "extra": {
-      "//": "URLs: iOS Simulator uses localhost. Android emulator auto-maps to 10.0.2.2 via src/config.ts. Physical device: use your Mac LAN IP or deployed host.",
+      "//": "deployMode cloud = Vultr VKE (same paths as web). local = Mac services. Override: MOBILE_DEPLOY_MODE=local MOBILE_CLOUD_BASE_URL=http://45.63.91.80",
+      "deployMode": "cloud",
+      "cloudBaseUrl": "http://45.63.91.80",
       "curriculumUrl": "http://localhost:8005",
       "identityUrl": "http://localhost:8008",
-      "memoryUrl": "http://localhost:8004"
-    }
+      "memoryUrl": "http://localhost:8004",
+      "eas": {
+        "projectId": "0525481d-f3ca-4ae1-9665-2a18b993d4e7"
+      }
+    },
+    "owner": "cvanthin978"
   }
 }

@@ -78,7 +78,7 @@ if [[ "$FRESH" == "1" ]]; then
   echo "==> --fresh: clearing Metro cache (slower)"
 fi
 
-echo "==> Backend note: Android emulator uses 10.0.2.2 for your Mac (see src/config.ts)"
+echo "==> Backend mode: ${MOBILE_DEPLOY_MODE:-cloud} (${MOBILE_CLOUD_BASE_URL:-http://45.63.91.80} when cloud)"
 bash scripts/mobile-check-backends.sh || true
 
 if [[ "$NATIVE" == "1" ]]; then

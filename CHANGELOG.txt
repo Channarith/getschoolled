@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
+  /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
+  services. app.config.js + mobile-check-backends.sh cloud probes.
+- 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,
+  implementation project(':expo')); ensure-metro-local-deps.js materializes pnpm
+  symlinks outside apps/mobile before bundling (fixes @babel/runtime / expo 500 red
+  screen on dev client).
 - 2026-06-25 - Course posters: subject-aware Unsplash artwork on web rails/browse
   tiles and mobile CourseCard; aoep_shared.course_artwork resolves thumbnails in
   /home and /learn/search API responses.

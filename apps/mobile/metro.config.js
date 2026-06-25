@@ -24,6 +24,23 @@ config.resolver.blockList = exclusionList([
 ]);
 
 config.watchFolders = [path.resolve(__dirname)];
+
+// Belt-and-suspenders: pin @babel/runtime even if node_modules still symlinks to ~/pnpm.
+try {
+  const babelRuntimeRoot = path.dirname(
+    require.resolve("@babel/runtime/package.json", { paths: [__dirname] }),
+  );
+  config.resolver.extraNodeModules = {
+    ...(config.resolver.extraNodeModules || {}),
+    "@babel/runtime": babelRuntimeRoot,
+  };
+  if (!babelRuntimeRoot.startsWith(path.resolve(__dirname))) {
+    config.watchFolders = [...config.watchFolders, babelRuntimeRoot];
+  }
+} catch {
+  // mobile-deps_ensure_babel_runtime copies a local tree before Metro starts.
+}
+
 // Broken Watchman (common on Mac) yields incomplete file maps → Metro 500 on
 // @babel/runtime. Node filesystem crawl is slower but reliable for local dev.
 config.resolver.useWatchman = false;

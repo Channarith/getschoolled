@@ -52,7 +52,7 @@
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
     "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive",
-    "postinstall": "node scripts/patch-expo-localization-ios.js"
+    "postinstall": "node scripts/patch-expo-localization-ios.js && node scripts/ensure-metro-local-deps.js"
   },
   "dependencies": {
     "@babel/runtime": "7.24.7",
