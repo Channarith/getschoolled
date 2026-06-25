@@ -1,10 +1,15 @@
 import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, StyleSheet, Text, TextInput, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { getAudioCourse, type AudioCourse } from "../api";
+import AnimatedPressable from "../components/AnimatedPressable";
+import GlassPanel from "../components/GlassPanel";
+import PrimaryButton from "../components/PrimaryButton";
 import {
   bumpStreak, clearProgress, getMyList, getSettings,
   recordProgress, toggleMyList,
@@ -12,9 +17,8 @@ import {
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
+import { categoryGradient, theme } from "../theme";
 
-// Hands-free audio player: large controls, on-device TTS narration, auto-advance,
-// progress persisted to AsyncStorage so Continue Listening works.
 export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
   const { t, locale } = useT();
   const [course, setCourse] = useState<AudioCourse | null>(null);
@@ -223,85 +227,128 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     setSaved(next);
   };
 
-  if (!course) return <View style={styles.c}><ActivityIndicator color="#0ea5e9" /></View>;
+  if (!course) {
+    return (
+      <View style={styles.c}>
+        <ActivityIndicator color={theme.colors.netflix} size="large" />
+      </View>
+    );
+  }
   const pct = Math.round(((seg + 1) / course.segments.length) * 100);
+  const [c1, c2] = categoryGradient(course.category);
 
   return (
     <View style={styles.c}>
       <View style={styles.topRow}>
-        <Pressable onPress={() => { Speech.stop(); onBack(); }}><Text style={styles.back}>{t("drive.back")}</Text></Pressable>
-        <Pressable onPress={() => void onToggleSave()} hitSlop={12}>
-          <Text style={[styles.star, saved && styles.starOn]}>{saved ? "★" : "☆"}</Text>
-        </Pressable>
+        <AnimatedPressable onPress={() => { Speech.stop(); onBack(); }}>
+          <View style={styles.backRow}>
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            <Text style={styles.back}>{t("drive.back")}</Text>
+          </View>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={() => void onToggleSave()} hitSlop={12}>
+          <Ionicons
+            name={saved ? "bookmark" : "bookmark-outline"}
+            size={26}
+            color={saved ? theme.colors.gold : theme.colors.muted}
+          />
+        </AnimatedPressable>
       </View>
-      <Text style={styles.cat}>
-        {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
-      </Text>
-      <Text style={styles.title}>{course.title}</Text>
-      <Text style={styles.seg}>▶ {course.segments[seg]?.heading}</Text>
-      <Text style={styles.prog}>{seg + 1} / {course.segments.length}  ({pct}%)</Text>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressBar, { width: `${pct}%` }]} />
-      </View>
-      <View style={styles.row}>
-        <Pressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}><Text style={styles.btnT}>⏮</Text></Pressable>
-        {playing
-          ? <Pressable style={[styles.btn, styles.pause]} onPress={() => { Speech.stop(); setPlaying(false); }}><Text style={styles.btnT}>⏸</Text></Pressable>
-          : <Pressable style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}><Text style={styles.btnT}>▶</Text></Pressable>}
-        <Pressable style={styles.btn} onPress={() => playFrom(course, seg + 1)}><Text style={styles.btnT}>⏭</Text></Pressable>
-      </View>
-      <View style={styles.assistantBar}>
+
+      <LinearGradient colors={[c1, c2]} style={styles.heroPoster}>
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.75)"]}
+          style={StyleSheet.absoluteFill}
+        />
+        <Ionicons name="headset" size={48} color="rgba(255,255,255,0.9)" />
+        <Text style={styles.heroTitle} numberOfLines={2}>{course.title}</Text>
+      </LinearGradient>
+
+      <GlassPanel style={styles.playerCard}>
+        <Text style={styles.cat}>
+          {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
+        </Text>
+        <Text style={styles.seg}>{course.segments[seg]?.heading}</Text>
+        <Text style={styles.prog}>{seg + 1} / {course.segments.length} ({pct}%)</Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressBar, { width: `${pct}%` }]} />
+        </View>
+        <View style={styles.row}>
+          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
+            <Ionicons name="play-skip-back" size={28} color="#fff" />
+          </AnimatedPressable>
+          {playing ? (
+            <AnimatedPressable
+              style={[styles.btn, styles.pause]}
+              onPress={() => { Speech.stop(); setPlaying(false); }}
+            >
+              <Ionicons name="pause" size={32} color="#fff" />
+            </AnimatedPressable>
+          ) : (
+            <AnimatedPressable style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}>
+              <Ionicons name="play" size={32} color="#fff" />
+            </AnimatedPressable>
+          )}
+          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
+            <Ionicons name="play-skip-forward" size={28} color="#fff" />
+          </AnimatedPressable>
+        </View>
+      </GlassPanel>
+
+      <GlassPanel style={styles.assistantBar}>
         <Text style={styles.assistantWake}>Say “Hey Sala” or “Salareen”</Text>
         <View style={styles.assistantActions}>
-          <Pressable style={styles.assistantBtn} onPress={() => startVoiceRecognition(true)}>
-            <Text style={styles.assistantBtnText}>{listening ? "Listening..." : "🎙 Ask"}</Text>
-          </Pressable>
-          <Pressable style={styles.assistantBtn} onPress={() => pauseForAssistant("Paused. Ask a question or tap Resume.")}>
-            <Text style={styles.assistantBtnText}>Pause + Ask</Text>
-          </Pressable>
+          <AnimatedPressable style={styles.assistantBtn} onPress={() => startVoiceRecognition(true)}>
+            <Ionicons name="mic" size={16} color="#001022" />
+            <Text style={styles.assistantBtnText}>{listening ? "Listening..." : "Ask"}</Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={[styles.assistantBtn, styles.assistantBtnGhost]}
+            onPress={() => pauseForAssistant("Paused. Ask a question or tap Resume.")}
+          >
+            <Text style={styles.assistantBtnGhostText}>Pause + Ask</Text>
+          </AnimatedPressable>
         </View>
-      </View>
+      </GlassPanel>
       <Text style={styles.hint}>{t("drive.hint")}</Text>
-      <Modal
-        animationType="slide"
-        transparent
-        visible={assistantOpen}
-        onRequestClose={() => setAssistantOpen(false)}
-      >
+
+      <Modal animationType="slide" transparent visible={assistantOpen} onRequestClose={() => setAssistantOpen(false)}>
         <View style={styles.modalScrim}>
-          <View style={styles.assistantCard}>
-            <Text style={styles.assistantTitle}>Sala Drive Assistant</Text>
-            <Text style={styles.assistantStatus}>{assistantStatus}</Text>
-            {assistantTranscript ? (
-              <Text style={styles.transcript}>You: {assistantTranscript}</Text>
-            ) : null}
-            {assistantAnswer ? (
-              <Text style={styles.answer}>{assistantAnswer}</Text>
-            ) : null}
-            <TextInput
-              style={styles.askInput}
-              placeholder="Ask a question or say pause/resume..."
-              placeholderTextColor="#7f8aaa"
-              selectionColor="#e8ecf6"
-              value={typedQuestion}
-              onChangeText={setTypedQuestion}
-              onSubmitEditing={submitTypedQuestion}
-            />
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalBtn} onPress={() => startVoiceRecognition(false)}>
-                <Text style={styles.modalBtnText}>{listening ? "Listening..." : "Mic"}</Text>
-              </Pressable>
-              <Pressable style={styles.modalBtn} onPress={submitTypedQuestion}>
-                <Text style={styles.modalBtnText}>Ask</Text>
-              </Pressable>
-              <Pressable style={[styles.modalBtn, styles.resume]} onPress={() => resumeCourse()}>
-                <Text style={styles.modalBtnText}>Resume</Text>
-              </Pressable>
-              <Pressable style={styles.modalBtn} onPress={() => { clearResumeTimer(); setAssistantOpen(false); }}>
-                <Text style={styles.modalBtnText}>Stay paused</Text>
-              </Pressable>
+          <GlassPanel style={styles.assistantCard} padded={false}>
+            <View style={{ padding: 18 }}>
+              <Text style={styles.assistantTitle}>Sala Drive Assistant</Text>
+              <Text style={styles.assistantStatus}>{assistantStatus}</Text>
+              {assistantTranscript ? (
+                <Text style={styles.transcript}>You: {assistantTranscript}</Text>
+              ) : null}
+              {assistantAnswer ? (
+                <Text style={styles.answer}>{assistantAnswer}</Text>
+              ) : null}
+              <TextInput
+                style={styles.askInput}
+                placeholder="Ask a question or say pause/resume..."
+                placeholderTextColor={theme.colors.muted}
+                selectionColor={theme.colors.text}
+                value={typedQuestion}
+                onChangeText={setTypedQuestion}
+                onSubmitEditing={submitTypedQuestion}
+              />
+              <View style={styles.modalActions}>
+                <PrimaryButton
+                  label={listening ? "Listening..." : "Mic"}
+                  onPress={() => startVoiceRecognition(false)}
+                  variant="ghost"
+                />
+                <PrimaryButton label="Ask" onPress={submitTypedQuestion} variant="brand" />
+                <PrimaryButton label="Resume" onPress={() => resumeCourse()} variant="netflix" />
+                <PrimaryButton
+                  label="Stay paused"
+                  onPress={() => { clearResumeTimer(); setAssistantOpen(false); }}
+                  variant="ghost"
+                />
+              </View>
             </View>
-          </View>
+          </GlassPanel>
         </View>
       </Modal>
     </View>
@@ -327,38 +374,59 @@ function scoreSegment(text: string, words: string[]): number {
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, backgroundColor: "#0b1020", padding: 24, paddingTop: 56 },
+  c: { flex: 1, backgroundColor: "transparent", padding: theme.spacing.screenX, paddingTop: 56 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  back: { color: "#0ea5e9", fontSize: 16 },
-  star: { color: "#5d6890", fontSize: 28, fontWeight: "800" },
-  starOn: { color: "#fbbf24" },
-  cat: { color: "#9aa6c2" },
-  title: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginVertical: 8 },
-  seg: { color: "#e8ecf6", fontSize: 20, marginTop: 20 },
-  prog: { color: "#9aa6c2", marginTop: 6, marginBottom: 8 },
-  progressTrack: { height: 4, backgroundColor: "#23304f", borderRadius: 2, marginBottom: 22, overflow: "hidden" },
-  progressBar: { height: 4, backgroundColor: "#0ea5e9" },
+  backRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  back: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
+  heroPoster: {
+    height: 160, borderRadius: theme.radius.lg, overflow: "hidden",
+    alignItems: "center", justifyContent: "center", marginBottom: 16,
+    ...theme.shadow.hero,
+  },
+  heroTitle: {
+    position: "absolute", bottom: 14, left: 14, right: 14,
+    color: "#fff", fontSize: 20, fontWeight: "800",
+  },
+  playerCard: { marginBottom: 14 },
+  cat: { color: theme.colors.muted, ...theme.typography.caption },
+  seg: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 10 },
+  prog: { color: theme.colors.muted, marginTop: 6, marginBottom: 8, ...theme.typography.caption },
+  progressTrack: {
+    height: 4, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 2,
+    marginBottom: 20, overflow: "hidden",
+  },
+  progressBar: { height: 4, backgroundColor: theme.colors.netflix },
   row: { flexDirection: "row", justifyContent: "center", gap: 18 },
-  btn: { backgroundColor: "#1d2746", width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center" },
-  play: { backgroundColor: "#16a34a" }, pause: { backgroundColor: "#f59e0b" },
-  btnT: { color: "#fff", fontSize: 34 },
-  assistantBar: { backgroundColor: "#151c34", borderRadius: 16, marginTop: 22, padding: 14 },
-  assistantWake: { color: "#e8ecf6", fontSize: 14, fontWeight: "800", textAlign: "center" },
-  assistantActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 10 },
-  assistantBtn: { backgroundColor: "#0ea5e9", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 },
+  btn: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    width: 72, height: 72, borderRadius: 36,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: theme.colors.border,
+  },
+  play: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  pause: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },
+  assistantBar: { marginTop: 8 },
+  assistantWake: { color: theme.colors.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
+  assistantActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 12 },
+  assistantBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: theme.colors.brand, borderRadius: theme.radius.pill,
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
   assistantBtnText: { color: "#001022", fontWeight: "900" },
-  hint: { color: "#9aa6c2", textAlign: "center", marginTop: 16 },
-  modalScrim: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(3,7,18,0.68)" },
-  assistantCard: { backgroundColor: "#0b1020", borderTopLeftRadius: 24, borderTopRightRadius: 24,
-                   borderColor: "#23304f", borderWidth: 1, padding: 18 },
-  assistantTitle: { color: "#e8ecf6", fontSize: 22, fontWeight: "900" },
-  assistantStatus: { color: "#9aa6c2", marginTop: 4 },
-  transcript: { color: "#bae6fd", marginTop: 12 },
-  answer: { color: "#e8ecf6", fontSize: 15, lineHeight: 21, marginTop: 10 },
-  askInput: { backgroundColor: "#151c34", borderColor: "#23304f", borderRadius: 12,
-              borderWidth: 1, color: "#e8ecf6", marginTop: 14, padding: 12 },
-  modalActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
-  modalBtn: { backgroundColor: "#1d2746", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  resume: { backgroundColor: "#16a34a" },
-  modalBtnText: { color: "#fff", fontWeight: "800" },
+  assistantBtnGhost: { backgroundColor: "transparent", borderWidth: 1, borderColor: theme.colors.border },
+  assistantBtnGhostText: { color: theme.colors.text, fontWeight: "700" },
+  hint: { color: theme.colors.muted, textAlign: "center", marginTop: 16, ...theme.typography.caption },
+  modalScrim: { flex: 1, justifyContent: "flex-end", backgroundColor: theme.colors.scrimHeavy },
+  assistantCard: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  assistantTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "900" },
+  assistantStatus: { color: theme.colors.muted, marginTop: 4 },
+  transcript: { color: theme.colors.accent, marginTop: 12 },
+  answer: { color: theme.colors.text, fontSize: 15, lineHeight: 21, marginTop: 10 },
+  askInput: {
+    backgroundColor: "rgba(255,255,255,0.06)", borderColor: theme.colors.border,
+    borderRadius: theme.radius.md, borderWidth: 1, color: theme.colors.text,
+    marginTop: 14, padding: 12,
+  },
+  modalActions: { marginTop: 14, gap: 10 },
 });

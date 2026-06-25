@@ -36,7 +36,8 @@
         "backgroundColor": "#0b1020"
       },
       "permissions": ["RECORD_AUDIO", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "usesCleartextTraffic": true
     },
     "extra": {
       "//": "URLs: iOS Simulator uses localhost. Android emulator auto-maps to 10.0.2.2 via src/config.ts. Physical device: use your Mac LAN IP or deployed host.",
