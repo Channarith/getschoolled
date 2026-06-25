@@ -43,6 +43,8 @@ fi
 
 mobile_ios_boot_simulator
 
+bash scripts/mobile-metro-cleanup.sh
+
 export EXPO_NO_TELEMETRY=1
 export RCT_METRO_PORT="${RCT_METRO_PORT:-8081}"
 if [[ "$DEBUG" == "1" ]]; then
@@ -52,7 +54,7 @@ if [[ "$DEBUG" == "1" ]]; then
 fi
 
 EXPO=(bash scripts/mobile-expo.sh)
-EXPO_START_FLAGS=()
+EXPO_START_FLAGS=(--port "$RCT_METRO_PORT" --localhost)
 if [[ "$FRESH" == "1" ]]; then
   EXPO_START_FLAGS+=(--clear)
   echo "==> --fresh: clearing Metro cache (slower)"
@@ -69,12 +71,9 @@ if [[ "$NATIVE" == "1" ]]; then
 else
   echo "==> Expo Go: starting Metro, then opening iOS Simulator"
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
-  echo "    Metro port: $RCT_METRO_PORT"
+  echo "    Metro port: $RCT_METRO_PORT (localhost)"
+  echo "    EXPO_OFFLINE=$EXPO_OFFLINE CI=$CI (non-interactive, no expo.dev fetch)"
   mobile_print_launch_timeline ios
   echo "==> Starting… (watch for 'Bundled' or 'Opening on iOS')"
-  if [[ ${#EXPO_START_FLAGS[@]} -gt 0 ]]; then
-    "${EXPO[@]}" start --ios "${EXPO_START_FLAGS[@]}"
-  else
-    "${EXPO[@]}" start --ios
-  fi
+  "${EXPO[@]}" start --ios "${EXPO_START_FLAGS[@]}"
 fi

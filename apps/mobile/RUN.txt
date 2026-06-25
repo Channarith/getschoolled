@@ -103,6 +103,13 @@ NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
     bash scripts/mobile-expo.sh start
     # press i in that terminal when Metro is ready
 
+  Stuck at "Starting Metro Bundler" / "Fetching bundled native modules":
+    Cause: stale Metro on port 8081 (interactive port prompt) or expo.dev network hang.
+    Fix:
+      bash scripts/mobile-metro-cleanup.sh
+      bash scripts/mobile-launch-ios.sh
+    Launch scripts now set CI=1, EXPO_OFFLINE=1, --port 8081, --localhost (iOS).
+
   Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
   with no Simulator window.
 

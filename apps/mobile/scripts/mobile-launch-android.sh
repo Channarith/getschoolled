@@ -59,6 +59,8 @@ else
   echo "==> Emulator already running"
 fi
 
+bash scripts/mobile-metro-cleanup.sh
+
 export EXPO_NO_TELEMETRY=1
 export RCT_METRO_PORT="${RCT_METRO_PORT:-8081}"
 if [[ "$DEBUG" == "1" ]]; then
@@ -68,7 +70,7 @@ if [[ "$DEBUG" == "1" ]]; then
 fi
 
 EXPO=(bash scripts/mobile-expo.sh)
-EXPO_START_FLAGS=()
+EXPO_START_FLAGS=(--port "$RCT_METRO_PORT")
 if [[ "$FRESH" == "1" ]]; then
   EXPO_START_FLAGS+=(--clear)
   echo "==> --fresh: clearing Metro cache (slower)"
@@ -87,11 +89,8 @@ if [[ "$NATIVE" == "1" ]]; then
 else
   echo "==> Expo Go: starting Metro, then opening Android emulator"
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
+  echo "    Metro port: $RCT_METRO_PORT"
   mobile_print_launch_timeline android
   echo "==> Starting… (watch for 'Bundled' or 'Opening on Android')"
-  if [[ ${#EXPO_START_FLAGS[@]} -gt 0 ]]; then
-    "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"
-  else
-    "${EXPO[@]}" start --android
-  fi
+  "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"
 fi
