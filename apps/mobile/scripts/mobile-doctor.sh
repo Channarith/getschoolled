@@ -7,6 +7,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 MOBILE_ROOT="$ROOT"
 . "$(dirname "$0")/mobile-deps.sh"
+# shellcheck source=mobile-expo-go-utils.sh
+. "$(dirname "$0")/mobile-expo-go-utils.sh"
+# shellcheck source=mobile-sim-utils.sh
+. "$(dirname "$0")/mobile-sim-utils.sh"
 VERBOSE="${VERBOSE:-0}"
 FAILURES=0
 WARNINGS=0
@@ -126,6 +130,30 @@ if [ "$(uname -s)" = "Darwin" ]; then
   else
     warn "No iOS simulators listed — Xcode -> Settings -> Platforms"
   fi
+
+  echo
+  echo "Expo Go / Orbit (Path A — recommended):"
+  SDK="$(mobile_expo_sdk_version)"
+  if [ "$SDK" != "unknown" ]; then
+    ok "Expo SDK ${SDK} (from expo package)"
+  else
+    warn "Could not read Expo SDK version"
+  fi
+  if mobile_ios_expo_go_installed; then
+    ok "Expo Go installed on iOS Simulator (host.exp.Exponent)"
+  else
+    fail "Expo Go NOT on simulator — run: bash scripts/mobile-setup.sh"
+  fi
+  if mobile_expo_go_ios_cache_present; then
+    ok "Expo Go iOS cache present ($(mobile_expo_go_ios_cache_dir))"
+  else
+    warn "Expo Go iOS cache empty — first install will download from Expo CDN"
+  fi
+  if mobile_expo_orbit_installed; then
+    ok "Expo Orbit installed (optional desktop helper)"
+  else
+    ok "Expo Orbit not installed (optional — not required for simulator dev)"
+  fi
 fi
 
 echo
@@ -138,6 +166,10 @@ else
 fi
 
 echo
+echo "First-time mobile setup (Expo Go never configured):"
+echo "  bash scripts/mobile-setup.sh"
+echo "  pnpm run setup"
+echo ""
 echo "If pnpm/expo OOMs on Mac (AfterScanDir, ~4 GB heap):"
 echo "  All scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=12GB."
 echo "  Prefer bash launchers (never raw 'expo' or 'pnpm exec expo'):"
@@ -164,7 +196,10 @@ fi
 echo
 if [ "$FAILURES" -gt 0 ]; then
   echo "Result: ${FAILURES} failure(s), ${WARNINGS} warning(s) — fix FAIL items first."
+  if [ "$(uname -s)" = "Darwin" ] && ! mobile_ios_expo_go_installed 2>/dev/null; then
+    echo "  Expo Go missing? Run: bash scripts/mobile-setup.sh"
+  fi
   exit 1
 fi
-echo "Result: ready (${WARNINGS} warning(s)). Try: pnpm run dev:ios"
+echo "Result: ready (${WARNINGS} warning(s)). Try: bash scripts/mobile-launch-ios.sh"
 exit 0
