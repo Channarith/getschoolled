@@ -18,6 +18,10 @@ Format: newest first. No markdown per project convention.
   cleartext HTTP for local dev.
 - 2026-06-25 - Mobile: sync pnpm-lock.yaml with expo-linear-gradient (fixes CI Auto Push Build).
 - 2026-06-25 - Mobile: sync pnpm-lock.yaml with @babel/runtime direct dep (fixes CI Auto Push Build).
+- 2026-06-25 - Mobile EAS iOS: pin macos-sequoia-15.6-xcode-26.2 (App Store requires
+  Xcode 26+ from April 2026; SDK 51 auto image was still Xcode 15).
+- 2026-06-25 - Mobile iOS: expo-localization patch uses @unknown default only (fixes EAS
+  on Xcode 16; prior iOS-26-only calendar cases broke cloud builds).
 - 2026-06-25 - Mobile iOS: patch expo-localization for Xcode 26 calendar identifiers
   (fixes Swift "switch must be exhaustive" on native build).
 - 2026-06-25 - Mobile iOS native build: mobile-run-ios.sh boots iPhone 17 on iOS 26.4+
