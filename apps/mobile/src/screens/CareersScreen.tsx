@@ -15,7 +15,7 @@ import { useT } from "../i18n";
 import { theme } from "../theme";
 
 type Props = {
-  onBack: () => void;
+  onBack?: () => void;
   onOpenCourse: (id: string) => void;
 };
 
@@ -62,12 +62,14 @@ export default function CareersScreen({ onBack, onOpenCourse }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <AnimatedPressable onPress={onBack} accessibilityRole="button">
-          <View style={styles.backRow}>
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-            <Text style={styles.back}>{t("careers.back")}</Text>
-          </View>
-        </AnimatedPressable>
+        {onBack ? (
+          <AnimatedPressable onPress={onBack} accessibilityRole="button">
+            <View style={styles.backRow}>
+              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+              <Text style={styles.back}>{t("careers.back")}</Text>
+            </View>
+          </AnimatedPressable>
+        ) : null}
         <Text style={styles.kicker}>{t("home.careers")}</Text>
         <Text style={styles.title}>{t("careers.title")}</Text>
         <Text style={styles.sub}>

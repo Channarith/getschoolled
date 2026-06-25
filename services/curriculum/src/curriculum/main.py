@@ -587,14 +587,15 @@ def audio_course(course_id: str, locale: str = "en") -> dict:
 
 
 @app.get("/home")
-def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
+def home_feed(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
     """Netflix-style home feed from the unified learnable index."""
     from aoep_shared.learnable import learnable_home_rails
 
     return {
         "rails": learnable_home_rails(
-            _learnable_index(), kids_only=kids, per_rail=per_rail,
+            _learnable_index(locale=locale), kids_only=kids, per_rail=per_rail,
         ),
+        "locale": locale,
     }
 
 
@@ -614,13 +615,14 @@ def learn_search(
     kids: bool = False,
     limit: int = 50,
     offset: int = 0,
+    locale: str = "en",
 ) -> dict:
     """Search all learnable content (catalog, audio, live, languages, games)."""
     from aoep_shared.course_artwork import resolve_course_poster_from_mapping
     from aoep_shared.learnable import search_learnable
 
     result = search_learnable(
-        _learnable_index(),
+        _learnable_index(locale=locale),
         q=q, category=category, source=source, format=format, level=level,
         language=language, maturity=maturity, hands_on=hands_on, tag=tag,
         audience=audience, core_skill=core_skill, kids_only=kids,
@@ -649,13 +651,14 @@ def learn_facets() -> dict:
 
 
 @app.get("/learn/home")
-def learn_home(kids: bool = False, per_rail: int = 12) -> dict:
+def learn_home(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
     from aoep_shared.learnable import learnable_home_rails
 
     return {
         "rails": learnable_home_rails(
-            _learnable_index(), kids_only=kids, per_rail=per_rail,
+            _learnable_index(locale=locale), kids_only=kids, per_rail=per_rail,
         ),
+        "locale": locale,
     }
 
 
@@ -730,23 +733,38 @@ class RecommendRequest(BaseModel):
     top_n: int = 5
 
 
+def _course_duration_min(course_id: str) -> int:
+    """Resolve duration from catalog or the unified learnable index."""
+    from curriculum.learnable_service import find_item
+
+    course = app.state.catalog.get_course(course_id)
+    if course is not None:
+        return int(course.duration_min or 0)
+    idx = _learnable_index()
+    item = find_item(idx, global_id=course_id) or find_item(idx, source_id=course_id)
+    if item is not None:
+        return int(item.duration_min or 5)
+    return 5
+
+
 @app.post("/recommend")
 def recommend(req: RecommendRequest) -> dict:
     """Foresight: suggest courses + gaps + adapted difficulty for a student.
 
-    Maps catalog courses to Foresight CourseFeatures (skills = tags or [category])
+    Maps learnable courses to Foresight CourseFeatures (skills = tags or category)
     and runs LearnerForesight over the student's mastery/history.
     """
     from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
 
-    courses = app.state.catalog.list_courses()
+    courses = _search_learnable_as_courses(limit=500)
     features = [
         CourseFeature(
             course_id=c.course_id, title=c.title,
-            skills=(c.tags or [c.category or c.subject]),
-            level=c.level, category=(c.category or c.subject),
+            skills=[t for t in (c.tags or []) if t] or [c.category or c.subject or "general"],
+            level=c.level, category=(c.category or c.subject or "general"),
         )
         for c in courses
+        if c.course_id
     ]
     skills = sorted({s for f in features for s in f.skills})
     if not skills:
@@ -769,11 +787,16 @@ def course_ad_breaks(course_id: str, tier: str = "free", format: str = "json"):
     """
     from aoep_shared.ads import AD_FREE_TIERS, ad_plan_for, build_vmap
 
-    course = app.state.catalog.get_course(course_id)
-    if course is None:
-        raise HTTPException(status_code=404, detail="course not found")
+    duration = _course_duration_min(course_id)
+    if duration <= 0 and app.state.catalog.get_course(course_id) is None:
+        from curriculum.learnable_service import find_item
 
-    breaks = ad_plan_for(tier, duration_min=int(course.duration_min or 0))
+        if find_item(_learnable_index(), global_id=course_id) is None and (
+            find_item(_learnable_index(), source_id=course_id) is None
+        ):
+            raise HTTPException(status_code=404, detail="course not found")
+
+    breaks = ad_plan_for(tier, duration_min=max(1, duration))
     if format == "vmap":
         from fastapi import Response
 

@@ -348,9 +348,11 @@ export type LearnSearchResult = {
 
 export type HomeRail = { key: string; title: string; courses: CatalogCourse[] };
 
-export async function getHomeFeed(kids = false): Promise<HomeRail[]> {
+export async function getHomeFeed(kids = false, locale = "en"): Promise<HomeRail[]> {
+  const qs = new URLSearchParams({ locale });
+  if (kids) qs.set("kids", "true");
   const r = await jsonOrThrow<{ rails: HomeRail[] }>(
-    await fetch(`${CURRICULUM_URL}/home${kids ? "?kids=true" : ""}`, { cache: "no-store" })
+    await fetch(`${CURRICULUM_URL}/home?${qs}`, { cache: "no-store" }),
   );
   return r.rails;
 }
@@ -380,12 +382,15 @@ export type Facets = {
   sources?: string[]; formats?: string[];
 };
 
-export async function searchLearnable(params: Record<string, string>): Promise<LearnSearchResult> {
+export async function searchLearnable(
+  params: Record<string, string>,
+  locale = "en",
+): Promise<LearnSearchResult> {
   const qs = new URLSearchParams(
-    Object.entries(params).filter(([, v]) => v !== "" && v != null)
+    Object.entries({ ...params, locale }).filter(([, v]) => v !== "" && v != null),
   ).toString();
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store" })
+    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store" }),
   );
 }
 
@@ -479,18 +484,28 @@ export type AudioCourse = {
   drive_safe: boolean; segments: AudioSegment[];
 };
 
-export async function getAudioCategories(): Promise<{ category: string; count: number }[]> {
+export async function getAudioCategories(locale = "en"): Promise<{ category: string; count: number }[]> {
   const r = await jsonOrThrow<{ categories: { category: string; count: number }[] }>(
-    await fetch(`${CURRICULUM_URL}/audio/categories`, { cache: "no-store" })
+    await fetch(`${CURRICULUM_URL}/audio/categories?locale=${encodeURIComponent(locale)}`, { cache: "no-store" }),
   );
   return r.categories;
 }
-export async function listAudioCourses(params: Record<string, string> = {}): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
-  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+export async function listAudioCourses(
+  params: Record<string, string> = {},
+  locale = "en",
+): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
+  const qs = new URLSearchParams(
+    Object.entries({ ...params, locale }).filter(([, v]) => v),
+  ).toString();
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
 }
-export async function getAudioCourse(id: string): Promise<AudioCourse> {
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}`, { cache: "no-store" }));
+export async function getAudioCourse(id: string, locale = "en"): Promise<AudioCourse> {
+  return jsonOrThrow(
+    await fetch(
+      `${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}?locale=${encodeURIComponent(locale)}`,
+      { cache: "no-store" },
+    ),
+  );
 }
 
 // --- language learning ---------------------------------------------------- //
@@ -791,6 +806,14 @@ export async function registerGroupClass(
       body: JSON.stringify({ name, email }),
     })
   );
+}
+
+export function groupClassCalendarUrl(classId: string, name = "", email = ""): string {
+  const qs = new URLSearchParams();
+  if (name) qs.set("name", name);
+  if (email) qs.set("email", email);
+  const suffix = qs.toString();
+  return `${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/calendar.ics${suffix ? `?${suffix}` : ""}`;
 }
 
 export async function startGroupClass(classId: string): Promise<GroupClassStart> {
@@ -1370,12 +1393,12 @@ export async function enrollEmbedding(
   );
 }
 
-export async function ask(sessionId: string, text: string): Promise<Answer> {
+export async function ask(sessionId: string, text: string, language = "en"): Promise<Answer> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, language: "en" }),
-    })
+      body: JSON.stringify({ text, language }),
+    }),
   );
 }

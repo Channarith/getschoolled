@@ -39,7 +39,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { t, isRTL } = useT();
+  const { t, locale, isRTL } = useT();
   const [tab, setTab] = useState<TabId>("home");
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
@@ -47,7 +47,6 @@ function AppInner() {
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
-  const [showCareers, setShowCareers] = useState(false);
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
 
   const subRef = useRef<Notifications.Subscription | null>(null);
@@ -62,7 +61,7 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, showCareers, fade]);
+  }, [tab, fade]);
 
   useEffect(() => {
     void bootstrap();
@@ -179,6 +178,7 @@ function AppInner() {
         studentId: settings.studentId,
         interests, inProgress: inProgress.map((c) => c.id),
         completed,
+        locale,
       });
       const readSet = new Set(read);
       setUnreadCount(feed.items.filter((i) => !readSet.has(i.id)).length);
@@ -194,19 +194,12 @@ function AppInner() {
   };
 
   let screen: React.ReactNode = null;
-  if (showCareers) {
-    screen = (
-      <CareersScreen
-        onBack={() => setShowCareers(false)}
-        onOpenCourse={(id) => { setShowCareers(false); openCourse(id); }}
-      />
-    );
-  } else if (tab === "home") {
+  if (tab === "home") {
     screen = (
       <HomeScreen
         onOpenCourse={openCourse}
         onOpenCategory={openCategory}
-        onOpenCareers={() => setShowCareers(true)}
+        onOpenCareers={() => setTab("careers")}
       />
     );
   } else if (tab === "drive") {
@@ -221,6 +214,12 @@ function AppInner() {
       : <AudioCoursesScreen onOpen={openCourse} initialCategory={browseCategory} />;
   } else if (tab === "mylist") {
     screen = <MyListScreen onOpenCourse={openCourse} />;
+  } else if (tab === "careers") {
+    screen = (
+      <CareersScreen
+        onOpenCourse={openCourse}
+      />
+    );
   } else if (tab === "notifications") {
     screen = <NotificationsScreen onOpenCourse={openCourse} onUnreadChange={setUnreadCount} />;
   } else if (tab === "settings") {
@@ -253,17 +252,15 @@ function AppInner() {
           manualOpenToken={surveyManualToken}
         />
       </View>
-      {!showCareers ? (
-        <BottomTabs
-          active={tab}
-          onChange={(id) => {
-            if (id === "drive" && tab === "drive") setOpenCourseId(null);
-            void refreshUnreadAndAlerts();
-            setTab(id);
-          }}
-          unreadCount={unreadCount}
-        />
-      ) : null}
+      <BottomTabs
+        active={tab}
+        onChange={(id) => {
+          if (id === "drive" && tab === "drive") setOpenCourseId(null);
+          void refreshUnreadAndAlerts();
+          setTab(id);
+        }}
+        unreadCount={unreadCount}
+      />
     </SafeAreaView>
   );
 }

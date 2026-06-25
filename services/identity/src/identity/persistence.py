@@ -168,6 +168,31 @@ def save_to_redis_with_retry(store: "AccountStore", *, attempts: int = 5, delay_
     return False
 
 
+GAME_ROUND_TTL_S = 4 * 3600
+
+
+def save_game_round(round_json: str, game_id: str) -> None:
+    """Persist an arcade round so submit works across identity replicas."""
+    client = _redis_client()
+    if client is None:
+        return
+    try:
+        client.setex(f"aoep:identity:game:{game_id}", GAME_ROUND_TTL_S, round_json)
+    except Exception as exc:
+        logger.warning("failed to persist game round %s (%s)", game_id, exc)
+
+
+def load_game_round(game_id: str) -> Optional[str]:
+    client = _redis_client()
+    if client is None:
+        return None
+    try:
+        return client.get(f"aoep:identity:game:{game_id}")
+    except Exception as exc:
+        logger.warning("failed to load game round %s (%s)", game_id, exc)
+        return None
+
+
 def persist_hook(store: "AccountStore") -> None:
     """Call after any AccountStore mutation when Redis is configured."""
     save_to_redis(store)

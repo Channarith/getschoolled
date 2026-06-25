@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, signup, setToken } from "../lib/api";
+import { useT } from "../lib/i18n";
 
-// Mirror of aoep_shared.passwords policy for inline (pre-submit) feedback; the
-// identity service is the authoritative enforcer.
-function passwordProblems(pw: string): string[] {
+function passwordProblems(pw: string, t: (k: string) => string): string[] {
   const problems: string[] = [];
-  if (pw.length < 8) problems.push("at least 8 characters");
-  if (!/[a-zA-Z]/.test(pw)) problems.push("at least one letter");
-  if (!/[0-9]/.test(pw)) problems.push("at least one number");
+  if (pw.length < 8) problems.push(t("login.pwMin8"));
+  if (!/[a-zA-Z]/.test(pw)) problems.push(t("login.pwLetter"));
+  if (!/[0-9]/.test(pw)) problems.push(t("login.pwNumber"));
   return problems;
 }
 
 export default function LoginPage() {
+  const { t } = useT();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -24,8 +24,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Honor ?mode=signup&email=... from the home landing "Get Started" flow.
-  // Read from window (not useSearchParams) to avoid a Suspense boundary at build.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("mode") === "signup") setMode("signup");
@@ -37,9 +35,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     if (mode === "signup") {
-      const problems = passwordProblems(password);
+      const problems = passwordProblems(password, t);
       if (problems.length) {
-        setError("Password must have " + problems.join(", ") + ".");
+        setError(t("login.pwMust", { rules: problems.join(", ") }));
         return;
       }
     }
@@ -49,7 +47,6 @@ export default function LoginPage() {
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
-      // Land on the Netflix-style home feed (popular / category / age) on login.
       router.push("/");
     } catch (err) {
       setError(String(err));
@@ -60,25 +57,25 @@ export default function LoginPage() {
 
   return (
     <main className="container" style={{ maxWidth: 460 }}>
-      <h1>{mode === "login" ? "Sign in" : "Create your account"}</h1>
+      <h1>{mode === "login" ? t("login.titleSignIn") : t("login.titleSignUp")}</h1>
       <div className="card">
         <form onSubmit={onSubmit}>
           {mode === "signup" && (
             <label style={{ display: "block", marginBottom: 8 }}>
-              Name
+              {t("login.name")}
               <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
                 style={{ width: "100%", padding: 8 }} />
             </label>
           )}
           <label style={{ display: "block", marginBottom: 8 }}>
-            {mode === "login" ? "Email or username" : "Email"}
+            {mode === "login" ? t("login.emailOrUsername") : t("login.email")}
             <input type={mode === "login" ? "text" : "email"} required value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoCapitalize="none" autoCorrect="off"
               style={{ width: "100%", padding: 8 }} />
           </label>
           <label style={{ display: "block", marginBottom: 8 }}>
-            Password
+            {t("login.password")}
             <span style={{ position: "relative", display: "block" }}>
               <input type={showPassword ? "text" : "password"} required value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -86,9 +83,9 @@ export default function LoginPage() {
                 autoCapitalize="none" autoCorrect="off"
                 style={{ width: "100%", padding: 8, paddingRight: 42 }} />
               <button type="button" onClick={() => setShowPassword((s) => !s)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 aria-pressed={showPassword}
-                title={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 style={{
                   position: "absolute", right: 4, top: 0, bottom: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -101,21 +98,21 @@ export default function LoginPage() {
           </label>
           {mode === "signup" && (
             <p className="muted" style={{ fontSize: 12, marginTop: -2, marginBottom: 8 }}>
-              At least 8 characters, with a letter and a number.
+              {t("login.passwordHint")}
             </p>
           )}
           <button type="submit" disabled={busy}>
-            {busy ? "..." : mode === "login" ? "Sign in" : "Sign up"}
+            {busy ? t("login.busy") : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
         <p className="muted" style={{ marginTop: 12 }}>
-          {mode === "login" ? "New here? " : "Already have an account? "}
+          {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}
           <button
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
             style={{ background: "none", border: "none", color: "#6ea8fe", cursor: "pointer", padding: 0 }}
           >
-            {mode === "login" ? "Create an account" : "Sign in"}
+            {mode === "login" ? t("login.createAccount") : t("login.signInLink")}
           </button>
         </p>
       </div>
@@ -123,8 +120,6 @@ export default function LoginPage() {
   );
 }
 
-// Eye / eye-off glyph (inline SVG, no icon dependency). `off` shows the slashed
-// variant used while the password is visible (click to hide).
 function EyeIcon({ off }: { off: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"

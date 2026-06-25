@@ -57,7 +57,15 @@ export default function ArcadePage() {
       setResult(r);
       setRound(null);
       loadLeaders();
-    } catch (e) { setError(String(e)); }
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes("404") || msg.includes("unknown or expired")) {
+        setError("This game session expired — tap Play again to start a fresh round.");
+        setRound(null);
+      } else {
+        setError(msg);
+      }
+    }
   }, [round, answers, loggedIn, loadLeaders]);
 
   // Speed-round countdown -> auto-submit at zero.

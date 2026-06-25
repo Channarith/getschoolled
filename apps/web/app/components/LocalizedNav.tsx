@@ -75,7 +75,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
         style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px",
                  borderRadius: 999, border: "1px solid currentColor", opacity: 0.85 }}
       >
-        AI-instructed
+        {t("nav.aiInstructed")}
       </span>
       <ProfileMenu />
       <span className="version" title="App version"

@@ -570,6 +570,24 @@ from aoep_shared.group_classes import (  # noqa: E402
 app.state.group_classes = GroupClassStore()
 
 
+def _seed_group_classes() -> None:
+    from aoep_shared.group_classes import ensure_standard_daily_classes
+
+    try:
+        n = ensure_standard_daily_classes(_group_store())
+        if n:
+            import logging
+            logging.getLogger(__name__).info("seeded %d standard group classes", n)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("group class seed skipped (%s)", exc)
+
+
+@app.on_event("startup")
+def _orchestrator_startup() -> None:
+    _seed_group_classes()
+
+
 def _group_store() -> GroupClassStore:
     return app.state.group_classes
 
@@ -594,6 +612,9 @@ class RegisterRequest(BaseModel):
 
 @app.get("/api/group-classes")
 def list_group_classes(upcoming: bool = True) -> dict:
+    from aoep_shared.group_classes import ensure_standard_daily_classes
+
+    ensure_standard_daily_classes(_group_store())
     classes = _group_store().list(upcoming_only=upcoming)
     return {"classes": [c.to_dict() for c in classes]}
 
@@ -627,6 +648,22 @@ def register_group_class(class_id: str, req: RegisterRequest) -> dict:
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return store.require(class_id).to_dict()
+
+
+@app.get("/api/group-classes/{class_id}/calendar.ics")
+def group_class_calendar(class_id: str, name: str = "", email: str = "") -> "Response":
+    from aoep_shared.group_classes import calendar_ics
+    from fastapi import Response
+
+    gc = _group_store().get(class_id)
+    if gc is None:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    body = calendar_ics(gc, attendee_name=name, attendee_email=email)
+    return Response(
+        content=body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="salareen-{class_id}.ics"'},
+    )
 
 
 @app.post("/api/group-classes/{class_id}/start")

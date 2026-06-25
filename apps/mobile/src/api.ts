@@ -187,10 +187,12 @@ export function getNotificationsFeed(opts: {
   return get<NotificationFeed>(CURRICULUM_URL, `/notifications/feed${qs ? `?${qs}` : ""}`);
 }
 
-export async function getHomeRails(kids = false): Promise<HomeRail[]> {
+export async function getHomeRails(kids = false, locale?: string): Promise<HomeRail[]> {
   try {
+    const p = new URLSearchParams({ kids: kids ? "true" : "false" });
+    if (locale) p.set("locale", locale);
     const r = await get<{ rails: HomeRail[] }>(
-      CURRICULUM_URL, `/home?kids=${kids ? "true" : "false"}`);
+      CURRICULUM_URL, `/home?${p.toString()}`);
     return r.rails || [];
   } catch {
     return [];

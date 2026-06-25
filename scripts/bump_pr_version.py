@@ -79,7 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         br.render_build_info(new_version, sha, components), encoding="utf-8"
     )
     br.write_web_version(new_version)
-    print("wrote VERSION, build-info.txt, web version files")
+    br.write_mobile_version(new_version)
+    print("wrote VERSION, build-info.txt, web and mobile version files")
     return 0
 
 
