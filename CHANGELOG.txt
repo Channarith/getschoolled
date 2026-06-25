@@ -2,7 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
+- 2026-06-23 - Mobile Drive Mode: fix Hey Sala voice assistant using native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
   /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
   services. app.config.js + mobile-check-backends.sh cloud probes.
 - 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,

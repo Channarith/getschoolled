@@ -25,6 +25,17 @@
         {
           "color": "#0ea5e9"
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Salareen uses the microphone for Drive Mode voice questions (Hey Sala assistant).",
+          "speechRecognitionPermission": "Salareen uses speech recognition so you can ask questions hands-free in Drive Mode.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
+          ]
+        }
       ]
     ],
     "ios": {
@@ -35,7 +46,8 @@
           "audio",
           "remote-notification"
         ],
-        "NSMicrophoneUsageDescription": "Used for pronunciation practice."
+        "NSMicrophoneUsageDescription": "Used for Drive Mode voice questions and pronunciation practice.",
+        "NSSpeechRecognitionUsageDescription": "Used so you can ask Sala questions hands-free while listening to classes."
       }
     },
     "android": {

@@ -17,6 +17,10 @@ import {
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
+import {
+  getVoiceEngineDetails, getVoiceEngineLabel, hasWakeWord, openPlatformVoiceAssistant,
+  startVoiceListening, stopVoiceListening, stripWakeWords,
+} from "../voiceAssistant";
 import { categoryGradient, theme } from "../theme";
 
 export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
@@ -31,9 +35,14 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  const [voiceEngine, setVoiceEngine] = useState(getVoiceEngineLabel());
   const segRef = useRef(0);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const expectWakeRef = useRef(true);
+
+  useEffect(() => {
+    void getVoiceEngineDetails().then((d) => setVoiceEngine(d.label));
+  }, []);
 
   useEffect(() => {
     void warmVoices();
@@ -102,65 +111,54 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   }
 
   function stopVoiceRecognition() {
-    try { recognitionRef.current?.stop?.(); } catch {}
-    recognitionRef.current = null;
+    stopVoiceListening();
     setListening(false);
   }
 
-  function startVoiceRecognition(expectWakeWord = true) {
+  async function startVoiceRecognition(expectWakeWord = true) {
+    expectWakeRef.current = expectWakeWord;
     pauseForAssistant(expectWakeWord
-      ? "Listening for Hey Sala or Salareen..."
-      : "Listening for your question or command...");
-    const root = globalThis as any;
-    const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setAssistantStatus("Voice recognition is unavailable here. Type your question or use the controls.");
-      return;
-    }
-    stopVoiceRecognition();
-    const recognition = new SpeechRecognition();
-    recognition.lang = locale || "en";
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.onresult = (event: any) => {
-      const text = Array.from(event.results || [])
-        .map((result: any) => result?.[0]?.transcript || "")
-        .join(" ")
-        .trim();
-      setAssistantTranscript(text);
-      void handleSpokenInput(text, expectWakeWord);
-    };
-    recognition.onerror = () => {
-      setAssistantStatus("I could not hear that. Try again, or type your question.");
-      setListening(false);
-    };
-    recognition.onend = () => setListening(false);
-    recognitionRef.current = recognition;
-    setListening(true);
-    recognition.start();
+      ? t("drive.listeningWake", { engine: voiceEngine })
+      : t("drive.listeningQuestion"));
+
+    const started = await startVoiceListening({
+      locale,
+      onResult: (text) => {
+        setListening(false);
+        setAssistantTranscript(text);
+        void handleSpokenInput(text, expectWakeRef.current);
+      },
+      onError: (code) => {
+        setListening(false);
+        if (code === "permission_denied") {
+          setAssistantStatus(t("drive.voicePermissionDenied", { engine: voiceEngine }));
+        } else if (code === "unavailable") {
+          setAssistantStatus(t("drive.voiceUnavailable", { engine: voiceEngine }));
+        } else {
+          setAssistantStatus(t("drive.voiceError"));
+        }
+      },
+      onEnd: () => setListening(false),
+    });
+
+    if (started) setListening(true);
   }
 
   async function handleSpokenInput(raw: string, expectWakeWord: boolean) {
     stopVoiceRecognition();
     const text = raw.trim();
     if (!text) {
-      setAssistantStatus("I did not catch that. Say Hey Sala, then ask again.");
+      setAssistantStatus(t("drive.voiceNoInput"));
       return;
     }
-    const lower = text.toLowerCase();
-    const hasWake = /\b(hey\s+sala|sala|salareen)\b/i.test(lower);
-    if (expectWakeWord && !hasWake) {
-      setAssistantStatus("Wake word not detected. Say Hey Sala or Salareen before your question.");
+    if (expectWakeWord && !hasWakeWord(text)) {
+      setAssistantStatus(t("drive.wakeNotDetected"));
       return;
     }
-    const cleaned = text
-      .replace(/\bhey\s+sala\b/ig, "")
-      .replace(/\bsalareen\b/ig, "")
-      .replace(/\bsala\b/ig, "")
-      .trim();
+    const cleaned = stripWakeWords(text);
     if (!cleaned) {
-      setAssistantStatus("I heard you. Ask a question, say pause, resume, next, or previous.");
-      startVoiceRecognition(false);
+      setAssistantStatus(t("drive.heardWakeOnly"));
+      void startVoiceRecognition(false);
       return;
     }
     handleAssistantQuestion(cleaned);
@@ -296,18 +294,31 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
       </GlassPanel>
 
       <GlassPanel style={styles.assistantBar}>
-        <Text style={styles.assistantWake}>Say “Hey Sala” or “Salareen”</Text>
+        <Text style={styles.assistantWake}>
+          {t("drive.assistantWake", { engine: voiceEngine })}
+        </Text>
+        <Text style={styles.assistantEngine}>{t("drive.assistantEngineHint")}</Text>
         <View style={styles.assistantActions}>
-          <AnimatedPressable style={styles.assistantBtn} onPress={() => startVoiceRecognition(true)}>
+          <AnimatedPressable style={styles.assistantBtn} onPress={() => void startVoiceRecognition(true)}>
             <Ionicons name="mic" size={16} color="#001022" />
-            <Text style={styles.assistantBtnText}>{listening ? "Listening..." : "Ask"}</Text>
+            <Text style={styles.assistantBtnText}>
+              {listening ? t("drive.listening") : t("drive.ask")}
+            </Text>
           </AnimatedPressable>
           <AnimatedPressable
             style={[styles.assistantBtn, styles.assistantBtnGhost]}
-            onPress={() => pauseForAssistant("Paused. Ask a question or tap Resume.")}
+            onPress={() => pauseForAssistant(t("drive.pauseAskStatus"))}
           >
-            <Text style={styles.assistantBtnGhostText}>Pause + Ask</Text>
+            <Text style={styles.assistantBtnGhostText}>{t("drive.pauseAsk")}</Text>
           </AnimatedPressable>
+          {voiceEngine === "Google" ? (
+            <AnimatedPressable
+              style={[styles.assistantBtn, styles.assistantBtnGhost]}
+              onPress={() => void openPlatformVoiceAssistant()}
+            >
+              <Text style={styles.assistantBtnGhostText}>{t("drive.openGoogle")}</Text>
+            </AnimatedPressable>
+          ) : null}
         </View>
       </GlassPanel>
       <Text style={styles.hint}>{t("drive.hint")}</Text>
@@ -316,7 +327,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
         <View style={styles.modalScrim}>
           <GlassPanel style={styles.assistantCard} padded={false}>
             <View style={{ padding: 18 }}>
-              <Text style={styles.assistantTitle}>Sala Drive Assistant</Text>
+              <Text style={styles.assistantTitle}>{t("drive.assistantTitle")}</Text>
               <Text style={styles.assistantStatus}>{assistantStatus}</Text>
               {assistantTranscript ? (
                 <Text style={styles.transcript}>You: {assistantTranscript}</Text>
@@ -335,14 +346,14 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
               />
               <View style={styles.modalActions}>
                 <PrimaryButton
-                  label={listening ? "Listening..." : "Mic"}
-                  onPress={() => startVoiceRecognition(false)}
+                  label={listening ? t("drive.listening") : t("drive.mic")}
+                  onPress={() => void startVoiceRecognition(false)}
                   variant="ghost"
                 />
-                <PrimaryButton label="Ask" onPress={submitTypedQuestion} variant="brand" />
-                <PrimaryButton label="Resume" onPress={() => resumeCourse()} variant="netflix" />
+                <PrimaryButton label={t("drive.ask")} onPress={submitTypedQuestion} variant="brand" />
+                <PrimaryButton label={t("drive.resume")} onPress={() => resumeCourse()} variant="netflix" />
                 <PrimaryButton
-                  label="Stay paused"
+                  label={t("drive.stayPaused")}
                   onPress={() => { clearResumeTimer(); setAssistantOpen(false); }}
                   variant="ghost"
                 />
@@ -407,7 +418,10 @@ const styles = StyleSheet.create({
   pause: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },
   assistantBar: { marginTop: 8 },
   assistantWake: { color: theme.colors.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
-  assistantActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 12 },
+  assistantEngine: {
+    color: theme.colors.muted, fontSize: 11, textAlign: "center", marginTop: 4, lineHeight: 15,
+  },
+  assistantActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" },
   assistantBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: theme.colors.brand, borderRadius: theme.radius.pill,
