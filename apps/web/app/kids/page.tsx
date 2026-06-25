@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Rail } from "../components/CourseRail";
 import { AUTH_EVENT, getHomeFeed, getToken, type HomeRail } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 export default function KidsPage() {
+  const { t, locale } = useT();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -17,7 +19,7 @@ export default function KidsPage() {
       setLoggedIn(authed);
       setAuthResolved(true);
       if (authed) {
-        getHomeFeed(true).then(setRails).catch((e) => setError(String(e)));
+        getHomeFeed(true, locale).then(setRails).catch((e) => setError(String(e)));
       } else {
         setRails(null);
         setError("");
@@ -26,12 +28,12 @@ export default function KidsPage() {
     sync();
     window.addEventListener(AUTH_EVENT, sync);
     return () => window.removeEventListener(AUTH_EVENT, sync);
-  }, []);
+  }, [locale]);
 
   if (!authResolved) {
     return (
       <div className="kids">
-        <div className="feed"><p className="muted">Loading…</p></div>
+        <div className="feed"><p className="muted">{t("kids.loading")}</p></div>
       </div>
     );
   }
@@ -41,13 +43,19 @@ export default function KidsPage() {
       <div className="kids">
         <div className="feed">
           <div className="kids-hero">
-            <h1>🚀 Kids Academy</h1>
+            <h1>{t("kids.title")}</h1>
             <p style={{ color: "#9a3412", fontWeight: 600, fontSize: 18 }}>
-              Safe, fun, age-appropriate classes — sign in to explore the kids catalog.
+              {t("kids.signInSub")}
             </p>
             <div className="hero-cta" style={{ justifyContent: "center" }}>
-              <Link href="/login"><button className="theme-btn" style={{ background: "#f59e0b" }}>Sign in</button></Link>
-              <Link href="/"><button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>Back to main site</button></Link>
+              <Link href="/login">
+                <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("profile.signIn")}</button>
+              </Link>
+              <Link href="/">
+                <button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>
+                  {t("kids.backMain")}
+                </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -59,23 +67,29 @@ export default function KidsPage() {
     <div className="kids">
       <div className="feed">
         <div className="kids-hero">
-          <h1>🚀 Kids Academy</h1>
+          <h1>{t("kids.title")}</h1>
           <p style={{ color: "#9a3412", fontWeight: 600, fontSize: 18 }}>
-            Safe, fun, age-appropriate classes — pick something and start the adventure!
+            {t("kids.signedInSub")}
           </p>
           <div className="hero-cta" style={{ justifyContent: "center" }}>
-            <Link href="/class"><button className="theme-btn" style={{ background: "#f59e0b" }}>▶ Start a class</button></Link>
-            <Link href="/"><button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>Back to main site</button></Link>
+            <Link href="/class">
+              <button className="theme-btn" style={{ background: "#f59e0b" }}>{t("kids.startClass")}</button>
+            </Link>
+            <Link href="/">
+              <button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>
+                {t("kids.backMain")}
+              </button>
+            </Link>
           </div>
           <p style={{ color: "#a16207", fontSize: 13, marginTop: 10 }}>
-            Kids mode hides mature content (parental controls). Grown-ups can manage
-            profiles &amp; limits in <Link href="/account">Account</Link>.
+            {t("kids.parentNote")}{" "}
+            <Link href="/account">{t("account.title")}</Link>.
           </p>
         </div>
 
-        {error && <p style={{ color: "#b00" }}>Could not load kids classes: {error}</p>}
-        {rails === null && !error && <p className="muted">Loading fun classes…</p>}
-        {rails && rails.length === 0 && <p className="muted">No kids classes yet.</p>}
+        {error && <p style={{ color: "#b00" }}>{t("kids.loadError")} {error}</p>}
+        {rails === null && !error && <p className="muted">{t("kids.loadingClasses")}</p>}
+        {rails && rails.length === 0 && <p className="muted">{t("kids.noClasses")}</p>}
         {rails?.map((r) => <Rail key={r.key} rail={r} kids />)}
       </div>
     </div>
