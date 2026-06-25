@@ -1,7 +1,7 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, IDENTITY_URL, MEMORY_URL } from "./config";
 import { getToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL };
@@ -114,9 +114,10 @@ function authHeaders(): Record<string, string> {
 function networkError(base: string, err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
   if (/network request failed|failed to connect|ECONNREFUSED|timed out|aborted/i.test(msg)) {
-    return new Error(
-      `Cannot reach backend at ${base}. Start it on your Mac (make run-identity for login on :8008). (${msg})`,
-    );
+    const hint = DEPLOY_MODE === "local"
+      ? "Start backends on your Mac (make run-identity :8008, curriculum :8005)."
+      : "Check network/VPN and that www.salareen.com is reachable.";
+    return new Error(`Cannot reach backend at ${base}. ${hint} (${msg})`);
   }
   return err instanceof Error ? err : new Error(msg);
 }

@@ -76,7 +76,7 @@
     },
     "extra": {
       "deployMode": "cloud",
-      "cloudBaseUrl": "http://45.63.91.80",
+      "cloudBaseUrl": "https://www.salareen.com",
       "curriculumUrl": "http://localhost:8005",
       "identityUrl": "http://localhost:8008",
       "memoryUrl": "http://localhost:8004",

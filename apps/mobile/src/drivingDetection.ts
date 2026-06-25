@@ -1,9 +1,9 @@
 // Driving detection for Drive Mode: GPS speed + motion sensors (opt-in).
 // Foreground-only (when-in-use location); no background tracking.
 
-import * as Location from "expo-location";
-import { Accelerometer, Gyroscope } from "expo-sensors";
+import type * as LocationTypes from "expo-location";
 
+import { isExpoLocationAvailable, isExpoSensorsAvailable, tryRequireModule } from "./nativeModules";
 import type { Settings } from "./storage";
 
 export type DrivingPhase = "unknown" | "idle" | "driving";
@@ -15,6 +15,7 @@ export type DrivingStatus = {
   motionActive: boolean;
   locationGranted: boolean;
   motionGranted: boolean;
+  nativeAvailable: boolean;
   updatedAt: number;
 };
 
@@ -33,11 +34,12 @@ let status: DrivingStatus = {
   motionActive: false,
   locationGranted: false,
   motionGranted: false,
+  nativeAvailable: isExpoLocationAvailable() || isExpoSensorsAvailable(),
   updatedAt: Date.now(),
 };
 
 const listeners = new Set<Listener>();
-let locSub: Location.LocationSubscription | null = null;
+let locSub: LocationTypes.LocationSubscription | null = null;
 let accelSub: { remove: () => void } | null = null;
 let gyroSub: { remove: () => void } | null = null;
 let enterTimer: ReturnType<typeof setTimeout> | null = null;
@@ -45,6 +47,18 @@ let exitTimer: ReturnType<typeof setTimeout> | null = null;
 let recentAccel: number[] = [];
 let manualIdleUntil = 0;
 let running = false;
+
+function getLocation(): typeof import("expo-location") | null {
+  return tryRequireModule<typeof import("expo-location")>("expo-location");
+}
+
+function getSensors(): typeof import("expo-sensors") | null {
+  return tryRequireModule<typeof import("expo-sensors")>("expo-sensors");
+}
+
+export function isDrivingDetectionAvailable(): boolean {
+  return isExpoLocationAvailable() || isExpoSensorsAvailable();
+}
 
 function mpsToMph(mps: number): number {
   return mps * 2.23694;
@@ -135,15 +149,21 @@ export async function requestDrivingPermissions(opts: {
   let motion = false;
 
   if (opts.location) {
-    const { status: perm } = await Location.requestForegroundPermissionsAsync();
-    location = perm === "granted";
+    const Location = getLocation();
+    if (Location) {
+      const { status: perm } = await Location.requestForegroundPermissionsAsync();
+      location = perm === "granted";
+    }
   }
 
   if (opts.motion) {
-    try {
-      motion = await Accelerometer.isAvailableAsync();
-    } catch {
-      motion = false;
+    const sensors = getSensors();
+    if (sensors) {
+      try {
+        motion = await sensors.Accelerometer.isAvailableAsync();
+      } catch {
+        motion = false;
+      }
     }
   }
 
@@ -158,12 +178,26 @@ export function markNotDriving(): void {
 
 export async function startDrivingDetection(settings: Settings): Promise<DrivingStatus> {
   await stopDrivingDetection();
+  status = {
+    ...status,
+    nativeAvailable: isDrivingDetectionAvailable(),
+    updatedAt: Date.now(),
+  };
+  emit();
+
   if (!settings.driveDetectionEnabled) {
     setPhase("unknown");
     return status;
   }
 
+  if (!isDrivingDetectionAvailable()) {
+    setPhase("unknown");
+    return status;
+  }
+
   running = true;
+  const Location = getLocation();
+  const sensors = getSensors();
   const perms = await requestDrivingPermissions({
     location: settings.driveUseLocation,
     motion: settings.driveUseMotionSensors,
@@ -171,7 +205,7 @@ export async function startDrivingDetection(settings: Settings): Promise<Driving
   status = { ...status, locationGranted: perms.location, motionGranted: perms.motion };
   emit();
 
-  if (settings.driveUseLocation && perms.location) {
+  if (settings.driveUseLocation && perms.location && Location) {
     locSub = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
@@ -186,9 +220,10 @@ export async function startDrivingDetection(settings: Settings): Promise<Driving
     );
   }
 
-  if (settings.driveUseMotionSensors && perms.motion) {
+  if (settings.driveUseMotionSensors && perms.motion && sensors) {
+    const { Accelerometer, Gyroscope } = sensors;
     Accelerometer.setUpdateInterval(1000);
-    accelSub = Accelerometer.addListener(({ x, y, z }) => {
+    accelSub = Accelerometer.addListener(({ x, y, z }: { x: number; y: number; z: number }) => {
       if (!running) return;
       const mag = Math.sqrt(x * x + y * y + z * z);
       recentAccel.push(mag);

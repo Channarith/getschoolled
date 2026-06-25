@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+[unreleased]
+- (no changes yet)
+
+[0.4.0] - 2026-06-25
+- 2026-06-25 - Mobile cloud backend: use https://www.salareen.com (same paths as web)
+  instead of raw HTTP to 45.63.91.80 — fixes iOS simulator ATS "Network request failed".
+- 2026-06-25 - Mobile Android Expo Go: lazy-load expo-location/expo-speech-recognition
+  so missing native modules no longer crash startup; use launch:android:native for
+  full Drive Mode voice + driving detection.
 - 2026-06-25 - Mobile EAS iOS: eas-build-post-install runs expo-device Xcode 26 patch
   after pod install (TARGET_OS_SIMULATOR not in Swift); mobile-patch-native.js
   orchestrator; remove package-lock.json for pnpm-only EAS installs.
@@ -501,6 +510,7 @@ Format: newest first. No markdown per project convention.
 
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
+
   [test] extra (not requirements-dev.txt), and services/curriculum's test extra
   omitted fpdf2 (the test fixtures call fpdf to generate PDFs). Added
   fpdf2==2.7.9 to services/curriculum/pyproject.toml [project.optional-
@@ -1690,9 +1700,8 @@ Format: newest first. No markdown per project convention.
 - add .gitignore, .editorconfig, .python-version.
 
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
-were lost to the changelog-rolling bug fixed in [unreleased]; their content is
-[unreleased]
-- (no changes yet)
+were lost to the changelog-rolling bug fixed in the release workflow; their content is
+archived in git history only.
 
 [0.3.83] - 2026-06-24
 - (no changes yet)

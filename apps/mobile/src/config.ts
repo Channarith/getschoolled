@@ -1,7 +1,7 @@
 // Resolve backend URLs for simulator, physical device, and deployed cluster.
 //
-// deployMode=cloud (default): same-origin paths on the Vultr VKE host as the web app
-//   (http://45.63.91.80/identity, /curriculum, /memory) — works from emulator and device.
+// deployMode=cloud (default): same HTTPS origin + path prefixes as www.salareen.com
+//   (https://www.salareen.com/identity, /curriculum, /memory).
 // deployMode=local: iOS Simulator uses localhost; Android emulator uses 10.0.2.2.
 // Override via MOBILE_DEPLOY_MODE / MOBILE_CLOUD_BASE_URL (see app.config.js).
 
@@ -16,7 +16,7 @@ export const DEPLOY_MODE: DeployMode =
   extra.deployMode === "local" ? "local" : "cloud";
 
 export const CLOUD_BASE_URL = (
-  extra.cloudBaseUrl || "http://45.63.91.80"
+  extra.cloudBaseUrl || "https://www.salareen.com"
 ).replace(/\/$/, "");
 
 function hostFallback(port: number): string {

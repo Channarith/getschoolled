@@ -1,10 +1,10 @@
 /**
  * Dynamic Expo config (merges static app.json via the config param).
  *
- * MOBILE_DEPLOY_MODE=local|cloud  (default cloud — Vultr VKE at MOBILE_CLOUD_BASE_URL)
- * MOBILE_CLOUD_BASE_URL=http://45.63.91.80
+ * MOBILE_DEPLOY_MODE=local|cloud  (default cloud — same HTTPS origin as www.salareen.com)
+ * MOBILE_CLOUD_BASE_URL=https://www.salareen.com
  */
-const CLOUD_DEFAULT = "http://45.63.91.80";
+const CLOUD_DEFAULT = "https://www.salareen.com";
 
 module.exports = ({ config }) => {
   const extra = config.extra || {};
