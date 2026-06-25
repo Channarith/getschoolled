@@ -44,40 +44,32 @@ mobile_android_expo_go_installed() {
   return 1
 }
 
-# Enable EXPO_OFFLINE when Expo Go is present (avoids expo.dev fetch hang). Leave
-# offline off on first launch so Expo can auto-install Expo Go (needs network once).
-mobile_configure_expo_offline() {
+# Enable EXPO_OFFLINE for Metro (local bundledNativeModules.json). Install Expo Go
+# first via mobile-install-expo-go-*.sh when missing (needs network once).
+mobile_prepare_expo_go_launch() {
   local platform="$1"
   local adb="${2:-}"
-
-  if [[ -n "${EXPO_OFFLINE:-}" ]]; then
-    if [[ "${EXPO_OFFLINE}" == "1" ]]; then
-      if [[ "$platform" == "ios" ]] && ! mobile_ios_expo_go_installed; then
-        echo "WARN: EXPO_OFFLINE=1 but Expo Go is not on the iOS simulator." >&2
-        echo "      Clearing offline mode so Expo can install Expo Go (needs network)." >&2
-        unset EXPO_OFFLINE
-      elif [[ "$platform" == "android" ]] && ! mobile_android_expo_go_installed "$adb"; then
-        echo "WARN: EXPO_OFFLINE=1 but Expo Go is not on the Android emulator." >&2
-        echo "      Clearing offline mode so Expo can install Expo Go (needs network)." >&2
-        unset EXPO_OFFLINE
-      fi
-    fi
-    return 0
-  fi
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
   if [[ "$platform" == "ios" ]]; then
-    if mobile_ios_expo_go_installed; then
-      export EXPO_OFFLINE=1
-    else
-      unset EXPO_OFFLINE || true
+    if ! mobile_ios_expo_go_installed; then
+      echo "==> Expo Go missing — running one-time install (needs network)"
+      bash "$script_dir/mobile-install-expo-go-ios.sh"
     fi
   elif [[ "$platform" == "android" ]]; then
-    if mobile_android_expo_go_installed "$adb"; then
-      export EXPO_OFFLINE=1
-    else
-      unset EXPO_OFFLINE || true
+    if ! mobile_android_expo_go_installed "$adb"; then
+      echo "==> Expo Go missing — running one-time install (needs network)"
+      bash "$script_dir/mobile-install-expo-go-android.sh"
     fi
   fi
+
+  export EXPO_OFFLINE=1
+  export CI=false
+}
+
+mobile_configure_expo_offline() {
+  mobile_prepare_expo_go_launch "$@"
 }
 
 mobile_print_launch_timeline() {
@@ -92,6 +84,6 @@ mobile_print_launch_timeline() {
     echo "    4:00+       Expo Go opens on the Android emulator"
   fi
   echo "    Tip: leave this terminal open — Metro must keep running"
-  echo "    Stuck 5+ min? Ctrl+C, then: bash scripts/mobile-launch-${platform}.sh --debug"
+  echo "    Stuck 5+ min? Ctrl+C, then: bash scripts/mobile-launch-${platform}.sh"
   echo ""
 }

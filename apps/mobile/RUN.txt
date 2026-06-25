@@ -104,21 +104,16 @@ NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
     # press i in that terminal when Metro is ready
 
   Stuck at "Starting Metro Bundler" / "Fetching bundled native modules":
-    Cause: stale Metro on port 8081 (interactive port prompt) or expo.dev network hang.
+    Cause: stale Metro on port 8081 or expo.dev network hang (when EXPO_OFFLINE unset).
     Fix:
       bash scripts/mobile-metro-cleanup.sh
       bash scripts/mobile-launch-ios.sh
-    Launch scripts set CI=1, --port 8081, --localhost (iOS). EXPO_OFFLINE=1 is enabled
-    only after Expo Go is already on the simulator (avoids bundled-modules hang without
-    blocking first-time Expo Go install).
+    Launch scripts: debug ON by default, CI=false, EXPO_OFFLINE=1 (local bundled modules).
+    First run without Expo Go: bash scripts/mobile-install-expo-go-ios.sh (network once).
 
   "Expo Go is not installed … while running in offline mode":
-    Cause: EXPO_OFFLINE=1 before Expo Go was ever installed on the simulator.
-    Fix: git pull origin main, then:
-      bash scripts/mobile-launch-ios.sh
-    First launch needs network so Expo can download Expo Go into the simulator (2–5 min).
-    After Expo Go is installed, relaunch uses EXPO_OFFLINE automatically.
-    Force offline anytime:  pnpm run dev:ios:offline  (only if Expo Go is already there)
+    Run: bash scripts/mobile-install-expo-go-ios.sh
+    Then: bash scripts/mobile-launch-ios.sh
 
   Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
   with no Simulator window.
