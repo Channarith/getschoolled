@@ -61,9 +61,20 @@ cultural character, not a religious symbol. Source assets live in `docs/brand/`
 and `apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 `docs/brand/branding.txt`.
 
+Each of the 27 languages gets its own mascot that differs in **both colour and
+physique**: a per-locale stone tint plus a slightly different build and arm/leg
+placement (e.g. a sturdier grounded kneel for `sw`, a lean upright kneel for
+`ja`, a cross-legged seat for `hi`), while every variant keeps the same serene
+face, lotus crown, and S-with-bodhi-leaf medallion. Regenerate with
+`python3 scripts/build_mascot_bases.py` (reference-guided base carvings ->
+transparent `apps/web/public/mascots/base/{locale}.webp`) then
+`python3 scripts/generate_locale_mascots.py` (layers each locale's colour tint
+and writes the web + mobile `{locale}.webp` and the mobile asset manifest).
+
 | Asset | Path | Purpose |
 | --- | --- | --- |
-| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
+| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot + canonical `km` base (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
+| Locale mascots (27) | `apps/web/public/mascots/{locale}.webp` (+ `base/` carvings, mobile copies) | Per-language mascot: distinct colour + build/pose. Contact sheet: `docs/screens/mascots_locale_variants.webp` |
 | Logo mark | `apps/web/public/logo-mark.webp` + `logo-mark.svg` | Nav + browser/app "S" badge |
 | Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
 | Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` (+ `salareen_adaptive_fg_1024.png` for Android) | Mascot face + full golden S + bodhi leaf; regenerate via `python3 scripts/generate_salareen_mobile_icon.py` then rebuild native app |
@@ -118,6 +129,11 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
 | <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |
+
+Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
+crown, and S-with-bodhi-leaf medallion):
+
+<img src="docs/screens/mascots_locale_variants.webp" alt="Contact sheet of all 27 locale Bayon Buddy mascots, each with a different stone colour, build, and arm/leg placement" width="760" />
 
 Additional screenshots live in `docs/screens/`.
 

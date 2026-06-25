@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Generate photo-realistic locale Bayon Buddy WebP mascots (27 languages).
 
-The Khmer (km) master is apps/web/public/bayon-mark.webp — the canonical
-stone-carving Salareen mascot. Other locales are the same carving with subtle
-stone hue / warmth / brightness shifts so each language feels distinct while
-staying photo-realistic.
+Each locale has its own transparent *base* carving at
+apps/web/public/mascots/base/{locale}.webp — same serene face, Khmer lotus crown,
+and S-with-bodhi-leaf medallion, but a slightly different physique (build) and
+arm/leg placement (pose). The bases are produced by scripts/build_mascot_bases.py
+from reference-guided art. This step layers each locale's deterministic stone
+color tint (hue / saturation / brightness / warmth from MASCOT_CATALOG) on top of
+its base, so every language differs in BOTH geometry and colour.
+
+The Khmer (km) base is the canonical master (apps/web/public/bayon-mark.webp),
+copied unchanged. If a locale base is missing, the master is used as a fallback.
 """
 
 from __future__ import annotations
@@ -21,8 +27,15 @@ from aoep_shared.mascots import MASCOT_CATALOG, MascotVariant  # noqa: E402
 
 MASTER = ROOT / "apps" / "web" / "public" / "bayon-mark.webp"
 WEB_OUT = ROOT / "apps" / "web" / "public" / "mascots"
+BASE_DIR = WEB_OUT / "base"
 MOBILE_OUT = ROOT / "apps" / "mobile" / "assets" / "mascots"
 MOBILE_TS = ROOT / "apps" / "mobile" / "src" / "mascots" / "imageAssets.ts"
+
+
+def _base_path(locale: str) -> Path:
+    """Per-locale base carving, falling back to the canonical master."""
+    p = BASE_DIR / f"{locale}.webp"
+    return p if p.is_file() else MASTER
 
 
 def _apply_stone_tint(img, variant: MascotVariant):
@@ -57,14 +70,6 @@ def _apply_stone_tint(img, variant: MascotVariant):
     return rgba
 
 
-def _render_variant(variant: MascotVariant, master):
-    from PIL import Image
-
-    if variant.locale == "km":
-        return master.copy()
-    return _apply_stone_tint(master, variant)
-
-
 def main() -> None:
     if not MASTER.is_file():
         raise SystemExit(f"missing master mascot: {MASTER}")
@@ -75,7 +80,6 @@ def main() -> None:
     MOBILE_OUT.mkdir(parents=True, exist_ok=True)
     MOBILE_TS.parent.mkdir(parents=True, exist_ok=True)
 
-    master = Image.open(MASTER)
     entries: list[str] = []
 
     for old in WEB_OUT.glob("*.svg"):
@@ -85,9 +89,11 @@ def main() -> None:
         web_path = WEB_OUT / f"{locale}.webp"
         mobile_path = MOBILE_OUT / f"{locale}.webp"
         if variant.locale == "km":
+            # Canonical homeland carving: master geometry, copied unchanged.
             shutil.copy2(MASTER, web_path)
         else:
-            out = _render_variant(variant, master)
+            base = Image.open(_base_path(locale))
+            out = _apply_stone_tint(base, variant)
             out.save(web_path, format="WEBP", quality=92, method=6)
         shutil.copy2(web_path, mobile_path)
         entries.append(f'  {locale}: require("../../assets/mascots/{locale}.webp"),')
