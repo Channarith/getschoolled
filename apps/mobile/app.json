@@ -32,7 +32,7 @@
     "android": {
       "package": "com.aiclassroom.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/salareen_icon_1024.png",
+        "foregroundImage": "./assets/salareen_adaptive_fg_1024.png",
         "backgroundColor": "#0b1020"
       },
       "permissions": ["RECORD_AUDIO", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],

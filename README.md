@@ -66,7 +66,7 @@ and `apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 | Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
 | Logo mark | `apps/web/public/logo-mark.webp` + `logo-mark.svg` | Nav + browser/app "S" badge |
 | Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
-| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` | Photorealistic gold medallion + bodhi leaf (from `bayon-mark.webp`); regenerate via `python3 scripts/generate_salareen_mobile_icon.py` |
+| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` (+ `salareen_adaptive_fg_1024.png` for Android) | Mascot face + full golden S + bodhi leaf; regenerate via `python3 scripts/generate_salareen_mobile_icon.py` then rebuild native app |
 | Favicon | `apps/web/public/favicon.ico` | Browser favicon |
 | Platform diagrams | `docs/brand/salareen_platform_ecosystem.png`, `salareen_workstreams_diagram.png` | Ecosystem poster + workstream map |
 
