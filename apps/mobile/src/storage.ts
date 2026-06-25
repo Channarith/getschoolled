@@ -3,6 +3,8 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { NarrationVoicePref } from "./voiceProfiles";
+
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
   myList: "@aic/mylist.v1",         // string[]
@@ -38,6 +40,8 @@ export type Settings = {
   driveAutoLaunch: boolean;
   /** Local alert when driving starts. */
   driveDrivingAlerts: boolean;
+  /** auto = infer from learning profile (child, accessibility, pace). */
+  narrationVoicePref: NarrationVoicePref;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -52,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   driveUseMotionSensors: true,
   driveAutoLaunch: false,
   driveDrivingAlerts: true,
+  narrationVoicePref: "auto",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {

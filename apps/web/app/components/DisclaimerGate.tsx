@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { acceptLegal, getToken } from "../lib/api";
+import { acceptLegal, DISCLAIMER_ACCEPTED_EVENT, getToken } from "../lib/api";
 
 // One-time AI & consent + legal disclaimer, shown ONCE AFTER LOGIN. Anonymous
 // visitors can browse the catalog freely; the consent/legal acknowledgement
@@ -36,6 +36,11 @@ export default function DisclaimerGate() {
     // Best-effort server-side record; UI proceeds regardless.
     acceptLegal("current-user", REQUIRED).catch(() => undefined);
     setOpen(false);
+    try {
+      window.dispatchEvent(new Event(DISCLAIMER_ACCEPTED_EVENT));
+    } catch {
+      /* no window */
+    }
   }
 
   if (!open) return null;

@@ -249,9 +249,8 @@ function AppInner() {
           {screen}
         </Animated.View>
         <LearningProfileSurvey
-          key={authEpoch}
+          authEpoch={authEpoch}
           manualOpenToken={surveyManualToken}
-          onSaved={() => setAuthEpoch((n) => n + 1)}
         />
       </View>
       {!showCareers ? (

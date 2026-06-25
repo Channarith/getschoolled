@@ -414,6 +414,19 @@ DRIVING DETECTION (opt-in)
   Not driving. Optional: auto-open Drive tab, driving alerts (local notification
   + in-app banner). src/drivingDetection.ts — foreground-only while app is open.
 
+DRIVE MODE VOICE (Hey Sala)
+  Tap Ask in Drive Mode — uses native speech recognition (Siri engine on iOS,
+  Google on Android) in your selected app language. Say "Hey Sala" or "Salareen"
+  then your question. Requires a dev/native build (expo run:android / run:ios);
+  Expo Go alone may not include the speech module. Rebuild after pulling:
+  npx expo prebuild && npx expo run:android  (or run:ios)
+
+NARRATION VOICE PROFILES
+  Settings -> NARRATION VOICE: Auto (from learning profile), Standard,
+  Child-friendly, Accessible (slower), Calm, or Clear. Drive Mode TTS picks the
+  best OS voice for your locale + style (rate/pitch tuned per profile).
+  Web Drive Mode has the same chips under the player (localStorage).
+
 WHAT'S HERE
   App.tsx                       root: bottom-tab nav, banner, notification listeners
   src/api.ts                    typed client (curriculum, identity, memory)
@@ -429,6 +442,8 @@ WHAT'S HERE
                                         Trending, Categories rails
   src/screens/AudioCoursesScreen.tsx   browse + search + category chips (with star)
   src/screens/DriveModeScreen.tsx      hands-free player (expo-speech, progress saved,
+                                        Hey Sala assistant via expo-speech-recognition)
+  src/voiceAssistant.ts                native STT (Siri iOS / Google Android) + wake word
                                         completion notification, streak bump, save)
   src/screens/MyListScreen.tsx         saved-classes list (Netflix My List)
   src/screens/NotificationsScreen.tsx  alerts inbox (server feed, mark-read, deep-link)

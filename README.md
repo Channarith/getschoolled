@@ -66,7 +66,7 @@ and `apps/web/public/`; mobile assets in `apps/mobile/assets/`; usage rules in
 | Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
 | Logo mark | `apps/web/public/logo-mark.webp` + `logo-mark.svg` | Nav + browser/app "S" badge |
 | Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
-| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` | Photorealistic gold medallion + bodhi leaf (from `bayon-mark.webp`); regenerate via `python3 scripts/generate_salareen_mobile_icon.py` |
+| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` (+ `salareen_adaptive_fg_1024.png` for Android) | Mascot face + full golden S + bodhi leaf; regenerate via `python3 scripts/generate_salareen_mobile_icon.py` then rebuild native app |
 | Favicon | `apps/web/public/favicon.ico` | Browser favicon |
 | Platform diagrams | `docs/brand/salareen_platform_ecosystem.png`, `salareen_workstreams_diagram.png` | Ecosystem poster + workstream map |
 
@@ -115,6 +115,10 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- | --- | --- |
 | <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
+| Salareen mobile — Android home | Drive Mode (mockup) |
+| --- | --- |
+| <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |
+
 Additional screenshots live in `docs/screens/`.
 
 > Per AGENTS.md, refresh these screenshots/videos whenever the UI changes.
@@ -125,7 +129,7 @@ Additional screenshots live in `docs/screens/`.
 | --- | --- | --- |
 | Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue | `apps/web/app/class`, `services/orchestrator` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
-| Mobile | Expo app, Drive Mode, Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
+| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
 | Language learning | 27 supported language codes including Turkish and Khmer; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
 | Careers | Job board, skill coverage, JD parsing, certification class matching | `/jobs`, curriculum jobs APIs |
 | Accounts | Signup/login, session tokens, students, portfolio, profile context sharing, rewards | `services/identity` |
@@ -490,7 +494,13 @@ counsel before public/commercial release.
 
 The Expo app supports Android and iOS with:
 
-- Drive Mode audio classes using `expo-speech`.
+- Drive Mode audio classes using `expo-speech`, with **narration voice profiles**
+  (child-friendly, accessible/slower, calm, clear, or Auto from learning profile).
+- **Hey Sala** hands-free Q&A in Drive Mode via native speech recognition
+  (Siri on iOS, Google on Android; requires a dev/native build).
+- **Opt-in driving detection** (GPS speed + motion sensors) with alerts and
+  optional auto-launch into Drive Mode.
+- **Learning profile survey** shown once after login; persisted to identity.
 - Netflix-style home rails and category cards.
 - Continue Listening, My List, local progress, streaks, and saved settings.
 - Local notifications and alerts inbox.
@@ -501,6 +511,8 @@ The Expo app supports Android and iOS with:
 
 Salareen mobile is an **Expo SDK 51** app in `apps/mobile`. On a Mac you can run it
 in the **iOS Simulator** and/or an **Android emulator**.
+
+![Salareen mobile app — Home on Android (emulator)](docs/screens/mobile_android_home.webp)
 
 > **Developer note:** Many teams find **native dev builds** (`pnpm run ios` /
 > `pnpm run android`) more reliable than **Expo Go** (no separate Expo Go install,
