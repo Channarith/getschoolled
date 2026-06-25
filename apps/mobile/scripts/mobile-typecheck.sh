@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 MOBILE_ROOT="$ROOT"
+# shellcheck source=mobile-env.sh
+. "$(dirname "$0")/mobile-env.sh"
 . "$(dirname "$0")/mobile-deps.sh"
 
 TSCONFIG="${TSCONFIG:-tsconfig.typecheck.json}"
@@ -55,7 +57,7 @@ if [ "$VERBOSE" = "1" ]; then
 fi
 
 # 4 GB default Node heap is tight for RN type graphs on some Mac/Node 22 builds.
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
+# mobile-env.sh sets NODE_OPTIONS (default 12 GB).
 
 echo "    running tsc (NODE_OPTIONS=$NODE_OPTIONS)..."
 if [ -f node_modules/typescript/lib/tsc.js ]; then

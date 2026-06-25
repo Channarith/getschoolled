@@ -175,29 +175,34 @@ TYPECHECK
   pnpm typecheck         # or from repo root: make mobile-typecheck
   pnpm run typecheck:verbose   # prints cwd, tsconfig include, src file count
 
-  JavaScript heap out of memory during typecheck or export
-  --------------------------------------------------------
-  Cause: stale tsconfig.json with "**/*.ts" include (typechecks all of
-  node_modules), or typecheck:verbose running tsc --listFilesOnly (OOM on Mac).
+  JavaScript heap out of memory (typecheck, export, dev, launch — Mac Node 22)
+  ---------------------------------------------------------------------------
+  Symptom: FATAL ERROR near ~4040 MB heap, AfterScanDir in stack trace.
 
-  Fix (git fetch origin && git pull origin main):
-  - tsconfig.json include scoped to src/** only
-  - typecheck uses scripts/mobile-typecheck.sh + tsconfig.typecheck.json
-  - verbose mode does NOT call --listFilesOnly
+  Cause: Node 22 defaults to ~4 GB. Metro runs in a subprocess that ignores
+  NODE_OPTIONS unless METRO_NODE_OPTIONS is also set. pnpm exec expo adds more
+  heap pressure scanning hoisted node_modules.
 
-  Verify on your Mac (first line must print "==> mobile typecheck"):
-    pwd && test -f app.json && echo "OK in mobile app dir"
-    grep -A6 '"include"' tsconfig.json    # must NOT show "**/*.ts"
-    grep typecheck package.json             # must call mobile-typecheck.sh
-    pnpm run typecheck:verbose              # src ~20, completes in seconds
+  Fix (git pull origin main) — all expo/dev commands use bash wrappers with 12 GB:
+    scripts/mobile-env.sh       NODE_OPTIONS + METRO_NODE_OPTIONS
+    scripts/mobile-expo.sh      expo without pnpm exec
+    scripts/mobile-launch-ios.sh / mobile-launch-android.sh
 
-  If pnpm run doctor / typecheck OOM with no output (Mac Node 22):
-    pnpm itself may exhaust ~4 GB heap scanning hoisted node_modules.
-    Skip pnpm — run bash scripts directly:
-      bash scripts/mobile-doctor.sh
-      bash scripts/mobile-typecheck.sh
-      VERBOSE=1 bash scripts/mobile-typecheck.sh
-    Optional: export NODE_OPTIONS=--max-old-space-size=8192 before pnpm commands.
+  RUN ON SIMULATOR / EMULATOR (use these, not raw expo):
+    bash scripts/mobile-launch-ios.sh
+    bash scripts/mobile-launch-android.sh
+    bash scripts/mobile-expo.sh start --ios --clear
+    bash scripts/mobile-expo.sh start --android --clear
+
+  Or via pnpm (now wraps bash internally):
+    pnpm run launch:ios
+    pnpm run dev:android
+
+  NEVER on Mac:  expo start ...   or   pnpm exec expo ...
+
+  If still OOM, raise heap in your shell before any command:
+    export NODE_OPTIONS=--max-old-space-size=12288
+    export METRO_NODE_OPTIONS=--max-old-space-size=12288
 
   If export OOMs (often on second platform after ios succeeds):
     export scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=8192 and run each

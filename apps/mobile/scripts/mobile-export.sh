@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 MOBILE_ROOT="$ROOT"
+# shellcheck source=mobile-env.sh
+. "$(dirname "$0")/mobile-env.sh"
 . "$(dirname "$0")/mobile-deps.sh"
 
 VERBOSE="${VERBOSE:-0}"
@@ -39,11 +41,7 @@ if ! mobile_deps_has_expo; then
   exit 1
 fi
 
-# Metro subprocess may ignore NODE_OPTIONS; set both (expo-cli #2401).
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-export METRO_NODE_OPTIONS="${METRO_NODE_OPTIONS:-$NODE_OPTIONS}"
-export EXPO_NO_TELEMETRY=1
-# Export is non-interactive — skip dev-oriented file watchers where possible.
+# Export is non-interactive — reduce dev file-watcher overhead where possible.
 export CI="${CI:-true}"
 
 EXPO_BIN="node_modules/.bin/expo"

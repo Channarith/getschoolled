@@ -22,6 +22,8 @@ for arg in "$@"; do
 done
 
 cd "$ROOT"
+# shellcheck source=mobile-env.sh
+. "$(dirname "$0")/mobile-env.sh"
 echo "==> Salareen mobile Android launch (cwd=$PWD)"
 bash scripts/mobile-doctor.sh || true
 
@@ -60,16 +62,19 @@ if [[ "$DEBUG" == "1" ]]; then
   echo "==> Verbose mode: EXPO_DEBUG=1 DEBUG=expo:*"
 fi
 
+EXPO=(bash scripts/mobile-expo.sh)
+
 echo "==> Backend note: Android emulator uses 10.0.2.2 for your Mac (see src/config.ts)"
 
 if [[ "$NATIVE" == "1" ]]; then
   echo "==> Native build: expo run:android"
   if [[ "$DEBUG" == "1" ]]; then
-    pnpm exec expo run:android --verbose
+    "${EXPO[@]}" run:android --verbose
   else
-    pnpm android
+    "${EXPO[@]}" run:android
   fi
 else
   echo "==> Expo Go path: expo start --android --clear"
-  pnpm exec expo start --android --clear
+  echo "    NODE_OPTIONS=$NODE_OPTIONS METRO_NODE_OPTIONS=$METRO_NODE_OPTIONS"
+  "${EXPO[@]}" start --android --clear
 fi

@@ -76,6 +76,12 @@ else
   fail "scripts/mobile-typecheck.sh missing — git fetch origin && git pull origin main"
 fi
 
+if [ -f scripts/mobile-expo.sh ]; then
+  ok "mobile-expo.sh present (expo without pnpm heap OOM)"
+else
+  fail "scripts/mobile-expo.sh missing — git pull origin main"
+fi
+
 if [ -f tsconfig.typecheck.json ]; then
   ok "tsconfig.typecheck.json present"
 else
@@ -132,6 +138,12 @@ else
 fi
 
 echo
+echo "If pnpm/expo OOMs on Mac (AfterScanDir, ~4 GB heap):"
+echo "  All scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=12GB."
+echo "  Prefer bash launchers (never raw 'expo' or 'pnpm exec expo'):"
+echo "    bash scripts/mobile-launch-ios.sh"
+echo "    bash scripts/mobile-launch-android.sh"
+echo "    bash scripts/mobile-expo.sh start --ios --clear"
 echo "If deps are missing after pnpm install:"
 echo "  bash scripts/mobile-install.sh"
 echo "If pnpm run doctor OOMs, skip pnpm and run:"

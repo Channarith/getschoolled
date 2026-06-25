@@ -4,8 +4,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-
+# shellcheck source=mobile-env.sh
+. "$(dirname "$0")/mobile-env.sh"
+MOBILE_ROOT="$ROOT"
 . "$(dirname "$0")/mobile-deps.sh"
 
 echo "==> mobile install"

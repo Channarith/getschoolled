@@ -24,6 +24,8 @@ for arg in "$@"; do
 done
 
 cd "$ROOT"
+# shellcheck source=mobile-env.sh
+. "$(dirname "$0")/mobile-env.sh"
 echo "==> Salareen mobile iOS launch (cwd=$PWD)"
 bash scripts/mobile-doctor.sh || true
 
@@ -43,14 +45,17 @@ if [[ "$DEBUG" == "1" ]]; then
   echo "==> Verbose mode: EXPO_DEBUG=1 DEBUG=expo:*"
 fi
 
+EXPO=(bash scripts/mobile-expo.sh)
+
 if [[ "$NATIVE" == "1" ]]; then
   echo "==> Native build: expo run:ios (first run can take 10–20 min)"
   if [[ "$DEBUG" == "1" ]]; then
-    pnpm exec expo run:ios --verbose
+    "${EXPO[@]}" run:ios --verbose
   else
-    pnpm ios
+    "${EXPO[@]}" run:ios
   fi
 else
   echo "==> Expo Go path: expo start --ios --clear"
-  pnpm exec expo start --ios --clear
+  echo "    NODE_OPTIONS=$NODE_OPTIONS METRO_NODE_OPTIONS=$METRO_NODE_OPTIONS"
+  "${EXPO[@]}" start --ios --clear
 fi
