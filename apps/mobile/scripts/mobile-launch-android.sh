@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
 # Launch Salareen mobile on Android emulator with optional verbose Expo logs.
-# Usage:
-#   bash apps/mobile/scripts/mobile-launch-android.sh
-#   bash apps/mobile/scripts/mobile-launch-android.sh --debug
-#   bash apps/mobile/scripts/mobile-launch-android.sh --native
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEBUG="${DEBUG:-0}"
 NATIVE="${NATIVE:-0}"
+FRESH="${FRESH:-0}"
 
 for arg in "$@"; do
   case "$arg" in
     --debug) DEBUG=1 ;;
     --native) NATIVE=1 ;;
+    --fresh) FRESH=1 ;;
     -h|--help)
-      echo "Usage: $0 [--debug] [--native]"
+      echo "Usage: $0 [--debug] [--fresh] [--native]"
       exit 0
       ;;
   esac
@@ -24,6 +22,9 @@ done
 cd "$ROOT"
 # shellcheck source=mobile-env.sh
 . "$(dirname "$0")/mobile-env.sh"
+# shellcheck source=mobile-sim-utils.sh
+. "$(dirname "$0")/mobile-sim-utils.sh"
+
 echo "==> Salareen mobile Android launch (cwd=$PWD)"
 bash scripts/mobile-doctor.sh || true
 
@@ -47,8 +48,11 @@ if ! "$ADB" devices 2>/dev/null | grep -q "emulator"; then
   "$EMULATOR" -avd "$AVD" -no-snapshot-load &
   echo "==> Waiting for emulator (up to 120s)…"
   "$ADB" wait-for-device
-  for _ in $(seq 1 60); do
-    if "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q 1; then break; fi
+  for i in $(seq 1 60); do
+    if "$ADB" shell getprop sys.boot_completed 2>/dev/null | grep -q 1; then
+      echo "    emulator booted (${i} checks)"
+      break
+    fi
     sleep 2
   done
 else
@@ -56,6 +60,7 @@ else
 fi
 
 export EXPO_NO_TELEMETRY=1
+export RCT_METRO_PORT="${RCT_METRO_PORT:-8081}"
 if [[ "$DEBUG" == "1" ]]; then
   export EXPO_DEBUG=1
   export DEBUG=expo:*
@@ -63,18 +68,26 @@ if [[ "$DEBUG" == "1" ]]; then
 fi
 
 EXPO=(bash scripts/mobile-expo.sh)
+EXPO_START_FLAGS=()
+if [[ "$FRESH" == "1" ]]; then
+  EXPO_START_FLAGS+=(--clear)
+  echo "==> --fresh: clearing Metro cache (slower)"
+fi
 
 echo "==> Backend note: Android emulator uses 10.0.2.2 for your Mac (see src/config.ts)"
 
 if [[ "$NATIVE" == "1" ]]; then
   echo "==> Native build: expo run:android"
+  mobile_print_launch_timeline android
   if [[ "$DEBUG" == "1" ]]; then
     "${EXPO[@]}" run:android --verbose
   else
     "${EXPO[@]}" run:android
   fi
 else
-  echo "==> Expo Go path: expo start --android --clear"
-  echo "    NODE_OPTIONS=$NODE_OPTIONS METRO_NODE_OPTIONS=$METRO_NODE_OPTIONS"
-  "${EXPO[@]}" start --android --clear
+  echo "==> Expo Go: starting Metro, then opening Android emulator"
+  echo "    NODE_OPTIONS=$NODE_OPTIONS"
+  mobile_print_launch_timeline android
+  echo "==> Starting… (watch for 'Bundled' or 'Opening on Android')"
+  "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"
 fi

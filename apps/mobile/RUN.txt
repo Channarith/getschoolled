@@ -79,6 +79,30 @@ VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
     cd apps/mobile/ios && xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
+  Symptom: launch script sits at "Starting Metro Bundler" or "rebuilding cache"
+  for several minutes with no Simulator window.
+
+  This is NORMAL on first run (2–5 min). Metro builds ~735 JS modules before
+  Expo Go opens. Do NOT use --clear every time (removed from default launch).
+
+  Timeline:
+    1–3 min   Metro + Watchman (may pause with no new lines)
+    3–5 min   First bundle — look for "iOS Bundled" / "Opening on iOS"
+    Then      Expo Go should appear in Simulator with Salareen
+
+  Faster relaunch (cache kept):
+    bash scripts/mobile-launch-ios.sh
+
+  Only if Metro acts broken:
+    bash scripts/mobile-launch-ios.sh --fresh
+
+  If 5+ min with zero progress:
+    bash scripts/mobile-launch-ios.sh --debug
+    # or open Simulator first: open -a Simulator
+    # then in two steps:
+    bash scripts/mobile-expo.sh start
+    # press i in that terminal when Metro is ready
+
   Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
   with no Simulator window.
 
