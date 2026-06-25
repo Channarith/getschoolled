@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  acceptLegal,
   getCompliance,
   getLegalNotices,
+  acceptLegal,
   type LegalNotice,
 } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 export default function LegalPage() {
+  const { t } = useT();
   const [notices, setNotices] = useState<LegalNotice[]>([]);
   const [required, setRequired] = useState<string[]>([]);
   const [region, setRegion] = useState("us");
@@ -37,8 +40,8 @@ export default function LegalPage() {
       const r = await acceptLegal("current-user", required);
       setStatus(
         r.all_required_accepted
-          ? "Thank you - your agreement to the Terms, Privacy Notice, and Acceptable Use Policy is recorded."
-          : `Still outstanding: ${r.outstanding.join(", ")}`
+          ? t("legal.accepted")
+          : t("legal.outstanding", { list: r.outstanding.join(", ") })
       );
     } catch (e) {
       setError(String(e));
@@ -47,12 +50,8 @@ export default function LegalPage() {
 
   return (
     <main className="container">
-      <h1>Legal &amp; compliance</h1>
-      <p className="muted">
-        Use of this platform is licensed and must follow all applicable laws and
-        the policies of your government, country, and institution. Review the
-        notices below and record your agreement.
-      </p>
+      <h1>{t("legal.title")}</h1>
+      <p className="muted">{t("legal.intro")}</p>
 
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
@@ -61,27 +60,27 @@ export default function LegalPage() {
       )}
 
       <div className="card">
-        <h3>Notices</h3>
+        <h3>{t("legal.notices")}</h3>
         <ul>
           {notices.map((n) => (
             <li key={n.id}>
               <strong>{n.title}</strong> (v{n.version})
-              {required.includes(n.id) && <em> &mdash; required</em>}
+              {required.includes(n.id) && <em> — {t("legal.required")}</em>}
               <div className="muted">{n.summary}</div>
-              <div className="muted" style={{ fontSize: 12 }}>source: {n.path}</div>
+              <div className="muted" style={{ fontSize: 12 }}>{t("legal.source")} {n.path}</div>
             </li>
           ))}
         </ul>
         <button onClick={onAccept} disabled={notices.length === 0}>
-          I agree to the required notices
+          {t("legal.agree")}
         </button>
         {status && <p className="muted" style={{ marginTop: 8 }}>{status}</p>}
       </div>
 
       <div className="card">
-        <h3>Region compliance</h3>
+        <h3>{t("legal.regionCompliance")}</h3>
         <label>
-          Region&nbsp;
+          {t("legal.region")}&nbsp;
           <select value={region} onChange={(e) => setRegion(e.target.value)}>
             <option value="us">US (FERPA/COPPA)</option>
             <option value="us_il">US-IL (BIPA)</option>
@@ -91,17 +90,17 @@ export default function LegalPage() {
         </label>
         {compliance && (
           <ul>
-            <li>Frameworks: {(compliance.frameworks as string[])?.join(", ")}</li>
-            <li>Parental-consent age: {String(compliance.parental_consent_age)}</li>
-            <li>Written biometric consent: {String(compliance.written_biometric_consent)}</li>
+            <li>{t("legal.frameworks")} {(compliance.frameworks as string[])?.join(", ")}</li>
+            <li>{t("legal.parentalAge")} {String(compliance.parental_consent_age)}</li>
+            <li>{t("legal.writtenBio")} {String(compliance.written_biometric_consent)}</li>
             <li>
-              Emotion recognition allowed: {String(compliance.emotion_recognition_allowed)}
+              {t("legal.emotionRec")} {String(compliance.emotion_recognition_allowed)}
               {compliance.emotion_recognition_allowed === false && (
-                <em> &mdash; disabled by law (e.g. EU AI Act)</em>
+                <em> — {t("legal.emotionDisabled")}</em>
               )}
             </li>
-            <li>AI high-risk (extra oversight): {String(compliance.ai_high_risk)}</li>
-            <li>Default retention (days): {String(compliance.default_retention_days)}</li>
+            <li>{t("legal.aiHighRisk")} {String(compliance.ai_high_risk)}</li>
+            <li>{t("legal.retention")} {String(compliance.default_retention_days)}</li>
           </ul>
         )}
       </div>

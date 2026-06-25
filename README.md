@@ -250,6 +250,203 @@ sequenceDiagram
   O-->>B: answer + confidence + citations
 ```
 
+## Course Composition Score (PCS) — our scoring algorithm
+
+Salareen represents every course as a **quantifiable composition** and reduces
+it to a single deterministic number — the **Pedagogical Composition Score
+(PCS)** — so two ways of teaching the same subject can be compared with a metric
+instead of an opinion. This is a **custom, proprietary algorithm (patent
+pending)** unique to Salareen; the reference implementation lives in
+`packages/shared/src/aoep_shared/harvest/composition.py` and is exercised by the
+harvester (`services/harvester`).
+
+### What it represents
+
+A class is built from **nodes**. Each node has a **category** — a fixed
+pedagogical type (`introduction`, `history`, `concept`, `example`, `video`,
+`quiz`, `qanda`, `summary`, …; 18 in total, see `NODE_CATEGORIES`) — and an
+optional **sub-node** label, a subtopic *within* that category (e.g. `"music"`
+under `history`, or `example 1` / `example 2`). The whole class is stored as a
+NumPy matrix `M` of shape `(C, S)` where `C` = number of categories, `S` = max
+sub-node slots, and `M[i, j]` is the weight of the j-th sub-node in category `i`.
+
+### The formula
+
+Given the matrix `M`, the PCS is computed in five fixed steps:
+
+$$
+Q_{i,j} = \operatorname{round}(\rho \cdot M_{i,j})
+\qquad
+a_i = \sum_{j=0}^{S-1} (j+1)\, Q_{i,j}
+$$
+
+$$
+R = \sum_{i=0}^{C-1} p_i \, a_i
+\qquad
+R' = R + \alpha N + \beta K
+\qquad
+\boxed{\;\mathrm{PCS} = R' \bmod \mu\;}
+$$
+
+| Symbol | Meaning | Value (fixed) | Constant in code |
+| --- | --- | --- | --- |
+| $\rho$ | weight quantization resolution (1/4 steps) | `4` | `QUANT_RESOLUTION` |
+| $p_i$ | per-category coefficient = the i-th prime | `2, 3, 5, 7, …` | `_PRIMES` |
+| $(j+1)$ | positional weight of sub-node slot `j` | — | `slot_weights` |
+| $N$ | total nodes $=\sum_{i,j}\operatorname{round}(M_{i,j})$ | — | `total_nodes()` |
+| $K$ | breadth = number of present categories | — | `present_categories()` |
+| $\alpha$ | structural coefficient on $N$ | `101` | `STRUCT_NODE_COEFF` |
+| $\beta$ | structural coefficient on $K$ | `103` | `STRUCT_CATEGORY_COEFF` |
+| $\mu$ | readable code space (default 0–999) | `1000` | `DEFAULT_SCORE_MODULUS` |
+
+In words: **quantize** the weights, apply a **positional weighting** to each
+sub-node slot, **mix categories by distinct primes** (this is what makes the
+result a near-injective fingerprint of the recipe), add **structural terms** for
+size and breadth to suppress cross-shape collisions, then **fold** into a
+readable 0–999 code. Setting $\mu \le 0$ returns the full uncompressed $R'$; for
+exact, collision-free identity use `composition_signature()` (a SHA-256 of the
+quantized matrix).
+
+**Worked example.** A 3-node recipe `{introduction×1, example×2}`:
+
+```
+intro    (i=0, p=2):  a₀ = 1·round(4·1) = 4        → 2·4   = 8
+example  (i=4, p=11): a₄ = 1·round(4·1) + 2·round(4·1)
+                         = 4 + 8 = 12               → 11·12 = 132
+R  = 8 + 132 = 140
+R' = R + 101·N + 103·K = 140 + 101·3 + 103·2 = 649
+PCS = 649 mod 1000 = 649
+```
+
+### Why it is novel / patentable
+
+1. **Course-as-matrix representation** — pedagogy encoded as a NumPy
+   node × sub-node weight matrix over a fixed category taxonomy.
+2. **Prime-positional fingerprinting** — distinct-prime category mixing combined
+   with positional sub-node weighting yields a compact, near-injective integer
+   "recipe fingerprint" that *equates to* the exact content mix used.
+3. **Tri-layer separation of identity, prior, and outcome** — the PCS (identity)
+   is kept separate from `quality_index()` (a heuristic prior over
+   coverage/balance/depth/interactivity) and from the *measured* survey outcome.
+4. **Outcome-keyed recipe optimization** — `CompositionOutcomeLedger` correlates
+   each PCS with real learner happiness, enabling direct A/B questions such as
+   *"does Chemistry 101 make learners happier taught as recipe 247 or 148?"*.
+
+### Data flow
+
+```mermaid
+flowchart LR
+  SRC["Sources<br/>text · html · url · pdf · pptx · docx · database"]
+  EXT["extractors.py<br/>→ ExtractedDoc (title + sections)"]
+  CLS["classify_section()<br/>section → node category + sub-node label"]
+  MAT["CourseComposition<br/>NumPy node × sub-node matrix M"]
+  PCS["composition_score() = PCS<br/>(recipe fingerprint, e.g. 247)"]
+  QUAL["quality_index() / quality_metrics()<br/>coverage · balance · depth · interactivity"]
+  TAG["CourseTags (JSON/meta)<br/>free/expensive · LinkedIn job · career · core"]
+  REV["GeneratedCourse → JSON<br/>(human review)"]
+  CAT[("Curriculum catalog<br/>Course + meta_composition_score")]
+  SURV["Post-class survey<br/>(happiness 1–5)"]
+  LED["CompositionOutcomeLedger<br/>PCS → avg happiness · compare(a,b)"]
+
+  SRC --> EXT --> CLS --> MAT
+  MAT --> PCS
+  MAT --> QUAL
+  PCS --> REV
+  QUAL --> REV
+  TAG --> REV
+  REV --> CAT
+  CAT --> SURV --> LED
+  PCS --> LED
+  LED -->|"best recipes feed authoring"| MAT
+```
+
+### Design (modules)
+
+```mermaid
+flowchart TB
+  subgraph harvest["aoep_shared.harvest"]
+    EXTRACT["extractors<br/>ExtractedDoc"]
+    COMP["composition<br/>CourseComposition · PCS · OutcomeLedger"]
+    TAGS["tagging<br/>CourseTags"]
+    GEN["generate<br/>generate_course() → GeneratedCourse"]
+    CRIT["critique<br/>HarvestCritic · optimize_with_ledger"]
+    PIPE["queue · worker · pipeline · runner<br/>(24/7 license-gated crawl)"]
+  end
+  RUN["services/harvester/run.py<br/>--generate · --critique · --instructions · crawl"]
+  OPT["aoep_shared.optimization<br/>OptimizationLedger (revertible)"]
+
+  EXTRACT --> GEN
+  COMP --> GEN
+  TAGS --> GEN
+  GEN --> CRIT
+  COMP --> CRIT
+  CRIT --> OPT
+  RUN --> GEN
+  RUN --> CRIT
+  RUN --> PIPE
+  PIPE --> COMP
+```
+
+The harvester operational guide (local runs, source types, critique loop) is in
+`services/harvester/RUNBOOK.txt`; print the live generation recipe with
+`python3 services/harvester/src/harvester/run.py --instructions`.
+
+## Teaching flow: harvest → teach → present
+
+A generated course flows through three composable parts into a live, AI-taught
+class. Each part has an **offline path** (deterministic lesson + mock meeting) so
+the whole chain runs in CI without keys, network, or ffmpeg.
+
+| Part | Module | Input → Output |
+| --- | --- | --- |
+| 1 — Harvest | `aoep_shared.harvest` | sources → scored, tagged `GeneratedCourse` → exported `.pptx` + `.course.json` |
+| 2 — Teach | `aoep_shared.teaching` | course → `LessonPlan` (offline builder, or delegate to the external `ppt_trainer` agent for an LLM script + audio/video) |
+| 3 — Present | `aoep_shared.meeting` | lesson → live meeting (Google Meet / Zoom / Teams, or an offline mock) presenting slide → speak → advance |
+
+The Part 1 → Part 2 hand-off is a real `.pptx` (the harvester narration rides in
+the slide speaker notes), so the standalone `ppt_trainer` reader consumes it with
+zero changes; the richer `.course.json` (composition matrix + PCS + tags) feeds
+the meeting layer.
+
+```mermaid
+flowchart LR
+  subgraph P1["Part 1 · harvest"]
+    GEN["generate_course()<br/>scored + tagged course"]
+    EXP["export_course_package()<br/>.pptx + .course.json"]
+  end
+  subgraph P2["Part 2 · teach"]
+    TEACH["teach_course()<br/>LessonPlan"]
+    PPT["external ppt_trainer agent<br/>(LLM script · TTS · video)"]
+  end
+  subgraph P3["Part 3 · present"]
+    PLAN["build_presentation_plan()<br/>timed slide plan"]
+    PROV["MeetingProvider<br/>Google Meet · Zoom · Teams · mock"]
+    LIVE["live class<br/>slide → speak → advance"]
+  end
+  GEN --> EXP --> TEACH
+  EXP -. ".pptx" .-> PPT -.-> TEACH
+  TEACH --> PLAN --> PROV --> LIVE
+```
+
+End-to-end (offline by default; falls back to the mock meeting when a real
+provider has no credentials):
+
+```bash
+# One command: harvest a course, teach it, present it in a meeting.
+python3 scripts/teach_and_present.py --source notes.pptx --subject chemistry \
+  --meeting-provider zoom --teach-engine fallback
+
+# Prove the whole chain is wired correctly (13 checks, no keys/network/ffmpeg):
+python3 scripts/validate_pipeline.py
+```
+
+Real meeting providers activate by environment only: `MEETING_PROVIDER` plus
+`GOOGLE_ACCESS_TOKEN` (Calendar scope), `ZOOM_ACCOUNT_ID`/`ZOOM_CLIENT_ID`/
+`ZOOM_CLIENT_SECRET`, or `TEAMS_ACCESS_TOKEN` (Graph). Streaming the AI's
+audio+slides into a live meeting is the per-provider media-transport step
+(`MeetingProvider._deliver_step`); the scheduling, lesson, timed plan, and
+transcript all run without it.
+
 ## Repository layout
 
 | Path | Purpose |

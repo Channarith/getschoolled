@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getFlag, gradeHomework, type HomeworkGrade } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 export default function HomeworkPage() {
+  const { t } = useT();
   const [flagReady, setFlagReady] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
 
@@ -48,12 +50,12 @@ export default function HomeworkPage() {
   if (flagReady && !homeworkOn) {
     return (
       <main className="container" style={{ maxWidth: 520 }}>
-        <h1>Homework grader</h1>
+        <h1>{t("homework.title")}</h1>
         <div className="card">
           <p className="muted">
-            This operator tool is disabled. An administrator can enable the{" "}
-            <strong>access.homework_grader</strong> feature flag on the{" "}
-            <Link href="/admin">Admin</Link> page.
+            {t("homework.disabledBefore")}{" "}
+            <Link href="/admin">{t("account.admin")}</Link>{" "}
+            {t("homework.disabledAfter")}
           </p>
         </div>
       </main>
@@ -62,28 +64,26 @@ export default function HomeworkPage() {
 
   return (
     <main className="container">
-      <h1>Homework grader</h1>
-      <p className="muted">
-        Paste a learner submission; the grader scores it against the assignment rubric.
-      </p>
+      <h1>{t("homework.title")}</h1>
+      <p className="muted">{t("homework.intro")}</p>
 
       <div className="card">
         <label style={{ display: "block", marginBottom: 8 }}>
-          Subject
+          {t("homework.subject")}
           <input value={subject} onChange={(e) => setSubject(e.target.value)}
             style={{ width: "100%", padding: 8 }} />
         </label>
         <label style={{ display: "block", marginBottom: 8 }}>
-          Submission
+          {t("homework.submission")}
           <textarea value={submission} onChange={(e) => setSubmission(e.target.value)}
             rows={8} style={{ width: "100%", padding: 8 }} />
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <input type="checkbox" checked={handwritten} onChange={(e) => setHandwritten(e.target.checked)} />
-          Handwritten / OCR submission
+          {t("homework.handwritten")}
         </label>
         <button onClick={onGrade} disabled={busy}>
-          {busy ? "Grading…" : "Grade homework"}
+          {busy ? t("homework.grading") : t("homework.gradeBtn")}
         </button>
       </div>
 
@@ -91,8 +91,12 @@ export default function HomeworkPage() {
 
       {grade && (
         <div className="card">
-          <h3>Result</h3>
-          <p>Score: {Math.round(grade.percentage * 100) / 100}% ({grade.score}/{grade.max_score})</p>
+          <h3>{t("homework.result")}</h3>
+          <p>{t("homework.score", {
+            pct: Math.round(grade.percentage * 100) / 100,
+            score: grade.score,
+            max: grade.max_score,
+          })}</p>
           {grade.items.length > 0 && (
             <ul>
               {grade.items.map((it, i) => (
@@ -101,7 +105,7 @@ export default function HomeworkPage() {
             </ul>
           )}
           {grade.validity_flags.length > 0 && (
-            <p className="muted">flags: {grade.validity_flags.join(", ")}</p>
+            <p className="muted">{t("homework.flags")} {grade.validity_flags.join(", ")}</p>
           )}
         </div>
       )}

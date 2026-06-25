@@ -3,13 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
-  getJobMatch,
-  listJobs,
-  parseJobDescription,
-  type JobMatch,
-  type JobParse,
-  type JobPosting,
+  getJobMatch, listJobs, parseJobDescription,
+  type JobMatch, type JobParse, type JobPosting,
 } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 const pretty = (s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -36,6 +33,7 @@ const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
 };
 
 export default function JobsPage() {
+  const { t } = useT();
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [source, setSource] = useState("");
   const [loading, setLoading] = useState(true);
@@ -71,16 +69,15 @@ export default function JobsPage() {
 
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
-      <h1>💼 Careers — courses that get you hired</h1>
+      <h1>{t("jobs.title")}</h1>
       <p className="muted">
-        Real job openings matched to Salareen courses. See exactly which classes
-        cover a role&rsquo;s skills, your coverage, and the gap to close.
+        {t("jobs.intro")}
         {source && source !== "sample"
-          ? ` Live openings from ${
-              (Array.from(new Set(jobs.map((j) => j.source))).filter(Boolean) as string[])
-                .map((s) => SOURCE_ICON[s] ?? pretty(s)).join(", ") || source
-            } — click “View / Apply” to open the original posting.`
-          : " (Showing a demo board while live sources are unavailable — set JOBS_LIVE=1, or a RAPIDAPI_KEY/Adzuna key for LinkedIn/Indeed-sourced listings.)"}
+          ? t("jobs.liveSources", {
+              sources: (Array.from(new Set(jobs.map((j) => j.source))).filter(Boolean) as string[])
+                .map((s) => SOURCE_ICON[s] ?? pretty(s)).join(", ") || source,
+            })
+          : t("jobs.demoBoard")}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
@@ -96,16 +93,16 @@ export default function JobsPage() {
               {match.job.url && (
                 <a href={match.job.url} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: 13 }}>
-                  View / Apply on {SOURCE_ICON[match.job.source] ?? match.job.source} ↗
+                  {t("jobs.viewApply", { source: SOURCE_ICON[match.job.source] ?? match.job.source })}
                 </a>
               )}
             </div>
-            <button onClick={() => setMatch(null)}>✕ Close</button>
+            <button onClick={() => setMatch(null)}>{t("jobs.close")}</button>
           </div>
           <p className="job-description">{match.job.description}</p>
 
           <div style={{ margin: "10px 0" }}>
-            <strong>You can cover {match.coverage_pct}% of this role with Salareen.</strong>
+            <strong>{t("jobs.coverage", { pct: match.coverage_pct })}</strong>
             <div style={{ height: 12, background: "#1d2746", borderRadius: 6, overflow: "hidden", marginTop: 6 }}>
               <div style={{ height: "100%", width: `${match.coverage_pct}%`,
                 background: match.coverage_pct >= 75 ? "#16a34a" : "#0ea5e9" }} />
@@ -121,55 +118,55 @@ export default function JobsPage() {
             ))}
           </div>
 
-          <h3 style={{ marginBottom: 4 }}>Take these courses to qualify</h3>
+          <h3 style={{ marginBottom: 4 }}>{t("jobs.takeCourses")}</h3>
           {match.matched_courses.length === 0 ? (
-            <p className="muted">No matching courses yet.</p>
+            <p className="muted">{t("jobs.noMatchCourses")}</p>
           ) : (
             <ul>
               {match.matched_courses.map((c) => (
                 <li key={c.course_id} style={{ marginBottom: 4 }}>
                   <strong>{c.title}</strong>{" "}
                   <span className="muted" style={{ fontSize: 12 }}>
-                    covers {c.covered_skills.map(pretty).join(", ")}
+                    {t("jobs.covers", { skills: c.covered_skills.map(pretty).join(", ") })}
                   </span>
                   {match.recommended_path.includes(c.course_id) &&
-                    <span className="pill" style={{ color: "#7c3aed", marginLeft: 6 }}>recommended</span>}
+                    <span className="pill" style={{ color: "#7c3aed", marginLeft: 6 }}>{t("jobs.recommended")}</span>}
                 </li>
               ))}
             </ul>
           )}
           {match.missing.length > 0 && (
-            <p className="muted">Still to learn elsewhere: {match.missing.map(pretty).join(", ")}.</p>
+            <p className="muted">{t("jobs.stillLearn", { skills: match.missing.map(pretty).join(", ") })}</p>
           )}
           <div className="row" style={{ marginTop: 8 }}>
-            <Link href="/browse"><button style={{ background: "#16a34a", color: "#fff" }}>Find these courses →</button></Link>
-            <Link href="/drive"><button>Or learn on the drive</button></Link>
+            <Link href="/browse"><button style={{ background: "#16a34a", color: "#fff" }}>{t("jobs.findCourses")}</button></Link>
+            <Link href="/drive"><button>{t("jobs.learnDrive")}</button></Link>
           </div>
         </div>
       )}
 
       {/* Paste a real (e.g. LinkedIn) job description -> targeted classes */}
       <div className="card" style={{ borderColor: "#7c3aed" }}>
-        <h3 style={{ marginTop: 0 }}>🔎 Paste a job description (e.g. from LinkedIn)</h3>
-        <p className="muted">We extract the exact skills + certifications and target specific classes — including cert prep like Cisco UCSM, AWS, PMP.</p>
+        <h3 style={{ marginTop: 0 }}>{t("jobs.pasteTitle")}</h3>
+        <p className="muted">{t("jobs.pasteDesc")}</p>
         <textarea rows={4} value={jd} onChange={(e) => setJd(e.target.value)}
-          placeholder="Paste the role's requirements here…"
+          placeholder={t("jobs.pastePlaceholder")}
           style={{ width: "100%", padding: 10 }} />
         <button onClick={analyzeJd} disabled={!jd.trim()}
-          style={{ marginTop: 8, background: "#7c3aed", color: "#fff" }}>Analyze &amp; recommend</button>
+          style={{ marginTop: 8, background: "#7c3aed", color: "#fff" }}>{t("jobs.analyze")}</button>
         {parsed && (
           <div style={{ marginTop: 12 }}>
             {parsed.parsed.certifications.length > 0 && (
-              <p><strong>Certifications detected:</strong>{" "}
+              <p><strong>{t("jobs.certsDetected")}</strong>{" "}
                 {parsed.parsed.certifications.map((c) => (
                   <span key={c} className="pill" style={{ color: "#7c3aed" }}>{c}</span>
                 ))}</p>
             )}
-            <p><strong>Skills:</strong> {parsed.parsed.skills.map(pretty).join(", ") || "—"}</p>
-            <p>Catalog coverage: <strong>{parsed.coverage_pct}%</strong></p>
+            <p><strong>{t("jobs.skillsLabel")}</strong> {parsed.parsed.skills.map(pretty).join(", ") || "—"}</p>
+            <p>{t("jobs.catalogCoverage")} <strong>{parsed.coverage_pct}%</strong></p>
             {parsed.matched_courses.length > 0 && (
               <>
-                <div style={{ fontWeight: 600 }}>Take these courses:</div>
+                <div style={{ fontWeight: 600 }}>{t("jobs.takeThese")}</div>
                 <ul>{parsed.matched_courses.map((c) => (
                   <li key={c.course_id}>{c.title} <span className="muted" style={{ fontSize: 12 }}>
                     ({c.covered_skills.map(pretty).join(", ")})</span></li>
@@ -178,7 +175,7 @@ export default function JobsPage() {
             )}
             {parsed.specialized_classes.length > 0 && (
               <>
-                <div style={{ fontWeight: 600 }}>Specialized classes to add (targeted to this role):</div>
+                <div style={{ fontWeight: 600 }}>{t("jobs.specialized")}</div>
                 <ul>{parsed.specialized_classes.map((s, i) => (
                   <li key={i}>
                     {s.title}{" "}
@@ -196,25 +193,27 @@ export default function JobsPage() {
       {/* Search */}
       <div className="card">
         <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <input placeholder="Search roles / skills…" value={q} onChange={(e) => setQ(e.target.value)}
+          <input placeholder={t("jobs.searchRoles")} value={q} onChange={(e) => setQ(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: 10 }} />
-          <input placeholder="Location" value={loc} onChange={(e) => setLoc(e.target.value)}
+          <input placeholder={t("jobs.location")} value={loc} onChange={(e) => setLoc(e.target.value)}
             style={{ width: 160, padding: 10 }} />
           <button type="button" onClick={refresh} disabled={loading}
             style={{ background: "#16a34a", color: "#fff", padding: "10px 16px" }}>
-            {loading ? "Searching…" : "Search"}
+            {loading ? t("jobs.searching") : t("jobs.search")}
           </button>
         </div>
         {!loading && jobs.length > 0 && (
           <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
-            {jobs.length} opening{jobs.length === 1 ? "" : "s"}
+            {jobs.length === 1
+              ? t("jobs.openings", { n: jobs.length })
+              : t("jobs.openingsPlural", { n: jobs.length })}
             {source ? ` · ${SOURCE_ICON[source] ?? pretty(source)}` : ""}
           </p>
         )}
       </div>
 
       {loading && (
-        <div className="job-grid" aria-busy="true" aria-label="Loading jobs">
+        <div className="job-grid" aria-busy="true" aria-label={t("jobs.loading")}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="job-card job-card-skeleton" aria-hidden="true">
               <div className="skeleton-line" style={{ width: "70%", height: 18 }} />
@@ -263,20 +262,22 @@ export default function JobsPage() {
             </div>
             <div className="job-foot">
               <span className="muted" style={{ fontSize: 11 }}>
-                {j.posted_days_ago ? `${j.posted_days_ago}d ago` : "recently"} · tap for course match →
+                {j.posted_days_ago
+                  ? t("jobs.daysAgo", { n: j.posted_days_ago })
+                  : t("jobs.recently")} · {t("jobs.tapMatch")}
               </span>
               {j.url && (
                 <a href={j.url} target="_blank" rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   style={{ fontSize: 11 }}>
-                  View / Apply ↗
+                  {t("jobs.viewApplyShort")}
                 </a>
               )}
             </div>
           </div>
           );
         })}
-        {jobs.length === 0 && <div className="muted card">No openings match your search.</div>}
+        {jobs.length === 0 && <div className="muted card">{t("jobs.noResults")}</div>}
       </div>
       )}
     </main>

@@ -46,6 +46,7 @@ export type StringKey =
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
   | "settings.sectionNarration" | "settings.narrationDesc" | "settings.narrationAuto"
+  | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
   | "settings.sectionDrive"
   | "settings.sectionAbout"
   | "settings.allow" | "settings.allowDesc"
@@ -227,6 +228,8 @@ const EN: Record<StringKey, string> = {
   "settings.sectionNarration": "NARRATION VOICE",
   "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
   "settings.narrationAuto": "Auto (profile)",
+  "settings.sectionTrainingLang": "LESSON LANGUAGE",
+  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode (English, Spanish, or Chinese).",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",

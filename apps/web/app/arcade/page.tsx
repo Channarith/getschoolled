@@ -14,6 +14,7 @@ import {
   type GameSubmit,
   type Leader,
 } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
@@ -21,6 +22,7 @@ const SUBJECT_ICON: Record<string, string> = {
 };
 
 export default function ArcadePage() {
+  const { t } = useT();
   const router = useRouter();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [subject, setSubject] = useState("biology");
@@ -50,7 +52,7 @@ export default function ArcadePage() {
 
   const finish = useCallback(async () => {
     if (!round) return;
-    if (!loggedIn) { setError("Sign in to submit your score and earn points."); return; }
+    if (!loggedIn) { setError(t("arcade.signInSubmit")); return; }
     const elapsed = (Date.now() - startedAt.current) / 1000;
     try {
       const r = await submitGame(round.game_id, answers, elapsed);
@@ -60,7 +62,7 @@ export default function ArcadePage() {
     } catch (e) {
       const msg = String(e);
       if (msg.includes("404") || msg.includes("unknown or expired")) {
-        setError("This game session expired — tap Play again to start a fresh round.");
+        setError(t("arcade.sessionExpired"));
         setRound(null);
       } else {
         setError(msg);
@@ -103,11 +105,11 @@ export default function ArcadePage() {
 
   return (
     <main className="container" style={{ maxWidth: 1000 }}>
-      <h1>🎮 Learning Arcade</h1>
+      <h1>{t("arcade.title")}</h1>
       <p className="muted">
-        Learn by playing! Pick a subject and a game, earn points, and climb the
-        leaderboard. Points feed your <Link href="/rewards">rewards</Link>.
-        {!loggedIn && <> <Link href="/login">Sign in</Link> to save scores.</>}
+        {t("arcade.intro")}{" "}
+        <Link href="/rewards">{t("arcade.rewardsLink")}</Link>.
+        {!loggedIn && <> <Link href="/login">{t("profile.signIn")}</Link> {t("arcade.signInSave")}</>}
       </p>
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
@@ -115,7 +117,7 @@ export default function ArcadePage() {
       {/* Picker */}
       {!round && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Choose your game</h3>
+          <h3 style={{ marginTop: 0 }}>{t("arcade.chooseGame")}</h3>
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
             {cat?.subjects.map((s) => (
               <button key={s}
@@ -125,7 +127,7 @@ export default function ArcadePage() {
               </button>
             ))}
           </div>
-          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>Age group</div>
+          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>{t("arcade.ageGroup")}</div>
           <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
             {cat?.age_groups.map((a) => (
               <button key={a.id} onClick={() => setAgeGroup(a.id)} title={a.range}
@@ -136,7 +138,7 @@ export default function ArcadePage() {
               </button>
             ))}
           </div>
-          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>Game mode</div>
+          <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>{t("arcade.gameMode")}</div>
           <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
             {cat?.game_types.map((g) => (
               <button key={g.id} onClick={() => setGameType(g.id)} title={g.desc}
@@ -146,15 +148,15 @@ export default function ArcadePage() {
             ))}
             {subject === "chemistry" && (
               <button onClick={() => setGameType("potion")}
-                title="Arcade: catch flying atoms to build molecules! Difficulty scales with age group."
+                title={t("arcade.potionTip")}
                 style={{ opacity: gameType === "potion" ? 1 : 0.55, background: gameType === "potion" ? "#7c3aed" : undefined, color: gameType === "potion" ? "#fff" : undefined }}>
-                ⚗️ Potion Lab
+                {t("arcade.potionLab")}
               </button>
             )}
           </div>
           <div style={{ marginTop: 16 }}>
             <button onClick={play} style={{ background: "#7c3aed", color: "#fff", padding: "10px 22px" }}>
-              ▶ Play {subject} · {gameType} · {ageGroup}
+              {t("arcade.play", { subject, game: gameType, age: ageGroup })}
             </button>
           </div>
         </div>
@@ -186,7 +188,7 @@ export default function ArcadePage() {
               </div>
             </div>
           ))}
-          <button onClick={finish} style={{ marginTop: 8, background: "#16a34a", color: "#fff" }}>Submit</button>
+          <button onClick={finish} style={{ marginTop: 8, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
         </div>
       )}
 
@@ -194,7 +196,7 @@ export default function ArcadePage() {
       {round && round.terms && round.options && (
         <div className="card">
           <h3 style={{ marginTop: 0 }}>{SUBJECT_ICON[round.subject]} {round.subject} · match</h3>
-          <p className="muted">Click a term, then its matching definition.</p>
+          <p className="muted">{t("arcade.matchHint")}</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div>
               {round.terms.map((t) => (
@@ -221,7 +223,7 @@ export default function ArcadePage() {
               })}
             </div>
           </div>
-          <button onClick={finish} style={{ marginTop: 12, background: "#16a34a", color: "#fff" }}>Submit</button>
+          <button onClick={finish} style={{ marginTop: 12, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
         </div>
       )}
 
@@ -243,25 +245,25 @@ export default function ArcadePage() {
               </li>
             ))}
           </ul>
-          <button onClick={() => setResult(null)} style={{ background: "#7c3aed", color: "#fff" }}>Play again</button>
+          <button onClick={() => setResult(null)} style={{ background: "#7c3aed", color: "#fff" }}>{t("arcade.playAgain")}</button>
         </div>
       )}
 
       {/* Leaderboard */}
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0 }}>🏆 Top players</h3>
+          <h3 style={{ margin: 0 }}>{t("arcade.leaderboard")}</h3>
           <select value={lbAge} onChange={(e) => { setLbAge(e.target.value); if (e.target.value) setLbSubject(""); }}>
-            <option value="">All ages</option>
+            <option value="">{t("arcade.allAges")}</option>
             {cat?.age_groups.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <select value={lbSubject} onChange={(e) => { setLbSubject(e.target.value); if (e.target.value) setLbAge(""); }}>
-            <option value="">Overall</option>
+            <option value="">{t("arcade.overall")}</option>
             {cat?.subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         {leaders.length === 0 ? (
-          <p className="muted">No scores yet — be the first to play!</p>
+          <p className="muted">{t("arcade.noScores")}</p>
         ) : (
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14, marginTop: 8 }}>
             <thead><tr style={{ textAlign: "left", background: "#f7f7f7" }}>

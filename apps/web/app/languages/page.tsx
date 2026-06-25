@@ -14,6 +14,7 @@ import {
   type LangInfo,
   type Pronounce,
 } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 // Best-effort BCP-47 for speech synthesis/recognition.
 const BCP47: Record<string, string> = {
@@ -42,6 +43,7 @@ function speak(text: string, code: string) {
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
 export default function LanguagesPage() {
+  const { t } = useT();
   const [langs, setLangs] = useState<LangInfo[]>([]);
   const [course, setCourse] = useState<LangCourse | null>(null);
   const [skill, setSkill] = useState<string>("");
@@ -130,7 +132,7 @@ export default function LanguagesPage() {
   function startSpeaking() {
     const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor || !course) { setError("Speech recognition isn't available in this browser — type what you said instead."); return; }
+    if (!Ctor || !course) { setError(t("languages.speechUnavailable")); return; }
     const rec = new Ctor();
     rec.lang = BCP47[course.code] ?? course.code;
     rec.interimResults = false; rec.maxAlternatives = 1;
@@ -143,20 +145,20 @@ export default function LanguagesPage() {
 
   return (
     <main className="container" style={{ maxWidth: 1040 }}>
-      <h1>🌍 Languages</h1>
+      <h1>{t("languages.title")}</h1>
       {!loggedIn ? (
         <div className="card">
           <p className="muted">
-            Please <Link href="/login">sign in</Link> to browse language courses and practice
-            pronunciation, vocabulary, and conversation drills.
+            {t("languages.signInBefore")}{" "}
+            <Link href="/login">{t("profile.signIn")}</Link>{" "}
+            {t("languages.signInAfter")}
           </p>
         </div>
       ) : (
       <>
       <p className="muted">
-        Learn 20+ languages by playing - pronunciation (speak &amp; get scored),
-        listening, vocabulary, phrases, travel, conversation, grammar, slang &amp;
-        more. {streak > 0 && <strong>🔥 {streak}-day streak!</strong>}
+        {t("languages.intro")}{" "}
+        {streak > 0 && <strong>{t("languages.streak", { days: streak })}</strong>}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
@@ -171,7 +173,7 @@ export default function LanguagesPage() {
               <div style={{ fontWeight: 700 }}>{l.name}</div>
               <div className="muted" style={{ fontSize: 12 }}>{l.native}</div>
               <span className="pill" style={{ color: l.tier === "rich" ? "#16a34a" : "#b45309", fontSize: 10 }}>
-                {l.tier === "rich" ? "full course" : "starter"}
+                {l.tier === "rich" ? t("languages.fullCourse") : t("languages.starter")}
               </span>
             </button>
           ))}
@@ -181,7 +183,7 @@ export default function LanguagesPage() {
       {/* Course view */}
       {course && !skill && (
         <div>
-          <button onClick={() => setCourse(null)} style={{ marginBottom: 12 }}>← All languages</button>
+          <button onClick={() => setCourse(null)} style={{ marginBottom: 12 }}>{t("languages.allLanguages")}</button>
           <div className="card">
             <h2 style={{ marginTop: 0 }}>{course.flag} {course.name} <span className="muted" style={{ fontSize: 16 }}>{course.native}</span></h2>
             {course.grammar_tip && <p className="muted">🧩 {course.grammar_tip}</p>}
@@ -204,7 +206,9 @@ export default function LanguagesPage() {
       {/* Exercise */}
       {course && skill && ex && (
         <div className="card">
-          <button onClick={() => { setSkill(""); setEx(null); }} style={{ marginBottom: 10 }}>← {course.name} skills</button>
+          <button onClick={() => { setSkill(""); setEx(null); }} style={{ marginBottom: 10 }}>
+            {t("languages.skillsBack", { name: course.name })}
+          </button>
 
           {/* grammar / culture */}
           {(ex.tip || ex.note) && <p style={{ fontSize: 16 }}>{ex.tip || ex.note}</p>}

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { getDisclosure, type Disclosure } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 export default function TransparencyPage() {
+  const { t } = useT();
   const [disclosure, setDisclosure] = useState<Disclosure | null>(null);
   const [error, setError] = useState<string>("");
 
@@ -15,55 +17,53 @@ export default function TransparencyPage() {
 
   return (
     <main className="container">
-      <h1>Transparency</h1>
-      <p className="muted">
-        We disclose the AI rather than disguise it. Here is how this platform
-        uses AI, what stays human, and how you can verify or dispute anything.
-      </p>
+      <h1>{t("transparency.title")}</h1>
+      <p className="muted">{t("transparency.intro")}</p>
 
       {disclosure && (
         <div className="card" style={{ borderColor: "#6ea8fe" }}>
-          <strong>Current disclosure</strong>
+          <strong>{t("transparency.current")}</strong>
           <div className="muted">{disclosure.line}</div>
           <ul>
-            <li>Instructor: {disclosure.instructor} (AI: {String(disclosure.is_ai)})</li>
-            <li>Model: {disclosure.model_name}</li>
-            <li>Persona: {disclosure.persona}</li>
+            <li>{t("transparency.instructor")} {disclosure.instructor} (AI: {String(disclosure.is_ai)})</li>
+            <li>{t("transparency.model")} {disclosure.model_name}</li>
+            <li>{t("transparency.persona")} {disclosure.persona}</li>
             <li>
-              Human of record: {disclosure.human_of_record ?? "assigned per course"}
+              {t("transparency.humanOfRecord")}{" "}
+              {disclosure.human_of_record ?? t("transparency.humanDefault")}
             </li>
           </ul>
         </div>
       )}
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
-          <div className="muted">Could not load live disclosure: {error}</div>
+          <div className="muted">{t("transparency.loadError")} {error}</div>
         </div>
       )}
 
       <div className="card">
-        <h3>What the AI does</h3>
+        <h3>{t("transparency.aiDoes")}</h3>
         <ul>
-          <li>Presents lessons and answers questions, grounded in the course material with citations.</li>
-          <li>Refuses/abstains when an answer is not supported by the material (hallucination guard).</li>
-          <li>Adapts pacing and difficulty to each learner.</li>
+          <li>{t("transparency.aiDoes1")}</li>
+          <li>{t("transparency.aiDoes2")}</li>
+          <li>{t("transparency.aiDoes3")}</li>
         </ul>
       </div>
 
       <div className="card">
-        <h3>What stays human</h3>
+        <h3>{t("transparency.humanStays")}</h3>
         <ul>
-          <li>A human of record reviews course content.</li>
-          <li>You can dispute any answer or grade; a human reviews it.</li>
-          <li>Optional human-led and hybrid class tracks are available.</li>
+          <li>{t("transparency.human1")}</li>
+          <li>{t("transparency.human2")}</li>
+          <li>{t("transparency.human3")}</li>
         </ul>
       </div>
 
       <div className="card">
-        <h3>Your data and choices</h3>
+        <h3>{t("transparency.dataChoices")}</h3>
         <ul>
-          <li>Biometric/face features are opt-in and consent-gated, with a name-only fallback.</li>
-          <li>Content authenticity can be verified (content credentials / provenance).</li>
+          <li>{t("transparency.data1")}</li>
+          <li>{t("transparency.data2")}</li>
         </ul>
       </div>
     </main>
