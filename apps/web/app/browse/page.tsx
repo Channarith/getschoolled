@@ -110,7 +110,13 @@ export default function BrowsePage() {
             )}
             <p className="muted" style={{ marginTop: 6 }}>{c.preview || c.description}</p>
             <div className="row" style={{ marginTop: 8, gap: 8 }}>
-              <button onClick={() => onEnroll(c)}>Enroll</button>
+              {c.media_format === "audio" ? (
+                <Link href={`/drive?course=${encodeURIComponent(c.course_id)}`}>
+                  <button type="button">Listen in Drive Mode</button>
+                </Link>
+              ) : (
+                <button onClick={() => onEnroll(c)}>Enroll</button>
+              )}
               <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>
                 {c.access_tier !== "free" ? `${c.access_tier} plan` : "free"}
               </span>

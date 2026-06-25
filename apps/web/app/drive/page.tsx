@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   getAudioCategories,
   getAudioCourse,
@@ -18,6 +19,8 @@ import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 // narration with an autoplay queue so learners keep their eyes on the road.
 export default function DrivePage() {
   const { t, locale } = useT();
+  const searchParams = useSearchParams();
+  const deepLinkCourse = searchParams.get("course");
   const [cats, setCats] = useState<{ category: string; count: number }[]>([]);
   const [cat, setCat] = useState<string>("");
   const [q, setQ] = useState("");
@@ -76,6 +79,11 @@ export default function DrivePage() {
       playSeg(c, 0);
     } catch (e) { setError(String(e)); }
   }
+
+  useEffect(() => {
+    if (!deepLinkCourse || !loggedIn) return;
+    void startCourse(deepLinkCourse);
+  }, [deepLinkCourse, loggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function playNextCourse() {
     if (!course) return;
