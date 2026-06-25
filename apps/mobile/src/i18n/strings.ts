@@ -29,6 +29,12 @@ export type StringKey =
   | "drive.title" | "drive.subtitle"
   | "drive.search" | "drive.all" | "drive.back"
   | "drive.hint" | "drive.drivingBadge"
+  | "drive.assistantWake" | "drive.assistantEngineHint"
+  | "drive.ask" | "drive.listening" | "drive.pauseAsk" | "drive.pauseAskStatus"
+  | "drive.openGoogle" | "drive.assistantTitle" | "drive.mic" | "drive.resume"
+  | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
+  | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
+  | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -136,6 +142,25 @@ const EN: Record<StringKey, string> = {
   "drive.back": "← Back",
   "drive.hint": "Keep your eyes on the road — this plays hands-free.",
   "drive.drivingBadge": "Driving detected",
+  "drive.assistantWake": "Tap Ask, then say “Hey Sala” ({engine})",
+  "drive.assistantEngineHint": "Uses your phone’s speech engine (Siri on iPhone, Google on Android) in your app language.",
+  "drive.ask": "Ask",
+  "drive.listening": "Listening…",
+  "drive.pauseAsk": "Pause + Ask",
+  "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
+  "drive.openGoogle": "Google voice",
+  "drive.assistantTitle": "Sala Drive Assistant",
+  "drive.mic": "Mic",
+  "drive.resume": "Resume",
+  "drive.stayPaused": "Stay paused",
+  "drive.listeningWake": "Listening via {engine} — say Hey Sala or Salareen…",
+  "drive.listeningQuestion": "Listening for your question or command…",
+  "drive.voiceUnavailable": "Voice recognition needs a dev build with native speech ({engine}). Type your question instead.",
+  "drive.voicePermissionDenied": "Allow microphone and speech recognition for Salareen in Settings to use {engine}.",
+  "drive.voiceError": "I could not hear that. Try again or type your question.",
+  "drive.voiceNoInput": "I did not catch that. Say Hey Sala, then ask again.",
+  "drive.wakeNotDetected": "Wake word not detected. Say Hey Sala or Salareen before your question.",
+  "drive.heardWakeOnly": "I heard you. Ask a question, or say pause, resume, next, or previous.",
 
   "mylist.title": "★ My List",
   "mylist.sub": "Saved for later. Auto-syncs on this device.",
