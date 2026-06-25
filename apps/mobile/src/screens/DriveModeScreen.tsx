@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, type AudioCourse } from "../api";
+import { getAudioCourse, listStudents, type AudioCourse } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -17,6 +17,7 @@ import {
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
+import { resolveVoiceStyle, type NarrationVoiceStyle } from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
 
 export default function DriveModeScreen({ courseId, onBack }: { courseId: string; onBack: () => void }) {
@@ -32,11 +33,22 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
   const segRef = useRef(0);
+  const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recognitionRef = useRef<any>(null);
 
+  async function refreshVoiceStyle() {
+    const settings = await getSettings();
+    let student = null;
+    try {
+      student = (await listStudents()).students[0] ?? null;
+    } catch { /* offline / guest */ }
+    voiceStyleRef.current = resolveVoiceStyle(settings.narrationVoicePref, student);
+  }
+
   useEffect(() => {
     void warmVoices();
+    void refreshVoiceStyle();
     getAudioCourse(courseId, locale)
       .then((c) => { setCourse(c); playFrom(c, 0); })
       .catch(() => {});
@@ -65,6 +77,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     const s = c.segments[i];
     speakNatural(`${s.heading}. ${s.text}`, {
       locale,
+      voiceStyle: voiceStyleRef.current,
       onDone: () => { if (segRef.current === i) playFrom(c, i + 1); },
     });
   }
@@ -201,6 +214,7 @@ export default function DriveModeScreen({ courseId, onBack }: { courseId: string
     Speech.stop();
     speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
       locale,
+      voiceStyle: voiceStyleRef.current,
       onDone: () => resumeCourse(6500),
     });
   }

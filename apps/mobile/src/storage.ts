@@ -3,6 +3,8 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { NarrationVoicePref } from "./voiceProfiles";
+
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
   myList: "@aic/mylist.v1",         // string[]
@@ -28,6 +30,8 @@ export type Settings = {
   newContentAlerts: boolean;
   completionAlerts: boolean;
   studentId: string;
+  /** auto = infer from learning profile (child, accessibility, pace). */
+  narrationVoicePref: NarrationVoicePref;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +41,7 @@ export const DEFAULT_SETTINGS: Settings = {
   newContentAlerts: true,
   completionAlerts: true,
   studentId: "guest",
+  narrationVoicePref: "auto",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {

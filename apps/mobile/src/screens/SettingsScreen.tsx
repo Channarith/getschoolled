@@ -18,6 +18,9 @@ import {
   DEFAULT_SETTINGS, clearAuthToken, getSettings, setAuthToken, setSettings,
   type Settings,
 } from "../storage";
+import {
+  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, type NarrationVoicePref,
+} from "../voiceProfiles";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
 import { theme } from "../theme";
 
@@ -272,6 +275,29 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
               );
             })}
           </View>
+      </Section>
+
+      <Section title={t("settings.sectionNarration")}>
+        <Text style={styles.desc}>{t("settings.narrationDesc")}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((style) => {
+            const selected = s.narrationVoicePref === style;
+            const label = style === "auto"
+              ? t("settings.narrationAuto")
+              : NARRATION_VOICE_LABELS[style];
+            return (
+              <AnimatedPressable
+                key={style}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => update({ narrationVoicePref: style })}
+                style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
+              >
+                <Text style={[styles.langText, selected && styles.langTextOn]}>{label}</Text>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
       </Section>
 
       <Section title={t("settings.sectionNotif")}>
