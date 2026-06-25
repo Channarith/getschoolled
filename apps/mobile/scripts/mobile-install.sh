@@ -129,4 +129,5 @@ echo "OK install (${ok_msg:-typescript present})"
 mobile_deps_print_status
 
 node scripts/patch-expo-localization-ios.js || true
+node scripts/patch-expo-device-ios.js || true
 node scripts/ensure-metro-local-deps.js || true

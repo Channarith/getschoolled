@@ -71,6 +71,16 @@ export async function fireCompletionAlert(courseTitle: string, courseId: string)
   );
 }
 
+export async function fireDrivingDetectedAlert(courseId?: string) {
+  const s = await getSettings();
+  if (!s.notificationsEnabled || !s.driveDrivingAlerts) return;
+  await fireImmediate(
+    "Driving detected",
+    "Hands-free Drive Mode is ready. Tap to continue your class.",
+    { courseId, kind: "driving", deepLink: "aiclassroom://drive" },
+  );
+}
+
 // Cancel any previously scheduled instance with the same identifier prefix so
 // re-scheduling is idempotent.
 async function cancelByIdentifier(identifier: string) {

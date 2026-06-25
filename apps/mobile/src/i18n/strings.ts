@@ -28,7 +28,13 @@ export type StringKey =
   // Drive Mode
   | "drive.title" | "drive.subtitle"
   | "drive.search" | "drive.all" | "drive.back"
-  | "drive.hint"
+  | "drive.hint" | "drive.drivingBadge"
+  | "drive.assistantWake" | "drive.assistantEngineHint"
+  | "drive.ask" | "drive.listening" | "drive.pauseAsk" | "drive.pauseAskStatus"
+  | "drive.openGoogle" | "drive.assistantTitle" | "drive.mic" | "drive.resume"
+  | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
+  | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
+  | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -40,6 +46,7 @@ export type StringKey =
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
   | "settings.sectionNarration" | "settings.narrationDesc" | "settings.narrationAuto"
+  | "settings.sectionDrive"
   | "settings.sectionAbout"
   | "settings.allow" | "settings.allowDesc"
   | "settings.daily" | "settings.dailyDesc"
@@ -59,6 +66,16 @@ export type StringKey =
   | "settings.learningProfile" | "settings.learningProfileDone" | "settings.learningProfilePending"
   | "settings.openSurvey" | "settings.signOut"
   | "settings.backendUrls"
+  | "settings.driveStatus" | "settings.driveStatusDriving" | "settings.driveStatusIdle"
+  | "settings.driveStatusUnknown" | "settings.driveDetect" | "settings.driveDetectDesc"
+  | "settings.driveLocation" | "settings.driveLocationDesc"
+  | "settings.driveMotion" | "settings.driveMotionDesc"
+  | "settings.driveAutoLaunch" | "settings.driveAutoLaunchDesc"
+  | "settings.driveAlerts" | "settings.driveAlertsDesc"
+  | "settings.drivePerms" | "settings.drivePermsDesc"
+  | "settings.drivePermsDeniedTitle" | "settings.drivePermsDeniedBody"
+  | "settings.driveNotDriving"
+  | "driving.bannerTitle" | "driving.bannerBody"
   | "auth.email" | "auth.password" | "auth.displayName"
   | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
   | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
@@ -125,6 +142,26 @@ const EN: Record<StringKey, string> = {
   "drive.all": "All",
   "drive.back": "← Back",
   "drive.hint": "Keep your eyes on the road — this plays hands-free.",
+  "drive.drivingBadge": "Driving detected",
+  "drive.assistantWake": "Tap Ask, then say “Hey Sala” ({engine})",
+  "drive.assistantEngineHint": "Uses your phone’s speech engine (Siri on iPhone, Google on Android) in your app language.",
+  "drive.ask": "Ask",
+  "drive.listening": "Listening…",
+  "drive.pauseAsk": "Pause + Ask",
+  "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
+  "drive.openGoogle": "Google voice",
+  "drive.assistantTitle": "Sala Drive Assistant",
+  "drive.mic": "Mic",
+  "drive.resume": "Resume",
+  "drive.stayPaused": "Stay paused",
+  "drive.listeningWake": "Listening via {engine} — say Hey Sala or Salareen…",
+  "drive.listeningQuestion": "Listening for your question or command…",
+  "drive.voiceUnavailable": "Voice recognition needs a dev build with native speech ({engine}). Type your question instead.",
+  "drive.voicePermissionDenied": "Allow microphone and speech recognition for Salareen in Settings to use {engine}.",
+  "drive.voiceError": "I could not hear that. Try again or type your question.",
+  "drive.voiceNoInput": "I did not catch that. Say Hey Sala, then ask again.",
+  "drive.wakeNotDetected": "Wake word not detected. Say Hey Sala or Salareen before your question.",
+  "drive.heardWakeOnly": "I heard you. Ask a question, or say pause, resume, next, or previous.",
 
   "mylist.title": "★ My List",
   "mylist.sub": "Saved for later. Auto-syncs on this device.",
@@ -141,9 +178,10 @@ const EN: Record<StringKey, string> = {
   "notif.emptyBody": "New classes and recommendations show up here.",
 
   "settings.title": "Settings",
-  "settings.sub": "Language, notifications, alerts, account.",
+  "settings.sub": "Language, notifications, driving detection, account.",
   "settings.sectionNotif": "NOTIFICATIONS",
   "settings.sectionLang": "LANGUAGE",
+  "settings.sectionDrive": "DRIVE MODE",
   "settings.sectionDiag": "DIAGNOSTICS",
   "settings.sectionAbout": "ABOUT",
   "settings.allow": "Allow notifications",
@@ -188,6 +226,29 @@ const EN: Record<StringKey, string> = {
   "settings.sectionNarration": "NARRATION VOICE",
   "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
   "settings.narrationAuto": "Auto (profile)",
+
+  "settings.driveStatus": "Status: {status}",
+  "settings.driveStatusDriving": "Driving",
+  "settings.driveStatusIdle": "Not driving",
+  "settings.driveStatusUnknown": "Off",
+  "settings.driveDetect": "Detect when I'm driving",
+  "settings.driveDetectDesc": "Uses GPS speed and motion sensors (only while the app is open).",
+  "settings.driveLocation": "Use location (GPS speed)",
+  "settings.driveLocationDesc": "Required for reliable driving detection.",
+  "settings.driveMotion": "Use motion sensors (gyro)",
+  "settings.driveMotionDesc": "Augments GPS with accelerometer/gyroscope data.",
+  "settings.driveAutoLaunch": "Open Drive Mode when driving",
+  "settings.driveAutoLaunchDesc": "Resume your last class or open the Drive tab automatically.",
+  "settings.driveAlerts": "Driving alerts",
+  "settings.driveAlertsDesc": "Notify when driving is detected so you can go hands-free.",
+  "settings.drivePerms": "Sensor permissions",
+  "settings.drivePermsDesc": "Location: {location} · Motion: {motion}",
+  "settings.drivePermsDeniedTitle": "Permissions needed",
+  "settings.drivePermsDeniedBody": "Enable location and motion access for Salareen in your phone Settings to use driving detection.",
+  "settings.driveNotDriving": "I'm not driving",
+
+  "driving.bannerTitle": "Driving detected",
+  "driving.bannerBody": "Hands-free Drive Mode is ready — tap to continue your class.",
 
   "auth.email": "Email",
   "auth.password": "Password",

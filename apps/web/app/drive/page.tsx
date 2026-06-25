@@ -15,9 +15,9 @@ import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
-import { ensureVoices, localeToBcp47, prosodyForStyle, speakNaturally } from "../lib/tts";
+import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 import {
-  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, resolveVoiceStyle,
+  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, prosodyForStyle, resolveVoiceStyle,
   type NarrationVoicePref, type NarrationVoiceStyle,
 } from "../lib/voiceProfiles";
 

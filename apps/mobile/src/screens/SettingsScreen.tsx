@@ -15,6 +15,9 @@ import {
   rescheduleDailyReminder,
 } from "../notifications";
 import {
+  markNotDriving, requestDrivingPermissions, type DrivingStatus,
+} from "../drivingDetection";
+import {
   DEFAULT_SETTINGS, clearAuthToken, getSettings, setAuthToken, setSettings,
   type Settings,
 } from "../storage";
@@ -27,9 +30,13 @@ import { theme } from "../theme";
 type Props = {
   onAuthChange?: () => void;
   onOpenLearningProfile?: () => void;
+  drivingStatus?: DrivingStatus;
+  onDrivingSettingsChange?: () => void;
 };
 
-export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: Props) {
+export default function SettingsScreen({
+  onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
+}: Props) {
   const { t, locale, setLocale } = useT();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
@@ -89,10 +96,68 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
           await rescheduleDailyReminder(next);
           await refreshScheduled();
         }
+        if ("driveDetectionEnabled" in patch || "driveUseLocation" in patch
+            || "driveUseMotionSensors" in patch || "driveAutoLaunch" in patch
+            || "driveDrivingAlerts" in patch) {
+          onDrivingSettingsChange?.();
+        }
       });
       return next;
     });
   };
+
+  async function toggleDriveDetection(enabled: boolean) {
+    if (!enabled) {
+      update({ driveDetectionEnabled: false });
+      return;
+    }
+    const perms = await requestDrivingPermissions({
+      location: s.driveUseLocation,
+      motion: s.driveUseMotionSensors,
+    });
+    if (!perms.location && !perms.motion) {
+      Alert.alert(t("settings.drivePermsDeniedTitle"), t("settings.drivePermsDeniedBody"));
+      return;
+    }
+    setS((cur) => {
+      const next = {
+        ...cur,
+        driveDetectionEnabled: true,
+        driveUseLocation: perms.location && cur.driveUseLocation,
+        driveUseMotionSensors: perms.motion && cur.driveUseMotionSensors,
+      };
+      void setSettings({
+        driveDetectionEnabled: true,
+        driveUseLocation: next.driveUseLocation,
+        driveUseMotionSensors: next.driveUseMotionSensors,
+      }).then(() => onDrivingSettingsChange?.());
+      return next;
+    });
+  }
+
+  async function requestDrivePermissions() {
+    const perms = await requestDrivingPermissions({
+      location: true,
+      motion: true,
+    });
+    if (!perms.location && !perms.motion) {
+      Alert.alert(t("settings.drivePermsDeniedTitle"), t("settings.drivePermsDeniedBody"));
+      return;
+    }
+    update({
+      driveUseLocation: perms.location,
+      driveUseMotionSensors: perms.motion,
+    });
+  }
+
+  const drivePhase = drivingStatus?.phase ?? "unknown";
+  const driveStatusText = drivePhase === "driving"
+    ? t("settings.driveStatusDriving")
+    : drivePhase === "idle"
+      ? t("settings.driveStatusIdle")
+      : t("settings.driveStatusUnknown");
+  const locPerm = drivingStatus?.locationGranted ? "granted" : "off";
+  const motionPerm = drivingStatus?.motionGranted ? "granted" : "off";
 
   async function onAuthSubmit() {
     setAuthBusy(true);
@@ -298,6 +363,59 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
             );
           })}
         </View>
+      </Section>
+
+      <Section title={t("settings.sectionDrive")}>
+        <Row label={t("settings.driveStatus", { status: driveStatusText })}
+             desc={drivingStatus?.speedMph != null
+               ? `${Math.round(drivingStatus.speedMph)} mph`
+               : undefined}>
+          {drivePhase === "driving" ? (
+            <AnimatedPressable onPress={() => markNotDriving()} style={styles.btn}>
+              <Text style={styles.btnText}>{t("settings.driveNotDriving")}</Text>
+            </AnimatedPressable>
+          ) : null}
+        </Row>
+        <Row label={t("settings.driveDetect")} desc={t("settings.driveDetectDesc")}>
+          <Switch
+            value={s.driveDetectionEnabled}
+            onValueChange={(v) => void toggleDriveDetection(v)}
+            thumbColor={s.driveDetectionEnabled ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.driveLocation")} desc={t("settings.driveLocationDesc")}>
+          <Switch
+            value={s.driveUseLocation && s.driveDetectionEnabled}
+            onValueChange={(v) => update({ driveUseLocation: v })}
+            disabled={!s.driveDetectionEnabled}
+            thumbColor={s.driveUseLocation ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.driveMotion")} desc={t("settings.driveMotionDesc")}>
+          <Switch
+            value={s.driveUseMotionSensors && s.driveDetectionEnabled}
+            onValueChange={(v) => update({ driveUseMotionSensors: v })}
+            disabled={!s.driveDetectionEnabled}
+            thumbColor={s.driveUseMotionSensors ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.driveAutoLaunch")} desc={t("settings.driveAutoLaunchDesc")}>
+          <Switch
+            value={s.driveAutoLaunch && s.driveDetectionEnabled}
+            onValueChange={(v) => update({ driveAutoLaunch: v })}
+            disabled={!s.driveDetectionEnabled}
+            thumbColor={s.driveAutoLaunch ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.driveAlerts")} desc={t("settings.driveAlertsDesc")}>
+          <Switch
+            value={s.driveDrivingAlerts && s.driveDetectionEnabled && s.notificationsEnabled}
+            onValueChange={(v) => update({ driveDrivingAlerts: v })}
+            disabled={!s.driveDetectionEnabled || !s.notificationsEnabled}
+            thumbColor={s.driveDrivingAlerts ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.drivePerms")}
+             desc={t("settings.drivePermsDesc", { location: locPerm, motion: motionPerm })}>
+          <AnimatedPressable onPress={() => void requestDrivePermissions()} style={styles.btn}>
+            <Text style={styles.btnText}>{t("settings.request")}</Text>
+          </AnimatedPressable>
+        </Row>
       </Section>
 
       <Section title={t("settings.sectionNotif")}>
