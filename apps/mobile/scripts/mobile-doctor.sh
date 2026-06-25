@@ -84,6 +84,12 @@ elif [ -d node_modules ]; then
   fail "@babel/runtime missing — run: bash scripts/mobile-install.sh"
 fi
 
+if mobile_deps_has_drive_mode_packages; then
+  ok "expo-location + expo-sensors present (Drive Mode)"
+elif [ -d node_modules ]; then
+  fail "expo-location or expo-sensors missing — run: bash scripts/mobile-install.sh"
+fi
+
 if [ -f tsconfig.json ]; then
   if grep -qE '"\*\*/\*\.(ts|tsx)"' tsconfig.json 2>/dev/null; then
     fail 'tsconfig.json include is too broad ("**/*.ts" → OOM). git fetch origin && git pull origin main'

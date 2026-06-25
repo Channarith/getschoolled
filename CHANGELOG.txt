@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile EAS iOS: eas-build-post-install runs expo-device Xcode 26 patch
+  after pod install (TARGET_OS_SIMULATOR not in Swift); mobile-patch-native.js
+  orchestrator; remove package-lock.json for pnpm-only EAS installs.
+- 2026-06-25 - Mobile EAS: fix expo doctor (schema-valid app.json, app.config.js
+  config merge, expo-build-properties cleartext); disable EAS doctor step on
+  Xcode 26 image (SDK 51 table caps at 16.2 — we patch for 26).
 - 2026-06-25 - Mobile iOS Xcode 26 native build: RuntimeScheduler include guards,
   mobile-ios-pod-refresh.sh re-runs pod install when Pods reference pnpm react-native
   (fixes C++ redefinition errors); complements expo-device UIDevice patch.

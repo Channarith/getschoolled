@@ -1,29 +1,43 @@
 /**
- * Expo config: app.json defaults + env overrides for backend target.
+ * Dynamic Expo config (merges static app.json via the config param).
  *
  * MOBILE_DEPLOY_MODE=local|cloud  (default cloud — Vultr VKE at MOBILE_CLOUD_BASE_URL)
  * MOBILE_CLOUD_BASE_URL=http://45.63.91.80
  */
-const appJson = require("./app.json");
+const CLOUD_DEFAULT = "http://45.63.91.80";
 
-module.exports = () => {
-  const base = appJson.expo;
-  const extra = base.extra || {};
+module.exports = ({ config }) => {
+  const extra = config.extra || {};
   const cloudBaseUrl = (
     process.env.MOBILE_CLOUD_BASE_URL
     || extra.cloudBaseUrl
-    || "http://45.63.91.80"
+    || CLOUD_DEFAULT
   ).replace(/\/$/, "");
   const deployMode = process.env.MOBILE_DEPLOY_MODE || extra.deployMode || "cloud";
 
-  return {
-    expo: {
-      ...base,
-      extra: {
-        ...extra,
-        deployMode,
-        cloudBaseUrl,
+  const plugins = [...(config.plugins || [])];
+  const hasBuildProps = plugins.some(
+    (entry) => (Array.isArray(entry) ? entry[0] : entry) === "expo-build-properties",
+  );
+  if (!hasBuildProps) {
+    plugins.push([
+      "expo-build-properties",
+      {
+        android: {
+          // Local Vultr HTTP + Android emulator dev client (not valid in app.json schema).
+          usesCleartextTraffic: true,
+        },
       },
+    ]);
+  }
+
+  return {
+    ...config,
+    plugins,
+    extra: {
+      ...extra,
+      deployMode,
+      cloudBaseUrl,
     },
   };
 };

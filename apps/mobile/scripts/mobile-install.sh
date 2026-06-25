@@ -56,7 +56,7 @@ fi
 if ! pnpm install "${PNPM_FLAGS[@]}"; then
   echo "WARN: pnpm install failed — trying npm install fallback" >&2
   if command -v npm >/dev/null 2>&1; then
-    npm install --legacy-peer-deps
+    npm install --legacy-peer-deps --package-lock=false
   else
     echo "ERROR: pnpm install failed and npm not available" >&2
     exit 1
@@ -72,7 +72,7 @@ fi
 if ! mobile_deps_has_tsc && command -v npm >/dev/null 2>&1; then
   echo "    falling back to npm install --legacy-peer-deps"
   rm -rf node_modules
-  npm install --legacy-peer-deps
+  npm install --legacy-peer-deps --package-lock=false
 fi
 
 if ! mobile_deps_has_tsc; then
@@ -102,7 +102,7 @@ fi
 if ! mobile_deps_has_babel_runtime && command -v npm >/dev/null 2>&1; then
   echo "    falling back to npm install for @babel/runtime (Metro-local copy)"
   rm -rf node_modules
-  npm install --legacy-peer-deps
+  npm install --legacy-peer-deps --package-lock=false
 fi
 
 if ! mobile_deps_has_babel_runtime; then
@@ -126,14 +126,10 @@ else
 fi
 
 echo "OK install (${ok_msg:-typescript present})"
+rm -f package-lock.json
 mobile_deps_print_status
 
-node scripts/patch-expo-localization-ios.js || true
-node scripts/patch-expo-device-ios.js || true
-
-node scripts/patch-react-native-runtimescheduler-ios.js || true
-
-node scripts/ensure-metro-local-deps.js || true
+node scripts/mobile-patch-native.js || true
 if [[ -d ios ]]; then
   bash scripts/mobile-ios-pod-refresh.sh || true
 fi
