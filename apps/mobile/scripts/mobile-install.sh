@@ -130,10 +130,9 @@ mobile_deps_print_status
 
 node scripts/patch-expo-localization-ios.js || true
 node scripts/patch-expo-device-ios.js || true
-<<<<<<< HEAD
+
 node scripts/patch-react-native-runtimescheduler-ios.js || true
-=======
->>>>>>> ecb70dd593ae2a6ef328d120c06147e3c99bfc26
+
 node scripts/ensure-metro-local-deps.js || true
 if [[ -d ios ]]; then
   bash scripts/mobile-ios-pod-refresh.sh || true
