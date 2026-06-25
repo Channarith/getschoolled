@@ -3,17 +3,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEBUG="${DEBUG:-0}"
+DEBUG="${DEBUG:-1}"
 NATIVE="${NATIVE:-0}"
 FRESH="${FRESH:-0}"
 
 for arg in "$@"; do
   case "$arg" in
     --debug) DEBUG=1 ;;
+    --quiet) DEBUG=0 ;;
     --native) NATIVE=1 ;;
     --fresh) FRESH=1 ;;
     -h|--help)
-      echo "Usage: $0 [--debug] [--fresh] [--native]"
+      echo "Usage: $0 [--quiet] [--fresh] [--native]"
+      echo "  (debug is ON by default)"
       exit 0
       ;;
   esac
@@ -90,12 +92,8 @@ else
   echo "==> Expo Go: starting Metro, then opening Android emulator"
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
   echo "    Metro port: $RCT_METRO_PORT"
-  mobile_configure_expo_offline android "$ADB"
-  if [[ "${EXPO_OFFLINE:-0}" == "1" ]]; then
-    echo "    EXPO_OFFLINE=1 CI=$CI (Expo Go installed; skip expo.dev fetch)"
-  else
-    echo "    EXPO_OFFLINE unset CI=$CI (first launch installs Expo Go — allow network)"
-  fi
+  mobile_prepare_expo_go_launch android "$ADB"
+  echo "    EXPO_OFFLINE=1 CI=false (local bundled modules; skip expo.dev hang)"
   mobile_print_launch_timeline android
   echo "==> Starting… (watch for 'Bundled' or 'Opening on Android')"
   "${EXPO[@]}" start --android "${EXPO_START_FLAGS[@]}"

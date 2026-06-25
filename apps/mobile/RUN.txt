@@ -3,6 +3,45 @@ AI CLASSROOM - MOBILE APP (Android + iOS)
 Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
 on the go.
 
+FIRST-TIME SETUP (run once on a new Mac)
+=========================================
+Salareen uses Expo Go on the iOS Simulator (Path A). Expo Go is a separate app
+that must be downloaded and installed on the simulator before daily dev works.
+Expo Orbit is an OPTIONAL desktop helper — you do NOT need Orbit for simulator
+development.
+
+  1. Install Xcode from the App Store; open it once; accept the license:
+       sudo xcodebuild -license accept
+
+  2. Install Node 18+ and pnpm (if missing):
+       npm i -g pnpm
+
+  3. From the repo, run the setup wizard (installs deps + Expo Go + doctor):
+       cd apps/mobile
+       bash scripts/mobile-setup.sh
+     Or via pnpm:
+       pnpm run setup
+
+  4. What setup does:
+       • pnpm install (hoisted node_modules for Metro)
+       • environment doctor (Xcode, simulators, heap settings)
+       • downloads Expo Go for SDK 51 from Expo CDN (network once)
+       • installs Expo Go on the iOS Simulator via simctl
+
+  5. Daily dev (after setup):
+       bash scripts/mobile-launch-ios.sh
+     Or:
+       pnpm run launch:ios
+
+  If setup fails at Expo Go install:
+       bash scripts/mobile-install-expo-go-ios.sh
+     Manual download (drag .app onto Simulator):
+       https://expo.dev/go?platform=ios&sdkVersion=51
+
+  Expo Go vs Expo Orbit:
+    • Expo Go  = runs your JS bundle in the simulator (REQUIRED for Path A)
+    • Expo Orbit = optional GUI for installs / dev builds (NOT required)
+
 PREREQUISITES
   - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
     installs pnpm already.
@@ -11,8 +50,11 @@ PREREQUISITES
       * Android: Android Studio + at least one Android Virtual Device (AVD).
   - Optional: Expo Go on a physical phone (scan the QR from `pnpm start`).
 
-INSTALL (one-time)
+INSTALL (one-time — prefer mobile-setup.sh)
   cd apps/mobile
+  bash scripts/mobile-setup.sh     # deps + doctor + Expo Go (recommended)
+  pnpm run setup                   # same via package.json
+  # Legacy manual install:
   pnpm install
   # Or, from the repo root:
   make mobile-install
@@ -104,21 +146,16 @@ NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
     # press i in that terminal when Metro is ready
 
   Stuck at "Starting Metro Bundler" / "Fetching bundled native modules":
-    Cause: stale Metro on port 8081 (interactive port prompt) or expo.dev network hang.
+    Cause: stale Metro on port 8081 or expo.dev network hang (when EXPO_OFFLINE unset).
     Fix:
       bash scripts/mobile-metro-cleanup.sh
       bash scripts/mobile-launch-ios.sh
-    Launch scripts set CI=1, --port 8081, --localhost (iOS). EXPO_OFFLINE=1 is enabled
-    only after Expo Go is already on the simulator (avoids bundled-modules hang without
-    blocking first-time Expo Go install).
+    Launch scripts: debug ON by default, CI=false, EXPO_OFFLINE=1 (local bundled modules).
+    First run without Expo Go: bash scripts/mobile-install-expo-go-ios.sh (network once).
 
   "Expo Go is not installed … while running in offline mode":
-    Cause: EXPO_OFFLINE=1 before Expo Go was ever installed on the simulator.
-    Fix: git pull origin main, then:
-      bash scripts/mobile-launch-ios.sh
-    First launch needs network so Expo can download Expo Go into the simulator (2–5 min).
-    After Expo Go is installed, relaunch uses EXPO_OFFLINE automatically.
-    Force offline anytime:  pnpm run dev:ios:offline  (only if Expo Go is already there)
+    Run: bash scripts/mobile-install-expo-go-ios.sh
+    Then: bash scripts/mobile-launch-ios.sh
 
   Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
   with no Simulator window.

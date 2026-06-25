@@ -159,6 +159,7 @@ Mostly public reads; authoring/teacher tools are INTERNAL.
   GET  /curriculum/count ; GET /curriculum/search?q  (RAG over lesson passages)
   GET  /courses ; POST /courses ; GET /courses/search ; GET /courses/{id}
   GET  /courses/facets ; GET /catalog ; GET /home ; GET /model-cards
+  GET  /learn/search ; GET /learn/facets ; GET /learn/home ; GET /learn/items/{id}
   GET  /programs ; POST /programs ; GET /programs/{id} ; POST /programs/{id}/plan
   POST /courses/{id}/view ; POST /recommend ; GET /courses/{id}/ad-breaks
   GET  /catalog/export  [INTERNAL]

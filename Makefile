@@ -10,7 +10,7 @@ COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
-	mobile-install mobile-typecheck mobile-build mobile-prebuild \
+	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
 	run-identity run-memory run-orchestrator
 
@@ -28,6 +28,7 @@ help:
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
 	@echo "  mobile-install Install Expo mobile deps (apps/mobile)"
+	@echo "  mobile-setup   First-time setup: deps + doctor + Expo Go (apps/mobile)"
 	@echo "  mobile-doctor  Check mobile dev env (Xcode, simulators, deps)"
 	@echo "  mobile-dev-ios Launch Expo Go on iOS Simulator (macOS)"
 	@echo "  mobile-dev-android Launch Expo Go on Android emulator"
@@ -103,6 +104,9 @@ web-build:
 # --- Mobile (Expo: Android + iOS) ----------------------------------------- #
 mobile-install:
 	cd apps/mobile && bash scripts/mobile-install.sh
+
+mobile-setup:
+	cd apps/mobile && bash scripts/mobile-setup.sh
 
 mobile-install-pnpm:
 	cd apps/mobile && pnpm install

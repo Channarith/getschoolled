@@ -7,6 +7,8 @@
   "scripts": {
     "doctor": "bash scripts/mobile-doctor.sh",
     "doctor:verbose": "VERBOSE=1 bash scripts/mobile-doctor.sh",
+    "setup": "bash scripts/mobile-setup.sh",
+    "setup:ios": "bash scripts/mobile-setup.sh --ios-only",
     "install:force": "bash scripts/mobile-install.sh",
     "stop": "bash scripts/mobile-metro-cleanup.sh",
     "dev": "bash scripts/mobile-expo.sh start",
