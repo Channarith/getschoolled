@@ -12,6 +12,12 @@ import {
 } from "../lib/api";
 
 const pretty = (s: string) => s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+function excerpt(text: string, max = 140): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (flat.length <= max) return flat;
+  return `${flat.slice(0, max).trim()}…`;
+}
 const SOURCE_ICON: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor", ziprecruiter: "ZipRecruiter",
   remotive: "Remotive", arbeitnow: "Arbeitnow", adzuna: "Adzuna", jsearch: "JSearch",
@@ -32,6 +38,7 @@ const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [source, setSource] = useState("");
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [loc, setLoc] = useState("");
   const [match, setMatch] = useState<JobMatch | null>(null);
@@ -40,9 +47,12 @@ export default function JobsPage() {
   const [error, setError] = useState("");
 
   const refresh = useCallback(() => {
+    setLoading(true);
+    setError("");
     listJobs(q || undefined, loc || undefined)
       .then((r) => { setJobs(r.jobs); setSource(r.source); })
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
   }, [q, loc]);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -92,7 +102,7 @@ export default function JobsPage() {
             </div>
             <button onClick={() => setMatch(null)}>✕ Close</button>
           </div>
-          <p>{match.job.description}</p>
+          <p className="job-description">{match.job.description}</p>
 
           <div style={{ margin: "10px 0" }}>
             <strong>You can cover {match.coverage_pct}% of this role with Salareen.</strong>
@@ -185,15 +195,38 @@ export default function JobsPage() {
 
       {/* Search */}
       <div className="card">
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input placeholder="Search roles / skills…" value={q} onChange={(e) => setQ(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: 10 }} />
           <input placeholder="Location" value={loc} onChange={(e) => setLoc(e.target.value)}
             style={{ width: 160, padding: 10 }} />
+          <button type="button" onClick={refresh} disabled={loading}
+            style={{ background: "#16a34a", color: "#fff", padding: "10px 16px" }}>
+            {loading ? "Searching…" : "Search"}
+          </button>
         </div>
+        {!loading && jobs.length > 0 && (
+          <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
+            {jobs.length} opening{jobs.length === 1 ? "" : "s"}
+            {source ? ` · ${SOURCE_ICON[source] ?? pretty(source)}` : ""}
+          </p>
+        )}
       </div>
 
+      {loading && (
+        <div className="job-grid" aria-busy="true" aria-label="Loading jobs">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="job-card job-card-skeleton" aria-hidden="true">
+              <div className="skeleton-line" style={{ width: "70%", height: 18 }} />
+              <div className="skeleton-line" style={{ width: "50%", height: 14 }} />
+              <div className="skeleton-line" style={{ width: "90%", height: 12 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Openings */}
+      {!loading && (
       <div className="job-grid">
         {jobs.map((j) => {
           const badge = SOURCE_BADGE[j.source] ?? { bg: "#1e293b", fg: "#cbd5e1" };
@@ -210,6 +243,19 @@ export default function JobsPage() {
             <div className="job-meta">
               {j.company}{j.location ? ` · ${j.location}` : ""}{j.salary_range ? ` · ${j.salary_range}` : ""}
             </div>
+            {(j.employment_type || j.category) && (
+              <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
+                {j.employment_type && (
+                  <span className="pill" style={{ fontSize: 10, color: "#16a34a" }}>{j.employment_type}</span>
+                )}
+                {j.category && (
+                  <span className="pill" style={{ fontSize: 10, color: "var(--muted)" }}>{j.category}</span>
+                )}
+              </div>
+            )}
+            {j.description && (
+              <p className="job-blurb">{excerpt(j.description)}</p>
+            )}
             <div className="row" style={{ flexWrap: "wrap", gap: 4 }}>
               {j.skills.slice(0, 5).map((s) => (
                 <span key={s} className="pill" style={{ fontSize: 10, color: "var(--accent)" }}>{pretty(s)}</span>
@@ -230,8 +276,9 @@ export default function JobsPage() {
           </div>
           );
         })}
-        {jobs.length === 0 && <div className="muted">No openings match.</div>}
+        {jobs.length === 0 && <div className="muted card">No openings match your search.</div>}
       </div>
+      )}
     </main>
   );
 }
