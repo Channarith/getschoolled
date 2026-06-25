@@ -7,10 +7,9 @@ import AppBadges from "./components/AppBadges";
 import { Rail } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
 import {
+  AUTH_EVENT,
   getHomeFeed,
-  getPreview,
   getToken,
-  setPreview as persistPreview,
   type HomeRail,
 } from "./lib/api";
 import { friendlyError } from "./lib/errors";
@@ -23,30 +22,44 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [email, setEmail] = useState("");
 
   useEffect(() => {
-    setLoggedIn(Boolean(getToken()));
-    setPreview(getPreview());
-    setAuthResolved(true);
-    getHomeFeed().then(setRails).catch((e) => setError(String(e)));
+    const sync = () => {
+      const authed = Boolean(getToken());
+      setLoggedIn(authed);
+      setAuthResolved(true);
+      if (authed) {
+        getHomeFeed().then(setRails).catch((e) => setError(String(e)));
+      } else {
+        setRails(null);
+        setError("");
+      }
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
-
-  function startPreview() {
-    persistPreview(true);   // shared flag so the nav unlocks too
-    setPreview(true);
-  }
 
   function onGetStarted(e: React.FormEvent) {
     e.preventDefault();
     router.push(`/login?mode=signup${email ? `&email=${encodeURIComponent(email)}` : ""}`);
   }
 
-  // Netflix-style landing for signed-out visitors: a full-page live wallpaper
-  // with glowing text, "Get Started" / "Sign In", and a Preview button that
-  // reveals the catalog so they can see what's inside before creating an account.
-  if (authResolved && !loggedIn && !preview) {
+  if (!authResolved) {
+    return (
+      <main className="landing-hero">
+        <p className="muted" style={{ textAlign: "center", paddingTop: 80 }}>{t("home.loading")}</p>
+      </main>
+    );
+  }
+
+  // Signed-out visitors see the marketing landing only — no catalog rails.
+  if (!loggedIn) {
     return (
       <main className="landing-hero">
         <div
@@ -78,12 +91,7 @@ export default function HomePage() {
           </form>
           <div className="hero-cta" style={{ justifyContent: "center", marginTop: 18 }}>
             <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("landing.signIn")}</button></Link>
-            <button className="theme-btn" onClick={startPreview}
-                    style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,.6)" }}>
-              ▶ {t("landing.preview")}
-            </button>
           </div>
-          {/* Get the app: App Store + Google Play badges right on the front page. */}
           <p className="glow" style={{ marginTop: 22, marginBottom: 0, opacity: 0.95 }}>
             {t("hero.getAppTitle")}
           </p>
@@ -114,14 +122,7 @@ export default function HomePage() {
           <h1 className="theme-title glow" style={{ marginTop: 14 }}>
             {t("hero.title")}
           </h1>
-          <p className="theme-subtitle glow">
-            {loggedIn ? t("hero.subLoggedIn") : t("hero.subLoggedOut")}
-          </p>
-          {!loggedIn && preview && (
-            <p className="muted" style={{ marginTop: 8 }}>
-              <Link href="/login">{t("landing.signIn")}</Link>
-            </p>
-          )}
+          <p className="theme-subtitle glow">{t("hero.subLoggedIn")}</p>
           <div className="hero-cta">
             <Link href="/class"><button className="theme-btn">{t("hero.trySample")}</button></Link>
             <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>{t("hero.browseAll")}</button></Link>
@@ -130,11 +131,8 @@ export default function HomePage() {
             <Link href="/jobs"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.careers")}</button></Link>
             <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>{t("hero.kids")}</button></Link>
             <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>{t("hero.corporate")}</button></Link>
-            {loggedIn
-              ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
-              : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("nav.signin")}</button></Link>}
+            <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
           </div>
-          {/* Get the app: store badges right in the hero. */}
           <p className="muted" style={{ marginTop: 16, marginBottom: 0 }}>{t("hero.getAppTitle")}</p>
           <AppBadges />
           </div>

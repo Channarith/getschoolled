@@ -45,18 +45,19 @@ function DrivePageInner() {
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
+  const [loggedIn, setLoggedIn] = useState(false);
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    if (!getToken()) return;
     getAudioCategories().then(setCats).catch(() => setCats([]));
-    // Warm the voice list so the first segment already uses the natural voice.
     ensureVoices();
   }, []);
   const refresh = useCallback(() => {
+    if (!getToken()) return;
     listAudioCourses({ category: cat, q, limit: "60" })
       .then((r) => { setRows(r.courses); setTotal(r.total); queue.current = r.courses; })
       .catch((e) => setError(String(e)));
@@ -266,10 +267,10 @@ function DrivePageInner() {
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
-      {!loggedIn && !course && <SignInToUse />}
+      {!loggedIn && <SignInToUse body="Sign in to browse and play drive-safe audio classes." />}
 
       {/* Now playing */}
-      {course && (
+      {loggedIn && course && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
           <div className="muted">{course.category} · {course.duration_min} min · audio</div>
           <h2 style={{ margin: "4px 0" }}>{course.title}</h2>
@@ -313,7 +314,7 @@ function DrivePageInner() {
         </div>
       )}
 
-      {assistantOpen && (
+      {loggedIn && assistantOpen && (
         <div role="dialog" aria-modal="true"
           style={{ position: "fixed", inset: 0, background: "rgba(3,7,18,0.68)",
             display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 60 }}>
@@ -343,6 +344,8 @@ function DrivePageInner() {
         </div>
       )}
 
+      {loggedIn && (
+      <>
       {/* Browse */}
       <div className="card">
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -370,6 +373,8 @@ function DrivePageInner() {
         ))}
         {rows.length === 0 && <div className="muted">No audio classes match.</div>}
       </div>
+      </>
+      )}
     </main>
   );
 }

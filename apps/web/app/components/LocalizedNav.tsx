@@ -4,26 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { AUTH_EVENT, getPreview, getToken, getFlag, setPreview } from "../lib/api";
+import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
 import { useT } from "../lib/i18n";
 import ProfileMenu from "./ProfileMenu";
 
-// Top navigation. Content tabs (Browse, For You, Kids, Corporate, ... Homework)
-// are GATED: a signed-out visitor only sees the brand, Our Story, and a Preview
-// affordance until they log in OR opt into preview. Personal/settings surfaces
-// live in the ProfileMenu dropdown on the right; legal/consent/transparency in
-// the footer. Every label is localized via t(...). The brand mark flips to the
-// kid-friendly cartoon variant on /kids.
+// Top navigation. Content tabs (Browse, For You, Kids, Corporate, … Homework)
+// are GATED: signed-out visitors only see the brand, Our Story, and Sign in.
+// Personal/settings surfaces live in the ProfileMenu dropdown on the right.
 export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t } = useT();
   const pathname = usePathname() ?? "/";
 
-  // unlocked = logged in OR previewing. Until then, hide the content tabs.
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
   useEffect(() => {
     const sync = () => {
-      setUnlocked(Boolean(getToken()) || getPreview());
+      setUnlocked(Boolean(getToken()));
       getFlag("access.homework_grader")
         .then((v) => setHomeworkOn(Boolean(v)))
         .catch(() => setHomeworkOn(false));
@@ -71,19 +67,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}
         </>
       ) : (
-        // Signed-out + not previewing: offer Sign in and a Preview toggle that
-        // reveals the catalog (and these tabs) without an account.
-        <>
-          <Link href="/login">{t("nav.signin")}</Link>
-          <button
-            type="button"
-            onClick={() => setPreview(true)}
-            style={{ background: "transparent", border: 0, color: "var(--accent)",
-                     cursor: "pointer", font: "inherit", padding: 0 }}
-          >
-            ▶ {t("landing.preview")}
-          </button>
-        </>
+        <Link href="/login">{t("nav.signin")}</Link>
       )}
 
       <span
