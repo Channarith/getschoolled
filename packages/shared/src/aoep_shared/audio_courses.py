@@ -349,30 +349,33 @@ def _knowledge_course(
     intro_heading = localize_heading("Introduction", locale)
     recap_heading = localize_heading("Recap", locale)
     key_idea_label = localize_heading("Key idea", locale)
+    # The intro/recap framing narration is UI-localized (all 13 locales), so it
+    # follows ``locale``; only the factual bullets + title follow
+    # ``training_locale`` (en/es/zh).
     segs = [AudioSegment(
         heading=intro_heading,
-        text=narration("know_intro", tloc, title=display_title))]
+        text=narration("know_intro", locale, title=display_title))]
     if points:
         for i, p in enumerate(points, start=1):
             segs.append(AudioSegment(heading=f"{key_idea_label} {i}", text=p))
         recap_text = " ".join(points)
         segs.append(AudioSegment(
             heading=recap_heading,
-            text=narration("know_recap", tloc, title=display_title, recap=recap_text)))
+            text=narration("know_recap", locale, title=display_title, recap=recap_text)))
     else:
         segs += [
             AudioSegment(
                 heading=localize_heading("Why it matters", locale),
-                text=narration("know_why", tloc, title=display_title)),
+                text=narration("know_why", locale, title=display_title)),
             AudioSegment(
                 heading=localize_heading("Core ideas", locale),
-                text=narration("know_core", tloc, title=display_title)),
+                text=narration("know_core", locale, title=display_title)),
             AudioSegment(
                 heading=localize_heading("Going deeper", locale),
-                text=narration("know_deeper", tloc, title=display_title)),
+                text=narration("know_deeper", locale, title=display_title)),
             AudioSegment(
                 heading=recap_heading,
-                text=narration("know_fallback_recap", tloc, title=display_title)),
+                text=narration("know_fallback_recap", locale, title=display_title)),
         ]
         body_loc = tloc
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")

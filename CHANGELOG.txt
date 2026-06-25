@@ -3,6 +3,14 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Fix curriculum CI failures. /courses/{id}/ad-breaks now 404s for
+  unknown ids (existence check no longer masked by the default duration). /recommend
+  ranks over the managed catalog instead of the entire learnable universe, so a
+  student's real gap course surfaces instead of unrelated audio/language courses.
+  Audio course intro/recap framing narration is localized by the UI locale (all 13
+  locales, e.g. fr "Bienvenue") again, while only the factual bullets follow the
+  en/es/zh training locale. Teaching orchestrator test treats the .pptx export as
+  best-effort (only asserted when python-pptx is installed).
 - 2026-06-25 - Teaching flow tie-together (harvest -> teach -> present). Part 1->2
   bridge: aoep_shared.harvest.export writes a course as .pptx (narration in
   speaker notes) + .course.json so the external ppt_trainer agent reads it with

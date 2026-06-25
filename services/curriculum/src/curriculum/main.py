@@ -759,7 +759,10 @@ def recommend(req: RecommendRequest) -> dict:
     """
     from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
 
-    courses = _search_learnable_as_courses(limit=500)
+    # Rank over the managed catalog (not the whole learnable universe): the
+    # audio/language discovery surfaces have their own endpoints, and mixing
+    # hundreds of unrelated skills here drowns out the student's actual gaps.
+    courses = app.state.catalog.list_courses()
     features = [
         CourseFeature(
             course_id=c.course_id, title=c.title,
@@ -790,15 +793,18 @@ def course_ad_breaks(course_id: str, tier: str = "free", format: str = "json"):
     """
     from aoep_shared.ads import AD_FREE_TIERS, ad_plan_for, build_vmap
 
-    duration = _course_duration_min(course_id)
-    if duration <= 0 and app.state.catalog.get_course(course_id) is None:
+    # Existence check must be independent of duration (which defaults to a
+    # positive value for unknown ids), so unknown courses still 404.
+    if app.state.catalog.get_course(course_id) is None:
         from curriculum.learnable_service import find_item
 
-        if find_item(_learnable_index(), global_id=course_id) is None and (
-            find_item(_learnable_index(), source_id=course_id) is None
+        idx = _learnable_index()
+        if find_item(idx, global_id=course_id) is None and (
+            find_item(idx, source_id=course_id) is None
         ):
             raise HTTPException(status_code=404, detail="course not found")
 
+    duration = _course_duration_min(course_id)
     breaks = ad_plan_for(tier, duration_min=max(1, duration))
     if format == "vmap":
         from fastapi import Response

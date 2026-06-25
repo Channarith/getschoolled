@@ -1,5 +1,6 @@
 """End-to-end: harvest -> teach -> present, fully offline (mock meeting)."""
 
+import importlib.util
 import json
 
 from aoep_shared.harvest import CourseTags, extract_text, generate_course
@@ -46,8 +47,12 @@ def test_run_end_to_end_offline(tmp_path):
     assert d["presentation"]["steps_presented"] == d["lesson"]["steps"]
 
     # Artifacts written to disk and the manifest is self-consistent.
-    for key in ("course_json", "pptx", "lesson_plan", "lesson_script",
-                "presentation_plan", "presentation_result", "manifest"):
+    expected = ["course_json", "lesson_plan", "lesson_script",
+                "presentation_plan", "presentation_result", "manifest"]
+    # .pptx export is best-effort: only present when python-pptx is installed.
+    if importlib.util.find_spec("pptx") is not None:
+        expected.append("pptx")
+    for key in expected:
         assert key in result.artifacts
     manifest = json.loads((tmp_path / "e2e" / "manifest.json").read_text())
     assert manifest["course"]["composition_score"] == d["course"]["composition_score"]
