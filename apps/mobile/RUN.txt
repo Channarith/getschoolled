@@ -3,6 +3,45 @@ AI CLASSROOM - MOBILE APP (Android + iOS)
 Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
 on the go.
 
+FIRST-TIME SETUP (run once on a new Mac)
+=========================================
+Salareen uses Expo Go on the iOS Simulator (Path A). Expo Go is a separate app
+that must be downloaded and installed on the simulator before daily dev works.
+Expo Orbit is an OPTIONAL desktop helper — you do NOT need Orbit for simulator
+development.
+
+  1. Install Xcode from the App Store; open it once; accept the license:
+       sudo xcodebuild -license accept
+
+  2. Install Node 18+ and pnpm (if missing):
+       npm i -g pnpm
+
+  3. From the repo, run the setup wizard (installs deps + Expo Go + doctor):
+       cd apps/mobile
+       bash scripts/mobile-setup.sh
+     Or via pnpm:
+       pnpm run setup
+
+  4. What setup does:
+       • pnpm install (hoisted node_modules for Metro)
+       • environment doctor (Xcode, simulators, heap settings)
+       • downloads Expo Go for SDK 51 from Expo CDN (network once)
+       • installs Expo Go on the iOS Simulator via simctl
+
+  5. Daily dev (after setup):
+       bash scripts/mobile-launch-ios.sh
+     Or:
+       pnpm run launch:ios
+
+  If setup fails at Expo Go install:
+       bash scripts/mobile-install-expo-go-ios.sh
+     Manual download (drag .app onto Simulator):
+       https://expo.dev/go?platform=ios&sdkVersion=51
+
+  Expo Go vs Expo Orbit:
+    • Expo Go  = runs your JS bundle in the simulator (REQUIRED for Path A)
+    • Expo Orbit = optional GUI for installs / dev builds (NOT required)
+
 PREREQUISITES
   - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
     installs pnpm already.
@@ -11,21 +50,26 @@ PREREQUISITES
       * Android: Android Studio + at least one Android Virtual Device (AVD).
   - Optional: Expo Go on a physical phone (scan the QR from `pnpm start`).
 
-INSTALL (one-time)
+INSTALL (one-time — prefer mobile-setup.sh)
   cd apps/mobile
+  bash scripts/mobile-setup.sh     # deps + doctor + Expo Go (recommended)
+  pnpm run setup                   # same via package.json
+  # Legacy manual install:
   pnpm install
   # Or, from the repo root:
   make mobile-install
-  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` because Metro/React
+  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` and
+  # `optimistic-repeat-install=false` (pnpm v11 no-op when node_modules deleted).
   # Native cannot resolve through pnpm's strict symlink layout. Re-run
   # `pnpm install` if you switch package managers.
 
 DEV LOOP — TWO PATHS
   Run the doctor first if anything fails silently:
-    cd apps/mobile
-    pnpm install
-    pnpm run doctor
-    pnpm run doctor:verbose    # extra Simulator/ADB/pnpm diagnostics
+    cd apps/mobile          # skip if prompt ends in "mobile" and app.json is here
+  pnpm install
+  bash scripts/mobile-install.sh       # use if pnpm says up-to-date but deps missing
+    pnpm run doctor                        # same via pnpm (may OOM on Mac — use bash)
+    VERBOSE=1 bash scripts/mobile-doctor.sh
 
   Path A (recommended): Expo Go — one-command launchers
     cd apps/mobile
@@ -77,6 +121,42 @@ VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
     cd apps/mobile/ios && xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
+  Symptom: launch script sits at "Starting Metro Bundler" or "rebuilding cache"
+  for several minutes with no Simulator window.
+
+  This is NORMAL on first run (2–5 min). Metro builds ~735 JS modules before
+  Expo Go opens. Do NOT use --clear every time (removed from default launch).
+
+  Timeline:
+    1–3 min   Metro + Watchman (may pause with no new lines)
+    3–5 min   First bundle — look for "iOS Bundled" / "Opening on iOS"
+    Then      Expo Go should appear in Simulator with Salareen
+
+  Faster relaunch (cache kept):
+    bash scripts/mobile-launch-ios.sh
+
+  Only if Metro acts broken:
+    bash scripts/mobile-launch-ios.sh --fresh
+
+  If 5+ min with zero progress:
+    bash scripts/mobile-launch-ios.sh --debug
+    # or open Simulator first: open -a Simulator
+    # then in two steps:
+    bash scripts/mobile-expo.sh start
+    # press i in that terminal when Metro is ready
+
+  Stuck at "Starting Metro Bundler" / "Fetching bundled native modules":
+    Cause: stale Metro on port 8081 or expo.dev network hang (when EXPO_OFFLINE unset).
+    Fix:
+      bash scripts/mobile-metro-cleanup.sh
+      bash scripts/mobile-launch-ios.sh
+    Launch scripts: debug ON by default, CI=false, EXPO_OFFLINE=1 (local bundled modules).
+    First run without Expo Go: bash scripts/mobile-install-expo-go-ios.sh (network once).
+
+  "Expo Go is not installed … while running in offline mode":
+    Run: bash scripts/mobile-install-expo-go-ios.sh
+    Then: bash scripts/mobile-launch-ios.sh
+
   Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
   with no Simulator window.
 
@@ -173,36 +253,48 @@ TYPECHECK
   pnpm typecheck         # or from repo root: make mobile-typecheck
   pnpm run typecheck:verbose   # prints cwd, tsconfig include, src file count
 
-  JavaScript heap out of memory during typecheck or export
-  --------------------------------------------------------
-  Cause: stale tsconfig.json with "**/*.ts" include (typechecks all of
-  node_modules), or typecheck:verbose running tsc --listFilesOnly (OOM on Mac).
+  JavaScript heap out of memory (typecheck, export, dev, launch — Mac Node 22)
+  ---------------------------------------------------------------------------
+  Symptom: FATAL ERROR near ~4040 MB heap, AfterScanDir in stack trace.
 
-  Fix (git fetch origin && git pull origin main):
-  - tsconfig.json include scoped to src/** only
-  - typecheck uses scripts/mobile-typecheck.sh + tsconfig.typecheck.json
-  - verbose mode does NOT call --listFilesOnly
+  Cause: Node 22 defaults to ~4 GB. Metro runs in a subprocess that ignores
+  NODE_OPTIONS unless METRO_NODE_OPTIONS is also set. pnpm exec expo adds more
+  heap pressure scanning hoisted node_modules.
 
-  Verify on your Mac (first line must print "==> mobile typecheck"):
-    pwd && test -f app.json && echo "OK in mobile app dir"
-    grep -A6 '"include"' tsconfig.json    # must NOT show "**/*.ts"
-    grep typecheck package.json             # must call mobile-typecheck.sh
-    pnpm run typecheck:verbose              # src ~20, completes in seconds
+  Fix (git pull origin main) — all expo/dev commands use bash wrappers with 12 GB:
+    scripts/mobile-env.sh       NODE_OPTIONS + METRO_NODE_OPTIONS
+    scripts/mobile-expo.sh      expo without pnpm exec
+    scripts/mobile-launch-ios.sh / mobile-launch-android.sh
 
-  If you still OOM after pull:
-    rm -rf node_modules .expo && pnpm install
-    pnpm run doctor
-    pnpm run typecheck:verbose
+  RUN ON SIMULATOR / EMULATOR (use these, not raw expo):
+    bash scripts/mobile-launch-ios.sh
+    bash scripts/mobile-launch-android.sh
+    bash scripts/mobile-expo.sh start --ios --clear
+    bash scripts/mobile-expo.sh start --android --clear
 
-  If export still OOM, build one platform at a time:
-    pnpm run export:ios
-    pnpm run export:android
+  Or via pnpm (now wraps bash internally):
+    pnpm run launch:ios
+    pnpm run dev:android
 
-  Verbose export (see what Metro is doing):
-    pnpm run export:verbose
+  NEVER on Mac:  expo start ...   or   pnpm exec expo ...
+
+  If still OOM, raise heap in your shell before any command:
+    export NODE_OPTIONS=--max-old-space-size=12288
+    export METRO_NODE_OPTIONS=--max-old-space-size=12288
+
+  If export OOMs (often on second platform after ios succeeds):
+    export scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=8192 and run each
+    platform in a separate Node process. Prefer bash directly on Mac:
+      bash scripts/mobile-export.sh ios
+      bash scripts/mobile-export.sh android
+    Or: pnpm run export:ios  then  pnpm run export:android  (one at a time)
+
+  Verbose export:
+    VERBOSE=1 bash scripts/mobile-export.sh ios
 
 BUILD (production JS bundles - iOS + Android)
-  pnpm run export        # writes apps/mobile/dist/
+  bash scripts/mobile-export.sh ios android   # preferred on Mac
+  pnpm run export        # same via package.json
   # or: make mobile-build
   # Produces:
   #   dist/_expo/static/js/ios/index-<sha>.js     (~970 kB minified)

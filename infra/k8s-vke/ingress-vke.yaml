@@ -45,9 +45,7 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /jobs
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
@@ -72,9 +70,7 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /jobs
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
@@ -122,9 +118,7 @@ spec:
           - path: /courses
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /jobs
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          # /jobs is the web Careers page (apps/web/app/jobs). API: /curriculum/jobs via aoep-apis.
           - path: /notifications
             pathType: Prefix
             backend: { service: { name: curriculum, port: { number: 8000 } } }
@@ -149,10 +143,65 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - hosts: [api.salareen.com]
+    - hosts: [api.salareen.com, www.salareen.com, salareen.com]
       secretName: salareen-tls
   rules:
     - host: api.salareen.com
+      http:
+        paths:
+          - path: /orchestrator(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /curriculum(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: identity, port: { number: 8000 } } }
+          - path: /integrations(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: integrations, port: { number: 8000 } } }
+          - path: /memory(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: memory, port: { number: 8000 } } }
+          - path: /speech(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: speech, port: { number: 8000 } } }
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: billing, port: { number: 8000 } } }
+          - path: /perception(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: perception, port: { number: 8000 } } }
+    # www / apex: browser same-origin /identity, /memory, … (learning profile save)
+    - host: www.salareen.com
+      http:
+        paths:
+          - path: /orchestrator(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /curriculum(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: identity, port: { number: 8000 } } }
+          - path: /integrations(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: integrations, port: { number: 8000 } } }
+          - path: /memory(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: memory, port: { number: 8000 } } }
+          - path: /speech(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: speech, port: { number: 8000 } } }
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: billing, port: { number: 8000 } } }
+          - path: /perception(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: perception, port: { number: 8000 } } }
+    - host: salareen.com
       http:
         paths:
           - path: /orchestrator(/|$)(.*)

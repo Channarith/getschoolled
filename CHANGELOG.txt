@@ -9,6 +9,15 @@ Format: newest first. No markdown per project convention.
 - 2026-06-24 - Mobile typecheck: tsconfig.typecheck.json + preflight script; verbose
   mode no longer runs tsc --listFilesOnly (Mac Node 22 OOM). doctor checks for
   stale package.json typecheck scripts.
+- 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
+  Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
+  doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
+- 2026-06-25 - Mobile launch: debug on by default; EXPO_OFFLINE=1 always (local bundled
+  modules); CI=false; separate mobile-install-expo-go-ios.sh for first-time Expo Go.
+- 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the
+  simulator (fixes "Expo Go is not installed while running in offline mode" on first run).
+- 2026-06-25 - Mobile Metro: cleanup stale port 8081, CI+EXPO_OFFLINE, --localhost iOS;
+  fixes freeze at port prompt and bundledNativeModules network hang.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   advance,
   ask,
@@ -25,8 +26,17 @@ import {
 import SignInToUse from "../components/SignInToUse";
 
 export default function ClassPage() {
+  return (
+    <Suspense fallback={<main className="container"><p className="muted">Loading class…</p></main>}>
+      <ClassPageInner />
+    </Suspense>
+  );
+}
+
+function ClassPageInner() {
+  const searchParams = useSearchParams();
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [lessonId, setLessonId] = useState<string>("");
+  const [lessonId, setLessonId] = useState<string>(searchParams.get("lesson") ?? "");
   const [classType, setClassType] = useState<string>("group");
   const [view, setView] = useState<SessionView | null>(null);
   const [slide, setSlide] = useState<Slide | null>(null);
@@ -60,14 +70,19 @@ export default function ClassPage() {
     listLessons()
       .then((ls) => {
         setLessons(ls);
-        if (ls.length) setLessonId(ls[0].lesson_id);
+        const fromUrl = searchParams.get("lesson");
+        if (fromUrl && ls.some((l) => l.lesson_id === fromUrl)) {
+          setLessonId(fromUrl);
+        } else if (ls.length) {
+          setLessonId((prev) => prev || ls[0].lesson_id);
+        }
       })
       .catch((e) => setError(String(e)));
     getDisclosure()
       .then(setDisclosure)
       .catch(() => setDisclosure(null));
     return () => stopSpeaking();
-  }, []);
+  }, [searchParams]);
 
   function stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }

@@ -305,6 +305,16 @@ Users can reopen or update it from Account → Learning profile.
 If "Save my learning profile" shows 404, the identity image is stale (missing
 POST /students/{id}/learning-profile). Deploy identity + web, then retry.
 
+Verify from your laptop:
+  ./scripts/k8s_verify_learning_profile.sh http://45.63.91.80
+  # expect: OK identity version=... exposes learning-profile routes
+
+Apply ingress (www/salareen.com /identity routing):
+  kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+
+After deploy, survey saves onboarding_completed_at to identity (one-time; won't
+re-prompt). Web hides the auto-prompt if API is missing (no infinite loop).
+
 Ingress apply errors (duplicate host "_")
 -----------------------------------------
 If `kubectl apply -k infra/k8s-vke` fails with nginx admission webhook errors

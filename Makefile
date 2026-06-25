@@ -10,7 +10,7 @@ COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
-	mobile-install mobile-typecheck mobile-build mobile-prebuild \
+	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
 	run-identity run-memory run-orchestrator
 
@@ -28,6 +28,7 @@ help:
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
 	@echo "  mobile-install Install Expo mobile deps (apps/mobile)"
+	@echo "  mobile-setup   First-time setup: deps + doctor + Expo Go (apps/mobile)"
 	@echo "  mobile-doctor  Check mobile dev env (Xcode, simulators, deps)"
 	@echo "  mobile-dev-ios Launch Expo Go on iOS Simulator (macOS)"
 	@echo "  mobile-dev-android Launch Expo Go on Android emulator"
@@ -102,13 +103,22 @@ web-build:
 
 # --- Mobile (Expo: Android + iOS) ----------------------------------------- #
 mobile-install:
+	cd apps/mobile && bash scripts/mobile-install.sh
+
+mobile-setup:
+	cd apps/mobile && bash scripts/mobile-setup.sh
+
+mobile-install-pnpm:
 	cd apps/mobile && pnpm install
 
 mobile-doctor:
-	cd apps/mobile && pnpm run doctor
+	cd apps/mobile && bash scripts/mobile-doctor.sh
 
 mobile-doctor-verbose:
-	cd apps/mobile && pnpm run doctor:verbose
+	cd apps/mobile && VERBOSE=1 bash scripts/mobile-doctor.sh
+
+mobile-doctor-pnpm:
+	cd apps/mobile && pnpm run doctor
 
 mobile-dev-ios:
 	cd apps/mobile && pnpm run dev:ios
@@ -140,7 +150,7 @@ mobile-typecheck:
 # Produce production JS bundles for iOS + Android (apps/mobile/dist).
 # Native binaries (.apk/.aab/.ipa) build via EAS - see apps/mobile/RUN.txt.
 mobile-build: mobile-typecheck
-	cd apps/mobile && pnpm run export
+	cd apps/mobile && bash scripts/mobile-export.sh ios android
 
 # Generate native ios/ + android/ Gradle/Xcode projects from app.json.
 # (Requires network access to fetch the prebuild template.)
