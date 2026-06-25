@@ -30,6 +30,10 @@ mobile_deps_has_babel_runtime() {
   esac
 }
 
+mobile_deps_has_drive_mode_packages() {
+  [ -d node_modules/expo-location ] && [ -d node_modules/expo-sensors ]
+}
+
 mobile_deps_has_metro_local_node_modules() {
   local root
   root="$(mobile_deps_root)"

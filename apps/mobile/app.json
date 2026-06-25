@@ -72,12 +72,9 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
-      ],
-      "useNextNotificationsApi": true,
-      "usesCleartextTraffic": true
+      ]
     },
     "extra": {
-      "//": "deployMode cloud = Vultr VKE (same paths as web). local = Mac services. Override: MOBILE_DEPLOY_MODE=local MOBILE_CLOUD_BASE_URL=http://45.63.91.80",
       "deployMode": "cloud",
       "cloudBaseUrl": "http://45.63.91.80",
       "curriculumUrl": "http://localhost:8005",

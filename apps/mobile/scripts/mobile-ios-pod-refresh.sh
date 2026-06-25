@@ -13,9 +13,7 @@ if [[ ! -d ios ]]; then
 fi
 
 node scripts/ensure-metro-local-deps.js
-node scripts/patch-expo-localization-ios.js
-node scripts/patch-expo-device-ios.js
-node scripts/patch-react-native-runtimescheduler-ios.js
+node scripts/mobile-patch-native.js
 
 PBX="ios/Pods/Pods.xcodeproj/project.pbxproj"
 needs_pod=0

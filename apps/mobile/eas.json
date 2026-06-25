@@ -4,6 +4,9 @@
     "base": {
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
+      },
+      "env": {
+        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1"
       }
     },
     "development": {

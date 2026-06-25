@@ -2,6 +2,7 @@
   "name": "aiclassroom-mobile",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
   "main": "index.ts",
   "scripts": {
@@ -52,7 +53,8 @@
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
     "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive",
-    "postinstall": "node scripts/patch-expo-localization-ios.js && node scripts/patch-expo-device-ios.js && node scripts/patch-react-native-runtimescheduler-ios.js && node scripts/ensure-metro-local-deps.js"
+    "postinstall": "node scripts/mobile-patch-native.js",
+    "eas-build-post-install": "node scripts/mobile-patch-native.js"
   },
   "dependencies": {
     "@babel/runtime": "7.24.7",
@@ -60,6 +62,7 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "expo": "~51.0.39",
     "expo-av": "~14.0.7",
+    "expo-build-properties": "0.12.5",
     "expo-constants": "~16.0.2",
     "expo-device": "~6.0.2",
     "expo-linear-gradient": "~13.0.2",
