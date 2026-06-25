@@ -3,6 +3,16 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
+  (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
+  follow-up /api/sessions/{id}/advance|ask served by a different replica no
+  longer 404s "unknown session". Backend is env-selected like the rate limiter:
+  Redis when REDIS_URL is set (sessions JSON-serialised with a TTL, shared across
+  replicas), in-memory otherwise; a Redis blip degrades gracefully to in-memory
+  rather than failing the class. Pinned redis==5.0.7 for the orchestrator (no
+  manifest change needed - REDIS_URL is already in the aoep-config ConfigMap).
+  Tests cover both backends, the env factory, graceful fallback, and a two-pod
+  simulation (shared store serves the session; separate stores reproduce the 404).
 - 2026-06-25 - Corporate training: added a KSB (Knowledge/Skills/Behaviours)
   framework that models each of the 11 corporate courses as a
   UK-apprenticeship-style occupational standard (occupation duties mapped to
