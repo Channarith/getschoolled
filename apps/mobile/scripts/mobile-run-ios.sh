@@ -13,7 +13,12 @@ cd "$ROOT"
 export SIM_DEVICE="${SIM_DEVICE:-iPhone 17}"
 export SIM_RUNTIME="${SIM_RUNTIME:-26.4}"
 
+<<<<<<< HEAD
 bash scripts/mobile-ios-pod-refresh.sh
+=======
+node scripts/patch-expo-localization-ios.js
+node scripts/patch-expo-device-ios.js
+>>>>>>> ecb70dd593ae2a6ef328d120c06147e3c99bfc26
 
 udid="$(mobile_ios_pick_simulator)"
 if [[ -z "$udid" ]]; then

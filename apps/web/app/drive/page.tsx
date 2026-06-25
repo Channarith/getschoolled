@@ -7,13 +7,19 @@ import {
   getAudioCourse,
   getToken,
   listAudioCourses,
+  listStudents,
   type AudioCourse,
   type AudioCourseRow,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
+import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
 import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
+import {
+  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, prosodyForStyle, resolveVoiceStyle,
+  type NarrationVoicePref, type NarrationVoiceStyle,
+} from "../lib/voiceProfiles";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
@@ -46,15 +52,27 @@ function DrivePageInner() {
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
+
+  async function refreshVoiceStyle() {
+    setNarrationPref(getNarrationVoicePref());
+    let student = null;
+    try {
+      student = (await listStudents()).students[0] ?? null;
+    } catch { /* guest */ }
+    voiceStyleRef.current = resolveVoiceStyle(getNarrationVoicePref(), student);
+  }
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
     getAudioCategories().then(setCats).catch(() => setCats([]));
     ensureVoices();
+    void refreshVoiceStyle();
   }, []);
   const refresh = useCallback(() => {
     if (!getToken()) return;
@@ -66,9 +84,14 @@ function DrivePageInner() {
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
-      // Pick the best natural/neural voice for the current language + lifelike
-      // prosody (see lib/tts) instead of the default robotic voice.
-      speakNaturally(text, { locale, rate, onend: onEnd });
+      const style = voiceStyleRef.current;
+      const base = prosodyForStyle(style).rate;
+      speakNaturally(text, {
+        locale,
+        voiceStyle: style,
+        rate: base * rate,
+        onend: onEnd,
+      });
     } catch { onEnd?.(); }
   }, [rate, locale]);
 
@@ -293,6 +316,35 @@ function DrivePageInner() {
                 {[0.75, 1, 1.25, 1.5].map((r) => <option key={r} value={r}>{r}x</option>)}
               </select>
             </label>
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="muted" style={{ fontSize: 13 }}>Narration voice:</span>
+            {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((pref) => {
+              const on = narrationPref === pref;
+              const label = pref === "auto" ? "Auto (profile)" : NARRATION_VOICE_LABELS[pref];
+              return (
+                <button
+                  key={pref}
+                  type="button"
+                  onClick={() => {
+                    setNarrationVoicePref(pref);
+                    setNarrationPref(pref);
+                    void refreshVoiceStyle();
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: on ? "1px solid #0ea5e9" : "1px solid #334155",
+                    background: on ? "#0ea5e9" : "transparent",
+                    color: on ? "#001022" : "#9aa6c2",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
           <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
             Auto-advances to the next class when this one finishes.
