@@ -8,7 +8,11 @@ name: Release
 
 on:
   workflow_run:
-    workflows: ["Auto Push Build"]
+    # Auto-merge merges PRs with the built-in GITHUB_TOKEN; pushes made by that
+    # token do NOT fire the push trigger below (GitHub anti-recursion), so we
+    # also react to the Auto-merge workflow completing. workflow_run events are
+    # not subject to that suppression.
+    workflows: ["Auto Push Build", "Auto-merge"]
     types:
       - completed
   push:
@@ -30,7 +34,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+       (github.event.workflow_run.head_branch == 'main' ||
+        github.event.workflow_run.name == 'Auto-merge'))
     steps:
       - name: Checkout main (latest, with the bumped VERSION)
         uses: actions/checkout@v4

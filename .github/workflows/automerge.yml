@@ -63,9 +63,10 @@ jobs:
           #   *) echo "Branch $HEAD_BRANCH not in auto-merge allowlist; skipping."; exit 0 ;;
           # esac
 
+          # Keep the merged branch (no --delete-branch) so merged PRs stay
+          # visible for release tracking/monitoring.
           echo "Auto-merging PR #$PR_NUMBER (squash) ..."
           gh pr merge "$PR_NUMBER" \
             --repo "$REPO" \
             --squash \
-            --delete-branch \
             --admin
