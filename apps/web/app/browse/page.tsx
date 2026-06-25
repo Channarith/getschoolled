@@ -33,6 +33,8 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export default function BrowsePage() {
   const router = useRouter();
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [facets, setFacets] = useState<Facets | null>(null);
   const [items, setItems] = useState<LearnableItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,14 +46,19 @@ export default function BrowsePage() {
   });
 
   useEffect(() => {
+    const authed = Boolean(getToken());
+    setLoggedIn(authed);
+    setAuthResolved(true);
+    if (!authed) return;
     getLearnFacets().then(setFacets).catch(() => setFacets(null));
   }, []);
 
   useEffect(() => {
+    if (!loggedIn) return;
     searchLearnable({ ...filters, limit: "80" })
       .then((r) => { setItems(r.items); setTotal(r.total); })
       .catch((e) => setError(String(e)));
-  }, [filters]);
+  }, [filters, loggedIn]);
 
   function set(key: string, value: string) {
     setFilters((f) => ({ ...f, [key]: value }));
@@ -85,12 +92,33 @@ export default function BrowsePage() {
     }
   }
 
+  if (!authResolved) {
+    return (
+      <main className="container">
+        <p className="muted">Loading…</p>
+      </main>
+    );
+  }
+
+  if (!loggedIn) {
+    return (
+      <main className="container">
+        <h1>Browse all learning</h1>
+        <div className="card">
+          <p>
+            Please <Link href="/login">sign in</Link> to browse the full catalog of live classes,
+            drive-safe audio, languages, arcade games, and courses.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="container">
       <h1>Browse all learning</h1>
       <p className="muted">
         Search across live classes, drive-safe audio, languages, arcade games, and catalog courses.
-        {!getToken() && <> <Link href="/login">Sign in</Link> to enroll in catalog courses.</>}
       </p>
 
       <div className="card">
