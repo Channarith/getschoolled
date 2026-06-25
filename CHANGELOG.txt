@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Mobile Drive Mode: fix Hey Sala voice assistant using native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
 - 2026-06-23 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
   Settings DRIVE MODE section with permission prompts; driving alerts and optional
   auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
