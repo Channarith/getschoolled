@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile iOS Xcode 26 native build: RuntimeScheduler include guards,
+  mobile-ios-pod-refresh.sh re-runs pod install when Pods reference pnpm react-native
+  (fixes C++ redefinition errors); complements expo-device UIDevice patch.
 - 2026-06-25 - Mobile iOS: patch expo-device UIDevice.swift for Xcode 16.3+/26
   (TARGET_OS_SIMULATOR not in Swift; use targetEnvironment(simulator) on SDK 51).
 - 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
