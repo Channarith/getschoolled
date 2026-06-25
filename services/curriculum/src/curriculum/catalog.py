@@ -72,6 +72,10 @@ class Course(BaseModel):
     created_at: float = Field(default_factory=time.time)
     audiences: List[str] = Field(default_factory=list)   # explicit profession tags
     core_skill: bool = False                              # explicit "core skill" flag
+    # Unified search metadata (populated when served from learnable index).
+    source: str = ""
+    deep_link: str = ""
+    global_id: str = ""
 
     @model_validator(mode="after")
     def _defaults(self) -> "Course":
