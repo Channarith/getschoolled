@@ -72,10 +72,16 @@ elif [ -d node_modules ]; then
   fail "node_modules exists but tsc is missing — run: bash scripts/mobile-install.sh"
 fi
 
+if mobile_deps_has_metro_local_node_modules; then
+  ok "node_modules Metro-local (no external pnpm symlinks)"
+elif [ -d node_modules ]; then
+  fail "node_modules has symlinks outside project — run: node scripts/ensure-metro-local-deps.js"
+fi
+
 if mobile_deps_has_babel_runtime; then
   ok "@babel/runtime present (Metro-local copy)"
 elif [ -d node_modules ]; then
-  fail "@babel/runtime missing or symlinked outside project — run: bash scripts/mobile-install.sh"
+  fail "@babel/runtime missing — run: bash scripts/mobile-install.sh"
 fi
 
 if [ -f tsconfig.json ]; then

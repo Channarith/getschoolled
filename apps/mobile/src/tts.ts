@@ -7,6 +7,10 @@
 // audio, route narration through a neural TTS backend (XTTS / cloud TTS).
 import * as Speech from "expo-speech";
 
+import {
+  prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
+} from "./voiceProfiles";
+
 const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
   pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN",
@@ -29,18 +33,18 @@ export async function warmVoices(): Promise<void> {
   }
 }
 
-function pickVoiceId(lang: string): string | undefined {
+function pickVoiceId(lang: string, style: NarrationVoiceStyle = "standard"): string | undefined {
   if (!voicesCache || !voicesCache.length) return undefined;
   const primary = lang.split("-")[0].toLowerCase();
   const matches = voicesCache.filter(
     (v) => (v.language || "").toLowerCase().split("-")[0] === primary,
   );
   if (!matches.length) return undefined;
-  // Prefer the highest-quality (Enhanced/Premium) voice; exact-locale first.
   const ranked = [...matches].sort((a, b) => {
     const score = (v: Speech.Voice) =>
       (v.quality === Speech.VoiceQuality.Enhanced ? 2 : 0) +
-      ((v.language || "").toLowerCase() === lang.toLowerCase() ? 1 : 0);
+      ((v.language || "").toLowerCase() === lang.toLowerCase() ? 1 : 0) +
+      voiceNameStyleBonus(style, v.name || "");
     return score(b) - score(a);
   });
   return ranked[0].identifier;
@@ -48,6 +52,7 @@ function pickVoiceId(lang: string): string | undefined {
 
 export type SpeakOptions = {
   locale: string;
+  voiceStyle?: NarrationVoiceStyle;
   rate?: number;
   pitch?: number;
   onDone?: () => void;
@@ -57,12 +62,14 @@ export type SpeakOptions = {
 
 // Speak with the best natural voice for the locale + lifelike prosody.
 export function speakNatural(text: string, opts: SpeakOptions): void {
+  const style = opts.voiceStyle ?? "standard";
+  const prosody = prosodyForStyle(style);
   const lang = localeToBcp47(opts.locale);
   Speech.speak(text, {
     language: lang,
-    voice: pickVoiceId(lang),
-    pitch: opts.pitch ?? 1.0,
-    rate: opts.rate ?? 0.95,
+    voice: pickVoiceId(lang, style),
+    pitch: opts.pitch ?? prosody.pitch,
+    rate: opts.rate ?? prosody.rate,
     onDone: opts.onDone,
     onStopped: opts.onStopped,
     onError: opts.onError,

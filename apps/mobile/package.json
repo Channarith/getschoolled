@@ -52,7 +52,7 @@
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
     "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive",
-    "postinstall": "node scripts/patch-expo-localization-ios.js"
+    "postinstall": "node scripts/patch-expo-localization-ios.js && node scripts/patch-expo-device-ios.js && node scripts/patch-react-native-runtimescheduler-ios.js && node scripts/ensure-metro-local-deps.js"
   },
   "dependencies": {
     "@babel/runtime": "7.24.7",
@@ -65,8 +65,11 @@
     "expo-linear-gradient": "~13.0.2",
     "expo-linking": "~6.3.1",
     "expo-localization": "~15.0.3",
+    "expo-location": "~17.0.1",
     "expo-notifications": "~0.28.19",
+    "expo-sensors": "~13.0.9",
     "expo-speech": "~12.0.2",
+    "expo-speech-recognition": "^0.3.2",
     "expo-status-bar": "~1.12.1",
     "expo-system-ui": "~3.0.7",
     "react": "18.2.0",

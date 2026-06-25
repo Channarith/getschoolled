@@ -74,6 +74,8 @@ const PREVIEW_KEY = "aoep_preview";
 // Fired whenever auth/preview state changes so the nav (and other components)
 // can re-gate immediately without a full reload.
 export const AUTH_EVENT = "aoep-auth-change";
+/** Fired when the post-login legal disclaimer is accepted (see DisclaimerGate). */
+export const DISCLAIMER_ACCEPTED_EVENT = "aoep-disclaimer-accepted";
 
 export function notifyAuthChange(): void {
   try {

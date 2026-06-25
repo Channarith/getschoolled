@@ -19,27 +19,32 @@ mobile_deps_has_expo() {
 }
 
 mobile_deps_has_babel_runtime() {
-  local root helper
+  local root helper resolved
   root="$(mobile_deps_root)"
   helper="$root/node_modules/@babel/runtime/helpers/interopRequireDefault.js"
   [ -f "$helper" ] || return 1
-  # Metro indexes only files under the project root — reject pnpm symlinks to ~/.
-  if [ -L "$root/node_modules/@babel/runtime" ]; then
-    local target
-    target="$(readlink "$root/node_modules/@babel/runtime" 2>/dev/null || true)"
-    case "$target" in
-      /*) return 1 ;;
-      ../*)
-        local resolved
-        resolved="$(cd "$root/node_modules/@babel" && pwd -P)/$(basename "$target")"
-        case "$resolved" in
-          "$root"/*) return 0 ;;
-          *) return 1 ;;
-        esac
-        ;;
-    esac
-  fi
-  return 0
+  resolved="$(cd "$root/node_modules/@babel/runtime" 2>/dev/null && pwd -P)" || return 1
+  case "$resolved" in
+    "$root"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+mobile_deps_has_metro_local_node_modules() {
+  local root
+  root="$(mobile_deps_root)"
+  node "$root/scripts/ensure-metro-local-deps.js" --check 2>/dev/null
+}
+
+mobile_deps_ensure_metro_local() {
+  local root
+  root="$(mobile_deps_root)"
+  node "$root/scripts/ensure-metro-local-deps.js"
+}
+
+# Back-compat alias used by mobile-expo.sh
+mobile_deps_ensure_babel_runtime() {
+  mobile_deps_ensure_metro_local
 }
 
 mobile_deps_tsc_cmd() {
@@ -59,6 +64,7 @@ mobile_deps_print_status() {
     echo "    typescript/lib/tsc.js: $([ -f node_modules/typescript/lib/tsc.js ] && echo yes || echo NO)"
     echo "    node_modules/.bin/expo: $([ -e node_modules/.bin/expo ] && echo yes || echo NO)"
     echo "    babel-preset-expo: $([ -d node_modules/babel-preset-expo ] && echo yes || echo NO)"
+    echo "    Metro-local node_modules: $(mobile_deps_has_metro_local_node_modules && echo yes || echo NO — run mobile-expo or mobile-install)"
     echo "    @babel/runtime (Metro-local): $(mobile_deps_has_babel_runtime && echo yes || echo NO)"
   fi
 }

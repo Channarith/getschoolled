@@ -125,7 +125,7 @@ Additional screenshots live in `docs/screens/`.
 | --- | --- | --- |
 | Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue | `apps/web/app/class`, `services/orchestrator` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
-| Mobile | Expo app, Drive Mode, Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
+| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
 | Language learning | 27 supported language codes including Turkish and Khmer; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
 | Careers | Job board, skill coverage, JD parsing, certification class matching | `/jobs`, curriculum jobs APIs |
 | Accounts | Signup/login, session tokens, students, portfolio, profile context sharing, rewards | `services/identity` |
@@ -490,7 +490,13 @@ counsel before public/commercial release.
 
 The Expo app supports Android and iOS with:
 
-- Drive Mode audio classes using `expo-speech`.
+- Drive Mode audio classes using `expo-speech`, with **narration voice profiles**
+  (child-friendly, accessible/slower, calm, clear, or Auto from learning profile).
+- **Hey Sala** hands-free Q&A in Drive Mode via native speech recognition
+  (Siri on iOS, Google on Android; requires a dev/native build).
+- **Opt-in driving detection** (GPS speed + motion sensors) with alerts and
+  optional auto-launch into Drive Mode.
+- **Learning profile survey** shown once after login; persisted to identity.
 - Netflix-style home rails and category cards.
 - Continue Listening, My List, local progress, streaks, and saved settings.
 - Local notifications and alerts inbox.
