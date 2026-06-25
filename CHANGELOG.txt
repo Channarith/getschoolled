@@ -3,6 +3,26 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Corporate training: built out the full Multiverse-style catalog with
+  eight new AI-led programmes - AI-Powered Productivity (AI, L3), AI Solutions Builder
+  (AI, L4), AI Transformation Architect (AI, L4), Data Fellowship (Data, L4),
+  Applied Data Engineering (Data, L5), DevOps Engineering Upskiller (Engineering,
+  L4), Java Software Engineering (Engineering, L4) and AI Product Engineering
+  (Engineering, L6). 11 corporate programmes now grouped across AI/Data/Engineering
+  tracks; content-only (no code change), redeployed orchestrator.
+- 2026-06-25 - Orchestrator: import fastapi Response at module scope so the
+  /api/group-classes/{id}/calendar.ics route's return annotation resolves at
+  startup (pydantic 2.7 raised PydanticUndefinedAnnotation, crash-looping the pod).
+  Web: ClassRoom finish state is now a discriminated union (fixes a next build
+  typecheck error). Version 0.4.2 -> 0.4.3.
+- 2026-06-25 - Corporate training: Multiverse-style AI-led programme catalog. New
+  lessons "Data & Insights for Business Decisions" (Data) and "AI and Machine
+  Learning Fellowship" (AI); optional lesson catalog metadata (TRACK/LEVEL/ROLE/
+  DELIVERY/FIT/SUMMARY) parsed by the orchestrator and rendered as cards grouped
+  by track on /corporate. Added scripts/make_corporate_lesson.py to generate
+  lesson.txt from an openly-licensed outline (e.g. apprenticeship-standard KSBs).
+- 2026-06-25 - Mobile (Expo Go): fixed dynamic require() in src/nativeModules.ts
+  that broke Metro bundling (literal requires for the optional native modules).
 - 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum
   service (fixes 500). Watch/ad-breaks resolve learnable IDs (fixes 404). Careers
   USA location filter. Arcade rounds persist in Redis across replicas. Group classes:

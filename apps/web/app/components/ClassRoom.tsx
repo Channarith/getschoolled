@@ -80,7 +80,10 @@ export default function ClassRoom({
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
   const [surveyDone, setSurveyDone] = useState(false);
   const [finish, setFinish] = useState<
-    { kind: "earned" | "complete" | "guest"; earned?: number; balance?: number } | null
+    | { kind: "earned"; earned: number; balance: number }
+    | { kind: "complete"; balance?: number }
+    | { kind: "guest" }
+    | null
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);

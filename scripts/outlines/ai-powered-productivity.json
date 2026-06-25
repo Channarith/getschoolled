@@ -1,0 +1,41 @@
+{
+  "title": "AI-Powered Productivity",
+  "language": "en",
+  "audience": "corporate",
+  "slug": "ai-powered-productivity",
+  "track": "AI",
+  "level": "Level 3 Apprenticeship",
+  "role": "Digital Support Technician",
+  "delivery": "13 month delivery, plus 3 month assessment",
+  "fit": "Junior to mid-level professionals.",
+  "summary": "Boost your team's productivity with GenAI tools such as Microsoft Copilot and Gemini, and ensure responsible AI use.",
+  "_sources": [
+    "Outline only -- author teaching prose yourself from openly-licensed sources.",
+    "Microsoft Learn (Copilot) -- much of it CC BY 4.0.",
+    "Google Workspace / Gemini help docs.",
+    "NIST AI Risk Management Framework (US gov, public domain) for responsible-use slides.",
+    "UK apprenticeship standard 'Digital Support Technician' KSBs (Open Government Licence)."
+  ],
+  "slides": [
+    {
+      "title": "What This Course Is About",
+      "body": "This course helps everyday professionals get real productivity gains from generative AI assistants such as Microsoft Copilot and Google Gemini, while using them safely and responsibly. You will learn where these tools genuinely save time, how to prompt them well, how to keep a human check on their output, and how to follow your organisation's data rules. No technical background is required."
+    },
+    {
+      "title": "AI Assistants in the Tools You Already Use",
+      "body": "Modern AI assistants live inside the apps you use daily: drafting email, summarising documents and meetings, building slides, and analysing spreadsheets. Because they sit where the work happens, the productivity gain comes from removing busywork rather than learning a separate tool. Start with one or two high-frequency tasks and build the habit there."
+    },
+    {
+      "title": "Prompting for Better Results",
+      "body": "A good prompt gives the assistant a role, the task, the context it needs, and the output format you want. Be specific about audience, tone, and length, give an example when style matters, and refine across a couple of rounds rather than accepting the first draft. Small additions of context produce large gains in quality for only a few seconds of effort."
+    },
+    {
+      "title": "Keeping a Human in Charge",
+      "body": "AI assistants can state wrong information fluently and confidently, so you stay responsible for accuracy, tone, and final decisions. Treat the tool as a fast assistant whose work you review before it goes out. Verify facts, figures, and names against trusted sources, especially for anything you will send, publish, or act on."
+    },
+    {
+      "title": "Responsible and Secure Use",
+      "body": "Never paste confidential, personal, or regulated data into a tool that is not approved for it, and follow your organisation's AI and data policy. Be alert to bias in output, be transparent about where AI was used when honesty matters, and prefer enterprise tools with clear data protections. Responsible use is part of using AI professionally."
+    }
+  ]
+}

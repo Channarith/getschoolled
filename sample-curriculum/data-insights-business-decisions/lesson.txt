@@ -1,0 +1,170 @@
+LESSON: Data & Insights for Business Decisions
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Data
+LEVEL: Level 3 Apprenticeship
+ROLE: Data Technician
+DELIVERY: 13 month delivery
+FIT: Anyone eager to boost data confidence.
+SUMMARY: Enable your team to read, question, and act on data so everyday business decisions are grounded in evidence.
+
+SLIDE 1 | What This Course Is About
+This course builds practical data confidence for any role, with no technical
+background required. You will learn to read everyday business data, ask the right
+questions of it, avoid common traps, and turn numbers into decisions you can
+defend. The goal is not to make you a data scientist. It is to make you a
+clear-headed user of data who can challenge a chart, spot a misleading metric,
+and explain what the evidence actually supports.
+NARRATION: Welcome! This course builds everyday data confidence so you can turn numbers into sound decisions.
+
+SLIDE 2 | Why Data Matters for Decisions
+Most business choices are still made on gut feel, habit, or the loudest voice in
+the room. Data does not remove judgment, but it grounds judgment in evidence so
+teams argue about what to do rather than about what is true. A data-informed
+culture is faster and fairer: it replaces opinion battles with shared facts, and
+it lets you measure whether a decision actually worked instead of just assuming
+it did.
+NARRATION: Data grounds judgment in shared evidence, so teams debate what to do, not what is true.
+
+SLIDE 3 | Data, Information, and Insight
+Three words often get confused. Data is raw recorded facts, like a list of
+sales transactions. Information is data organized to answer a question, like
+total sales by region this month. Insight is the so-what: an understanding that
+changes a decision, like noticing one region is shrinking because a competitor
+opened nearby. The whole point of working with data is to climb from raw data up
+to insight that drives action.
+NARRATION: Data is raw facts, information is data organized to answer a question, insight changes a decision.
+
+SLIDE 4 | Where Business Data Comes From
+Data is created everywhere in a business: sales and point-of-sale systems,
+customer records in a CRM, website and app analytics, support tickets, surveys,
+finance and inventory systems, and spreadsheets people keep by hand. Each source
+was built for its own purpose, so before trusting a number you should ask where
+it came from, what it was originally for, and who is responsible for keeping it
+accurate.
+NARRATION: Business data comes from many systems; always ask where a number came from and who maintains it.
+
+SLIDE 5 | Structured vs Unstructured Data
+Structured data fits neatly into rows and columns, like a table of orders with
+dates and amounts, and is easy to count and filter. Unstructured data has no
+fixed shape, like emails, reviews, photos, or call recordings, and needs extra
+work to analyze. Most businesses sit on far more unstructured data than they use.
+Knowing which kind you have tells you how much effort the analysis will take.
+NARRATION: Structured data fits rows and columns; unstructured data like text and images needs more work.
+
+SLIDE 6 | Data Quality: Garbage In, Garbage Out
+A beautiful chart built on bad data is still wrong, and often more dangerous
+because it looks convincing. Watch for missing values, duplicates, inconsistent
+formats, out-of-date records, and entries that are simply incorrect. Before
+analyzing, sanity-check the data: do the totals look plausible, are the dates in
+range, do categories match what you expect? Cleaning data is unglamorous but it
+is where trustworthy analysis begins.
+NARRATION: Bad data produces confident wrong answers; check quality before you trust any analysis.
+
+SLIDE 7 | Asking a Good Question First
+Analysis goes wrong when people pull numbers before deciding what they want to
+know. Start with a clear, specific question tied to a decision: not "how are
+sales?" but "which products lost the most revenue last quarter, and in which
+regions?" A sharp question tells you exactly which data to gather and what a
+useful answer looks like, and it stops you drowning in numbers that do not
+matter.
+NARRATION: Start with a specific question tied to a decision; it tells you which data actually matters.
+
+SLIDE 8 | Descriptive Statistics: Summarizing Data
+To make sense of many numbers you summarize them. The average, or mean, gives a
+typical value, but it can be distorted by extremes. The median, the middle
+value, is often more honest when a few huge or tiny values are present. The range
+and spread tell you how much variation there is. A single summary number always
+hides detail, so pair it with a sense of how spread out the data is.
+NARRATION: Summaries like mean and median describe typical values, but always check the spread too.
+
+SLIDE 9 | The Trap of Averages
+Averages routinely mislead. The average customer may not exist: if half your
+customers spend a little and half spend a lot, the average describes nobody. An
+average wait time of five minutes can hide that some people wait an hour.
+Whenever you see an average, ask what is being hidden underneath it, and look at
+the distribution or break it into groups before drawing a conclusion.
+NARRATION: An average can describe nobody; ask what variation it hides before trusting it.
+
+SLIDE 10 | Correlation Is Not Causation
+Two things moving together does not mean one causes the other. Ice cream sales
+and sunburns rise together, but ice cream does not cause sunburn; hot weather
+drives both. In business this matters enormously: a feature used by your best
+customers may not be what makes them your best customers. Before acting on a
+relationship, ask whether something else could explain it, and whether a
+controlled test could confirm cause.
+NARRATION: Things moving together is not proof one causes the other; look for a hidden common cause.
+
+SLIDE 11 | Choosing the Right Chart
+Charts make patterns visible, but the wrong chart hides them. Use a line chart
+for change over time, a bar chart to compare categories, and a scatter plot to
+show the relationship between two numbers. Pie charts work only for a few parts
+of a whole and quickly become unreadable. The best chart answers the question at
+a glance without the reader doing math in their head.
+NARRATION: Match the chart to the question: lines for time, bars for comparison, scatter for relationships.
+
+SLIDE 12 | How Charts Mislead
+The same data can tell opposite stories depending on how it is drawn. A bar chart
+whose axis does not start at zero exaggerates small differences. A cramped time
+range can turn normal noise into a dramatic trend. Cherry-picked dates, dual
+axes, and misleading scales are common, sometimes accidental, sometimes not.
+Read the axes and the time range before you read the line, and be honest in the
+charts you make.
+NARRATION: Check the axes and time range first; truncated scales and cherry-picked ranges distort the story.
+
+SLIDE 13 | Key Metrics and KPIs
+A metric is any number you track; a key performance indicator, or KPI, is a
+metric chosen because it reflects a goal that matters. Good KPIs are specific,
+measurable, and tied to a decision someone can act on. Beware vanity metrics,
+numbers that look impressive but change no decision, such as total page views
+with no link to revenue or retention. Track the few numbers that would actually
+change what you do.
+NARRATION: KPIs are metrics tied to goals and decisions; avoid vanity metrics that change nothing.
+
+SLIDE 14 | Segmentation: Breaking Data Into Groups
+Totals hide stories. The real insight usually appears when you split data into
+meaningful groups, by region, product, customer type, or time period. A flat
+overall sales number might hide one segment booming and another collapsing.
+Segmentation turns a vague "sales are okay" into a precise "new customers are
+growing while repeat orders are falling," which points to a clear action.
+NARRATION: Split totals into groups; segmentation reveals the stories that overall numbers hide.
+
+SLIDE 15 | Telling the Story With Data
+A correct analysis that no one understands changes nothing. Lead with the
+headline finding, then support it with one or two clear visuals, and end with the
+recommended action. Tailor depth to the audience: an executive wants the so-what
+and the decision, an analyst wants the method. Always state your assumptions and
+how confident you are, so people can judge how much weight to put on it.
+NARRATION: Lead with the finding, support with a clear visual, end with the action, and state your confidence.
+
+SLIDE 16 | Using Data Responsibly
+Data about people carries responsibility. Protect personal and sensitive
+information, follow your organization's data policy and relevant privacy rules,
+and only use data for purposes people would reasonably expect. Be alert to bias:
+if the data underrepresents a group, conclusions about that group will be weak or
+unfair. Responsible data use protects both the people in the data and the trust
+in your work.
+NARRATION: Protect personal data, follow policy, and watch for bias from groups that are underrepresented.
+
+SLIDE 17 | Course Summary and Next Steps
+You can now climb from raw data to insight: start with a sharp question, check
+data quality, summarize honestly, avoid the traps of averages and false
+causation, choose truthful charts, track KPIs that matter, segment to find the
+story, and communicate a clear recommendation. Practice on a real number from
+your own work this week. Data confidence grows by doing.
+NARRATION: Ask sharp questions, check quality, avoid traps, pick honest charts, and recommend a clear action.
+
+FACT: Data is raw recorded facts, information is data organized to answer a question, and insight is an understanding that changes a decision.
+FACT: A data-informed culture grounds judgment in shared evidence so teams debate what to do rather than what is true.
+FACT: Structured data fits into rows and columns, while unstructured data such as text, images, and audio has no fixed shape and needs more work to analyze.
+FACT: Poor data quality, including missing values, duplicates, and out-of-date records, produces confident but wrong analysis.
+FACT: Good analysis starts with a specific question tied to a decision, which determines what data to gather.
+FACT: The mean is a typical value that can be distorted by extreme values, while the median, the middle value, is often more honest when extremes are present.
+FACT: An average can describe no actual individual and can hide wide variation, so check the distribution or break data into groups.
+FACT: Correlation does not imply causation; two things can move together because a third factor drives both.
+FACT: Use a line chart for change over time, a bar chart to compare categories, and a scatter plot to show the relationship between two variables.
+FACT: A bar chart whose axis does not start at zero exaggerates small differences, so always read the axes and time range first.
+FACT: A KPI is a metric chosen because it reflects a goal that matters, while a vanity metric looks impressive but changes no decision.
+FACT: Segmentation, splitting data into meaningful groups, reveals stories that overall totals hide.
+FACT: Effective data storytelling leads with the headline finding, supports it with a clear visual, and ends with a recommended action.
+FACT: Data about people must be protected and used responsibly, and conclusions about underrepresented groups in the data will be weak or biased.

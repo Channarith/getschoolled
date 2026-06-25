@@ -1,0 +1,120 @@
+LESSON: AI-Powered Productivity
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: AI
+LEVEL: Level 3 Apprenticeship
+ROLE: Digital Support Technician
+DELIVERY: 13 month delivery, plus 3 month assessment
+FIT: Junior to mid-level professionals.
+SUMMARY: Boost your team's productivity with GenAI tools such as Microsoft Copilot and Gemini, and ensure responsible AI use.
+
+SLIDE 1 | What This Course Is About
+This course helps everyday professionals get real productivity gains from
+generative AI assistants such as Microsoft Copilot and Google Gemini, while using
+them safely and responsibly. You will learn where these tools genuinely save
+time, how to prompt them well, how to keep a human check on their output, and how
+to follow your organisation's data rules. No technical background is required, and
+every technique here can be applied to your real work this week.
+NARRATION: This course gives you practical productivity gains from AI assistants like Copilot and Gemini, used responsibly.
+
+SLIDE 2 | AI Assistants in the Tools You Already Use
+Modern AI assistants live inside the apps you use daily: drafting and replying to
+email, summarising long documents and meetings, building slide decks, and
+analysing spreadsheets. Because they sit where the work already happens, the gain
+comes from removing busywork rather than learning a separate tool. The fastest
+path to value is to pick one or two high-frequency tasks and build the habit there
+before spreading wider.
+NARRATION: AI assistants live inside your daily apps; start with one or two frequent tasks to build the habit.
+
+SLIDE 3 | High-Value Use Cases
+The biggest time savings come from a handful of patterns: turning rough notes
+into a polished draft, summarising a long thread or report into key points,
+rewriting text for a different audience or tone, extracting action items from a
+meeting, and getting a fast first explanation of an unfamiliar topic. The common
+thread is that AI produces a strong first draft quickly, and you refine it with
+your judgment.
+NARRATION: AI saves the most time on drafts, summaries, rewrites, action items, and quick explanations.
+
+SLIDE 4 | The Anatomy of a Good Prompt
+A good prompt gives the assistant four things: a role to adopt, the task to do,
+the context it needs, and the format you want back. For example, act as a
+customer-support lead, draft a reply to this complaint, the customer is a
+long-time client who is frustrated about a delay, and keep it under 120 words and
+warm in tone. Specific prompts produce specific, useful results.
+NARRATION: Strong prompts specify a role, the task, the context, and the desired output format.
+
+SLIDE 5 | Prompting Techniques That Work
+A few habits reliably raise quality. Be explicit about what you want and what to
+avoid. Give an example when style matters, which is called few-shot prompting.
+Set constraints such as length, reading level, or required sections. For anything
+involving reasoning, ask the assistant to work step by step. These additions cost
+seconds and consistently improve the output.
+NARRATION: Be specific, give examples, set constraints, and ask for step-by-step reasoning.
+
+SLIDE 6 | Iterating Instead of Restarting
+The first answer is a starting point, not a verdict. If it misses, tell the
+assistant exactly what to change: make it shorter, more formal, more concrete, or
+focused on one section. Each round steers the result closer to what you need.
+Skilled users expect two or three quick iterations rather than accepting or
+discarding the first draft.
+NARRATION: Treat prompting as a conversation; refine the draft over a few quick rounds instead of starting over.
+
+SLIDE 7 | Grounding AI in Your Own Material
+General assistants do not know your company's private documents, so for accurate,
+relevant output you supply the source material, paste the text, attach the file,
+or use an enterprise tool that retrieves your documents. Grounding the assistant
+in real, trusted content is one of the best ways to get useful answers and to
+reduce made-up information.
+NARRATION: Give the assistant your own documents as context; grounding it in real sources improves accuracy.
+
+SLIDE 8 | Keeping a Human in Charge
+AI assistants can state wrong information fluently and confidently, so you stay
+responsible for accuracy, tone, and the final decision. Treat the tool as a fast
+assistant whose work you review before it goes out. Verify facts, figures, names,
+and quotes against trusted sources, especially for anything you will send,
+publish, or act on.
+NARRATION: You own accuracy and final decisions; always review and verify AI output before it goes out.
+
+SLIDE 9 | Data Protection and Approved Tools
+Never paste confidential, personal, or regulated data into a tool that is not
+approved for it, and always follow your organisation's AI and data policy. Prefer
+enterprise versions with clear data protections over public consumer tools, and
+when in doubt, anonymise the information first. Protecting data is a core part of
+using AI professionally.
+NARRATION: Follow your data policy, use approved enterprise tools, and never paste sensitive data into public AI.
+
+SLIDE 10 | Responsible and Transparent Use
+Responsible use means staying alert to bias in output, being transparent about
+where AI was used when honesty matters, and never presenting unchecked AI work as
+your own verified output. Where decisions affect people, keep a human firmly in
+the loop. Used this way, AI accelerates your work while protecting quality and
+trust.
+NARRATION: Watch for bias, be transparent about AI use, and keep humans in charge of decisions about people.
+
+SLIDE 11 | Building a Personal AI Workflow
+Make the gains stick by building habits: keep a small library of prompts that
+work well so you can reuse them, look for repetitive first-draft tasks to
+delegate, and share useful techniques with your team. The aim is not to use AI
+for everything, but to know exactly when it helps and when human work is the
+right call.
+NARRATION: Save prompts that work, delegate repetitive drafts, and share techniques to make the gains stick.
+
+SLIDE 12 | Course Summary and Next Steps
+You now know where AI assistants save the most time, how to prompt and iterate,
+how to ground answers in your own material, and how to use AI responsibly and
+securely. Pick one frequent task this week, apply the define-prompt-verify loop,
+and build from there. Productivity with AI is a practical habit that grows with
+use.
+NARRATION: Apply the define, prompt, ground, verify loop to one frequent task this week and build the habit.
+
+FACT: Generative AI assistants such as Microsoft Copilot and Google Gemini live inside everyday apps and save time by removing busywork.
+FACT: The highest-value AI use cases are turning notes into drafts, summarising long content, rewriting for an audience, extracting action items, and quick explanations.
+FACT: A good prompt specifies a role for the AI, the task, the context it needs, and the desired output format.
+FACT: Few-shot prompting means giving the assistant an example of the style or output you want.
+FACT: Asking an assistant to work step by step improves results on reasoning tasks.
+FACT: Prompting is iterative; refining over a few rounds steers the output toward what you need.
+FACT: Grounding an assistant in your own trusted documents improves accuracy and reduces made-up information.
+FACT: AI can state false information fluently, so a human must review and verify important output before it is used.
+FACT: Confidential, personal, or regulated data should never be pasted into AI tools that are not approved for it.
+FACT: Responsible AI use means watching for bias, being transparent about AI use, and keeping humans in charge of decisions about people.
+FACT: Building a reusable prompt library and delegating repetitive first-draft tasks helps productivity gains stick.

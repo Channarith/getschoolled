@@ -1,0 +1,127 @@
+LESSON: AI Solutions Builder
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: AI
+LEVEL: Level 4 Apprenticeship
+ROLE: AI & Automation Practitioner
+DELIVERY: 13 month delivery
+FIT: Mid-level employees who serve as departmental agentic AI experts and champions.
+SUMMARY: Create agentic AI experts who build solutions to improve team processes and eliminate repetitive tasks.
+
+SLIDE 1 | What This Course Is About
+This course turns capable professionals into builders of practical AI solutions
+who can identify repetitive work in their team and automate it with agentic AI.
+You will learn to spot good automation candidates, design AI agents and workflows,
+connect AI to real tools and data, and ship solutions that are reliable, safe, and
+measurable. You should already be comfortable using GenAI tools; here you move
+from user to builder.
+NARRATION: This course moves you from using AI to building agentic solutions that automate real team work.
+
+SLIDE 2 | From Assistant to Agent
+A chat assistant answers a single prompt. An AI agent pursues a goal over multiple
+steps: it plans, calls tools, observes results, and decides what to do next until
+the task is done. For example, an agent might read a support ticket, look up the
+customer, draft a reply, and file a follow-up task. The shift from one-shot
+answers to goal-directed action is what makes agents powerful and what makes them
+need careful design.
+NARRATION: An agent pursues a goal over multiple steps by planning, calling tools, and acting, not just answering once.
+
+SLIDE 3 | Finding the Right Problems to Automate
+Good automation candidates are repetitive, rule-ish, high-volume, and low-risk to
+get wrong on the first pass. Map your team's recurring tasks and rank them by time
+spent, frequency, and how tolerant they are of occasional error. Start with a
+painful but contained task rather than the most complex one. A narrow, well-chosen
+first project builds skill and trust faster than an ambitious one that stalls.
+NARRATION: Pick repetitive, high-volume, low-risk tasks first; a narrow win builds skill and trust fastest.
+
+SLIDE 4 | Anatomy of an Agentic Workflow
+Most agentic solutions share a shape: a trigger starts it, the agent reasons about
+the goal, it calls tools to fetch data or take actions, it checks results, and it
+produces an output or hands off to a human. Designing a solution means defining
+each of these clearly: what starts it, what it is allowed to do, what good output
+looks like, and when it should stop and ask a person.
+NARRATION: Agentic workflows have a trigger, reasoning, tool calls, checks, and a human handoff; design each clearly.
+
+SLIDE 5 | Tools, Functions, and Integrations
+Agents become useful when they can act on real systems through tools, also called
+functions: searching a knowledge base, querying a database, sending an email,
+creating a ticket, or calling an API. Each tool needs a clear description, defined
+inputs and outputs, and limits on what it can do. The set of tools you give an
+agent defines both its capability and its blast radius.
+NARRATION: Tools let agents act on real systems; each needs clear inputs, outputs, and limits on what it can do.
+
+SLIDE 6 | Grounding Agents with Retrieval
+Agents that answer questions about your business need access to your knowledge.
+Retrieval-augmented generation fetches relevant documents and feeds them to the
+model so answers are grounded in your real, current content instead of the model's
+general training. Good retrieval, well-organised sources, sensible chunking, and
+relevance ranking, is often the difference between a useful agent and a confidently
+wrong one.
+NARRATION: Retrieval feeds agents your real documents so answers are grounded, not guessed.
+
+SLIDE 7 | Prompt and Instruction Design for Agents
+An agent's system instructions are its job description: its role, its goals, the
+tools it may use, its constraints, and how it should behave when uncertain. Be
+explicit about what it must never do and when to defer to a human. Clear, bounded
+instructions make agents predictable; vague ones make them wander. Treat the
+instruction as a living spec you refine as you observe behaviour.
+NARRATION: An agent's instructions define its role, tools, limits, and when to defer to a human; keep them explicit.
+
+SLIDE 8 | Keeping Humans in the Loop
+Reliable solutions decide deliberately where a human approves or reviews. High-
+stakes or irreversible actions, sending money, emailing customers, changing
+records, should pause for human approval, at least until the agent has earned
+trust. Design clear checkpoints and make it easy for a person to see what the
+agent did and why. Autonomy is something you grant gradually, based on evidence.
+NARRATION: Put human approval on high-stakes actions and grant autonomy gradually as the agent earns trust.
+
+SLIDE 9 | Testing and Evaluating AI Solutions
+Because AI output varies, you cannot test it like ordinary code with one expected
+answer. Build a set of realistic example cases with good outcomes, run the agent
+against them, and score quality, accuracy, and safety. Re-run this evaluation
+whenever you change the prompt, model, or tools. Measurement turns "it seemed to
+work" into evidence you can trust and improve.
+NARRATION: Evaluate agents against realistic example cases and re-test on every change; measurement builds trust.
+
+SLIDE 10 | Reliability, Cost, and Monitoring
+In production, watch for failures, runaway loops, latency, and cost, since every
+model call and tool use has a price. Set limits on steps and spend, add retries
+and fallbacks for tool errors, and log what the agent does so you can debug and
+audit it. A solution is only as valuable as it is reliable and affordable to run.
+NARRATION: Monitor failures, latency, and cost; cap steps and spend, and log agent actions for debugging and audit.
+
+SLIDE 11 | Responsible and Secure Automation
+Automating work raises real risks: agents can leak data through tools, take wrong
+actions at scale, or embed bias. Limit each tool's permissions to the minimum
+needed, protect sensitive data, guard against prompt injection from untrusted
+content, and keep humans accountable for outcomes. Build governance and security
+in from the start, agreed with stakeholders, not bolted on later.
+NARRATION: Limit tool permissions, protect data, guard against prompt injection, and keep humans accountable.
+
+SLIDE 12 | Driving Adoption and Measuring Impact
+A solution only delivers value if people use it and it actually saves time or
+improves quality. Involve the team early, make the agent easy to use, and measure
+the before-and-after: hours saved, errors reduced, turnaround time. Champions like
+you make adoption real by supporting colleagues and feeding their problems back
+into the next iteration.
+NARRATION: Drive adoption by involving the team and measuring real before-and-after impact like hours saved.
+
+SLIDE 13 | Course Summary and Next Steps
+You can now spot automatable work, design an agentic workflow, ground it with
+retrieval, give it safe tools, keep humans in the loop, evaluate it, and ship it
+responsibly. Choose one repetitive task in your team, build the simplest agent
+that helps, measure the impact, and iterate. That is how an AI champion turns
+ideas into working solutions.
+NARRATION: Build the simplest useful agent for one repetitive task, measure impact, and iterate.
+
+FACT: An AI agent pursues a goal over multiple steps by planning, calling tools, observing results, and deciding what to do next, unlike a single-shot chat answer.
+FACT: Good automation candidates are repetitive, high-volume, and low-risk to get wrong on the first pass.
+FACT: An agentic workflow typically has a trigger, reasoning, tool calls, result checks, and a human handoff.
+FACT: Tools (functions) let an agent act on real systems and each needs a clear description, defined inputs and outputs, and limits.
+FACT: Retrieval-augmented generation grounds an agent's answers in your real, current documents instead of the model's general training.
+FACT: An agent's system instructions define its role, goals, allowed tools, constraints, and when to defer to a human.
+FACT: High-stakes or irreversible actions should require human approval until the agent has earned trust.
+FACT: AI solutions must be evaluated against realistic example cases and re-tested whenever the prompt, model, or tools change.
+FACT: Production agents need monitoring of failures, latency, and cost, with limits on steps and spend plus logging for audit.
+FACT: Automation risks include data leakage through tools, wrong actions at scale, and prompt injection, so tool permissions should be minimised.
+FACT: An AI solution only delivers value if it is adopted and its before-and-after impact, such as hours saved, is measured.

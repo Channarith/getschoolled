@@ -654,6 +654,13 @@ export type Lesson = {
   title: string;
   language: string;
   audience?: string;
+  // Optional catalog metadata for programme cards (Corporate training).
+  track?: string;
+  level?: string;
+  role?: string;
+  delivery?: string;
+  fit?: string;
+  summary?: string;
   slides: Slide[];
 };
 

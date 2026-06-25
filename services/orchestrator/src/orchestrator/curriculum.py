@@ -31,6 +31,15 @@ class Lesson(BaseModel):
     # Which catalog this lesson belongs to. "general" lessons show in the Live
     # Class picker; "corporate" lessons are surfaced under Corporate training.
     audience: str = "general"
+    # Optional catalog metadata used to render programme cards (e.g. the
+    # Corporate training catalog). All blank by default so existing lessons and
+    # the live teaching loop are unaffected.
+    track: str = ""        # family for grouping, e.g. "AI", "Data", "Engineering"
+    level: str = ""        # e.g. "Level 3 Apprenticeship"
+    role: str = ""         # target role/badge, e.g. "Data Technician"
+    delivery: str = ""     # e.g. "13 month delivery"
+    fit: str = ""          # "Who's it for" one-liner
+    summary: str = ""      # short marketing blurb for the card
     slides: List[Slide] = Field(default_factory=list)
 
 
@@ -48,6 +57,7 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     title = lesson_id
     language = "en"
     audience = "general"
+    meta = {"track": "", "level": "", "role": "", "delivery": "", "fit": "", "summary": ""}
     slides: List[Slide] = []
     passages: List[str] = []
 
@@ -88,6 +98,15 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
         if line.startswith("AUDIENCE:"):
             audience = line.split(":", 1)[1].strip().lower() or "general"
             continue
+        matched_meta = False
+        for key in meta:
+            tag = f"{key.upper()}:"
+            if line.startswith(tag):
+                meta[key] = line.split(":", 1)[1].strip()
+                matched_meta = True
+                break
+        if matched_meta:
+            continue
         if line.startswith("NARRATION:"):
             cur_narration = line.split(":", 1)[1].strip()
             continue
@@ -105,7 +124,14 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     flush()
 
     return (
-        Lesson(lesson_id=lesson_id, title=title, language=language, audience=audience, slides=slides),
+        Lesson(
+            lesson_id=lesson_id,
+            title=title,
+            language=language,
+            audience=audience,
+            slides=slides,
+            **meta,
+        ),
         passages,
     )
 

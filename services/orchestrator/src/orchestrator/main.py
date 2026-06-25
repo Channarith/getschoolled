@@ -19,7 +19,7 @@ from aoep_shared.assessment import (
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from .curriculum import Lesson, Slide
@@ -651,9 +651,8 @@ def register_group_class(class_id: str, req: RegisterRequest) -> dict:
 
 
 @app.get("/api/group-classes/{class_id}/calendar.ics")
-def group_class_calendar(class_id: str, name: str = "", email: str = "") -> "Response":
+def group_class_calendar(class_id: str, name: str = "", email: str = "") -> Response:
     from aoep_shared.group_classes import calendar_ics
-    from fastapi import Response
 
     gc = _group_store().get(class_id)
     if gc is None:
