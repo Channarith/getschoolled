@@ -5,6 +5,7 @@
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=12288}"
 export METRO_NODE_OPTIONS="${METRO_NODE_OPTIONS:-$NODE_OPTIONS}"
 export EXPO_NO_TELEMETRY="${EXPO_NO_TELEMETRY:-1}"
-# Non-interactive: no "Use port 8082?" prompts; skip expo.dev bundled-modules fetch hang.
+# Non-interactive: no "Use port 8082?" prompts (Metro port is fixed in launch scripts).
 export CI="${CI:-1}"
-export EXPO_OFFLINE="${EXPO_OFFLINE:-1}"
+# EXPO_OFFLINE is NOT set here — launch scripts enable it only when Expo Go is
+# already on the simulator/emulator. Offline on first launch blocks Expo Go install.

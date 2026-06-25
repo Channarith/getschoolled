@@ -72,7 +72,12 @@ else
   echo "==> Expo Go: starting Metro, then opening iOS Simulator"
   echo "    NODE_OPTIONS=$NODE_OPTIONS"
   echo "    Metro port: $RCT_METRO_PORT (localhost)"
-  echo "    EXPO_OFFLINE=$EXPO_OFFLINE CI=$CI (non-interactive, no expo.dev fetch)"
+  mobile_configure_expo_offline ios
+  if [[ "${EXPO_OFFLINE:-0}" == "1" ]]; then
+    echo "    EXPO_OFFLINE=1 CI=$CI (Expo Go installed; skip expo.dev fetch)"
+  else
+    echo "    EXPO_OFFLINE unset CI=$CI (first launch installs Expo Go — allow network)"
+  fi
   mobile_print_launch_timeline ios
   echo "==> Starting… (watch for 'Bundled' or 'Opening on iOS')"
   "${EXPO[@]}" start --ios "${EXPO_START_FLAGS[@]}"
