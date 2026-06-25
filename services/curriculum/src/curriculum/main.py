@@ -379,11 +379,20 @@ def search_courses(
     core_skill: bool | None = None,
 ) -> list[Course]:
     """Netflix-style faceted catalog search (name/category/language/audio/audience/...)."""
-    rows = app.state.catalog.search_courses(
-        q=q, category=category, language=language, audio=audio,
-        media_format=media_format, level=level, tag=tag, hands_on=hands_on,
-        delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
-    )
+    from curriculum.audio_catalog_bridge import catalog_is_empty, search_audio_courses
+
+    if catalog_is_empty(app.state.catalog.list_courses()):
+        rows = search_audio_courses(
+            q=q, category=category, language=language, audio=audio,
+            media_format=media_format, level=level, tag=tag, hands_on=hands_on,
+            delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
+        )
+    else:
+        rows = app.state.catalog.search_courses(
+            q=q, category=category, language=language, audio=audio,
+            media_format=media_format, level=level, tag=tag, hands_on=hands_on,
+            delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
+        )
     if audience or core_skill is not None:
         from aoep_shared.skills_taxonomy import course_relevance
         out = []
@@ -401,10 +410,15 @@ def search_courses(
 
 
 def _catalog_dicts() -> list[dict]:
+    from curriculum.audio_catalog_bridge import all_audio_courses, catalog_is_empty
+
+    courses = app.state.catalog.list_courses()
+    if catalog_is_empty(courses):
+        courses = all_audio_courses()
     return [
         {"course_id": c.course_id, "title": c.title, "subject": c.subject,
          "category": c.category, "tags": c.tags}
-        for c in app.state.catalog.list_courses()
+        for c in courses
     ]
 
 
@@ -542,7 +556,12 @@ def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
     """Netflix-style home feed: ordered carousel rows of courses.
 
     kids=true returns only child-appropriate (all/kids) content for the kids mode.
+    When the catalog store is empty, falls back to the generated audio library.
     """
+    from curriculum.audio_catalog_bridge import audio_home_rails, catalog_is_empty
+
+    if catalog_is_empty(app.state.catalog.list_courses()):
+        return {"rails": audio_home_rails(kids_only=kids, per_rail=per_rail)}
     return {"rails": app.state.catalog.home_rails(kids_only=kids, per_rail=per_rail)}
 
 
@@ -684,7 +703,11 @@ def catalog_export(format: str = "json"):
 @app.get("/courses/facets")
 def course_facets() -> dict:
     """Distinct values for each browse facet (drives the filter UI)."""
+    from curriculum.audio_catalog_bridge import audio_facets, catalog_is_empty
+
     courses = app.state.catalog.list_courses()
+    if catalog_is_empty(courses):
+        return audio_facets()
     def _distinct(key):
         vals = {getattr(c, key) for c in courses if getattr(c, key)}
         return sorted(str(v) for v in vals)
@@ -717,7 +740,11 @@ def _course_audiences_facet(courses) -> list[dict]:
 
 @app.get("/courses/{course_id}", response_model=Course)
 def get_course(course_id: str) -> Course:
+    from curriculum.audio_catalog_bridge import catalog_is_empty, get_audio_course_as_catalog
+
     course = app.state.catalog.get_course(course_id)
+    if course is None and catalog_is_empty(app.state.catalog.list_courses()):
+        course = get_audio_course_as_catalog(course_id)
     if course is None:
         raise HTTPException(status_code=404, detail="unknown course")
     return course

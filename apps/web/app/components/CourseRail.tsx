@@ -7,6 +7,10 @@ export function Tile({ course, kids = false }: { course: CatalogCourse; kids?: b
   const router = useRouter();
   const open = () => {
     void bumpCourseView(course.course_id);
+    if (course.media_format === "audio") {
+      router.push(`/drive?course=${encodeURIComponent(course.course_id)}`);
+      return;
+    }
     router.push(`/watch?course=${encodeURIComponent(course.course_id)}`);
   };
   const tierLabel = course.access_tier && course.access_tier !== "free" ? course.access_tier : "free";
