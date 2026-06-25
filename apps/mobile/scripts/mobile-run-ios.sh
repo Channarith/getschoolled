@@ -14,6 +14,7 @@ export SIM_DEVICE="${SIM_DEVICE:-iPhone 17}"
 export SIM_RUNTIME="${SIM_RUNTIME:-26.4}"
 
 node scripts/patch-expo-localization-ios.js
+node scripts/patch-expo-device-ios.js
 
 udid="$(mobile_ios_pick_simulator)"
 if [[ -z "$udid" ]]; then
