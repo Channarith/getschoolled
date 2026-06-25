@@ -9,3 +9,8 @@ export EXPO_NO_TELEMETRY="${EXPO_NO_TELEMETRY:-1}"
 # CI=false so Metro watch mode works and Expo Go can open the project.
 # EXPO_OFFLINE is set by launch scripts after Expo Go is installed (uses local
 # expo/bundledNativeModules.json — avoids hang on expo.dev fetch).
+
+# Gradle/Expo autolinking Node subprocesses must resolve from apps/mobile/node_modules,
+# not ~/node_modules/.pnpm (symlinks outside the project break native Android builds).
+_MOBILE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export NODE_PATH="${_MOBILE_ROOT}/node_modules${NODE_PATH:+:${NODE_PATH}}"

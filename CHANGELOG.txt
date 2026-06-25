@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,
+  implementation project(':expo')); ensure-metro-local-deps.js materializes pnpm
+  symlinks outside apps/mobile before bundling (fixes @babel/runtime / expo 500 red
+  screen on dev client).
 - 2026-06-25 - Mobile UI: Netflix-style redesign (cinematic wallpaper, glass panels,
   Ionicons tabs, poster rails, spring press feedback) aligned with web; login
   reachability checks, clearer backend errors, mobile-check-backends.sh, Android
