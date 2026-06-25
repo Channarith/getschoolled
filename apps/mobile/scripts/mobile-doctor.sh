@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Lightweight environment check — pure bash, no pnpm/Node heap required.
 # Run directly:  bash scripts/mobile-doctor.sh
+# During first-time setup (Expo Go not installed yet):
+#   MOBILE_SETUP=1 bash scripts/mobile-doctor.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -12,8 +14,15 @@ MOBILE_ROOT="$ROOT"
 # shellcheck source=mobile-sim-utils.sh
 . "$(dirname "$0")/mobile-sim-utils.sh"
 VERBOSE="${VERBOSE:-0}"
+MOBILE_SETUP="${MOBILE_SETUP:-0}"
 FAILURES=0
 WARNINGS=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --setup) MOBILE_SETUP=1 ;;
+  esac
+done
 
 ok()   { echo "  OK   $*"; }
 warn() { WARNINGS=$((WARNINGS + 1)); echo "  WARN $*"; }
@@ -141,6 +150,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
   fi
   if mobile_ios_expo_go_installed; then
     ok "Expo Go installed on iOS Simulator (host.exp.Exponent)"
+  elif [ "$MOBILE_SETUP" = "1" ]; then
+    warn "Expo Go not on simulator yet — setup installs it in the next step"
   else
     fail "Expo Go NOT on simulator — run: bash scripts/mobile-setup.sh"
   fi

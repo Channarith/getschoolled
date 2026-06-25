@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Fix mobile-setup chicken-and-egg: doctor during setup allows missing
+  Expo Go (MOBILE_SETUP=1); installs in step 3; full doctor runs after install.
 - 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
   Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
   doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
