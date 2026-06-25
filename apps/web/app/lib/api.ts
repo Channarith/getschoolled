@@ -109,9 +109,8 @@ export function clearToken(): void {
   notifyAuthChange();
 }
 
-// "Preview" lets a signed-out visitor browse the catalog before creating an
-// account. It is persisted so the choice survives navigation/reload, and gates
-// the content nav tabs (hidden until the visitor logs in OR opts into preview).
+// Legacy preview flag (no longer unlocks the catalog). Kept so older sessions
+// can clear the bit on sign-out; nav and catalog pages require a real token.
 export function getPreview(): boolean {
   try {
     return localStorage.getItem(PREVIEW_KEY) === "1";
@@ -338,7 +337,7 @@ export type LearnableItem = {
   category: string; subject: string; format: string; level: string; language: string;
   duration_min: number; tags: string[]; maturity_rating: string; hands_on: boolean;
   drive_safe: boolean; access_tier: string; preview: string; deep_link: string;
-  popularity?: number;
+  popularity?: number; thumbnail?: string | null;
 };
 
 export type LearnSearchResult = {

@@ -3,16 +3,57 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Rail } from "../components/CourseRail";
-import { getHomeFeed, type HomeRail } from "../lib/api";
+import { AUTH_EVENT, getHomeFeed, getToken, type HomeRail } from "../lib/api";
 
 export default function KidsPage() {
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   useEffect(() => {
-    // kids=true returns only child-appropriate (all/kids) content.
-    getHomeFeed(true).then(setRails).catch((e) => setError(String(e)));
+    const sync = () => {
+      const authed = Boolean(getToken());
+      setLoggedIn(authed);
+      setAuthResolved(true);
+      if (authed) {
+        getHomeFeed(true).then(setRails).catch((e) => setError(String(e)));
+      } else {
+        setRails(null);
+        setError("");
+      }
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    return () => window.removeEventListener(AUTH_EVENT, sync);
   }, []);
+
+  if (!authResolved) {
+    return (
+      <div className="kids">
+        <div className="feed"><p className="muted">Loading…</p></div>
+      </div>
+    );
+  }
+
+  if (!loggedIn) {
+    return (
+      <div className="kids">
+        <div className="feed">
+          <div className="kids-hero">
+            <h1>🚀 Kids Academy</h1>
+            <p style={{ color: "#9a3412", fontWeight: 600, fontSize: 18 }}>
+              Safe, fun, age-appropriate classes — sign in to explore the kids catalog.
+            </p>
+            <div className="hero-cta" style={{ justifyContent: "center" }}>
+              <Link href="/login"><button className="theme-btn" style={{ background: "#f59e0b" }}>Sign in</button></Link>
+              <Link href="/"><button className="theme-btn" style={{ background: "#fff", color: "#9a3412", border: "2px solid #fdba74" }}>Back to main site</button></Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="kids">

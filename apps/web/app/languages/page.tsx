@@ -59,6 +59,7 @@ export default function LanguagesPage() {
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    if (!getToken()) return;
     getLearnLanguages().then((r) => setLangs(r.languages)).catch((e) => setError(String(e)));
     try {
       const s = JSON.parse(window.localStorage.getItem("aoep-lang-streak") || "{}");
@@ -143,11 +144,19 @@ export default function LanguagesPage() {
   return (
     <main className="container" style={{ maxWidth: 1040 }}>
       <h1>🌍 Languages</h1>
+      {!loggedIn ? (
+        <div className="card">
+          <p className="muted">
+            Please <Link href="/login">sign in</Link> to browse language courses and practice
+            pronunciation, vocabulary, and conversation drills.
+          </p>
+        </div>
+      ) : (
+      <>
       <p className="muted">
         Learn 20+ languages by playing - pronunciation (speak &amp; get scored),
         listening, vocabulary, phrases, travel, conversation, grammar, slang &amp;
         more. {streak > 0 && <strong>🔥 {streak}-day streak!</strong>}
-        {!loggedIn && <> <Link href="/login">Sign in</Link> to earn points.</>}
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
@@ -305,7 +314,6 @@ export default function LanguagesPage() {
                 {done.correct}/{done.total} correct {done.correct === done.total ? "🎉" : "👍"}
               </h3>
               {done.xp !== undefined && <div className="muted">+{done.xp} XP · 🔥 {streak}-day streak{xpTotal ? ` · balance ${xpTotal} pts` : ""}</div>}
-              {!loggedIn && <div className="muted"><Link href="/login">Sign in</Link> to earn points for practice.</div>}
               <div className="row" style={{ marginTop: 8 }}>
                 <button onClick={() => startSkill(skill)} style={{ background: "#7c3aed", color: "#fff" }}>Again</button>
                 <button onClick={() => { setSkill(""); setEx(null); setDone(null); }}>More skills</button>
@@ -313,6 +321,8 @@ export default function LanguagesPage() {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </main>
   );
