@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile iOS: patch expo-device UIDevice.swift for Xcode 16.3+/26
+  (TARGET_OS_SIMULATOR not in Swift; use targetEnvironment(simulator) on SDK 51).
 - 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
   /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
   services. app.config.js + mobile-check-backends.sh cloud probes.
