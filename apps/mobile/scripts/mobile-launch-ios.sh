@@ -25,7 +25,7 @@ done
 
 cd "$ROOT"
 echo "==> Salareen mobile iOS launch (cwd=$PWD)"
-pnpm run doctor || true
+bash scripts/mobile-doctor.sh || true
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "iOS Simulator requires macOS." >&2

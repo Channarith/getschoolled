@@ -23,7 +23,7 @@ done
 
 cd "$ROOT"
 echo "==> Salareen mobile Android launch (cwd=$PWD)"
-pnpm run doctor || true
+bash scripts/mobile-doctor.sh || true
 
 ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 EMULATOR="$ANDROID_HOME/emulator/emulator"
