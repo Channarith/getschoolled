@@ -2,9 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Mobile OOM: mobile-env.sh (12GB NODE_OPTIONS + METRO_NODE_OPTIONS),
-  mobile-expo.sh bypasses pnpm exec; all dev/ios/android/prebuild scripts use bash.
-  .watchmanconfig ignores node_modules; Metro blockList trims test/docs trees.
+- 2026-06-24 - Careers /jobs: ingress no longer routes web host /jobs to curriculum JSON;
+  serves Next.js Careers page (cards, search, course match). API stays at /curriculum/jobs.
+  Jobs page: loading skeletons, description excerpts, employment type badges.
 - 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
   merge-base on local main ref (failed with "Not a valid object name main" on forks).
 - 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist
