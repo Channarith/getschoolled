@@ -12,7 +12,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
-	run-identity run-memory run-orchestrator
+	run-identity run-memory run-orchestrator validate-pipeline
 
 help:
 	@echo "Targets:"
@@ -20,6 +20,7 @@ help:
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
+	@echo "  validate-pipeline  E2E smoke: harvest -> teach -> present (offline)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -66,6 +67,10 @@ test test-py:
 MIN ?= 0
 test-inventory:
 	$(VENV_PY) scripts/test_inventory.py --min $(MIN)
+
+# End-to-end smoke for the harvest -> teach -> present flow (no keys/network).
+validate-pipeline:
+	$(VENV_PY) scripts/validate_pipeline.py
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:

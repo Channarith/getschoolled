@@ -146,13 +146,25 @@ export async function checkServiceReachable(base: string, timeoutMs = 5000): Pro
   }
 }
 
-export function listAudioCourses(category?: string, q?: string, limit = 60, locale?: string) {
+export function listAudioCourses(
+  category?: string, q?: string, limit = 60, locale?: string, trainingLocale?: string,
+) {
   const p = new URLSearchParams({ limit: String(limit) });
   if (category) p.set("category", category);
   if (q) p.set("q", q);
   if (locale) p.set("locale", locale);
+  if (trainingLocale) p.set("training_locale", trainingLocale);
   return get<{ total: number; locale?: string; courses: AudioCourseRow[] }>(
     CURRICULUM_URL, `/audio/courses?${p.toString()}`);
+}
+
+export function getAudioCourse(id: string, locale?: string, trainingLocale?: string) {
+  const p = new URLSearchParams();
+  if (locale) p.set("locale", locale);
+  if (trainingLocale) p.set("training_locale", trainingLocale);
+  const qs = p.toString();
+  return get<AudioCourse>(
+    CURRICULUM_URL, `/audio/courses/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`);
 }
 
 export function getAudioCategories(locale?: string) {
@@ -161,14 +173,6 @@ export function getAudioCategories(locale?: string) {
   const qs = p.toString();
   return get<{ categories: CategoryRow[]; locale?: string }>(
     CURRICULUM_URL, `/audio/categories${qs ? `?${qs}` : ""}`);
-}
-
-export function getAudioCourse(id: string, locale?: string) {
-  const p = new URLSearchParams();
-  if (locale) p.set("locale", locale);
-  const qs = p.toString();
-  return get<AudioCourse>(
-    CURRICULUM_URL, `/audio/courses/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`);
 }
 
 export function getNotificationsFeed(opts: {

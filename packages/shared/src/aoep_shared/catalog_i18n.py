@@ -519,6 +519,33 @@ NARRATION: Dict[str, Dict[str, str]] = {
                "di chuyển."),
         "km": "សរុបពី {title}: {recap} ល្អណាស់ - រៀន​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​ា​​​អ្នកនឹងយល់ឣ",
     },
+    "know_why": {
+        "en": ("First, let's set the scene for {title} and why it's worth knowing."),
+        "es": ("Primero, veamos el contexto de {title} y por qué vale la pena conocerlo."),
+        "zh": ("首先，让我们了解{title}的背景，以及为什么值得学习。"),
+    },
+    "know_core": {
+        "en": ("Next, the main concepts behind {title}, explained simply with "
+               "everyday examples you can picture without looking."),
+        "es": ("Después, los conceptos principales de {title}, explicados con "
+               "ejemplos cotidianos que puedes imaginar sin mirar."),
+        "zh": ("接下来，用你能想象的日常例子，简单讲解{title}的核心概念。"),
+    },
+    "know_deeper": {
+        "en": ("Then we connect {title} to things you already know, and clear up "
+               "a common misunderstanding."),
+        "es": ("Luego conectamos {title} con lo que ya sabes y aclaramos "
+               "un malentendido común."),
+        "zh": ("然后我们把{title}与你已知的联系起来，并澄清一个常见误解。"),
+    },
+    "know_fallback_recap": {
+        "en": ("To recap {title}: we covered why it matters, the core ideas, and "
+               "how it connects to daily life. Great job learning while you drive."),
+        "es": ("Para resumir {title}: vimos por qué importa, las ideas clave y "
+               "cómo se conecta con la vida diaria. Bien hecho aprendiendo al volante."),
+        "zh": ("回顾{title}：我们讲了为什么重要、核心要点，以及它与日常生活的联系。"
+               "在路上学习，做得很好。"),
+    },
 }
 
 

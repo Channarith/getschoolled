@@ -3,6 +3,37 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Teaching flow tie-together (harvest -> teach -> present). Part 1->2
+  bridge: aoep_shared.harvest.export writes a course as .pptx (narration in
+  speaker notes) + .course.json so the external ppt_trainer agent reads it with
+  zero changes. Part 2: aoep_shared.teaching builds an engine-agnostic LessonPlan
+  (deterministic offline builder reusing harvester narration, or delegates to the
+  ppt_trainer CLI). Part 3: aoep_shared.meeting presents the lesson live - provider
+  abstraction with Google Meet (Calendar+conferenceData), Zoom (S2S OAuth), Teams
+  (Graph onlineMeetings), and an offline MockMeetingProvider; a presenter builds a
+  timed presentation plan and drives slide->speak->advance with a transcript +
+  event log; factory falls back to mock when a real provider has no creds.
+  run_end_to_end orchestrator + scripts/teach_and_present.py CLI +
+  scripts/validate_pipeline.py (13-check end-to-end smoke). Tests added for export,
+  meeting providers/presenter/factory, and the offline end-to-end flow.
+- 2026-06-25 - Harvester PCS: formalized the course score as the Salareen
+  Pedagogical Composition Score (PCS), a custom/patent-pending algorithm. Named
+  the fixed formula constants (QUANT_RESOLUTION/STRUCT_NODE_COEFF/
+  STRUCT_CATEGORY_COEFF/DEFAULT_SCORE_MODULUS; no behavior change), documented
+  the full math formula + worked example + novelty/patent claims + data-flow and
+  design (mermaid) diagrams in README "Course Composition Score (PCS)", and
+  cross-referenced it from the harvester RUNBOOK. Added a test pinning the
+  published worked example (PCS 649).
+- 2026-06-25 - Harvester: quantifiable course composition + multi-source generation.
+  New aoep_shared.harvest modules: extractors (text/html/url/pdf/pptx/docx/database),
+  composition (numpy node/sub-node matrix -> deterministic composition_score "recipe
+  fingerprint" + quality_index/metrics + CompositionOutcomeLedger to compare e.g.
+  score 247 vs 148 by survey happiness), tagging (JSON/meta: free/expensive,
+  LinkedIn job, career path, core-fundamental, labels), generate (extract->slides->
+  compose->score->tag reviewable artifact), critique (HarvestCritic grade/issues/
+  suggestions + optimize_with_ledger revertible quality tracking). harvester run.py
+  gains --generate/--critique/--instructions CLI modes (offline). Tests added;
+  numpy now a core aoep-shared dep; python-pptx/python-docx pinned (lazy import).
 - 2026-06-25 - i18n follow-up: jobs/careers, corporate, rewards, homework, legal,
   transparency, recommended, kids (locale feed), consent, arcade, languages, watch.
 - 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum

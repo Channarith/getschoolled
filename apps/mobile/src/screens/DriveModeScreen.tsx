@@ -17,6 +17,7 @@ import {
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
+import { normalizeTrainingLocale, type TrainingLocale } from "../trainingLocale";
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
@@ -41,6 +42,7 @@ export default function DriveModeScreen({
   const [listening, setListening] = useState(false);
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
+  const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const rateRef = useRef(rate);
   rateRef.current = rate;
   const segRef = useRef(0);
@@ -66,9 +68,13 @@ export default function DriveModeScreen({
   useEffect(() => {
     void warmVoices();
     void refreshVoiceStyle();
-    getAudioCourse(courseId, locale)
-      .then((c) => { setCourse(c); playFrom(c, 0); })
-      .catch(() => {});
+    void getSettings().then((s) => {
+      const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
+      setTrainingLang(tloc);
+      getAudioCourse(courseId, locale, tloc)
+        .then((c) => { setCourse(c); playFrom(c, 0, tloc); })
+        .catch(() => {});
+    });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
       Speech.stop();
@@ -77,7 +83,7 @@ export default function DriveModeScreen({
     };
   }, [courseId, locale]);
 
-  function playFrom(c: AudioCourse, i: number) {
+  function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
     clearResumeTimer();
     setAssistantOpen(false);
     Speech.stop();
@@ -93,10 +99,10 @@ export default function DriveModeScreen({
     });
     const s = c.segments[i];
     speakNatural(`${s.heading}. ${s.text}`, {
-      locale,
+      locale: tloc,
       voiceStyle: voiceStyleRef.current,
       rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
-      onDone: () => { if (segRef.current === i) playFrom(c, i + 1); },
+      onDone: () => { if (segRef.current === i) playFrom(c, i + 1, tloc); },
     });
   }
 
@@ -220,7 +226,7 @@ export default function DriveModeScreen({
     setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
     Speech.stop();
     speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
-      locale,
+      locale: trainingLang,
       voiceStyle: voiceStyleRef.current,
       onDone: () => resumeCourse(6500),
     });

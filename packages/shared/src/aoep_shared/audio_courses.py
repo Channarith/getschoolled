@@ -29,6 +29,10 @@ from .catalog_i18n import (
     localize_category, localize_heading, localize_lesson_type,
     localize_level, narration,
 )
+from .training_content_i18n import (
+    audio_title_suffix, localize_course_title, localize_facts,
+    normalize_training_locale,
+)
 from .language_learning import LANGUAGE_META, phrases_for
 from .languages import SUPPORTED_LANGUAGES
 
@@ -52,6 +56,7 @@ class AudioCourse(BaseModel):
     visual_required: bool = False
     drive_safe: bool = True
     segments: List[AudioSegment] = Field(default_factory=list)
+    body_locale: str = "en"
 
     @property
     def word_count(self) -> int:
@@ -295,6 +300,7 @@ _TOPICS: Dict[str, List[str]] = {
 }
 
 _FACTS: Dict[str, List[str]] = {
+    # Canonical English bullets; localized copies live in training_content_i18n.
     "Budgeting Basics": [
         "A budget is simply a plan for your money: income in, expenses out, the rest saved.",
         "A popular rule is fifty-thirty-twenty - needs, wants, and savings or debt.",
@@ -328,64 +334,76 @@ _FACTS: Dict[str, List[str]] = {
 }
 
 
-def _knowledge_course(category: str, title: str, locale: str) -> AudioCourse:
-    # Knowledge-course titles + factual content are English-origin and
-    # not auto-translated here; the templated narration around them
-    # (intro, recap headings, "key idea" framing) IS localized so the
-    # player feels native in the chosen locale even when the body text
-    # is the original.
-    points = _FACTS.get(title)
+def _knowledge_course(
+    category: str, title: str, locale: str, training_locale: str,
+) -> AudioCourse:
+    """Build a knowledge audio lesson.
+
+    ``locale`` localizes headings and category labels for the UI.
+    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS.
+    """
+    tloc = normalize_training_locale(training_locale)
+    display_title = localize_course_title(title, tloc)
+    points, body_loc = localize_facts(title, tloc)
     cat_local = localize_category(category, locale)
     intro_heading = localize_heading("Introduction", locale)
     recap_heading = localize_heading("Recap", locale)
     key_idea_label = localize_heading("Key idea", locale)
     segs = [AudioSegment(
         heading=intro_heading,
-        text=narration("know_intro", locale, title=title))]
+        text=narration("know_intro", tloc, title=display_title))]
     if points:
         for i, p in enumerate(points, start=1):
             segs.append(AudioSegment(heading=f"{key_idea_label} {i}", text=p))
         recap_text = " ".join(points)
         segs.append(AudioSegment(
             heading=recap_heading,
-            text=narration("know_recap", locale, title=title, recap=recap_text)))
+            text=narration("know_recap", tloc, title=display_title, recap=recap_text)))
     else:
         segs += [
-            AudioSegment(heading=localize_heading("Why it matters", locale),
-                         text=f"First, let's set the scene for {title} and why it's worth knowing."),
-            AudioSegment(heading=localize_heading("Core ideas", locale),
-                         text=f"Next, the main concepts behind {title}, explained simply with "
-                              f"everyday examples you can picture without looking."),
-            AudioSegment(heading=localize_heading("Going deeper", locale),
-                         text=f"Then we connect {title} to things you already know, and clear up "
-                              f"a common misunderstanding."),
-            AudioSegment(heading=recap_heading,
-                         text=f"To recap {title}: we covered why it matters, the core ideas, and "
-                              f"how it connects to daily life. Great job learning while you drive."),
+            AudioSegment(
+                heading=localize_heading("Why it matters", locale),
+                text=narration("know_why", tloc, title=display_title)),
+            AudioSegment(
+                heading=localize_heading("Core ideas", locale),
+                text=narration("know_core", tloc, title=display_title)),
+            AudioSegment(
+                heading=localize_heading("Going deeper", locale),
+                text=narration("know_deeper", tloc, title=display_title)),
+            AudioSegment(
+                heading=recap_heading,
+                text=narration("know_fallback_recap", tloc, title=display_title)),
         ]
+        body_loc = tloc
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
-        id=f"audio-{slug}", title=f"{title} (audio)", category=cat_local,
-        subject=cat_local, level=localize_level("beginner", locale),
+        id=f"audio-{slug}",
+        title=f"{display_title} {audio_title_suffix(tloc)}",
+        category=cat_local,
+        subject=cat_local,
+        level=localize_level("beginner", locale),
         duration_min=_duration(segs),
         tags=[category.lower().split(" ")[0], "audio", "drive-safe"],
-        segments=segs)
+        segments=segs,
+        body_locale=body_loc,
+    )
 
 
-@functools.lru_cache(maxsize=16)
-def build_catalog(locale: str = DEFAULT_LOCALE) -> List[AudioCourse]:
+@functools.lru_cache(maxsize=32)
+def build_catalog(locale: str = DEFAULT_LOCALE, training_locale: Optional[str] = None) -> List[AudioCourse]:
     """Build the full audio catalog in the requested locale.
 
-    LRU-cached per-locale (the catalog is ~225 courses; each locale's
-    bundle is a few hundred kB at most). The first request for a new
-    locale pays the build cost; everything after is dict-lookup fast.
+    ``locale`` drives UI-facing labels (category, level, headings).
+    ``training_locale`` (en/es/zh) drives spoken lesson bodies; defaults
+    from ``locale`` when omitted.
     """
     locale = normalize_locale(locale)
+    tloc = normalize_training_locale(training_locale or locale)
     catalog: List[AudioCourse] = []
     catalog.extend(_language_courses(locale))
     for category, titles in _TOPICS.items():
         for title in titles:
-            catalog.append(_knowledge_course(category, title, locale))
+            catalog.append(_knowledge_course(category, title, locale, tloc))
     return catalog
 
 
@@ -415,9 +433,11 @@ def categories(locale: str = DEFAULT_LOCALE) -> List[dict]:
 
 def list_courses(*, category: Optional[str] = None, q: Optional[str] = None,
                  max_minutes: Optional[int] = None, offset: int = 0,
-                 limit: int = 50, locale: str = DEFAULT_LOCALE) -> dict:
+                 limit: int = 50, locale: str = DEFAULT_LOCALE,
+                 training_locale: Optional[str] = None) -> dict:
     locale = normalize_locale(locale)
-    rows = build_catalog(locale)
+    tloc = normalize_training_locale(training_locale or locale)
+    rows = build_catalog(locale, tloc)
     if category:
         # Accept either the canonical English category id or its
         # localized label - the mobile app passes whichever it has.
@@ -442,20 +462,24 @@ def list_courses(*, category: Optional[str] = None, q: Optional[str] = None,
     total = len(rows)
     page = rows[offset: offset + limit]
     return {
-        "total": total, "offset": offset, "limit": limit, "locale": locale,
+        "total": total, "offset": offset, "limit": limit,
+        "locale": locale, "training_locale": tloc,
         "courses": [
             {"id": c.id, "title": c.title, "category": c.category, "subject": c.subject,
              "level": c.level, "duration_min": c.duration_min, "tags": c.tags,
              "format": c.format, "visual_required": c.visual_required,
-             "drive_safe": c.drive_safe, "segments": len(c.segments)}
+             "drive_safe": c.drive_safe, "segments": len(c.segments),
+             "body_locale": c.body_locale}
             for c in page
         ],
     }
 
 
-def get_course(course_id: str, locale: str = DEFAULT_LOCALE) -> Optional[AudioCourse]:
+def get_course(course_id: str, locale: str = DEFAULT_LOCALE,
+               training_locale: Optional[str] = None) -> Optional[AudioCourse]:
     locale = normalize_locale(locale)
-    for c in build_catalog(locale):
+    tloc = normalize_training_locale(training_locale or locale)
+    for c in build_catalog(locale, tloc):
         if c.id == course_id:
             return c
     return None

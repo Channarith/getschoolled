@@ -19,8 +19,9 @@ import {
 } from "../drivingDetection";
 import {
   DEFAULT_SETTINGS, clearAuthToken, getSettings, setAuthToken, setSettings,
-  type Settings,
+  type Settings, type TrainingLocale,
 } from "../storage";
+import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import {
   NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, type NarrationVoicePref,
 } from "../voiceProfiles";
@@ -360,6 +361,28 @@ export default function SettingsScreen({
                 style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
               >
                 <Text style={[styles.langText, selected && styles.langTextOn]}>{label}</Text>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
+      </Section>
+
+      <Section title={t("settings.sectionTrainingLang")}>
+        <Text style={styles.desc}>{t("settings.trainingLangDesc")}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          {TRAINING_LOCALES.map((loc) => {
+            const selected = s.trainingLocale === loc;
+            return (
+              <AnimatedPressable
+                key={loc}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => update({ trainingLocale: loc as TrainingLocale })}
+                style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
+              >
+                <Text style={[styles.langText, selected && styles.langTextOn]}>
+                  {TRAINING_LOCALE_LABELS[loc]}
+                </Text>
               </AnimatedPressable>
             );
           })}

@@ -175,6 +175,7 @@ const SHARED: Record<string, string> = {
   "drive.play": "▶ Play",
   "drive.speed": "Speed",
   "drive.narrationVoice": "Narration voice:",
+  "drive.trainingLang": "Lesson language:",
   "drive.autoProfile": "Auto (profile)",
   "drive.autoAdvance": "Auto-advances to the next class when this one finishes.",
   "drive.wakeTitle": "Say “Hey Sala” or “Salareen”",

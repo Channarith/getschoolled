@@ -557,32 +557,35 @@ def audio_categories(locale: str = "en") -> dict:
 @app.get("/audio/courses")
 def audio_courses(category: str | None = None, q: str | None = None,
                   max_minutes: int | None = None, offset: int = 0,
-                  limit: int = 50, locale: str = "en") -> dict:
-    """Audio-only, drive-safe classes (hundreds) for hands-free / on-the-road learning.
+                  limit: int = 50, locale: str = "en",
+                  training_locale: str | None = None) -> dict:
+    """Audio-only, drive-safe classes for hands-free learning.
 
-    ``locale`` localizes every course's title, category, subject, level,
-    segment headings, and the templated intro/recap narration. The
-    factual body of knowledge courses (the "key idea" bullets) is the
-    original English; the framing around it (intro/recap/headings) is
-    localized. Languages-category courses are fully localized.
+    ``locale`` localizes category/level labels and segment headings.
+    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS;
+    defaults from ``locale`` when omitted.
     """
     from aoep_shared.audio_courses import list_courses
 
     return list_courses(category=category, q=q, max_minutes=max_minutes,
                         offset=max(0, offset), limit=max(1, min(limit, 100)),
-                        locale=locale)
+                        locale=locale, training_locale=training_locale)
 
 
 @app.get("/audio/courses/{course_id}")
-def audio_course(course_id: str, locale: str = "en") -> dict:
+def audio_course(course_id: str, locale: str = "en",
+                 training_locale: str | None = None) -> dict:
     """Full course (with every segment) in the requested locale."""
     from aoep_shared.audio_courses import get_course
+    from aoep_shared.training_content_i18n import normalize_training_locale
 
-    c = get_course(course_id, locale=locale)
+    tloc = normalize_training_locale(training_locale or locale)
+    c = get_course(course_id, locale=locale, training_locale=tloc)
     if c is None:
         raise HTTPException(status_code=404, detail="unknown audio course")
     out = c.model_dump()
     out["locale"] = locale
+    out["training_locale"] = tloc
     return out
 
 
