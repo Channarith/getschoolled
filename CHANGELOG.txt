@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Careers/jobs: VKE ingress routes /jobs to web (Next.js Careers UI);
+  k8s_verify_jobs_page.sh smoke-test; mobile CareersScreen + home CTA; jobs API
+  client (listJobs, getJobMatch). API remains at /curriculum/jobs.
 - 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
   Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
   doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.

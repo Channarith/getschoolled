@@ -81,6 +81,19 @@ export type SurveyTemplate = {
   version: string; title: string; subtitle?: string; questions: SurveyQuestion[];
 };
 
+export type JobPosting = {
+  id: string; title: string; company: string; location: string; source: string;
+  url: string; employment_type: string; salary_range: string; posted_days_ago: number;
+  category: string; skills: string[]; nice_to_have: string[]; description: string;
+};
+export type CourseMatch = {
+  course_id: string; title: string; covered_skills: string[]; match: number;
+};
+export type JobMatch = {
+  job: JobPosting; required: string[]; matched_courses: CourseMatch[];
+  covered: string[]; missing: string[]; coverage_pct: number; recommended_path: string[];
+};
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -163,6 +176,20 @@ export function getLearnFacets() {
   return get<{
     categories: string[]; formats: string[]; sources: string[]; levels: string[];
   }>(CURRICULUM_URL, "/learn/facets");
+}
+
+export function listJobs(q?: string, location?: string) {
+  const p = new URLSearchParams();
+  if (q) p.set("q", q);
+  if (location) p.set("location", location);
+  const qs = p.toString();
+  return get<{ source: string; count: number; jobs: JobPosting[] }>(
+    CURRICULUM_URL, `/jobs${qs ? `?${qs}` : ""}`);
+}
+
+export function getJobMatch(jobId: string) {
+  return get<JobMatch>(
+    CURRICULUM_URL, `/jobs/${encodeURIComponent(jobId)}`);
 }
 
 export async function signup(email: string, password: string, displayName: string):
