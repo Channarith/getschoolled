@@ -22,6 +22,10 @@ if [[ "${1:-}" == "run:android" ]] && [[ -d android ]]; then
   node scripts/patch-gradle-wrapper.js
 fi
 
+if [[ "${1:-}" == "run:ios" ]] && [[ -d ios ]]; then
+  bash scripts/mobile-ios-pod-refresh.sh
+fi
+
 if [ -e node_modules/.bin/expo ]; then
   exec node_modules/.bin/expo "$@"
 fi

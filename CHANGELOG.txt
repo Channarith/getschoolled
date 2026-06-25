@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile iOS Xcode 26 native build: RuntimeScheduler include guards,
+  mobile-ios-pod-refresh.sh re-runs pod install when Pods reference pnpm react-native
+  (fixes C++ redefinition errors); complements expo-device UIDevice patch.
 - 2026-06-23 - Mobile Drive Mode: fix Hey Sala voice assistant using native speech
   recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
   of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
