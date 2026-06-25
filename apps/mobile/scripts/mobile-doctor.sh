@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+MOBILE_ROOT="$ROOT"
+. "$(dirname "$0")/mobile-deps.sh"
 VERBOSE="${VERBOSE:-0}"
 FAILURES=0
 WARNINGS=0
@@ -35,18 +37,26 @@ else
   fail "node not on PATH"
 fi
 
-if [ -x node_modules/.bin/expo ]; then
-  ok "expo CLI present (node_modules/.bin/expo)"
-elif [ -f node_modules/.bin/expo ]; then
+if mobile_deps_has_expo; then
   ok "expo CLI present"
+elif [ -d node_modules ]; then
+  fail "node_modules exists but expo is missing — run: bash scripts/mobile-install.sh"
 else
-  fail "node_modules missing — run: pnpm install"
+  fail "node_modules missing — run: bash scripts/mobile-install.sh"
 fi
 
 if [ -d node_modules/babel-preset-expo ]; then
   ok "babel-preset-expo installed"
+elif [ -d node_modules ]; then
+  warn "babel-preset-expo missing — run: bash scripts/mobile-install.sh"
 else
-  warn "babel-preset-expo missing — run: pnpm install"
+  warn "babel-preset-expo missing — node_modules not installed"
+fi
+
+if mobile_deps_has_tsc; then
+  ok "typescript/tsc present"
+elif [ -d node_modules ]; then
+  fail "node_modules exists but tsc is missing — run: bash scripts/mobile-install.sh"
 fi
 
 if [ -f tsconfig.json ]; then
@@ -122,6 +132,8 @@ else
 fi
 
 echo
+echo "If deps are missing after pnpm install:"
+echo "  bash scripts/mobile-install.sh"
 echo "If pnpm run doctor OOMs, skip pnpm and run:"
 echo "  bash scripts/mobile-doctor.sh"
 echo "  bash scripts/mobile-typecheck.sh"
@@ -133,6 +145,7 @@ if [ "$VERBOSE" = "1" ]; then
   command -v pnpm >/dev/null && ok "pnpm $(pnpm --version 2>/dev/null || echo present)" || warn "pnpm not on PATH"
   [ -f VERSION ] && ok "repo VERSION $(head -1 VERSION 2>/dev/null)" || true
   echo "  node_modules top-level dirs: ${NM_DIRS:-unknown}"
+  mobile_deps_print_status
   echo "  git HEAD: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 fi
 
