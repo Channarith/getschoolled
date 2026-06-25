@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-23 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
 - 2026-06-25 - Learning profile survey: show once after login (not on every route
   change or tab); persist skip/save to identity student profile; cross-tab debounce
   on web; mobile auto-prompt gated per auth session.
