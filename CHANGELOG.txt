@@ -2,9 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-25 - Fix web build: wrap Drive page useSearchParams in Suspense (Next.js 14).
-- 2026-06-25 - Web browse/home: fall back to audio course library when catalog store
-  is empty (fixes blank Browse/main feed while Live Class still lists lessons).
+- 2026-06-25 - Unified learnable index: GET /learn/search merges live lessons, drive
+  audio, languages, arcade games, and catalog courses; web Browse + mobile search all.
 - 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the
   simulator (fixes "Expo Go is not installed while running in offline mode" on first run).
 - 2026-06-25 - Mobile Metro: cleanup stale port 8081, CI+EXPO_OFFLINE, --localhost iOS;
