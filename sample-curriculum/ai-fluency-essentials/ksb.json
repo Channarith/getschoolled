@@ -1,0 +1,68 @@
+{
+  "course_id": "ai-fluency-essentials",
+  "title": "AI Fluency: Essentials for the Modern Workplace",
+  "level": "Foundation",
+  "role": "All employees",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "What generative AI and large language models are, and that they predict plausible text rather than 'know' facts.",
+    "K2": "Common workplace applications of AI assistants: drafting, summarising, rewriting, analysing and explaining.",
+    "K3": "How a prompt's role, task, context and format shape the quality of AI output.",
+    "K4": "What hallucination is and why AI can state false information confidently.",
+    "K5": "Why AI output must be verified against trusted sources before use.",
+    "K6": "Data-protection principles and the risks of sharing confidential or personal data with AI tools.",
+    "K7": "The difference between approved enterprise AI tools and public consumer tools.",
+    "K8": "Sources of bias in AI systems and their potential impact on people.",
+    "K9": "Principles of responsible and transparent AI use at work.",
+    "K10": "How grounding an assistant in your own documents improves relevance and accuracy.",
+    "K11": "The limits of AI and when a human decision is required.",
+    "K12": "How to build personal habits and reusable prompts for lasting productivity."
+  },
+  "skills": {
+    "S1": "Choose appropriate everyday tasks where an AI assistant adds value.",
+    "S2": "Write clear prompts specifying role, task, context and output format.",
+    "S3": "Iterate on prompts to refine and improve AI output.",
+    "S4": "Provide source material to ground an assistant's answers.",
+    "S5": "Critically review and verify AI output for accuracy and tone.",
+    "S6": "Identify and avoid sharing sensitive data with unapproved tools.",
+    "S7": "Apply the organisation's AI and data policy in daily work.",
+    "S8": "Recognise bias or errors in AI output and respond appropriately.",
+    "S9": "Be transparent about where AI was used when honesty matters.",
+    "S10": "Maintain human oversight of decisions affecting people.",
+    "S11": "Build and reuse a personal library of effective prompts.",
+    "S12": "Share useful AI techniques to help colleagues improve."
+  },
+  "behaviours": {
+    "B1": "Curious and willing to experiment with new AI tools through self-directed learning.",
+    "B2": "Takes personal responsibility for the accuracy and quality of AI-assisted work.",
+    "B3": "Collaborates and shares knowledge openly with colleagues.",
+    "B4": "Acts with integrity and honesty regarding AI use.",
+    "B5": "Protects data and privacy in everyday work."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Use AI assistants responsibly to support everyday work tasks.",
+      "ksbs": ["K1", "K2", "K11", "S1", "S2", "B1"]
+    },
+    "Duty 2": {
+      "statement": "Craft and refine effective prompts to get useful results.",
+      "ksbs": ["K3", "K10", "S2", "S3", "S4", "B1"]
+    },
+    "Duty 3": {
+      "statement": "Verify and take responsibility for AI-assisted output.",
+      "ksbs": ["K4", "K5", "S5", "S8", "B2", "B4"]
+    },
+    "Duty 4": {
+      "statement": "Protect data and follow the organisation's AI policy.",
+      "ksbs": ["K6", "K7", "S6", "S7", "B5"]
+    },
+    "Duty 5": {
+      "statement": "Use AI ethically, transparently and with human oversight.",
+      "ksbs": ["K8", "K9", "S9", "S10", "B3", "B4"]
+    },
+    "Duty 6": {
+      "statement": "Build lasting AI productivity habits and help others.",
+      "ksbs": ["K12", "S11", "S12", "B1", "B3"]
+    }
+  }
+}

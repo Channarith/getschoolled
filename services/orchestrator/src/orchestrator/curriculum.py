@@ -8,13 +8,16 @@ phase-1 teaching loop self-contained.
 
 from __future__ import annotations
 
+import json
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
 _SLIDE_RE = re.compile(r"^SLIDE\s+(\d+)\s*\|\s*(.+)$")
+
+_KIND_LABEL = {"K": "Knowledge", "S": "Skill", "B": "Behaviour"}
 
 
 class Slide(BaseModel):
@@ -22,6 +25,36 @@ class Slide(BaseModel):
     title: str
     body: str
     narration: str
+
+
+class KSBItem(BaseModel):
+    """A single Knowledge (K), Skill (S) or Behaviour (B) statement."""
+
+    code: str
+    kind: str  # "K", "S" or "B"
+    statement: str
+
+
+class Duty(BaseModel):
+    """An occupation duty and the KSB codes it maps to."""
+
+    code: str
+    statement: str
+    ksbs: List[str] = Field(default_factory=list)
+
+
+class CourseKSB(BaseModel):
+    """A course's occupational standard, mirroring the UK apprenticeship format."""
+
+    course_id: str
+    title: str
+    level: str = ""
+    role: str = ""
+    source: str = ""
+    knowledge: List[KSBItem] = Field(default_factory=list)
+    skills: List[KSBItem] = Field(default_factory=list)
+    behaviours: List[KSBItem] = Field(default_factory=list)
+    duties: List[Duty] = Field(default_factory=list)
 
 
 class Lesson(BaseModel):
@@ -136,11 +169,56 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     )
 
 
+def _parse_ksb(course_id: str, raw: str) -> Tuple[CourseKSB, List[str]]:
+    """Parse a course's ksb.json into a CourseKSB plus retrievable passages.
+
+    The passages let the Tutor's RAG retrieval ground answers in the course's
+    duties and KSBs, so the AI teacher can reference what the programme covers.
+    """
+    data = json.loads(raw)
+
+    def _items(mapping: dict, kind: str) -> List[KSBItem]:
+        return [
+            KSBItem(code=code, kind=kind, statement=str(stmt))
+            for code, stmt in (mapping or {}).items()
+        ]
+
+    duties = [
+        Duty(
+            code=code,
+            statement=str(body.get("statement", "")),
+            ksbs=list(body.get("ksbs", [])),
+        )
+        for code, body in (data.get("duties") or {}).items()
+    ]
+    ksb = CourseKSB(
+        course_id=data.get("course_id", course_id),
+        title=data.get("title", course_id),
+        level=data.get("level", ""),
+        role=data.get("role", ""),
+        source=data.get("source", ""),
+        knowledge=_items(data.get("knowledge"), "K"),
+        skills=_items(data.get("skills"), "S"),
+        behaviours=_items(data.get("behaviours"), "B"),
+        duties=duties,
+    )
+
+    passages: List[str] = []
+    for duty in ksb.duties:
+        if duty.statement:
+            passages.append(f"{duty.code}: {duty.statement}")
+    for item in (*ksb.knowledge, *ksb.skills, *ksb.behaviours):
+        label = _KIND_LABEL.get(item.kind, "")
+        passages.append(f"{label} {item.code}: {item.statement}")
+    return ksb, passages
+
+
 class CurriculumStore:
     def __init__(self, root: Optional[str] = None) -> None:
         self.root = root or curriculum_root()
         self.lessons: dict[str, Lesson] = {}
         self.passages: dict[str, List[str]] = {}
+        self.ksb: Dict[str, CourseKSB] = {}
         self._load()
 
     def _load(self) -> None:
@@ -154,6 +232,22 @@ class CurriculumStore:
                 lesson, passages = _parse_lesson(entry, fh.read())
             self.lessons[entry] = lesson
             self.passages[entry] = passages
+            self._load_ksb(entry, passages)
+
+    def _load_ksb(self, entry: str, passages: List[str]) -> None:
+        ksb_file = os.path.join(self.root, entry, "ksb.json")
+        if not os.path.isfile(ksb_file):
+            return
+        try:
+            with open(ksb_file, "r", encoding="utf-8") as fh:
+                ksb, ksb_passages = _parse_ksb(entry, fh.read())
+        except (ValueError, KeyError):
+            # A malformed ksb.json must not break lesson loading.
+            return
+        self.ksb[entry] = ksb
+        # Surface duties/KSBs to RAG so the teacher can reference what the
+        # programme covers when relevant.
+        passages.extend(ksb_passages)
 
     def list_lessons(self) -> List[Lesson]:
         return list(self.lessons.values())
@@ -163,3 +257,6 @@ class CurriculumStore:
 
     def passages_for(self, lesson_id: str) -> List[str]:
         return self.passages.get(lesson_id, [])
+
+    def ksb_for(self, lesson_id: str) -> Optional[CourseKSB]:
+        return self.ksb.get(lesson_id)

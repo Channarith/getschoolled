@@ -1,0 +1,68 @@
+{
+  "course_id": "ai-transformation-architect",
+  "title": "AI Transformation Architect",
+  "level": "Level 4 Apprenticeship",
+  "role": "AI & Automation Practitioner",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "How to connect AI initiatives to business strategy and goals.",
+    "K2": "Methods to discover and prioritise AI opportunities across departments by value and feasibility.",
+    "K3": "How to build a business case and estimate return on investment for AI.",
+    "K4": "AI operating models: ownership, funding, standards and central enablement.",
+    "K5": "Data foundations required for AI: availability, quality, access and governance.",
+    "K6": "Platform and architecture choices including build versus buy and model swappability.",
+    "K7": "AI governance, risk and responsible-AI guardrails aligned to regulation.",
+    "K8": "Change management and skills needed for organisation-wide adoption.",
+    "K9": "How to pilot and then scale AI solutions safely.",
+    "K10": "How to measure portfolio impact across adoption, outcomes, cost and risk.",
+    "K11": "The role of embedded champions in accelerating adoption.",
+    "K12": "Emerging AI trends and their strategic implications."
+  },
+  "skills": {
+    "S1": "Translate strategy into a small set of high-value AI ambitions.",
+    "S2": "Run structured discovery and prioritise an opportunity portfolio.",
+    "S3": "Build quantified business cases with defined success metrics.",
+    "S4": "Design an AI operating model with clear roles and decision rights.",
+    "S5": "Assess and plan data foundations alongside use cases.",
+    "S6": "Make build-versus-buy and platform decisions for interoperability and security.",
+    "S7": "Define governance, acceptable-use and oversight policies.",
+    "S8": "Plan and lead change, communication and skills programmes.",
+    "S9": "Run pilots with clear criteria and scale what works.",
+    "S10": "Track and report portfolio adoption, outcomes, cost and risk.",
+    "S11": "Enable and support embedded AI champions.",
+    "S12": "Horizon-scan and adjust strategy to emerging AI developments."
+  },
+  "behaviours": {
+    "B1": "Leads with initiative and strategic curiosity.",
+    "B2": "Takes responsibility for sustainable, well-governed outcomes.",
+    "B3": "Collaborates across business and technical stakeholders.",
+    "B4": "Acts with integrity on ethics, governance and regulation.",
+    "B5": "Operates confidently amid ambiguity and organisational complexity."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Align AI initiatives with business strategy and prioritise a portfolio.",
+      "ksbs": ["K1", "K2", "S1", "S2", "B1", "B5"]
+    },
+    "Duty 2": {
+      "statement": "Build business cases and define ROI for AI investment.",
+      "ksbs": ["K3", "S3", "B2"]
+    },
+    "Duty 3": {
+      "statement": "Design the AI operating model and data foundations.",
+      "ksbs": ["K4", "K5", "S4", "S5", "B3"]
+    },
+    "Duty 4": {
+      "statement": "Choose platforms and architecture and set governance.",
+      "ksbs": ["K6", "K7", "S6", "S7", "B4"]
+    },
+    "Duty 5": {
+      "statement": "Lead change, skills and adoption with embedded champions.",
+      "ksbs": ["K8", "K11", "S8", "S11", "B3"]
+    },
+    "Duty 6": {
+      "statement": "Pilot, scale, measure portfolio impact and stay current.",
+      "ksbs": ["K9", "K10", "K12", "S9", "S10", "S12", "B2", "B5"]
+    }
+  }
+}

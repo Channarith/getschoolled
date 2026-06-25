@@ -1,0 +1,68 @@
+{
+  "course_id": "data-fellowship",
+  "title": "Data Fellowship",
+  "level": "Level 4 Apprenticeship",
+  "role": "Data Analyst",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "The data analyst workflow: question, gather, clean, analyse and communicate.",
+    "K2": "How to turn vague business requests into specific, decision-linked questions.",
+    "K3": "SQL for filtering, aggregating and joining data from relational databases.",
+    "K4": "Data modelling concepts: tables, keys, relationships and tidy data.",
+    "K5": "Data cleaning: handling missing values, duplicates and inconsistencies.",
+    "K6": "Programming for analysis (e.g. Python and pandas) for repeatable work.",
+    "K7": "Descriptive statistics: mean, median, spread and distributions.",
+    "K8": "Exploratory data analysis to build intuition and form hypotheses.",
+    "K9": "Correlation versus causation and the role of statistical significance.",
+    "K10": "Visualisation principles and effective dashboards.",
+    "K11": "How to communicate insight and a recommendation to decision-makers.",
+    "K12": "Responsible, ethical and reproducible handling of data."
+  },
+  "skills": {
+    "S1": "Frame a sharp, answerable analytical question.",
+    "S2": "Write SQL queries to assemble the required dataset.",
+    "S3": "Model and reshape data into a clean, analysable structure.",
+    "S4": "Clean data and document the choices made.",
+    "S5": "Use code to transform, summarise and chart data repeatably.",
+    "S6": "Apply descriptive statistics and interpret distributions honestly.",
+    "S7": "Conduct exploratory data analysis to surface patterns and issues.",
+    "S8": "Avoid over-claiming by distinguishing correlation from causation.",
+    "S9": "Create honest visualisations and focused dashboards.",
+    "S10": "Communicate findings with a clear headline and recommendation.",
+    "S11": "Protect personal data and follow data-protection policy.",
+    "S12": "Make analysis reproducible and assumptions explicit."
+  },
+  "behaviours": {
+    "B1": "Curious and rigorous in investigating data.",
+    "B2": "Takes responsibility for the accuracy of analysis.",
+    "B3": "Communicates and collaborates clearly with stakeholders.",
+    "B4": "Acts ethically and with integrity around data and bias.",
+    "B5": "Comfortable working with uncertainty and incomplete data."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Frame analytical questions from business needs.",
+      "ksbs": ["K1", "K2", "S1", "B1", "B5"]
+    },
+    "Duty 2": {
+      "statement": "Acquire and prepare data for analysis.",
+      "ksbs": ["K3", "K4", "K5", "S2", "S3", "S4", "B2"]
+    },
+    "Duty 3": {
+      "statement": "Analyse data with code and statistics.",
+      "ksbs": ["K6", "K7", "S5", "S6", "B1"]
+    },
+    "Duty 4": {
+      "statement": "Explore data and avoid analytical traps.",
+      "ksbs": ["K8", "K9", "S7", "S8", "B2", "B5"]
+    },
+    "Duty 5": {
+      "statement": "Visualise and communicate insight and recommendations.",
+      "ksbs": ["K10", "K11", "S9", "S10", "B3"]
+    },
+    "Duty 6": {
+      "statement": "Work responsibly and reproducibly with data.",
+      "ksbs": ["K12", "S11", "S12", "B4"]
+    }
+  }
+}

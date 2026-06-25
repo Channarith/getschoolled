@@ -22,7 +22,7 @@ from aoep_shared.service import create_service
 from fastapi import Depends, HTTPException, Response
 from pydantic import BaseModel
 
-from .curriculum import Lesson, Slide
+from .curriculum import CourseKSB, Lesson, Slide
 from .director import ClassContext, Director, LessonState
 from .teaching import Answer, SessionView, TeachingSessions
 
@@ -149,6 +149,19 @@ class AskRequest(BaseModel):
 @app.get("/api/lessons", response_model=list[Lesson])
 def api_lessons() -> list[Lesson]:
     return get_sessions().list_lessons()
+
+
+@app.get("/api/lessons/{lesson_id}/ksb", response_model=CourseKSB)
+def api_lesson_ksb(lesson_id: str) -> CourseKSB:
+    """Return the course's occupational standard (duties mapped to KSBs).
+
+    Mirrors the UK apprenticeship standard format; present for corporate
+    programmes that ship a ksb.json next to their lesson.
+    """
+    ksb = get_sessions().curriculum.ksb_for(lesson_id)
+    if ksb is None:
+        raise HTTPException(status_code=404, detail=f"no KSB for lesson {lesson_id}")
+    return ksb
 
 
 @app.post("/api/sessions", response_model=SessionView)
