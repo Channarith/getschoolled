@@ -3,14 +3,13 @@ import {
   Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from "react-native";
 
-import {
-  CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getMe, listStudents, login, signup,
+import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getMe, listStudents, login, signup,
   type Account, type StudentProfile,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
-import { QA_TEST_ACCOUNTS } from "../config";
+import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
 import {
   ensurePermissions, fireImmediate, listScheduled,
   rescheduleDailyReminder,
@@ -47,6 +46,13 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
     setIdentityUp(up);
     return up;
   }, []);
+
+  const backendDownMessage = useCallback((url: string) => {
+    const host = url.replace("http://", "");
+    return DEPLOY_MODE === "local"
+      ? t("auth.backendDownLocal", { url: host })
+      : t("auth.backendDownCloud", { url: host });
+  }, [t]);
 
   const refreshAccount = useCallback(async () => {
     try {
@@ -91,9 +97,7 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
     try {
       const up = await probeIdentity();
       if (!up) {
-        setAuthError(t("auth.backendDown", {
-          url: IDENTITY_URL.replace("http://", ""),
-        }));
+        setAuthError(backendDownMessage(IDENTITY_URL));
         return;
       }
       const res = mode === "login"
@@ -233,7 +237,7 @@ export default function SettingsScreen({ onAuthChange, onOpenLearningProfile }: 
           identityUp === true && styles.backendUp,
         ]}>
           {identityUp === false
-            ? t("auth.backendDown", { url: IDENTITY_URL.replace("http://", "") })
+            ? backendDownMessage(IDENTITY_URL)
             : identityUp === true
               ? `${t("auth.backendUp")} · ${t("settings.backendUrls", {
                 curriculum: CURRICULUM_URL.replace("http://", ""),

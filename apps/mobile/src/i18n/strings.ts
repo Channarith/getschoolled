@@ -60,7 +60,8 @@ export type StringKey =
   | "settings.backendUrls"
   | "auth.email" | "auth.password" | "auth.displayName"
   | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
-  | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendUp"
+  | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
+  | "auth.backendDownCloud" | "auth.backendUp"
   // Alert banner
   | "banner.open"
   // Time
@@ -192,7 +193,9 @@ const EN: Record<StringKey, string> = {
   "auth.haveAccount": "Already have an account? Sign in",
   "auth.qaHint": "QA test accounts (dev)",
   "auth.useQa": "Use {label}",
-  "auth.backendDown": "Identity service unreachable at {url}. On your Mac run: make run-identity",
+  "auth.backendDown": "Identity service unreachable at {url}.",
+  "auth.backendDownLocal": "Identity service unreachable at {url}. On your Mac run: make run-identity",
+  "auth.backendDownCloud": "Salareen cloud unreachable at {url}. Check your network or try again.",
   "auth.backendUp": "Identity service connected",
 
   "banner.open": "Open",

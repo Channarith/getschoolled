@@ -54,7 +54,9 @@
       "usesCleartextTraffic": true
     },
     "extra": {
-      "//": "URLs: iOS Simulator uses localhost. Android emulator auto-maps to 10.0.2.2 via src/config.ts. Physical device: use your Mac LAN IP or deployed host.",
+      "//": "deployMode cloud = Vultr VKE (same paths as web). local = Mac services. Override: MOBILE_DEPLOY_MODE=local MOBILE_CLOUD_BASE_URL=http://45.63.91.80",
+      "deployMode": "cloud",
+      "cloudBaseUrl": "http://45.63.91.80",
       "curriculumUrl": "http://localhost:8005",
       "identityUrl": "http://localhost:8008",
       "memoryUrl": "http://localhost:8004",

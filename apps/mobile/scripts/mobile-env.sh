@@ -10,6 +10,9 @@ export EXPO_NO_TELEMETRY="${EXPO_NO_TELEMETRY:-1}"
 # EXPO_OFFLINE is set by launch scripts after Expo Go is installed (uses local
 # expo/bundledNativeModules.json — avoids hang on expo.dev fetch).
 
+export MOBILE_DEPLOY_MODE="${MOBILE_DEPLOY_MODE:-cloud}"
+export MOBILE_CLOUD_BASE_URL="${MOBILE_CLOUD_BASE_URL:-http://45.63.91.80}"
+
 # Gradle/Expo autolinking Node subprocesses must resolve from apps/mobile/node_modules,
 # not ~/node_modules/.pnpm (symlinks outside the project break native Android builds).
 _MOBILE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
