@@ -1,0 +1,205 @@
+LESSON: AI Fluency: Essentials for the Modern Workplace
+LANGUAGE: en
+
+SLIDE 1 | What This Course Is About
+Welcome to AI Fluency, a corporate training course that helps any professional
+use artificial intelligence confidently and responsibly at work. AI fluency is
+not about becoming a programmer. It is the practical ability to understand what
+AI can and cannot do, to direct AI tools effectively, and to judge their output
+with a critical eye. By the end you will be able to apply AI to real tasks while
+protecting quality, privacy, and trust.
+NARRATION: Welcome! This course builds practical, everyday confidence with AI at work, no coding required.
+
+SLIDE 2 | What Is Artificial Intelligence?
+Artificial intelligence is the field of building computer systems that perform
+tasks we normally associate with human intelligence, such as understanding
+language, recognizing images, and making predictions. Most AI you use today is
+narrow AI: it is very good at one kind of task but has no general understanding
+of the world. A spam filter, a navigation app, and a chat assistant are all
+narrow AI, each expert at a single job. The science-fiction idea of a machine
+that thinks like a human across every domain, called general AI, does not exist
+yet, and it is important not to assume today's tools have human-like judgment.
+NARRATION: AI means machines doing intelligence-like tasks. Today's AI is narrow: great at one job, not generally smart.
+
+SLIDE 3 | How AI Learns: Machine Learning
+Modern AI is built mostly through machine learning, where a system learns
+patterns from large amounts of example data instead of being given explicit
+rules. You can think of it like learning from experience: show a model millions
+of examples, and it gradually adjusts itself to make better predictions. The
+quality of what the model learns depends heavily on the quality and variety of
+the data it was trained on.
+NARRATION: Machine learning means AI learns patterns from data examples, not hand-written rules.
+
+SLIDE 4 | Generative AI and Large Language Models
+Generative AI creates new content such as text, images, audio, or code, rather
+than only classifying or sorting existing information. The most common workplace
+form is the large language model, or LLM, which powers chat assistants. An LLM is
+trained on huge amounts of text and learns the statistical patterns of language
+so well that it can write, summarize, translate, explain, and answer questions in
+plain conversation. Tools like chat assistants are friendly front doors to these
+models, letting anyone use powerful AI by simply typing a request in everyday
+language instead of writing code or learning special commands.
+NARRATION: Generative AI makes new content. Large language models are text-based AI that power chat assistants.
+
+SLIDE 5 | How a Language Model Predicts Text
+Under the hood, a language model works by predicting the next piece of text, one
+small chunk called a token at a time, based on everything that came before. It is
+not looking up answers in a database; it is generating likely continuations from
+patterns it learned. This is why it can sound fluent and confident even when it
+is wrong: fluency and accuracy are not the same thing.
+NARRATION: A model predicts the next token from patterns. Sounding confident does not guarantee being correct.
+
+SLIDE 6 | AI in the Workplace: Everyday Use Cases
+AI tools are useful across almost every role. They can draft and polish emails,
+summarize long documents and meetings, brainstorm ideas, rewrite text for a
+different audience, translate languages, analyze spreadsheets, generate first
+drafts of plans, and explain unfamiliar topics in simple terms. A salesperson
+can turn notes into a follow-up, an analyst can ask questions about a report, and
+a manager can draft an agenda in seconds. The pattern is always the same: AI is
+excellent at producing a fast first draft that a knowledgeable human then reviews,
+corrects, and refines into finished, trustworthy work.
+NARRATION: AI shines at fast first drafts: emails, summaries, brainstorms, translations, explanations.
+
+SLIDE 7 | Boosting Productivity Without Losing Quality
+The goal of using AI is to remove busywork so you can focus on judgment and
+creativity. A reliable habit is to let AI handle the blank page and the boring
+parts, while you stay responsible for accuracy, tone, and final decisions. Treat
+AI as a tireless assistant or intern: helpful and fast, but in need of clear
+direction and a careful review before its work goes out the door.
+NARRATION: Use AI for the blank page and busywork; you keep ownership of accuracy and final decisions.
+
+SLIDE 8 | The Art of Prompting
+A prompt is the instruction you give an AI tool. Better prompts produce better
+results. A strong prompt usually includes four ingredients: a role for the AI to
+play, the task you want done, the context it needs, and the format you want back.
+For example: act as a marketing editor, tighten this paragraph, for a busy
+executive audience, and return it as three bullet points.
+NARRATION: A prompt is your instruction. Strong prompts give a role, a task, context, and a desired format.
+
+SLIDE 9 | Prompting Techniques That Work
+Several techniques reliably improve results. Be specific about what you want and
+what you do not want, since vague prompts produce vague answers. Give examples of
+the style or output you expect, which is called few-shot prompting. Ask the AI to
+work step by step for reasoning tasks so it shows its thinking. Tell it the
+audience and tone, such as writing for a new customer versus a technical expert.
+And set constraints such as length, reading level, or required sections. These
+small additions of context often produce large improvements in quality, and they
+cost only a few extra seconds to include.
+NARRATION: Be specific, give examples, ask for step-by-step reasoning, and set the audience, tone, and limits.
+
+SLIDE 10 | Iterating and Refining Prompts
+Prompting is a conversation, not a single shot. If the first answer misses, do
+not start over; refine. Tell the AI what was wrong and ask it to adjust: make it
+shorter, more formal, more concrete, or focused on one section. Each round steers
+the output closer to what you need. Skilled users expect to iterate two or three
+times rather than accept the first draft.
+NARRATION: Treat prompting as a back-and-forth: refine, correct, and steer toward what you actually need.
+
+SLIDE 11 | Grounding AI in Your Own Information
+General models do not know your company's private documents. To get accurate,
+relevant answers you often need to supply the source material in your prompt, or
+use tools that retrieve your documents and feed them to the model. This approach,
+known as retrieval, grounds the answer in real, trusted text. Grounding is one of
+the best defenses against made-up answers.
+NARRATION: Give the AI your own documents as context; grounding it in real sources improves accuracy.
+
+SLIDE 12 | Limitation: Hallucinations
+AI systems can hallucinate, meaning they state false information as if it were
+true. Because a language model generates likely text rather than verified facts,
+it may invent names, citations, numbers, legal cases, or events that never
+existed. Hallucinations are most dangerous precisely because they are delivered
+fluently and confidently, with the same calm tone as a correct answer. There have
+been real cases of professionals embarrassed by citing fake references an AI
+produced. Never treat AI output as fact without checking it against a reliable
+source, especially for anything you will publish, send, or act on.
+NARRATION: AI can confidently invent false facts. Always verify important claims against a trusted source.
+
+SLIDE 13 | Limitation: Bias and Fairness
+Because AI learns from human-created data, it can absorb and even amplify the
+biases in that data. This can show up as stereotypes or as output that works
+better for some groups than others. AI fluency means staying alert to biased or
+unfair results, especially in sensitive decisions about people such as hiring,
+lending, or evaluation, where human judgment must remain in charge.
+NARRATION: AI can absorb human bias from its data. Watch for unfair output, especially in decisions about people.
+
+SLIDE 14 | Privacy, Security, and Confidentiality
+What you type into an AI tool may leave your control or be used to improve the
+service, so never paste confidential, personal, or regulated data into a public
+tool. Follow your organization's policy on which tools are approved and what data
+is allowed. When in doubt, anonymize information or use an enterprise tool with
+clear data protections. Protecting data is part of using AI professionally.
+NARRATION: Do not paste confidential or personal data into public AI tools; follow your company's data policy.
+
+SLIDE 15 | Using AI Responsibly: Human Oversight
+Responsible AI use keeps a human in the loop for any meaningful decision. AI can
+recommend, draft, and analyze, but a person should review and own the outcome,
+especially when the stakes are high. Be transparent about when AI was used where
+honesty matters, and never present unchecked AI output as your own verified work.
+Accountability stays with people, not tools.
+NARRATION: Keep a human in charge of real decisions, review AI output, and be transparent about its use.
+
+SLIDE 16 | Verifying AI Output: Critical Thinking
+Develop the habit of asking three questions of any AI answer: Is it accurate? Is
+it complete? Is it appropriate for this audience and purpose? Cross-check facts,
+figures, names, and quotes against trusted sources before relying on them. Watch
+especially for confident answers on topics where you cannot personally judge
+correctness, because that is exactly where errors slip through unnoticed. A useful
+test is whether you would be comfortable defending the statement yourself. Your
+expertise and judgment are what turn a fast rough draft into trustworthy work that
+carries your name.
+NARRATION: Ask if the answer is accurate, complete, and appropriate, then fact-check before you trust it.
+
+SLIDE 17 | Building an AI-Forward Mindset
+AI fluency grows with practice. Look for repetitive or first-draft tasks in your
+own week and try delegating them to AI. Keep a personal collection of prompts
+that work well so you can reuse them. Share useful techniques with your team. The
+aim is not to use AI for everything, but to know when it genuinely helps and when
+human work is the right call.
+NARRATION: Practice by delegating first-draft tasks to AI, save prompts that work, and share what you learn.
+
+SLIDE 18 | Staying Ahead of a Fast-Moving Field
+AI tools change quickly, so the most valuable skill is the ability to keep
+learning rather than mastering any single tool. Focus on durable principles:
+clear prompting, grounding, verification, and responsible use. When a new tool
+appears, evaluate it by asking what task it solves, how it handles your data, and
+how you would check its output. Principles outlast products.
+NARRATION: Tools change fast. Master durable principles: prompting, grounding, verification, and responsibility.
+
+SLIDE 19 | Putting It All Together: An AI-Fluent Workflow
+A complete AI-fluent workflow looks like this: define the task clearly, write a
+strong prompt with role, context, and format, ground it with your own sources,
+iterate to improve the draft, verify every important claim, protect any sensitive
+data, and take human ownership of the final result. Followed consistently, this
+loop captures the speed of AI while keeping quality and trust intact.
+NARRATION: The workflow: define, prompt, ground, iterate, verify, protect data, and own the result.
+
+SLIDE 20 | Course Summary and Next Steps
+You have learned what AI is, how language models generate text, how to prompt and
+refine effectively, how to ground answers in real sources, and how to handle the
+limitations of hallucination, bias, privacy, and oversight. AI fluency is a
+practical, ongoing skill: use AI to accelerate your work, apply your judgment to
+keep it trustworthy, and keep practicing. That balance is what fluency means.
+NARRATION: You can now use AI confidently and responsibly. Keep practicing the define-prompt-verify-own loop.
+
+FACT: AI fluency is the practical ability to understand, direct, and critically evaluate AI tools at work, without needing to be a programmer.
+FACT: Narrow AI is good at one specific task, while general AI that matches human intelligence across all domains does not yet exist.
+FACT: Machine learning is when an AI system learns patterns from example data instead of following explicit hand-written rules.
+FACT: The quality of an AI model depends heavily on the quality and variety of the data it was trained on.
+FACT: Generative AI creates new content such as text, images, audio, or code.
+FACT: A large language model (LLM) is trained on large amounts of text and powers chat assistants.
+FACT: A language model works by predicting the next token of text based on the preceding context, not by looking up stored answers.
+FACT: An AI sounding fluent and confident does not guarantee that its answer is accurate.
+FACT: AI is especially useful for producing a fast first draft that a knowledgeable human then refines.
+FACT: A prompt is the instruction given to an AI tool, and clearer prompts produce better results.
+FACT: A strong prompt typically specifies a role, the task, the needed context, and the desired output format.
+FACT: Few-shot prompting means giving the AI examples of the style or output you expect.
+FACT: Asking a model to work step by step can improve results on reasoning tasks.
+FACT: Prompting is iterative: refining and correcting over several rounds steers the output toward what you need.
+FACT: Grounding an AI in your own trusted documents, often via retrieval, improves accuracy and reduces made-up answers.
+FACT: A hallucination is when an AI states false information as if it were true.
+FACT: AI can absorb and amplify biases present in its training data, which is a risk in decisions about people such as hiring or lending.
+FACT: Confidential, personal, or regulated data should never be pasted into public AI tools.
+FACT: Responsible AI use keeps a human in the loop to review and own meaningful decisions.
+FACT: Before trusting an AI answer, check whether it is accurate, complete, and appropriate for the audience and purpose.
+FACT: Because AI tools change quickly, durable principles like clear prompting, grounding, verification, and responsible use matter more than mastering any single tool.
+FACT: An AI-fluent workflow is to define the task, prompt well, ground in sources, iterate, verify claims, protect sensitive data, and take human ownership of the result.

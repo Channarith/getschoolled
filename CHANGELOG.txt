@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Add sample corporate-training curriculum "AI Fluency Essentials"
+  (sample-curriculum/ai-fluency-essentials, 20 slides, FACT-grounded for RAG) plus
+  scripts/demo_ai_fluency.py to drive the orchestrator end-to-end (list -> start ->
+  advance -> ask) for a live teaching demo.
 - 2026-06-24 - Mobile typecheck: tsconfig.typecheck.json + preflight script; verbose
   mode no longer runs tsc --listFilesOnly (Mac Node 22 OOM). doctor checks for
   stale package.json typecheck scripts.
