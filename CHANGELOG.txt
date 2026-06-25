@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile UI: Netflix-style redesign (cinematic wallpaper, glass panels,
+  Ionicons tabs, poster rails, spring press feedback) aligned with web; login
+  reachability checks, clearer backend errors, mobile-check-backends.sh, Android
+  cleartext HTTP for local dev.
 - 2026-06-25 - Mobile: sync pnpm-lock.yaml with @babel/runtime direct dep (fixes CI Auto Push Build).
 - 2026-06-25 - Mobile iOS: patch expo-localization for Xcode 26 calendar identifiers
   (fixes Swift "switch must be exhaustive" on native build).

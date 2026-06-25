@@ -79,6 +79,7 @@ if [[ "$FRESH" == "1" ]]; then
 fi
 
 echo "==> Backend note: Android emulator uses 10.0.2.2 for your Mac (see src/config.ts)"
+bash scripts/mobile-check-backends.sh || true
 
 if [[ "$NATIVE" == "1" ]]; then
   echo "==> Native build: expo run:android"

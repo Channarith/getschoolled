@@ -111,9 +111,38 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+function networkError(base: string, err: unknown): Error {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/network request failed|failed to connect|ECONNREFUSED|timed out|aborted/i.test(msg)) {
+    return new Error(
+      `Cannot reach backend at ${base}. Start it on your Mac (make run-identity for login on :8008). (${msg})`,
+    );
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
 async function get<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${base}${path}`, init);
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, init);
+  } catch (err) {
+    throw networkError(base, err);
+  }
   return jsonOrThrow<T>(res);
+}
+
+/** True when the service responds over HTTP (401 without a token is OK). */
+export async function checkServiceReachable(base: string, timeoutMs = 5000): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${base}/auth/me`, { method: "GET", signal: ctrl.signal });
+    return res.status >= 200 && res.status < 600;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function listAudioCourses(category?: string, q?: string, limit = 60, locale?: string) {

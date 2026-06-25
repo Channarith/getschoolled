@@ -1,20 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, FlatList, Pressable, RefreshControl,
+  ActivityIndicator, FlatList, RefreshControl,
   StyleSheet, Text, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { getNotificationsFeed, type NotificationItem } from "../api";
+import AnimatedPressable from "../components/AnimatedPressable";
+import GlassPanel from "../components/GlassPanel";
+import PrimaryButton from "../components/PrimaryButton";
 import {
   getInterests, getMyList, getReadIds, getStreak,
   listContinue, markAllRead, markRead, getSettings,
 } from "../storage";
 import { ensurePermissions, scheduleAlertsFor } from "../notifications";
 import { useT } from "../i18n";
+import { theme } from "../theme";
 
-const ICONS: Record<NotificationItem["icon"], string> = {
-  bell: "🔔", sparkle: "✨", flame: "🔥",
-  play: "▶", trophy: "🏆", gift: "🎁",
+const ICONS: Record<NotificationItem["icon"], keyof typeof Ionicons.glyphMap> = {
+  bell: "notifications",
+  sparkle: "sparkles",
+  flame: "flame",
+  play: "play-circle",
+  trophy: "trophy",
+  gift: "gift",
 };
 
 function useRelTime() {
@@ -91,7 +100,11 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#0ea5e9" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={theme.colors.netflix} size="large" />
+      </View>
+    );
   }
 
   const unread = items.filter((i) => !readSet.has(i.id)).length;
@@ -99,46 +112,79 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
     <FlatList
       style={styles.bg}
       contentContainerStyle={{ paddingTop: 56, paddingBottom: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); void load(); }}
+          tintColor={theme.colors.netflix}
+        />
+      }
       ListHeaderComponent={
         <View style={styles.header}>
+          <Text style={styles.kicker}>{t("tab.alerts")}</Text>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
             <Text style={styles.title}>{t("notif.title")}</Text>
-            {unread > 0 ? <Text style={styles.unread}>{t("notif.unread", { n: unread })}</Text> : null}
+            {unread > 0 ? (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{t("notif.unread", { n: unread })}</Text>
+              </View>
+            ) : null}
           </View>
-          {error ? <Text style={styles.err}>{error}</Text> : null}
+          {error ? (
+            <GlassPanel style={{ marginTop: 10 }}>
+              <Text style={styles.err}>{error}</Text>
+            </GlassPanel>
+          ) : null}
           <Text style={styles.sub}>
             {scheduled
               ? t("notif.subScheduled", { n: scheduled })
               : t("notif.subEmpty")}
           </Text>
           {items.length > 0 ? (
-            <Pressable onPress={onMarkAllRead} style={styles.markAll}>
-              <Text style={styles.markAllText}>{t("notif.markAll")}</Text>
-            </Pressable>
+            <View style={{ marginTop: 12, maxWidth: 160 }}>
+              <PrimaryButton label={t("notif.markAll")} onPress={onMarkAllRead} variant="ghost" />
+            </View>
           ) : null}
         </View>
       }
       ListEmptyComponent={
-        <View style={styles.empty}>
+        <GlassPanel style={styles.empty}>
+          <Ionicons name="notifications-outline" size={36} color={theme.colors.muted} />
           <Text style={styles.emptyTitle}>{t("notif.emptyTitle")}</Text>
           <Text style={styles.emptyBody}>{t("notif.emptyBody")}</Text>
-        </View>
+        </GlassPanel>
       }
       data={items}
       keyExtractor={(i) => i.id}
       renderItem={({ item }) => {
         const isRead = readSet.has(item.id);
+        const iconName = ICONS[item.icon] || "notifications";
         return (
-          <Pressable style={[styles.row, !isRead && styles.rowUnread]} onPress={() => void onItemPress(item)}>
-            <Text style={styles.icon}>{ICONS[item.icon] || "🔔"}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.itemTitle, !isRead && styles.itemTitleUnread]}>{item.title}</Text>
-              <Text style={styles.itemBody}>{item.body}</Text>
-              <Text style={styles.itemTime}>{relTime(item.created_at)}</Text>
-            </View>
-            {!isRead ? <View style={styles.dot} /> : null}
-          </Pressable>
+          <AnimatedPressable
+            onPress={() => void onItemPress(item)}
+            style={styles.rowWrap}
+          >
+            <GlassPanel
+              style={[styles.row, !isRead && styles.rowUnread]}
+              padded={false}
+            >
+              <View style={[styles.iconCircle, !isRead && styles.iconCircleUnread]}>
+                <Ionicons
+                  name={iconName}
+                  size={20}
+                  color={isRead ? theme.colors.muted : theme.colors.netflix}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.itemTitle, !isRead && styles.itemTitleUnread]}>
+                  {item.title}
+                </Text>
+                <Text style={styles.itemBody}>{item.body}</Text>
+                <Text style={styles.itemTime}>{relTime(item.created_at)}</Text>
+              </View>
+              {!isRead ? <View style={styles.dot} /> : null}
+            </GlassPanel>
+          </AnimatedPressable>
         );
       }}
     />
@@ -146,28 +192,37 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
 }
 
 const styles = StyleSheet.create({
-  bg: { backgroundColor: "#0b1020" },
-  center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
-  header: { paddingHorizontal: 16, paddingBottom: 8 },
-  title: { color: "#e8ecf6", fontSize: 24, fontWeight: "800" },
-  unread: { color: "#0ea5e9", fontWeight: "700" },
-  sub: { color: "#9aa6c2", marginTop: 6 },
-  err: { color: "#ff6b6b", marginTop: 6 },
-  markAll: { alignSelf: "flex-start", marginTop: 10, backgroundColor: "#1d2746", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  markAllText: { color: "#0ea5e9", fontWeight: "700", fontSize: 12 },
-  empty: { alignItems: "center", paddingHorizontal: 28, paddingTop: 60 },
-  emptyTitle: { color: "#e8ecf6", fontSize: 18, fontWeight: "700" },
-  emptyBody: { color: "#9aa6c2", marginTop: 8, textAlign: "center" },
-  row: {
-    flexDirection: "row", alignItems: "flex-start", gap: 12,
-    backgroundColor: "#151c34", borderRadius: 12,
-    padding: 14, marginHorizontal: 12, marginBottom: 10,
+  bg: { flex: 1, backgroundColor: "transparent" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  header: { paddingHorizontal: theme.spacing.screenX, paddingBottom: 8 },
+  kicker: { ...theme.typography.kicker, color: theme.colors.muted },
+  title: { ...theme.typography.title, color: theme.colors.text, marginTop: 4 },
+  unreadBadge: {
+    backgroundColor: theme.colors.netflix,
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  rowUnread: { borderLeftWidth: 3, borderLeftColor: "#0ea5e9" },
-  icon: { fontSize: 22, marginTop: 2 },
-  itemTitle: { color: "#c5cce0", fontSize: 14, fontWeight: "600" },
-  itemTitleUnread: { color: "#e8ecf6", fontWeight: "800" },
-  itemBody: { color: "#9aa6c2", fontSize: 12, marginTop: 4, lineHeight: 16 },
+  unreadText: { color: "#fff", fontWeight: "700", fontSize: 11 },
+  sub: { color: theme.colors.muted, marginTop: 8, ...theme.typography.body },
+  err: { color: "#ff8a8a", ...theme.typography.body },
+  empty: { alignItems: "center", marginHorizontal: theme.spacing.screenX, marginTop: 40, padding: 28, gap: 8 },
+  emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 8 },
+  emptyBody: { color: theme.colors.muted, textAlign: "center", ...theme.typography.body },
+  rowWrap: { marginHorizontal: theme.spacing.screenX, marginBottom: 10 },
+  row: {
+    flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14,
+  },
+  rowUnread: { borderLeftWidth: 3, borderLeftColor: theme.colors.netflix },
+  iconCircle: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center", justifyContent: "center",
+  },
+  iconCircleUnread: { backgroundColor: "rgba(229,9,20,0.15)" },
+  itemTitle: { color: theme.colors.muted, fontSize: 14, fontWeight: "600" },
+  itemTitleUnread: { color: theme.colors.text, fontWeight: "800" },
+  itemBody: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 16 },
   itemTime: { color: "#5d6890", fontSize: 11, marginTop: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#0ea5e9", marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.netflix, marginTop: 6 },
 });
