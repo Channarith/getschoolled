@@ -325,6 +325,20 @@ Verify from your laptop:
   ./scripts/k8s_verify_learning_profile.sh http://45.63.91.80
   # expect: OK identity version=... exposes learning-profile routes
 
+Careers page (/jobs) shows raw JSON instead of HTML
+---------------------------------------------------
+The public Careers UI is served by the web (Next.js) app at /jobs. The jobs API
+lives at /curriculum/jobs (aoep-apis rewrite). If /jobs returns curriculum JSON,
+the aoep Ingress still routes /jobs to the curriculum service — apply the VKE
+ingress patch:
+
+  kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+
+Verify:
+  BASE_URL=http://45.63.91.80 bash scripts/k8s_verify_jobs_page.sh
+  # expect: OK /jobs returns HTML (Careers page)
+  #         OK /curriculum/jobs returns JSON job list
+
 Apply ingress (www/salareen.com /identity routing):
   kubectl apply -f infra/k8s-vke/ingress-vke.yaml
 

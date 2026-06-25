@@ -20,6 +20,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import CareersScreen from "./src/screens/CareersScreen";
 import { getNotificationsFeed } from "./src/api";
 import type { TabId } from "./src/types";
 
@@ -40,6 +41,7 @@ function AppInner() {
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
+  const [showCareers, setShowCareers] = useState(false);
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
@@ -119,8 +121,21 @@ function AppInner() {
   };
 
   let screen: React.ReactNode = null;
-  if (tab === "home") {
-    screen = <HomeScreen onOpenCourse={openCourse} onOpenCategory={openCategory} />;
+  if (showCareers) {
+    screen = (
+      <CareersScreen
+        onBack={() => setShowCareers(false)}
+        onOpenCourse={(id) => { setShowCareers(false); openCourse(id); }}
+      />
+    );
+  } else if (tab === "home") {
+    screen = (
+      <HomeScreen
+        onOpenCourse={openCourse}
+        onOpenCategory={openCategory}
+        onOpenCareers={() => setShowCareers(true)}
+      />
+    );
   } else if (tab === "drive") {
     screen = openCourseId
       ? <DriveModeScreen courseId={openCourseId} onBack={() => setOpenCourseId(null)} />

@@ -66,7 +66,12 @@ export type StringKey =
   // Time
   | "time.minAgo" | "time.hAgo" | "time.dAgo"
   // Streak hero
-  | "streak.label";
+  | "streak.label"
+  // Careers
+  | "home.careers" | "home.careersSub"
+  | "careers.back" | "careers.title" | "careers.sub"
+  | "careers.searchRole" | "careers.searchLocation"
+  | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty";
 
 type Dict = Partial<Record<StringKey, string>>;
 
@@ -82,6 +87,18 @@ const EN: Record<StringKey, string> = {
   "home.subDefault": "Tap any class to start hands-free in Drive Mode.",
   "home.subStreak": "🔥 {days}-day streak — keep it alive with one quick class.",
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
+  "home.careers": "💼 Careers",
+  "home.careersSub": "Match live jobs to Salareen courses",
+
+  "careers.back": "← Back",
+  "careers.title": "Careers",
+  "careers.sub": "Live openings matched to courses that get you hired.",
+  "careers.searchRole": "Search roles or skills…",
+  "careers.searchLocation": "Location",
+  "careers.coverage": "You can cover {pct}% of this role with Salareen.",
+  "careers.apply": "View / Apply ↗",
+  "careers.tapMatch": "Tap for course match →",
+  "careers.empty": "No openings match your search.",
 
   "rail.continue": "Continue listening",
   "rail.continueSub": "Pick up where you left off.",
