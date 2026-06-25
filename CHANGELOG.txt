@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-25 - Mobile app icon: photorealistic gold medallion + bodhi leaf (cropped from
+  bayon-mark.webp) replaces flat vector S badge on launcher, splash, and HomeScreen logo.
+  Regenerate: python3 scripts/generate_salareen_mobile_icon.py
 - 2026-06-25 - Deploy workflows: robust kubeconfig setup (github_configure_kubeconfig.sh)
   validates YAML, strips whitespace from KUBE_CONFIG_B64, supports raw KUBE_CONFIG
   secret; removes deprecated kubectl --record. RUNBOOK documents secret encoding.
