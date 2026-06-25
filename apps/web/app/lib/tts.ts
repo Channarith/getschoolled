@@ -8,6 +8,10 @@
 // human-grade audio, route narration through a neural TTS backend (XTTS / cloud
 // TTS via the speech service) — see speakNaturally's `audioUrl` hook.
 
+import {
+  prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
+} from "./voiceProfiles";
+
 const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
   pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN",
@@ -34,7 +38,9 @@ const PREMIUM_VOICES = /\b(natural|neural|wavenet|journey|studio|premium|enhance
 const GOOD_VOICES = /(google|online|siri|samantha|aria|jenny|guy|libby|sonia)/;
 
 // Higher = more natural. Pure function so it can be unit-tested.
-export function scoreVoice(v: VoiceLike, lang: string): number {
+export function scoreVoice(
+  v: VoiceLike, lang: string, style: NarrationVoiceStyle = "standard",
+): number {
   const name = (v.name || "").toLowerCase();
   const vlang = (v.lang || "").toLowerCase();
   let s = 0;
@@ -46,18 +52,21 @@ export function scoreVoice(v: VoiceLike, lang: string): number {
   if (ROBOTIC_VOICES.test(name)) s -= 10;                 // never pick formant voices
   if (v.localService === false) s += 2;                   // cloud voices are higher quality
   if (v.default) s += 1;
+  s += voiceNameStyleBonus(style, v.name || "");
   return s;
 }
 
 // Pick the best voice matching the target language's primary subtag.
-export function pickVoice<T extends VoiceLike>(voices: T[], lang: string): T | undefined {
+export function pickVoice<T extends VoiceLike>(
+  voices: T[], lang: string, style: NarrationVoiceStyle = "standard",
+): T | undefined {
   if (!voices || !voices.length) return undefined;
   const primary = lang.split("-")[0].toLowerCase();
   const matches = voices.filter(
     (v) => (v.lang || "").toLowerCase().split("-")[0] === primary,
   );
   const pool = matches.length ? matches : voices;
-  return [...pool].sort((a, b) => scoreVoice(b, lang) - scoreVoice(a, lang))[0];
+  return [...pool].sort((a, b) => scoreVoice(b, lang, style) - scoreVoice(a, lang, style))[0];
 }
 
 // Voice lists load asynchronously; resolve once they're available (or after a
@@ -87,6 +96,7 @@ export function ensureVoices(timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> 
 
 export type SpeakOptions = {
   locale: string;
+  voiceStyle?: NarrationVoiceStyle;
   rate?: number;
   pitch?: number;
   onend?: () => void;
@@ -116,7 +126,9 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
   }
   const synth = window.speechSynthesis;
   const lang = localeToBcp47(opts.locale);
-  const voice = pickVoice(synth.getVoices(), lang);
+  const style = opts.voiceStyle ?? "standard";
+  const prosody = prosodyForStyle(style);
+  const voice = pickVoice(synth.getVoices(), lang, style);
   const chunks = splitForSpeech(text);
 
   let finished = false;
@@ -133,9 +145,9 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
     const u = new SpeechSynthesisUtterance(chunk);
     u.lang = lang;
     if (voice) u.voice = voice;
-    // ~0.95 is clearer/warmer than the rushed default 1.0; pitch neutral.
-    u.rate = opts.rate ?? 0.95;
-    u.pitch = opts.pitch ?? 1.0;
+    // Style-specific prosody; explicit rate/pitch override when set.
+    u.rate = opts.rate ?? prosody.rate;
+    u.pitch = opts.pitch ?? prosody.pitch;
     if (i === chunks.length - 1) u.onend = done; // resolve after the last chunk
     u.onerror = done;                            // and on cancel/error (once)
     synth.speak(u);
