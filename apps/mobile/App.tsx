@@ -9,9 +9,13 @@ import BottomTabs from "./src/components/BottomTabs";
 import { LocaleProvider, useT } from "./src/i18n";
 import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
 import {
-  ensurePermissions, installNotificationHandler,
+  ensurePermissions, fireDrivingDetectedAlert, installNotificationHandler,
   rescheduleDailyReminder, scheduleAlertsFor,
 } from "./src/notifications";
+import {
+  getDrivingStatus, startDrivingDetection, stopDrivingDetection,
+  subscribeDrivingStatus, type DrivingPhase, type DrivingStatus,
+} from "./src/drivingDetection";
 import {
   getMyList, getReadIds, getSettings, listContinue, loadAuthToken,
 } from "./src/storage";
@@ -44,10 +48,12 @@ function AppInner() {
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [showCareers, setShowCareers] = useState(false);
+  const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
   const fade = useRef(new Animated.Value(1)).current;
+  const prevDrivingPhaseRef = useRef<DrivingPhase>("unknown");
 
   useEffect(() => {
     fade.setValue(0);
@@ -60,9 +66,62 @@ function AppInner() {
 
   useEffect(() => {
     void bootstrap();
-    return () => { subRef.current?.remove(); respRef.current?.remove(); };
+    void syncDrivingDetection();
+    return () => {
+      subRef.current?.remove();
+      respRef.current?.remove();
+      void stopDrivingDetection();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => subscribeDrivingStatus(setDrivingStatus), []);
+
+  async function syncDrivingDetection() {
+    const settings = await getSettings();
+    await startDrivingDetection(settings);
+  }
+
+  useEffect(() => {
+    const prev = prevDrivingPhaseRef.current;
+    prevDrivingPhaseRef.current = drivingStatus.phase;
+    if (drivingStatus.phase !== "driving" || prev === "driving") return;
+
+    void (async () => {
+      const settings = await getSettings();
+      const cont = await listContinue();
+      const courseId = cont[0]?.id;
+
+      if (settings.driveDrivingAlerts && settings.notificationsEnabled) {
+        await fireDrivingDetectedAlert(courseId);
+      }
+
+      setBanner({
+        kind: "live",
+        title: t("driving.bannerTitle"),
+        body: t("driving.bannerBody"),
+        cta: t("banner.open"),
+        ttlMs: 8000,
+        onPress: () => {
+          if (courseId) {
+            setOpenCourseId(courseId);
+            setTab("drive");
+          } else {
+            setTab("drive");
+          }
+        },
+      });
+
+      if (settings.driveAutoLaunch) {
+        if (courseId) {
+          setOpenCourseId(courseId);
+          setTab("drive");
+        } else {
+          setTab("drive");
+        }
+      }
+    })();
+  }, [drivingStatus.phase, t]);
 
   async function bootstrap() {
     installNotificationHandler();
@@ -99,6 +158,8 @@ function AppInner() {
         { courseId?: string; deepLink?: string };
       if (data.courseId) {
         setOpenCourseId(data.courseId); setTab("drive");
+      } else if (data.deepLink === "aiclassroom://drive") {
+        setTab("drive"); setOpenCourseId(null);
       } else { setTab("notifications"); }
     });
 
@@ -150,7 +211,13 @@ function AppInner() {
     );
   } else if (tab === "drive") {
     screen = openCourseId
-      ? <DriveModeScreen courseId={openCourseId} onBack={() => setOpenCourseId(null)} />
+      ? (
+        <DriveModeScreen
+          courseId={openCourseId}
+          isDriving={drivingStatus.phase === "driving"}
+          onBack={() => setOpenCourseId(null)}
+        />
+      )
       : <AudioCoursesScreen onOpen={openCourse} initialCategory={browseCategory} />;
   } else if (tab === "mylist") {
     screen = <MyListScreen onOpenCourse={openCourse} />;
@@ -161,6 +228,8 @@ function AppInner() {
       <SettingsScreen
         onAuthChange={() => setAuthEpoch((n) => n + 1)}
         onOpenLearningProfile={() => setSurveyManualToken((n) => n + 1)}
+        drivingStatus={drivingStatus}
+        onDrivingSettingsChange={() => void syncDrivingDetection()}
       />
     );
   }
