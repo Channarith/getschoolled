@@ -15,6 +15,12 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-26 - Admin / Feature Flags: add a show/hide (eye) toggle to the admin-
+  secret password field so operators can reveal what they typed, matching the
+  login page. Extracted the existing EyeIcon from app/login/page.tsx into a shared
+  app/components/EyeIcon.tsx and reused it on both the login and admin pages (no
+  duplicate SVG). Visible on production only after the web image is rebuilt/rolled.
+
 - 2026-06-26 - CI deploy self-healing kubeconfig (fixes stale production / the
   /api/admin/flags 404). Root cause: the VKE roll step authenticated with a
   once-captured KUBE_CONFIG_B64 secret whose client credentials had rotated/

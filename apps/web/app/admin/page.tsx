@@ -19,6 +19,7 @@ import {
   type TelemetrySummary,
 } from "../lib/api";
 import MascotPreviewPanel from "../components/MascotPreviewPanel";
+import { EyeIcon } from "../components/EyeIcon";
 import { APP_VERSION } from "../lib/version";
 
 type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
@@ -42,6 +43,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
   const [flags, setFlags] = useState<FlagSpec[]>([]);
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState("");
@@ -132,12 +134,26 @@ export default function AdminPage() {
           Sign in as an operator admin account to manage flags automatically, or enter the
           administrative secret below.
         </p>
-        <input
-          type="password" placeholder="Admin secret" value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && load(secret)}
-          style={{ width: "100%", padding: 10, marginTop: 8 }}
-        />
+        <span style={{ position: "relative", display: "block", marginTop: 8 }}>
+          <input
+            type={showSecret ? "text" : "password"} placeholder="Admin secret" value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && load(secret)}
+            style={{ width: "100%", padding: 10, paddingRight: 44, boxSizing: "border-box" }}
+          />
+          <button type="button" onClick={() => setShowSecret((s) => !s)}
+            aria-label={showSecret ? "Hide admin secret" : "Show admin secret"}
+            aria-pressed={showSecret}
+            title={showSecret ? "Hide admin secret" : "Show admin secret"}
+            style={{
+              position: "absolute", right: 4, top: 0, bottom: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 36, border: 0, background: "transparent",
+              cursor: "pointer", color: "#9aa4b2",
+            }}>
+            <EyeIcon off={showSecret} />
+          </button>
+        </span>
         <button onClick={() => load(secret)}
           style={{ marginTop: 12, padding: "8px 18px", background: "#111", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer" }}>
           Unlock
