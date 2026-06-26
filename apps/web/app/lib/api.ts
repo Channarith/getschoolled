@@ -308,6 +308,8 @@ export type ForesightRec = {
 export type ForesightResult = {
   student_id: string; difficulty: string; gaps: string[];
   recommendations: ForesightRec[];
+  cold_start?: boolean;
+  fallback?: boolean;
   relational_map: { nodes: { id: string; kind: string }[]; edges: { src: string; dst: string; rel: string; weight: number }[] };
 };
 

@@ -754,35 +754,21 @@ def _course_duration_min(course_id: str) -> int:
 def recommend(req: RecommendRequest) -> dict:
     """Foresight: suggest courses + gaps + adapted difficulty for a student.
 
-    Maps learnable courses to Foresight CourseFeatures (skills = tags or category)
-    and runs LearnerForesight over the student's mastery/history.
+    New / empty profiles get popular beginner starter picks (cold_start=true)
+    instead of an error or empty list.
     """
-    from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
+    from aoep_shared.foresight import StudentProfile
 
-    # Rank over the managed catalog (not the whole learnable universe): the
-    # audio/language discovery surfaces have their own endpoints, and mixing
-    # hundreds of unrelated skills here drowns out the student's actual gaps.
+    from .recommend_service import run_recommend
+
     courses = app.state.catalog.list_courses()
-    features = [
-        CourseFeature(
-            course_id=c.course_id, title=c.title,
-            skills=[t for t in (c.tags or []) if t] or [c.category or c.subject or "general"],
-            level=c.level, category=(c.category or c.subject or "general"),
-        )
-        for c in courses
-        if c.course_id
-    ]
-    skills = sorted({s for f in features for s in f.skills})
-    if not skills:
-        return {"student_id": req.student_id, "difficulty": "beginner",
-                "gaps": [], "recommendations": [], "relational_map": {"nodes": [], "edges": []}}
-    lf = LearnerForesight(skills)
-    profile = StudentProfile(student_id=req.student_id, mastery=req.mastery,
-                             completed_course_ids=req.completed_course_ids,
-                             interests=req.interests)
-    out = lf.predict(profile, features)
-    out["recommendations"] = out["recommendations"][: req.top_n]
-    return out
+    profile = StudentProfile(
+        student_id=req.student_id,
+        mastery=req.mastery or {},
+        completed_course_ids=req.completed_course_ids or [],
+        interests=req.interests or [],
+    )
+    return run_recommend(profile, courses, top_n=req.top_n)
 
 
 @app.get("/courses/{course_id}/ad-breaks")

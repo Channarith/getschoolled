@@ -3,16 +3,30 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  getHomeFeed,
   getToken,
   listStudents,
   recommendForProfile,
+  type ForesightRec,
   type ForesightResult,
   type StudentProfile,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 
+function homeFeedToResult(students: StudentProfile[], selected: string): ForesightResult {
+  return {
+    student_id: selected,
+    difficulty: "beginner",
+    gaps: [],
+    cold_start: true,
+    fallback: true,
+    recommendations: [],
+    relational_map: { nodes: [], edges: [] },
+  };
+}
+
 export default function RecommendedPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [result, setResult] = useState<ForesightResult | null>(null);
@@ -32,11 +46,46 @@ export default function RecommendedPage() {
   useEffect(() => {
     const prof = students.find((s) => s.id === selected);
     if (!prof) return;
+    setError("");
     recommendForProfile({
       student_id: prof.id, mastery: prof.mastery,
       completed_course_ids: prof.completed_course_ids, interests: prof.interests,
-    }).then(setResult).catch((e) => setError(String(e)));
-  }, [selected, students]);
+    })
+      .then((r) => {
+        if (r.recommendations.length === 0) {
+          return applyHomeFallback(r, prof.id);
+        }
+        setResult(r);
+      })
+      .catch(() => applyHomeFallback(homeFeedToResult(students, prof.id), prof.id));
+  }, [selected, students, locale]);
+
+  async function applyHomeFallback(base: ForesightResult, studentId: string) {
+    try {
+      const rails = await getHomeFeed(false, locale);
+      const popular = rails.find((r) => r.key === "popular")?.courses
+        ?? rails.find((r) => r.courses.length)?.courses
+        ?? [];
+      const recs: ForesightRec[] = popular.slice(0, 8).map((c) => ({
+        course_id: c.course_id,
+        title: c.title,
+        score: 1,
+        covers_gaps: [],
+        reason: "Popular starter pick — great for your first classes",
+      }));
+      setResult({
+        ...base,
+        student_id: studentId,
+        cold_start: true,
+        fallback: true,
+        recommendations: recs,
+      });
+      setError("");
+    } catch (e) {
+      setError(String(e));
+      setResult(base);
+    }
+  }
 
   if (!loggedIn) {
     return (
@@ -92,7 +141,15 @@ export default function RecommendedPage() {
 
       {result && (
         <>
-          <div className="card" style={{ borderColor: "#6ea8fe" }}>
+          {result.cold_start && (
+            <div className="card" style={{ borderColor: "#16a34a", marginTop: 12 }}>
+              <strong>{t("recommended.starterTitle")}</strong>
+              <p className="muted" style={{ margin: "6px 0 0", fontSize: 14 }}>
+                {t("recommended.starterBody")}
+              </p>
+            </div>
+          )}
+          <div className="card" style={{ borderColor: "#6ea8fe", marginTop: 12 }}>
             <strong>{t("recommended.adapted", { level: result.difficulty })}</strong>
             {result.gaps.length > 0 && (
               <div className="muted">{t("recommended.gaps")} {result.gaps.join(", ")}</div>
@@ -114,6 +171,9 @@ export default function RecommendedPage() {
                 {r.covers_gaps.length > 0 && (
                   <div style={{ fontSize: 11 }}>{t("recommended.covers")} {r.covers_gaps.join(", ")}</div>
                 )}
+                <Link href={`/browse?q=${encodeURIComponent(r.title)}`} style={{ fontSize: 13 }}>
+                  {t("recommended.openCourse")}
+                </Link>
               </div>
             ))}
           </div>

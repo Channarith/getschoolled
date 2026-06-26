@@ -3,6 +3,9 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - For You (/recommended): cold-start defaults for new profiles —
+  popular beginner starter picks when mastery/history is empty; Foresight errors
+  fall back instead of 500. Web shows starter banner + home-feed fallback if API fails.
 - 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
   (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
   follow-up /api/sessions/{id}/advance|ask served by a different replica no
