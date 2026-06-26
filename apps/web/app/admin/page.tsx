@@ -94,11 +94,24 @@ export default function AdminPage() {
   async function load(s: string) {
     setError("");
     try {
-      const f = await adminListFlags(s);
+      // Prefer the operator-admin session (server-side secret, no typing needed)
+      // when signed in; fall back to the manually entered admin secret.
+      let f: FlagSpec[];
+      if (getToken()) {
+        try {
+          f = await adminListFlagsSession();
+        } catch {
+          f = await adminListFlags(s);
+        }
+      } else {
+        f = await adminListFlags(s);
+      }
       setFlags(f);
       setAuthed(true);
     } catch (e) {
-      setError("Invalid admin secret or memory service unavailable.");
+      setError(
+        "Could not load flags. Sign in as an operator admin (admin@salareen.com), or enter the correct admin secret."
+      );
       setAuthed(false);
       void e;
     }
@@ -131,8 +144,8 @@ export default function AdminPage() {
       <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
         <h1>Admin · Feature Flags</h1>
         <p style={{ color: "#666" }}>
-          Sign in as an operator admin account to manage flags automatically, or enter the
-          administrative secret below.
+          Sign in as an operator admin account (e.g. admin@salareen.com) to manage flags
+          automatically — no secret needed. Otherwise enter the administrative secret below.
         </p>
         <span style={{ position: "relative", display: "block", marginTop: 8 }}>
           <input

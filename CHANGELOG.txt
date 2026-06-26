@@ -15,6 +15,18 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-26 - Admin / Feature Flags login robustness: the Unlock button now
+  prefers the operator-admin session path (server-side ADMIN_SECRET, no typing)
+  whenever a JWT is present, and only falls back to the typed secret. Clarified the
+  helper text + error to point operators at admin@salareen.com. Diagnosed the
+  reported "can't log in": production web+memory are current (/api/admin/flags
+  returns 403, not 404 — the browser 404 was a stale cached response). The live
+  failures were credential issues (401 = wrong admin secret; the deployed
+  ADMIN_SECRET is the dev placeholder "dev-admin-secret"). Root cause of the
+  recurring stale-deploy pain: the VKE control-plane API (:6443) returns Forbidden
+  to GitHub runners AND the local laptop, so the roll step can't run — permanent
+  fix is to allowlist the deploy IPs on the cluster firewall (Vultr dashboard).
+
 - 2026-06-26 - Admin / Feature Flags: add a show/hide (eye) toggle to the admin-
   secret password field so operators can reveal what they typed, matching the
   login page. Extracted the existing EyeIcon from app/login/page.tsx into a shared
