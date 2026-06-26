@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Rewards catalog revamp + mobile/web sync clarification. Points are
+  awarded server-side in identity (course pass, arcade games, language practice)
+  and stored in ONE Redis-backed ledger, so any client (web or mobile) hitting
+  the same identity service shares the same balance - the recurring "points lost
+  after redeploy" was the non-durable Redis (fixed previously), not a sync bug.
+  Catalog (aoep_shared/rewards.py) rebuilt off common loyalty programs: raffle
+  entry costs raised to feel meaningful (PlayStation 5 150->1500, 1g gold bar
+  400->2000) and a richer set added - tiered class discounts (+50% off, +1 month
+  Premium), swag & attire (stickers, mug, socks, cap, water bottle, T-shirt,
+  hoodie, backpack), real-$ GIFT CARDS (Amazon $5/$10/$25, Visa $10, App
+  Store/Google Play $10), a charitable donation option, and more raffles (swag
+  bundle, $500 scholarship, iPad, MacBook). New PrizeKind GIFT_CARD + DONATION
+  and a kind_label shown by the web rewards grid (/rewards/catalog now returns
+  kind_label). 25 prizes total. Verified: rewards unit + API tests, full backend
+  suite (1327), web typecheck/build, and a live web render of the new catalog.
+
 - 2026-06-24 - Make Redis durable (fixes lost points, re-popping onboarding
   survey, and admin/account resets after every redeploy). Identity snapshots its
   whole state (accounts, points/rewards ledgers, student profiles, onboarding-
