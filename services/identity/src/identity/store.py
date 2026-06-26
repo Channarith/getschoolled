@@ -99,6 +99,16 @@ class StudentProfile(BaseModel):
     created_at: float = Field(default_factory=lambda: time.time())
 
 
+class BillingAddress(BaseModel):
+    line1: str = ""
+    line2: str = ""
+    city: str = ""
+    state: str = ""
+    postal_code: str = ""
+    country: str = "US"
+    phone: str = ""
+
+
 class LoginEvent(BaseModel):
     ts: float = Field(default_factory=lambda: time.time())
     success: bool = True
@@ -133,6 +143,11 @@ class Account(BaseModel):
     totp_enabled: bool = False
     oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
     passkeys: List[PasskeyCredential] = Field(default_factory=list)
+    membership_class: str = "standard"   # standard | vip (derived from tier)
+    onboarding_completed_at: Optional[float] = None
+    billing_address: Optional[BillingAddress] = None
+    card_last4: str = ""
+    billing_validated_at: Optional[float] = None
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
@@ -294,17 +309,19 @@ class AccountStore:
             return None
         if acct.locked_until and acct.locked_until > time.time():
             self.record_login_event(
-                acct.id, success=False, ip=ip, user_agent=user_agent,
                 country_hint=country_hint, method="password", reason="locked",
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+                reason="locked",
             )
             return None
         if not verify_password(password, acct.password_hash):
             acct.failed_logins += 1
             if acct.failed_logins >= 5:
-                acct.locked_until = time.time() + 900
+                acct.locked_until = time.time() + 900  # 15 min lockout
             self.record_login_event(
-                acct.id, success=False, ip=ip, user_agent=user_agent,
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
                 country_hint=country_hint, method="password",
+
             )
             self._persist()
             return None

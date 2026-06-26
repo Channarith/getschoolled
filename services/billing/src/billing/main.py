@@ -194,3 +194,20 @@ def checkout(req: CheckoutRequest) -> CheckoutResponse:
         method=session.method,
         instructions=session.instructions,
     )
+
+
+@app.get("/ads/networks")
+def ads_networks() -> dict:
+    from aoep_shared.ad_networks import active_network, list_networks
+
+    return {"active": active_network().value, "networks": list_networks()}
+
+
+@app.get("/ads/slot/{slot_id}")
+def ads_slot(slot_id: str, tier: str = "free") -> dict:
+    from aoep_shared.ad_networks import resolve_slot
+
+    slot = resolve_slot(slot_id, tier=tier)
+    if slot is None:
+        return {"slot_id": slot_id, "show": False}
+    return {"show": True, **slot}

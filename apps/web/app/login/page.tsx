@@ -60,7 +60,16 @@ export default function LoginPage() {
         return;
       }
       setToken(res.token);
-      router.push("/");
+      if (mode === "signup") {
+        router.push("/onboarding");
+      } else {
+        try {
+          const st = await getOnboardingStatus();
+          router.push(st.completed ? "/" : "/onboarding");
+        } catch {
+          router.push("/");
+        }
+      }
     } catch (err) {
       setError(String(err));
     } finally {
