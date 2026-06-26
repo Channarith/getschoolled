@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken } from "../lib/api";
+import { login, signup, setToken, getOnboardingStatus } from "../lib/api";
 import { useT } from "../lib/i18n";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
@@ -47,7 +47,16 @@ export default function LoginPage() {
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
-      router.push("/");
+      if (mode === "signup") {
+        router.push("/onboarding");
+      } else {
+        try {
+          const st = await getOnboardingStatus();
+          router.push(st.completed ? "/" : "/onboarding");
+        } catch {
+          router.push("/");
+        }
+      }
     } catch (err) {
       setError(String(err));
     } finally {

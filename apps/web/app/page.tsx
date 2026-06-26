@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppBadges from "./components/AppBadges";
+import AdSlot from "./components/AdSlot";
 import { Rail } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
 import {
   AUTH_EVENT,
   getHomeFeed,
+  getMe,
   getToken,
   type HomeRail,
 } from "./lib/api";
@@ -23,6 +25,7 @@ export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [email, setEmail] = useState("");
+  const [tier, setTier] = useState("free");
 
   useEffect(() => {
     const sync = () => {
@@ -31,6 +34,7 @@ export default function HomePage() {
       setAuthResolved(true);
       if (authed) {
         getHomeFeed(false, locale).then(setRails).catch((e) => setError(String(e)));
+        getMe().then((m) => setTier(m.tier || "free")).catch(() => setTier("free"));
       } else {
         setRails(null);
         setError("");
@@ -140,6 +144,7 @@ export default function HomePage() {
       </section>
 
       <div className="feed">
+        <AdSlot slotId="home-banner" tier={tier} />
         {error && (
           <div className="card" style={{ borderColor: "#ff6b6b" }}>
             <strong>{t("home.error")}</strong>
