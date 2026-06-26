@@ -17,6 +17,10 @@ import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
 import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 import {
+  getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
+  TRAINING_LOCALES, type TrainingLocale,
+} from "../lib/trainingLocale";
+import {
   NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, prosodyForStyle, resolveVoiceStyle,
   type NarrationVoicePref, type NarrationVoiceStyle,
 } from "../lib/voiceProfiles";
@@ -54,6 +58,7 @@ function DrivePageInner() {
   const [listening, setListening] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
+  const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,37 +80,39 @@ function DrivePageInner() {
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
+    const stored = getTrainingLocaleOrDefault(locale);
+    setTrainingLang(stored);
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
     void refreshVoiceStyle();
   }, [locale]);
   const refresh = useCallback(() => {
     if (!getToken()) return;
-    listAudioCourses({ category: cat, q, limit: "60" }, locale)
+    listAudioCourses({ category: cat, q, limit: "60" }, locale, trainingLang)
       .then((r) => { setRows(r.courses); setTotal(r.total); queue.current = r.courses; })
       .catch((e) => setError(String(e)));
-  }, [cat, q, locale]);
+  }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     if (!course || !loggedIn) return;
-    getAudioCourse(course.id, locale)
+    getAudioCourse(course.id, locale, trainingLang)
       .then((c) => setCourse(c))
       .catch(() => {});
-  }, [locale, course?.id, loggedIn]);
+  }, [locale, trainingLang, course?.id, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
       const style = voiceStyleRef.current;
       const base = prosodyForStyle(style).rate;
       speakNaturally(text, {
-        locale,
+        locale: trainingLang,
         voiceStyle: style,
         rate: base * rate,
         onend: onEnd,
       });
     } catch { onEnd?.(); }
-  }, [rate, locale]);
+  }, [rate, trainingLang]);
 
   const playSeg = useCallback((c: AudioCourse, i: number) => {
     window.speechSynthesis.cancel();
@@ -137,7 +144,7 @@ function DrivePageInner() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
     setError("");
     try {
-      const c = await getAudioCourse(id, locale);
+      const c = await getAudioCourse(id, locale, trainingLang);
       setCourse(c); setSeg(0);
       playSeg(c, 0);
     } catch (e) { setError(String(e)); }
@@ -356,6 +363,40 @@ function DrivePageInner() {
             </label>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="muted" style={{ fontSize: 13 }}>{t("drive.trainingLang")}</span>
+            {TRAINING_LOCALES.map((loc) => {
+              const on = trainingLang === loc;
+              return (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => {
+                    setTrainingLocale(loc);
+                    setTrainingLang(loc);
+                    if (course) {
+                      window.speechSynthesis.cancel();
+                      void getAudioCourse(course.id, locale, loc).then((c) => {
+                        setCourse(c);
+                        playSeg(c, seg);
+                      });
+                    }
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    border: on ? "1px solid #16a34a" : "1px solid #334155",
+                    background: on ? "#16a34a" : "transparent",
+                    color: on ? "#001022" : "#9aa6c2",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  {TRAINING_LOCALE_LABELS[loc]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
             <span className="muted" style={{ fontSize: 13 }}>{t("drive.narrationVoice")}</span>
             {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((pref) => {
               const on = narrationPref === pref;
@@ -424,6 +465,30 @@ function DrivePageInner() {
       <>
       {/* Browse */}
       <div className="card">
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          <span className="muted" style={{ fontSize: 13 }}>{t("drive.trainingLang")}</span>
+          {TRAINING_LOCALES.map((loc) => {
+            const on = trainingLang === loc;
+            return (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => { setTrainingLocale(loc); setTrainingLang(loc); }}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: on ? "1px solid #16a34a" : "1px solid var(--border)",
+                  background: on ? "#16a34a" : "transparent",
+                  color: on ? "#001022" : "var(--text)",
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {TRAINING_LOCALE_LABELS[loc]}
+              </button>
+            );
+          })}
+        </div>
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           <input placeholder={t("drive.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: 10 }} />

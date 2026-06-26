@@ -4,11 +4,13 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 const COURSE_SECONDS = 60; // compressed demo runtime for the simulated player
 const AD_FREE_TIERS = new Set(["pro", "premium"]);
 
 function WatchInner() {
+  const { t } = useT();
   const params = useSearchParams();
   const [courses, setCourses] = useState<CatalogCourse[]>([]);
   const [courseId, setCourseId] = useState(params.get("course") ?? "");
@@ -115,11 +117,8 @@ function WatchInner() {
 
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ marginBottom: 4 }}>Watch</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        Course playback with monetized video ads (IAB VAST/VMAP). VIP members (Pro/Premium) are ad-free;
-        Standard (Free/Basic) see ads on all courses.
-      </p>
+      <h1 style={{ marginBottom: 4 }}>{t("watch.title")}</h1>
+      <p style={{ color: "#666", marginTop: 0 }}>{t("watch.intro")}</p>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
         <select value={courseId} onChange={(e) => setCourseId(e.target.value)}
@@ -127,13 +126,13 @@ function WatchInner() {
           {courses.map((c) => <option key={c.course_id} value={c.course_id}>{c.title}</option>)}
         </select>
         <span style={{ padding: "8px 12px", borderRadius: 8, background: adFree ? "#14532d" : "#1e293b", color: "#e2e8f0", fontSize: 13 }}>
-          Plan: <strong>{tierLabel}</strong>
+          {t("watch.plan")} <strong>{tierLabel}</strong>
         </span>
         <button onClick={start} disabled={!courseId}
           style={{ padding: "8px 18px", background: "#e50914", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer" }}>
-          ▶ Play
+          {t("watch.play")}
         </button>
-        {!adFree && <Link href="/account" style={{ marginLeft: "auto", fontSize: 13 }}>Go ad-free →</Link>}
+        {!adFree && <Link href="/account" style={{ marginLeft: "auto", fontSize: 13 }}>{t("watch.goAdFree")}</Link>}
       </div>
 
       {error && <p style={{ color: "#e11d48" }}>{error}</p>}

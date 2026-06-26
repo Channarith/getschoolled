@@ -10,6 +10,8 @@ license = { text = "LicenseRef-AOEP-Proprietary" }
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.7,<3",
+    # numpy backs the harvester course-composition matrix/scoring (and foresight).
+    "numpy>=1.26,<3",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +24,14 @@ vision = [
     "opencv-contrib-python-headless==4.10.0.84",
     "onnxruntime==1.18.1",
     "numpy==1.26.4",
+]
+# Harvester binary-source extractors (PowerPoint / Word). Lazy-imported; only
+# required when generating a course from .pptx / .docx files.
+harvest = [
+    "pypdf==4.2.0",
+    "beautifulsoup4==4.12.3",
+    "python-pptx==0.6.23",
+    "python-docx==1.1.2",
 ]
 
 [tool.setuptools.packages.find]

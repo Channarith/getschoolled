@@ -91,12 +91,19 @@ def test_language_course_title_uses_locale_language_name():
 
 def test_knowledge_course_keeps_title_but_localizes_headings():
     course = next(c for c in build_catalog("es") if c.id == "audio-ancient-egypt")
-    # English title preserved (factual content authoring is upstream).
+    # Title stays English when no translation entry exists.
     assert "Ancient Egypt" in course.title
     # Category + headings + narration template are localized.
     assert course.category == "Historia"
     assert course.segments[0].heading == "Introducción"
     assert "Bienvenido" in course.segments[0].text
+
+
+def test_knowledge_course_translated_title_with_training_locale():
+    course = get_course("audio-budgeting-basics", locale="en", training_locale="zh")
+    assert course is not None
+    assert "预算基础" in course.title
+    assert course.body_locale == "zh"
 
 
 def test_recap_text_is_localized():

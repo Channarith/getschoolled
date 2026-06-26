@@ -46,6 +46,60 @@ Format: newest first. No markdown per project convention.
   lesson.txt from an openly-licensed outline (e.g. apprenticeship-standard KSBs).
 - 2026-06-25 - Mobile (Expo Go): fixed dynamic require() in src/nativeModules.ts
   that broke Metro bundling (literal requires for the optional native modules).
+- 2026-06-25 - Auto-merge no longer deletes the merged branch (dropped
+  --delete-branch); merged PR branches are kept so releases can be monitored and
+  correlated to their source branch.
+- 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
+  Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
+  Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
+  (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
+  the Auto-merge workflow completing successfully; it still checks out main and
+  is idempotent (skips if the tag already exists).
+- 2026-06-25 - Fix web typecheck (tsc) errors. ClassRoom finish state is now a
+  discriminated union so the "earned" branch guarantees earned/balance are
+  numbers (not number|undefined); rewards page coerces a nullable raffle entry id
+  to a string before interpolation. Unblocks `pnpm run typecheck` in CI.
+- 2026-06-25 - Fix curriculum CI failures. /courses/{id}/ad-breaks now 404s for
+  unknown ids (existence check no longer masked by the default duration). /recommend
+  ranks over the managed catalog instead of the entire learnable universe, so a
+  student's real gap course surfaces instead of unrelated audio/language courses.
+  Audio course intro/recap framing narration is localized by the UI locale (all 13
+  locales, e.g. fr "Bienvenue") again, while only the factual bullets follow the
+  en/es/zh training locale. Teaching orchestrator test treats the .pptx export as
+  best-effort (only asserted when python-pptx is installed).
+- 2026-06-25 - Teaching flow tie-together (harvest -> teach -> present). Part 1->2
+  bridge: aoep_shared.harvest.export writes a course as .pptx (narration in
+  speaker notes) + .course.json so the external ppt_trainer agent reads it with
+  zero changes. Part 2: aoep_shared.teaching builds an engine-agnostic LessonPlan
+  (deterministic offline builder reusing harvester narration, or delegates to the
+  ppt_trainer CLI). Part 3: aoep_shared.meeting presents the lesson live - provider
+  abstraction with Google Meet (Calendar+conferenceData), Zoom (S2S OAuth), Teams
+  (Graph onlineMeetings), and an offline MockMeetingProvider; a presenter builds a
+  timed presentation plan and drives slide->speak->advance with a transcript +
+  event log; factory falls back to mock when a real provider has no creds.
+  run_end_to_end orchestrator + scripts/teach_and_present.py CLI +
+  scripts/validate_pipeline.py (13-check end-to-end smoke). Tests added for export,
+  meeting providers/presenter/factory, and the offline end-to-end flow.
+- 2026-06-25 - Harvester PCS: formalized the course score as the Salareen
+  Pedagogical Composition Score (PCS), a custom/patent-pending algorithm. Named
+  the fixed formula constants (QUANT_RESOLUTION/STRUCT_NODE_COEFF/
+  STRUCT_CATEGORY_COEFF/DEFAULT_SCORE_MODULUS; no behavior change), documented
+  the full math formula + worked example + novelty/patent claims + data-flow and
+  design (mermaid) diagrams in README "Course Composition Score (PCS)", and
+  cross-referenced it from the harvester RUNBOOK. Added a test pinning the
+  published worked example (PCS 649).
+- 2026-06-25 - Harvester: quantifiable course composition + multi-source generation.
+  New aoep_shared.harvest modules: extractors (text/html/url/pdf/pptx/docx/database),
+  composition (numpy node/sub-node matrix -> deterministic composition_score "recipe
+  fingerprint" + quality_index/metrics + CompositionOutcomeLedger to compare e.g.
+  score 247 vs 148 by survey happiness), tagging (JSON/meta: free/expensive,
+  LinkedIn job, career path, core-fundamental, labels), generate (extract->slides->
+  compose->score->tag reviewable artifact), critique (HarvestCritic grade/issues/
+  suggestions + optimize_with_ledger revertible quality tracking). harvester run.py
+  gains --generate/--critique/--instructions CLI modes (offline). Tests added;
+  numpy now a core aoep-shared dep; python-pptx/python-docx pinned (lazy import).
+- 2026-06-25 - i18n follow-up: jobs/careers, corporate, rewards, homework, legal,
+  transparency, recommended, kids (locale feed), consent, arcade, languages, watch.
 - 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum
   service (fixes 500). Watch/ad-breaks resolve learnable IDs (fixes 404). Careers
   USA location filter. Arcade rounds persist in Redis across replicas. Group classes:

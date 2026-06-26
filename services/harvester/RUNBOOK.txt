@@ -35,3 +35,87 @@ OPERATE
   - Start N workers (one per shard). Monitor HarvestStats
     (fetched/ingested/skipped_license/skipped_dup/errors).
   - It is safe to stop/restart; the queue + dedup sets make it idempotent.
+
+GENERATE COURSE MATERIAL FROM INPUT (local + reviewable)
+  The harvester does not just crawl; it turns any input into a scored, tagged,
+  reviewable course. Sources: text/markdown, html, url, pdf, pptx (PowerPoint),
+  docx (Word), and database (sqlite path, or any DB-API connection in code).
+
+  Run locally (offline). From the repo root, with packages/shared + the service
+  src on PYTHONPATH (see Makefile / conftest):
+    python3 services/harvester/src/harvester/run.py --instructions
+        -> prints the exact 6-step generation recipe.
+    python3 services/harvester/src/harvester/run.py --generate notes.pptx \
+        --subject chemistry --access-tier premium --price 299 \
+        --career-path chemist --core --tags "lab,safety"
+        -> prints reviewable JSON: slides + composition matrix + score + tags.
+    python3 services/harvester/src/harvester/run.py --generate lessons.db \
+        --source-type database --query "SELECT topic, body FROM lessons" \
+        --heading-column topic --subject biology
+    python3 services/harvester/src/harvester/run.py --critique notes.pdf
+        -> grade (A-F), issues, and concrete improvement suggestions.
+
+  Generation recipe (aoep_shared.harvest):
+    extractors.extract*/extract_file  -> normalized ExtractedDoc (title+sections)
+    generate.generate_course          -> slides + numpy CourseComposition + tags
+    composition.composition_score()    -> recipe fingerprint (0..999, e.g. 247)
+    composition.quality_index()/metrics-> coverage/balance/depth/interactivity
+    tagging.CourseTags                 -> free/expensive, LinkedIn job, career
+                                          path (nurse), core-fundamental (algebra)
+
+QUANTIFIABLE COMPOSITION + WHY-IT-WORKS LOOP
+  - Every class is stored as a numpy node/sub-node matrix. NODES are pedagogical
+    categories (introduction, history, example, video, q&a, summary, ...);
+    SUB-NODES are subtopics within a category (e.g. "music" under history, or
+    "example 2"). See aoep_shared.harvest.NODE_CATEGORIES.
+  - composition_score() is the Salareen Pedagogical Composition Score (PCS), a
+    custom/patent-pending algorithm that reduces the matrix to one number (the
+    "247"/"148" in the spec) that *equates to* which nodes/sub-nodes were used.
+    Published formula + data-flow/design diagrams: README "Course Composition
+    Score (PCS)". Constants (rho/alpha/beta/mu) are fixed forever:
+    QUANT_RESOLUTION, STRUCT_NODE_COEFF, STRUCT_CATEGORY_COEFF,
+    DEFAULT_SCORE_MODULUS in composition.py. Key survey happiness on the PCS via
+    CompositionOutcomeLedger, then ask:
+        ledger.compare(247, 148, subject="chemistry")
+    to learn which recipe makes learners happier. quality_index() is our prior.
+
+CONTINUOUS REVIEW / CRITIQUE / OPTIMIZE
+  - HarvestCritic grades each generated course and lists issues/suggestions
+    (missing intro/summary, low coverage, low interactivity, imbalance).
+  - optimize_with_ledger(OptimizationLedger, reports) records each critique pass
+    as a revertible checkpoint and promotes it only if average quality does not
+    regress - so harvested quality can be tracked and rolled back as the learning
+    algorithm evolves.
+
+  Run the suites:
+    PYTHONPATH=packages/shared/src python3 -m pytest packages/shared/tests/ -q
+    (from services/harvester) python3 -m pytest -q   # entrypoint + CLI smoke
+
+  Optional deps for binary sources (pinned in requirements-dev.txt): pypdf,
+  beautifulsoup4, python-pptx, python-docx. Imported lazily, so text/database/
+  html generation and the whole crawl loop run without them.
+
+PART 2/3 - TEACH THE GENERATED COURSE, THEN PRESENT IT IN A MEETING
+  The harvested course feeds two more stages (offline paths exist for both):
+    Part 2 (teach):   aoep_shared.teaching.teach_course -> a LessonPlan. The
+                      offline builder reuses the harvester's per-slide narration;
+                      set engine="ppt_trainer" to delegate to the external
+                      agentic reader (the separate ppt_trainer project) for an
+                      LLM-written script + audio/video. Hand-off is a real .pptx:
+                      aoep_shared.harvest.export_course_package writes
+                      <title>.pptx (narration in the slide SPEAKER NOTES) +
+                      <title>.course.json, and `ppt-trainer teach <pptx>` reads
+                      the pptx natively.
+    Part 3 (present): aoep_shared.meeting presents the lesson live. Providers:
+                      Google Meet (Calendar+conferenceData), Zoom (S2S OAuth),
+                      Teams (Graph onlineMeetings), and an offline mock. A
+                      presenter builds a timed plan and drives slide->speak->
+                      advance, emitting a transcript + event log. Real providers
+                      activate by env (MEETING_PROVIDER + provider creds) and fall
+                      back to the mock when no creds are present.
+
+  One-command end-to-end (from repo root):
+    python3 scripts/teach_and_present.py --source notes.pptx --subject chemistry \
+        --meeting-provider zoom --teach-engine fallback
+  Smoke-test the whole chain (no keys/network/ffmpeg): make validate-pipeline
+    (or: python3 scripts/validate_pipeline.py)

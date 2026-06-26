@@ -493,16 +493,25 @@ export async function getAudioCategories(locale = "en"): Promise<{ category: str
 export async function listAudioCourses(
   params: Record<string, string> = {},
   locale = "en",
+  trainingLocale?: string,
 ): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
   const qs = new URLSearchParams(
-    Object.entries({ ...params, locale }).filter(([, v]) => v),
+    Object.entries({
+      ...params,
+      locale,
+      ...(trainingLocale ? { training_locale: trainingLocale } : {}),
+    }).filter(([, v]) => v),
   ).toString();
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
 }
-export async function getAudioCourse(id: string, locale = "en"): Promise<AudioCourse> {
+export async function getAudioCourse(
+  id: string, locale = "en", trainingLocale?: string,
+): Promise<AudioCourse> {
+  const p = new URLSearchParams({ locale });
+  if (trainingLocale) p.set("training_locale", trainingLocale);
   return jsonOrThrow(
     await fetch(
-      `${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}?locale=${encodeURIComponent(locale)}`,
+      `${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}?${p.toString()}`,
       { cache: "no-store" },
     ),
   );

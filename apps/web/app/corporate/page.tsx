@@ -10,6 +10,7 @@ import {
   type Lesson,
   type Program,
 } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 const TRACK_ORDER = ["AI", "Data", "Engineering"];
 const TRACK_LABELS: Record<string, string> = {
@@ -43,7 +44,12 @@ function groupByTrack(lessons: Lesson[]): [string, Lesson[]][] {
 }
 
 function ProgrammeCard({ lesson }: { lesson: Lesson }) {
+  const { t } = useT();
   const { lesson_id, title, summary, delivery, fit, level, role, slides } = lesson;
+  const slidesLabel =
+    slides.length === 1
+      ? t("corporate.slides", { n: slides.length })
+      : t("corporate.slidesPlural", { n: slides.length });
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {delivery && (
@@ -51,7 +57,7 @@ function ProgrammeCard({ lesson }: { lesson: Lesson }) {
       )}
       <h3 style={{ margin: 0 }}>{title}</h3>
       <p className="muted" style={{ margin: 0 }}>
-        {summary || `${slides.length} slide${slides.length === 1 ? "" : "s"} · AI teacher · Q&A`}
+        {summary || `${slidesLabel} · ${t("corporate.aiTeacher")}`}
       </p>
       {fit && (
         <div style={{ fontSize: 13 }}>
@@ -67,13 +73,14 @@ function ProgrammeCard({ lesson }: { lesson: Lesson }) {
         </div>
       )}
       <Link href={`/corporate/learn?lesson=${encodeURIComponent(lesson_id)}`}>
-        <button style={{ width: "100%" }}>Start course</button>
+        <button style={{ width: "100%" }}>{t("corporate.startCourse")}</button>
       </Link>
     </div>
   );
 }
 
 export default function CorporatePage() {
+  const { t } = useT();
   const [programs, setPrograms] = useState<Program[] | null>(null);
   const [courses, setCourses] = useState<Record<string, CatalogCourse>>({});
   const [corpLessons, setCorpLessons] = useState<Lesson[]>([]);
@@ -88,8 +95,6 @@ export default function CorporatePage() {
         setCourses(byId);
       })
       .catch((e) => setError(String(e)));
-    // AI-led corporate courses come from the orchestrator (lessons tagged
-    // AUDIENCE: corporate). These are taught live by the AI teacher.
     listLessons()
       .then((ls) => setCorpLessons(ls.filter((l) => (l.audience ?? "general") === "corporate")))
       .catch(() => setCorpLessons([]));
@@ -97,20 +102,15 @@ export default function CorporatePage() {
 
   return (
     <main className="container">
-      <h1>Corporate training programs</h1>
-      <p className="muted">
-        Curated, multi-course tracks for enterprise teams — onboarding, compliance,
-        and upskilling. Adaptive sequencing advances each learner by mastery.
-      </p>
+      <h1>{t("corporate.title")}</h1>
+      <p className="muted">{t("corporate.intro")}</p>
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
       {corpLessons.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          <h2 style={{ marginBottom: 4 }}>AI-led programmes</h2>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Taught live by the AI teacher — start anytime, ask questions, learn at your pace.
-          </p>
+          <h2 style={{ marginBottom: 4 }}>{t("corporate.aiLed")}</h2>
+          <p className="muted" style={{ marginTop: 0 }}>{t("corporate.aiLedDesc")}</p>
           {groupByTrack(corpLessons).map(([track, lessons]) => (
             <section key={track} style={{ marginTop: 18 }}>
               <h3 style={{ marginBottom: 8 }}>
@@ -132,11 +132,10 @@ export default function CorporatePage() {
           ))}
         </div>
       )}
-      {programs === null && !error && <p className="muted">Loading programs…</p>}
+      {programs === null && !error && <p className="muted">{t("corporate.loading")}</p>}
       {programs && programs.length === 0 && (
         <div className="card">
-          <p className="muted">No corporate programs yet. An admin can create them via the
-            curriculum <code>POST /programs</code> API (audience &ldquo;corporate&rdquo;).</p>
+          <p className="muted">{t("corporate.noPrograms")}</p>
         </div>
       )}
 
@@ -148,7 +147,10 @@ export default function CorporatePage() {
           </div>
           <p className="muted">{p.description}</p>
           <div style={{ fontSize: 13, marginTop: 6 }}>
-            <strong>{p.course_ids.length}</strong> course{p.course_ids.length === 1 ? "" : "s"}:
+            <strong>{p.course_ids.length}</strong>{" "}
+            {p.course_ids.length === 1
+              ? t("corporate.courses", { n: p.course_ids.length })
+              : t("corporate.coursesPlural", { n: p.course_ids.length })}:
           </div>
           <ul style={{ marginTop: 6 }}>
             {p.course_ids.map((cid) => (
@@ -165,8 +167,12 @@ export default function CorporatePage() {
             ))}
           </ul>
           <div className="row" style={{ marginTop: 8 }}>
-            <Link href="/class"><button>Start program</button></Link>
-            <Link href="/account"><button style={{ background: "transparent", border: "1px solid var(--border)" }}>Assign to team</button></Link>
+            <Link href="/class"><button>{t("corporate.startProgram")}</button></Link>
+            <Link href="/account">
+              <button style={{ background: "transparent", border: "1px solid var(--border)" }}>
+                {t("corporate.assignTeam")}
+              </button>
+            </Link>
           </div>
         </div>
       ))}

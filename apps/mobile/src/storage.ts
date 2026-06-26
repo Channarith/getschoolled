@@ -4,6 +4,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { NarrationVoicePref } from "./voiceProfiles";
+import { normalizeTrainingLocale, type TrainingLocale } from "./trainingLocale";
 
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
@@ -42,7 +43,11 @@ export type Settings = {
   driveDrivingAlerts: boolean;
   /** auto = infer from learning profile (child, accessibility, pace). */
   narrationVoicePref: NarrationVoicePref;
+  /** Spoken lesson language for Drive Mode (en / es / zh). */
+  trainingLocale: TrainingLocale;
 };
+
+export type { TrainingLocale };
 
 export const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: true,
@@ -57,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   driveAutoLaunch: false,
   driveDrivingAlerts: true,
   narrationVoicePref: "auto",
+  trainingLocale: "en",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -107,7 +113,9 @@ export async function toggleMyList(id: string): Promise<boolean> {
 
 export async function getSettings(): Promise<Settings> {
   const s = await readJSON<Partial<Settings>>(KEYS.settings, {});
-  return { ...DEFAULT_SETTINGS, ...s };
+  const merged = { ...DEFAULT_SETTINGS, ...s };
+  merged.trainingLocale = normalizeTrainingLocale(merged.trainingLocale);
+  return merged;
 }
 export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   const cur = await getSettings();
