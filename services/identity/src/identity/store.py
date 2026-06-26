@@ -633,6 +633,12 @@ class AccountStore:
                 str(payload.get("state", "ok")),
                 str(payload.get("reason", "")),
             )
+        elif et in ("lx_tick", "lx_session_end"):
+            adapt.record_lx_sample(
+                float(payload.get("score", 0)),
+                strategy=str(payload.get("strategy", "")),
+                success=payload.get("success") if "success" in payload else None,
+            )
         elif et == "strategy_success":
             adapt.record_strategy(str(payload.get("strategy", "default")), success=True)
         elif et == "strategy_failure":

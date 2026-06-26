@@ -5,21 +5,26 @@ import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
+  directorLxTick,
   enrollCourse,
   generateClassQuiz,
   getDisclosure,
+  getStudentAdaptation,
   grantReward,
+  gradeQuizItem,
   getPostClassSurvey,
   getRewards,
   getToken,
   listLessons,
   listStudents,
   recordAdaptationEvent,
+  recordBehavior,
   recordWellnessCheckIn,
   reportIssue,
   setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
+  updateTopicMastery,
   type Answer,
   type ClassQuizItem,
   type Disclosure,
@@ -95,9 +100,18 @@ export default function ClassRoom({
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const [slidesSinceQuiz, setSlidesSinceQuiz] = useState(0);
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
+  const [popQuizAnswers, setPopQuizAnswers] = useState<Record<string, number>>({});
   const [studentId, setStudentId] = useState("");
+  const [adaptationProfile, setAdaptationProfile] = useState<Record<string, unknown>>({});
+  const [lxScore, setLxScore] = useState<number | null>(null);
+  const [lxTarget, setLxTarget] = useState(75);
+  const [lxStrategy, setLxStrategy] = useState("");
   const [wellness, setWellness] = useState("ok");
   const sessionStartRef = useRef<number | null>(null);
+  const frustrationCountRef = useRef(0);
+  const questionsAskedRef = useRef(0);
+  const quizStatsRef = useRef({ correct: 0, total: 0 });
+  const declaredPaceRef = useRef("moderate");
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const autoStartedRef = useRef(false);
 
@@ -105,7 +119,16 @@ export default function ClassRoom({
     const signedIn = Boolean(getToken());
     setLoggedIn(signedIn);
     if (signedIn) {
-      listStudents().then((r) => setStudentId(r.students[0]?.id ?? "")).catch(() => {});
+      listStudents().then((r) => {
+        const sid = r.students[0]?.id ?? "";
+        setStudentId(sid);
+        if (sid) {
+          getStudentAdaptation(sid).then((prof) => {
+            setAdaptationProfile(prof.adaptation ?? {});
+            declaredPaceRef.current = prof.learning_pace || "moderate";
+          }).catch(() => {});
+        }
+      }).catch(() => {});
     }
     if (!locked) {
       listLessons()
@@ -156,6 +179,42 @@ export default function ClassRoom({
     setSpeaking(true);
   }
 
+  async function refreshLxTick(slideIndex: number, slidesTotal: number) {
+    if (!studentId || !getToken()) return;
+    const stats = quizStatsRef.current;
+    const quizAccuracy = stats.total > 0 ? stats.correct / stats.total : 0.5;
+    try {
+      const tick = await directorLxTick({
+        class_type: classType,
+        slides_total: slidesTotal,
+        slide_index: slideIndex,
+        pending_questions: 0,
+        attention: 0.75,
+        slides_since_quiz: slidesSinceQuiz,
+        topic_mastery: quizAccuracy,
+        quiz_accuracy: quizAccuracy,
+        avg_response_latency_s: 8,
+        attention_trend: 0.75,
+        question_rate: questionsAskedRef.current / Math.max(1, slideIndex + 1),
+        declared_pace: declaredPaceRef.current,
+        adaptation: adaptationProfile,
+        wellness_state: wellness,
+        course_complexity: slidesTotal > 30 ? 4 : slidesTotal < 12 ? 2 : 3,
+        frustration_events: frustrationCountRef.current,
+      });
+      setLxScore(tick.lx_score);
+      setLxTarget(tick.lx_target);
+      setLxStrategy(tick.teaching_strategy);
+      recordAdaptationEvent(studentId, "lx_tick", {
+        score: tick.lx_score,
+        strategy: tick.teaching_strategy,
+        success: tick.lx_score >= tick.lx_target,
+      }).catch(() => {});
+    } catch {
+      /* offline: keep teaching */
+    }
+  }
+
   async function onStart() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
     setError("");
@@ -167,9 +226,13 @@ export default function ClassRoom({
       }
       const v = await startSession(lessonId, classType);
       sessionStartRef.current = Date.now();
+      frustrationCountRef.current = 0;
+      questionsAskedRef.current = 0;
+      quizStatsRef.current = { correct: 0, total: 0 };
       setView(v);
       setSlide(v.slide);
       setChat([]);
+      await refreshLxTick(v.slide.index, v.lesson.slides.length);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -183,6 +246,14 @@ export default function ClassRoom({
     try {
       const s = await advance(view.session.session_id);
       setSlide(s);
+      if (studentId) {
+        recordBehavior({
+          student_id: studentId,
+          topic: view.lesson.title,
+          saw_slide: true,
+        }).catch(() => {});
+      }
+      await refreshLxTick(s.index, view.lesson.slides.length);
       const nextCount = slidesSinceQuiz + 1;
       setSlidesSinceQuiz(nextCount);
       if (nextCount >= 3) {
@@ -192,6 +263,7 @@ export default function ClassRoom({
         const quiz = await generateClassQuiz(view.lesson.title, passages, 2);
         if (quiz.items?.length) {
           setPopQuiz(quiz.items);
+          setPopQuizAnswers({});
           setSlidesSinceQuiz(0);
         }
       }
@@ -202,8 +274,44 @@ export default function ClassRoom({
     }
   }
 
+  async function submitPopQuiz() {
+    if (!popQuiz || !view || !studentId) {
+      dismissPopQuiz();
+      return;
+    }
+    setBusy(true);
+    let correct = 0;
+    try {
+      for (const item of popQuiz) {
+        const chosen = popQuizAnswers[item.item_id];
+        if (chosen === undefined) continue;
+        const graded = await gradeQuizItem(item, chosen);
+        if (graded.correct) correct += 1;
+        quizStatsRef.current.total += 1;
+        if (graded.correct) quizStatsRef.current.correct += 1;
+        await recordBehavior({
+          student_id: studentId,
+          topic: view.lesson.title,
+          quiz_correct: graded.correct,
+        }).catch(() => {});
+        await updateTopicMastery(studentId, view.lesson.title, graded.correct).catch(() => {});
+      }
+      if (popQuiz.length > 0) {
+        recordAdaptationEvent(studentId, "strategy_success", {
+          strategy: lxStrategy || "worked_examples",
+        }).catch(() => {});
+      }
+      await refreshLxTick(slide?.index ?? 0, view.lesson.slides.length);
+    } finally {
+      setPopQuiz(null);
+      setPopQuizAnswers({});
+      setBusy(false);
+    }
+  }
+
   function dismissPopQuiz() {
     setPopQuiz(null);
+    setPopQuizAnswers({});
   }
 
   // End the class: reward the completion (logged-in learners earn points), then
@@ -252,6 +360,13 @@ export default function ClassRoom({
           expected_min: expected,
           complexity,
         }).catch(() => {});
+        if (lxScore !== null) {
+          recordAdaptationEvent(studentId, "lx_session_end", {
+            score: lxScore,
+            strategy: lxStrategy,
+            success: lxScore >= lxTarget,
+          }).catch(() => {});
+        }
       }
       setFinish(
         earned > 0
@@ -285,6 +400,13 @@ export default function ClassRoom({
       });
       if (studentId && getToken()) {
         const pace = String(surveyAnswers["pace"] ?? "");
+        const clarity = surveyAnswers["clarity"] != null ? Number(surveyAnswers["clarity"]) : null;
+        const surveyScore = Math.round((overall / 5) * 100);
+        recordAdaptationEvent(studentId, "lx_session_end", {
+          score: surveyScore,
+          strategy: lxStrategy,
+          success: surveyScore >= lxTarget,
+        }).catch(() => {});
         if (overall <= 2) {
           recordWellnessCheckIn(studentId, "stressed", "low post-class rating").catch(() => {});
         } else if (pace.toLowerCase().includes("too fast")) {
@@ -327,6 +449,7 @@ export default function ClassRoom({
     const frustration = /(stupid|hate this|confus|frustrat|angry|doesn't work|too fast|too slow)/i.test(q);
     const wellnessCue = /(sick|not feeling|tired|exhausted|stressed|anxious|overwhelmed|bad mood|headache)/i.test(q);
     if (frustration && studentId && getToken()) {
+      frustrationCountRef.current += 1;
       recordAdaptationEvent(studentId, "trigger", {
         trigger: q.slice(0, 80).toLowerCase(),
         reason: "student expressed frustration during class Q&A",
@@ -339,6 +462,14 @@ export default function ClassRoom({
       recordWellnessCheckIn(studentId, state, q.slice(0, 120)).catch(() => {});
     }
     setChat((c) => [...c, { role: "student", text: q }]);
+    questionsAskedRef.current += 1;
+    if (studentId) {
+      recordBehavior({
+        student_id: studentId,
+        topic: view.lesson.title,
+        asked_question: true,
+      }).catch(() => {});
+    }
     setBusy(true);
     try {
       const a: Answer = await ask(view.session.session_id, q, locale);
@@ -527,6 +658,12 @@ export default function ClassRoom({
                 current: slide.index + 1,
                 total: view.lesson.slides.length,
               })}
+              {lxScore !== null && (
+                <span style={{ marginLeft: 12 }}>
+                  · {t("class.lxScore", { score: lxScore, target: lxTarget })}
+                  {lxStrategy ? ` · ${lxStrategy.replace(/_/g, " ")}` : ""}
+                </span>
+              )}
             </div>
             <h2>{slide.title}</h2>
             <p>{slide.body}</p>
@@ -549,14 +686,31 @@ export default function ClassRoom({
               {popQuiz.map((item) => (
                 <div key={item.item_id} style={{ marginBottom: 12 }}>
                   <p><strong>{item.prompt}</strong></p>
-                  <ul>
+                  <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
                     {item.options.map((opt, i) => (
-                      <li key={i}>{opt}</li>
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setPopQuizAnswers((prev) => ({ ...prev, [item.item_id]: i }))}
+                        style={{
+                          background: popQuizAnswers[item.item_id] === i ? "#6ea8fe" : "transparent",
+                          color: popQuizAnswers[item.item_id] === i ? "#fff" : "inherit",
+                          border: "1px solid var(--border)",
+                          fontSize: 13,
+                        }}
+                      >
+                        {opt}
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ))}
-              <button type="button" onClick={dismissPopQuiz}>Continue lesson</button>
+              <div className="row">
+                <button type="button" onClick={submitPopQuiz} disabled={busy}>
+                  Submit quiz
+                </button>
+                <button type="button" onClick={dismissPopQuiz}>Skip for now</button>
+              </div>
             </div>
           )}
 

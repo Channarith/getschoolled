@@ -346,6 +346,7 @@ const SHARED: Record<string, string> = {
   "class.wellnessTired": "Tired / low energy",
   "class.wellnessStressed": "Stressed or upset",
   "class.wellnessUnwell": "Not feeling well",
+  "class.lxScore": "Experience score {score}/{target}",
   "class.session": "Session {id}",
   "class.askTeacher": "Ask the AI teacher",
   "class.speakAnswers": "Speak answers",

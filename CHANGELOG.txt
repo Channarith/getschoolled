@@ -3,6 +3,13 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-23 - Continuous learning experience (LX) scoring: composite 0–100 score from
+  engagement, mastery, clarity, pace fit, and progress; EMA tracking + Thompson
+  sampling bandit over teaching strategies (worked_examples, gentle_recap, etc.).
+  Orchestrator POST /director/lx-tick measures and returns pacing + strategy to
+  improve score; identity lx_tick/lx_session_end events; GET /learning-experience.
+  ClassRoom wired: live LX badge, pop-quiz grading → memory behavior/mastery,
+  director tick each slide, survey feeds LX. Version 0.7.1 -> 0.7.2.
 - 2026-06-23 - Learner pace, complexity, mood sensitivity: track wall-clock course
   finish vs expected duration and complexity (course_finishes on adaptation profile);
   aoep_shared course_complexity + content_access (adults may take child-rated courses
