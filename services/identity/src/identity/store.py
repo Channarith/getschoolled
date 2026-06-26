@@ -279,6 +279,10 @@ class AccountStore:
         `username` alias so you can log in with just "admin". Marked is_admin so
         the web unlocks operator surfaces (e.g. the Homework grader).
 
+        Admins default to the PREMIUM tier (membership_class "vip") so operator
+        accounts get the full ad-free VIP experience without going through
+        billing. tier is re-synced on every startup by seed_account.
+
         ``force_password`` re-syncs the hash on every startup (same as QA
         personas) so DEFAULT_ADMIN_* credentials keep working after Redis reloads
         or an accidental manual signup on the admin email."""
@@ -288,6 +292,7 @@ class AccountStore:
             display_name=display_name,
             username=username,
             is_admin=True,
+            tier=PlanTier.PREMIUM,
             force_password=force_password,
         )
 

@@ -11,6 +11,20 @@ def test_seed_admin_login_by_email_and_username_alias():
     assert admin.is_admin is True
     assert admin.public()["is_admin"] is True
 
+
+def test_seed_admin_defaults_to_vip_billing():
+    """Admin operator accounts get the full ad-free VIP experience by default."""
+    store = AccountStore()
+    admin = store.seed_admin("admin@salareen.com", "88888888", username="admin")
+    assert admin.tier.value == "premium"
+    assert admin.membership_class == "vip"
+    assert admin.public()["membership_class"] == "vip"
+    # Re-seeding (every startup) keeps the admin on VIP, even if downgraded.
+    admin.tier = admin.tier.__class__("free")
+    admin.membership_class = "standard"
+    again = store.seed_admin("admin@salareen.com", "88888888", username="admin")
+    assert again.membership_class == "vip"
+
     # Login works with the full email...
     assert store.authenticate("admin@salareen.com", "88888888") is not None
     # ...and with the bare "admin" username alias.
