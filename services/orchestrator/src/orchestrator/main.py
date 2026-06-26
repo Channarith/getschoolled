@@ -450,6 +450,8 @@ class PlanRequest(DirectorTickRequest):
     avg_response_latency_s: float = 5.0
     attention_trend: float = 1.0
     question_rate: float = 0.0
+    declared_pace: str = "moderate"
+    adaptation: dict = {}
 
 
 class PlanResponse(BaseModel):
@@ -478,7 +480,34 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         attention_trend=req.attention_trend,
         question_rate=req.question_rate,
     )
-    state, plan = director.plan(ctx, signals)
+    from aoep_shared.learner_adaptation import LearnerAdaptation, merge_pacing_plan
+
+    adapt = LearnerAdaptation(**{
+        k: req.adaptation.get(k)
+        for k in (
+            "learning_goals", "goal_timeline", "observed_pace", "avg_minutes_per_lesson",
+            "completion_samples", "strategy_wins", "strategy_losses", "known_triggers",
+            "profile_revision",
+        )
+        if k in req.adaptation
+    }) if req.adaptation else None
+    if adapt and req.adaptation.get("failed_approaches"):
+        from aoep_shared.learner_adaptation import FailedApproach
+        adapt.failed_approaches = [
+            FailedApproach(**f) for f in req.adaptation["failed_approaches"]
+        ]
+    if adapt and req.adaptation.get("sensitivity_rules"):
+        from aoep_shared.learner_adaptation import SensitivityRule
+        adapt.sensitivity_rules = [
+            SensitivityRule(**r) for r in req.adaptation["sensitivity_rules"]
+        ]
+    state, base_plan = director.plan(ctx, signals)
+    plan = merge_pacing_plan(
+        signals,
+        declared_pace=req.declared_pace,
+        adaptation=adapt,
+        class_type=req.class_type,
+    )
     assert plan is not None
     return PlanResponse(
         next_state=state,

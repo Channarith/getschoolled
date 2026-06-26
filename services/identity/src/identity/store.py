@@ -95,6 +95,10 @@ class StudentProfile(BaseModel):
     onboarding_completed_at: Optional[float] = None
     # Raw survey answers for re-opening / editing the learning profile from Settings.
     onboarding_answers: Dict[str, object] = Field(default_factory=dict)
+    # Evolving adaptation (pace, goals, triggers, failed teaching approaches).
+    learning_goals: List[str] = Field(default_factory=list)
+    goal_timeline: str = ""
+    adaptation: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
 
 
@@ -564,6 +568,59 @@ class AccountStore:
         prof.learner_category = profile.learner_category
         prof.onboarding_completed_at = profile.completed_at
         prof.onboarding_answers = dict(profile.raw_answers)
+        self._persist()
+        return prof
+
+    def record_adaptation_event(
+        self,
+        account_id: str,
+        student_id: str,
+        event_type: str,
+        payload: dict,
+    ) -> StudentProfile:
+        from aoep_shared.learner_adaptation import LearnerAdaptation
+
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        raw = dict(prof.adaptation or {})
+        adapt = LearnerAdaptation(
+            learning_goals=list(prof.learning_goals or raw.get("learning_goals", [])),
+            goal_timeline=str(prof.goal_timeline or raw.get("goal_timeline", "")),
+            observed_pace=str(raw.get("observed_pace", "moderate")),
+            avg_minutes_per_lesson=raw.get("avg_minutes_per_lesson"),
+            completion_samples=list(raw.get("completion_samples", [])),
+            strategy_wins=dict(raw.get("strategy_wins", {})),
+            strategy_losses=dict(raw.get("strategy_losses", {})),
+            known_triggers=list(raw.get("known_triggers", [])),
+            profile_revision=int(raw.get("profile_revision", 0)),
+        )
+        et = (event_type or "").strip().lower()
+        if et == "completion_pace":
+            adapt.record_completion(float(payload.get("minutes", 20)))
+        elif et == "strategy_success":
+            adapt.record_strategy(str(payload.get("strategy", "default")), success=True)
+        elif et == "strategy_failure":
+            adapt.record_failed_approach(
+                str(payload.get("strategy", "default")),
+                str(payload.get("topic", "")),
+                str(payload.get("reason", "")),
+            )
+        elif et == "trigger":
+            adapt.record_trigger(
+                str(payload.get("trigger", "")),
+                str(payload.get("reason", "")),
+                severity=str(payload.get("severity", "medium")),
+                allow_retry=bool(payload.get("allow_retry", False)),
+            )
+        elif et == "goals":
+            goals = payload.get("goals")
+            if isinstance(goals, list):
+                prof.learning_goals = [str(g) for g in goals]
+            if payload.get("timeline"):
+                prof.goal_timeline = str(payload["timeline"])
+            adapt.profile_revision += 1
+        prof.adaptation = adapt.to_dict()
         self._persist()
         return prof
 

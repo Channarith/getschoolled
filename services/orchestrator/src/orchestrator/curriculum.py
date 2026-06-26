@@ -230,6 +230,16 @@ class CurriculumStore:
                 continue
             with open(lesson_file, "r", encoding="utf-8") as fh:
                 lesson, passages = _parse_lesson(entry, fh.read())
+            from aoep_shared.lesson_depth import enrich_slides
+
+            def _slide_factory(idx: int, title: str, body: str, narration: str) -> Slide:
+                return Slide(index=idx, title=title, body=body, narration=narration)
+
+            enriched, extra_passages = enrich_slides(
+                lesson.slides, passages, slide_factory=_slide_factory,
+            )
+            lesson.slides = enriched
+            passages = passages + extra_passages
             self.lessons[entry] = lesson
             self.passages[entry] = passages
             self._load_ksb(entry, passages)
