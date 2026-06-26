@@ -57,13 +57,17 @@ def _deserialize_account(raw: dict) -> "Account":
     from aoep_shared.rewards import PointsEntry, PointsLedger
     from aoep_shared.schemas import PlanTier, Region
 
-    from .store import Account, ClassContext, Enrollment, ProfileShareGrant, StudentProfile
+    from aoep_shared.passkeys import PasskeyCredential
+
+    from .store import Account, ClassContext, Enrollment, EnrollmentStatus, LoginEvent, StudentProfile
 
     ledger_raw = raw.pop("points_ledger", [])
     redemptions = raw.pop("redemptions", [])
     enrollments_raw = raw.pop("enrollments", {})
     students_raw = raw.pop("students", {})
     grants_raw = raw.pop("profile_share_grants", {})
+    login_events_raw = raw.pop("login_events", [])
+    passkeys_raw = raw.pop("passkeys", [])
 
     acct = Account(
         id=raw["id"],
@@ -81,8 +85,15 @@ def _deserialize_account(raw: dict) -> "Account":
         billing_amount_usd=raw.get("billing_amount_usd"),
         last_login_at=raw.get("last_login_at"),
         failed_logins=int(raw.get("failed_logins", 0)),
+        login_count=int(raw.get("login_count", 0)),
+        locked_until=raw.get("locked_until"),
+        totp_secret=raw.get("totp_secret", ""),
+        totp_enabled=bool(raw.get("totp_enabled", False)),
+        oauth_subject=raw.get("oauth_subject", ""),
         redemptions=list(redemptions),
     )
+    acct.login_events = [LoginEvent.model_validate(v) for v in login_events_raw]
+    acct.passkeys = [PasskeyCredential.model_validate(v) for v in passkeys_raw]
     acct.enrollments = {
         k: Enrollment.model_validate(v) for k, v in enrollments_raw.items()
     }

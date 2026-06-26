@@ -22,6 +22,7 @@ from aoep_shared.plan_pricing import (
     price_usd_for_tier,
     tier_requires_payment,
 )
+from aoep_shared.passkeys import PasskeyCredential
 from aoep_shared.rewards import PointsLedger
 from aoep_shared.schemas import PlanTier, Region
 from pydantic import BaseModel, Field
@@ -98,6 +99,15 @@ class StudentProfile(BaseModel):
     created_at: float = Field(default_factory=lambda: time.time())
 
 
+class LoginEvent(BaseModel):
+    ts: float = Field(default_factory=lambda: time.time())
+    success: bool = True
+    ip: str = ""
+    user_agent: str = ""
+    country_hint: str = ""
+    method: str = "password"   # password | google | facebook | passkey | mfa
+
+
 class Account(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     email: str
@@ -116,6 +126,13 @@ class Account(BaseModel):
     # Security signals.
     last_login_at: Optional[float] = None
     failed_logins: int = 0
+    login_count: int = 0
+    locked_until: Optional[float] = None
+    login_events: List[LoginEvent] = Field(default_factory=list)
+    totp_secret: str = ""
+    totp_enabled: bool = False
+    oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
+    passkeys: List[PasskeyCredential] = Field(default_factory=list)
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
@@ -135,6 +152,10 @@ class Account(BaseModel):
             "membership_class": self.membership_class,
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
+            "login_count": self.login_count,
+            "totp_enabled": self.totp_enabled,
+            "has_passkeys": bool(self.passkeys),
+            "oauth_linked": bool(self.oauth_subject),
             "subscription": subscription_public(
                 tier=self.tier.value,
                 subscription_started_at=self.subscription_started_at,
@@ -153,6 +174,7 @@ class AccountStore:
         self._game_stats: Dict[str, dict] = {}
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
+        self._passkey_challenges: Dict[str, str] = {}
 
     def _persist(self) -> None:
         from .persistence import persist_hook
@@ -258,17 +280,188 @@ class AccountStore:
     def by_id(self, account_id: str) -> Optional[Account]:
         return self._by_id.get(account_id)
 
-    def authenticate(self, email: str, password: str) -> Optional[Account]:
+    def authenticate(
+        self,
+        email: str,
+        password: str,
+        *,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+    ) -> Optional[Account]:
         acct = self.by_email(email)
         if acct is None:
             return None
+        if acct.locked_until and acct.locked_until > time.time():
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent,
+                country_hint=country_hint, method="password", reason="locked",
+            )
+            return None
         if not verify_password(password, acct.password_hash):
             acct.failed_logins += 1
+            if acct.failed_logins >= 5:
+                acct.locked_until = time.time() + 900
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent,
+                country_hint=country_hint, method="password",
+            )
+            self._persist()
             return None
         acct.failed_logins = 0
+        acct.locked_until = None
         acct.last_login_at = time.time()
+        acct.login_count += 1
+        self.record_login_event(
+            acct.id, success=True, ip=ip, user_agent=user_agent,
+            country_hint=country_hint, method="password",
+        )
         self._persist()
         return acct
+
+    def record_login_event(
+        self,
+        account_id: str,
+        *,
+        success: bool,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+        method: str = "password",
+        reason: str = "",
+    ) -> None:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return
+        acct.login_events.append(LoginEvent(
+            success=success,
+            ip=(ip or "")[:64],
+            user_agent=(user_agent or "")[:256],
+            country_hint=(country_hint or reason or "")[:32],
+            method=method[:24],
+        ))
+        if len(acct.login_events) > 50:
+            acct.login_events = acct.login_events[-50:]
+        self._persist()
+
+    def login_history(self, account_id: str, limit: int = 20) -> List[dict]:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return []
+        return [e.model_dump() for e in reversed(acct.login_events)][:limit]
+
+    def find_by_oauth_subject(self, subject: str) -> Optional[Account]:
+        sub = (subject or "").strip()
+        if not sub:
+            return None
+        for acct in self._by_id.values():
+            if acct.oauth_subject == sub:
+                return acct
+        return None
+
+    def link_oauth(
+        self,
+        account_id: str,
+        *,
+        subject: str,
+        display_name: str = "",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.oauth_subject = subject
+        if display_name and not acct.display_name:
+            acct.display_name = display_name
+        self._persist()
+        return acct
+
+    def oauth_login_success(
+        self,
+        account_id: str,
+        *,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+        method: str = "google",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.failed_logins = 0
+        acct.locked_until = None
+        acct.last_login_at = time.time()
+        acct.login_count += 1
+        self.record_login_event(
+            account_id, success=True, ip=ip, user_agent=user_agent,
+            country_hint=country_hint, method=method,
+        )
+        return acct
+
+    def get_or_create_oauth_account(
+        self,
+        *,
+        email: str,
+        subject: str,
+        display_name: str = "",
+    ) -> Account:
+        existing = self.find_by_oauth_subject(subject)
+        if existing:
+            return existing
+        by_email = self.by_email(email)
+        if by_email:
+            return self.link_oauth(by_email.id, subject=subject, display_name=display_name)
+        acct = Account(
+            email=email.strip().lower(),
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(uuid.uuid4().hex),
+            oauth_subject=subject,
+            membership_class=membership_class_for_tier(PlanTier.FREE.value),
+        )
+        self._by_id[acct.id] = acct
+        self._id_by_email[acct.email] = acct.id
+        self.ensure_default_student(acct.id)
+        self._persist()
+        return acct
+
+    def set_totp_secret(self, account_id: str, secret: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_secret = secret
+        acct.totp_enabled = False
+        self._persist()
+
+    def enable_totp(self, account_id: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_enabled = True
+        self._persist()
+
+    def disable_totp(self, account_id: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_secret = ""
+        acct.totp_enabled = False
+        self._persist()
+
+    def add_passkey(self, account_id: str, cred: PasskeyCredential) -> None:
+        acct = self._by_id[account_id]
+        acct.passkeys = [c for c in acct.passkeys if c.credential_id != cred.credential_id]
+        acct.passkeys.append(cred)
+        self._persist()
+
+    def passkey_by_id(self, account_id: str, credential_id: str) -> Optional[PasskeyCredential]:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return None
+        for c in acct.passkeys:
+            if c.credential_id == credential_id:
+                return c
+        return None
+
+    def store_passkey_challenge(self, account_id: str, challenge: str) -> None:
+        self._passkey_challenges[account_id] = challenge
+
+    def pop_passkey_challenge(self, account_id: str) -> str:
+        return self._passkey_challenges.pop(account_id, "")
+
+    def find_account_by_passkey(self, credential_id: str) -> Optional[Account]:
+        for acct in self._by_id.values():
+            if any(c.credential_id == credential_id for c in acct.passkeys):
+                return acct
+        return None
 
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]

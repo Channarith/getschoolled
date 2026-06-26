@@ -206,12 +206,108 @@ export async function signup(email: string, password: string, displayName: strin
 }
 
 export async function login(email: string, password: string):
-  Promise<{ token: string; account: Account }> {
+  Promise<{ token: string; account: Account; requires_2fa?: boolean; mfa_token?: string }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
     })
+  );
+}
+
+export async function verify2faLogin(mfaToken: string, code: string):
+  Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/verify`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mfa_token: mfaToken, code }),
+    })
+  );
+}
+
+export async function forgotPassword(email: string): Promise<{ sent: boolean; reset_token?: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/forgot-password`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+  );
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ reset: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/reset-password`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    })
+  );
+}
+
+export async function loginWithGoogle(idToken: string): Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/oauth/google`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    })
+  );
+}
+
+export async function loginWithFacebook(accessToken: string): Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/oauth/facebook`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ access_token: accessToken }),
+    })
+  );
+}
+
+export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/setup`, { method: "POST", headers: authHeaders() })
+  );
+}
+
+export async function confirm2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/confirm`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export async function disable2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/disable`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export type LoginEvent = {
+  ts: number;
+  success: boolean;
+  ip: string;
+  user_agent: string;
+  country_hint: string;
+  method: string;
+};
+
+export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function getSecuritySummary(): Promise<{
+  totp_enabled: boolean;
+  passkeys: { credential_id: string; label: string }[];
+  oauth_linked: boolean;
+  recent_logins: LoginEvent[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/security`, { headers: authHeaders(), cache: "no-store" })
   );
 }
 

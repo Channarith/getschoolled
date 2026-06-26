@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken } from "../lib/api";
+import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook } from "../lib/api";
 import { useT } from "../lib/i18n";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
@@ -23,6 +23,9 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mfaToken, setMfaToken] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [oauthEmail, setOauthEmail] = useState("");
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -43,9 +46,19 @@ export default function LoginPage() {
     }
     setBusy(true);
     try {
+      if (mfaToken) {
+        const res = await verify2faLogin(mfaToken, mfaCode);
+        setToken(res.token);
+        router.push("/");
+        return;
+      }
       const res = mode === "login"
         ? await login(email, password)
         : await signup(email, password, displayName);
+      if (res.requires_2fa && res.mfa_token) {
+        setMfaToken(res.mfa_token);
+        return;
+      }
       setToken(res.token);
       router.push("/");
     } catch (err) {
@@ -96,15 +109,53 @@ export default function LoginPage() {
               </button>
             </span>
           </label>
+          {mfaToken && (
+            <label style={{ display: "block", marginBottom: 8 }}>
+              2FA code
+              <input required value={mfaCode} onChange={(e) => setMfaCode(e.target.value)}
+                inputMode="numeric" autoComplete="one-time-code"
+                style={{ width: "100%", padding: 8 }} />
+            </label>
+          )}
           {mode === "signup" && (
             <p className="muted" style={{ fontSize: 12, marginTop: -2, marginBottom: 8 }}>
               {t("login.passwordHint")}
             </p>
           )}
           <button type="submit" disabled={busy}>
-            {busy ? t("login.busy") : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
+            {busy ? t("login.busy") : mfaToken ? "Verify 2FA" : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
+        {mode === "login" && !mfaToken && (
+          <>
+            <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>Or continue with</p>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <button type="button" disabled={busy} onClick={async () => {
+                setBusy(true); setError("");
+                try {
+                  const em = oauthEmail || window.prompt("Email for sandbox Google login") || "";
+                  const res = await loginWithGoogle(`sandbox_google_${em}`);
+                  setToken(res.token);
+                  router.push("/");
+                } catch (e) { setError(String(e)); } finally { setBusy(false); }
+              }}>Google</button>
+              <button type="button" disabled={busy} onClick={async () => {
+                setBusy(true); setError("");
+                try {
+                  const em = oauthEmail || window.prompt("Email for sandbox Facebook login") || "";
+                  const res = await loginWithFacebook(`sandbox_facebook_${em}`);
+                  setToken(res.token);
+                  router.push("/");
+                } catch (e) { setError(String(e)); } finally { setBusy(false); }
+              }}>Facebook</button>
+            </div>
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              <a href="/forgot-password">Forgot password?</a>
+              {" · "}
+              <a href="/security">Sign-in security</a>
+            </p>
+          </>
+        )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
         <p className="muted" style={{ marginTop: 12 }}>
           {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}

@@ -16,7 +16,7 @@ from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
@@ -146,14 +146,14 @@ class SignupRequest(BaseModel):
     region: Region = Region.US
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
 def _session(acct) -> dict:
     token = sign_token({"sub": acct.id, "email": acct.email}, _token_key())
     return {"token": token, "account": acct.public()}
+
+
+from .auth_security import register_auth_security_routes
+
+register_auth_security_routes(app, token_key_fn=_token_key, current_account=current_account, session_fn=_session)
 
 
 @app.post("/auth/signup")
@@ -167,14 +167,6 @@ def signup(req: SignupRequest) -> dict:
         app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return _session(acct)
-
-
-@app.post("/auth/login")
-def login(req: LoginRequest) -> dict:
-    acct = app.state.accounts.authenticate(req.email, req.password)
-    if acct is None:
-        raise HTTPException(status_code=401, detail="invalid email or password")
     return _session(acct)
 
 
