@@ -1,0 +1,68 @@
+{
+  "course_id": "ai-powered-productivity",
+  "title": "AI-Powered Productivity",
+  "level": "Level 3 Apprenticeship",
+  "role": "Digital Support Technician",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "How generative AI assistants such as Microsoft Copilot and Google Gemini are embedded in everyday workplace applications.",
+    "K2": "High-value productivity use cases: drafting, summarising, rewriting, extracting action items and quick explanations.",
+    "K3": "The anatomy of an effective prompt (role, task, context, format) and techniques such as few-shot prompting and step-by-step reasoning.",
+    "K4": "How iterating on prompts improves output quality.",
+    "K5": "How grounding an assistant in your own documents reduces made-up information.",
+    "K6": "Why AI output must be reviewed and verified by a human before use.",
+    "K7": "Data-protection rules and the risks of pasting confidential, personal or regulated data into AI tools.",
+    "K8": "The difference between approved enterprise AI tools and public consumer tools.",
+    "K9": "Sources of bias in AI output and the need for transparency.",
+    "K10": "Responsible AI use and keeping humans in charge of decisions about people.",
+    "K11": "How to measure the time and quality impact of AI on tasks.",
+    "K12": "How to build reusable prompts and personal workflows that make gains stick."
+  },
+  "skills": {
+    "S1": "Identify frequent, repetitive tasks where AI assistants save time.",
+    "S2": "Construct clear, specific prompts using role, task, context and format.",
+    "S3": "Apply prompting techniques such as examples, constraints and step-by-step reasoning.",
+    "S4": "Iterate with an assistant over several rounds to refine output.",
+    "S5": "Supply trusted source material to ground answers.",
+    "S6": "Critically review, fact-check and correct AI output before sharing.",
+    "S7": "Apply data-protection policy and use only approved tools for sensitive data.",
+    "S8": "Detect bias or errors and handle them responsibly.",
+    "S9": "Document and reuse effective prompts in a personal library.",
+    "S10": "Measure the before-and-after impact of AI on a task.",
+    "S11": "Be transparent about AI use and maintain human oversight.",
+    "S12": "Share effective techniques with colleagues to spread productivity gains."
+  },
+  "behaviours": {
+    "B1": "Self-directed in learning new AI tools and techniques.",
+    "B2": "Takes responsibility for the accuracy and quality of AI-assisted work.",
+    "B3": "Collaborative and generous in sharing knowledge.",
+    "B4": "Acts with integrity regarding data, honesty and AI use.",
+    "B5": "Adapts confidently as AI tools change."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Apply AI assistants to everyday productivity tasks.",
+      "ksbs": ["K1", "K2", "S1", "B1", "B5"]
+    },
+    "Duty 2": {
+      "statement": "Prompt and iterate effectively to produce strong drafts.",
+      "ksbs": ["K3", "K4", "S2", "S3", "S4", "B1"]
+    },
+    "Duty 3": {
+      "statement": "Ground answers and verify AI output before use.",
+      "ksbs": ["K5", "K6", "S5", "S6", "B2"]
+    },
+    "Duty 4": {
+      "statement": "Protect data and use approved tools in line with policy.",
+      "ksbs": ["K7", "K8", "S7", "B4"]
+    },
+    "Duty 5": {
+      "statement": "Use AI responsibly, transparently and without causing bias harm.",
+      "ksbs": ["K9", "K10", "S8", "S11", "B3", "B4"]
+    },
+    "Duty 6": {
+      "statement": "Build reusable workflows and measure and share impact.",
+      "ksbs": ["K11", "K12", "S9", "S10", "S12", "B3", "B5"]
+    }
+  }
+}

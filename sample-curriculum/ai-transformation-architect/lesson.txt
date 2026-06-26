@@ -1,0 +1,118 @@
+LESSON: AI Transformation Architect
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: AI
+LEVEL: Level 4 Apprenticeship
+ROLE: AI & Automation Practitioner
+DELIVERY: 13 month delivery
+FIT: Individuals with existing GenAI knowledge who bridge business goals and AI solutions.
+SUMMARY: Design and implement organisation-wide AI and automation strategies across multiple teams and departments.
+
+SLIDE 1 | What This Course Is About
+This course prepares you to lead AI adoption across an organisation, not just
+build a single solution. You will learn to connect AI to business strategy, find
+and prioritise opportunities across teams, design a responsible operating model,
+manage data and platforms, and measure return on investment. It is for people who
+already understand GenAI and now need to bridge the gap between executive goals and
+practical, governed AI delivery.
+NARRATION: This course prepares you to lead organisation-wide AI strategy, bridging business goals and governed delivery.
+
+SLIDE 2 | Starting From Business Strategy
+AI transformation fails when it starts with technology looking for a use. Start
+instead from the organisation's goals: growth, cost, quality, risk, customer
+experience. For each goal, ask where AI could move the needle materially. The
+architect's first job is to translate strategy into a small set of high-value AI
+ambitions everyone can rally behind, not a long list of disconnected experiments.
+NARRATION: Start AI transformation from business goals, not technology; translate strategy into a few high-value ambitions.
+
+SLIDE 3 | Finding and Prioritising Opportunities
+Run a structured discovery across departments to surface candidate use cases, then
+score them on value and feasibility. Value covers time, money, quality, and risk;
+feasibility covers data availability, technical difficulty, and change effort. Plot
+them to find quick wins and strategic bets, and sequence a portfolio rather than
+betting everything on one project. Prioritisation is where an architect earns their
+keep.
+NARRATION: Surface use cases across teams and score them on value and feasibility to sequence a portfolio.
+
+SLIDE 4 | Building the Business Case and ROI
+Leaders fund outcomes, not technology. For each initiative, estimate the benefit,
+hours saved, revenue gained, errors avoided, against the full cost of building,
+running, and changing how people work. Define how you will measure success before
+you start, and track it after. Being able to show quantified return on learning and
+automation investment is what sustains funding and trust.
+NARRATION: Build business cases on quantified benefit versus full cost, and define how you will measure ROI up front.
+
+SLIDE 5 | The AI Operating Model
+Scaling AI needs an operating model: who owns AI, how projects are funded and
+approved, what platforms and tools are standard, and how central expertise supports
+local teams. A common pattern is a small central AI function that sets standards and
+enables many embedded champions across departments. Clear roles and decision rights
+prevent both chaos and bottlenecks.
+NARRATION: Define an operating model: ownership, funding, standard platforms, and central support for embedded champions.
+
+SLIDE 6 | Data Foundations for AI
+AI is only as good as the data feeding it. Assess whether key data is available,
+accurate, accessible, and governed. Most AI ambitions reveal data gaps, silos,
+poor quality, missing access, that must be addressed to succeed. The architect
+plans the data foundations, including retrieval over trusted knowledge, alongside
+the use cases, because a great model on bad data still fails.
+NARRATION: Plan data foundations alongside use cases; AI fails on inaccessible, low-quality, or ungoverned data.
+
+SLIDE 7 | Platforms, Build vs Buy, and Architecture
+Decide which capabilities to buy as off-the-shelf tools, which to build, and how
+they fit together. Favour standard, supported platforms for common needs, and
+reserve custom builds for genuine differentiation. Design for interoperability,
+security, and the ability to swap models as the fast-moving market changes.
+Architecture choices made now shape cost and flexibility for years.
+NARRATION: Choose build versus buy deliberately, standardise platforms, and design for security and swappable models.
+
+SLIDE 8 | Governance, Risk, and Responsible AI
+Organisation-wide AI needs guardrails: policies for acceptable use, data
+protection, human oversight of high-stakes decisions, bias testing, and a way to
+inventory and review AI systems. Align with relevant regulations such as emerging
+AI laws. Good governance is an enabler, not a brake: it gives teams the confidence
+and clear boundaries to move quickly and safely.
+NARRATION: Set guardrails for acceptable use, data, oversight, and bias; governance enables safe, fast adoption.
+
+SLIDE 9 | Change Management and Skills
+Most AI transformations fail on people, not technology. Plan for the change:
+communicate the why, involve affected teams, address fears about jobs honestly,
+and build skills at every level from executives to frontline staff. Champions
+embedded in teams accelerate adoption. Pair every technical rollout with a learning
+and change plan, or the tools sit unused.
+NARRATION: Transformation succeeds on people; pair every rollout with communication, skills, and embedded champions.
+
+SLIDE 10 | Piloting and Scaling Safely
+Prove value with a contained pilot that has clear success criteria, then scale what
+works. Scaling is its own discipline: hardening reliability and security, training
+more users, monitoring cost and performance, and retiring what underperforms.
+Avoid both endless pilots that never scale and premature rollouts that scale
+problems. Move deliberately from proof to production to portfolio.
+NARRATION: Pilot with clear criteria, then scale what works deliberately, hardening reliability, security, and cost.
+
+SLIDE 11 | Measuring Impact and Iterating
+Treat the AI portfolio like a managed investment. Track adoption, business
+outcomes, cost, and risk across initiatives, and reallocate toward what delivers.
+Make measurement routine and visible so leaders see returns and teams learn what
+works. Transformation is not a one-off programme but an ongoing capability you keep
+improving.
+NARRATION: Manage the AI portfolio by tracking adoption, outcomes, cost, and risk, and reallocating toward what delivers.
+
+SLIDE 12 | Course Summary and Next Steps
+You can now connect AI to strategy, prioritise a portfolio, build business cases,
+design an operating model and data foundations, set governance, lead change, and
+scale what works. Pick one strategic goal in your organisation, map two or three
+high-value AI opportunities against it, and draft the case and operating approach.
+That is the architect's craft: turning ambition into governed, measurable delivery.
+NARRATION: Map high-value AI opportunities to a strategic goal and draft the case and operating approach to start.
+
+FACT: AI transformation should start from business goals rather than technology, translating strategy into a few high-value AI ambitions.
+FACT: AI opportunities should be scored on value (time, money, quality, risk) and feasibility (data, difficulty, change effort) to sequence a portfolio.
+FACT: A business case for AI compares quantified benefit against the full cost of building, running, and changing work, with success metrics defined up front.
+FACT: An AI operating model defines ownership, funding, approval, standard platforms, and central support for embedded champions.
+FACT: AI depends on data being available, accurate, accessible, and governed, and most AI ambitions reveal data gaps that must be fixed.
+FACT: Architecture decisions include build versus buy, standard platforms, interoperability, security, and the ability to swap models.
+FACT: Organisation-wide AI governance covers acceptable use, data protection, human oversight, bias testing, and an inventory of AI systems aligned to regulation.
+FACT: AI transformation succeeds or fails mainly on people, so change management, communication, and skills are essential.
+FACT: Value should be proven with a contained pilot with clear success criteria before scaling what works.
+FACT: An AI portfolio should be managed by tracking adoption, business outcomes, cost, and risk, and reallocating toward what delivers.

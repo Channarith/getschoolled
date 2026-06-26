@@ -12,6 +12,73 @@ import {
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 
+const TRACK_ORDER = ["AI", "Data", "Engineering"];
+const TRACK_LABELS: Record<string, string> = {
+  AI: "Artificial Intelligence",
+  Data: "Data",
+  Engineering: "Engineering",
+};
+
+function trackLabel(track: string): string {
+  if (!track || track === "Other") return "AI-led";
+  return TRACK_LABELS[track] ?? track;
+}
+
+// Group lessons by their `track` metadata, ordered AI → Data → Engineering →
+// anything else. Lessons without a track fall into "Other".
+function groupByTrack(lessons: Lesson[]): [string, Lesson[]][] {
+  const groups: Record<string, Lesson[]> = {};
+  for (const l of lessons) {
+    const key = (l.track || "Other").trim() || "Other";
+    (groups[key] ??= []).push(l);
+  }
+  const ordered = Object.keys(groups).sort((a, b) => {
+    const ia = TRACK_ORDER.indexOf(a);
+    const ib = TRACK_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  return ordered.map((k) => [k, groups[k]]);
+}
+
+function ProgrammeCard({ lesson }: { lesson: Lesson }) {
+  const { t } = useT();
+  const { lesson_id, title, summary, delivery, fit, level, role, slides } = lesson;
+  const slidesLabel =
+    slides.length === 1
+      ? t("corporate.slides", { n: slides.length })
+      : t("corporate.slidesPlural", { n: slides.length });
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {delivery && (
+        <span className="muted" style={{ fontSize: 12 }}>{delivery}</span>
+      )}
+      <h3 style={{ margin: 0 }}>{title}</h3>
+      <p className="muted" style={{ margin: 0 }}>
+        {summary || `${slidesLabel} · ${t("corporate.aiTeacher")}`}
+      </p>
+      {fit && (
+        <div style={{ fontSize: 13 }}>
+          <strong>Who&apos;s it for</strong>
+          <div className="muted">{fit}</div>
+        </div>
+      )}
+      <div style={{ flex: 1 }} />
+      {(level || role) && (
+        <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+          {level && <span className="pill" style={{ color: "#0369a1" }}>{level}</span>}
+          {role && <span className="pill">{role}</span>}
+        </div>
+      )}
+      <Link href={`/corporate/learn?lesson=${encodeURIComponent(lesson_id)}`}>
+        <button style={{ width: "100%" }}>{t("corporate.startCourse")}</button>
+      </Link>
+    </div>
+  );
+}
+
 export default function CorporatePage() {
   const { t } = useT();
   const [programs, setPrograms] = useState<Program[] | null>(null);
@@ -44,22 +111,24 @@ export default function CorporatePage() {
         <div style={{ marginBottom: 18 }}>
           <h2 style={{ marginBottom: 4 }}>{t("corporate.aiLed")}</h2>
           <p className="muted" style={{ marginTop: 0 }}>{t("corporate.aiLedDesc")}</p>
-          {corpLessons.map((l) => (
-            <div className="card" key={l.lesson_id}>
-              <div className="row" style={{ justifyContent: "space-between" }}>
-                <h3 style={{ margin: 0 }}>{l.title}</h3>
-                <span className="pill" style={{ color: "#0369a1" }}>{t("corporate.corporateTag")}</span>
+          {groupByTrack(corpLessons).map(([track, lessons]) => (
+            <section key={track} style={{ marginTop: 18 }}>
+              <h3 style={{ marginBottom: 8 }}>
+                {trackLabel(track)} programmes{" "}
+                <span className="muted" style={{ fontWeight: 400 }}>({lessons.length})</span>
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 12,
+                }}
+              >
+                {lessons.map((l) => (
+                  <ProgrammeCard key={l.lesson_id} lesson={l} />
+                ))}
               </div>
-              <p className="muted" style={{ fontSize: 13, marginBottom: 8 }}>
-                {l.slides.length === 1
-                  ? t("corporate.slides", { n: l.slides.length })
-                  : t("corporate.slidesPlural", { n: l.slides.length })}{" "}
-                · {t("corporate.aiTeacher")}
-              </p>
-              <Link href={`/corporate/learn?lesson=${encodeURIComponent(l.lesson_id)}`}>
-                <button>{t("corporate.startCourse")}</button>
-              </Link>
-            </div>
+            </section>
           ))}
         </div>
       )}

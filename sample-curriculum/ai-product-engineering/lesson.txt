@@ -1,0 +1,121 @@
+LESSON: AI Product Engineering
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Engineering
+LEVEL: Level 6 Degree Apprenticeship
+ROLE: AI Product Engineer
+DELIVERY: 21 months delivery, plus 3 months assessment
+FIT: Engineers ready to innovate and integrate AI to elevate product development.
+SUMMARY: Transform software engineers into AI-enabled product specialists who design, build, and ship AI-powered features at production quality.
+
+SLIDE 1 | What This Course Is About
+This course turns experienced software engineers into AI product engineers who can
+design and ship AI-powered features users rely on. You will learn to use foundation
+models and generative AI as building blocks, design and evaluate AI features, deploy
+them reliably, and do it responsibly. It assumes solid software engineering and adds the
+distinct skills of building products on top of probabilistic AI systems.
+NARRATION: This course turns software engineers into AI product engineers who ship reliable AI-powered features.
+
+SLIDE 2 | How AI Products Are Different
+Building with AI breaks some software assumptions. Traditional code is deterministic, the
+same input gives the same output, while AI models are probabilistic and can give different,
+sometimes wrong, answers. So you design for uncertainty: handle variability, plan for
+errors, and measure quality statistically rather than expecting one correct result. This
+mindset shift underpins everything else.
+NARRATION: AI products are probabilistic, not deterministic, so design for uncertainty and measure quality statistically.
+
+SLIDE 3 | Foundation Models as Building Blocks
+Modern AI features are usually built on foundation models, including large language
+models, accessed through APIs rather than trained from scratch. You compose products by
+prompting, adapting, and orchestrating these models. Understanding their capabilities,
+limits, context windows, and costs lets you choose the right model for a feature and use
+it effectively as a component.
+NARRATION: AI features are built on foundation models accessed via APIs; know their capabilities, limits, and costs.
+
+SLIDE 4 | Prompt Engineering and Structured Output
+The interface to a model is the prompt. Engineering reliable prompts means specifying
+role, task, context, and format, and often requiring structured output like JSON so your
+code can use the result. Constrain, give examples, and handle the model's variability.
+Treat prompts as part of the codebase, versioned and tested, not as throwaway strings.
+NARRATION: Engineer prompts with clear role, task, context, and structured output, and version and test them like code.
+
+SLIDE 5 | Retrieval-Augmented Generation
+To make AI features accurate about your domain, ground them in your data with retrieval:
+fetch relevant documents and supply them to the model so answers reflect your real,
+current content. Good RAG, sensible chunking, quality embeddings, and relevance ranking,
+is often the difference between a reliable feature and a confidently wrong one. It also
+keeps knowledge current without retraining.
+NARRATION: Retrieval-augmented generation grounds AI features in your own data for accurate, current answers.
+
+SLIDE 6 | Building Agents and Tool Use
+Beyond single answers, you can build agents that pursue goals over multiple steps,
+calling tools and APIs to fetch data and take actions. This unlocks powerful features but
+adds complexity: you must bound what the agent can do, handle multi-step failures, and
+decide where humans approve actions. Design agent capability and guardrails together.
+NARRATION: Agents pursue goals using tools over multiple steps; design their capability and guardrails together.
+
+SLIDE 7 | Fine-Tuning and Adaptation
+Sometimes prompting and retrieval are not enough and you adapt a model, for example
+fine-tuning on examples to specialise behaviour or format. Adaptation can improve quality
+and consistency but adds cost and maintenance. Know the options, prompting, retrieval,
+fine-tuning, and choose the lightest one that meets the need, since heavier approaches are
+harder to change as models evolve.
+NARRATION: Adapt models via fine-tuning when prompting and retrieval fall short, choosing the lightest approach that works.
+
+SLIDE 8 | Evaluating AI Features
+You cannot test AI like deterministic code. Build evaluation sets of realistic inputs with
+good outcomes, and score quality, accuracy, safety, and relevance, using automated metrics
+and human review. Re-run evaluation on every change to prompts, models, or data.
+Systematic evaluation is what turns "it seems to work" into evidence and prevents silent
+regressions.
+NARRATION: Evaluate AI features against realistic test sets scoring quality and safety, and re-test on every change.
+
+SLIDE 9 | Productionising and LLMOps
+Shipping AI features needs operational discipline: manage prompts, models, and versions;
+control latency and the real cost of model calls; add caching, retries, and fallbacks; and
+monitor quality in production. Models and APIs change, so design to swap them. This LLMOps
+practice is what keeps AI features reliable and affordable once real users depend on them.
+NARRATION: Productionise AI with version control, cost and latency management, fallbacks, and quality monitoring.
+
+SLIDE 10 | UX for AI: Designing for Imperfection
+Great AI products are designed around the fact that AI is sometimes wrong. Show confidence
+and sources, make it easy to verify and correct output, keep humans in control of
+important actions, and set honest expectations. Good AI UX builds trust by being
+transparent about uncertainty rather than hiding it, turning a fallible model into a
+helpful experience.
+NARRATION: Design AI UX for imperfection: show sources, enable correction, and keep humans in control.
+
+SLIDE 11 | Responsible AI and Safety
+AI features carry real risks: hallucinations, bias, privacy leaks, prompt injection from
+untrusted input, and misuse. Build safeguards, validate and constrain inputs and outputs,
+protect data, test for bias, and keep human oversight on high-stakes decisions. Bake safety
+and governance into the engineering from the start; for AI products it is a core
+requirement, not an add-on.
+NARRATION: Build in safeguards against hallucination, bias, privacy leaks, and prompt injection, with human oversight.
+
+SLIDE 12 | Product Thinking and Measuring Value
+Engineering excellence is wasted if the feature does not help users. Start from a real user
+problem, ship a small version, and measure whether it delivers value, adoption, task
+success, satisfaction, cost. AI is a means, not the goal. The best AI product engineers
+pair technical depth with judgment about what is worth building and how to prove it works.
+NARRATION: Start from a real user problem, ship small, and measure value; AI is a means, not the goal.
+
+SLIDE 13 | Course Summary and Next Steps
+You can now build AI features on foundation models: engineer prompts and structured output,
+ground with retrieval, add agents and adaptation where justified, evaluate rigorously,
+productionise with LLMOps, design for imperfection, and ship responsibly. Take one real user
+problem, build the simplest AI feature that helps, evaluate it, and put it in production
+behind good guardrails.
+NARRATION: Build the simplest useful AI feature for a real problem, evaluate it, and ship it with guardrails.
+
+FACT: AI products are probabilistic rather than deterministic, so they must be designed for uncertainty and evaluated statistically.
+FACT: AI features are usually built on foundation models accessed via APIs rather than trained from scratch, so their capabilities, limits, and costs matter.
+FACT: Reliable prompt engineering specifies role, task, context, and format, often requiring structured output, and prompts should be versioned and tested like code.
+FACT: Retrieval-augmented generation grounds AI features in your own current data for accurate answers without retraining.
+FACT: AI agents pursue goals over multiple steps using tools, which adds power but requires bounded capability and guardrails.
+FACT: Fine-tuning adapts a model when prompting and retrieval are insufficient, at added cost, so the lightest sufficient approach is preferred.
+FACT: AI features must be evaluated against realistic test sets scoring quality, accuracy, and safety, and re-tested on every change.
+FACT: Productionising AI (LLMOps) requires version control, cost and latency management, caching, retries, fallbacks, and quality monitoring.
+FACT: Good AI UX is designed for imperfection by showing sources, enabling correction, and keeping humans in control of important actions.
+FACT: Responsible AI engineering guards against hallucination, bias, privacy leaks, and prompt injection, with human oversight on high-stakes decisions.
+FACT: AI is a means not a goal, so AI features should start from a real user problem and be measured on value, adoption, and task success.

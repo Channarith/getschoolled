@@ -18,6 +18,7 @@ from aoep_shared.slang import default_lexicon
 from pydantic import BaseModel, Field
 
 from .curriculum import CurriculumStore, Lesson, Slide
+from .sessions import SessionStore, build_session_store
 
 
 class ChatTurn(BaseModel):
@@ -75,14 +76,32 @@ def _offline_answer(question: str, context: List[str]) -> str:
 
 
 class TeachingSessions:
-    """In-memory session manager for the live-class teaching loop."""
+    """Session manager for the live-class teaching loop.
 
-    def __init__(self, factory, curriculum: Optional[CurriculumStore] = None) -> None:
+    Session state is kept in a :class:`SessionStore` (in-memory by default, Redis
+    when ``REDIS_URL`` is configured) so it is shared across orchestrator
+    replicas - a follow-up ``advance``/``ask`` served by a different pod still
+    finds the session instead of 404ing. The per-lesson RAG indexes are a
+    deterministic, rebuildable cache and stay per-process.
+    """
+
+    def __init__(
+        self,
+        factory,
+        curriculum: Optional[CurriculumStore] = None,
+        store: Optional[SessionStore] = None,
+    ) -> None:
         self.factory = factory
         self.curriculum = curriculum or CurriculumStore()
         self.llm = factory.llm()
-        self.sessions: Dict[str, SessionState] = {}
+        self.store = store or build_session_store(SessionState)
         self._indexes: Dict[str, RagIndex] = {}
+
+    def _require(self, session_id: str) -> SessionState:
+        session = self.store.get(session_id)
+        if session is None:
+            raise KeyError(session_id)
+        return session  # type: ignore[return-value]
 
     def _index_for(self, lesson_id: str) -> RagIndex:
         if lesson_id not in self._indexes:
@@ -104,27 +123,29 @@ class TeachingSessions:
             class_type=class_type,
             lesson_id=lesson_id,
         )
-        self.sessions[session.session_id] = session
+        self.store.save(session)
         return session
 
     def get_session(self, session_id: str) -> SessionState:
-        return self.sessions[session_id]
+        return self._require(session_id)
 
     def lesson_for(self, session_id: str) -> Lesson:
-        return self.curriculum.get(self.sessions[session_id].lesson_id)  # type: ignore[return-value]
+        return self.curriculum.get(self._require(session_id).lesson_id)  # type: ignore[return-value]
 
     def current_slide(self, session_id: str) -> Slide:
-        session = self.sessions[session_id]
+        session = self._require(session_id)
         return self.lesson_for(session_id).slides[session.current_slide]
 
     def advance(self, session_id: str) -> Slide:
-        session = self.sessions[session_id]
-        last = len(self.lesson_for(session_id).slides) - 1
+        session = self._require(session_id)
+        lesson = self.curriculum.get(session.lesson_id)
+        last = len(lesson.slides) - 1  # type: ignore[union-attr]
         session.current_slide = min(session.current_slide + 1, last)
-        return self.current_slide(session_id)
+        self.store.save(session)
+        return lesson.slides[session.current_slide]  # type: ignore[union-attr]
 
     def ask(self, session_id: str, question: str, language: str = "en") -> Answer:
-        session = self.sessions[session_id]
+        session = self._require(session_id)
         # Understand culture-specific slang/idioms before retrieval/answering, so
         # "it's a piece of cake" is treated as "very easy".
         norm = default_lexicon().normalize(question, language=language)
@@ -155,6 +176,7 @@ class TeachingSessions:
         safe_text, report = guard_answer(text, context, question=question)
         session.history.append(ChatTurn(role="student", text=question))
         session.history.append(ChatTurn(role="teacher", text=safe_text))
+        self.store.save(session)
         return Answer(
             text=safe_text,
             citations=context,

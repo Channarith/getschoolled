@@ -1,0 +1,114 @@
+LESSON: Java Software Engineering
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Engineering
+LEVEL: Level 4 Apprenticeship
+ROLE: Software Developer
+DELIVERY: 13 month delivery, plus 3-4 month assessment
+FIT: New talent and individuals looking to reskill into software engineering.
+SUMMARY: Master Java software engineering and enable your team to build secure, scalable, maintainable applications.
+
+SLIDE 1 | What This Course Is About
+This course builds the foundations of professional software engineering using Java,
+one of the most widely used languages in enterprise software. You will learn to think
+like a programmer, write clean object-oriented code, use core tools and libraries,
+test your work, and collaborate like a professional. It is designed for newcomers and
+career-changers and takes you from first principles to building real applications.
+NARRATION: This course builds professional software engineering foundations in Java, from first principles to real apps.
+
+SLIDE 2 | How to Think Like a Programmer
+Programming is problem solving before it is typing. The core skill is breaking a
+problem into small, precise steps a computer can follow, then expressing them in code.
+Good engineers decompose problems, reason about edge cases, and test their assumptions.
+Learning the mindset, decompose, implement, verify, iterate, matters more than
+memorising syntax, which you will absorb with practice.
+NARRATION: Programming is problem solving: decompose problems into precise steps, then implement, verify, and iterate.
+
+SLIDE 3 | Java Basics: Types, Variables, Control Flow
+Java programs are built from variables that hold typed values, expressions that compute
+them, and control flow, if statements, loops, and methods, that decides what runs when.
+Java is statically typed, so the compiler checks types before the program runs, catching
+many mistakes early. These basics are the vocabulary of every program you will write.
+NARRATION: Java basics are typed variables, expressions, and control flow, with the compiler catching type errors early.
+
+SLIDE 4 | Object-Oriented Programming
+Java is object-oriented: programs are organised into classes that bundle data and the
+methods that act on it, and objects that are instances of those classes. The pillars,
+encapsulation, inheritance, and polymorphism, help model real things and keep code
+organised as it grows. OOP is how Java manages the complexity of large systems.
+NARRATION: Java organises code into classes and objects using encapsulation, inheritance, and polymorphism.
+
+SLIDE 5 | Data Structures and Collections
+Choosing how to store data shapes what your program can do efficiently. Java's
+collections, lists, sets, and maps, cover most needs: ordered sequences, unique items,
+and key-value lookups. Understanding the trade-offs, when a list versus a map fits, and
+roughly how costly operations are, lets you write code that stays fast as data grows.
+NARRATION: Java collections like lists, sets, and maps store data; pick the right one for efficiency.
+
+SLIDE 6 | Writing Clean, Maintainable Code
+Code is read far more often than it is written. Use clear names, small focused methods,
+consistent structure, and comments that explain why, not what. Avoid duplication and
+needless complexity. Clean code is not cosmetic: it is what lets a team understand,
+change, and extend software safely over years rather than fighting a tangle.
+NARRATION: Write clean code with clear names, small methods, and no duplication so a team can maintain it for years.
+
+SLIDE 7 | Error Handling and Robustness
+Real programs must cope with bad input, missing files, and failing networks. Java uses
+exceptions to signal and handle errors deliberately rather than crashing or silently
+producing wrong results. Robust software anticipates what can go wrong, fails safely,
+and gives useful messages. Handling errors well is a hallmark of professional code.
+NARRATION: Use exceptions to handle bad input and failures deliberately so software fails safely, not silently.
+
+SLIDE 8 | Tools: Build, Dependencies, and the JVM
+Professional Java uses build tools like Maven or Gradle to compile code, manage
+third-party libraries, and run tests reproducibly. Java code compiles to bytecode that
+runs on the Java Virtual Machine, which is why it runs across platforms. Knowing your
+tools, the build, dependencies, and the runtime, is part of being an effective engineer.
+NARRATION: Maven or Gradle build Java and manage libraries; code runs as bytecode on the cross-platform JVM.
+
+SLIDE 9 | Testing Your Code
+Automated tests prove your code works and keep it working as you change it. Unit tests
+check small pieces in isolation; integration tests check that parts work together.
+Writing tests, often with a framework like JUnit, catches regressions early and lets you
+refactor with confidence. Tested code is what makes ongoing change safe rather than scary.
+NARRATION: Automated unit and integration tests, e.g. with JUnit, prove code works and make change safe.
+
+SLIDE 10 | Databases and APIs
+Most applications store data in databases, accessed with SQL, and talk to other systems
+through APIs, often over HTTP returning JSON. Learning to read and write data reliably and
+to design and consume clean interfaces connects your Java code to the real world of
+persistent data and other services, which is what most enterprise software does.
+NARRATION: Applications use SQL databases for storage and HTTP/JSON APIs to talk to other systems.
+
+SLIDE 11 | Security and Reliability
+Engineers must build software that is safe and dependable. Validate all input, never
+trust data from users, protect against common vulnerabilities, manage secrets carefully,
+and handle sensitive data per policy. Combined with testing and error handling, security
+awareness turns code that merely works into code that can be trusted in production.
+NARRATION: Validate input, guard against vulnerabilities, and manage secrets to build secure, trustworthy software.
+
+SLIDE 12 | Working as a Professional Engineer
+Software is a team sport. Use version control and pull requests, review others' code and
+accept review of yours, write clear commit messages, and follow your team's conventions.
+Communicate, ask questions, and break work into small reviewable pieces. These
+professional habits matter as much as technical skill for building software that lasts.
+NARRATION: Engineering is collaborative: use version control, code review, and clear communication and conventions.
+
+SLIDE 13 | Course Summary and Next Steps
+You now have the foundations: the programmer's mindset, Java syntax and OOP, data
+structures, clean code, error handling, tooling, testing, data and APIs, and security.
+Build a small but complete application, store data, expose an API, test it, and put it in
+version control. Real skill comes from shipping working software, then improving it.
+NARRATION: Build a small complete app with storage, an API, tests, and version control to apply the foundations.
+
+FACT: Programming is primarily problem solving: decomposing a problem into precise steps, then implementing, verifying, and iterating.
+FACT: Java is statically typed, so the compiler checks types before the program runs and catches many errors early.
+FACT: Java is object-oriented, organising code into classes and objects using encapsulation, inheritance, and polymorphism.
+FACT: Java collections such as lists, sets, and maps store data, and choosing the right one affects efficiency.
+FACT: Clean code uses clear names, small focused methods, and no duplication so a team can maintain it over time.
+FACT: Java uses exceptions to signal and handle errors deliberately so software fails safely instead of crashing or producing wrong results.
+FACT: Build tools like Maven and Gradle compile Java, manage dependencies, and run tests, and Java bytecode runs on the cross-platform JVM.
+FACT: Automated unit and integration tests, often written with JUnit, catch regressions and let code be refactored with confidence.
+FACT: Most applications store data in SQL databases and communicate with other systems through APIs, often HTTP returning JSON.
+FACT: Secure software validates all input, guards against common vulnerabilities, and manages secrets carefully.
+FACT: Professional engineering is collaborative, relying on version control, code review, clear commit messages, and team conventions.

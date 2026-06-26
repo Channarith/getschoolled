@@ -1,0 +1,68 @@
+{
+  "course_id": "ai-solutions-builder",
+  "title": "AI Solutions Builder",
+  "level": "Level 4 Apprenticeship",
+  "role": "AI & Automation Practitioner",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "The difference between a chat assistant and a goal-directed AI agent that plans, calls tools and acts over multiple steps.",
+    "K2": "How to identify repetitive, high-volume, low-risk tasks suitable for automation.",
+    "K3": "The anatomy of an agentic workflow: trigger, reasoning, tool calls, checks and human handoff.",
+    "K4": "How tools and functions let agents act on real systems, and the need for clear inputs, outputs and limits.",
+    "K5": "Retrieval-augmented generation and how it grounds agents in organisational knowledge.",
+    "K6": "How an agent's system instructions define its role, tools, constraints and escalation.",
+    "K7": "Where human approval is required for high-stakes or irreversible actions.",
+    "K8": "How to evaluate AI solutions against realistic example cases.",
+    "K9": "Reliability, cost, latency and monitoring considerations for production agents.",
+    "K10": "Security risks such as data leakage and prompt injection, and the principle of least privilege for tools.",
+    "K11": "How to drive adoption and measure the before-and-after impact of a solution.",
+    "K12": "Responsible and governed automation agreed with stakeholders."
+  },
+  "skills": {
+    "S1": "Map and prioritise team tasks for automation by value and feasibility.",
+    "S2": "Design an agentic workflow with clear triggers, steps and handoffs.",
+    "S3": "Define and connect tools and functions with safe, bounded permissions.",
+    "S4": "Implement retrieval to ground an agent in trusted documents.",
+    "S5": "Write clear agent instructions including limits and escalation rules.",
+    "S6": "Build human-in-the-loop checkpoints for high-stakes actions.",
+    "S7": "Create evaluation sets and score agent quality, accuracy and safety.",
+    "S8": "Monitor agent failures, latency and cost and set sensible limits.",
+    "S9": "Guard against prompt injection and protect sensitive data.",
+    "S10": "Measure the impact of a solution such as hours saved and errors reduced.",
+    "S11": "Support colleagues to adopt and use AI solutions.",
+    "S12": "Apply governance and security agreed with stakeholders."
+  },
+  "behaviours": {
+    "B1": "Proactively spots opportunities to automate and improve.",
+    "B2": "Takes responsibility for the reliability and safety of solutions built.",
+    "B3": "Collaborates with teams as an AI champion.",
+    "B4": "Acts with integrity on data, security and governance.",
+    "B5": "Operates effectively amid technical complexity and uncertainty."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Identify and scope automatable work in the team.",
+      "ksbs": ["K1", "K2", "S1", "B1"]
+    },
+    "Duty 2": {
+      "statement": "Design and build agentic AI workflows.",
+      "ksbs": ["K3", "K4", "K6", "S2", "S3", "S5", "B5"]
+    },
+    "Duty 3": {
+      "statement": "Ground agents in organisational knowledge.",
+      "ksbs": ["K5", "S4", "B5"]
+    },
+    "Duty 4": {
+      "statement": "Keep solutions safe with human oversight and security.",
+      "ksbs": ["K7", "K10", "S6", "S9", "B4"]
+    },
+    "Duty 5": {
+      "statement": "Evaluate, monitor and run solutions reliably and affordably.",
+      "ksbs": ["K8", "K9", "S7", "S8", "B2"]
+    },
+    "Duty 6": {
+      "statement": "Drive adoption, measure impact and govern responsibly.",
+      "ksbs": ["K11", "K12", "S10", "S11", "S12", "B3", "B4"]
+    }
+  }
+}

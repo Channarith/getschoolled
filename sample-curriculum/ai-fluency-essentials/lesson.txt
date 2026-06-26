@@ -1,6 +1,12 @@
 LESSON: AI Fluency: Essentials for the Modern Workplace
 LANGUAGE: en
 AUDIENCE: corporate
+TRACK: AI
+LEVEL: Foundation
+ROLE: All employees
+DELIVERY: Self-paced
+FIT: Any professional who wants to use AI confidently and responsibly at work.
+SUMMARY: Build practical, everyday confidence using GenAI tools at work, no coding required.
 
 SLIDE 1 | What This Course Is About
 Welcome to AI Fluency, a corporate training course that helps any professional

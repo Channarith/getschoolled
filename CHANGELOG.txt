@@ -3,6 +3,58 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
+  (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
+  follow-up /api/sessions/{id}/advance|ask served by a different replica no
+  longer 404s "unknown session". Backend is env-selected like the rate limiter:
+  Redis when REDIS_URL is set (sessions JSON-serialised with a TTL, shared across
+  replicas), in-memory otherwise; a Redis blip degrades gracefully to in-memory
+  rather than failing the class. Pinned redis==5.0.7 for the orchestrator (no
+  manifest change needed - REDIS_URL is already in the aoep-config ConfigMap).
+  Tests cover both backends, the env factory, graceful fallback, and a two-pod
+  simulation (shared store serves the session; separate stores reproduce the 404).
+- 2026-06-25 - Corporate training: added a KSB (Knowledge/Skills/Behaviours)
+  framework that models each of the 11 corporate courses as a
+  UK-apprenticeship-style occupational standard (occupation duties mapped to
+  KSBs). Data lives next to each lesson at sample-curriculum/<course>/ksb.json
+  (ai-ml-fellowship uses the real ST1398 Machine Learning Engineer standard,
+  OGL v3.0; the rest authored to match the format). New numpy-backed
+  scripts/ksb/ package (framework.py with KSB_DTYPE/DUTY_DTYPE structured arrays,
+  KSBStandard with from_dict/from_json, validate, duty_matrix, npz save/load) and
+  scripts/build_ksb.py to load/validate/summarise and export .npz; all 11 validate
+  clean (every duty maps to existing KSBs; every KSB is exercised by a duty).
+  Orchestrator: loads ksb.json per course, adds GET /api/lessons/{id}/ksb, and
+  feeds duties/KSBs into the Tutor's RAG passages so the AI teacher can reference
+  what a programme covers.
+- 2026-06-25 - Corporate training: built out the full Multiverse-style catalog with
+  eight new AI-led programmes - AI-Powered Productivity (AI, L3), AI Solutions Builder
+  (AI, L4), AI Transformation Architect (AI, L4), Data Fellowship (Data, L4),
+  Applied Data Engineering (Data, L5), DevOps Engineering Upskiller (Engineering,
+  L4), Java Software Engineering (Engineering, L4) and AI Product Engineering
+  (Engineering, L6). 11 corporate programmes now grouped across AI/Data/Engineering
+  tracks; content-only (no code change), redeployed orchestrator.
+- 2026-06-25 - Orchestrator: import fastapi Response at module scope so the
+  /api/group-classes/{id}/calendar.ics route's return annotation resolves at
+  startup (pydantic 2.7 raised PydanticUndefinedAnnotation, crash-looping the pod).
+  Web: ClassRoom finish state is now a discriminated union (fixes a next build
+  typecheck error). Version 0.4.2 -> 0.4.3.
+- 2026-06-25 - Corporate training: Multiverse-style AI-led programme catalog. New
+  lessons "Data & Insights for Business Decisions" (Data) and "AI and Machine
+  Learning Fellowship" (AI); optional lesson catalog metadata (TRACK/LEVEL/ROLE/
+  DELIVERY/FIT/SUMMARY) parsed by the orchestrator and rendered as cards grouped
+  by track on /corporate. Added scripts/make_corporate_lesson.py to generate
+  lesson.txt from an openly-licensed outline (e.g. apprenticeship-standard KSBs).
+- 2026-06-25 - Mobile (Expo Go): fixed dynamic require() in src/nativeModules.ts
+  that broke Metro bundling (literal requires for the optional native modules).
+- 2026-06-25 - Auto-merge no longer deletes the merged branch (dropped
+  --delete-branch); merged PR branches are kept so releases can be monitored and
+  correlated to their source branch.
+- 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
+  Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
+  Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
+  (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
+  the Auto-merge workflow completing successfully; it still checks out main and
+  is idempotent (skips if the tag already exists).
 - 2026-06-25 - Locale mascots now vary by physique + pose, not just colour. Each
   of the 27 languages gets its own base carving with a slightly different build
   and arm/leg placement (e.g. sw broad grounded kneel, ja lean upright kneel, hi

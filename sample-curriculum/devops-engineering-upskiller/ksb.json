@@ -1,0 +1,68 @@
+{
+  "course_id": "devops-engineering-upskiller",
+  "title": "DevOps Engineering Upskiller",
+  "level": "Level 4 Apprenticeship",
+  "role": "DevOps Engineer",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "What DevOps is: a culture and set of practices uniting development and operations.",
+    "K2": "Version control and collaboration workflows: Git, branching and pull requests.",
+    "K3": "Continuous integration: automated build and test on every change.",
+    "K4": "Continuous delivery and deployment pipelines.",
+    "K5": "Infrastructure as code for reproducible environments.",
+    "K6": "Containers and Docker for portable, isolated applications.",
+    "K7": "Orchestration with Kubernetes for scale and resilience.",
+    "K8": "Monitoring, logging and observability.",
+    "K9": "Reliability and incident response, including blameless post-mortems.",
+    "K10": "Security in the pipeline (DevSecOps): scanning, secrets and least privilege.",
+    "K11": "Automation of toil and continuous improvement.",
+    "K12": "Measuring delivery speed and production stability."
+  },
+  "skills": {
+    "S1": "Collaborate using Git branching, pull requests and review.",
+    "S2": "Configure continuous integration with automated tests.",
+    "S3": "Build automated delivery and deployment pipelines.",
+    "S4": "Define infrastructure as code.",
+    "S5": "Build and run applications in containers.",
+    "S6": "Deploy and operate workloads on Kubernetes.",
+    "S7": "Implement metrics, logs, traces and alerting.",
+    "S8": "Run incident response and post-mortems.",
+    "S9": "Embed security scanning and secrets management in the pipeline.",
+    "S10": "Automate manual, repetitive release steps.",
+    "S11": "Measure and improve delivery and stability metrics.",
+    "S12": "Design for redundancy, recovery and cost-awareness."
+  },
+  "behaviours": {
+    "B1": "Proactively automates and removes toil.",
+    "B2": "Takes ownership of reliability and outcomes.",
+    "B3": "Collaborates across development and operations with shared ownership.",
+    "B4": "Acts with integrity on security and compliance.",
+    "B5": "Stays calm and effective during incidents and complexity."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Collaborate and integrate changes continuously.",
+      "ksbs": ["K1", "K2", "K3", "S1", "S2", "B3"]
+    },
+    "Duty 2": {
+      "statement": "Deliver and deploy software through automated pipelines.",
+      "ksbs": ["K4", "S3", "S10", "B1"]
+    },
+    "Duty 3": {
+      "statement": "Provision reproducible infrastructure and containers.",
+      "ksbs": ["K5", "K6", "S4", "S5", "B5"]
+    },
+    "Duty 4": {
+      "statement": "Operate workloads at scale with Kubernetes.",
+      "ksbs": ["K7", "S6", "S12", "B2"]
+    },
+    "Duty 5": {
+      "statement": "Observe, respond to incidents and improve reliability.",
+      "ksbs": ["K8", "K9", "K12", "S7", "S8", "S11", "B2", "B5"]
+    },
+    "Duty 6": {
+      "statement": "Build security into the pipeline.",
+      "ksbs": ["K10", "K11", "S9", "B1", "B4"]
+    }
+  }
+}

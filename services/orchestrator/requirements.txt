@@ -4,5 +4,8 @@ uvicorn[standard]==0.30.1
 pydantic==2.7.4
 pydantic-settings==2.3.4
 httpx==0.27.0
+# Shared live-class session store across replicas (orchestrator.sessions);
+# optional at runtime - falls back to in-memory when REDIS_URL is unset.
+redis==5.0.7
 pytest==8.2.2
 # Installed editable in dev: ../../packages/shared (eduplatform-shared)

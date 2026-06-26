@@ -1,0 +1,121 @@
+{
+  "course_id": "ai-ml-fellowship",
+  "title": "AI and Machine Learning Fellowship",
+  "level": "Level 6 Apprenticeship",
+  "role": "Machine Learning Engineer",
+  "source": "UK occupational standard ST1398 v1.0 (Machine learning engineer), Crown copyright, Open Government Licence v3.0",
+  "knowledge": {
+    "K1": "The purpose, methodologies and applications for ML AI solutions such as Machine Learning, Computer (Machine) Vision, batched learning systems, Robotics, Generative Transformer Models and Natural & Large Language Processing (NLP and LLMs) Models.",
+    "K2": "The stages of the machine learning lifecycle. Including establishing the model objectives, data preparation, building and training the model, ML problem framing, testing and evaluating the model using the preferred framework, deploying the modelling and monitoring, maintaining and updating the model using process frameworks such as Quality Assurance and either online, continuous (CLS) or batched learning systems.",
+    "K3": "Vulnerabilities related to confidentiality, authentication, non-repudiation, service integrity, network security, planned or unplanned adversarial danger, threat or attack, host OS security, physical security and the implications and preventative mitigations for these at all stages of the machine learning lifecycle.",
+    "K4": "Project Management methodologies and techniques for machine learning activities such as CRISP-ML Cross Industry Standard Process.",
+    "K5": "Differences and applications of machine learning methods, and models such as: supervised learning; semi supervised learning; unsupervised learning; natural language processing; reinforcement learning; ensemble learning; predictive using tools for experiment tracking, orchestration, versioning, deployment and monitoring.",
+    "K6": "The risks of deploying new methods and models.",
+    "K7": "How to identify and select the performance metrics of the proposed model in the context of the business need.",
+    "K8": "How variables and features impact model performance in testing and validating analytical models.",
+    "K9": "The importance of feature engineering, selection and pre-processing in effective machine learning.",
+    "K10": "Machine learning implementation principles for data engineering solutions including validity, quality, security, efficiency, training, testing and tuning.",
+    "K11": "How machine learning methods are applied to maximise the impact to the organisation.",
+    "K12": "Deployment approaches for new automated processes and data pipelines.",
+    "K13": "Data and information security standards, ethical practices, policies and procedures relevant to data management activities such as data lineage, data retention and metadata management.",
+    "K14": "Change management; recording and logging change for systems and toolsets.",
+    "K15": "The implications of security, scalability, infrastructure and cost of local, remote or distributed solutions.",
+    "K16": "How to use programming languages, integrated development environments and modern machine learning libraries.",
+    "K17": "Principles of sustainable data products and organisational responsibilities for environmental social governance.",
+    "K18": "The relationship between mathematical principles and core techniques in machine learning and data science within the organisational context.",
+    "K19": "How to solve problems and evaluate software solutions via analysis of test data and results from research, feasibility, acceptance and usability testing.",
+    "K20": "Sources of error and algorithmic bias, including how the choice of dataset may be affected, applied using practices and methodologies such as Explainable AI (XAI).",
+    "K21": "The methods and techniques used to communicate concepts and messages to meet the needs of the audience, adapting communication techniques accordingly.",
+    "K22": "Approaches and strategies to stakeholder engagement including engagement with the end user.",
+    "K23": "How machine learning and data science techniques support and enhance the work of other members of the team.",
+    "K24": "Concepts of data governance, including regulatory requirements, data privacy, security, trustworthiness and quality control.",
+    "K25": "Legislation, regulation, governance and guidance assurance frameworks for example AREA or SAFE D and their application to the safe interoperable use of data, machine learning and artificial intelligence.",
+    "K26": "The ethical aspects associated with the use and collation of data and machine learning models.",
+    "K27": "What the cyber security culture in an organisation is, and how it may contribute to security risk.",
+    "K28": "How to identify trends and emerging technologies to ensure knowledge is up to date with new developments in machine learning and AI such as AI embedded within tooling.",
+    "K29": "How own role supports ML solutions in accordance with organisational strategies, business requirements, Corporate Governance Principles, Social Corporate Responsibilities, legal regulations and Ethical Practices.",
+    "K30": "AI based approaches, including those provided by third-party vendors' (Application Programming Interfaces), into existing and new processes.",
+    "K31": "Software development best practices; for example, software testing, version control, continuous integration and continuous delivery."
+  },
+  "skills": {
+    "S1": "Assess vulnerabilities of the proposed design, to ensure that security considerations are built in from inception and throughout the development process.",
+    "S2": "Translate business needs and technical problems to scope machine learning engineering solutions.",
+    "S3": "Select and engineer data sets, algorithms and modelling techniques required to develop the machine learning solution.",
+    "S4": "Apply methodologies and project management techniques for the machine learning activities.",
+    "S5": "Create and deploy models to produce machine learning solutions.",
+    "S6": "Document the creation, operation and lifecycle management of assets during the model lifecycle.",
+    "S7": "Apply techniques for output model testing and tuning to assess accuracy, fit, validity and robustness.",
+    "S8": "Assess system vulnerabilities and mitigate the threats or risks to assets, data and cyber security.",
+    "S9": "Refine or re-engineer the model to improve solution performance.",
+    "S10": "Apply techniques for monitoring models in the live environment to check they remain fit for purpose and stable.",
+    "S11": "Consider the associated regulatory, legal, ethical and governance issues when evaluating choices at each stage of the data process.",
+    "S12": "Apply machine learning and data science techniques to solve complex business problems.",
+    "S13": "Track and test continual learning models.",
+    "S14": "Analyse test data, interpret results and evaluate the suitability of proposed solutions both new and inherited models, considering current and future business requirements.",
+    "S15": "Identify, consider and advocate for ML solutions to deliver an environmental and operational sustainable outcome.",
+    "S16": "Transition prototypes into the live environment.",
+    "S17": "Complete audit activities in compliance with policies, governance, industry regulation and standards.",
+    "S18": "Consider the risks with using digital and physical supply chains.",
+    "S19": "Ensure the model capacity is scaled in proportion to the operating requirements.",
+    "S20": "Support the evaluation and validation of machine learning models and statistical evidence to minimise algorithmic bias being introduced.",
+    "S21": "Monitor data curation and data quality controls including for synthetic data.",
+    "S22": "Identify and select the machine learning or artificial intelligence platform architecture and specific hardware, to contribute to solving a computational problem using allocated resources.",
+    "S23": "Identify and embed changes in work to deliver sustainable outcomes.",
+    "S24": "Monitor model data drift, using performance metrics to ensure systems are robust when moving outside of their domain of applicability.",
+    "S25": "Develop a process to decommission assets in line with policy and procedures. Manage current and legacy models in line with industry approaches.",
+    "S26": "Undertake independent, impartial decision-making respecting the opinions and views of others in complex, unpredictable and changing circumstances.",
+    "S27": "Coordinate, negotiate with and manage expectations of diverse stakeholders suppliers and multi-disciplinary teams with conflicting priorities, interests and timescales.",
+    "S28": "Produce and maintain technical documentation explaining the data product, that meets organisational, technical and non-technical user requirements, retaining critical information.",
+    "S29": "Create and disseminate reports, presentations and other documentation that details the model development to confirm stakeholder approval for handover to implementation.",
+    "S30": "Comply with equality, diversity, and inclusion policies and procedures in the workplace.",
+    "S31": "Horizon scan to identify new technological developments that offer increased performance of data products.",
+    "S32": "Apply Machine Learning principles and standards such as, organisational policies, procedures or professional body requirements.",
+    "S33": "Integrate AI-based approaches, including those provided by third-party vendors' Application Programming Interfaces, into existing and new processes.",
+    "S34": "Proactive identification of the potential for automation for example through AI solutions embedded within tooling."
+  },
+  "behaviours": {
+    "B1": "Uses initiative and innovation concerning new and emerging technologies through self directed learning and horizon scanning.",
+    "B2": "Takes personal responsibility and prioritises sustainable outcomes in how they carry out the duties of their role.",
+    "B3": "Acts inclusively when collaborating with people from technical and non-technical backgrounds. Contributing to knowledge sharing, management and empowerment across the broader team.",
+    "B4": "Acts with integrity, giving due regard to legal, ethical and regulatory requirements.",
+    "B5": "Operates in settings of technical complexity and uncertainty."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Ensure that machine learning and artificial intelligence engineered solutions are implemented in a safe, trusted and responsible manner.",
+      "ksbs": ["K24", "K25", "K26", "K29", "K30", "K31", "S29", "S32", "S33", "B4", "B5"]
+    },
+    "Duty 2": {
+      "statement": "Plan the engineering development of machine learning applications and frameworks.",
+      "ksbs": ["K1", "K2", "K3", "K4", "K11", "K18", "K31", "S1", "S2", "S3", "S4", "S15", "B1"]
+    },
+    "Duty 3": {
+      "statement": "Develop, test, stage and build in a pre-production environment, prototyping machine learning products and solutions including experiment and tracking.",
+      "ksbs": ["K2", "K3", "K5", "K6", "K7", "K8", "K9", "K10", "K16", "K31", "S1", "S2", "S5", "S6", "S7", "S8", "S9", "S14"]
+    },
+    "Duty 4": {
+      "statement": "Monitor and support machine learning models through operational deployment in the live environment.",
+      "ksbs": ["K8", "K12", "K13", "K15", "K30", "K31", "S10", "S13", "S16", "S17", "S19", "S33", "S34"]
+    },
+    "Duty 5": {
+      "statement": "Monitor the operating resource implications of machine learning systems within the agreed parameters for the service. Develop scalable and environmentally sustainable systems.",
+      "ksbs": ["K7", "K11", "K14", "K15", "K17", "K21", "K22", "K30", "S12", "S18", "S19", "S21", "S22", "S23", "S33", "B2"]
+    },
+    "Duty 6": {
+      "statement": "Deliver responsive technical engineering support services; to mitigate operational impact whilst ensuring business continuity.",
+      "ksbs": ["K19", "K20", "K21", "K27", "K31", "S21", "S22", "S24", "S26", "S28", "B5"]
+    },
+    "Duty 7": {
+      "statement": "Develop and maintain collaborative stakeholder relationships to ensure buy-in; and provide development updates and auditable records of project and stakeholder engagement.",
+      "ksbs": ["K21", "K22", "K23", "K27", "K29", "S27", "S29", "S30"]
+    },
+    "Duty 8": {
+      "statement": "Ensure compliance with data governance, ethics and cyber security.",
+      "ksbs": ["K24", "K25", "K26", "K27", "S8", "S11", "S20", "S21", "S25", "S30", "B3", "B4"]
+    },
+    "Duty 9": {
+      "statement": "Keep up to date with technological engineering developments in machine learning data science, data engineering and artificial intelligence to advance own skills and knowledge.",
+      "ksbs": ["K28", "K29", "S31", "B1", "B2", "B5"]
+    }
+  }
+}

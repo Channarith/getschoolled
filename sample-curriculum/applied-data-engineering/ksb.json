@@ -1,0 +1,68 @@
+{
+  "course_id": "applied-data-engineering",
+  "title": "Applied Data Engineering",
+  "level": "Level 5 Apprenticeship",
+  "role": "Data Engineer",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "The data engineer's role in building reliable pipelines and platforms.",
+    "K2": "Data pipelines and the difference between ETL and ELT.",
+    "K3": "Batch versus streaming processing and when each is appropriate.",
+    "K4": "Storage options: warehouses, lakes and lakehouses.",
+    "K5": "Data modelling for analytics, such as dimensional modelling.",
+    "K6": "Data quality and validation as a first-class concern.",
+    "K7": "Orchestration, scheduling and dependency management.",
+    "K8": "Scalability and performance techniques such as partitioning, indexing and distributed processing.",
+    "K9": "Reliability, monitoring and cost control for pipelines.",
+    "K10": "Governance, security, lineage and privacy at scale.",
+    "K11": "Software engineering practices for pipelines: version control, tests and CI/CD.",
+    "K12": "How platform choices balance cost, flexibility and performance."
+  },
+  "skills": {
+    "S1": "Design repeatable, recoverable data pipelines.",
+    "S2": "Implement ETL/ELT to move and transform data.",
+    "S3": "Choose batch or streaming based on freshness needs.",
+    "S4": "Select and model storage for different consumers.",
+    "S5": "Build automated data-quality checks.",
+    "S6": "Orchestrate jobs with dependencies, retries and alerts.",
+    "S7": "Apply partitioning, indexing and efficient formats for scale.",
+    "S8": "Monitor pipeline success, latency, freshness and cost.",
+    "S9": "Apply least-privilege access, encryption and lineage.",
+    "S10": "Comply with privacy regulation and document datasets.",
+    "S11": "Use version control, tests and CI/CD for pipelines.",
+    "S12": "Operate and recover platforms reliably and affordably."
+  },
+  "behaviours": {
+    "B1": "Proactive in improving and automating data infrastructure.",
+    "B2": "Takes responsibility for reliability and cost.",
+    "B3": "Collaborates with data consumers and stakeholders.",
+    "B4": "Acts with integrity on data governance and privacy.",
+    "B5": "Operates effectively amid scale and complexity."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Design and build data pipelines.",
+      "ksbs": ["K1", "K2", "K3", "S1", "S2", "S3", "B1"]
+    },
+    "Duty 2": {
+      "statement": "Select and model storage for analytics.",
+      "ksbs": ["K4", "K5", "K12", "S4", "B5"]
+    },
+    "Duty 3": {
+      "statement": "Ensure data quality and orchestrate jobs.",
+      "ksbs": ["K6", "K7", "S5", "S6", "B2"]
+    },
+    "Duty 4": {
+      "statement": "Scale and optimise performance and cost.",
+      "ksbs": ["K8", "K9", "S7", "S8", "B2", "B5"]
+    },
+    "Duty 5": {
+      "statement": "Govern, secure and protect data at scale.",
+      "ksbs": ["K10", "S9", "S10", "B4"]
+    },
+    "Duty 6": {
+      "statement": "Apply engineering practices and operate reliably.",
+      "ksbs": ["K11", "S11", "S12", "B1", "B3"]
+    }
+  }
+}
