@@ -66,7 +66,7 @@ def test_onboarding_standard_plan_pricing():
 
 
 def test_login_history_recorded():
-    tok = _signup("hist@example.com")
+    tok = _signup("hist-unique-2025@example.com")
     h = {"Authorization": f"Bearer {tok}"}
     events = client.get("/auth/login-history", headers=h).json()["events"]
     assert len(events) >= 1

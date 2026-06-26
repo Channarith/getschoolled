@@ -147,7 +147,6 @@ class Account(BaseModel):
     totp_enabled: bool = False
     oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
     passkeys: List[PasskeyCredential] = Field(default_factory=list)
-    membership_class: str = "standard"   # standard | vip (derived from tier)
     onboarding_completed_at: Optional[float] = None
     billing_address: Optional[BillingAddress] = None
     card_last4: str = ""

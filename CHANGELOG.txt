@@ -2,6 +2,27 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Teaching Brain: wire the per-student live teaching loop. The
+  orchestrator now persists one Director + counters per session, records
+  behavior/mastery to the memory service (new MEMORY_URL / memory_base_url; best-
+  effort stdlib client that fails open to neutral signals when memory is unset or
+  unreachable), adapts /assessment/quiz difficulty from the learner's mastery
+  signals via AdaptivePolicy (anonymous callers unchanged at MEDIUM), persists
+  graded outcomes so the next quiz adapts, and adds POST
+  /api/sessions/{id}/reengage to render the Director's REENGAGING state. Closes
+  the README's "not yet a tick-by-tick per-student loop" gap. New tests:
+  test_memory_client, test_live_loop_e2e, test_reengage_api. Web: the Live Class
+  page (apps/web/app/class) now has an "I'm lost — refocus" button that calls
+  /reengage, shows the slide-grounded recap in the chat (spoken aloud), and
+  pre-fills the ask box with the check-in prompt. The class page also threads a
+  stable per-browser student_id (getStudentId) into the session and adds a
+  "🎯 Quiz me" panel that calls /assessment/quiz + /assessment/grade with that id
+  and topic == lesson_id, showing a difficulty badge that adapts (medium → hard)
+  as the learner's mastery rises. Review hardening: memory
+  client splits write (1.0s) vs read (2.0s) timeouts to bound brownout latency
+  on the teaching hot path, logs swallowed failures at debug (so a misconfigured
+  MEMORY_URL is diagnosable), and reengage degrades gracefully on a zero-slide
+  lesson instead of 500ing.
 - Local dev launcher + live-integration wiring: new scripts/dev_up.sh (make
   dev-all) brings the WHOLE stack up natively - all 8 FastAPI services + the
   Next.js web app - in the background, wired together, idempotent, with health

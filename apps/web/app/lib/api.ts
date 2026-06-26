@@ -111,8 +111,32 @@ export function clearToken(): void {
   notifyAuthChange();
 }
 
-// Legacy preview flag (no longer unlocks the catalog). Kept so older sessions
-// can clear the bit on sign-out; nav and catalog pages require a real token.
+// Stable per-browser learner id for the adaptive teaching loop. The memory
+// service keys mastery/behavior by (student_id, topic), so a persisted id lets
+// quizzes adapt to this learner across reloads. A real deployment would use the
+// authenticated account id; this keeps the loop working without the identity
+// service running.
+const STUDENT_KEY = "aoep_student_id";
+
+export function getStudentId(): string {
+  try {
+    let id = localStorage.getItem(STUDENT_KEY);
+    if (!id) {
+      id =
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `stu-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(STUDENT_KEY, id);
+    }
+    return id;
+  } catch {
+    return "anon-student";
+  }
+}
+
+// "Preview" lets a signed-out visitor browse the catalog before creating an
+// account. It is persisted so the choice survives navigation/reload, and gates
+// the content nav tabs (hidden until the visitor logs in OR opts into preview).
 export function getPreview(): boolean {
   try {
     return localStorage.getItem(PREVIEW_KEY) === "1";
@@ -208,6 +232,15 @@ export type OnboardingStatus = {
   billing_validated: boolean;
 };
 
+export type LoginEvent = {
+  ts: number;
+  success: boolean;
+  ip: string;
+  user_agent: string;
+  country_hint: string;
+  method?: string;
+};
+
 export type AdSlotPayload = {
   show: boolean;
   slot_id?: string;
@@ -226,6 +259,47 @@ export type AdSlotPayload = {
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/onboarding-status`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/setup`, { method: "POST", headers: authHeaders() })
+  );
+}
+
+export async function confirm2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/confirm`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export async function disable2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/disable`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function getSecuritySummary(): Promise<{
+  totp_enabled: boolean;
+  passkeys: { credential_id: string; label: string }[];
+  oauth_linked: boolean;
+  recent_logins: LoginEvent[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/security`, { headers: authHeaders(), cache: "no-store" })
   );
 }
 
@@ -296,7 +370,7 @@ export async function signup(email: string, password: string, displayName: strin
 }
 
 export async function login(email: string, password: string):
-  Promise<{ token: string; account: Account; requires_2fa?: boolean; mfa_token?: string }> {
+  Promise<{ token: string; account: Account }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
@@ -348,56 +422,6 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ access_token: accessToken }),
     })
-  );
-}
-
-export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/2fa/setup`, { method: "POST", headers: authHeaders() })
-  );
-}
-
-export async function confirm2fa(code: string): Promise<{ enabled: boolean }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/2fa/confirm`, {
-      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ code }),
-    })
-  );
-}
-
-export async function disable2fa(code: string): Promise<{ enabled: boolean }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/2fa/disable`, {
-      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ code }),
-    })
-  );
-}
-
-export type LoginEvent = {
-  ts: number;
-  success: boolean;
-  ip: string;
-  user_agent: string;
-  country_hint: string;
-  method: string;
-};
-
-export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" })
-  );
-}
-
-export async function getSecuritySummary(): Promise<{
-  totp_enabled: boolean;
-  passkeys: { credential_id: string; label: string }[];
-  oauth_linked: boolean;
-  recent_logins: LoginEvent[];
-}> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/security`, { headers: authHeaders(), cache: "no-store" })
   );
 }
 
@@ -806,12 +830,8 @@ export type GamesCatalog = {
   subjects_localized?: SubjectInfo[];
   game_types: GameTypeInfo[];
   age_groups: AgeGroupInfo[];
-  locales?: string[];
 };
-export type GameItem = {
-  id: string; prompt: string; options: string[];
-  kind?: string; meta?: Record<string, unknown>;
-};
+export type GameItem = { id: string; prompt: string; options: string[]; kind?: string; meta?: Record<string, unknown> };
 export type GameTerm = { id: string; term: string };
 export type GameOption = { id: string; text: string };
 export type GameRound = {
@@ -836,12 +856,12 @@ export async function getGamesCatalog(locale = "en"): Promise<GamesCatalog> {
 }
 
 export async function newGame(
-  subject: string, gameType: string, ageGroup = "teen", n = 5, locale = "en"
+  subject: string, gameType: string, ageGroup = "teen", n = 5
 ): Promise<GameRound> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/games/new`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n, locale }),
+      body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n }),
     })
   );
 }
@@ -944,6 +964,15 @@ export type Answer = {
   reward?: { points: number; reason: string; grant_token: string } | null;
 };
 
+// Re-engagement beat: the Director's REENGAGING action rendered as a short,
+// slide-grounded recap plus a low-stakes prompt to pull a drifting learner back
+// in. Returned by POST /api/sessions/{id}/reengage.
+export type Reengagement = {
+  text: string;
+  prompt?: string | null;
+  citations: string[];
+};
+
 // Redeem an AI-agent reward voucher to the current account. The identity
 // service verifies the agent's HMAC signature before crediting.
 export async function grantReward(grant: string):
@@ -978,13 +1007,86 @@ export async function listLessons(): Promise<Lesson[]> {
 
 export async function startSession(
   lessonId: string,
-  classType: string
+  classType: string,
+  studentId?: string
 ): Promise<SessionView> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lesson_id: lessonId, class_type: classType }),
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        class_type: classType,
+        student_id: studentId ?? null,
+      }),
+    })
+  );
+}
+
+// --- adaptive quiz + grade (per-student difficulty) ---------------------- //
+export type QuizItemView = {
+  item_id: string;
+  topic: string;
+  prompt: string;
+  options: string[];
+  answer_index: number;
+  difficulty: string;
+};
+
+export type QuizGrade = {
+  item_id: string;
+  correct: boolean;
+  mastery_target: number;
+  difficulty: string;
+};
+
+// Fetch an adaptive quiz. When studentId is set, the orchestrator picks
+// difficulty from this learner's mastery signals (memory service); otherwise it
+// stays MEDIUM. Pass topic == lessonId so quiz/grade and the live loop's
+// slide/question signals aggregate under the same key.
+export async function getQuiz(args: {
+  topic: string;
+  passages: string[];
+  studentId?: string;
+  classType?: string;
+  maxItems?: number;
+}): Promise<{ items: QuizItemView[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/quiz`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        topic: args.topic,
+        passages: args.passages,
+        max_items: args.maxItems ?? 3,
+        student_id: args.studentId ?? null,
+        class_type: args.classType ?? "group",
+      }),
+    })
+  );
+}
+
+// Grade an answered item. When studentId + topic are set, the outcome updates
+// this learner's mastery (BKT) so the NEXT quiz adapts its difficulty.
+export async function gradeQuiz(args: {
+  item: QuizItemView;
+  chosenIndex: number;
+  studentId?: string;
+  topic?: string;
+}): Promise<QuizGrade> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        item_id: args.item.item_id,
+        options: args.item.options,
+        answer_index: args.item.answer_index,
+        chosen_index: args.chosenIndex,
+        difficulty: args.item.difficulty,
+        topic: args.topic ?? args.item.topic,
+        student_id: args.studentId ?? null,
+      }),
     })
   );
 }
@@ -1093,6 +1195,16 @@ export async function advance(sessionId: string): Promise<Slide> {
   );
 }
 
+// Ask the teaching brain to re-engage a drifting learner: a recap of the current
+// slide plus a quick prompt. Surfaced as the "I'm lost — refocus" action.
+export async function reengage(sessionId: string): Promise<Reengagement> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/reengage`, {
+      method: "POST",
+    })
+  );
+}
+
 export type ClassQuizItem = {
   item_id: string;
   prompt: string;
@@ -1134,33 +1246,6 @@ export async function gradeQuizItem(
   );
 }
 
-export async function gradeClassQuiz(
-  topic: string,
-  answers: Record<string, number>,
-  difficulty = "medium",
-): Promise<{ score: number; mastery_target: number; feedback: string[] }> {
-  return jsonOrThrow(
-    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic, answers, difficulty }),
-    })
-  );
-}
-
-export async function checkContentAccess(
-  studentId: string,
-  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
-): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify(body),
-    })
-  );
-}
-
 export async function recordBehavior(event: {
   student_id: string;
   topic: string;
@@ -1180,9 +1265,7 @@ export async function recordBehavior(event: {
 }
 
 export async function updateTopicMastery(
-  studentId: string,
-  topic: string,
-  correct: boolean,
+  studentId: string, topic: string, correct: boolean,
 ): Promise<{ mastery: number }> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/mastery`, {
@@ -1224,8 +1307,7 @@ export async function getLearningExperience(studentId: string): Promise<{
 }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-experience`, {
-      headers: authHeaders(),
-      cache: "no-store",
+      headers: authHeaders(), cache: "no-store",
     })
   );
 }
@@ -1236,16 +1318,13 @@ export async function getStudentAdaptation(studentId: string): Promise<{
 }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
-      headers: authHeaders(),
-      cache: "no-store",
+      headers: authHeaders(), cache: "no-store",
     })
   );
 }
 
 export async function recordAdaptationEvent(
-  studentId: string,
-  eventType: string,
-  payload: Record<string, unknown>,
+  studentId: string, eventType: string, payload: Record<string, unknown>,
 ): Promise<{ adaptation: Record<string, unknown> }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
@@ -1257,15 +1336,41 @@ export async function recordAdaptationEvent(
 }
 
 export async function recordWellnessCheckIn(
-  studentId: string,
-  state: string,
-  reason = "",
+  studentId: string, state: string, reason = "",
 ): Promise<{ adaptation: Record<string, unknown> }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/wellness`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ state, reason }),
+    })
+  );
+}
+
+export async function getPulseSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/pulse?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitPulseSurvey(payload: {
+  course_id: string;
+  going_well: number;
+  pace: string;
+  class_type?: string;
+  student_id?: string | null;
+  slide_index?: number;
+  teaching_strategy?: string;
+  working_best?: string | null;
+}): Promise<{ id: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/pulse`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
     })
   );
 }
@@ -1425,34 +1530,6 @@ export async function submitPostClassSurvey(payload: {
 }): Promise<{ id: string; recorded: boolean }> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/survey/post-class`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-  );
-}
-
-export async function getPulseSurvey(
-  subject?: string, tier?: string
-): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
-  const qs = new URLSearchParams();
-  if (subject) qs.set("subject", subject);
-  if (tier) qs.set("tier", tier);
-  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/pulse?${qs.toString()}`, { cache: "no-store" }));
-}
-
-export async function submitPulseSurvey(payload: {
-  course_id: string;
-  going_well: number;
-  pace: string;
-  class_type?: string;
-  student_id?: string | null;
-  slide_index?: number;
-  teaching_strategy?: string;
-  working_best?: string | null;
-}): Promise<{ id: string; recorded: boolean }> {
-  return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/survey/pulse`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),

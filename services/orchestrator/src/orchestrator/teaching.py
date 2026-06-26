@@ -9,6 +9,7 @@ retrieved passages) so the live demo works without a running model server.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from aoep_shared.groundedness import guard_answer
@@ -19,6 +20,8 @@ from aoep_shared.dialect import humanize_narration, tutor_tone_hint
 from pydantic import BaseModel, Field
 
 from .curriculum import CurriculumStore, Lesson, Slide
+from .director import Director
+from .memory_client import MemoryClient
 from .sessions import SessionStore, build_session_store
 
 
@@ -63,6 +66,31 @@ class SessionView(BaseModel):
     slide: Slide
 
 
+class Reengagement(BaseModel):
+    """A re-engagement beat: a short recap to pull a drifting learner back in."""
+
+    text: str
+    prompt: Optional[str] = None
+    citations: List[str] = Field(default_factory=list)
+
+
+@dataclass
+class SessionCounters:
+    """Per-session learning state the Director and memory loop accumulate.
+
+    Kept off the Pydantic ``SessionState`` (which is serialized into responses)
+    so the API shape is unchanged; lives in-process alongside the session.
+    """
+
+    student_id: Optional[str] = None
+    slides_seen: int = 0
+    slides_since_quiz: int = 0
+    questions_asked: int = 0
+    quiz_total: int = 0
+    quiz_correct: int = 0
+    last_attention: float = 1.0
+
+
 def _offline_answer(question: str, context: List[str]) -> str:
     if context:
         snippet = " ".join(" ".join(context).split())[:400]
@@ -90,6 +118,7 @@ class TeachingSessions:
         self,
         factory,
         curriculum: Optional[CurriculumStore] = None,
+        memory_base_url: Optional[str] = None,
         store: Optional[SessionStore] = None,
     ) -> None:
         self.factory = factory
@@ -97,6 +126,12 @@ class TeachingSessions:
         self.llm = factory.llm()
         self.store = store or build_session_store(SessionState)
         self._indexes: Dict[str, RagIndex] = {}
+        # Per-session Director + counters persist across slide/quiz/ask ticks so
+        # adaptive decisions accumulate for the same learner during a class.
+        self._directors: Dict[str, Director] = {}
+        self._counters: Dict[str, SessionCounters] = {}
+        # Best-effort memory client (neutral/no-op when MEMORY_URL is unset).
+        self.memory = MemoryClient(memory_base_url)
 
     def _require(self, session_id: str) -> SessionState:
         session = self.store.get(session_id)
@@ -116,7 +151,9 @@ class TeachingSessions:
     def list_lessons(self) -> List[Lesson]:
         return self.curriculum.list_lessons()
 
-    def start_session(self, lesson_id: str, class_type: str) -> SessionState:
+    def start_session(
+        self, lesson_id: str, class_type: str, student_id: Optional[str] = None
+    ) -> SessionState:
         if self.curriculum.get(lesson_id) is None:
             raise KeyError(lesson_id)
         session = SessionState(
@@ -125,10 +162,25 @@ class TeachingSessions:
             lesson_id=lesson_id,
         )
         self.store.save(session)
+        # One persistent Director + counters per session (the live loop's state).
+        self._directors[session.session_id] = Director()
+        self._counters[session.session_id] = SessionCounters(student_id=student_id)
         return session
 
     def get_session(self, session_id: str) -> SessionState:
         return self._require(session_id)
+
+    def director_for(self, session_id: str) -> Director:
+        """The persistent Director for this session (created on demand for
+        sessions that predate Director wiring)."""
+        if self.store.get(session_id) is None:
+            raise KeyError(session_id)
+        return self._directors.setdefault(session_id, Director())
+
+    def counters_for(self, session_id: str) -> SessionCounters:
+        if self.store.get(session_id) is None:
+            raise KeyError(session_id)
+        return self._counters.setdefault(session_id, SessionCounters())
 
     def lesson_for(self, session_id: str) -> Lesson:
         return self.curriculum.get(self._require(session_id).lesson_id)  # type: ignore[return-value]
@@ -143,7 +195,17 @@ class TeachingSessions:
         last = len(lesson.slides) - 1  # type: ignore[union-attr]
         session.current_slide = min(session.current_slide + 1, last)
         self.store.save(session)
-        return lesson.slides[session.current_slide]  # type: ignore[union-attr]
+        counters = self.counters_for(session_id)
+        counters.slides_seen += 1
+        counters.slides_since_quiz += 1
+        if counters.student_id:
+            # Behavior here is keyed by lesson_id; the quiz/grade loop keys by its
+            # request topic, so callers must pass topic == lesson_id for the two
+            # signal streams to merge for the same learner+topic.
+            self.memory.record_behavior(
+                counters.student_id, session.lesson_id, saw_slide=True
+            )
+        return self.current_slide(session_id)
 
     def ask(self, session_id: str, question: str, language: str = "en",
             dialect: str | None = None) -> Answer:
@@ -184,6 +246,12 @@ class TeachingSessions:
         session.history.append(ChatTurn(role="student", text=question))
         session.history.append(ChatTurn(role="teacher", text=safe_text))
         self.store.save(session)
+        counters = self.counters_for(session_id)
+        counters.questions_asked += 1
+        if counters.student_id:
+            self.memory.record_behavior(
+                counters.student_id, session.lesson_id, asked_question=True
+            )
         return Answer(
             text=safe_text,
             citations=context,
@@ -193,3 +261,24 @@ class TeachingSessions:
             hallucination_risk=report.hallucination_risk,
             unsupported=report.unsupported,
         )
+
+    def reengage(self, session_id: str) -> Reengagement:
+        """A deterministic, slide-grounded re-engagement beat (the REENGAGING
+        action a low-attention learner gets), rendered without a model server so
+        the offline demo and tests stay stable.
+        """
+        lesson = self.lesson_for(session_id)  # raises KeyError on unknown session
+        if not lesson.slides:
+            return Reengagement(
+                text="Let's refocus. Take a breath and let's pick up the lesson.",
+                prompt="What would you like to revisit?",
+            )
+        slide = self.current_slide(session_id)
+        # Fall back to the title so the recap/citation is never blank.
+        recap = " ".join((slide.narration or slide.body or slide.title).split())[:300]
+        text = (
+            f"Let's take a quick breath and refocus. Remember, we're on "
+            f'"{slide.title}": {recap}'
+        ).strip()
+        prompt = f'In your own words, what\'s the main idea of "{slide.title}"?'
+        return Reengagement(text=text, prompt=prompt, citations=[f"{slide.title}: {recap}"])

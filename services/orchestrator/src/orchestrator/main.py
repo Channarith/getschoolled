@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from aoep_shared.adaptive import Difficulty, LearnerSignals, Pacing
+from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
 from aoep_shared.assessment import (
     GradeResult,
     QuizItem,
@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
 from .director import ClassContext, Director, LessonState
-from .teaching import Answer, SessionView, TeachingSessions
+from .teaching import Answer, Reengagement, SessionView, TeachingSessions
 
 app = create_service("orchestrator")
 
@@ -70,7 +70,9 @@ _sessions: TeachingSessions | None = None
 def get_sessions() -> TeachingSessions:
     global _sessions
     if _sessions is None:
-        _sessions = TeachingSessions(app.state.factory)
+        _sessions = TeachingSessions(
+            app.state.factory, memory_base_url=app.state.config.memory_base_url
+        )
     return _sessions
 
 
@@ -139,6 +141,9 @@ def join_class(room: str, identity: str) -> JoinResponse:
 class StartSessionRequest(BaseModel):
     lesson_id: str
     class_type: ClassType = ClassType.GROUP
+    # When set, the live loop records per-student behavior/mastery to the memory
+    # service so quizzes + pacing adapt to this learner.
+    student_id: str | None = None
 
 
 class AskRequest(BaseModel):
@@ -168,7 +173,9 @@ def api_lesson_ksb(lesson_id: str) -> CourseKSB:
 def api_start_session(req: StartSessionRequest) -> SessionView:
     sessions = get_sessions()
     try:
-        state = sessions.start_session(req.lesson_id, req.class_type.value)
+        state = sessions.start_session(
+            req.lesson_id, req.class_type.value, student_id=req.student_id
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
     return SessionView(
@@ -234,6 +241,16 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
     # so the agent authorizes the reward and a user cannot forge or replay it.
     _maybe_grant_reward(session_id, req.text, answer)
     return answer
+
+
+@app.post("/api/sessions/{session_id}/reengage", response_model=Reengagement)
+def api_reengage(session_id: str) -> Reengagement:
+    """Re-engage a drifting learner (the REENGAGING beat): a slide-grounded recap
+    + prompt. Deterministic; no model server required."""
+    try:
+        return get_sessions().reengage(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
 
 
 _AGENT_REWARD_POINTS = int(os.environ.get("AGENT_REWARD_POINTS", "10"))
@@ -613,6 +630,10 @@ class QuizRequest(BaseModel):
     topic: str
     passages: list[str]
     max_items: int = 4
+    # When student_id is set, difficulty adapts to the learner's mastery signals
+    # (pulled from the memory service) instead of the static MEDIUM default.
+    student_id: str | None = None
+    class_type: ClassType = ClassType.GROUP
 
 
 class QuizItemView(BaseModel):
@@ -635,6 +656,9 @@ class GradeRequest(BaseModel):
     chosen_index: int
     difficulty: Difficulty = Difficulty.MEDIUM
     topic: str = ""
+    # When set, the outcome updates the learner's mastery in the memory service,
+    # closing the loop so the next quiz adapts its difficulty.
+    student_id: str | None = None
 
 
 class GradeResponse(BaseModel):
@@ -646,8 +670,14 @@ class GradeResponse(BaseModel):
 
 @app.post("/assessment/quiz", response_model=QuizResponse)
 def assessment_quiz(req: QuizRequest) -> QuizResponse:
+    # Adapt difficulty to the learner when we know who they are; otherwise keep
+    # the static MEDIUM default (unchanged behavior for anonymous callers).
+    difficulty = Difficulty.MEDIUM
+    if req.student_id:
+        signals = get_sessions().memory.learner_signals(req.student_id, req.topic)
+        difficulty = AdaptivePolicy().plan(signals, class_type=req.class_type).difficulty
     items = definition_items_from_passages(
-        req.passages, req.topic, max_items=req.max_items
+        req.passages, req.topic, max_items=req.max_items, difficulty=difficulty
     )
     return QuizResponse(
         items=[
@@ -675,6 +705,12 @@ def assessment_grade(req: GradeRequest) -> GradeResponse:
         difficulty=req.difficulty,
     )
     result: GradeResult = grade(item, req.chosen_index)
+    # Close the adaptive loop: persist the outcome so the learner's mastery (BKT)
+    # updates and the next quiz personalizes. Best-effort; skipped when anonymous.
+    if req.student_id and req.topic:
+        memory = get_sessions().memory
+        memory.record_behavior(req.student_id, req.topic, quiz_correct=result.correct)
+        memory.update_mastery(req.student_id, req.topic, result.correct)
     return GradeResponse(
         item_id=result.item_id,
         correct=result.correct,

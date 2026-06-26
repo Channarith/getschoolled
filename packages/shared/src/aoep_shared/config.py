@@ -87,6 +87,10 @@ class AppConfig(BaseModel):
     harvest_seeds: str = ""
     speech_base_url: str = "http://speech:8100"
     vision_base_url: str = "http://perception:8200"
+    # Memory service base URL. Empty => the orchestrator runs the live teaching
+    # loop without per-student memory (neutral signals); set it to wire mastery/
+    # behavior signals into adaptive pacing + quiz difficulty.
+    memory_base_url: str = ""
     # Face-model cache dir (empty -> ~/.cache/aoep/models) and cosine match
     # threshold for SFace embeddings (0.363 is OpenCV's calibrated default).
     vision_model_dir: str = ""
@@ -188,6 +192,7 @@ def load_config(
         harvest_seeds=get("HARVEST_SEEDS", ""),
         speech_base_url=get("SPEECH_BASE_URL", "http://speech:8100"),
         vision_base_url=get("VISION_BASE_URL", "http://perception:8200"),
+        memory_base_url=get("MEMORY_URL", ""),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
         ocr_api_key=get("OCR_API_KEY", ""),
         ocr_endpoint=get("OCR_ENDPOINT", ""),

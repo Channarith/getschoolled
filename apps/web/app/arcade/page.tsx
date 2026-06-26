@@ -198,21 +198,21 @@ export default function ArcadePage() {
               {kind !== "mcq" && (
                 <span style={{ fontSize: 12, opacity: 0.75 }}>{KIND_BADGE[kind] ?? "🎮"} {kind}</span>
               )}
-              {kind === "tiles" && meta.letters && (
+              {kind === "tiles" && !!(meta as Record<string, unknown>).letters && (
                 <div style={{ fontFamily: "monospace", fontSize: 20, letterSpacing: 6, margin: "6px 0" }}>
-                  {(String(meta.letters)).split("").join(" ")}
+                  {(String((meta as Record<string, unknown>).letters)).split("").join(" ")}
                 </div>
               )}
               {kind === "cartoon" && (
                 <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
-                  📺 {t("arcade.cartoonScene")} {meta.focus ? `· ${meta.focus}` : ""}
+                  📺 {t("arcade.cartoonScene")} {(meta as Record<string, unknown>).focus ? `· ${(meta as Record<string, unknown>).focus}` : ""}
                 </div>
               )}
-              {kind === "farm" && meta.crop && (
-                <div className="muted" style={{ fontSize: 13 }}>🌾 {String(meta.crop)}</div>
+              {kind === "farm" && !!(meta as Record<string, unknown>).crop && (
+                <div className="muted" style={{ fontSize: 13 }}>🌾 {String((meta as Record<string, unknown>).crop)}</div>
               )}
-              {kind === "rpg" && meta.scene && (
-                <div className="muted" style={{ fontSize: 13 }}>🎭 {String(meta.scene)}</div>
+              {kind === "rpg" && !!(meta as Record<string, unknown>).scene && (
+                <div className="muted" style={{ fontSize: 13 }}>🎭 {String((meta as Record<string, unknown>).scene)}</div>
               )}
               <div style={{ fontWeight: 600 }}>{qi + 1}. {it.prompt}</div>
               <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 6 }}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook } from "../lib/api";
+import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook, getOnboardingStatus } from "../lib/api";
 import { useT } from "../lib/i18n";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
@@ -55,8 +55,8 @@ export default function LoginPage() {
       const res = mode === "login"
         ? await login(email, password)
         : await signup(email, password, displayName);
-      if (res.requires_2fa && res.mfa_token) {
-        setMfaToken(res.mfa_token);
+      if ("requires_2fa" in res && res.requires_2fa && "mfa_token" in res && res.mfa_token) {
+        setMfaToken(res.mfa_token as string);
         return;
       }
       setToken(res.token);

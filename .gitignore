@@ -67,9 +67,8 @@ coverage/
 
 # ---- Root design assets (not source) ----
 /Generated_image*.png
-.cursor/
-docs/Patterns_Predictions_Actions.pdf
-docs/stewart97815_0538497815_01.01_toc.pdf
-kubeconfig-vke.yaml
-salareen-kubeconfig.decoded.yaml
-salareen-kubeconfig.yaml
+
+# ---- Local-only (never commit/push) ----
+/local/
+/CLAUDE.md
+.gstack/
