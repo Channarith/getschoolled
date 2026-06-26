@@ -55,6 +55,16 @@ Format: newest first. No markdown per project convention.
   (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
   the Auto-merge workflow completing successfully; it still checks out main and
   is idempotent (skips if the tag already exists).
+- 2026-06-25 - Locale mascots now vary by physique + pose, not just colour. Each
+  of the 27 languages gets its own base carving with a slightly different build
+  and arm/leg placement (e.g. sw broad grounded kneel, ja lean upright kneel, hi
+  cross-legged seat, ru heavy seated) while keeping the same serene face, lotus
+  crown, and S-with-bodhi-leaf medallion; the per-locale stone colour tint is
+  still layered on top. Adds build/pose to MASCOT_CATALOG, a new
+  scripts/build_mascot_bases.py (reference-guided raws -> transparent base/
+  carvings; km base = canonical master), rewires scripts/generate_locale_mascots.py
+  to tint each base, regenerates all web + mobile {locale}.webp + the mobile
+  manifest, and adds a 27-locale contact sheet (docs/screens/mascots_locale_variants.webp).
 - 2026-06-25 - Fix web typecheck (tsc) errors. ClassRoom finish state is now a
   discriminated union so the "earned" branch guarantees earned/balance are
   numbers (not number|undefined); rewards page coerces a nullable raffle entry id

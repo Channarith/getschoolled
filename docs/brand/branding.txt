@@ -24,6 +24,22 @@ Salareen study buddy (product mascot):
     docs/brand/salareen_platform_ecosystem.png     sub-app ecosystem poster
     apps/web/public/salareen-ecosystem.webp        web-optimized poster
 
+Locale mascots (27 languages):
+  Each supported language has its own mascot that differs in BOTH colour and
+  physique. A per-locale stone tint (hue/saturation/brightness/warmth) is layered
+  on top of a per-locale base carving with a slightly different build and arm/leg
+  placement (pose) - e.g. sw is a broad grounded kneel, ja a lean upright kneel,
+  hi a cross-legged seat, ru a heavy seated build. Every variant keeps the same
+  serene face, Khmer lotus crown, and the S-with-bodhi-leaf medallion.
+  Build/pose + tint live in packages/shared/src/aoep_shared/mascots.py.
+  Pipeline:
+    scripts/build_mascot_bases.py        reference-guided raws -> transparent
+                                         apps/web/public/mascots/base/{locale}.webp
+                                         (km base = the canonical master)
+    scripts/generate_locale_mascots.py   tint each base -> web + mobile
+                                         {locale}.webp + mobile asset manifest
+  Contact sheet: docs/screens/mascots_locale_variants.webp
+
 Mascot/design guardrail:
   - Keep brand and theme art SECULAR. The Salareen buddy is a culturally-
     inspired *character* presented as a friendly study companion - never a

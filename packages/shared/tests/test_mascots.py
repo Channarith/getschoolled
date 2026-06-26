@@ -53,3 +53,23 @@ def test_mascot_catalog_list():
     items = mascot_catalog_list()
     assert len(items) == 27
     assert all("locale" in i and "path" in i for i in items)
+    assert all(i.get("build") and i.get("pose") for i in items)
+
+
+def test_every_variant_has_build_and_pose():
+    for v in MASCOT_CATALOG.values():
+        assert v.build and v.pose
+
+
+def test_builds_and_poses_vary_across_locales():
+    # The locale mascots differ in physique + arm/leg placement, not just colour.
+    builds = {v.build for v in MASCOT_CATALOG.values()}
+    poses = {v.pose for v in MASCOT_CATALOG.values()}
+    assert len(builds) >= 6
+    assert len(poses) >= 15
+
+
+def test_resolve_mascot_exposes_build_and_pose():
+    r = resolve_mascot("ja")
+    assert r["variant"]["build"]
+    assert r["variant"]["pose"]
