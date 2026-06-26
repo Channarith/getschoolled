@@ -146,6 +146,8 @@ Additional screenshots live in `docs/screens/`.
 | Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue | `apps/web/app/class`, `services/orchestrator` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
 | Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
+| Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |
+| Ads | Tier-gated web ad slots; house inventory locally; Google AdSense / Ad Manager / Meta via `AD_NETWORK` env | `aoep_shared/ad_networks.py`, `services/billing` |
 | Language learning | 27 supported language codes including Turkish and Khmer; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
 | Careers | Job board, skill coverage, JD parsing, certification class matching | `/jobs`, curriculum jobs APIs |
 | Accounts | Signup/login, session tokens, students, portfolio, profile context sharing, rewards | `services/identity` |
@@ -628,10 +630,10 @@ use cases, and cost analysis) see:
 | --- | --- |
 | orchestrator | `GET /api/lessons`, `POST /api/sessions`, `POST /api/sessions/{id}/advance`, `POST /api/sessions/{id}/ask`, `/director/plan`, `/assessment/quiz`, `/api/hil/*` |
 | curriculum | `/courses/search`, `/home`, `/audio/courses`, `/jobs`, `/jobs/parse`, `/recommend`, `/homework/*`, `/catalog/export`, `/notifications/feed`, `/validate/*`, `/scenes/*` |
-| identity | `/auth/signup`, `/auth/login`, `/students`, `/profile-shares/context`, `/portfolio`, `/rewards`, `/games/*`, `/language/practice` |
+| identity | `/auth/signup`, `/auth/login`, `/auth/login-history`, `/onboarding/*`, `/students`, `/profile-shares/context`, `/portfolio`, `/rewards`, `/games/*`, `/language/practice` |
 | memory | `/consent`, `/legal/notices`, `/legal/accept`, `/compliance/{region}`, `/retention/purge`, `/flags/*`, `/survey/*`, `/mastery`, `/behavior`, `/learner/{student}/{topic}` |
 | integrations | `/webhooks/subscriptions`, `/webhooks/emit`, `/webhooks/inbound/{provider}`, `/payments/webhook/{provider}`, `/lms/*`, `/notify`, `/calendar/schedule`, `/sso/oidc`, `/clients` |
-| billing | `/plans`, `/payment-methods`, `/payment-methods/by-country`, `/entitlements/can-start`, `/checkout` |
+| billing | `/plans`, `/payment-methods`, `/payment-methods/by-country`, `/entitlements/can-start`, `/checkout`, `/ads/slot/{id}`, `/ads/networks` |
 | speech | `/languages`, `/tts/engine`, `/delivery/plan`, `/translate`, `/learn/*` |
 | perception | `/enroll/{student_id}`, `/identify`, `/analyze/consent-check`, `/gallery` |
 

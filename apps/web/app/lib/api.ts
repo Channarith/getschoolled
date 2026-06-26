@@ -193,7 +193,111 @@ export type Account = {
   membership_class?: "standard" | "vip";
   subscription?: Subscription;
   is_admin?: boolean;
+  onboarding_completed_at?: number | null;
+  login_count?: number;
+  billing_validated?: boolean;
+  card_last4?: string | null;
 };
+
+export type OnboardingStatus = {
+  completed: boolean;
+  completed_at: number | null;
+  tier: string;
+  membership_class: string;
+  billing_required: boolean;
+  billing_validated: boolean;
+};
+
+export type LoginEvent = {
+  ts: number;
+  success: boolean;
+  ip: string;
+  user_agent: string;
+  country_hint: string;
+};
+
+export type AdSlotPayload = {
+  show: boolean;
+  slot_id?: string;
+  network?: string;
+  width?: number;
+  height?: number;
+  label?: string;
+  click_url?: string;
+  image_url?: string;
+  house?: boolean;
+  client_id?: string;
+  script_url?: string;
+  data_ad_slot?: string;
+};
+
+export async function getOnboardingStatus(): Promise<OnboardingStatus> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/onboarding-status`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function submitOnboardingProfile(body: {
+  display_name?: string;
+  phone?: string;
+  region?: string;
+}): Promise<{ ok: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/profile`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function submitOnboardingBilling(body: Record<string, unknown>): Promise<{ validated: boolean; card_last4: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/billing`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function selectOnboardingPlan(tier: string): Promise<{ tier: string; membership_class: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/plan`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ tier }),
+    }),
+  );
+}
+
+export async function completeOnboarding(body: { learner_name?: string; age_band?: string }): Promise<{ completed: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/complete`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function getBillingPlans(): Promise<Record<string, unknown>> {
+  return jsonOrThrow(await fetch(`${BILLING_URL}/plans`, { cache: "no-store" }));
+}
+
+export async function getAdSlot(slotId: string, tier: string): Promise<AdSlotPayload> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/slot/${encodeURIComponent(slotId)}?tier=${encodeURIComponent(tier)}`, {
+      cache: "no-store",
+    }),
+  );
+}
 
 export async function signup(email: string, password: string, displayName: string):
   Promise<{ token: string; account: Account }> {
@@ -353,6 +457,8 @@ export type ForesightRec = {
 export type ForesightResult = {
   student_id: string; difficulty: string; gaps: string[];
   recommendations: ForesightRec[];
+  cold_start?: boolean;
+  fallback?: boolean;
   relational_map: { nodes: { id: string; kind: string }[]; edges: { src: string; dst: string; rel: string; weight: number }[] };
 };
 

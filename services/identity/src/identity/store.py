@@ -98,6 +98,24 @@ class StudentProfile(BaseModel):
     created_at: float = Field(default_factory=lambda: time.time())
 
 
+class BillingAddress(BaseModel):
+    line1: str = ""
+    line2: str = ""
+    city: str = ""
+    state: str = ""
+    postal_code: str = ""
+    country: str = "US"
+    phone: str = ""
+
+
+class LoginEvent(BaseModel):
+    ts: float = Field(default_factory=lambda: time.time())
+    success: bool = True
+    ip: str = ""
+    user_agent: str = ""
+    country_hint: str = ""
+
+
 class Account(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
     email: str
@@ -116,6 +134,14 @@ class Account(BaseModel):
     # Security signals.
     last_login_at: Optional[float] = None
     failed_logins: int = 0
+    login_count: int = 0
+    locked_until: Optional[float] = None
+    membership_class: str = "standard"   # standard | vip (derived from tier)
+    onboarding_completed_at: Optional[float] = None
+    billing_address: Optional[BillingAddress] = None
+    card_last4: str = ""
+    billing_validated_at: Optional[float] = None
+    login_events: List[LoginEvent] = Field(default_factory=list)
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
@@ -258,17 +284,72 @@ class AccountStore:
     def by_id(self, account_id: str) -> Optional[Account]:
         return self._by_id.get(account_id)
 
-    def authenticate(self, email: str, password: str) -> Optional[Account]:
+    def authenticate(
+        self,
+        email: str,
+        password: str,
+        *,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+    ) -> Optional[Account]:
         acct = self.by_email(email)
         if acct is None:
             return None
+        if acct.locked_until and acct.locked_until > time.time():
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+                reason="locked",
+            )
+            return None
         if not verify_password(password, acct.password_hash):
             acct.failed_logins += 1
+            if acct.failed_logins >= 5:
+                acct.locked_until = time.time() + 900  # 15 min lockout
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+            )
+            self._persist()
             return None
         acct.failed_logins = 0
+        acct.locked_until = None
         acct.last_login_at = time.time()
+        acct.login_count += 1
+        self.record_login_event(
+            acct.id, success=True, ip=ip, user_agent=user_agent, country_hint=country_hint,
+        )
         self._persist()
         return acct
+
+    def record_login_event(
+        self,
+        account_id: str,
+        *,
+        success: bool,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+        reason: str = "",
+    ) -> None:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return
+        acct.login_events.append(LoginEvent(
+            success=success,
+            ip=(ip or "")[:64],
+            user_agent=(user_agent or "")[:256],
+            country_hint=(country_hint or reason or "")[:32],
+        ))
+        if len(acct.login_events) > 50:
+            acct.login_events = acct.login_events[-50:]
+        self._persist()
+
+    def login_history(self, account_id: str, limit: int = 20) -> List[dict]:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return []
+        rows = [e.model_dump() for e in reversed(acct.login_events)]
+        return rows[:limit]
 
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]

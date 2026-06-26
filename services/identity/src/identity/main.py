@@ -16,10 +16,10 @@ from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
+from .store import AccountStore, BillingAddress, ClassContext, Enrollment, EnrollmentStatus
 from .persistence import load_from_redis
 
 app = create_service("identity")
@@ -151,13 +151,23 @@ class LoginRequest(BaseModel):
     password: str
 
 
+def _client_info(request: Request) -> dict:
+    fwd = request.headers.get("X-Forwarded-For", "")
+    ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "")
+    return {
+        "ip": ip,
+        "user_agent": request.headers.get("User-Agent", "")[:256],
+        "country_hint": request.headers.get("CF-IPCountry", "") or request.headers.get("X-Country", ""),
+    }
+
+
 def _session(acct) -> dict:
     token = sign_token({"sub": acct.id, "email": acct.email}, _token_key())
     return {"token": token, "account": acct.public()}
 
 
 @app.post("/auth/signup")
-def signup(req: SignupRequest) -> dict:
+def signup(req: SignupRequest, request: Request) -> dict:
     from aoep_shared.passwords import validate_password
 
     try:
@@ -167,15 +177,40 @@ def signup(req: SignupRequest) -> dict:
         app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    info = _client_info(request)
+    app.state.accounts.record_login_event(acct.id, success=True, **info)
     return _session(acct)
 
 
 @app.post("/auth/login")
-def login(req: LoginRequest) -> dict:
-    acct = app.state.accounts.authenticate(req.email, req.password)
+def login(req: LoginRequest, request: Request) -> dict:
+    info = _client_info(request)
+    acct = app.state.accounts.by_email(req.email)
+    if acct and acct.locked_until and acct.locked_until > time.time():
+        raise HTTPException(status_code=429, detail="account temporarily locked; try again later")
+    acct = app.state.accounts.authenticate(req.email, req.password, **info)
     if acct is None:
         raise HTTPException(status_code=401, detail="invalid email or password")
     return _session(acct)
+
+
+@app.get("/auth/login-history")
+def login_history(acct=Depends(current_account)) -> dict:
+    return {"events": app.state.accounts.login_history(acct.id)}
+
+
+@app.get("/auth/onboarding-status")
+def onboarding_status(acct=Depends(current_account)) -> dict:
+    from aoep_shared.membership import tier_requires_payment
+
+    return {
+        "completed": acct.onboarding_completed_at is not None,
+        "completed_at": acct.onboarding_completed_at,
+        "tier": acct.tier.value,
+        "membership_class": acct.membership_class,
+        "billing_required": tier_requires_payment(acct.tier.value),
+        "billing_validated": acct.billing_validated_at is not None,
+    }
 
 
 @app.get("/auth/me")
