@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import List
 
 from aoep_shared.learnable import LearnableItem, build_learnable_index

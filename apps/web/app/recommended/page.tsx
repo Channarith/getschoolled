@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getHomeFeed,
@@ -43,24 +43,7 @@ export default function RecommendedPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const prof = students.find((s) => s.id === selected);
-    if (!prof) return;
-    setError("");
-    recommendForProfile({
-      student_id: prof.id, mastery: prof.mastery,
-      completed_course_ids: prof.completed_course_ids, interests: prof.interests,
-    })
-      .then((r) => {
-        if (r.recommendations.length === 0) {
-          return applyHomeFallback(r, prof.id);
-        }
-        setResult(r);
-      })
-      .catch(() => applyHomeFallback(homeFeedToResult(students, prof.id), prof.id));
-  }, [selected, students, locale]);
-
-  async function applyHomeFallback(base: ForesightResult, studentId: string) {
+  const applyHomeFallback = useCallback(async (base: ForesightResult, studentId: string) => {
     try {
       const rails = await getHomeFeed(false, locale);
       const popular = rails.find((r) => r.key === "popular")?.courses
@@ -85,7 +68,24 @@ export default function RecommendedPage() {
       setError(String(e));
       setResult(base);
     }
-  }
+  }, [locale]);
+
+  useEffect(() => {
+    const prof = students.find((s) => s.id === selected);
+    if (!prof) return;
+    setError("");
+    recommendForProfile({
+      student_id: prof.id, mastery: prof.mastery,
+      completed_course_ids: prof.completed_course_ids, interests: prof.interests,
+    })
+      .then((r) => {
+        if (r.recommendations.length === 0) {
+          return applyHomeFallback(r, prof.id);
+        }
+        setResult(r);
+      })
+      .catch(() => applyHomeFallback(homeFeedToResult(students, prof.id), prof.id));
+  }, [selected, students, locale, applyHomeFallback]);
 
   if (!loggedIn) {
     return (

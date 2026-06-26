@@ -16,7 +16,7 @@ import enum
 import os
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class AdNetworkId(str, enum.Enum):

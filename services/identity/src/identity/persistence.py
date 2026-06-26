@@ -59,7 +59,7 @@ def _deserialize_account(raw: dict) -> "Account":
 
     from aoep_shared.passkeys import PasskeyCredential
 
-    from .store import Account, BillingAddress, ClassContext, Enrollment, EnrollmentStatus, LoginEvent, ProfileShareGrant, StudentProfile
+    from .store import Account, BillingAddress, Enrollment, LoginEvent, ProfileShareGrant, StudentProfile
 
     ledger_raw = raw.pop("points_ledger", [])
     redemptions = raw.pop("redemptions", [])

@@ -277,7 +277,10 @@ def calendar_ics(
     from datetime import timedelta
 
     end = start + timedelta(minutes=gc.duration_min)
-    fmt = lambda dt: dt.strftime("%Y%m%dT%H%M%SZ")
+
+    def fmt(dt) -> str:
+        return dt.strftime("%Y%m%dT%H%M%SZ")
+
     join = gc.meeting_url or google_meet_url(gc.id)
     desc = (gc.description or f"Salareen group class: {gc.title}").replace("\n", "\\n")
     if join:

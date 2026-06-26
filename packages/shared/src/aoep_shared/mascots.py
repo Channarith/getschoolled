@@ -9,7 +9,7 @@ scripts/generate_locale_mascots.py from apps/web/public/bayon-mark.webp.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .languages import SUPPORTED_LANGUAGES
 

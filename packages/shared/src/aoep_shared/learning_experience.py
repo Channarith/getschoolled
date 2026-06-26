@@ -8,7 +8,7 @@ raise the score over time.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .adaptive import Difficulty, LearnerSignals, Pacing, PacingPlan
 from .bandit import ContentBandit

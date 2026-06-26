@@ -566,7 +566,7 @@ class LxTickResponse(BaseModel):
 def director_lx_tick(req: LxTickRequest) -> LxTickResponse:
     """Measure learning experience and return adaptations to improve the score."""
     from aoep_shared.learning_experience import LX_TARGET, lx_tick
-    from aoep_shared.learner_adaptation import LearnerAdaptation, adaptation_from_dict
+    from aoep_shared.learner_adaptation import adaptation_from_dict
 
     director = Director()
     ctx = ClassContext(

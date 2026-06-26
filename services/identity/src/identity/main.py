@@ -166,7 +166,7 @@ def _session(acct) -> dict:
     return {"token": token, "account": acct.public()}
 
 
-from .auth_security import register_auth_security_routes
+from .auth_security import register_auth_security_routes  # noqa: E402  # late import: needs app + auth helpers defined above
 
 register_auth_security_routes(app, token_key_fn=_token_key, current_account=current_account, session_fn=_session)
 
