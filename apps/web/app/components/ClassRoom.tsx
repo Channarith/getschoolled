@@ -13,6 +13,7 @@ import {
   grantReward,
   gradeQuizItem,
   getPostClassSurvey,
+  getPulseSurvey,
   getRewards,
   getToken,
   listLessons,
@@ -24,6 +25,7 @@ import {
   setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
+  submitPulseSurvey,
   updateTopicMastery,
   type Answer,
   type ClassQuizItem,
@@ -89,6 +91,10 @@ export default function ClassRoom({
   const [survey, setSurvey] = useState<SurveyTemplate | null>(null);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string | number | boolean>>({});
   const [surveyDone, setSurveyDone] = useState(false);
+  const [pulseEnabled, setPulseEnabled] = useState(false);
+  const [pulseTemplate, setPulseTemplate] = useState<SurveyTemplate | null>(null);
+  const [showPulse, setShowPulse] = useState(false);
+  const [pulseAnswers, setPulseAnswers] = useState<Record<string, string | number>>({});
   const [finish, setFinish] = useState<
     | { kind: "earned"; earned: number; balance: number }
     | { kind: "complete"; balance?: number }
@@ -149,6 +155,12 @@ export default function ClassRoom({
     getDisclosure()
       .then(setDisclosure)
       .catch(() => setDisclosure(null));
+    getPulseSurvey()
+      .then((r) => {
+        setPulseEnabled(r.enabled);
+        setPulseTemplate(r.template);
+      })
+      .catch(() => {});
     return () => stopSpeaking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -241,7 +253,7 @@ export default function ClassRoom({
   }
 
   async function onAdvance() {
-    if (!view || popQuiz) return;
+    if (!view || popQuiz || showPulse) return;
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
@@ -254,6 +266,12 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
+      const interval = pulseTemplate?.interval_slides ?? 5;
+      if (pulseEnabled && pulseTemplate && (s.index + 1) % interval === 0) {
+        setPulseAnswers({});
+        setShowPulse(true);
+        return;
+      }
       const nextCount = slidesSinceQuiz + 1;
       setSlidesSinceQuiz(nextCount);
       if (nextCount >= 3) {
@@ -272,6 +290,63 @@ export default function ClassRoom({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submitPulse() {
+    if (!view || !pulseTemplate) {
+      setShowPulse(false);
+      return;
+    }
+    const goingWell = Number(pulseAnswers["going_well"] ?? 0);
+    const pace = String(pulseAnswers["pace"] ?? "");
+    if (!goingWell || !pace) {
+      setError(t("class.pulseRequired"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const workingBest = pulseAnswers["working_best"]
+        ? String(pulseAnswers["working_best"]) : null;
+      await submitPulseSurvey({
+        course_id: lessonId,
+        going_well: goingWell,
+        pace,
+        class_type: classType,
+        student_id: studentId || null,
+        slide_index: slide?.index ?? 0,
+        teaching_strategy: lxStrategy,
+        working_best: workingBest,
+      });
+      if (studentId) {
+        const out = await recordAdaptationEvent(studentId, "pulse_survey", {
+          course_id: lessonId,
+          going_well: goingWell,
+          pace,
+          working_best: workingBest,
+          teaching_strategy: lxStrategy,
+        });
+        setAdaptationProfile(out.adaptation ?? adaptationProfile);
+        if (pace === "too fast") {
+          recordAdaptationEvent(studentId, "trigger", {
+            trigger: "pace too fast",
+            reason: "pulse survey during class",
+            severity: "medium",
+            allow_retry: true,
+          }).catch(() => {});
+        }
+      }
+      await refreshLxTick(slide?.index ?? 0, view.lesson.slides.length);
+      setShowPulse(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function skipPulse() {
+    setShowPulse(false);
+    setPulseAnswers({});
   }
 
   async function submitPopQuiz() {
@@ -679,6 +754,66 @@ export default function ClassRoom({
               <span className="muted">{t("class.session", { id: view.session.session_id })}</span>
             </div>
           </div>
+
+          {showPulse && pulseTemplate && (
+            <div className="card" style={{ borderColor: "#f0ad4e" }}>
+              <h3 style={{ marginTop: 0 }}>{pulseTemplate.title}</h3>
+              {pulseTemplate.subtitle && (
+                <p className="muted" style={{ marginTop: 0 }}>{pulseTemplate.subtitle}</p>
+              )}
+              {pulseTemplate.questions.map((q) => (
+                <div key={q.id} style={{ marginBottom: 12 }}>
+                  <p><strong>{q.prompt}</strong></p>
+                  {q.type === "rating" && (
+                    <div className="row" style={{ gap: 8 }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setPulseAnswers((prev) => ({ ...prev, [q.id]: n }))}
+                          style={{
+                            background: Number(pulseAnswers[q.id]) === n ? "#f0ad4e" : "transparent",
+                            color: Number(pulseAnswers[q.id]) === n ? "#111" : "inherit",
+                            border: "1px solid var(--border)",
+                            minWidth: 36,
+                          }}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {q.type === "choice" && (
+                    <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+                      {q.options.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setPulseAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                          style={{
+                            background: pulseAnswers[q.id] === opt ? "#f0ad4e" : "transparent",
+                            color: pulseAnswers[q.id] === opt ? "#111" : "inherit",
+                            border: "1px solid var(--border)",
+                            fontSize: 13,
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="row">
+                <button type="button" onClick={submitPulse} disabled={busy}>
+                  {t("class.pulseSubmit")}
+                </button>
+                <button type="button" onClick={skipPulse} disabled={busy}>
+                  {t("class.pulseSkip")}
+                </button>
+              </div>
+            </div>
+          )}
 
           {popQuiz && popQuiz.length > 0 && (
             <div className="card" style={{ borderColor: "#6ea8fe" }}>

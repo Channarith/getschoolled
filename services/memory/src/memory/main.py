@@ -18,6 +18,11 @@ from aoep_shared.learning_profile import (
     onboarding_template,
     validate_onboarding_answers,
 )
+from aoep_shared.pulse_survey import (
+    PulseSurveyResponse,
+    PulseSurveyStore,
+    template as pulse_template,
+)
 from aoep_shared.mascots import mascot_catalog_list, normalize_mascot_locale, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
 from fastapi import Depends, Header, HTTPException
@@ -30,6 +35,7 @@ app.state.store = MemoryStore()
 app.state.acceptances = AcceptanceStore()
 app.state.flags = FlagStore()
 app.state.surveys = SurveyStore()
+app.state.pulse_surveys = PulseSurveyStore()
 app.state.onboarding_surveys = OnboardingSurveyStore()
 
 
@@ -267,6 +273,41 @@ def survey_submit(req: SurveySubmit) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# In-lesson pulse surveys (short check-ins every few slides)
+# --------------------------------------------------------------------------- #
+@app.get("/survey/pulse")
+def survey_pulse(subject: str | None = None, tier: str | None = None) -> dict:
+    enabled = bool(app.state.flags.resolve(
+        "engagement.pulse_survey", subject=subject, tier=tier))
+    return {"enabled": enabled, "template": pulse_template() if enabled else None}
+
+
+class PulseSurveySubmit(BaseModel):
+    course_id: str
+    going_well: int
+    pace: str = "just right"
+    class_type: str = "group"
+    student_id: str | None = None
+    slide_index: int = 0
+    teaching_strategy: str = ""
+    working_best: str | None = None
+
+
+@app.post("/survey/pulse")
+def survey_pulse_submit(req: PulseSurveySubmit) -> dict:
+    try:
+        resp = app.state.pulse_surveys.submit(PulseSurveyResponse(**req.model_dump()))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"id": resp.id, "course_id": resp.course_id, "recorded": True}
+
+
+@app.get("/survey/pulse/summary/{course_id}")
+def survey_pulse_summary(course_id: str) -> dict:
+    return app.state.pulse_surveys.summary(course_id)
+
+
+# --------------------------------------------------------------------------- #
 # One-time onboarding learning-behavior survey (post-signup personalization)
 # --------------------------------------------------------------------------- #
 @app.get("/survey/onboarding")
@@ -366,6 +407,7 @@ def test_reset(scope: str = "all", _: str = Depends(require_admin_header)) -> di
         reset.append("flags")
     if scope in ("all", "surveys"):
         app.state.surveys = SurveyStore()
+        app.state.pulse_surveys = PulseSurveyStore()
         app.state.onboarding_surveys = OnboardingSurveyStore()
         reset.append("surveys")
     if scope in ("all", "acceptances"):

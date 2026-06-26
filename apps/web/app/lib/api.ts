@@ -1422,6 +1422,7 @@ export type SurveyQuestion = {
 export type SurveyTemplate = {
   version: string; title: string; subtitle?: string; questions: SurveyQuestion[];
   categories?: string[];
+  interval_slides?: number;
 };
 
 export async function getPostClassSurvey(
@@ -1440,6 +1441,34 @@ export async function submitPostClassSurvey(payload: {
 }): Promise<{ id: string; recorded: boolean }> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/survey/post-class`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function getPulseSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/pulse?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitPulseSurvey(payload: {
+  course_id: string;
+  going_well: number;
+  pace: string;
+  class_type?: string;
+  student_id?: string | null;
+  slide_index?: number;
+  teaching_strategy?: string;
+  working_best?: string | null;
+}): Promise<{ id: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/pulse`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),

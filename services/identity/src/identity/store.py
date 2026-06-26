@@ -768,6 +768,34 @@ class AccountStore:
                 strategy=str(payload.get("strategy", "")),
                 success=payload.get("success") if "success" in payload else None,
             )
+        elif et == "pulse_survey":
+            from aoep_shared.pulse_survey import interpret_pulse
+
+            hints = interpret_pulse(
+                going_well=int(payload.get("going_well", 3)),
+                pace=str(payload.get("pace", "just right")),
+                working_best=payload.get("working_best"),
+                teaching_strategy=str(payload.get("teaching_strategy", "")),
+            )
+            adapt.record_lx_sample(
+                hints["lx_score"],
+                strategy=str(payload.get("teaching_strategy", "") or hints.get("preferred_strategy", "")),
+                success=hints["strategy_success"] or hints["lx_score"] >= 70,
+            )
+            if hints["strategy_failure"] and hints.get("preferred_strategy"):
+                adapt.record_failed_approach(
+                    str(payload.get("teaching_strategy", "default")),
+                    str(payload.get("course_id", "")),
+                    f"pulse: learner prefers {hints['preferred_strategy']}",
+                )
+            elif hints["strategy_success"]:
+                adapt.record_strategy(str(payload.get("teaching_strategy", "default")), success=True)
+            elif hints.get("preferred_strategy") and hints["lx_score"] >= 70:
+                adapt.record_strategy(hints["preferred_strategy"], success=True)
+            for tr in hints.get("triggers", []):
+                adapt.record_trigger(
+                    tr["trigger"], tr["reason"], severity="medium", allow_retry=True,
+                )
         elif et == "strategy_success":
             adapt.record_strategy(str(payload.get("strategy", "default")), success=True)
         elif et == "strategy_failure":
