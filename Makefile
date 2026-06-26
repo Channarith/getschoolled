@@ -12,7 +12,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
-	run-identity run-memory run-orchestrator validate-pipeline
+	run-identity run-memory run-orchestrator validate-pipeline dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -40,6 +40,9 @@ help:
 	@echo "  run-identity   Start identity on :8008 (loads config/local.env)"
 	@echo "  run-memory     Start memory on :8004 (loads config/local.env)"
 	@echo "  run-orchestrator Start orchestrator on :8000 (loads config/local.env)"
+	@echo "  dev-all        Start ALL services + web locally (background) and wire them"
+	@echo "  dev-status     Health of the local stack"
+	@echo "  dev-down       Stop the local stack started by dev-all"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
 	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
@@ -207,3 +210,14 @@ run-memory:
 
 run-orchestrator:
 	./scripts/run_local_service.sh orchestrator
+
+# Start / stop / inspect the WHOLE local stack (all services + web) in the
+# background, wired together, with live keys from .env.local.
+dev-all:
+	./scripts/dev_up.sh
+
+dev-down:
+	./scripts/dev_down.sh
+
+dev-status:
+	./scripts/dev_status.sh
