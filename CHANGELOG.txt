@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
+  .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
+  PRs landed on the same 0.9.x: the one that merged second saw "Base main is
+  0.9.1; PR still 0.9.1" and blocked, even though nothing was wrong. With several
+  PRs in flight this caused constant friction, so the gate is removed and the
+  script deleted. Version bumping is now an explicit, optional step at release
+  time via scripts/bump_pr_version.py (docs/release-testing.txt updated). The
+  Auto Push Build + Release workflows still pick up VERSION when it does change.
+
 - 2026-06-24 - Rewards catalog revamp + mobile/web sync clarification. Points are
   awarded server-side in identity (course pass, arcade games, language practice)
   and stored in ONE Redis-backed ledger, so any client (web or mobile) hitting
