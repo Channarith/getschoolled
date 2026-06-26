@@ -1,12 +1,28 @@
-# Redis StatefulSet - rate-limit + HTTP cache + session backplane.
+# Redis StatefulSet - DURABLE identity/session store + rate-limit + cache.
 #
-# Single replica is fine for rate-limit + cache (data is regeneratable),
-# but production should swap this for a managed Redis (ElastiCache /
-# MemoryStore / Upstash) or a Sentinel HA pair so a node failure doesn't
-# burst-load every backend at once. The aoep_shared.ratelimit module
-# falls back to per-replica memory if Redis is briefly unreachable, so
-# Redis being down degrades rate-limiting consistency but doesn't cause
-# user-facing 5xx.
+# IMPORTANT: identity (accounts, points/rewards ledgers, student profiles,
+# onboarding-survey completion) snapshots its whole state into Redis (see
+# services/identity/.../persistence.py). That makes Redis a system of record,
+# NOT a regeneratable cache. So this StatefulSet is configured for durability:
+#
+#   * volumeClaimTemplates -> a PersistentVolume mounted at /data, so data
+#     survives pod restarts, node moves, and rollouts. (Without it, every
+#     Redis restart wiped accounts/points and re-popped the onboarding survey.)
+#   * --appendonly yes (AOF, fsync every second) is the primary durability
+#     mechanism; --save adds periodic RDB snapshots as a fast-restart backstop.
+#   * --maxmemory-policy volatile-lru evicts ONLY keys that carry a TTL
+#     (rate-limit buckets, arcade game rounds) under memory pressure and NEVER
+#     the identity snapshot (which has no TTL). allkeys-lru could silently
+#     evict the identity key, so it must not be used here.
+#
+# Production should still consider a managed Redis (Vultr Managed / ElastiCache /
+# MemoryStore / Upstash) or a Sentinel HA pair so a single node failure doesn't
+# burst-load every backend. The aoep_shared.ratelimit module falls back to
+# per-replica memory if Redis is briefly unreachable, so a blip degrades
+# rate-limit consistency but doesn't cause user-facing 5xx.
+#
+# No storageClassName is set, so each cluster's DEFAULT StorageClass is used
+# (e.g. vultr-block-storage on VKE), matching infra/k8s-vke/pvc-vke.yaml.
 ---
 apiVersion: v1
 kind: Service
@@ -27,20 +43,30 @@ spec:
     metadata: { labels: { app: redis } }
     spec:
       terminationGracePeriodSeconds: 30
+      securityContext:
+        # redis:alpine runs as uid 999; let it own the mounted volume.
+        fsGroup: 999
       containers:
         - name: redis
           image: redis:7.4-alpine
           args:
             - redis-server
+            - --dir
+            - /data
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - everysec
+            - --save
+            - "900 1 300 10 60 10000"
             - --maxmemory
             - "256mb"
             - --maxmemory-policy
-            - allkeys-lru
-            - --appendonly
-            - "no"
-            - --save
-            - ""
+            - volatile-lru
           ports: [{ containerPort: 6379, name: redis }]
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits:   { cpu: 500m, memory: 384Mi }
@@ -52,3 +78,10 @@ spec:
             exec: { command: ["redis-cli", "ping"] }
             initialDelaySeconds: 20
             periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata: { name: redis-data, namespace: aoep }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

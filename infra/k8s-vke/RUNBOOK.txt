@@ -206,6 +206,17 @@ That script prints identity/web/redis pod status, tests login in-cluster (same
 path the browser uses via web -> identity), reseeds Redis, restarts identity,
 and verifies qa-pro + qa3 before you retry the browser.
 
+NOTE (durable Redis): as of the durable-Redis change, the Redis StatefulSet has a
+PersistentVolume + AOF + volatile-lru (infra/k8s/redis.yaml), so accounts, points,
+and onboarding-survey completion now SURVIVE Redis/pod restarts and redeploys. You
+should no longer need to reseed after a routine redeploy. Reseeding is only needed
+for (a) a brand-new cluster, or (b) upgrading from an old identity image that
+predates /admin/ops/reseed-seeded (see the HTTP 404 section below). If you have an
+existing non-durable Redis StatefulSet, the new volumeClaimTemplates only applies
+to a freshly created StatefulSet -- delete the old one (keep PVCs/none to create) and
+re-apply: kubectl -n aoep delete statefulset redis --cascade=orphan && kubectl apply
+-k infra/k8s-vke   (data starts empty once; durable from then on).
+
 Manual steps if you prefer:
 
   chmod +x scripts/k8s_reseed_accounts.sh
