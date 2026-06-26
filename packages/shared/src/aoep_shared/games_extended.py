@@ -256,6 +256,47 @@ _EXTENDED_RAW: List[dict] = [
         "explain": "Some mixes release toxic gas.",
         "kind": "doing",
     },
+    # --- Math supplemental (marathon depth) ---------------------------------- #
+    {
+        "content_id": "math_ext_01", "subjects": ["math"], "game_types": ["mcq", "marathon"],
+        "prompt": "What is the square root of 144?",
+        "options": ["10", "12", "14", "16"],
+        "answer_index": 1,
+        "explain": "12 × 12 = 144.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "math_ext_02", "subjects": ["math"], "game_types": ["mcq", "marathon"],
+        "prompt": "Which of these is a prime number?",
+        "options": ["4", "6", "7", "9"],
+        "answer_index": 2,
+        "explain": "7 is only divisible by 1 and itself.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "math_ext_03", "subjects": ["math"], "game_types": ["mcq", "marathon"],
+        "prompt": "What is 15% of 200?",
+        "options": ["20", "25", "30", "35"],
+        "answer_index": 2,
+        "explain": "15% × 200 = 0.15 × 200 = 30.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "math_ext_04", "subjects": ["math"], "game_types": ["mcq", "marathon"],
+        "prompt": "If x + 7 = 12, what is x?",
+        "options": ["3", "4", "5", "6"],
+        "answer_index": 2,
+        "explain": "x = 12 − 7 = 5.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "math_ext_05", "subjects": ["math"], "game_types": ["mcq", "marathon"],
+        "prompt": "What is the area of a rectangle with length 6 and width 4?",
+        "options": ["10", "20", "24", "26"],
+        "answer_index": 2,
+        "explain": "Area = length × width = 6 × 4 = 24.",
+        "kind": "mcq",
+    },
     # --- Farm sim / character teaching subject ------------------------------- #
     {
         "content_id": "farm_math_01", "subjects": ["farming", "math"], "game_types": ["farm"],

@@ -437,6 +437,12 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
         bank = _extended_mcq_bank(subject, game_type, age_group)
     if not bank:
         bank = mcq_bank_for(subject, age_group)[:]
+    if game_type is GameType.MARATHON and len(bank) < cap:
+        # Supplement with extended subject items so marathon has enough depth.
+        from .games_extended import extended_bank_for_subject
+        seen = {q.get("content_id") for q in bank}
+        bank = bank + [q for q in extended_bank_for_subject(subject, age_group)
+                       if q.get("content_id") not in seen]
     rng.shuffle(bank)
     take = max(1, min(n, len(bank), cap))
     mcqs = [
