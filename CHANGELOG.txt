@@ -10,6 +10,11 @@ Format: newest first. No markdown per project convention.
   script deleted. Version bumping is now an explicit, optional step at release
   time via scripts/bump_pr_version.py (docs/release-testing.txt updated). The
   Auto Push Build + Release workflows still pick up VERSION when it does change.
+- 2026-06-24 - Admin accounts default to VIP billing. seed_admin now seeds the
+  operator account at the PREMIUM tier (membership_class "vip"), so admins get
+  the full ad-free VIP experience without going through billing. Re-synced on
+  every startup by seed_account (idempotent; restores VIP even if downgraded).
+  Verified: admin login returns tier=premium, membership_class=vip.
 
 - 2026-06-24 - Rewards catalog revamp + mobile/web sync clarification. Points are
   awarded server-side in identity (course pass, arcade games, language practice)
