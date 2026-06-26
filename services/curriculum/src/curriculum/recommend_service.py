@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 
 from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
 

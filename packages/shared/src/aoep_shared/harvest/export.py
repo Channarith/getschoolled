@@ -27,7 +27,6 @@ from .generate import GeneratedCourse
 
 def _bullets(body: str, *, max_bullets: int = 6) -> List[str]:
     """Split a slide body into short on-screen bullet lines."""
-    import re
 
     parts: List[str] = []
     for chunk in body.replace("\n", " ").split(". "):
@@ -44,7 +43,6 @@ def export_pptx(course: GeneratedCourse, path: str | Path) -> Path:
     speaker notes, so Part 2 (ppt_trainer) can read it back as ``Section.notes``.
     """
     from pptx import Presentation  # lazy
-    from pptx.util import Inches, Pt
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

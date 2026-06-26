@@ -94,12 +94,16 @@ function DrivePageInner() {
   }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Re-fetch the selected course when its id (or locale/lang) changes. We depend
+  // on the id rather than the full `course` object on purpose: this effect calls
+  // setCourse(), so depending on `course` would cause an infinite refetch loop.
+  const selectedCourseId = course?.id;
   useEffect(() => {
-    if (!course || !loggedIn) return;
-    getAudioCourse(course.id, locale, trainingLang)
+    if (!selectedCourseId || !loggedIn) return;
+    getAudioCourse(selectedCourseId, locale, trainingLang)
       .then((c) => setCourse(c))
       .catch(() => {});
-  }, [locale, trainingLang, course?.id, loggedIn]);
+  }, [locale, trainingLang, selectedCourseId, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {

@@ -23,7 +23,7 @@ from aoep_shared.pulse_survey import (
     PulseSurveyStore,
     template as pulse_template,
 )
-from aoep_shared.mascots import mascot_catalog_list, normalize_mascot_locale, resolve_mascot
+from aoep_shared.mascots import mascot_catalog_list, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from aoep_shared.bridges import BridgePlatform, get_bridge, parse_meeting_ref
-from aoep_shared.bridges.session import BridgeSession, LiveKitEndpoint
+from aoep_shared.bridges.session import LiveKitEndpoint
 from aoep_shared.dialect import normalize_dialect
 from aoep_shared.teaching import run_end_to_end
 
@@ -124,7 +124,7 @@ def run_meeting_agents_lab(
 
     # Bridge connect (simulated transport)
     plat = BridgePlatform(platform)
-    meeting_ref = parse_meeting_ref(plat, _SAMPLE_MEETINGS[platform])
+    parse_meeting_ref(plat, _SAMPLE_MEETINGS[platform])  # validate the meeting ref
     room = LiveKitEndpoint(room="lab-room", url="wss://offline.local", token="lab-token")
     state = SharedSessionState(
         slides_total=len(e2e.lesson.segments) or 1,

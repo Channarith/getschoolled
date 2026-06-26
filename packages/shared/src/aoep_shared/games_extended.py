@@ -4,7 +4,7 @@ farm sim, geometry, and spelling — localized via games_i18n."""
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .games import AgeGroup
 

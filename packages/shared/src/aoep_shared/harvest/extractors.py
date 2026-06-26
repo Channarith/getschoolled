@@ -25,7 +25,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 SUPPORTED_SOURCE_TYPES: Tuple[str, ...] = (
     "text", "html", "url", "pdf", "pptx", "docx", "database",

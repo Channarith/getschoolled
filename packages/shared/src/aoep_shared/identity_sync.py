@@ -6,7 +6,6 @@ import json
 import os
 import urllib.error
 import urllib.request
-from typing import Optional
 
 
 def identity_base_url() -> str:
