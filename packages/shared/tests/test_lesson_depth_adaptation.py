@@ -43,3 +43,26 @@ def test_merge_pacing_observed_slow():
     adapt = LearnerAdaptation(observed_pace="slow")
     plan = merge_pacing_plan(signals, adaptation=adapt, class_type=ClassType.GROUP)
     assert plan.pacing.value == "slow"
+
+
+def test_best_strategy_avoids_failed_approaches():
+    adapt = LearnerAdaptation()
+    adapt.record_failed_approach("socratic", "algebra", "confused")
+    adapt.record_strategy("worked_examples", success=True)
+    choice = adapt.best_strategy(["socratic", "worked_examples", "drill"])
+    assert choice == "worked_examples"
+
+
+def test_record_completion_infers_fast_pace():
+    adapt = LearnerAdaptation()
+    for _ in range(3):
+        adapt.record_completion(10.0)
+    assert adapt.observed_pace == "fast"
+    assert adapt.avg_minutes_per_lesson == 10.0
+
+
+def test_sensitivity_rule_blocks_strategy():
+    adapt = LearnerAdaptation()
+    adapt.record_trigger("harsh tone", "student upset", severity="high")
+    assert adapt.should_avoid("use harsh tone")
+    assert adapt.best_strategy(["harsh tone lecture", "gentle recap"]) == "gentle recap"

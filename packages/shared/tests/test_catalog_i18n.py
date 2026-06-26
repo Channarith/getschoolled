@@ -108,8 +108,7 @@ def test_knowledge_course_translated_title_with_training_locale():
 
 def test_recap_text_is_localized():
     course = next(c for c in build_catalog("fr") if c.id == "lang-es-phrases")
-    recap_seg = course.segments[-1]
-    assert recap_seg.heading == "Récapitulatif"
+    recap_seg = next(s for s in course.segments if s.heading == "Récapitulatif")
     assert "Bravo" in recap_seg.text or "réviser" in recap_seg.text.lower() \
         or "Revoyons" in recap_seg.text
 

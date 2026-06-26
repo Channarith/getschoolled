@@ -112,7 +112,7 @@ def lesson_category(lesson_id: str, title: str) -> str:
     return "Live Class"
 
 
-from .lesson_depth import TEACHING_WPM, TARGET_MIN_MINUTES, duration_minutes
+from aoep_shared.lesson_depth import TEACHING_WPM, TARGET_MIN_MINUTES, duration_minutes
 
 
 def lesson_duration_min(slides: List[SampleSlide]) -> int:

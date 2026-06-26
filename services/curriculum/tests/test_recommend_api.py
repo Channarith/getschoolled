@@ -41,3 +41,21 @@ def test_recommend_handles_empty_catalog_gracefully():
     # A fresh app state may already have courses from other tests; just assert shape.
     out = client.post("/recommend", json={"mastery": {}}).json()
     assert "recommendations" in out and "gaps" in out and "difficulty" in out
+
+
+def test_recommend_cold_start_via_http():
+    app.state.catalog = CatalogStore()
+    _course(title="Starter Math", subject="math", tags=["math"], level="beginner", popularity=50)
+    _course(title="Advanced ML", subject="ai", tags=["ml"], level="advanced", popularity=100)
+
+    out = client.post("/recommend", json={
+        "student_id": "brand-new",
+        "mastery": {},
+        "interests": [],
+        "top_n": 3,
+    }).json()
+
+    assert out["cold_start"] is True
+    assert out["difficulty"] == "beginner"
+    assert out["recommendations"]
+    assert out["recommendations"][0]["title"] == "Starter Math"
