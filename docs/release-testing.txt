@@ -193,13 +193,16 @@ Immediate next steps:
   cd apps/mobile && pnpm run typecheck && pnpm run build
 
 ============================================================================
-8. VERSION BUMP ON EVERY MERGE TO MAIN
+8. VERSION BUMP (OPTIONAL — NO LONGER A CI GATE)
 ============================================================================
-Every pull request that merges into main MUST advance VERSION before merge.
-This is enforced in CI (scripts/check_pr_version_bump.sh).
+Bumping VERSION is RECOMMENDED for user-facing releases but is NOT enforced in
+CI. The old per-PR version-bump gate was removed because concurrent PRs kept
+colliding on the same 0.9.x: whichever merged second failed the check even
+though nothing was wrong. Bump deliberately when you cut a release instead:
 
-  python3 scripts/bump_pr_version.py     # patch bump (minor if >8 pending entries)
-  python3 scripts/bump_pr_version.py --check   # dry run
+  python3 scripts/bump_pr_version.py            # patch bump (0.9.y)
+  python3 scripts/bump_pr_version.py --force-level minor   # 0.x.0
+  python3 scripts/bump_pr_version.py --check    # dry run
 
 Updates: VERSION, build-info.txt, apps/web/app/lib/version.ts, apps/web/package.json.
 After merge, the Auto Push Build workflow refreshes build-info.txt only (no second
