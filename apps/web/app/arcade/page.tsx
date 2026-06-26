@@ -82,7 +82,7 @@ export default function ArcadePage() {
         setError(msg);
       }
     }
-  }, [round, answers, loggedIn, loadLeaders]);
+  }, [round, answers, loggedIn, loadLeaders, t]);
 
   // Timed modes: speed + marathon countdown -> auto-submit at zero.
   useEffect(() => {

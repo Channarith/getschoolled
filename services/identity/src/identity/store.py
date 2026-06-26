@@ -733,7 +733,7 @@ class AccountStore:
         event_type: str,
         payload: dict,
     ) -> StudentProfile:
-        from aoep_shared.learner_adaptation import LearnerAdaptation, adaptation_from_dict
+        from aoep_shared.learner_adaptation import adaptation_from_dict
 
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:

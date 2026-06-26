@@ -6,8 +6,17 @@ branch after updating CHANGELOG.txt:
 
   python3 scripts/bump_pr_version.py
 
-Default: PATCH bump. If more than 8 pending changelog entries have accumulated
-since the last versioned release section, bumps MINOR instead (resets PATCH).
+Release strategy (kept deliberately simple):
+  * Routine PRs (bug fixes, cleanups, small changes) -> PATCH bump (0.9.y).
+    This is the DEFAULT and what almost every PR should use.
+  * A larger feature release -> MINOR bump (0.x.0) via --force-level minor.
+  * A breaking/major release -> MAJOR bump (x.0.0) via --force-level major.
+
+We intentionally do NOT auto-promote to a MINOR bump based on the size of the
+[unreleased] changelog block. That block is rolled only by build_release.py at
+formal release time, so per-PR it just keeps growing and would force a minor
+bump on every PR -- making 0.x balloon far too quickly. Minor/major bumps are an
+explicit decision, not a side effect of accumulated changelog text.
 
 Updates VERSION, build-info.txt, apps/web/app/lib/version.ts, and
 apps/web/package.json. Does NOT roll CHANGELOG.txt (dated PR bullets stay at top).
@@ -25,8 +34,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_release as br  # noqa: E402
-
-FEATURE_BUMP_THRESHOLD = br.FEATURE_BUMP_THRESHOLD
 
 
 def _pending_changelog_entries(text: str) -> int:
@@ -57,17 +64,19 @@ def main(argv: list[str] | None = None) -> int:
         new_tuple = (current[0] + 1, 0, 0)
     elif args.force_level == "minor":
         new_tuple = (current[0], current[1] + 1, 0)
-    elif args.force_level == "patch":
-        new_tuple = (current[0], current[1], current[2] + 1)
     else:
-        new_tuple = br.bump(current, pending)
+        # Default = PATCH. Routine PRs stay on 0.9.y; minor/major bumps are an
+        # explicit --force-level decision (see module docstring for rationale).
+        new_tuple = (current[0], current[1], current[2] + 1)
 
     new_version = ".".join(str(p) for p in new_tuple)
     sha = br.git_sha()
     components = br.discover_components()
 
+    level = args.force_level or "patch (default)"
     print(f"current version:   {'.'.join(str(p) for p in current)}")
-    print(f"pending changelog: {pending} (minor threshold > {FEATURE_BUMP_THRESHOLD})")
+    print(f"bump level:        {level}")
+    print(f"pending changelog: {pending} (informational only; does not force a bump)")
     print(f"new version:       {new_version}")
 
     if args.check:

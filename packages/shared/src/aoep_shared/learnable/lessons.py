@@ -5,9 +5,11 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
+
+from aoep_shared.lesson_depth import TEACHING_WPM, duration_minutes
 
 _SLIDE_RE = re.compile(r"^SLIDE\s+(\d+)\s*\|\s*(.+)$")
 
@@ -110,9 +112,6 @@ def lesson_category(lesson_id: str, title: str) -> str:
     if "photo" in lid:
         return "Science & Nature"
     return "Live Class"
-
-
-from aoep_shared.lesson_depth import TEACHING_WPM, TARGET_MIN_MINUTES, duration_minutes
 
 
 def lesson_duration_min(slides: List[SampleSlide]) -> int:

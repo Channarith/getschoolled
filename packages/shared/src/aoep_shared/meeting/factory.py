@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from .base import Meeting, MeetingProvider, PresentationPlan, PresentationResult
+from .base import MeetingProvider
 from .providers import (
     GoogleMeetProvider,
     MockMeetingProvider,
