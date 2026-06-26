@@ -3,6 +3,11 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-23 - Intermittent in-lesson pulse surveys: short 2–3 question check-ins
+  every 5 slides (How is it going? / pace / what's working). Gated by
+  engagement.pulse_survey (default on). Memory GET/POST /survey/pulse + per-course
+  summary; identity pulse_survey event updates LX EMA and strategy bandit; ClassRoom
+  shows check-in card between content blocks. Version 0.7.2 -> 0.7.3.
 - 2026-06-23 - Continuous learning experience (LX) scoring: composite 0–100 score from
   engagement, mastery, clarity, pace fit, and progress; EMA tracking + Thompson
   sampling bandit over teaching strategies (worked_examples, gentle_recap, etc.).
