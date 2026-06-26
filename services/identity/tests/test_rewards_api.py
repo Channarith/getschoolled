@@ -83,12 +83,18 @@ def test_rewards_summary_and_catalog():
     catalog = client.get("/rewards/catalog").json()
     ids = {p["id"] for p in catalog["prizes"]}
     assert {"discount_10", "raffle_ps5", "raffle_gold"} <= ids
+    # Revamped catalog: swag/attire, gift cards, and a richer raffle set.
+    assert {"swag_tshirt", "gift_amazon_5", "gift_visa_10"} <= ids
+    gift = next(p for p in catalog["prizes"] if p["id"] == "gift_amazon_5")
+    assert gift["kind"] == "gift_card" and gift["kind_label"] == "Gift card"
+    assert gift["detail"]["value_usd"] == 5
 
 
 def test_redeem_discount_and_raffle():
     h = _auth(_new_user("rw3@example.com"))
-    # Earn enough points: pass several advanced courses.
-    for i in range(3):
+    # Earn enough points: pass several advanced courses (raffle entries cost
+    # more now, so fund the account accordingly).
+    for i in range(6):
         cid = f"c{i}"
         client.post("/enrollments", headers=h, json={"course_id": cid, "title": cid})
         client.post(f"/enrollments/{cid}/status", headers=h,

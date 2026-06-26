@@ -894,7 +894,8 @@ export type Redemption = {
 };
 export type RewardsSummary = { balance: number; ledger: LedgerEntry[]; redemptions: Redemption[] };
 export type RewardPrize = {
-  id: string; name: string; kind: string; cost_points: number; detail: Record<string, unknown>;
+  id: string; name: string; kind: string; kind_label?: string;
+  cost_points: number; detail: Record<string, unknown>;
 };
 
 export async function getRewards(): Promise<RewardsSummary> {
