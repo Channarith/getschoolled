@@ -208,14 +208,6 @@ export type OnboardingStatus = {
   billing_validated: boolean;
 };
 
-export type LoginEvent = {
-  ts: number;
-  success: boolean;
-  ip: string;
-  user_agent: string;
-  country_hint: string;
-};
-
 export type AdSlotPayload = {
   show: boolean;
   slot_id?: string;
@@ -234,12 +226,6 @@ export type AdSlotPayload = {
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/onboarding-status`, { headers: authHeaders(), cache: "no-store" }),
-  );
-}
-
-export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" }),
   );
 }
 
@@ -1280,19 +1266,6 @@ export async function recordWellnessCheckIn(
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ state, reason }),
-    })
-  );
-}
-
-export async function checkContentAccess(
-  studentId: string,
-  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
-): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
-  return jsonOrThrow(
-    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify(body),
     })
   );
 }
