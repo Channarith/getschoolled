@@ -32,6 +32,9 @@ htmlcov/
 .env.*
 !config/local.env
 !config/cloud.env
+
+# Local dev-launcher runtime (scripts/dev_up.sh)
+logs/
 *.local
 
 # ---- Models / large artifacts (kept OUT of the repo) ----

@@ -59,7 +59,7 @@ def _deserialize_account(raw: dict) -> "Account":
 
     from aoep_shared.passkeys import PasskeyCredential
 
-    from .store import Account, BillingAddress, ClassContext, Enrollment, EnrollmentStatus, LoginEvent, ProfileShareGrant, StudentProfile
+    from .store import Account, BillingAddress, ClassContext, Enrollment, EnrollmentStatus, LoginEvent, PasskeyCredential, ProfileShareGrant, StudentProfile
 
 
     ledger_raw = raw.pop("points_ledger", [])
@@ -92,11 +92,6 @@ def _deserialize_account(raw: dict) -> "Account":
         totp_secret=raw.get("totp_secret", ""),
         totp_enabled=bool(raw.get("totp_enabled", False)),
         oauth_subject=raw.get("oauth_subject", ""),
-        redemptions=list(redemptions),
-    )
-    acct.login_events = [LoginEvent.model_validate(v) for v in login_events_raw]
-    acct.passkeys = [PasskeyCredential.model_validate(v) for v in passkeys_raw]
-        membership_class=raw.get("membership_class", "standard"),
         onboarding_completed_at=raw.get("onboarding_completed_at"),
         card_last4=raw.get("card_last4", ""),
         billing_validated_at=raw.get("billing_validated_at"),
@@ -114,6 +109,7 @@ def _deserialize_account(raw: dict) -> "Account":
         k: ProfileShareGrant.model_validate(v) for k, v in grants_raw.items()
     }
     acct.login_events = [LoginEvent.model_validate(e) for e in login_events_raw]
+    acct.passkeys = [PasskeyCredential.model_validate(e) for e in passkeys_raw]
     acct.points = PointsLedger()
     for entry in ledger_raw:
         acct.points.entries.append(PointsEntry(**entry))

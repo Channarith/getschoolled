@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- Local dev launcher + live-integration wiring: new scripts/dev_up.sh (make
+  dev-all) brings the WHOLE stack up natively - all 8 FastAPI services + the
+  Next.js web app - in the background, wired together, idempotent, with health
+  checks and a URL/live-key summary. scripts/dev_down.sh (make dev-down) +
+  scripts/dev_status.sh (make dev-status). Loads config/local.env then overlays
+  .env.local (gitignored) so live providers (LINKEDIN_API_KEY, STRIPE_API_KEY,
+  LLM_BASE_URL, search keys, SENTRY/OTel) turn on. docs/run-local.txt documents
+  the Mac setup + live keys. Also fixed a blocking SyntaxError in
+  services/identity/src/identity/persistence.py (duplicate membership_class kwarg)
+  that prevented the identity service from starting. logs/ gitignored.
+
 [unreleased]
 - 2026-06-23 - Offline meeting agents lab: scripts/meeting_agents_lab.py exercises
   harvest → teach → present → Zoom/Teams/Meet bridge simulation with five agents

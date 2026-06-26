@@ -313,9 +313,8 @@ class AccountStore:
             return None
         if acct.locked_until and acct.locked_until > time.time():
             self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent,
                 country_hint=country_hint, method="password", reason="locked",
-                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
-                reason="locked",
             )
             return None
         if not verify_password(password, acct.password_hash):
@@ -323,9 +322,8 @@ class AccountStore:
             if acct.failed_logins >= 5:
                 acct.locked_until = time.time() + 900  # 15 min lockout
             self.record_login_event(
-                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
-                country_hint=country_hint, method="password",
-
+                acct.id, success=False, ip=ip, user_agent=user_agent,
+                country_hint=country_hint, method="password", reason="bad_password",
             )
             self._persist()
             return None
