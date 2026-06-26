@@ -1,0 +1,88 @@
+RUN AI CLASSROOM LOCALLY (your Mac) + LIVE INTEGRATIONS
+=======================================================
+Plain text (repo no-markdown house rule).
+
+The whole stack (8 backend services + the Next.js web app) runs natively on macOS
+with one command. Live integrations (LinkedIn jobs, Stripe, LLM serving, search,
+Sentry/OTel) turn on automatically when their API keys are present.
+
+-----------------------------------------------------------------------------
+1. PREREQUISITES (one time)
+-----------------------------------------------------------------------------
+  - Python 3.12 (python3), Node 18+ and npm, and curl.
+  - From the repo root:
+      make install        # creates .venv and installs all Python packages
+      make web-install    # installs apps/web deps (npm)
+  (dev_up.sh will run these for you automatically if they're missing.)
+
+-----------------------------------------------------------------------------
+2. START / STOP / STATUS  (the wiring)
+-----------------------------------------------------------------------------
+  make dev-all      # or: ./scripts/dev_up.sh
+      Starts ALL services + web in the background, wired together, and prints a
+      health summary with URLs and which live keys are detected.
+      Logs: ./logs/<name>.log   (e.g. logs/identity.log, logs/web.log)
+  make dev-status   # health of every service + web
+  make dev-down     # stop everything dev-all started
+
+  URLs once up:
+      Web        http://localhost:3000
+      orchestrator 8000 · speech 8002 · perception 8003 · memory 8004 ·
+      curriculum 8005 · billing 8006 · integrations 8007 · identity 8008
+      Every service also serves /health, /version, /__meta, /metrics.
+
+  The web app reaches each service by default at http://localhost:<port> (override
+  with NEXT_PUBLIC_*_URL if needed). No extra wiring required for local dev.
+
+-----------------------------------------------------------------------------
+3. ENABLE LIVE INTEGRATIONS  (.env.local)
+-----------------------------------------------------------------------------
+  Create a gitignored .env.local in the repo root with the real keys you have.
+  dev_up.sh loads config/local.env first, then overlays .env.local (so it wins).
+  Example .env.local:
+
+      # Jobs / Careers (LinkedIn or another job source)
+      LINKEDIN_API_KEY=...        # or JOBS_API_KEY=...
+      # Payments
+      STRIPE_API_KEY=sk_live_or_test_...
+      # LLM serving (real AI tutor answers instead of the offline fallback)
+      LLM_BASE_URL=https://your-vllm-or-openai-compatible/v1
+      LLM_API_KEY=...
+      LLM_MODEL=your-model
+      # Search-engine course validation
+      BING_SEARCH_KEY=...   GOOGLE_CSE_KEY=...   GOOGLE_CSE_CX=...
+      # Observability export
+      SENTRY_DSN=...        OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+  Then re-run `make dev-down && make dev-all`. The summary prints "<KEY> set
+  (live)" for each detected key.
+
+  Notes on specific providers:
+   - Jobs: with no key, /jobs uses a curated board representative of LinkedIn/
+     Indeed and full skill->course matching still works. LinkedIn's official jobs
+     API needs partner/OAuth approval; once you have access, the provider is wired
+     behind aoep_shared/jobs.py (LinkedInJobsProvider).
+   - LLM/Speech/Vision: heavy model providers are env-selected; without endpoints
+     the offline fallbacks (RAG-grounded tutor, sandbox payments, mocks) keep the
+     app fully usable.
+
+-----------------------------------------------------------------------------
+4. MOBILE APP (Android + iOS)
+-----------------------------------------------------------------------------
+  cd apps/mobile && make -C ../.. mobile-setup     # or: bash scripts/mobile-setup.sh
+  See apps/mobile/RUN.txt for emulator/EAS build steps. Point the app at your
+  Mac's LAN IP (app.json -> expo.extra.curriculumUrl) so a phone can reach it.
+
+-----------------------------------------------------------------------------
+5. DOCKER (optional, full containerized stack)
+-----------------------------------------------------------------------------
+  make up      # docker compose: services + Postgres + Redis + object store
+  make down
+
+-----------------------------------------------------------------------------
+6. KNOWN GAP
+-----------------------------------------------------------------------------
+  /api/lessons (the live-class lesson list) may be empty: sample-curriculum/ now
+  holds structured PROGRAM directories, while the orchestrator's lesson parser
+  expects flat LESSON: text files. Audio "Drive Mode" classes, the catalog,
+  arcade, languages, jobs/careers, rewards, etc. are unaffected.
