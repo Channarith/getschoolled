@@ -6,18 +6,13 @@ from typing import Literal
 
 MembershipClass = Literal["standard", "vip"]
 
-VIP_TIERS = frozenset({"pro", "premium"})
-STANDARD_TIERS = frozenset({"free", "basic"})
+# Netflix-style: Standard = free/basic (with ads); VIP = premium (ad-free).
+VIP_TIERS = frozenset({"premium"})
+STANDARD_TIERS = frozenset({"free", "basic", "pro"})
 
 
 def membership_class_for_tier(tier: str) -> MembershipClass:
     """Map subscription tier to Netflix-style membership class."""
-    t = (tier or "free").lower()
-    if t in VIP_TIERS:
+    if (tier or "free").lower() in VIP_TIERS:
         return "vip"
     return "standard"
-
-
-def tier_requires_payment(tier: str) -> bool:
-    """Paid tiers need billing validation before activation."""
-    return (tier or "free").lower() not in {"free"}

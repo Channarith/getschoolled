@@ -16,6 +16,12 @@ from typing import Dict, List, Optional
 
 from aoep_shared.auth import hash_password, verify_password
 from aoep_shared.membership import membership_class_for_tier
+from aoep_shared.plan_pricing import (
+    anchor_day_from_timestamp,
+    initial_next_billing_at,
+    price_usd_for_tier,
+    tier_requires_payment,
+)
 from aoep_shared.rewards import PointsLedger
 from aoep_shared.schemas import PlanTier, Region
 from pydantic import BaseModel, Field
@@ -117,8 +123,14 @@ class Account(BaseModel):
     password_hash: str = ""
     tier: PlanTier = PlanTier.FREE
     region: Region = Region.US
+    membership_class: str = "standard"   # standard | vip (derived from tier)
     is_admin: bool = False
     created_at: float = Field(default_factory=lambda: time.time())
+    # Subscription billing (Netflix-style calendar-day monthly).
+    subscription_started_at: Optional[float] = None
+    billing_anchor_day: Optional[int] = None   # 1–31, day of month they signed up
+    next_billing_at: Optional[float] = None  # unix ts of next charge
+    billing_amount_usd: Optional[float] = None
     # Security signals.
     last_login_at: Optional[float] = None
     failed_logins: int = 0
@@ -141,16 +153,21 @@ class Account(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     def public(self) -> dict:
+        from aoep_shared.plan_pricing import subscription_public
+
         return {
             "id": self.id, "email": self.email, "display_name": self.display_name,
             "tier": self.tier.value, "region": self.region.value,
             "membership_class": self.membership_class,
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
-            "login_count": self.login_count,
-            "onboarding_completed_at": self.onboarding_completed_at,
-            "billing_validated": self.billing_validated_at is not None,
-            "card_last4": self.card_last4 or None,
+            "subscription": subscription_public(
+                tier=self.tier.value,
+                subscription_started_at=self.subscription_started_at,
+                billing_anchor_day=self.billing_anchor_day,
+                next_billing_at=self.next_billing_at,
+                billing_amount_usd=self.billing_amount_usd,
+            ),
         }
 
 
@@ -179,9 +196,14 @@ class AccountStore:
             raise ValueError("a valid email is required")
         if email in self._id_by_email:
             raise ValueError("an account with that email already exists")
-        acct = Account(email=email, display_name=display_name or email.split("@")[0],
-                       password_hash=hash_password(password), tier=tier, region=region,
-                       membership_class=membership_class_for_tier(tier.value))
+        acct = Account(
+            email=email,
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(password),
+            tier=tier,
+            region=region,
+            membership_class=membership_class_for_tier(tier.value),
+        )
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
         self._persist()
@@ -227,6 +249,7 @@ class AccountStore:
             tier=tier,
             region=region,
             is_admin=is_admin,
+            membership_class=membership_class_for_tier(tier.value),
         )
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
@@ -337,35 +360,33 @@ class AccountStore:
         acct = self._by_id[account_id]
         acct.tier = tier
         acct.membership_class = membership_class_for_tier(tier.value)
+        if not tier_requires_payment(tier.value):
+            acct.subscription_started_at = None
+            acct.billing_anchor_day = None
+            acct.next_billing_at = None
+            acct.billing_amount_usd = None
         self._persist()
         return acct
 
-    def set_billing_profile(
+    def activate_subscription(
         self,
         account_id: str,
-        address: BillingAddress,
+        tier: PlanTier,
         *,
-        card_last4: str = "",
+        started_at: Optional[float] = None,
     ) -> Account:
+        """Start or change a paid plan with calendar-day monthly billing."""
+        if not tier_requires_payment(tier.value):
+            return self.set_tier(account_id, tier)
         acct = self._by_id[account_id]
-        acct.billing_address = address
-        if card_last4:
-            acct.card_last4 = card_last4
-        acct.billing_validated_at = time.time()
-        self._persist()
-        return acct
-
-    def complete_onboarding(self, account_id: str) -> Account:
-        acct = self._by_id[account_id]
-        acct.onboarding_completed_at = time.time()
-        self._persist()
-        return acct
-
-    def patch_account(self, account_id: str, **fields) -> Account:
-        acct = self._by_id[account_id]
-        for key, val in fields.items():
-            if val is not None and hasattr(acct, key):
-                setattr(acct, key, val)
+        now = started_at if started_at is not None else time.time()
+        anchor = anchor_day_from_timestamp(now)
+        acct.tier = tier
+        acct.membership_class = membership_class_for_tier(tier.value)
+        acct.subscription_started_at = now
+        acct.billing_anchor_day = anchor
+        acct.billing_amount_usd = price_usd_for_tier(tier.value)
+        acct.next_billing_at = initial_next_billing_at(now, anchor_day=anchor)
         self._persist()
         return acct
 

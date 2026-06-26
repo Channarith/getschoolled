@@ -264,6 +264,46 @@ class TierChange(BaseModel):
     tier: PlanTier
 
 
+@app.get("/membership/subscription")
+def get_subscription(acct=Depends(current_account)) -> dict:
+    from aoep_shared.plan_pricing import subscription_public
+
+    return subscription_public(
+        tier=acct.tier.value,
+        subscription_started_at=acct.subscription_started_at,
+        billing_anchor_day=acct.billing_anchor_day,
+        next_billing_at=acct.next_billing_at,
+        billing_amount_usd=acct.billing_amount_usd,
+    )
+
+
+class SubscribeRequest(BaseModel):
+    tier: PlanTier
+
+
+@app.post("/membership/subscribe")
+def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
+    """Activate Standard ($19.99) or VIP ($29.99) with calendar-day billing.
+
+    In local/sandbox mode this completes immediately after checkout; production
+    should route through the billing webhook with ``require_internal`` tier sync.
+    """
+    from aoep_shared.plan_pricing import CONSUMER_TIERS, tier_requires_payment
+
+    tier_val = req.tier.value
+    if tier_val not in CONSUMER_TIERS:
+        raise HTTPException(status_code=422, detail=f"tier {tier_val!r} is not a consumer plan")
+    if tier_requires_payment(tier_val):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
+    return {
+        "tier": updated.tier.value,
+        "membership_class": updated.membership_class,
+        "subscription": updated.public()["subscription"],
+    }
+
+
 @app.post("/membership/tier", dependencies=[Depends(require_internal)])
 def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     """Update the caller's subscription tier.
@@ -273,137 +313,13 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     a teacher / admin agent - not by the user themselves. The
     billing webhook handler forwards an internal token here.
     """
-    updated = app.state.accounts.set_tier(acct.id, req.tier)
-    return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+    from aoep_shared.plan_pricing import tier_requires_payment
 
-
-class InternalTierChange(BaseModel):
-    account_id: str
-    tier: PlanTier
-
-
-@app.post("/internal/membership/tier", dependencies=[Depends(require_internal)])
-def internal_set_tier(req: InternalTierChange) -> dict:
-    """Billing webhooks / sandbox checkout: set tier by account id."""
-    acct = app.state.accounts.by_id(req.account_id)
-    if acct is None:
-        raise HTTPException(status_code=404, detail="account not found")
-    updated = app.state.accounts.set_tier(req.account_id, req.tier)
-    return {"account_id": updated.id, "tier": updated.tier.value,
-            "membership_class": updated.membership_class}
-
-
-# --------------------------------------------------------------------------- #
-# Netflix-style onboarding (plan + billing + profile)
-# --------------------------------------------------------------------------- #
-class OnboardingProfileRequest(BaseModel):
-    display_name: str = ""
-    phone: str = ""
-    region: Region | None = None
-
-
-class OnboardingBillingRequest(BaseModel):
-    line1: str
-    line2: str = ""
-    city: str
-    state: str = ""
-    postal_code: str
-    country: str = "US"
-    phone: str = ""
-    card_number: str
-    exp_month: int = Field(ge=1, le=12)
-    exp_year: int = Field(ge=2020, le=2099)
-    cvv: str
-
-
-class OnboardingPlanRequest(BaseModel):
-    tier: PlanTier
-
-
-class OnboardingCompleteRequest(BaseModel):
-    learner_name: str = ""
-    age_band: str = "adult"
-
-
-@app.post("/onboarding/profile")
-def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
-    patch: dict = {}
-    if req.display_name.strip():
-        patch["display_name"] = req.display_name.strip()
-    if req.region is not None:
-        patch["region"] = req.region
-    if patch:
-        acct = app.state.accounts.patch_account(acct.id, **patch)
-    if req.phone.strip():
-        addr = acct.billing_address or BillingAddress()
-        addr.phone = req.phone.strip()
-        app.state.accounts.set_billing_profile(acct.id, addr, card_last4=acct.card_last4 or "")
-        acct = app.state.accounts.by_id(acct.id)
-    return {"ok": True, "display_name": acct.display_name}
-
-
-@app.post("/onboarding/billing")
-def onboarding_billing(req: OnboardingBillingRequest, acct=Depends(current_account)) -> dict:
-    from aoep_shared.billing_validation import (
-        mask_card_last4, validate_billing_address, validate_card,
-    )
-
-    addr_errors = validate_billing_address(
-        line1=req.line1, city=req.city, postal_code=req.postal_code,
-        country=req.country, state=req.state,
-    )
-    card_errors = validate_card(req.card_number, req.exp_month, req.exp_year, req.cvv)
-    errors = addr_errors + card_errors
-    if errors:
-        raise HTTPException(status_code=422, detail="; ".join(errors))
-    address = BillingAddress(
-        line1=req.line1.strip(), line2=req.line2.strip(), city=req.city.strip(),
-        state=req.state.strip(), postal_code=req.postal_code.strip(),
-        country=req.country.strip().upper()[:2], phone=req.phone.strip(),
-    )
-    updated = app.state.accounts.set_billing_profile(
-        acct.id, address, card_last4=mask_card_last4(req.card_number))
-    return {"validated": True, "card_last4": updated.card_last4}
-
-
-@app.post("/onboarding/plan")
-def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -> dict:
-    from aoep_shared.membership import tier_requires_payment
-
-    tier = req.tier
-    if tier_requires_payment(tier.value) and acct.billing_validated_at is None:
-        raise HTTPException(
-            status_code=402,
-            detail="billing address and payment method required before selecting a paid plan",
-        )
-    updated = app.state.accounts.set_tier(acct.id, tier)
-    return {"tier": updated.tier.value, "membership_class": updated.membership_class}
-
-
-@app.post("/onboarding/complete")
-def onboarding_complete(req: OnboardingCompleteRequest, acct=Depends(current_account)) -> dict:
-    if req.learner_name.strip():
-        students = list(acct.students.values())
-        if students:
-            students[0].display_name = req.learner_name.strip()
-            if req.age_band in ("child", "teen", "adult"):
-                students[0].age_band = req.age_band
-    updated = app.state.accounts.complete_onboarding(acct.id)
-    return {
-        "completed": True,
-        "completed_at": updated.onboarding_completed_at,
-        "membership_class": updated.membership_class,
-    }
-
-
-@app.get("/admin/login-events")
-def admin_login_events(_acct=Depends(require_admin_account)) -> dict:
-    rows = []
-    for a in app.state.accounts.list_all_accounts():
-        for ev in app.state.accounts.login_history(a.id, limit=10):
-            rows.append({"account_id": a.id, "email": a.email, **ev})
-    rows.sort(key=lambda r: r.get("ts", 0), reverse=True)
-    return {"events": rows[:200], "count": len(rows)}
+    if tier_requires_payment(req.tier.value):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
+    return {"tier": updated.tier.value}
 
 
 # --------------------------------------------------------------------------- #
