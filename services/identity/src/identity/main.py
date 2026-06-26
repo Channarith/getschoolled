@@ -550,12 +550,81 @@ def get_adaptation(student_id: str, acct=Depends(current_account)) -> dict:
     prof = app.state.accounts.get_student(acct.id, student_id)
     if prof is None:
         raise HTTPException(status_code=404, detail="unknown student profile")
+    from aoep_shared.content_access import needs_simplified_content
+
     return {
         "learning_goals": prof.learning_goals,
         "goal_timeline": prof.goal_timeline,
         "adaptation": prof.adaptation,
         "learning_pace": prof.learning_pace,
         "learner_category": prof.learner_category,
+        "needs_simplified_content": needs_simplified_content(
+            age_band=prof.age_band,
+            reading_level=prof.reading_level,
+            accessibility=prof.accessibility,
+            accommodations_notes=prof.accommodations_notes,
+            learner_category=prof.learner_category,
+        ),
+    }
+
+
+class WellnessCheckIn(BaseModel):
+    state: str = "ok"   # ok | low_energy | stressed | unwell
+    reason: str = ""
+
+
+@app.post("/students/{student_id}/wellness")
+def record_wellness(student_id: str, req: WellnessCheckIn, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.record_adaptation_event(
+            acct.id, student_id, "wellness",
+            {"state": req.state, "reason": req.reason},
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "adaptation": prof.adaptation}
+
+
+class ContentAccessRequest(BaseModel):
+    maturity_rating: str = "all"
+    level: str = "beginner"
+    duration_min: int = 0
+    complexity: int = 0
+
+
+@app.post("/students/{student_id}/content-access")
+def check_content_access(student_id: str, req: ContentAccessRequest,
+                         acct=Depends(current_account)) -> dict:
+    from aoep_shared.content_access import may_access_course, needs_simplified_content
+    from aoep_shared.course_complexity import complexity_score
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    simplified = needs_simplified_content(
+        age_band=prof.age_band,
+        reading_level=prof.reading_level,
+        accessibility=prof.accessibility,
+        accommodations_notes=prof.accommodations_notes,
+        learner_category=prof.learner_category,
+    )
+    allowed, reason = may_access_course(
+        age_band=prof.age_band,
+        maturity_rating=req.maturity_rating,
+        needs_simplified=simplified,
+    )
+    cx = complexity_score(
+        level=req.level,
+        maturity=req.maturity_rating,
+        duration_min=req.duration_min,
+        explicit=req.complexity or None,
+    )
+    return {
+        "allowed": allowed,
+        "reason": reason,
+        "needs_simplified_content": simplified,
+        "complexity": cx,
+        "age_band": prof.age_band,
     }
 
 
@@ -576,12 +645,18 @@ def set_mastery(student_id: str, req: MasteryUpdate, acct=Depends(current_accoun
 class CompleteCourse(BaseModel):
     course_id: str
     skills: list[str] = []
+    minutes: float | None = None
+    expected_min: float | None = None
+    complexity: int | None = None
 
 
 @app.post("/students/{student_id}/complete")
 def complete_course(student_id: str, req: CompleteCourse, acct=Depends(current_account)) -> dict:
     try:
-        prof = app.state.accounts.record_completion(acct.id, student_id, req.course_id, req.skills)
+        prof = app.state.accounts.record_completion(
+            acct.id, student_id, req.course_id, req.skills,
+            minutes=req.minutes, expected_min=req.expected_min, complexity=req.complexity,
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()

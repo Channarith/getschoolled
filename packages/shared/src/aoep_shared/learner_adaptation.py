@@ -6,8 +6,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from .adaptive import AdaptivePolicy, LearnerSignals, Pacing, PacingPlan
+from .adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing, PacingPlan
+from .course_complexity import finish_pace_label
 from .schemas import ClassType
+
+WELLNESS_STATES = frozenset({"ok", "low_energy", "stressed", "unwell"})
 
 
 @dataclass
@@ -30,6 +33,16 @@ class FailedApproach:
 
 
 @dataclass
+class CourseFinishRecord:
+    course_id: str
+    minutes: float
+    expected_min: float
+    complexity: int
+    pace_vs_expected: str
+    finished_at: float = field(default_factory=lambda: time.time())
+
+
+@dataclass
 class LearnerAdaptation:
     """Behavioral overlay on declared survey profile (updates over time)."""
     learning_goals: List[str] = field(default_factory=list)
@@ -37,11 +50,15 @@ class LearnerAdaptation:
     observed_pace: str = "moderate"   # slow | moderate | fast (inferred)
     avg_minutes_per_lesson: Optional[float] = None
     completion_samples: List[float] = field(default_factory=list)
+    course_finishes: List[CourseFinishRecord] = field(default_factory=list)
     strategy_wins: Dict[str, int] = field(default_factory=dict)
     strategy_losses: Dict[str, int] = field(default_factory=dict)
     failed_approaches: List[FailedApproach] = field(default_factory=list)
     sensitivity_rules: List[SensitivityRule] = field(default_factory=list)
     known_triggers: List[str] = field(default_factory=list)
+    wellness_state: str = "ok"
+    wellness_reason: str = ""
+    wellness_updated_at: Optional[float] = None
     profile_revision: int = 0
 
     def record_completion(self, minutes: float) -> None:
@@ -57,6 +74,45 @@ class LearnerAdaptation:
         else:
             self.observed_pace = "moderate"
         self.profile_revision += 1
+
+    def record_course_finish(
+        self,
+        course_id: str,
+        minutes: float,
+        *,
+        expected_min: float,
+        complexity: int = 3,
+    ) -> CourseFinishRecord:
+        pace = finish_pace_label(minutes, expected_min)
+        rec = CourseFinishRecord(
+            course_id=course_id,
+            minutes=minutes,
+            expected_min=expected_min,
+            complexity=complexity,
+            pace_vs_expected=pace,
+        )
+        self.course_finishes.append(rec)
+        if len(self.course_finishes) > 30:
+            self.course_finishes = self.course_finishes[-30:]
+        self.record_completion(minutes)
+        return rec
+
+    def record_wellness(self, state: str, reason: str = "") -> None:
+        st = (state or "ok").strip().lower()
+        if st not in WELLNESS_STATES:
+            st = "ok"
+        self.wellness_state = st
+        self.wellness_reason = (reason or "").strip()
+        self.wellness_updated_at = time.time()
+        if st in ("stressed", "unwell", "low_energy"):
+            self.record_trigger(
+                f"wellness:{st}",
+                self.wellness_reason or st,
+                severity="high",
+                allow_retry=True,
+            )
+        else:
+            self.profile_revision += 1
 
     def record_strategy(self, strategy: str, *, success: bool) -> None:
         if success:
@@ -110,6 +166,11 @@ class LearnerAdaptation:
         scored.sort(reverse=True)
         return scored[0][1]
 
+    def avg_complexity_completed(self) -> Optional[float]:
+        if not self.course_finishes:
+            return None
+        return sum(r.complexity for r in self.course_finishes) / len(self.course_finishes)
+
     def to_dict(self) -> dict:
         return {
             "learning_goals": self.learning_goals,
@@ -128,8 +189,51 @@ class LearnerAdaptation:
                 for r in self.sensitivity_rules[-15:]
             ],
             "known_triggers": self.known_triggers,
+            "course_finishes": [
+                {
+                    "course_id": r.course_id,
+                    "minutes": r.minutes,
+                    "expected_min": r.expected_min,
+                    "complexity": r.complexity,
+                    "pace_vs_expected": r.pace_vs_expected,
+                    "finished_at": r.finished_at,
+                }
+                for r in self.course_finishes[-15:]
+            ],
+            "wellness_state": self.wellness_state,
+            "wellness_reason": self.wellness_reason,
+            "wellness_updated_at": self.wellness_updated_at,
             "profile_revision": self.profile_revision,
         }
+
+
+def adaptation_from_dict(raw: dict, *, learning_goals: Optional[List[str]] = None,
+                         goal_timeline: str = "") -> LearnerAdaptation:
+    """Rebuild LearnerAdaptation from persisted JSON."""
+    adapt = LearnerAdaptation(
+        learning_goals=list(learning_goals or raw.get("learning_goals", [])),
+        goal_timeline=str(goal_timeline or raw.get("goal_timeline", "")),
+        observed_pace=str(raw.get("observed_pace", "moderate")),
+        avg_minutes_per_lesson=raw.get("avg_minutes_per_lesson"),
+        completion_samples=list(raw.get("completion_samples", [])),
+        strategy_wins=dict(raw.get("strategy_wins", {})),
+        strategy_losses=dict(raw.get("strategy_losses", {})),
+        known_triggers=list(raw.get("known_triggers", [])),
+        wellness_state=str(raw.get("wellness_state", "ok")),
+        wellness_reason=str(raw.get("wellness_reason", "")),
+        wellness_updated_at=raw.get("wellness_updated_at"),
+        profile_revision=int(raw.get("profile_revision", 0)),
+    )
+    adapt.failed_approaches = [
+        FailedApproach(**f) for f in raw.get("failed_approaches", [])
+    ]
+    adapt.sensitivity_rules = [
+        SensitivityRule(**r) for r in raw.get("sensitivity_rules", [])
+    ]
+    adapt.course_finishes = [
+        CourseFinishRecord(**r) for r in raw.get("course_finishes", [])
+    ]
+    return adapt
 
 
 def merge_pacing_plan(
@@ -139,11 +243,23 @@ def merge_pacing_plan(
     adaptation: Optional[LearnerAdaptation] = None,
     class_type: ClassType = ClassType.GROUP,
     policy: Optional[AdaptivePolicy] = None,
+    course_complexity: int = 3,
+    wellness_state: str = "ok",
 ) -> PacingPlan:
-    """Merge behavioral signals, declared survey, and evolving adaptation."""
+    """Merge behavioral signals, declared survey, wellness, and evolving adaptation."""
     base = (policy or AdaptivePolicy()).plan(signals, class_type=class_type)
     reasons = list(base.reasons)
     pacing, difficulty, reteach = base.pacing, base.difficulty, base.reteach
+
+    effective_wellness = wellness_state
+    if adaptation and adaptation.wellness_state in WELLNESS_STATES - {"ok"}:
+        effective_wellness = adaptation.wellness_state
+
+    if effective_wellness in ("unwell", "stressed", "low_energy"):
+        pacing = Pacing.SLOW
+        difficulty = Difficulty.EASY
+        reteach = True
+        reasons.append(f"wellness_{effective_wellness}->gentle_session")
 
     if adaptation:
         if adaptation.observed_pace == "slow" and pacing is not Pacing.SLOW:
@@ -156,6 +272,10 @@ def merge_pacing_plan(
         if adaptation.sensitivity_rules:
             reteach = True
             reasons.append("sensitivity_rules_active->gentler_reteach")
+
+        if course_complexity >= 4 and adaptation.observed_pace == "slow":
+            difficulty = Difficulty.EASY
+            reasons.append("high_complexity_slow_learner")
 
     if declared_pace == "slow" and pacing is Pacing.FAST:
         pacing = Pacing.NORMAL
@@ -171,10 +291,26 @@ FRUSTRATION_MARKERS = (
     "too fast", "too slow", "confusing", "frustrated",
 )
 
+WELLNESS_MARKERS = (
+    ("unwell", ("sick", "not feeling well", "ill", "headache", "migraine", "nausea")),
+    ("low_energy", ("tired", "exhausted", "no energy", "sleepy", "burnt out", "burned out")),
+    ("stressed", ("stressed", "anxious", "overwhelmed", "bad mood", "upset", "worried")),
+)
+
 
 def detect_frustration(text: str) -> Optional[str]:
     lower = (text or "").lower()
     for marker in FRUSTRATION_MARKERS:
         if marker in lower:
             return marker
+    return None
+
+
+def detect_wellness(text: str) -> Optional[tuple[str, str]]:
+    """Return (wellness_state, matched_phrase) when mood/health cues appear."""
+    lower = (text or "").lower()
+    for state, markers in WELLNESS_MARKERS:
+        for marker in markers:
+            if marker in lower:
+                return state, marker
     return None

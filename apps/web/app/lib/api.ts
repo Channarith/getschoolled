@@ -1142,6 +1142,33 @@ export async function recordAdaptationEvent(
   );
 }
 
+export async function recordWellnessCheckIn(
+  studentId: string,
+  state: string,
+  reason = "",
+): Promise<{ adaptation: Record<string, unknown> }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/wellness`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ state, reason }),
+    })
+  );
+}
+
+export async function checkContentAccess(
+  studentId: string,
+  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
+): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
 export type LegalNotice = {
   id: string;
   title: string;
