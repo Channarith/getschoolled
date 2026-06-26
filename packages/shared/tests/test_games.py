@@ -112,3 +112,24 @@ def test_kids_match_uses_kid_pairs():
     rnd = make_round("biology", GameType.MATCH, age_group=AgeGroup.KIDS, n=4, seed=2)
     terms = {p.term for p in rnd.pairs}
     assert "Cow" in terms or "Review: Cow" in terms
+
+
+def test_marathon_round_uses_full_bank_up_to_cap():
+    rnd = make_round("math", GameType.MARATHON, n=5, seed=9)
+    assert len(rnd.mcqs) == 15  # teen bank size; marathon requests 20, capped by bank
+    assert rnd.time_limit_s == 180
+    pub = rnd.public()
+    assert pub["game_type"] == "marathon"
+
+
+def test_marathon_perfect_score_includes_streak_bonus():
+    rnd = make_round("science", GameType.MARATHON, seed=10)
+    answers = {m.id: m.answer_index for m in rnd.mcqs}
+    res = score_round(rnd, answers, elapsed_s=60)
+    assert res.correct == res.total
+    assert res.points > res.correct * 10
+
+
+def test_marathon_respects_max_round_items_when_bank_large_enough():
+    rnd = make_round("history", GameType.MARATHON, n=30, seed=11)
+    assert len(rnd.mcqs) <= 25

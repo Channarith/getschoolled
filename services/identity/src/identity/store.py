@@ -489,6 +489,35 @@ class AccountStore:
         acct.password_hash = hash_password(new_password)
         self._persist()
 
+    def set_billing_profile(
+        self,
+        account_id: str,
+        address: BillingAddress,
+        *,
+        card_last4: str = "",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.billing_address = address
+        if card_last4:
+            acct.card_last4 = card_last4
+        acct.billing_validated_at = time.time()
+        self._persist()
+        return acct
+
+    def complete_onboarding(self, account_id: str) -> Account:
+        acct = self._by_id[account_id]
+        acct.onboarding_completed_at = time.time()
+        self._persist()
+        return acct
+
+    def patch_account(self, account_id: str, **fields) -> Account:
+        acct = self._by_id[account_id]
+        for key, val in fields.items():
+            if val is not None and hasattr(acct, key):
+                setattr(acct, key, val)
+        self._persist()
+        return acct
+
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]
         acct.tier = tier

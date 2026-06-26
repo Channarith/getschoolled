@@ -18,7 +18,7 @@ def _user(email, name=""):
 def test_catalog_lists_subjects_and_types():
     cat = client.get("/games").json()
     assert "biology" in cat["subjects"] and "programming" in cat["subjects"]
-    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match"}
+    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match", "marathon"}
 
 
 def test_new_round_hides_answers():
@@ -72,6 +72,15 @@ def test_match_round_and_leaderboard_subject_filter():
 
 def test_unknown_game_type_422():
     assert client.post("/games/new", json={"subject": "math", "game_type": "nope"}).status_code == 422
+
+
+def test_marathon_round_via_api():
+    rnd = client.post("/games/new", json={
+        "subject": "math", "game_type": "marathon", "n": 20,
+    }).json()
+    assert rnd["game_type"] == "marathon"
+    assert len(rnd["items"]) == 15
+    assert rnd["time_limit_s"] == 180
 
 
 def test_catalog_includes_age_groups():
