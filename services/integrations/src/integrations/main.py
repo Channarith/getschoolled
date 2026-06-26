@@ -163,6 +163,9 @@ async def payment_webhook(provider: str, request: Request) -> dict:
         feats.add(event.entitlement)
         app.state.finance.record_revenue(event.amount, currency=event.currency,
                                           memo=f"{provider}:{event.customer}")
+        from aoep_shared.identity_sync import sync_account_tier
+
+        sync_account_tier(event.customer, event.entitlement)
         out = WebhookEvent(event_type="enrollment.paid",
                            data={"customer": event.customer, "entitlement": event.entitlement})
         dispatch(app.state.subs, out, sender=app.state.sender)

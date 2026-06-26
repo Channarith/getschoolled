@@ -3,6 +3,17 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-25 - Netflix-style onboarding: multi-step web wizard (/onboarding) for
+  profile, plan (standard vs VIP), billing address + card validation (Luhn/expiry;
+  sandbox — production uses hosted PSP), and learner profile. New users redirect
+  after signup; /billing shows plan, card last4, and sign-in security history.
+- 2026-06-25 - Identity: membership_class (standard|vip), login audit trail
+  (IP, user-agent, country hint; 50 events/account), 15-min lockout after 5
+  failed logins, POST /onboarding/* and GET /auth/login-history; payment webhooks
+  sync tier via /internal/membership/tier. Postgres migration 0004 for login_events.
+- 2026-06-25 - Ads: aoep_shared.ad_networks connector (house, Google AdSense,
+  Google Ad Manager, Meta Audience Network via AD_NETWORK env); GET /billing/ads/slot
+  and web AdSlot on home feed for standard members (VIP ad-free).
 - 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
   (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
   follow-up /api/sessions/{id}/advance|ask served by a different replica no

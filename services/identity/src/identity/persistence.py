@@ -57,13 +57,15 @@ def _deserialize_account(raw: dict) -> "Account":
     from aoep_shared.rewards import PointsEntry, PointsLedger
     from aoep_shared.schemas import PlanTier, Region
 
-    from .store import Account, ClassContext, Enrollment, ProfileShareGrant, StudentProfile
+    from .store import Account, BillingAddress, ClassContext, Enrollment, LoginEvent, ProfileShareGrant, StudentProfile
 
     ledger_raw = raw.pop("points_ledger", [])
     redemptions = raw.pop("redemptions", [])
     enrollments_raw = raw.pop("enrollments", {})
     students_raw = raw.pop("students", {})
     grants_raw = raw.pop("profile_share_grants", {})
+    login_events_raw = raw.pop("login_events", [])
+    billing_raw = raw.pop("billing_address", None)
 
     acct = Account(
         id=raw["id"],
@@ -76,8 +78,16 @@ def _deserialize_account(raw: dict) -> "Account":
         created_at=float(raw.get("created_at", 0)),
         last_login_at=raw.get("last_login_at"),
         failed_logins=int(raw.get("failed_logins", 0)),
+        login_count=int(raw.get("login_count", 0)),
+        locked_until=raw.get("locked_until"),
+        membership_class=raw.get("membership_class", "standard"),
+        onboarding_completed_at=raw.get("onboarding_completed_at"),
+        card_last4=raw.get("card_last4", ""),
+        billing_validated_at=raw.get("billing_validated_at"),
         redemptions=list(redemptions),
     )
+    if billing_raw:
+        acct.billing_address = BillingAddress.model_validate(billing_raw)
     acct.enrollments = {
         k: Enrollment.model_validate(v) for k, v in enrollments_raw.items()
     }
@@ -87,6 +97,7 @@ def _deserialize_account(raw: dict) -> "Account":
     acct.profile_share_grants = {
         k: ProfileShareGrant.model_validate(v) for k, v in grants_raw.items()
     }
+    acct.login_events = [LoginEvent.model_validate(e) for e in login_events_raw]
     acct.points = PointsLedger()
     for entry in ledger_raw:
         acct.points.entries.append(PointsEntry(**entry))
