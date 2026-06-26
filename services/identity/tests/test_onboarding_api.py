@@ -27,7 +27,7 @@ def test_onboarding_billing_validates_card():
 def test_paid_plan_requires_billing():
     tok = _signup("plan@example.com")
     r = client.post("/onboarding/plan", headers={"Authorization": f"Bearer {tok}"}, json={
-        "tier": "pro",
+        "tier": "premium",
     })
     assert r.status_code == 402
 
@@ -40,13 +40,29 @@ def test_onboarding_flow_standard_and_vip():
         "country": "US", "card_number": "4242424242424242", "exp_month": 12,
         "exp_year": 2030, "cvv": "123",
     })
-    r = client.post("/onboarding/plan", headers=h, json={"tier": "pro"})
+    r = client.post("/onboarding/plan", headers=h, json={"tier": "premium"})
     assert r.status_code == 200
     assert r.json()["membership_class"] == "vip"
+    assert r.json()["tier"] == "premium"
     client.post("/onboarding/complete", headers=h, json={"learner_name": "Alex"})
     status = client.get("/auth/onboarding-status", headers=h).json()
     assert status["completed"] is True
     assert status["membership_class"] == "vip"
+
+
+def test_onboarding_standard_plan_pricing():
+    tok = _signup("std-onboard@example.com")
+    h = {"Authorization": f"Bearer {tok}"}
+    client.post("/onboarding/billing", headers=h, json={
+        "line1": "1 Main St", "city": "Austin", "state": "TX", "postal_code": "78701",
+        "country": "US", "card_number": "4242424242424242", "exp_month": 12,
+        "exp_year": 2030, "cvv": "123",
+    })
+    r = client.post("/onboarding/plan", headers=h, json={"tier": "basic"})
+    assert r.status_code == 200
+    assert r.json()["membership_class"] == "standard"
+    me = client.get("/auth/me", headers=h).json()
+    assert me["subscription"]["price_usd"] == 19.99
 
 
 def test_login_history_recorded():

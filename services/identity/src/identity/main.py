@@ -166,6 +166,11 @@ def _session(acct) -> dict:
     return {"token": token, "account": acct.public()}
 
 
+from .auth_security import register_auth_security_routes
+
+register_auth_security_routes(app, token_key_fn=_token_key, current_account=current_account, session_fn=_session)
+
+
 @app.post("/auth/signup")
 def signup(req: SignupRequest, request: Request) -> dict:
     from aoep_shared.passwords import validate_password
@@ -201,7 +206,7 @@ def login_history(acct=Depends(current_account)) -> dict:
 
 @app.get("/auth/onboarding-status")
 def onboarding_status(acct=Depends(current_account)) -> dict:
-    from aoep_shared.membership import tier_requires_payment
+    from aoep_shared.plan_pricing import tier_requires_payment
 
     return {
         "completed": acct.onboarding_completed_at is not None,
@@ -323,6 +328,112 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Netflix-style onboarding (plan + billing + profile)
+# --------------------------------------------------------------------------- #
+class OnboardingProfileRequest(BaseModel):
+    display_name: str = ""
+    phone: str = ""
+    region: Region | None = None
+
+
+class OnboardingBillingRequest(BaseModel):
+    line1: str
+    line2: str = ""
+    city: str
+    state: str = ""
+    postal_code: str
+    country: str = "US"
+    phone: str = ""
+    card_number: str
+    exp_month: int = Field(ge=1, le=12)
+    exp_year: int = Field(ge=2020, le=2099)
+    cvv: str
+
+
+class OnboardingPlanRequest(BaseModel):
+    tier: PlanTier
+
+
+class OnboardingCompleteRequest(BaseModel):
+    learner_name: str = ""
+    age_band: str = "adult"
+
+
+@app.post("/onboarding/profile")
+def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
+    patch: dict = {}
+    if req.display_name.strip():
+        patch["display_name"] = req.display_name.strip()
+    if req.region is not None:
+        patch["region"] = req.region
+    if patch:
+        acct = app.state.accounts.patch_account(acct.id, **patch)
+    if req.phone.strip():
+        addr = acct.billing_address or BillingAddress()
+        addr.phone = req.phone.strip()
+        app.state.accounts.set_billing_profile(acct.id, addr, card_last4=acct.card_last4 or "")
+        acct = app.state.accounts.by_id(acct.id)
+    return {"ok": True, "display_name": acct.display_name}
+
+
+@app.post("/onboarding/billing")
+def onboarding_billing(req: OnboardingBillingRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.billing_validation import (
+        mask_card_last4, validate_billing_address, validate_card,
+    )
+
+    addr_errors = validate_billing_address(
+        line1=req.line1, city=req.city, postal_code=req.postal_code,
+        country=req.country, state=req.state,
+    )
+    card_errors = validate_card(req.card_number, req.exp_month, req.exp_year, req.cvv)
+    errors = addr_errors + card_errors
+    if errors:
+        raise HTTPException(status_code=422, detail="; ".join(errors))
+    address = BillingAddress(
+        line1=req.line1.strip(), line2=req.line2.strip(), city=req.city.strip(),
+        state=req.state.strip(), postal_code=req.postal_code.strip(),
+        country=req.country.strip().upper()[:2], phone=req.phone.strip(),
+    )
+    updated = app.state.accounts.set_billing_profile(
+        acct.id, address, card_last4=mask_card_last4(req.card_number))
+    return {"validated": True, "card_last4": updated.card_last4}
+
+
+@app.post("/onboarding/plan")
+def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.plan_pricing import tier_requires_payment
+
+    tier = req.tier
+    if tier_requires_payment(tier.value) and acct.billing_validated_at is None:
+        raise HTTPException(
+            status_code=402,
+            detail="billing address and payment method required before selecting a paid plan",
+        )
+    if tier_requires_payment(tier.value):
+        updated = app.state.accounts.activate_subscription(acct.id, tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, tier)
+    return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+
+
+@app.post("/onboarding/complete")
+def onboarding_complete(req: OnboardingCompleteRequest, acct=Depends(current_account)) -> dict:
+    if req.learner_name.strip():
+        students = list(acct.students.values())
+        if students:
+            students[0].display_name = req.learner_name.strip()
+            if req.age_band in ("child", "teen", "adult"):
+                students[0].age_band = req.age_band
+    updated = app.state.accounts.complete_onboarding(acct.id)
+    return {
+        "completed": True,
+        "completed_at": updated.onboarding_completed_at,
+        "membership_class": updated.membership_class,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Portfolio (enrollments + status history)
 # --------------------------------------------------------------------------- #
 class EnrollRequest(BaseModel):
@@ -418,6 +529,133 @@ def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dic
     return {"student": prof.model_dump(), "skipped": True}
 
 
+class AdaptationEvent(BaseModel):
+    event_type: str
+    payload: dict = {}
+
+
+@app.post("/students/{student_id}/adaptation")
+def record_adaptation(student_id: str, req: AdaptationEvent, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.record_adaptation_event(
+            acct.id, student_id, req.event_type, req.payload,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "adaptation": prof.adaptation}
+
+
+@app.get("/students/{student_id}/adaptation")
+def get_adaptation(student_id: str, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    from aoep_shared.content_access import needs_simplified_content
+
+    return {
+        "learning_goals": prof.learning_goals,
+        "goal_timeline": prof.goal_timeline,
+        "adaptation": prof.adaptation,
+        "learning_pace": prof.learning_pace,
+        "learner_category": prof.learner_category,
+        "needs_simplified_content": needs_simplified_content(
+            age_band=prof.age_band,
+            reading_level=prof.reading_level,
+            accessibility=prof.accessibility,
+            accommodations_notes=prof.accommodations_notes,
+            learner_category=prof.learner_category,
+        ),
+    }
+
+
+@app.get("/students/{student_id}/learning-experience")
+def get_learning_experience(student_id: str, acct=Depends(current_account)) -> dict:
+    from aoep_shared.learning_experience import LX_TARGET
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    raw = dict(prof.adaptation or {})
+    ema = raw.get("lx_score_ema")
+    samples = list(raw.get("lx_samples") or [])
+    trend = "stable"
+    if len(samples) >= 2:
+        if samples[-1] > samples[-2] + 2:
+            trend = "improving"
+        elif samples[-1] < samples[-2] - 2:
+            trend = "declining"
+    return {
+        "student_id": student_id,
+        "lx_score_ema": ema,
+        "lx_target": LX_TARGET,
+        "lx_trend": trend,
+        "recent_samples": samples[-10:],
+        "strategy_bandit": raw.get("strategy_bandit", {}),
+        "wellness_state": raw.get("wellness_state", "ok"),
+        "observed_pace": raw.get("observed_pace", "moderate"),
+    }
+
+
+class WellnessCheckIn(BaseModel):
+    state: str = "ok"   # ok | low_energy | stressed | unwell
+    reason: str = ""
+
+
+@app.post("/students/{student_id}/wellness")
+def record_wellness(student_id: str, req: WellnessCheckIn, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.record_adaptation_event(
+            acct.id, student_id, "wellness",
+            {"state": req.state, "reason": req.reason},
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "adaptation": prof.adaptation}
+
+
+class ContentAccessRequest(BaseModel):
+    maturity_rating: str = "all"
+    level: str = "beginner"
+    duration_min: int = 0
+    complexity: int = 0
+
+
+@app.post("/students/{student_id}/content-access")
+def check_content_access(student_id: str, req: ContentAccessRequest,
+                         acct=Depends(current_account)) -> dict:
+    from aoep_shared.content_access import may_access_course, needs_simplified_content
+    from aoep_shared.course_complexity import complexity_score
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    simplified = needs_simplified_content(
+        age_band=prof.age_band,
+        reading_level=prof.reading_level,
+        accessibility=prof.accessibility,
+        accommodations_notes=prof.accommodations_notes,
+        learner_category=prof.learner_category,
+    )
+    allowed, reason = may_access_course(
+        age_band=prof.age_band,
+        maturity_rating=req.maturity_rating,
+        needs_simplified=simplified,
+    )
+    cx = complexity_score(
+        level=req.level,
+        maturity=req.maturity_rating,
+        duration_min=req.duration_min,
+        explicit=req.complexity or None,
+    )
+    return {
+        "allowed": allowed,
+        "reason": reason,
+        "needs_simplified_content": simplified,
+        "complexity": cx,
+        "age_band": prof.age_band,
+    }
+
+
 class MasteryUpdate(BaseModel):
     skill: str
     value: float
@@ -435,12 +673,18 @@ def set_mastery(student_id: str, req: MasteryUpdate, acct=Depends(current_accoun
 class CompleteCourse(BaseModel):
     course_id: str
     skills: list[str] = []
+    minutes: float | None = None
+    expected_min: float | None = None
+    complexity: int | None = None
 
 
 @app.post("/students/{student_id}/complete")
 def complete_course(student_id: str, req: CompleteCourse, acct=Depends(current_account)) -> dict:
     try:
-        prof = app.state.accounts.record_completion(acct.id, student_id, req.course_id, req.skills)
+        prof = app.state.accounts.record_completion(
+            acct.id, student_id, req.course_id, req.skills,
+            minutes=req.minutes, expected_min=req.expected_min, complexity=req.complexity,
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()

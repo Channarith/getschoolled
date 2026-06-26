@@ -310,12 +310,108 @@ export async function signup(email: string, password: string, displayName: strin
 }
 
 export async function login(email: string, password: string):
-  Promise<{ token: string; account: Account }> {
+  Promise<{ token: string; account: Account; requires_2fa?: boolean; mfa_token?: string }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/auth/login`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ email, password }),
     })
+  );
+}
+
+export async function verify2faLogin(mfaToken: string, code: string):
+  Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/verify`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mfa_token: mfaToken, code }),
+    })
+  );
+}
+
+export async function forgotPassword(email: string): Promise<{ sent: boolean; reset_token?: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/forgot-password`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+  );
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ reset: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/reset-password`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    })
+  );
+}
+
+export async function loginWithGoogle(idToken: string): Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/oauth/google`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    })
+  );
+}
+
+export async function loginWithFacebook(accessToken: string): Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/oauth/facebook`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ access_token: accessToken }),
+    })
+  );
+}
+
+export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/setup`, { method: "POST", headers: authHeaders() })
+  );
+}
+
+export async function confirm2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/confirm`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export async function disable2fa(code: string): Promise<{ enabled: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/2fa/disable`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code }),
+    })
+  );
+}
+
+export type LoginEvent = {
+  ts: number;
+  success: boolean;
+  ip: string;
+  user_agent: string;
+  country_hint: string;
+  method: string;
+};
+
+export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function getSecuritySummary(): Promise<{
+  totp_enabled: boolean;
+  passkeys: { credential_id: string; label: string }[];
+  oauth_linked: boolean;
+  recent_logins: LoginEvent[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/security`, { headers: authHeaders(), cache: "no-store" })
   );
 }
 
@@ -1011,6 +1107,196 @@ export async function advance(sessionId: string): Promise<Slide> {
   );
 }
 
+export type ClassQuizItem = {
+  item_id: string;
+  prompt: string;
+  options: string[];
+  answer_index: number;
+  difficulty?: string;
+  topic?: string;
+};
+
+export async function generateClassQuiz(topic: string, passages: string[], maxItems = 3): Promise<{
+  items: ClassQuizItem[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/quiz`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, passages, max_items: maxItems }),
+    })
+  );
+}
+
+export async function gradeQuizItem(
+  item: ClassQuizItem,
+  chosenIndex: number,
+): Promise<{ correct: boolean; mastery_target: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        item_id: item.item_id,
+        options: item.options,
+        answer_index: item.answer_index,
+        chosen_index: chosenIndex,
+        difficulty: item.difficulty ?? "medium",
+        topic: item.topic ?? "",
+      }),
+    })
+  );
+}
+
+export async function gradeClassQuiz(
+  topic: string,
+  answers: Record<string, number>,
+  difficulty = "medium",
+): Promise<{ score: number; mastery_target: number; feedback: string[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, answers, difficulty }),
+    })
+  );
+}
+
+export async function checkContentAccess(
+  studentId: string,
+  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
+): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+export async function recordBehavior(event: {
+  student_id: string;
+  topic: string;
+  quiz_correct?: boolean | null;
+  response_latency_s?: number | null;
+  attention?: number | null;
+  asked_question?: boolean;
+  saw_slide?: boolean;
+}): Promise<{ recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/behavior`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event),
+    })
+  );
+}
+
+export async function updateTopicMastery(
+  studentId: string,
+  topic: string,
+  correct: boolean,
+): Promise<{ mastery: number }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mastery`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ student_id: studentId, topic, correct }),
+    })
+  );
+}
+
+export type LxTickResult = {
+  lx_score: number;
+  lx_components: Record<string, number>;
+  lx_target: number;
+  teaching_strategy: string;
+  improve_actions: string[];
+  pacing: string;
+  difficulty: string;
+  reteach: boolean;
+  reasons: string[];
+};
+
+export async function directorLxTick(body: Record<string, unknown>): Promise<LxTickResult> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/director/lx-tick`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+export async function getLearningExperience(studentId: string): Promise<{
+  lx_score_ema: number | null;
+  lx_target: number;
+  lx_trend: string;
+  recent_samples: number[];
+  wellness_state: string;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-experience`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    })
+  );
+}
+
+export async function getStudentAdaptation(studentId: string): Promise<{
+  adaptation: Record<string, unknown>;
+  learning_pace: string;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    })
+  );
+}
+
+export async function recordAdaptationEvent(
+  studentId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+): Promise<{ adaptation: Record<string, unknown> }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ event_type: eventType, payload }),
+    })
+  );
+}
+
+export async function recordWellnessCheckIn(
+  studentId: string,
+  state: string,
+  reason = "",
+): Promise<{ adaptation: Record<string, unknown> }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/wellness`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ state, reason }),
+    })
+  );
+}
+
+export async function checkContentAccess(
+  studentId: string,
+  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
+): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
 export type LegalNotice = {
   id: string;
   title: string;
@@ -1147,6 +1433,7 @@ export type SurveyQuestion = {
 export type SurveyTemplate = {
   version: string; title: string; subtitle?: string; questions: SurveyQuestion[];
   categories?: string[];
+  interval_slides?: number;
 };
 
 export async function getPostClassSurvey(
@@ -1165,6 +1452,34 @@ export async function submitPostClassSurvey(payload: {
 }): Promise<{ id: string; recorded: boolean }> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/survey/post-class`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function getPulseSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/pulse?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitPulseSurvey(payload: {
+  course_id: string;
+  going_well: number;
+  pace: string;
+  class_type?: string;
+  student_id?: string | null;
+  slide_index?: number;
+  teaching_strategy?: string;
+  working_best?: string | null;
+}): Promise<{ id: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/pulse`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),

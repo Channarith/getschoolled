@@ -76,6 +76,15 @@ def test_unknown_game_type_422():
     assert client.post("/games/new", json={"subject": "math", "game_type": "nope"}).status_code == 422
 
 
+def test_marathon_round_via_api():
+    rnd = client.post("/games/new", json={
+        "subject": "math", "game_type": "marathon", "n": 20,
+    }).json()
+    assert rnd["game_type"] == "marathon"
+    assert len(rnd["items"]) == 15
+    assert rnd["time_limit_s"] == 180
+
+
 def test_catalog_includes_age_groups():
     cat = client.get("/games").json()
     assert {a["id"] for a in cat["age_groups"]} == {"kids", "tween", "teen", "adult"}

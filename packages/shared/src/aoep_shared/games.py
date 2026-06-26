@@ -316,6 +316,12 @@ def mcq_bank_for(subject: str, age: AgeGroup) -> List[dict]:
     if not core:
         core = _MCQ_BANK.get("science", [])
     return core
+    # Triple the bank with review/challenge variants for longer, addictive sessions.
+    expanded: List[dict] = []
+    for prefix in ("", "Review — ", "Challenge — "):
+        for q in core:
+            expanded.append({**q, "prompt": prefix + q["prompt"]})
+    return expanded
 
 
 def pair_bank_for(subject: str, age: AgeGroup) -> List[tuple]:
@@ -326,6 +332,10 @@ def pair_bank_for(subject: str, age: AgeGroup) -> List[tuple]:
     if not core:
         core = _PAIR_BANK.get("science", [])
     return core
+    expanded = list(core)
+    for term, match in core:
+        expanded.append((f"Review: {term}", match))
+    return expanded
 
 
 class GameRound(BaseModel):
