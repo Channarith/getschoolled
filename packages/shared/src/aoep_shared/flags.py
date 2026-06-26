@@ -62,6 +62,9 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Periodic Net Promoter Score survey for the platform."),
     FlagSpec("engagement.in_class_polls", FlagType.BOOL, False, "engagement",
              "Live in-class polls/quizzes during a lesson."),
+    FlagSpec("engagement.pulse_survey", FlagType.BOOL, True, "engagement",
+             "Short 2–3 question check-ins every few slides during a live class; "
+             "feeds LX scoring and teaching-strategy adaptation."),
     FlagSpec("engagement.streaks_badges", FlagType.BOOL, True, "engagement",
              "Learning streaks and achievement badges."),
     FlagSpec("engagement.certificates", FlagType.BOOL, True, "engagement",
