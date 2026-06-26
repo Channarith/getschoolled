@@ -28,6 +28,28 @@ class GameType(str, enum.Enum):
     SPEED = "speed"
     MATCH = "match"
     MARATHON = "marathon"
+    TILES = "tiles"
+    RESOURCE = "resource"
+    DEPENDENCY = "dependency"
+    RPG = "rpg"
+    CARTOON = "cartoon"
+    IDIOM = "idiom"
+    CREATE = "create"
+    DOING = "doing"
+    FARM = "farm"
+    SPELLING = "spelling"
+    GEOMETRY = "geometry"
+
+
+EXTENDED_ONLY_SUBJECTS = frozenset({
+    "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
+})
+
+EXTENDED_GAME_TYPES = frozenset({
+    GameType.TILES, GameType.RESOURCE, GameType.DEPENDENCY, GameType.RPG,
+    GameType.CARTOON, GameType.IDIOM, GameType.CREATE, GameType.DOING,
+    GameType.FARM, GameType.SPELLING, GameType.GEOMETRY,
+})
 
 
 class AgeGroup(str, enum.Enum):
@@ -50,6 +72,7 @@ AGE_GROUPS = [
 GAME_SUBJECTS: List[str] = [
     "biology", "chemistry", "physics", "math", "science",
     "history", "art", "technology", "programming",
+    "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
 ]
 
 SPEED_TIME_LIMIT_S = 45
@@ -64,6 +87,9 @@ class MCQItem(BaseModel):
     options: List[str]
     answer_index: int
     explain: str = ""
+    content_id: str = ""
+    kind: str = "mcq"
+    meta: dict = Field(default_factory=dict)
 
 
 class MatchPair(BaseModel):
@@ -289,6 +315,7 @@ def mcq_bank_for(subject: str, age: AgeGroup) -> List[dict]:
         core = _MCQ_BANK.get(subject, [])
     if not core:
         core = _MCQ_BANK.get("science", [])
+    return core
     # Triple the bank with review/challenge variants for longer, addictive sessions.
     expanded: List[dict] = []
     for prefix in ("", "Review — ", "Challenge — "):
@@ -304,6 +331,7 @@ def pair_bank_for(subject: str, age: AgeGroup) -> List[tuple]:
         core = _PAIR_BANK.get(subject, [])
     if not core:
         core = _PAIR_BANK.get("science", [])
+    return core
     expanded = list(core)
     for term, match in core:
         expanded.append((f"Review: {term}", match))
@@ -315,16 +343,19 @@ class GameRound(BaseModel):
     subject: str
     game_type: GameType
     age_group: AgeGroup = AgeGroup.TEEN
+    locale: str = "en"
     time_limit_s: int = 0
     mcqs: List[MCQItem] = Field(default_factory=list)
     pairs: List[MatchPair] = Field(default_factory=list)
 
     def public(self) -> dict:
         """Client-facing round with answers stripped."""
+        from .games_i18n import localize_mcq_item
+
         out: dict = {
             "game_id": self.game_id, "subject": self.subject,
             "game_type": self.game_type.value, "age_group": self.age_group.value,
-            "time_limit_s": self.time_limit_s,
+            "locale": self.locale, "time_limit_s": self.time_limit_s,
         }
         if self.game_type is GameType.MATCH:
             rng = random.Random(self.game_id)
@@ -333,8 +364,13 @@ class GameRound(BaseModel):
             out["terms"] = [{"id": p.id, "term": p.term} for p in self.pairs]
             out["options"] = options
         else:
-            out["items"] = [{"id": m.id, "prompt": m.prompt, "options": m.options}
-                            for m in self.mcqs]
+            out["items"] = [
+                localize_mcq_item({
+                    "id": m.id, "prompt": m.prompt, "options": m.options,
+                    "content_id": m.content_id, "kind": m.kind, "meta": m.meta,
+                }, self.locale)
+                for m in self.mcqs
+            ]
         return out
 
 
@@ -359,9 +395,32 @@ class ScoreResult(BaseModel):
     results: List[ItemResult] = Field(default_factory=list)
 
 
+def _extended_mcq_bank(subject: str, game_type: GameType, age: AgeGroup) -> List[dict]:
+    from .games_extended import extended_bank, extended_bank_for_subject
+
+    if game_type in EXTENDED_GAME_TYPES:
+        rows = extended_bank(subject, game_type.value, age)
+    elif subject in EXTENDED_ONLY_SUBJECTS:
+        rows = extended_bank_for_subject(subject, age)
+    else:
+        rows = extended_bank(subject, game_type.value, age)
+    return [
+        {
+            "prompt": r["prompt"], "options": r["options"],
+            "answer_index": r["answer_index"], "explain": r.get("explain", ""),
+            "content_id": r.get("content_id", ""), "kind": r.get("kind", game_type.value),
+            "meta": r.get("meta", {}),
+        }
+        for r in rows
+    ]
+
+
 def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGroup.TEEN,
-               n: int = 5, seed: Optional[int] = None) -> GameRound:
+               n: int = 5, seed: Optional[int] = None, locale: str = "en") -> GameRound:
+    from .games_i18n import normalize_locale
+
     subject = subject if subject in GAME_SUBJECTS else "science"
+    loc = normalize_locale(locale)
     rng = random.Random(seed)
     if game_type is GameType.MARATHON:
         n = max(n, DEFAULT_MARATHON_ITEMS)
@@ -371,11 +430,28 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
         rng.shuffle(bank)
         pairs = [MatchPair(id=uuid.uuid4().hex[:8], term=t, match=m)
                  for t, m in bank[: max(2, min(n, len(bank), cap))]]
-        return GameRound(subject=subject, game_type=game_type, age_group=age_group, pairs=pairs)
-    bank = mcq_bank_for(subject, age_group)[:]
+        return GameRound(subject=subject, game_type=game_type, age_group=age_group,
+                         locale=loc, pairs=pairs)
+    bank: List[dict] = []
+    if game_type in EXTENDED_GAME_TYPES or subject in EXTENDED_ONLY_SUBJECTS:
+        bank = _extended_mcq_bank(subject, game_type, age_group)
+    if not bank:
+        bank = mcq_bank_for(subject, age_group)[:]
     rng.shuffle(bank)
     take = max(1, min(n, len(bank), cap))
-    mcqs = [MCQItem(id=uuid.uuid4().hex[:8], **q) for q in bank[:take]]
+    mcqs = [
+        MCQItem(
+            id=uuid.uuid4().hex[:8],
+            prompt=q["prompt"],
+            options=q["options"],
+            answer_index=q["answer_index"],
+            explain=q.get("explain", ""),
+            content_id=q.get("content_id", ""),
+            kind=q.get("kind", game_type.value),
+            meta=q.get("meta", {}),
+        )
+        for q in bank[:take]
+    ]
     if game_type is GameType.MARATHON:
         tl = MARATHON_TIME_LIMIT_S
     elif game_type is GameType.SPEED:
@@ -383,7 +459,7 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
     else:
         tl = 0
     return GameRound(subject=subject, game_type=game_type, age_group=age_group,
-                     mcqs=mcqs, time_limit_s=tl)
+                     locale=loc, mcqs=mcqs, time_limit_s=tl)
 
 
 def score_round(rnd: GameRound, answers: Dict[str, object],
@@ -428,14 +504,31 @@ def score_round(rnd: GameRound, answers: Dict[str, object],
     )
 
 
-def games_catalog() -> dict:
+def games_catalog(*, locale: Optional[str] = None) -> dict:
+    from .games_i18n import localized_catalog_game_types, localized_subjects
+    from .languages import SUPPORTED_LANGUAGES
+
+    base_types = [
+        {"id": GameType.QUIZ.value, "name": "Quiz", "desc": "Pick the correct answer."},
+        {"id": GameType.SPEED.value, "name": "Speed Round", "desc": "Beat the clock for a bonus."},
+        {"id": GameType.MATCH.value, "name": "Match", "desc": "Match terms to definitions."},
+        {"id": GameType.MARATHON.value, "name": "Marathon", "desc": "20+ questions, streak bonuses, 3 min timer."},
+        {"id": GameType.TILES.value, "name": "Word Tiles", "desc": "Build words from letter tiles (Bananagrams-style)."},
+        {"id": GameType.RESOURCE.value, "name": "Resource Choices", "desc": "Choose wisely with limited resources."},
+        {"id": GameType.DEPENDENCY.value, "name": "Order & Dependencies", "desc": "Put steps in the right order."},
+        {"id": GameType.RPG.value, "name": "Story RPG", "desc": "Role-play choices that teach real lessons."},
+        {"id": GameType.CARTOON.value, "name": "Cartoon Clips", "desc": "Spot the moral or science idea in a scene."},
+        {"id": GameType.IDIOM.value, "name": "Slang & Idioms", "desc": "Match expressions to their meanings."},
+        {"id": GameType.CREATE.value, "name": "Create & ID", "desc": "Identify what was built or created."},
+        {"id": GameType.DOING.value, "name": "Learn by Doing", "desc": "Practice skills step by step."},
+        {"id": GameType.FARM.value, "name": "Farm Sim", "desc": "Grow crops and learn along the way."},
+        {"id": GameType.SPELLING.value, "name": "Spelling", "desc": "Pick the correct spelling."},
+        {"id": GameType.GEOMETRY.value, "name": "Geometry Play", "desc": "Shapes, angles, and spatial reasoning."},
+    ]
     return {
         "subjects": GAME_SUBJECTS,
+        "subjects_localized": localized_subjects(GAME_SUBJECTS, locale),
         "age_groups": AGE_GROUPS,
-        "game_types": [
-            {"id": GameType.QUIZ.value, "name": "Quiz", "desc": "Pick the correct answer."},
-            {"id": GameType.SPEED.value, "name": "Speed Round", "desc": "Beat the clock for a bonus."},
-            {"id": GameType.MATCH.value, "name": "Match", "desc": "Match terms to definitions."},
-            {"id": GameType.MARATHON.value, "name": "Marathon", "desc": "20+ questions, streak bonuses, 3 min timer."},
-        ],
+        "game_types": localized_catalog_game_types(base_types, locale),
+        "locales": list(SUPPORTED_LANGUAGES),
     }

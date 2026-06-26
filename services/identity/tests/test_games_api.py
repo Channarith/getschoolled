@@ -18,7 +18,9 @@ def _user(email, name=""):
 def test_catalog_lists_subjects_and_types():
     cat = client.get("/games").json()
     assert "biology" in cat["subjects"] and "programming" in cat["subjects"]
-    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match", "marathon"}
+    assert "wordplay" in cat["subjects"]
+    ids = {g["id"] for g in cat["game_types"]}
+    assert "quiz" in ids and "tiles" in ids and "farm" in ids
 
 
 def test_new_round_hides_answers():
@@ -86,6 +88,21 @@ def test_marathon_round_via_api():
 def test_catalog_includes_age_groups():
     cat = client.get("/games").json()
     assert {a["id"] for a in cat["age_groups"]} == {"kids", "tween", "teen", "adult"}
+
+
+def test_catalog_locale_query():
+    cat = client.get("/games", params={"locale": "es"}).json()
+    assert cat["subjects_localized"]
+    tiles = next(g for g in cat["game_types"] if g["id"] == "tiles")
+    assert tiles["name"] != "Word Tiles"
+
+
+def test_new_game_extended_locale():
+    rnd = client.post("/games/new", json={
+        "subject": "etiquette", "game_type": "doing", "locale": "es", "n": 3,
+    }).json()
+    assert rnd["locale"] == "es"
+    assert len(rnd["items"]) >= 1
 
 
 def test_kids_round_and_age_leaderboard():

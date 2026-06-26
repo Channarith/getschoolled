@@ -756,10 +756,10 @@ def shared_profile_context(share=Depends(current_profile_share)) -> dict:
 # Learning games / arcade: play-to-learn mini-games, points + leaderboard
 # --------------------------------------------------------------------------- #
 @app.get("/games")
-def games_catalog_ep() -> dict:
+def games_catalog_ep(locale: str | None = None) -> dict:
     from aoep_shared.games import games_catalog
 
-    return games_catalog()
+    return games_catalog(locale=locale)
 
 
 class NewGameRequest(BaseModel):
@@ -767,6 +767,7 @@ class NewGameRequest(BaseModel):
     game_type: str = "quiz"
     age_group: str = "teen"
     n: int = 5
+    locale: str = "en"
 
 
 @app.post("/games/new")
@@ -781,7 +782,8 @@ def games_new(req: NewGameRequest) -> dict:
         age = AgeGroup(req.age_group)
     except ValueError:
         raise HTTPException(status_code=422, detail="unknown age_group")
-    rnd = make_round(req.subject, gt, age_group=age, n=max(1, min(req.n, MAX_ROUND_ITEMS)))
+    rnd = make_round(req.subject, gt, age_group=age,
+                     n=max(1, min(req.n, MAX_ROUND_ITEMS)), locale=req.locale)
     app.state.game_rounds[rnd.game_id] = rnd
     from .persistence import save_game_round
 

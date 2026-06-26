@@ -813,9 +813,19 @@ export async function languagePractice(
 
 // --- learning games / arcade --------------------------------------------- //
 export type GameTypeInfo = { id: string; name: string; desc: string };
+export type SubjectInfo = { id: string; name: string };
 export type AgeGroupInfo = { id: string; name: string; range: string };
-export type GamesCatalog = { subjects: string[]; game_types: GameTypeInfo[]; age_groups: AgeGroupInfo[] };
-export type GameItem = { id: string; prompt: string; options: string[] };
+export type GamesCatalog = {
+  subjects: string[];
+  subjects_localized?: SubjectInfo[];
+  game_types: GameTypeInfo[];
+  age_groups: AgeGroupInfo[];
+  locales?: string[];
+};
+export type GameItem = {
+  id: string; prompt: string; options: string[];
+  kind?: string; meta?: Record<string, unknown>;
+};
 export type GameTerm = { id: string; term: string };
 export type GameOption = { id: string; text: string };
 export type GameRound = {
@@ -834,17 +844,18 @@ export type GameSubmit = {
 };
 export type Leader = { rank: number; name: string; score: number; game_points: number; games_played: number };
 
-export async function getGamesCatalog(): Promise<GamesCatalog> {
-  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games`, { cache: "no-store" }));
+export async function getGamesCatalog(locale = "en"): Promise<GamesCatalog> {
+  const q = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/games${q}`, { cache: "no-store" }));
 }
 
 export async function newGame(
-  subject: string, gameType: string, ageGroup = "teen", n = 5
+  subject: string, gameType: string, ageGroup = "teen", n = 5, locale = "en"
 ): Promise<GameRound> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/games/new`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n }),
+      body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n, locale }),
     })
   );
 }
