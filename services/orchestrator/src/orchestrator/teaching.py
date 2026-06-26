@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from .curriculum import CurriculumStore, Lesson, Slide
 from .director import Director
 from .memory_client import MemoryClient
+from .sessions import SessionStore, build_session_store
 
 
 class ChatTurn(BaseModel):
@@ -105,11 +106,19 @@ def _offline_answer(question: str, context: List[str]) -> str:
 class TeachingSessions:
     """Session manager for the live-class teaching loop.
 
+    Session state is kept in a :class:`SessionStore` (in-memory by default, Redis
+    when ``REDIS_URL`` is configured) so it is shared across orchestrator
+    replicas - a follow-up ``advance``/``ask`` served by a different pod still
+    finds the session instead of 404ing. The per-lesson RAG indexes are a
+    deterministic, rebuildable cache and stay per-process.
+    """
+
     def __init__(
         self,
         factory,
         curriculum: Optional[CurriculumStore] = None,
         memory_base_url: Optional[str] = None,
+        store: Optional[SessionStore] = None,
     ) -> None:
         self.factory = factory
         self.curriculum = curriculum or CurriculumStore()
@@ -151,7 +160,7 @@ class TeachingSessions:
             class_type=class_type,
             lesson_id=lesson_id,
         )
-        self.sessions[session.session_id] = session
+        self.store.save(session)
         # One persistent Director + counters per session (the live loop's state).
         self._directors[session.session_id] = Director()
         self._counters[session.session_id] = SessionCounters(student_id=student_id)
@@ -163,12 +172,12 @@ class TeachingSessions:
     def director_for(self, session_id: str) -> Director:
         """The persistent Director for this session (created on demand for
         sessions that predate Director wiring)."""
-        if session_id not in self.sessions:
+        if self.store.get(session_id) is None:
             raise KeyError(session_id)
         return self._directors.setdefault(session_id, Director())
 
     def counters_for(self, session_id: str) -> SessionCounters:
-        if session_id not in self.sessions:
+        if self.store.get(session_id) is None:
             raise KeyError(session_id)
         return self._counters.setdefault(session_id, SessionCounters())
 
@@ -184,6 +193,7 @@ class TeachingSessions:
         lesson = self.curriculum.get(session.lesson_id)
         last = len(lesson.slides) - 1  # type: ignore[union-attr]
         session.current_slide = min(session.current_slide + 1, last)
+        self.store.save(session)
         counters = self.counters_for(session_id)
         counters.slides_seen += 1
         counters.slides_since_quiz += 1
@@ -228,6 +238,7 @@ class TeachingSessions:
         safe_text, report = guard_answer(text, context, question=question)
         session.history.append(ChatTurn(role="student", text=question))
         session.history.append(ChatTurn(role="teacher", text=safe_text))
+        self.store.save(session)
         counters = self.counters_for(session_id)
         counters.questions_asked += 1
         if counters.student_id:
@@ -260,7 +271,7 @@ class TeachingSessions:
         recap = " ".join((slide.narration or slide.body or slide.title).split())[:300]
         text = (
             f"Let's take a quick breath and refocus. Remember, we're on "
-            f"“{slide.title}”: {recap}"
+            f'"{slide.title}": {recap}'
         ).strip()
-        prompt = f"In your own words, what's the main idea of “{slide.title}”?"
+        prompt = f'In your own words, what\'s the main idea of "{slide.title}"?'
         return Reengagement(text=text, prompt=prompt, citations=[f"{slide.title}: {recap}"])
