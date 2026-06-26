@@ -3,6 +3,14 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-23 - Learner pace, complexity, mood sensitivity: track wall-clock course
+  finish vs expected duration and complexity (course_finishes on adaptation profile);
+  aoep_shared course_complexity + content_access (adults may take child-rated courses
+  when accessibility/disability accommodations apply). Wellness check-in (ok / tired /
+  stressed / unwell) adjusts director/plan to slower, easier, gentler reteach; ClassRoom
+  records real session timing, pre-class mood picker, and Q&A mood cues. Identity
+  POST /students/{id}/wellness, POST /content-access, enriched profile-context v2.
+  Version 0.7.0 -> 0.7.1.
 - 2026-06-23 - Automation testing: expanded coverage for deep courses (orchestrator
   lesson enrichment API tests), director/plan + adaptation merge, learner adaptation
   API (goals, strategy failure/success), drive-mode audio 20+ min + quiz segments,

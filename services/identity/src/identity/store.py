@@ -607,26 +607,32 @@ class AccountStore:
         event_type: str,
         payload: dict,
     ) -> StudentProfile:
-        from aoep_shared.learner_adaptation import LearnerAdaptation
+        from aoep_shared.learner_adaptation import LearnerAdaptation, adaptation_from_dict
 
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
         raw = dict(prof.adaptation or {})
-        adapt = LearnerAdaptation(
-            learning_goals=list(prof.learning_goals or raw.get("learning_goals", [])),
-            goal_timeline=str(prof.goal_timeline or raw.get("goal_timeline", "")),
-            observed_pace=str(raw.get("observed_pace", "moderate")),
-            avg_minutes_per_lesson=raw.get("avg_minutes_per_lesson"),
-            completion_samples=list(raw.get("completion_samples", [])),
-            strategy_wins=dict(raw.get("strategy_wins", {})),
-            strategy_losses=dict(raw.get("strategy_losses", {})),
-            known_triggers=list(raw.get("known_triggers", [])),
-            profile_revision=int(raw.get("profile_revision", 0)),
+        adapt = adaptation_from_dict(
+            raw,
+            learning_goals=list(prof.learning_goals or []),
+            goal_timeline=str(prof.goal_timeline or ""),
         )
         et = (event_type or "").strip().lower()
         if et == "completion_pace":
             adapt.record_completion(float(payload.get("minutes", 20)))
+        elif et in ("course_completion", "course_finish"):
+            adapt.record_course_finish(
+                str(payload.get("course_id", "")),
+                float(payload.get("minutes", 20)),
+                expected_min=float(payload.get("expected_min", 25)),
+                complexity=int(payload.get("complexity", 3)),
+            )
+        elif et in ("wellness", "mood"):
+            adapt.record_wellness(
+                str(payload.get("state", "ok")),
+                str(payload.get("reason", "")),
+            )
         elif et == "strategy_success":
             adapt.record_strategy(str(payload.get("strategy", "default")), success=True)
         elif et == "strategy_failure":
@@ -691,7 +697,10 @@ class AccountStore:
 
     def record_completion(
         self, account_id: str, student_id: str, course_id: str,
-        skills: Optional[List[str]] = None, *, mastery: float = 0.8
+        skills: Optional[List[str]] = None, *, mastery: float = 0.8,
+        minutes: Optional[float] = None,
+        expected_min: Optional[float] = None,
+        complexity: Optional[int] = None,
     ) -> StudentProfile:
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:
@@ -700,7 +709,18 @@ class AccountStore:
             prof.completed_course_ids.append(course_id)
         for s in (skills or []):
             prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
-        self._persist()
+        if minutes is not None and minutes > 0:
+            self.record_adaptation_event(
+                account_id, student_id, "course_completion", {
+                    "course_id": course_id,
+                    "minutes": minutes,
+                    "expected_min": expected_min or 25,
+                    "complexity": complexity or 3,
+                },
+            )
+            prof = self._by_id[account_id].students[student_id]
+        else:
+            self._persist()
         return prof
 
     def record_class_context(self, account_id: str, student_id: str,
@@ -748,12 +768,33 @@ class AccountStore:
         prof = acct.students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
-        wanted = set(scopes or ["profile", "interests", "mastery", "completions", "class_context"])
+        wanted = set(scopes or [
+            "profile", "interests", "mastery", "completions", "class_context",
+            "learning_profile", "adaptation", "pace",
+        ])
         student = {"id": prof.id, "display_name": prof.display_name, "age_band": prof.age_band}
         if "interests" in wanted or "profile" in wanted:
             student["interests"] = list(prof.interests)
+        if "learning_profile" in wanted or "profile" in wanted:
+            from aoep_shared.content_access import needs_simplified_content
+
+            student["learning_profile"] = {
+                "primary_style": prof.primary_style,
+                "learning_pace": prof.learning_pace,
+                "reading_level": prof.reading_level,
+                "accessibility": dict(prof.accessibility),
+                "accommodations_notes": prof.accommodations_notes,
+                "learner_category": prof.learner_category,
+                "needs_simplified_content": needs_simplified_content(
+                    age_band=prof.age_band,
+                    reading_level=prof.reading_level,
+                    accessibility=prof.accessibility,
+                    accommodations_notes=prof.accommodations_notes,
+                    learner_category=prof.learner_category,
+                ),
+            }
         out = {
-            "schema_version": "aoep.profile_context.v1",
+            "schema_version": "aoep.profile_context.v2",
             "account_id": acct.id,
             "student": student,
             "exported_at": time.time(),
@@ -765,4 +806,15 @@ class AccountStore:
             out["completed_course_ids"] = list(prof.completed_course_ids)
         if "class_context" in wanted:
             out["class_contexts"] = [c.model_dump() for c in prof.class_contexts]
+        if "adaptation" in wanted or "pace" in wanted:
+            out["adaptation"] = dict(prof.adaptation or {})
+        if "pace" in wanted:
+            raw = prof.adaptation or {}
+            finishes = raw.get("course_finishes") or []
+            out["course_pace"] = {
+                "observed_pace": raw.get("observed_pace", "moderate"),
+                "avg_minutes_per_lesson": raw.get("avg_minutes_per_lesson"),
+                "recent_finishes": finishes[-5:],
+                "wellness_state": raw.get("wellness_state", "ok"),
+            }
         return out

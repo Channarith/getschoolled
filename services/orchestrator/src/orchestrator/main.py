@@ -452,6 +452,8 @@ class PlanRequest(DirectorTickRequest):
     question_rate: float = 0.0
     declared_pace: str = "moderate"
     adaptation: dict = {}
+    course_complexity: int = 3
+    wellness_state: str = "ok"
 
 
 class PlanResponse(BaseModel):
@@ -487,6 +489,7 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         for k in (
             "learning_goals", "goal_timeline", "observed_pace", "avg_minutes_per_lesson",
             "completion_samples", "strategy_wins", "strategy_losses", "known_triggers",
+            "wellness_state", "wellness_reason", "wellness_updated_at",
             "profile_revision",
         )
         if k in req.adaptation
@@ -501,12 +504,19 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         adapt.sensitivity_rules = [
             SensitivityRule(**r) for r in req.adaptation["sensitivity_rules"]
         ]
+    if adapt and req.adaptation.get("course_finishes"):
+        from aoep_shared.learner_adaptation import CourseFinishRecord
+        adapt.course_finishes = [
+            CourseFinishRecord(**r) for r in req.adaptation["course_finishes"]
+        ]
     state, base_plan = director.plan(ctx, signals)
     plan = merge_pacing_plan(
         signals,
         declared_pace=req.declared_pace,
         adaptation=adapt,
         class_type=req.class_type,
+        course_complexity=req.course_complexity,
+        wellness_state=req.wellness_state,
     )
     assert plan is not None
     return PlanResponse(

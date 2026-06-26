@@ -67,9 +67,11 @@ def test_profile_context_remembers_class_context_between_classes():
     )
 
     context = client.get(f"/students/{sid}/profile-context", headers=h).json()
-    assert context["schema_version"] == "aoep.profile_context.v1"
+    assert context["schema_version"] == "aoep.profile_context.v2"
     assert context["student"]["display_name"] == "Learner A"
     assert context["student"]["interests"] == ["robotics"]
+    assert "learning_profile" in context["student"]
+    assert "course_pace" in context
     assert context["mastery"]["fractions"] >= 0.8
     assert "math-101" in context["completed_course_ids"]
     assert [c["class_id"] for c in context["class_contexts"]] == ["class-1", "class-2"]

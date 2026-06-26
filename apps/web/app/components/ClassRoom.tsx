@@ -15,6 +15,7 @@ import {
   listLessons,
   listStudents,
   recordAdaptationEvent,
+  recordWellnessCheckIn,
   reportIssue,
   setEnrollmentStatus,
   startSession,
@@ -95,6 +96,8 @@ export default function ClassRoom({
   const [slidesSinceQuiz, setSlidesSinceQuiz] = useState(0);
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
   const [studentId, setStudentId] = useState("");
+  const [wellness, setWellness] = useState("ok");
+  const sessionStartRef = useRef<number | null>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const autoStartedRef = useRef(false);
 
@@ -159,7 +162,11 @@ export default function ClassRoom({
     setFinish(null);
     setBusy(true);
     try {
+      if (studentId && wellness !== "ok") {
+        recordWellnessCheckIn(studentId, wellness).catch(() => {});
+      }
       const v = await startSession(lessonId, classType);
+      sessionStartRef.current = Date.now();
       setView(v);
       setSlide(v.slide);
       setChat([]);
@@ -235,8 +242,16 @@ export default function ClassRoom({
       const res = await setEnrollmentStatus(lessonId, "passed");
       const earned = Math.max(0, res.points_balance - before);
       if (studentId) {
-        const mins = Math.max(20, view.lesson.slides.length * 2);
-        recordAdaptationEvent(studentId, "completion_pace", { minutes: mins }).catch(() => {});
+        const elapsedMs = sessionStartRef.current ? Date.now() - sessionStartRef.current : 0;
+        const mins = Math.max(1, Math.round(elapsedMs / 60_000) || Math.max(20, view.lesson.slides.length * 2));
+        const expected = Math.max(20, view.lesson.slides.length * 2);
+        const complexity = view.lesson.slides.length > 30 ? 4 : view.lesson.slides.length < 12 ? 2 : 3;
+        recordAdaptationEvent(studentId, "course_completion", {
+          course_id: lessonId,
+          minutes: mins,
+          expected_min: expected,
+          complexity,
+        }).catch(() => {});
       }
       setFinish(
         earned > 0
@@ -268,6 +283,18 @@ export default function ClassRoom({
           surveyAnswers["would_recommend"] != null ? Boolean(surveyAnswers["would_recommend"]) : null,
         suggestion: (surveyAnswers["suggestion"] as string) ?? "",
       });
+      if (studentId && getToken()) {
+        const pace = String(surveyAnswers["pace"] ?? "");
+        if (overall <= 2) {
+          recordWellnessCheckIn(studentId, "stressed", "low post-class rating").catch(() => {});
+        } else if (pace.toLowerCase().includes("too fast")) {
+          recordAdaptationEvent(studentId, "trigger", {
+            trigger: "pace too fast",
+            reason: "post-class survey: pacing felt too fast",
+            severity: "medium",
+          }).catch(() => {});
+        }
+      }
       setSurveyDone(true);
     } catch (e) {
       setError(String(e));
@@ -298,12 +325,18 @@ export default function ClassRoom({
     const q = question.trim();
     setQuestion("");
     const frustration = /(stupid|hate this|confus|frustrat|angry|doesn't work|too fast|too slow)/i.test(q);
+    const wellnessCue = /(sick|not feeling|tired|exhausted|stressed|anxious|overwhelmed|bad mood|headache)/i.test(q);
     if (frustration && studentId && getToken()) {
       recordAdaptationEvent(studentId, "trigger", {
         trigger: q.slice(0, 80).toLowerCase(),
         reason: "student expressed frustration during class Q&A",
         severity: "medium",
       }).catch(() => {});
+    }
+    if (wellnessCue && studentId && getToken()) {
+      const state = /(sick|not feeling|ill|headache)/i.test(q) ? "unwell"
+        : /(tired|exhausted|no energy)/i.test(q) ? "low_energy" : "stressed";
+      recordWellnessCheckIn(studentId, state, q.slice(0, 120)).catch(() => {});
     }
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
@@ -436,6 +469,35 @@ export default function ClassRoom({
               <option value="group">{t("class.groupClass")}</option>
               <option value="solo">{t("class.solo")}</option>
             </select>
+          </div>
+          {loggedIn && (
+            <div style={{ marginTop: 12 }}>
+              <div className="muted" style={{ marginBottom: 6 }}>{t("class.wellnessPrompt")}</div>
+              <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+                {([
+                  ["ok", "class.wellnessOk"],
+                  ["low_energy", "class.wellnessTired"],
+                  ["stressed", "class.wellnessStressed"],
+                  ["unwell", "class.wellnessUnwell"],
+                ] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setWellness(val)}
+                    style={{
+                      background: wellness === val ? "var(--accent, #6ea8fe)" : "transparent",
+                      border: "1px solid var(--border)",
+                      color: wellness === val ? "#fff" : "inherit",
+                      fontSize: 13,
+                    }}
+                  >
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="row" style={{ marginTop: 12 }}>
             <button onClick={onStart} disabled={busy || !lessonId || !loggedIn}
               title={!loggedIn ? t("class.signInToTake") : undefined}>
               {startBtn}

@@ -71,3 +71,12 @@ def test_failed_approaches_do_not_break_plan():
     })
     assert r.status_code == 200
     assert "pacing" in r.json()
+
+
+def test_wellness_unwell_slows_and_eases():
+    r = _plan(wellness_state="unwell", course_complexity=4)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["pacing"] == "slow"
+    assert body["difficulty"] == "easy"
+    assert body["reteach"] is True
