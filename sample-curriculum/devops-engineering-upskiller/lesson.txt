@@ -1,0 +1,121 @@
+LESSON: DevOps Engineering Upskiller
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Engineering
+LEVEL: Level 4 Apprenticeship
+ROLE: DevOps Engineer
+DELIVERY: 11 months delivery, plus 3 months assessment
+FIT: Engineers looking to upskill in modern DevOps practices or move into a DevOps specialist role.
+SUMMARY: Elevate your engineering with modern DevOps practices, automating how software is built, tested, shipped, and run reliably.
+
+SLIDE 1 | What This Course Is About
+This course builds modern DevOps capability: the culture, practices, and tools that
+let teams deliver software quickly and reliably. You will learn version control
+workflows, continuous integration and delivery, infrastructure as code,
+containers and orchestration, monitoring, and security. It is for engineers who can
+write code and now want to own how software is built, deployed, and operated in
+production.
+NARRATION: This course builds modern DevOps: the culture and tools to deliver software quickly and reliably.
+
+SLIDE 2 | What DevOps Actually Means
+DevOps is a culture and set of practices that unite development and operations to
+ship value faster with fewer failures. It replaces slow, manual, siloed handoffs
+with automation and shared ownership of the whole lifecycle, from code to running
+service. The goal is not a job title or a tool but a way of working measured by speed
+of delivery and stability in production together.
+NARRATION: DevOps unites development and operations to ship faster and more reliably through automation and shared ownership.
+
+SLIDE 3 | Version Control and Collaboration
+Everything starts with version control, almost always Git. Teams use branching
+workflows, pull requests, and code review to collaborate safely, keep history, and
+catch problems before merge. Treating not just application code but configuration and
+infrastructure as version-controlled artifacts is the foundation everything else in
+DevOps builds on.
+NARRATION: Git branching, pull requests, and review are the collaborative foundation of DevOps.
+
+SLIDE 4 | Continuous Integration
+Continuous integration means merging changes frequently and automatically building
+and testing them on every change. Fast, automated tests catch breakage early, when it
+is cheap to fix, and keep the main branch always releasable. CI turns integration from
+a painful occasional event into a constant, low-risk background activity.
+NARRATION: Continuous integration auto-builds and tests every change so breakage is caught early and main stays releasable.
+
+SLIDE 5 | Continuous Delivery and Deployment
+Continuous delivery extends CI so that releasable builds can be deployed at any time
+through an automated pipeline; continuous deployment goes further and ships every
+passing change automatically. Automated, repeatable deployments reduce risk and let
+teams release small changes often, which is safer than rare big-bang releases. Add
+gates and approvals where needed.
+NARRATION: Continuous delivery automates safe, repeatable deployments so teams release small changes often.
+
+SLIDE 6 | Infrastructure as Code
+Infrastructure as code defines servers, networks, and services in version-controlled
+files instead of manual clicking. This makes environments reproducible, reviewable,
+and consistent, you can recreate or change infrastructure reliably and see its history.
+It eliminates the "works on that server only" problem and brings software discipline to
+operations.
+NARRATION: Infrastructure as code defines infrastructure in version-controlled files for reproducible, consistent environments.
+
+SLIDE 7 | Containers and Docker
+Containers package an application with everything it needs to run into a portable,
+isolated unit, so it behaves the same on a laptop, a test server, and production.
+Docker is the common tool for building and running them. Containers solve the "works
+on my machine" problem and are the building block for modern deployment and scaling.
+NARRATION: Containers package an app with its dependencies so it runs the same everywhere; Docker is the common tool.
+
+SLIDE 8 | Orchestration with Kubernetes
+Running many containers across many machines reliably needs orchestration.
+Kubernetes schedules containers, restarts failed ones, scales them up and down with
+demand, and manages networking and configuration. It turns a fleet of containers into
+a resilient, self-healing system, which is essential once an application must stay up
+and handle real traffic.
+NARRATION: Kubernetes runs containers at scale, restarting, scaling, and self-healing them across machines.
+
+SLIDE 9 | Monitoring, Logging, and Observability
+You cannot operate what you cannot see. Collect metrics, logs, and traces so you know
+whether services are healthy, fast, and correct, and set alerts that fire on real
+problems before users notice. Observability lets you detect, diagnose, and fix issues
+quickly, and is what makes fast delivery safe rather than reckless.
+NARRATION: Metrics, logs, and traces plus alerts let you detect and fix problems before users notice.
+
+SLIDE 10 | Reliability and Incident Response
+Things will fail, so plan for it. Build in redundancy and automated recovery, define
+clear on-call and incident-response processes, and learn from failures with blameless
+post-mortems that fix systems rather than blame people. Concepts like service-level
+objectives turn reliability from a vague aspiration into a measured, managed target.
+NARRATION: Plan for failure with redundancy, incident response, and blameless post-mortems that improve the system.
+
+SLIDE 11 | Security in the Pipeline (DevSecOps)
+Security must be built in, not bolted on. Scan code and dependencies for
+vulnerabilities in the pipeline, manage secrets safely instead of hard-coding them,
+apply least-privilege access, and keep systems patched. Shifting security earlier, into
+development and CI, catches issues when they are cheap to fix and makes secure delivery
+the default.
+NARRATION: Build security into the pipeline: scan dependencies, manage secrets, and apply least privilege.
+
+SLIDE 12 | Automation and Continuous Improvement
+The thread through all of DevOps is automating toil and continuously improving. Every
+manual, repetitive, error-prone step is a candidate for automation, and every incident
+is a chance to make the system better. Measure delivery and stability, and keep
+removing friction. DevOps is a practice you refine forever, not a project you finish.
+NARRATION: Automate repetitive toil and continuously improve, measuring delivery and stability over time.
+
+SLIDE 13 | Course Summary and Next Steps
+You now understand the DevOps lifecycle: collaborate in Git, integrate and deliver
+continuously, define infrastructure as code, package with containers, orchestrate with
+Kubernetes, observe and operate reliably, and build in security. Take one manual step in
+your team's release process and automate it end to end. That is how DevOps capability
+grows, one automated improvement at a time.
+NARRATION: Automate one manual release step end to end to start building real DevOps capability.
+
+FACT: DevOps is a culture and set of practices that unite development and operations to deliver software faster and more reliably.
+FACT: Version control with Git, using branching, pull requests, and review, is the collaborative foundation of DevOps.
+FACT: Continuous integration automatically builds and tests every change so breakage is caught early and the main branch stays releasable.
+FACT: Continuous delivery automates repeatable deployments, and continuous deployment ships every passing change automatically.
+FACT: Infrastructure as code defines infrastructure in version-controlled files, making environments reproducible and consistent.
+FACT: Containers package an application with its dependencies into a portable isolated unit, and Docker is the common tool for them.
+FACT: Kubernetes orchestrates containers across machines by scheduling, restarting, scaling, and self-healing them.
+FACT: Observability through metrics, logs, and traces plus alerting lets teams detect and fix problems before users notice.
+FACT: Reliability practices include redundancy, automated recovery, incident response, and blameless post-mortems.
+FACT: DevSecOps builds security into the pipeline by scanning dependencies, managing secrets safely, and applying least-privilege access.
+FACT: DevOps centres on automating repetitive toil and continuously improving, measured by delivery speed and production stability.

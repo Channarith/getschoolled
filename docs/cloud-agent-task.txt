@@ -11,6 +11,8 @@ HARD RULES
   config/env (DEPLOY_MODE=local|cloud + per-component overrides). No code forks.
 - Pin dependency versions via the package manager; do not invent versions.
 - Update CHANGELOG.txt with every meaningful change.
+- Bump the release version on every PR merging to main:
+  `python3 scripts/bump_pr_version.py` (CI enforces VERSION > base).
 - Keep large model weights OUT of the repo (config + stubs; download at runtime).
 
 WORKING AGREEMENT

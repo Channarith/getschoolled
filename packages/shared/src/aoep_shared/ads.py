@@ -3,7 +3,7 @@
 Builds ad-break schedules for course playback - pre-roll, mid-roll (at cue
 points), and post-roll - and renders them as IAB-standard VMAP + VAST XML that
 client video players (e.g. Google IMA) can consume directly. Ads are tier-gated:
-free/basic members see ads; paid tiers (pro/premium) are ad-free.
+free/basic (Standard) members see ads; VIP (premium) and legacy pro are ad-free.
 
 Pure/offline; an `AdProvider` can later swap the static house inventory for a
 real ad-decisioning server (SSP/ad exchange) without changing callers.

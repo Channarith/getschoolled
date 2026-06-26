@@ -3,32 +3,355 @@ AI CLASSROOM - MOBILE APP (Android + iOS)
 Expo + React Native. Opens into "Drive Mode" (audio-only classes) for learning
 on the go.
 
+FIRST-TIME SETUP (macOS — read this first)
+==========================================
+Two ways to run Salareen on a Mac. Most developers should use Path B (native).
+
+  Path B (RECOMMENDED) — native dev build
+    • Compiles ios/ and android/ locally (expo prebuild + CocoaPods/Gradle).
+    • No Expo Go install; correct launcher icon; fewer moving parts.
+    • First run: 10–20 min with little output — this is normal.
+    • Daily (verbose):  pnpm run ios:debug   /  pnpm run android:debug
+    • npm equivalent:    npm run ios:debug     /  npm run android:debug
+
+  Path A — Expo Go (optional; higher friction)
+    • Separate Expo Go app must be installed on each simulator (network once).
+    • Good for quick JS-only tweaks; painful for first-time setup.
+    • Setup wizard:  bash scripts/mobile-setup.sh   or   pnpm run setup
+    • Daily (verbose):  pnpm run launch:ios:debug
+
+  NEVER on Mac:  expo start ...   or   pnpm exec expo ...
+  Always use bash wrappers (12 GB Node heap for Metro).
+
+MACOS REQUIREMENTS (install once)
+  1. Xcode from App Store → open once → finish setup.
+  2. Accept license:
+       sudo xcodebuild -license accept
+  3. iOS Simulator runtime (REQUIRED after every major Xcode update):
+       Xcode → Settings → Platforms → download latest iOS Simulator
+     If simulators fail to boot: reboot the Mac, then:
+       open -a Simulator
+       xcrun simctl list devices available | head
+  4. Node 18+ and pnpm:
+       npm i -g pnpm
+  5. CocoaPods (iOS native builds):
+       sudo gem install cocoapods
+  6. Android Studio + AVD (Android only):
+       Device Manager → Create Virtual Device (e.g. Pixel 7, API 34+)
+       Add to ~/.zshrc:
+         export ANDROID_HOME=$HOME/Library/Android/sdk
+         export ANDROID_SDK_ROOT=$ANDROID_HOME
+         export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+
+ONE-TIME SETUP COMMANDS
+  cd apps/mobile
+  bash scripts/mobile-install.sh
+  VERBOSE=1 bash scripts/mobile-doctor.sh
+
+  Path B (native — recommended):
+    open -a Simulator
+    pnpm run ios:debug              # creates ios/, pod install, builds Salareen.app
+    pnpm run android:debug          # boot AVD first; creates android/, Gradle build
+
+  Path A (Expo Go — optional):
+    pnpm run setup                  # deps + doctor + Expo Go CDN install
+    pnpm run launch:ios:debug
+
+  Expo Go vs Expo Orbit:
+    • Expo Go  = runs JS in simulator (Path A only)
+    • Expo Orbit = optional desktop helper (NOT required)
+
+DAILY DEV (verbose defaults)
+  Path B (native):
+    pnpm run ios:debug
+    pnpm run android:debug
+    pnpm run launch:ios:native:debug      # same via launch script
+    pnpm run launch:android:native:debug
+
+  Path A (Expo Go):
+    pnpm run launch:ios:debug
+    pnpm run launch:android:debug
+
+  Stop Metro / free ports:
+    bash scripts/mobile-metro-cleanup.sh
+    pnpm run stop
+
+DEBUG WHEN BUILD FAILS
+  1. VERBOSE=1 bash scripts/mobile-doctor.sh
+  2. bash scripts/mobile-metro-cleanup.sh
+  3. bash scripts/mobile-install.sh
+  4. iOS native via Expo:     pnpm run ios:debug
+  5. iOS native via xcodebuild: pnpm run xcode:debug
+     (needs ios/ from prebuild; set SIM_UDID or SIM_DEVICE)
+  6. Android Gradle verbose:    pnpm run gradle:debug
+  7. Typecheck:                 VERBOSE=1 bash scripts/mobile-typecheck.sh
+
+  Direct xcodebuild (replace UDID from  xcrun simctl list devices):
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+      -workspace ios/Salareen.xcworkspace \
+      -configuration Debug \
+      -scheme Salareen \
+      -destination id=<SIMULATOR-UDID> \
+      build
+
+  Or use the wrapper:
+    SIM_UDID=A701BBF9-D0E2-41D9-AD2B-3E7E1461E8C9 pnpm run xcode:debug
+
 PREREQUISITES
   - Node 18+ and pnpm (`npm i -g pnpm`). The repo's CI / Cursor Cloud env
     installs pnpm already.
-  - Expo Go on your phone, an Android emulator (Android Studio), or the iOS
-    Simulator (macOS / Xcode) for live dev.
+  - For simulator/emulator dev on macOS:
+      * iOS: Xcode from the App Store (includes the iOS Simulator).
+      * Android: Android Studio + at least one Android Virtual Device (AVD).
+  - Optional: Expo Go on a physical phone (scan the QR from `pnpm start`).
 
-INSTALL (one-time)
+INSTALL (one-time — prefer mobile-setup.sh)
   cd apps/mobile
+  bash scripts/mobile-setup.sh     # deps + doctor + Expo Go (recommended)
+  pnpm run setup                   # same via package.json
+  # Legacy manual install:
   pnpm install
   # Or, from the repo root:
   make mobile-install
-  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` because Metro/React
+  # NOTE: apps/mobile/.npmrc sets `node-linker=hoisted` and
+  # `optimistic-repeat-install=false` (pnpm v11 no-op when node_modules deleted).
   # Native cannot resolve through pnpm's strict symlink layout. Re-run
   # `pnpm install` if you switch package managers.
 
-DEV LOOP
-  cd apps/mobile
-  pnpm start             # then scan the Expo Go QR, or:
-  pnpm android           # Android emulator/device
-  pnpm ios               # iOS simulator (macOS)
+DEV LOOP — TWO PATHS
+  Run the doctor first if anything fails silently:
+    cd apps/mobile          # skip if prompt ends in "mobile" and app.json is here
+  pnpm install
+  bash scripts/mobile-install.sh       # use if pnpm says up-to-date but deps missing
+    pnpm run doctor                        # same via pnpm (may OOM on Mac — use bash)
+    VERBOSE=1 bash scripts/mobile-doctor.sh
+
+  Path A: Expo Go — optional; use launch:ios:debug (not bare dev:ios on Mac)
+    cd apps/mobile
+    pnpm run setup                       # first time: installs Expo Go on simulator
+    pnpm run launch:ios:debug            # verbose; boots sim + Metro + Expo Go
+    pnpm run launch:android:debug
+    bash scripts/mobile-install-expo-go-ios.sh   # if Expo Go missing
+
+  Path B (RECOMMENDED): native dev build — compiles local ios/ and android/
+    cd apps/mobile
+    pnpm run ios:debug           # expo run:ios --verbose (first run: prebuild + pods)
+    pnpm run android:debug       # expo run:android --verbose
+    pnpm run launch:ios:native:debug
+    pnpm run launch:android:native:debug
+    pnpm run xcode:debug         # xcodebuild directly (after ios/ exists)
+    pnpm run gradle:debug        # Gradle --info --stacktrace (after android/ exists)
+    npm run ios:debug            # same scripts work with npm from apps/mobile
+    First native build: 10–20 min, little output — use verbose commands above.
+
+VERBOSE / DEBUG FLAGS (macOS emulator + simulator)
+  Environment variables:
+    EXPO_DEBUG=1              Expo CLI internal logs
+    DEBUG=expo:*              Metro + Expo debug namespace
+    EXPO_OFFLINE=1            skip expo.dev reachability checks
+
+  Scripts (from apps/mobile):
+    pnpm run doctor:verbose
+    pnpm run dev:ios:debug
+    pnpm run dev:android:debug
+    pnpm run launch:ios:debug
+    pnpm run launch:android:debug
+    pnpm run ios:debug            # native iOS compile with EXPO_DEBUG
+    pnpm run android:debug        # native Android compile with EXPO_DEBUG
+    pnpm run xcode:debug          # xcodebuild -workspace ios/*.xcworkspace
+    pnpm run gradle:debug         # ./gradlew assembleDebug --info --stacktrace
+
+  Makefile (from repo root):
+    make mobile-launch-ios-debug
+    make mobile-launch-android-debug
+    make mobile-doctor-verbose
+
+  Gradle (Android native only, after prebuild):
+    cd apps/mobile/android && ./gradlew assembleDebug --info --stacktrace
+
+  Xcode (iOS native only, after prebuild):
+    pnpm run xcode:debug
+    SIM_UDID=<udid> pnpm run xcode:debug
+    cd apps/mobile/ios && xcodebuild -workspace *.xcworkspace -scheme Salareen \
+      -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+NOTHING HAPPENS / EMULATOR DOES NOT OPEN (macOS)
+  Symptom: launch script sits at "Starting Metro Bundler" or "rebuilding cache"
+  for several minutes with no Simulator window.
+
+  This is NORMAL on first run (2–5 min). Metro builds ~735 JS modules before
+  Expo Go opens. Do NOT use --clear every time (removed from default launch).
+
+  Timeline:
+    1–3 min   Metro + Watchman (may pause with no new lines)
+    3–5 min   First bundle — look for "iOS Bundled" / "Opening on iOS"
+    Then      Expo Go should appear in Simulator with Salareen
+
+  Faster relaunch (cache kept):
+    bash scripts/mobile-launch-ios.sh
+
+  Only if Metro acts broken:
+    bash scripts/mobile-launch-ios.sh --fresh
+
+  If 5+ min with zero progress:
+    bash scripts/mobile-launch-ios.sh --debug
+    # or open Simulator first: open -a Simulator
+    # then in two steps:
+    bash scripts/mobile-expo.sh start
+    # press i in that terminal when Metro is ready
+
+  Stuck at "Starting Metro Bundler" / "Fetching bundled native modules":
+    Cause: stale Metro on port 8081 or expo.dev network hang (when EXPO_OFFLINE unset).
+    Fix:
+      bash scripts/mobile-metro-cleanup.sh
+      bash scripts/mobile-launch-ios.sh
+    Launch scripts: debug ON by default, CI=false, EXPO_OFFLINE=1 (local bundled modules).
+    First run without Expo Go: bash scripts/mobile-install-expo-go-ios.sh (network once).
+
+  "Expo Go is not installed … while running in offline mode":
+    Run: bash scripts/mobile-install-expo-go-ios.sh
+    Then: bash scripts/mobile-launch-ios.sh
+
+  Symptom: you run pnpm ios or pnpm start and the terminal returns or sits
+  with no Simulator window.
+
+  1. Wrong directory — commands MUST run from apps/mobile, not the repo root.
+       cd apps/mobile && pnpm run doctor
+
+  2. Wrong command — pnpm ios / npm run ios is a NATIVE compile (Path B), not Expo Go.
+       Expo Go:  pnpm run launch:ios:debug
+       Native:   pnpm run ios:debug
+
+  3. Open the Simulator manually before launching:
+       open -a Simulator
+       pnpm run dev:ios
+
+  4. See verbose Expo logs:
+       EXPO_DEBUG=1 pnpm run dev:ios
+
+  5. Expo cannot reach expo.dev (corporate VPN / offline):
+       pnpm run dev:ios:offline
+
+  6. Xcode license / simulators missing or won't boot:
+       sudo xcodebuild -license accept
+       open -a Xcode   # Settings -> Platforms -> install iOS Simulator runtime
+       reboot Mac if simctl still fails after installing runtime
+
+  7. Clean reinstall:
+       rm -rf node_modules .expo && pnpm install && pnpm run dev:ios -- --clear
+
+  8. Native build (pnpm ios) stuck with no output — it may still be compiling.
+       Watch Activity Monitor for node/xcodebuild, or run in another terminal:
+       EXPO_DEBUG=1 pnpm ios
+
+macOS — iOS SIMULATOR SETUP (one-time)
+  1. Install Xcode from the App Store; open Xcode once and finish setup.
+  2. Accept the license if prompted:
+       sudo xcodebuild -license accept
+  3. Verify the simulator toolchain:
+       xcode-select -p
+       xcrun simctl list devices available | head
+  4. From apps/mobile:
+       pnpm install
+       pnpm run start:ios
+     The first launch downloads Expo Go into the simulator; allow a few minutes.
+
+macOS — ANDROID EMULATOR SETUP (one-time)
+  1. Install Android Studio.
+  2. Device Manager -> Create Virtual Device (e.g. Pixel 7, API 34).
+  3. Add to ~/.zshrc (or ~/.bash_profile):
+       export ANDROID_HOME=$HOME/Library/Android/sdk
+       export ANDROID_SDK_ROOT=$ANDROID_HOME
+       export PATH=$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+     Reload the shell:  source ~/.zshrc
+  4. List and boot an AVD (or start it from Android Studio):
+       emulator -list-avds
+       emulator -avd Pixel_7_API_34 &
+  5. From apps/mobile (with the emulator running):
+       pnpm install
+       pnpm run start:android
+
+TROUBLESHOOTING — EMULATOR / SIMULATOR WON'T LAUNCH
+  "pnpm ios" or "pnpm android" fails on first run
+    - These run  expo run:ios / expo run:android  (native compile), NOT Expo Go.
+      Try  pnpm run start:ios  or  pnpm run start:android  first.
+    - Native first run needs network for CocoaPods (iOS) and Gradle/Maven
+      (Android). If prebuild is required:  pnpm run prebuild  then retry.
+
+  iOS: "xcodebuild" / "Unable to boot simulator" / no simulators listed
+    - Open Xcode -> Settings -> Platforms; install an iOS simulator runtime.
+    - Run:  sudo xcodebuild -license accept
+    - Pick a device:  pnpm run start:ios -- --simulator "iPhone 16"
+
+  Android: "SDK location not found" / "emulator: command not found"
+    - Set ANDROID_HOME (see above) and ensure  emulator  is on PATH.
+    - Boot the AVD BEFORE  pnpm run start:android  (Android Studio -> Play on
+      the virtual device).
+
+  Metro bundler errors / "Unable to resolve module"
+    - From apps/mobile:  rm -rf node_modules && pnpm install
+    - Clear Metro cache:  pnpm start -- --clear
+
+  App opens but home rails are empty / network errors
+    - Start the curriculum API on your Mac (port 8005 — see BACKEND URL below).
+    - Simulator: localhost works. Physical device: use your Mac's LAN IP in
+      app.json -> expo.extra.curriculumUrl (not localhost).
+
+  pnpm / Metro symlink issues
+    - apps/mobile/.npmrc forces hoisted node_modules; always use pnpm install
+      inside apps/mobile (not npm install at the repo root for mobile).
 
 TYPECHECK
-  pnpm typecheck         # or: make mobile-typecheck
+  From the monorepo root:
+    cd apps/mobile
+  If your shell prompt already ends in "mobile" and app.json is here, you are
+  in the right place — do NOT run "cd apps/mobile" again (that path is wrong).
+
+  pnpm typecheck         # or from repo root: make mobile-typecheck
+  pnpm run typecheck:verbose   # prints cwd, tsconfig include, src file count
+
+  JavaScript heap out of memory (typecheck, export, dev, launch — Mac Node 22)
+  ---------------------------------------------------------------------------
+  Symptom: FATAL ERROR near ~4040 MB heap, AfterScanDir in stack trace.
+
+  Cause: Node 22 defaults to ~4 GB. Metro runs in a subprocess that ignores
+  NODE_OPTIONS unless METRO_NODE_OPTIONS is also set. pnpm exec expo adds more
+  heap pressure scanning hoisted node_modules.
+
+  Fix (git pull origin main) — all expo/dev commands use bash wrappers with 12 GB:
+    scripts/mobile-env.sh       NODE_OPTIONS + METRO_NODE_OPTIONS
+    scripts/mobile-expo.sh      expo without pnpm exec
+    scripts/mobile-launch-ios.sh / mobile-launch-android.sh
+
+  RUN ON SIMULATOR / EMULATOR (use these, not raw expo):
+    bash scripts/mobile-launch-ios.sh
+    bash scripts/mobile-launch-android.sh
+    bash scripts/mobile-expo.sh start --ios --clear
+    bash scripts/mobile-expo.sh start --android --clear
+
+  Or via pnpm (now wraps bash internally):
+    pnpm run launch:ios
+    pnpm run dev:android
+
+  NEVER on Mac:  expo start ...   or   pnpm exec expo ...
+
+  If still OOM, raise heap in your shell before any command:
+    export NODE_OPTIONS=--max-old-space-size=12288
+    export METRO_NODE_OPTIONS=--max-old-space-size=12288
+
+  If export OOMs (often on second platform after ios succeeds):
+    export scripts set NODE_OPTIONS + METRO_NODE_OPTIONS=8192 and run each
+    platform in a separate Node process. Prefer bash directly on Mac:
+      bash scripts/mobile-export.sh ios
+      bash scripts/mobile-export.sh android
+    Or: pnpm run export:ios  then  pnpm run export:android  (one at a time)
+
+  Verbose export:
+    VERBOSE=1 bash scripts/mobile-export.sh ios
 
 BUILD (production JS bundles - iOS + Android)
-  pnpm run export        # writes apps/mobile/dist/
+  bash scripts/mobile-export.sh ios android   # preferred on Mac
+  pnpm run export        # same via package.json
   # or: make mobile-build
   # Produces:
   #   dist/_expo/static/js/ios/index-<sha>.js     (~970 kB minified)
@@ -63,18 +386,53 @@ NATIVE PROJECT FILES (offline / custom CI)
   networks block plugins.gradle.org.
 
 BACKEND URL
-  The app reads the curriculum API from app.json -> expo.extra.curriculumUrl.
-  On a physical device, "localhost" points at the phone, not your computer, so:
-    - set curriculumUrl to your machine's LAN IP (e.g. http://192.168.1.20:8005), or
-    - point it at your deployed backend.
-  Make sure the curriculum service is running:
+  The app reads API URLs from app.json -> expo.extra (curriculumUrl, identityUrl,
+  memoryUrl). src/config.ts auto-maps Android emulator to 10.0.2.2 (host Mac).
+
+  iOS Simulator: localhost works (default in app.json).
+  Android Emulator: leave defaults — config uses 10.0.2.2 automatically.
+  Physical device: set all three URLs to your Mac's LAN IP or deployed host.
+
+  Start local backends (from repo root, separate terminals):
     cd services/curriculum && DEPLOY_MODE=local PYTHONPATH=src \
       uvicorn curriculum.main:app --port 8005
+    cd services/memory && DEPLOY_MODE=local PYTHONPATH=src \
+      uvicorn memory.main:app --port 8004
+    cd services/identity && DEPLOY_MODE=local PYTHONPATH=src \
+      uvicorn identity.main:app --port 8008
+
+ACCOUNT, QA TEST USERS, LEARNING PROFILE SURVEY
+  Settings -> Account: sign in / sign up (identity service).
+  Dev builds (__DEV__): QA quick-fill buttons for qa-pro@, qa3, admin@.
+  After login, the one-time learning profile survey opens automatically if not
+  completed on the server (cloud-persisted — clearing app data does NOT reset it).
+  Settings -> Account -> "Update learning profile" reopens the survey anytime.
+
+DRIVING DETECTION (opt-in)
+  Settings -> DRIVE MODE: enable "Detect when I'm driving" to request location
+  (GPS speed) and motion (gyro/accelerometer) permissions. Status shows Driving /
+  Not driving. Optional: auto-open Drive tab, driving alerts (local notification
+  + in-app banner). src/drivingDetection.ts — foreground-only while app is open.
+
+DRIVE MODE VOICE (Hey Sala)
+  Tap Ask in Drive Mode — uses native speech recognition (Siri engine on iOS,
+  Google on Android) in your selected app language. Say "Hey Sala" or "Salareen"
+  then your question. Requires a dev/native build (expo run:android / run:ios);
+  Expo Go alone may not include the speech module. Rebuild after pulling:
+  npx expo prebuild && npx expo run:android  (or run:ios)
+
+NARRATION VOICE PROFILES
+  Settings -> NARRATION VOICE: Auto (from learning profile), Standard,
+  Child-friendly, Accessible (slower), Calm, or Clear. Drive Mode TTS picks the
+  best OS voice for your locale + style (rate/pitch tuned per profile).
+  Web Drive Mode has the same chips under the player (localStorage).
 
 WHAT'S HERE
   App.tsx                       root: bottom-tab nav, banner, notification listeners
-  src/api.ts                    typed client (audio courses, home rails, notifications)
-  src/storage.ts                AsyncStorage helpers (continue, my-list, settings, streak)
+  src/api.ts                    typed client (curriculum, identity, memory)
+  src/config.ts                 URL resolver (10.0.2.2 on Android emulator)
+  src/storage.ts                AsyncStorage + auth token cache
+  src/components/LearningProfileSurvey.tsx  cloud-persisted onboarding survey
   src/notifications.ts          expo-notifications wrapper (perms, daily reminder,
                                  staggered new-content alerts, completion banners)
   src/components/Banner.tsx     in-app top alert (info/success/warn/live)
@@ -84,6 +442,8 @@ WHAT'S HERE
                                         Trending, Categories rails
   src/screens/AudioCoursesScreen.tsx   browse + search + category chips (with star)
   src/screens/DriveModeScreen.tsx      hands-free player (expo-speech, progress saved,
+                                        Hey Sala assistant via expo-speech-recognition)
+  src/voiceAssistant.ts                native STT (Siri iOS / Google Android) + wake word
                                         completion notification, streak bump, save)
   src/screens/MyListScreen.tsx         saved-classes list (Netflix My List)
   src/screens/NotificationsScreen.tsx  alerts inbox (server feed, mark-read, deep-link)
@@ -126,6 +486,6 @@ NETFLIX-STYLE FEATURES (all on the audio catalog)
 
 ROADMAP
   - expo-av for real recorded-audio playback + lock-screen controls (TTS only today).
-  - Auth (reuse identity /auth + token) so my-list and progress sync across devices.
   - Remote push tokens (Expo / FCM / APNs) for server-driven announcements.
   - Offline download of audio lessons for tunnels / no-signal drives.
+  - Portfolio / enrollment sync (identity enrollments on mobile home).

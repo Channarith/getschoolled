@@ -9,8 +9,11 @@ client = TestClient(app)
 
 
 def _start_session():
+    # Pin a known on-topic lesson so the suite is order-independent (adding new
+    # curricula must not change which lesson lands at index 0).
     lessons = client.get("/api/lessons").json()
-    lid = lessons[0]["lesson_id"]
+    ids = [lsn["lesson_id"] for lsn in lessons]
+    lid = "intro-to-fractions" if "intro-to-fractions" in ids else lessons[0]["lesson_id"]
     return client.post("/api/sessions", json={"lesson_id": lid, "class_type": "group"}).json()["session"]["session_id"]
 
 

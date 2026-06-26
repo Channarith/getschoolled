@@ -1,17 +1,23 @@
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
+import { Animated, I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
 
+import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
 import { LocaleProvider, useT } from "./src/i18n";
+import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
 import {
-  ensurePermissions, installNotificationHandler,
+  ensurePermissions, fireDrivingDetectedAlert, installNotificationHandler,
   rescheduleDailyReminder, scheduleAlertsFor,
 } from "./src/notifications";
 import {
-  getMyList, getReadIds, getSettings, listContinue,
+  getDrivingStatus, startDrivingDetection, stopDrivingDetection,
+  subscribeDrivingStatus, type DrivingPhase, type DrivingStatus,
+} from "./src/drivingDetection";
+import {
+  getMyList, getReadIds, getSettings, listContinue, loadAuthToken,
 } from "./src/storage";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
 import DriveModeScreen from "./src/screens/DriveModeScreen";
@@ -19,7 +25,9 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import CareersScreen from "./src/screens/CareersScreen";
 import { getNotificationsFeed } from "./src/api";
+import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
 
 export default function App() {
@@ -31,24 +39,92 @@ export default function App() {
 }
 
 function AppInner() {
-  const { t, isRTL } = useT();
+  const { t, locale, isRTL } = useT();
   const [tab, setTab] = useState<TabId>("home");
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
+  const [surveyManualToken, setSurveyManualToken] = useState(0);
+  const [authEpoch, setAuthEpoch] = useState(0);
+  const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
+  const fade = useRef(new Animated.Value(1)).current;
+  const prevDrivingPhaseRef = useRef<DrivingPhase>("unknown");
+
+  useEffect(() => {
+    fade.setValue(0);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: theme.motion.fadeDuration,
+      useNativeDriver: true,
+    }).start();
+  }, [tab, fade]);
 
   useEffect(() => {
     void bootstrap();
-    return () => { subRef.current?.remove(); respRef.current?.remove(); };
+    void syncDrivingDetection();
+    return () => {
+      subRef.current?.remove();
+      respRef.current?.remove();
+      void stopDrivingDetection();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => subscribeDrivingStatus(setDrivingStatus), []);
+
+  async function syncDrivingDetection() {
+    const settings = await getSettings();
+    await startDrivingDetection(settings);
+  }
+
+  useEffect(() => {
+    const prev = prevDrivingPhaseRef.current;
+    prevDrivingPhaseRef.current = drivingStatus.phase;
+    if (drivingStatus.phase !== "driving" || prev === "driving") return;
+
+    void (async () => {
+      const settings = await getSettings();
+      const cont = await listContinue();
+      const courseId = cont[0]?.id;
+
+      if (settings.driveDrivingAlerts && settings.notificationsEnabled) {
+        await fireDrivingDetectedAlert(courseId);
+      }
+
+      setBanner({
+        kind: "live",
+        title: t("driving.bannerTitle"),
+        body: t("driving.bannerBody"),
+        cta: t("banner.open"),
+        ttlMs: 8000,
+        onPress: () => {
+          if (courseId) {
+            setOpenCourseId(courseId);
+            setTab("drive");
+          } else {
+            setTab("drive");
+          }
+        },
+      });
+
+      if (settings.driveAutoLaunch) {
+        if (courseId) {
+          setOpenCourseId(courseId);
+          setTab("drive");
+        } else {
+          setTab("drive");
+        }
+      }
+    })();
+  }, [drivingStatus.phase, t]);
+
   async function bootstrap() {
     installNotificationHandler();
+    await loadAuthToken();
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
@@ -81,6 +157,8 @@ function AppInner() {
         { courseId?: string; deepLink?: string };
       if (data.courseId) {
         setOpenCourseId(data.courseId); setTab("drive");
+      } else if (data.deepLink === "aiclassroom://drive") {
+        setTab("drive"); setOpenCourseId(null);
       } else { setTab("notifications"); }
     });
 
@@ -100,6 +178,7 @@ function AppInner() {
         studentId: settings.studentId,
         interests, inProgress: inProgress.map((c) => c.id),
         completed,
+        locale,
       });
       const readSet = new Set(read);
       setUnreadCount(feed.items.filter((i) => !readSet.has(i.id)).length);
@@ -116,17 +195,42 @@ function AppInner() {
 
   let screen: React.ReactNode = null;
   if (tab === "home") {
-    screen = <HomeScreen onOpenCourse={openCourse} onOpenCategory={openCategory} />;
+    screen = (
+      <HomeScreen
+        onOpenCourse={openCourse}
+        onOpenCategory={openCategory}
+        onOpenCareers={() => setTab("careers")}
+      />
+    );
   } else if (tab === "drive") {
     screen = openCourseId
-      ? <DriveModeScreen courseId={openCourseId} onBack={() => setOpenCourseId(null)} />
+      ? (
+        <DriveModeScreen
+          courseId={openCourseId}
+          isDriving={drivingStatus.phase === "driving"}
+          onBack={() => setOpenCourseId(null)}
+        />
+      )
       : <AudioCoursesScreen onOpen={openCourse} initialCategory={browseCategory} />;
   } else if (tab === "mylist") {
     screen = <MyListScreen onOpenCourse={openCourse} />;
+  } else if (tab === "careers") {
+    screen = (
+      <CareersScreen
+        onOpenCourse={openCourse}
+      />
+    );
   } else if (tab === "notifications") {
     screen = <NotificationsScreen onOpenCourse={openCourse} onUnreadChange={setUnreadCount} />;
   } else if (tab === "settings") {
-    screen = <SettingsScreen />;
+    screen = (
+      <SettingsScreen
+        onAuthChange={() => setAuthEpoch((n) => n + 1)}
+        onOpenLearningProfile={() => setSurveyManualToken((n) => n + 1)}
+        drivingStatus={drivingStatus}
+        onDrivingSettingsChange={() => void syncDrivingDetection()}
+      />
+    );
   }
 
   // React-Native-Web honors writingDirection on the root so RTL locales (ar,
@@ -137,17 +241,21 @@ function AppInner() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
+      <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
-        {screen}
+        <Animated.View style={{ flex: 1, opacity: fade }}>
+          {screen}
+        </Animated.View>
+        <LearningProfileSurvey
+          authEpoch={authEpoch}
+          manualOpenToken={surveyManualToken}
+        />
       </View>
       <BottomTabs
         active={tab}
         onChange={(id) => {
           if (id === "drive" && tab === "drive") setOpenCourseId(null);
-          // Refresh unread on every tab change so the badge always reflects
-          // the latest read-state - including after the user hits
-          // "Mark all as read" inside the inbox.
           void refreshUnreadAndAlerts();
           setTab(id);
         }}
@@ -158,5 +266,5 @@ function AppInner() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0b1020" },
+  root: { flex: 1, backgroundColor: theme.colors.bg },
 });

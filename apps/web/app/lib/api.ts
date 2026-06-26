@@ -1,6 +1,8 @@
 // Client for the orchestrator (Teaching Director) API.
 // Base URL is configurable so the SAME UI runs against local or cloud backends.
 
+import type { MascotResolve } from "./mascot";
+
 // Are we running on a deployed host (not local dev)? On localhost the UI talks
 // to each service on its own port; when deployed it shares ONE origin with the
 // backends and reaches them through same-origin path prefixes that the edge
@@ -72,6 +74,8 @@ const PREVIEW_KEY = "aoep_preview";
 // Fired whenever auth/preview state changes so the nav (and other components)
 // can re-gate immediately without a full reload.
 export const AUTH_EVENT = "aoep-auth-change";
+/** Fired when the post-login legal disclaimer is accepted (see DisclaimerGate). */
+export const DISCLAIMER_ACCEPTED_EVENT = "aoep-disclaimer-accepted";
 
 export function notifyAuthChange(): void {
   try {
@@ -193,14 +197,131 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+export type Subscription = {
+  tier: string;
+  display_name: string;
+  price_usd: number;
+  billing_interval: string;
+  ads: boolean;
+  subscription_started_at: number | null;
+  billing_anchor_day: number | null;
+  next_billing_at: number | null;
+};
+
 export type Account = {
   id: string;
   email: string;
   display_name: string;
   tier: string;
   region: string;
+  membership_class?: "standard" | "vip";
+  subscription?: Subscription;
   is_admin?: boolean;
+  onboarding_completed_at?: number | null;
+  login_count?: number;
+  billing_validated?: boolean;
+  card_last4?: string | null;
 };
+
+export type OnboardingStatus = {
+  completed: boolean;
+  completed_at: number | null;
+  tier: string;
+  membership_class: string;
+  billing_required: boolean;
+  billing_validated: boolean;
+};
+
+export type LoginEvent = {
+  ts: number;
+  success: boolean;
+  ip: string;
+  user_agent: string;
+  country_hint: string;
+};
+
+export type AdSlotPayload = {
+  show: boolean;
+  slot_id?: string;
+  network?: string;
+  width?: number;
+  height?: number;
+  label?: string;
+  click_url?: string;
+  image_url?: string;
+  house?: boolean;
+  client_id?: string;
+  script_url?: string;
+  data_ad_slot?: string;
+};
+
+export async function getOnboardingStatus(): Promise<OnboardingStatus> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/onboarding-status`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function getLoginHistory(): Promise<{ events: LoginEvent[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/login-history`, { headers: authHeaders(), cache: "no-store" }),
+  );
+}
+
+export async function submitOnboardingProfile(body: {
+  display_name?: string;
+  phone?: string;
+  region?: string;
+}): Promise<{ ok: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/profile`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function submitOnboardingBilling(body: Record<string, unknown>): Promise<{ validated: boolean; card_last4: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/billing`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function selectOnboardingPlan(tier: string): Promise<{ tier: string; membership_class: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/plan`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ tier }),
+    }),
+  );
+}
+
+export async function completeOnboarding(body: { learner_name?: string; age_band?: string }): Promise<{ completed: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/onboarding/complete`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+export async function getBillingPlans(): Promise<Record<string, unknown>> {
+  return jsonOrThrow(await fetch(`${BILLING_URL}/plans`, { cache: "no-store" }));
+}
+
+export async function getAdSlot(slotId: string, tier: string): Promise<AdSlotPayload> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/slot/${encodeURIComponent(slotId)}?tier=${encodeURIComponent(tier)}`, {
+      cache: "no-store",
+    }),
+  );
+}
 
 export async function signup(email: string, password: string, displayName: string):
   Promise<{ token: string; account: Account }> {
@@ -242,6 +363,38 @@ export async function setMembershipTier(tier: string): Promise<{ tier: string }>
       body: JSON.stringify({ tier }),
     })
   );
+}
+
+export async function subscribeToPlan(tier: string): Promise<{
+  tier: string;
+  membership_class: string;
+  subscription: Subscription;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/membership/subscribe`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ tier }),
+    })
+  );
+}
+
+export async function getSubscription(): Promise<Subscription> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/membership/subscription`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export type ConsumerPlan = {
+  tier: string;
+  display_name: string;
+  price_usd: number;
+  billing_interval: string;
+  ads: boolean;
+  blurb: string;
+};
+
+export async function getConsumerPlans(): Promise<Record<string, ConsumerPlan>> {
+  return jsonOrThrow(await fetch(`${BILLING_URL}/plans/consumer`, { cache: "no-store" }));
 }
 
 export type Enrollment = {
@@ -290,6 +443,12 @@ export async function setEnrollmentStatus(
 export type StudentProfile = {
   id: string; display_name: string; age_band: string;
   mastery: Record<string, number>; completed_course_ids: string[]; interests: string[];
+  primary_style?: string; learning_pace?: string; learning_structure?: string;
+  session_length?: string; group_preference?: string; reading_level?: string;
+  motivation?: string; accessibility?: Record<string, boolean>;
+  accommodations_notes?: string; learner_category?: string;
+  onboarding_completed_at?: number | null;
+  onboarding_answers?: Record<string, unknown>;
 };
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -322,6 +481,8 @@ export type ForesightRec = {
 export type ForesightResult = {
   student_id: string; difficulty: string; gaps: string[];
   recommendations: ForesightRec[];
+  cold_start?: boolean;
+  fallback?: boolean;
   relational_map: { nodes: { id: string; kind: string }[]; edges: { src: string; dst: string; rel: string; weight: number }[] };
 };
 
@@ -345,13 +506,28 @@ export type CatalogCourse = {
   tags: string[]; access_tier: string; delivery_mode: string;
   maturity_rating?: string; price_usd?: number; thumbnail?: string | null;
   popularity?: number;
+  source?: string; format?: string; deep_link?: string; global_id?: string;
+};
+
+export type LearnableItem = {
+  id: string; source: string; source_id: string; title: string; subtitle?: string;
+  category: string; subject: string; format: string; level: string; language: string;
+  duration_min: number; tags: string[]; maturity_rating: string; hands_on: boolean;
+  drive_safe: boolean; access_tier: string; preview: string; deep_link: string;
+  popularity?: number; thumbnail?: string | null;
+};
+
+export type LearnSearchResult = {
+  total: number; offset: number; limit: number; items: LearnableItem[];
 };
 
 export type HomeRail = { key: string; title: string; courses: CatalogCourse[] };
 
-export async function getHomeFeed(kids = false): Promise<HomeRail[]> {
+export async function getHomeFeed(kids = false, locale = "en"): Promise<HomeRail[]> {
+  const qs = new URLSearchParams({ locale });
+  if (kids) qs.set("kids", "true");
   const r = await jsonOrThrow<{ rails: HomeRail[] }>(
-    await fetch(`${CURRICULUM_URL}/home${kids ? "?kids=true" : ""}`, { cache: "no-store" })
+    await fetch(`${CURRICULUM_URL}/home?${qs}`, { cache: "no-store" }),
   );
   return r.rails;
 }
@@ -378,7 +554,24 @@ export type Facets = {
   categories: string[]; languages: string[]; audio_languages: string[];
   media_formats: string[]; levels: string[]; tags: string[];
   audiences?: { slug: string; label: string }[];
+  sources?: string[]; formats?: string[];
 };
+
+export async function searchLearnable(
+  params: Record<string, string>,
+  locale = "en",
+): Promise<LearnSearchResult> {
+  const qs = new URLSearchParams(
+    Object.entries({ ...params, locale }).filter(([, v]) => v !== "" && v != null),
+  ).toString();
+  return jsonOrThrow(
+    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store" }),
+  );
+}
+
+export async function getLearnFacets(): Promise<Facets> {
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/learn/facets`, { cache: "no-store" }));
+}
 
 export async function searchCourses(params: Record<string, string>): Promise<CatalogCourse[]> {
   const qs = new URLSearchParams(
@@ -466,18 +659,37 @@ export type AudioCourse = {
   drive_safe: boolean; segments: AudioSegment[];
 };
 
-export async function getAudioCategories(): Promise<{ category: string; count: number }[]> {
+export async function getAudioCategories(locale = "en"): Promise<{ category: string; count: number }[]> {
   const r = await jsonOrThrow<{ categories: { category: string; count: number }[] }>(
-    await fetch(`${CURRICULUM_URL}/audio/categories`, { cache: "no-store" })
+    await fetch(`${CURRICULUM_URL}/audio/categories?locale=${encodeURIComponent(locale)}`, { cache: "no-store" }),
   );
   return r.categories;
 }
-export async function listAudioCourses(params: Record<string, string> = {}): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
-  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+export async function listAudioCourses(
+  params: Record<string, string> = {},
+  locale = "en",
+  trainingLocale?: string,
+): Promise<{ total: number; offset: number; limit: number; courses: AudioCourseRow[] }> {
+  const qs = new URLSearchParams(
+    Object.entries({
+      ...params,
+      locale,
+      ...(trainingLocale ? { training_locale: trainingLocale } : {}),
+    }).filter(([, v]) => v),
+  ).toString();
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
 }
-export async function getAudioCourse(id: string): Promise<AudioCourse> {
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}`, { cache: "no-store" }));
+export async function getAudioCourse(
+  id: string, locale = "en", trainingLocale?: string,
+): Promise<AudioCourse> {
+  const p = new URLSearchParams({ locale });
+  if (trainingLocale) p.set("training_locale", trainingLocale);
+  return jsonOrThrow(
+    await fetch(
+      `${CURRICULUM_URL}/audio/courses/${encodeURIComponent(id)}?${p.toString()}`,
+      { cache: "no-store" },
+    ),
+  );
 }
 
 // --- language learning ---------------------------------------------------- //
@@ -625,6 +837,14 @@ export type Lesson = {
   lesson_id: string;
   title: string;
   language: string;
+  audience?: string;
+  // Optional catalog metadata for programme cards (Corporate training).
+  track?: string;
+  level?: string;
+  role?: string;
+  delivery?: string;
+  fit?: string;
+  summary?: string;
   slides: Slide[];
 };
 
@@ -678,7 +898,16 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
+    let detail = res.statusText;
+    try {
+      const j = (await res.json()) as { detail?: unknown };
+      if (j.detail != null) {
+        detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      }
+    } catch {
+      /* non-JSON body */
+    }
+    throw new Error(`${res.status} ${detail}`);
   }
   return (await res.json()) as T;
 }
@@ -852,6 +1081,14 @@ export async function registerGroupClass(
   );
 }
 
+export function groupClassCalendarUrl(classId: string, name = "", email = ""): string {
+  const qs = new URLSearchParams();
+  if (name) qs.set("name", name);
+  if (email) qs.set("email", email);
+  const suffix = qs.toString();
+  return `${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/calendar.ics${suffix ? `?${suffix}` : ""}`;
+}
+
 export async function startGroupClass(classId: string): Promise<GroupClassStart> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/start`, {
@@ -936,6 +1173,29 @@ export async function getFlag(key: string, subject?: string): Promise<unknown> {
   return r.value;
 }
 
+// --- locale-specific Bayon Buddy mascots (27 languages) ----------------- //
+
+export type MascotCatalogEntry = {
+  locale: string; region: string; cultural_theme: string; path: string;
+};
+
+export async function getMascotCatalog(): Promise<{ count: number; mascots: MascotCatalogEntry[] }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mascots/catalog`, { cache: "no-store" }),
+  );
+}
+
+export async function resolveMascot(
+  locale: string, subject?: string, tier?: string,
+): Promise<MascotResolve> {
+  const qs = new URLSearchParams({ locale });
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mascots/resolve?${qs.toString()}`, { cache: "no-store" }),
+  );
+}
+
 export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
   const r = await jsonOrThrow<{ flags: FlagSpec[] }>(
     await fetch(`${MEMORY_URL}/admin/flags`, {
@@ -943,6 +1203,33 @@ export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
     })
   );
   return r.flags;
+}
+
+/** Feature flags for a logged-in operator admin (via Next.js BFF; no secret prompt). */
+export async function adminListFlagsSession(): Promise<FlagSpec[]> {
+  const r = await jsonOrThrow<{ flags: FlagSpec[] }>(
+    await fetch("/api/admin/flags", { cache: "no-store", headers: authHeaders() })
+  );
+  return r.flags;
+}
+
+export async function adminSetFlagSession(
+  key: string,
+  patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }
+): Promise<FlagSpec> {
+  return jsonOrThrow(
+    await fetch(`/api/admin/flags/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      headers: { ...authHeaders(), "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    })
+  );
+}
+
+export async function adminListAccounts(): Promise<{ accounts: Account[]; count: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/admin/accounts`, { headers: authHeaders(), cache: "no-store" })
+  );
 }
 
 export async function adminSetFlag(
@@ -962,7 +1249,10 @@ export async function adminSetFlag(
 export type SurveyQuestion = {
   id: string; type: string; prompt: string; options: string[]; required: boolean;
 };
-export type SurveyTemplate = { version: string; title: string; questions: SurveyQuestion[] };
+export type SurveyTemplate = {
+  version: string; title: string; subtitle?: string; questions: SurveyQuestion[];
+  categories?: string[];
+};
 
 export async function getPostClassSurvey(
   subject?: string, tier?: string
@@ -985,6 +1275,67 @@ export async function submitPostClassSurvey(payload: {
       body: JSON.stringify(payload),
     })
   );
+}
+
+// --- one-time onboarding learning survey (post-signup) ------------------- //
+export async function getOnboardingSurvey(
+  subject?: string, tier?: string
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  return jsonOrThrow(await fetch(`${MEMORY_URL}/survey/onboarding?${qs.toString()}`, { cache: "no-store" }));
+}
+
+export async function submitOnboardingSurveyAnalytics(payload: {
+  account_id: string; student_id: string; answers: Record<string, unknown>;
+}): Promise<{ id: string; recorded: boolean; learner_category: string }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/survey/onboarding`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function submitLearningProfile(
+  studentId: string, answers: Record<string, unknown>
+): Promise<{ student: StudentProfile; learner_category: string; recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-profile`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ answers }),
+    })
+  );
+}
+
+export async function skipLearningProfile(
+  studentId: string,
+): Promise<{ student: StudentProfile; skipped: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-profile/skip`, {
+      method: "POST",
+      headers: authHeaders(),
+    })
+  );
+}
+
+/** True when identity exposes POST .../learning-profile (needs current deploy). */
+export async function identitySupportsLearningProfile(): Promise<boolean> {
+  try {
+    const res = await fetch(`${IDENTITY_URL}/__meta`, { cache: "no-store" });
+    if (!res.ok) return false;
+    const meta = (await res.json()) as { routes?: { path?: string; methods?: string[] }[] };
+    return (meta.routes ?? []).some(
+      (r) =>
+        r.path?.includes("learning-profile") &&
+        (r.methods ?? []).includes("POST"),
+    );
+  } catch {
+    return false;
+  }
 }
 
 // --- service version / status (automation + admin visibility) ----------- //
@@ -1325,12 +1676,12 @@ export async function enrollEmbedding(
   );
 }
 
-export async function ask(sessionId: string, text: string): Promise<Answer> {
+export async function ask(sessionId: string, text: string, language = "en"): Promise<Answer> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, language: "en" }),
-    })
+      body: JSON.stringify({ text, language }),
+    }),
   );
 }

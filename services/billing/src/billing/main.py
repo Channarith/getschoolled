@@ -8,6 +8,7 @@ creation via the PaymentProvider (Stripe in cloud, sandbox stub local).
 from __future__ import annotations
 
 from aoep_shared.entitlements import PLANS, can_start
+from aoep_shared.plan_pricing import CONSUMER_PLANS, consumer_plan_for_tier
 from aoep_shared.payments import (
     COUNTRY_METHODS,
     LOCALE_DEFAULT_COUNTRY,
@@ -64,15 +65,44 @@ class PaymentMethodsResponse(BaseModel):
 
 @app.get("/plans")
 def plans() -> dict:
-    return {
-        tier.value: {
+    out: dict = {}
+    for tier, plan in PLANS.items():
+        consumer = consumer_plan_for_tier(tier.value)
+        entry = {
             "languages": sorted(plan.languages),
             "solo_classes": plan.solo_classes,
             "cross_class_memory": plan.cross_class_memory,
             "recordings": plan.recordings,
             "analytics": plan.analytics,
         }
-        for tier, plan in PLANS.items()
+        if consumer:
+            entry.update({
+                "display_name": consumer.display_name,
+                "price_usd": consumer.price_usd,
+                "billing_interval": consumer.billing_interval,
+                "ads": consumer.ads,
+                "blurb": consumer.blurb,
+                "consumer": True,
+            })
+        else:
+            entry["consumer"] = False
+        out[tier.value] = entry
+    return out
+
+
+@app.get("/plans/consumer")
+def consumer_plans() -> dict:
+    """Netflix-style Standard ($19.99) and VIP ($29.99) picker data."""
+    return {
+        tier: {
+            "tier": p.tier,
+            "display_name": p.display_name,
+            "price_usd": p.price_usd,
+            "billing_interval": p.billing_interval,
+            "ads": p.ads,
+            "blurb": p.blurb,
+        }
+        for tier, p in CONSUMER_PLANS.items()
     }
 
 
@@ -164,3 +194,20 @@ def checkout(req: CheckoutRequest) -> CheckoutResponse:
         method=session.method,
         instructions=session.instructions,
     )
+
+
+@app.get("/ads/networks")
+def ads_networks() -> dict:
+    from aoep_shared.ad_networks import active_network, list_networks
+
+    return {"active": active_network().value, "networks": list_networks()}
+
+
+@app.get("/ads/slot/{slot_id}")
+def ads_slot(slot_id: str, tier: str = "free") -> dict:
+    from aoep_shared.ad_networks import resolve_slot
+
+    slot = resolve_slot(slot_id, tier=tier)
+    if slot is None:
+        return {"slot_id": slot_id, "show": False}
+    return {"show": True, **slot}

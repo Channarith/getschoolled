@@ -4,28 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { AUTH_EVENT, getPreview, getToken, isAdminUnlocked, setPreview } from "../lib/api";
+import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
 import { useT } from "../lib/i18n";
 import ProfileMenu from "./ProfileMenu";
 
-// Top navigation. Content tabs (Browse, For You, Kids, Corporate, ... Homework)
-// are GATED: a signed-out visitor only sees the brand, Our Story, and a Preview
-// affordance until they log in OR opt into preview. Personal/settings surfaces
-// live in the ProfileMenu dropdown on the right; legal/consent/transparency in
-// the footer. Every label is localized via t(...). The brand mark flips to the
-// kid-friendly cartoon variant on /kids.
+// Top navigation. Content tabs (Browse, For You, Kids, Corporate, … Homework)
+// are GATED: signed-out visitors only see the brand, Our Story, and Sign in.
+// Personal/settings surfaces live in the ProfileMenu dropdown on the right.
 export default function LocalizedNav({ appVersion }: { appVersion: string }) {
   const { t } = useT();
   const pathname = usePathname() ?? "/";
 
-  // unlocked = logged in OR previewing. Until then, hide the content tabs.
-  // admin = the operator-only surfaces (Homework grader) are unlocked.
   const [unlocked, setUnlocked] = useState(false);
-  const [admin, setAdmin] = useState(false);
+  const [homeworkOn, setHomeworkOn] = useState(false);
   useEffect(() => {
     const sync = () => {
-      setUnlocked(Boolean(getToken()) || getPreview());
-      setAdmin(isAdminUnlocked());
+      setUnlocked(Boolean(getToken()));
+      getFlag("access.homework_grader")
+        .then((v) => setHomeworkOn(Boolean(v)))
+        .catch(() => setHomeworkOn(false));
     };
     sync();
     window.addEventListener(AUTH_EVENT, sync);
@@ -66,24 +63,11 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           <Link href="/watch">{t("nav.watch")}</Link>
           <Link href="/class">{t("nav.liveClass")}</Link>
           <Link href="/group-classes">{t("nav.groupClasses")}</Link>
-          {/* Homework grader is an operator-only tool: only shown when the admin
-              surface is unlocked (password-gated), never for learners/preview. */}
-          {admin && <Link href="/homework">{t("nav.homework")}</Link>}
+          {/* Homework grader: hidden unless the access.homework_grader flag is on. */}
+          {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}
         </>
       ) : (
-        // Signed-out + not previewing: offer Sign in and a Preview toggle that
-        // reveals the catalog (and these tabs) without an account.
-        <>
-          <Link href="/login">{t("nav.signin")}</Link>
-          <button
-            type="button"
-            onClick={() => setPreview(true)}
-            style={{ background: "transparent", border: 0, color: "var(--accent)",
-                     cursor: "pointer", font: "inherit", padding: 0 }}
-          >
-            ▶ {t("landing.preview")}
-          </button>
-        </>
+        <Link href="/login">{t("nav.signin")}</Link>
       )}
 
       <span
@@ -91,7 +75,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
         style={{ marginLeft: "auto", fontSize: 12, padding: "2px 8px",
                  borderRadius: 999, border: "1px solid currentColor", opacity: 0.85 }}
       >
-        AI-instructed
+        {t("nav.aiInstructed")}
       </span>
       <ProfileMenu />
       <span className="version" title="App version"

@@ -11,7 +11,7 @@ import type { LocaleCode } from "./languages";
 
 export type StringKey =
   // Navigation / tabs
-  | "tab.home" | "tab.drive" | "tab.mylist" | "tab.alerts" | "tab.settings"
+  | "tab.home" | "tab.drive" | "tab.mylist" | "tab.careers" | "tab.alerts" | "tab.settings"
   // Home hero
   | "home.kicker" | "home.hero" | "home.subDefault" | "home.subStreak"
   | "home.error"
@@ -28,7 +28,13 @@ export type StringKey =
   // Drive Mode
   | "drive.title" | "drive.subtitle"
   | "drive.search" | "drive.all" | "drive.back"
-  | "drive.hint"
+  | "drive.hint" | "drive.drivingBadge"
+  | "drive.assistantWake" | "drive.assistantEngineHint"
+  | "drive.ask" | "drive.listening" | "drive.pauseAsk" | "drive.pauseAskStatus"
+  | "drive.openGoogle" | "drive.assistantTitle" | "drive.mic" | "drive.resume"
+  | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
+  | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
+  | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -39,6 +45,9 @@ export type StringKey =
   // Settings
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
+  | "settings.sectionNarration" | "settings.narrationDesc" | "settings.narrationAuto"
+  | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
+  | "settings.sectionDrive"
   | "settings.sectionAbout"
   | "settings.allow" | "settings.allowDesc"
   | "settings.daily" | "settings.dailyDesc"
@@ -54,12 +63,35 @@ export type StringKey =
   | "settings.permGrantedTitle" | "settings.permDeniedTitle" | "settings.permDeniedBody"
   | "settings.permRequiredTitle" | "settings.permRequiredBody"
   | "settings.testTitle" | "settings.testBody"
+  | "settings.sectionAccount" | "settings.accountSignedIn" | "settings.accountGuest"
+  | "settings.learningProfile" | "settings.learningProfileDone" | "settings.learningProfilePending"
+  | "settings.openSurvey" | "settings.signOut"
+  | "settings.backendUrls"
+  | "settings.driveStatus" | "settings.driveStatusDriving" | "settings.driveStatusIdle"
+  | "settings.driveStatusUnknown" | "settings.driveDetect" | "settings.driveDetectDesc"
+  | "settings.driveLocation" | "settings.driveLocationDesc"
+  | "settings.driveMotion" | "settings.driveMotionDesc"
+  | "settings.driveAutoLaunch" | "settings.driveAutoLaunchDesc"
+  | "settings.driveAlerts" | "settings.driveAlertsDesc"
+  | "settings.drivePerms" | "settings.drivePermsDesc"
+  | "settings.drivePermsDeniedTitle" | "settings.drivePermsDeniedBody"
+  | "settings.driveNotDriving"
+  | "driving.bannerTitle" | "driving.bannerBody"
+  | "auth.email" | "auth.password" | "auth.displayName"
+  | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
+  | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
+  | "auth.backendDownCloud" | "auth.backendUp"
   // Alert banner
   | "banner.open"
   // Time
   | "time.minAgo" | "time.hAgo" | "time.dAgo"
   // Streak hero
-  | "streak.label";
+  | "streak.label"
+  // Careers
+  | "home.careers" | "home.careersSub"
+  | "careers.back" | "careers.title" | "careers.sub"
+  | "careers.searchRole" | "careers.searchLocation"
+  | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty";
 
 type Dict = Partial<Record<StringKey, string>>;
 
@@ -67,6 +99,7 @@ const EN: Record<StringKey, string> = {
   "tab.home": "Home",
   "tab.drive": "Drive",
   "tab.mylist": "My List",
+  "tab.careers": "Careers",
   "tab.alerts": "Alerts",
   "tab.settings": "Settings",
 
@@ -75,6 +108,18 @@ const EN: Record<StringKey, string> = {
   "home.subDefault": "Tap any class to start hands-free in Drive Mode.",
   "home.subStreak": "🔥 {days}-day streak — keep it alive with one quick class.",
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
+  "home.careers": "💼 Careers",
+  "home.careersSub": "Match live jobs to Salareen courses",
+
+  "careers.back": "← Back",
+  "careers.title": "Careers",
+  "careers.sub": "Live openings matched to courses that get you hired.",
+  "careers.searchRole": "Search roles or skills…",
+  "careers.searchLocation": "Location",
+  "careers.coverage": "You can cover {pct}% of this role with Salareen.",
+  "careers.apply": "View / Apply ↗",
+  "careers.tapMatch": "Tap for course match →",
+  "careers.empty": "No openings match your search.",
 
   "rail.continue": "Continue listening",
   "rail.continueSub": "Pick up where you left off.",
@@ -99,6 +144,26 @@ const EN: Record<StringKey, string> = {
   "drive.all": "All",
   "drive.back": "← Back",
   "drive.hint": "Keep your eyes on the road — this plays hands-free.",
+  "drive.drivingBadge": "Driving detected",
+  "drive.assistantWake": "Tap Ask, then say “Hey Sala” ({engine})",
+  "drive.assistantEngineHint": "Uses your phone’s speech engine (Siri on iPhone, Google on Android) in your app language.",
+  "drive.ask": "Ask",
+  "drive.listening": "Listening…",
+  "drive.pauseAsk": "Pause + Ask",
+  "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
+  "drive.openGoogle": "Google voice",
+  "drive.assistantTitle": "Sala Drive Assistant",
+  "drive.mic": "Mic",
+  "drive.resume": "Resume",
+  "drive.stayPaused": "Stay paused",
+  "drive.listeningWake": "Listening via {engine} — say Hey Sala or Salareen…",
+  "drive.listeningQuestion": "Listening for your question or command…",
+  "drive.voiceUnavailable": "Voice recognition needs a dev build with native speech ({engine}). Type your question instead.",
+  "drive.voicePermissionDenied": "Allow microphone and speech recognition for Salareen in Settings to use {engine}.",
+  "drive.voiceError": "I could not hear that. Try again or type your question.",
+  "drive.voiceNoInput": "I did not catch that. Say Hey Sala, then ask again.",
+  "drive.wakeNotDetected": "Wake word not detected. Say Hey Sala or Salareen before your question.",
+  "drive.heardWakeOnly": "I heard you. Ask a question, or say pause, resume, next, or previous.",
 
   "mylist.title": "★ My List",
   "mylist.sub": "Saved for later. Auto-syncs on this device.",
@@ -115,9 +180,10 @@ const EN: Record<StringKey, string> = {
   "notif.emptyBody": "New classes and recommendations show up here.",
 
   "settings.title": "Settings",
-  "settings.sub": "Language, notifications, alerts, account.",
+  "settings.sub": "Language, notifications, driving detection, account.",
   "settings.sectionNotif": "NOTIFICATIONS",
   "settings.sectionLang": "LANGUAGE",
+  "settings.sectionDrive": "DRIVE MODE",
   "settings.sectionDiag": "DIAGNOSTICS",
   "settings.sectionAbout": "ABOUT",
   "settings.allow": "Allow notifications",
@@ -140,7 +206,7 @@ const EN: Record<StringKey, string> = {
   "settings.refresh": "Refresh",
   "settings.send": "Send",
   "settings.request": "Request",
-  "settings.aboutBody": "Salareen mobile · v0.1\nBackend: see app.json → expo.extra.curriculumUrl. Make sure the curriculum service is running and reachable from your device.",
+  "settings.aboutBody": "Salareen mobile · v{version}\nBackend: see app.json → expo.extra.curriculumUrl. Make sure the curriculum service is running and reachable from your device.",
   "settings.permGrantedTitle": "Notifications enabled",
   "settings.permDeniedTitle": "Notifications disabled",
   "settings.permDeniedBody": "Enable notifications for Salareen in your phone's Settings.",
@@ -148,6 +214,59 @@ const EN: Record<StringKey, string> = {
   "settings.permRequiredBody": "Allow notifications first.",
   "settings.testTitle": "Salareen test alert",
   "settings.testBody": "If you see this, notifications are working. 🎉",
+
+  "settings.sectionAccount": "Account",
+  "settings.accountSignedIn": "Signed in as {email}",
+  "settings.accountGuest": "Sign in to sync your learning profile across devices.",
+  "settings.learningProfile": "Learning profile",
+  "settings.learningProfileDone": "Saved to your account ({category}).",
+  "settings.learningProfilePending": "Not completed — helps us adapt courses to your style.",
+  "settings.openSurvey": "Update learning profile",
+  "settings.signOut": "Sign out",
+  "settings.backendUrls": "Backend: curriculum {curriculum} · identity {identity}",
+
+  "settings.sectionNarration": "NARRATION VOICE",
+  "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
+  "settings.narrationAuto": "Auto (profile)",
+  "settings.sectionTrainingLang": "LESSON LANGUAGE",
+  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode (English, Spanish, or Chinese).",
+
+  "settings.driveStatus": "Status: {status}",
+  "settings.driveStatusDriving": "Driving",
+  "settings.driveStatusIdle": "Not driving",
+  "settings.driveStatusUnknown": "Off",
+  "settings.driveDetect": "Detect when I'm driving",
+  "settings.driveDetectDesc": "Uses GPS speed and motion sensors (only while the app is open).",
+  "settings.driveLocation": "Use location (GPS speed)",
+  "settings.driveLocationDesc": "Required for reliable driving detection.",
+  "settings.driveMotion": "Use motion sensors (gyro)",
+  "settings.driveMotionDesc": "Augments GPS with accelerometer/gyroscope data.",
+  "settings.driveAutoLaunch": "Open Drive Mode when driving",
+  "settings.driveAutoLaunchDesc": "Resume your last class or open the Drive tab automatically.",
+  "settings.driveAlerts": "Driving alerts",
+  "settings.driveAlertsDesc": "Notify when driving is detected so you can go hands-free.",
+  "settings.drivePerms": "Sensor permissions",
+  "settings.drivePermsDesc": "Location: {location} · Motion: {motion}",
+  "settings.drivePermsDeniedTitle": "Permissions needed",
+  "settings.drivePermsDeniedBody": "Enable location and motion access for Salareen in your phone Settings to use driving detection.",
+  "settings.driveNotDriving": "I'm not driving",
+
+  "driving.bannerTitle": "Driving detected",
+  "driving.bannerBody": "Hands-free Drive Mode is ready — tap to continue your class.",
+
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.displayName": "Display name",
+  "auth.signIn": "Sign in",
+  "auth.signUp": "Create account",
+  "auth.createAccount": "New here? Create an account",
+  "auth.haveAccount": "Already have an account? Sign in",
+  "auth.qaHint": "QA test accounts (dev)",
+  "auth.useQa": "Use {label}",
+  "auth.backendDown": "Identity service unreachable at {url}.",
+  "auth.backendDownLocal": "Identity service unreachable at {url}. On your Mac run: make run-identity",
+  "auth.backendDownCloud": "Salareen cloud unreachable at {url}. Check your network or try again.",
+  "auth.backendUp": "Identity service connected",
 
   "banner.open": "Open",
 
@@ -163,6 +282,7 @@ const EN: Record<StringKey, string> = {
 
 const ES: Dict = {
   "tab.home": "Inicio", "tab.drive": "Conducir", "tab.mylist": "Mi lista",
+  "tab.careers": "Empleo",
   "tab.alerts": "Alertas", "tab.settings": "Ajustes",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Miles de clases. Un único campus de IA.",
@@ -215,7 +335,7 @@ const ES: Dict = {
   "settings.permissionDesc": "Toca si iOS / Android no te pidió permiso.",
   "settings.refresh": "Actualizar", "settings.send": "Enviar",
   "settings.request": "Pedir",
-  "settings.aboutBody": "Salareen móvil · v0.1\nBackend: ver app.json → expo.extra.curriculumUrl. Asegúrate de que el servicio de currículum esté accesible desde tu dispositivo.",
+  "settings.aboutBody": "Salareen móvil · v{version}\nBackend: ver app.json → expo.extra.curriculumUrl. Asegúrate de que el servicio de currículum esté accesible desde tu dispositivo.",
   "settings.permGrantedTitle": "Notificaciones activadas",
   "settings.permDeniedTitle": "Notificaciones desactivadas",
   "settings.permDeniedBody": "Activa las notificaciones para Salareen en los Ajustes del teléfono.",
@@ -230,6 +350,7 @@ const ES: Dict = {
 
 const FR: Dict = {
   "tab.home": "Accueil", "tab.drive": "Conduite", "tab.mylist": "Ma liste",
+  "tab.careers": "Carrières",
   "tab.alerts": "Alertes", "tab.settings": "Réglages",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Des milliers de cours. Un campus d'IA.",
@@ -282,7 +403,7 @@ const FR: Dict = {
   "settings.permissionDesc": "Touchez si iOS / Android n'a pas demandé l'autorisation.",
   "settings.refresh": "Actualiser", "settings.send": "Envoyer",
   "settings.request": "Demander",
-  "settings.aboutBody": "Salareen mobile · v0.1\nBackend : voir app.json → expo.extra.curriculumUrl. Assurez-vous que le service curriculum est accessible.",
+  "settings.aboutBody": "Salareen mobile · v{version}\nBackend : voir app.json → expo.extra.curriculumUrl. Assurez-vous que le service curriculum est accessible.",
   "settings.permGrantedTitle": "Notifications activées",
   "settings.permDeniedTitle": "Notifications désactivées",
   "settings.permDeniedBody": "Activez les notifications pour Salareen dans les réglages de votre téléphone.",
@@ -297,6 +418,7 @@ const FR: Dict = {
 
 const DE: Dict = {
   "tab.home": "Start", "tab.drive": "Fahrt", "tab.mylist": "Meine Liste",
+  "tab.careers": "Karriere",
   "tab.alerts": "Hinweise", "tab.settings": "Einstellungen",
   "home.hero": "Tausende Kurse. Ein KI-Campus.",
   "home.subDefault": "Tippe einen Kurs an, um freihändig im Fahr-Modus zu starten.",
@@ -348,7 +470,7 @@ const DE: Dict = {
   "settings.permissionDesc": "Tippen, falls iOS / Android nicht gefragt hat.",
   "settings.refresh": "Aktualisieren", "settings.send": "Senden",
   "settings.request": "Anfragen",
-  "settings.aboutBody": "Salareen mobil · v0.1\nBackend: siehe app.json → expo.extra.curriculumUrl. Stelle sicher, dass der curriculum-Dienst erreichbar ist.",
+  "settings.aboutBody": "Salareen mobil · v{version}\nBackend: siehe app.json → expo.extra.curriculumUrl. Stelle sicher, dass der curriculum-Dienst erreichbar ist.",
   "settings.permGrantedTitle": "Benachrichtigungen aktiviert",
   "settings.permDeniedTitle": "Benachrichtigungen deaktiviert",
   "settings.permDeniedBody": "Aktiviere Benachrichtigungen für Salareen in den Telefon-Einstellungen.",
@@ -363,6 +485,7 @@ const DE: Dict = {
 
 const IT: Dict = {
   "tab.home": "Home", "tab.drive": "Guida", "tab.mylist": "La mia lista",
+  "tab.careers": "Lavoro",
   "tab.alerts": "Avvisi", "tab.settings": "Impostazioni",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Migliaia di corsi. Un unico campus IA.",
@@ -403,6 +526,7 @@ const IT: Dict = {
 
 const PT: Dict = {
   "tab.home": "Início", "tab.drive": "Estrada", "tab.mylist": "Minha lista",
+  "tab.careers": "Carreiras",
   "tab.alerts": "Alertas", "tab.settings": "Definições",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Milhares de aulas. Um único campus de IA.",
@@ -432,6 +556,7 @@ const PT: Dict = {
 
 const RU: Dict = {
   "tab.home": "Главная", "tab.drive": "За рулём", "tab.mylist": "Мой список",
+  "tab.careers": "Карьера",
   "tab.alerts": "Уведомления", "tab.settings": "Настройки",
   "home.hero": "Тысячи занятий. Один кампус ИИ.",
   "home.subDefault": "Коснитесь любого занятия, чтобы запустить его без рук в режиме «За рулём».",
@@ -467,6 +592,7 @@ const RU: Dict = {
 
 const AR: Dict = {
   "tab.home": "الرئيسية", "tab.drive": "القيادة", "tab.mylist": "قائمتي",
+  "tab.careers": "الوظائف",
   "tab.alerts": "التنبيهات", "tab.settings": "الإعدادات",
   "home.hero": "آلاف الدروس. حرم جامعي واحد بالذكاء الاصطناعي.",
   "home.subDefault": "اضغط على أي درس لتشغيله بدون استخدام اليدين في وضع القيادة.",
@@ -502,6 +628,7 @@ const AR: Dict = {
 
 const HI: Dict = {
   "tab.home": "होम", "tab.drive": "ड्राइव", "tab.mylist": "मेरी सूची",
+  "tab.careers": "करियर",
   "tab.alerts": "अलर्ट", "tab.settings": "सेटिंग्स",
   "home.hero": "हज़ारों क्लासेस। एक एआई कैंपस।",
   "home.subDefault": "ड्राइव मोड में हैंड्स-फ़्री शुरू करने के लिए किसी भी क्लास पर टैप करें।",
@@ -536,6 +663,7 @@ const HI: Dict = {
 
 const ZH: Dict = {
   "tab.home": "首页", "tab.drive": "驾驶", "tab.mylist": "我的列表",
+  "tab.careers": "招聘",
   "tab.alerts": "提醒", "tab.settings": "设置",
   "home.hero": "千堂课程。一座AI校园。",
   "home.subDefault": "点击任何课程即可在驾驶模式下免提开始。",
@@ -577,6 +705,7 @@ const ZH: Dict = {
 
 const JA: Dict = {
   "tab.home": "ホーム", "tab.drive": "ドライブ", "tab.mylist": "マイリスト",
+  "tab.careers": "採用",
   "tab.alerts": "通知", "tab.settings": "設定",
   "home.hero": "数千のクラス。ひとつのAIキャンパス。",
   "home.subDefault": "クラスをタップするとドライブモードでハンズフリーに始まります。",
@@ -613,6 +742,7 @@ const JA: Dict = {
 
 const KO: Dict = {
   "tab.home": "홈", "tab.drive": "드라이브", "tab.mylist": "내 목록",
+  "tab.careers": "채용",
   "tab.alerts": "알림", "tab.settings": "설정",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "수천 개의 수업. 하나의 AI 캠퍼스.",
@@ -648,6 +778,7 @@ const KO: Dict = {
 
 const VI: Dict = {
   "tab.home": "Trang chủ", "tab.drive": "Lái xe", "tab.mylist": "Danh sách",
+  "tab.careers": "Việc làm",
   "tab.alerts": "Thông báo", "tab.settings": "Cài đặt",
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Hàng nghìn lớp học. Một khuôn viên AI.",
@@ -685,6 +816,7 @@ const KM: Dict = {
   "tab.home": "ដើម",
   "tab.drive": "បើកបរ",
   "tab.mylist": "បញ្ជីខ្ញុំ",
+  "tab.careers": "ការងារ",
   "tab.alerts": "ការជូនដំណឹង",
   "tab.settings": "ការកំណត់",
   "home.kicker": "SALAREEN",
@@ -751,7 +883,7 @@ const KM: Dict = {
   "settings.refresh": "ផ្ទុកឡើងវិញ",
   "settings.send": "ផ្ញើ",
   "settings.request": "ស្នើ",
-  "settings.aboutBody": "Salareen ទូរស័ព្ទ · v0.1\nBackend៖ មើល app.json → expo.extra.curriculumUrl។ សូមប្រាកដថាសេវាមេរៀនកំពុងដំណើរការ និងអាចចូលដំណើរការបានពីឧបករណ៍របស់អ្នក។",
+  "settings.aboutBody": "Salareen ទូរស័ព្ទ · v{version}\nBackend៖ មើល app.json → expo.extra.curriculumUrl។ សូមប្រាកដថាសេវាមេរៀនកំពុងដំណើរការ និងអាចចូលដំណើរការបានពីឧបករណ៍របស់អ្នក។",
   "settings.permGrantedTitle": "ការជូនដំណឹងបានបើក",
   "settings.permDeniedTitle": "ការជូនដំណឹងបានបិទ",
   "settings.permDeniedBody": "សូមបើកការជូនដំណឹងសម្រាប់ Salareen នៅក្នុងការកំណត់ទូរស័ព្ទរបស់អ្នក។",

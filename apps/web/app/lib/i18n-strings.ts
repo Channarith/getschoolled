@@ -1,6 +1,7 @@
 /* eslint-disable */
+import { PAGE_STRINGS } from "./i18n-pages";
+
 // 14 locales: en, es, fr, de, it, pt, ru, ar, hi, zh, ja, ko, vi, km.
-// vi + km are first-class for product/brand reasons; other languages
 // gracefully fall back to English via the t() helper. Add a new locale
 // by extending LANGUAGE_LIST + STRINGS below.
 
@@ -614,5 +615,9 @@ const FOOTER: Partial<Record<Locale, Record<string, string>>> = {
 };
 
 for (const [loc, kv] of Object.entries(FOOTER)) {
+  STRINGS[loc as Locale] = { ...(STRINGS[loc as Locale] || {}), ...kv };
+}
+
+for (const [loc, kv] of Object.entries(PAGE_STRINGS)) {
   STRINGS[loc as Locale] = { ...(STRINGS[loc as Locale] || {}), ...kv };
 }

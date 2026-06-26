@@ -13,6 +13,9 @@ from aoep_shared.group_classes import (
     GroupClassError,
     GroupClassStore,
     bridge_plan,
+    calendar_ics,
+    ensure_standard_daily_classes,
+    google_meet_url,
 )
 
 
@@ -152,3 +155,28 @@ def test_set_status_and_ended_blocks_registration():
         store.register(gc.id, "Ada")
     with pytest.raises(GroupClassError):
         store.set_status(gc.id, "bogus")
+
+
+def test_google_meet_url_and_calendar_ics():
+    store = GroupClassStore()
+    gc = store.schedule(
+        title="Midday class",
+        lesson_id="intro-to-fractions",
+        platform="meet",
+        meeting_url=google_meet_url("seed"),
+        start_time=_iso(120),
+    )
+    assert gc.meeting_url.startswith("https://meet.google.com/")
+    ics = calendar_ics(gc, attendee_name="Ada", attendee_email="ada@example.com")
+    assert "BEGIN:VCALENDAR" in ics
+    assert "ada@example.com" in ics
+
+
+def test_ensure_standard_daily_classes_idempotent():
+    store = GroupClassStore()
+    n1 = ensure_standard_daily_classes(store, days_ahead=3)
+    n2 = ensure_standard_daily_classes(store, days_ahead=3)
+    assert n1 >= 0
+    assert n2 == 0
+    meet_classes = [c for c in store.list() if c.platform == "meet"]
+    assert meet_classes

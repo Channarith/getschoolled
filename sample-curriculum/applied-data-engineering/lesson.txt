@@ -1,0 +1,125 @@
+LESSON: Applied Data Engineering
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Data
+LEVEL: Level 5 Apprenticeship
+ROLE: Data Engineer
+DELIVERY: 15 month delivery, plus 3 month assessment
+FIT: Data professionals with Python and SQL skills, ready to advance into data engineering roles.
+SUMMARY: Enable data engineers to build powerful, scalable pipelines and platforms that turn raw data into reliable business assets.
+
+SLIDE 1 | What This Course Is About
+This course builds the skills of a data engineer: designing and operating the
+pipelines and platforms that move, store, and shape data so analysts, data
+scientists, and applications can rely on it. It assumes working Python and SQL and
+takes you into building robust, scalable, well-governed data systems. Where an
+analyst uses data, an engineer makes trustworthy data available at scale.
+NARRATION: This course builds data engineering skills: pipelines and platforms that deliver reliable data at scale.
+
+SLIDE 2 | The Data Engineer's Role
+Data engineers build the plumbing of the data world. They ingest data from many
+sources, transform it into clean, consistent forms, store it efficiently, and serve
+it to consumers, all reliably and at scale. Their product is not an analysis but a
+dependable data platform. Success is measured in reliability, freshness, cost, and
+trust, not in charts.
+NARRATION: Data engineers build reliable pipelines and platforms; their product is trustworthy data, not analysis.
+
+SLIDE 3 | Data Pipelines and ETL/ELT
+A pipeline moves data from sources to destinations, transforming it along the way.
+In ETL you transform before loading; in ELT you load raw data first and transform
+inside the warehouse, which is now common with cloud platforms. Either way, design
+pipelines to be repeatable, observable, and recoverable, so they run on schedule and
+can be rerun safely when something fails.
+NARRATION: Pipelines move and transform data; ETL transforms before load, ELT after, and both must be repeatable and recoverable.
+
+SLIDE 4 | Batch vs Streaming
+Some data is processed in scheduled batches, hourly or nightly, which is simple and
+efficient for most needs. Other use cases require streaming, processing events
+continuously in near real time, for things like fraud detection or live dashboards.
+Streaming adds power but also complexity and cost. Choose based on how fresh the data
+genuinely needs to be, not on novelty.
+NARRATION: Use batch for most needs and streaming only when data genuinely must be near real time.
+
+SLIDE 5 | Storage: Warehouses, Lakes, and Lakehouses
+A data warehouse stores structured, query-optimised data for analytics. A data lake
+stores raw data of any shape cheaply. The lakehouse pattern combines them, raw
+storage with warehouse-like querying and governance. Knowing the strengths of each,
+and modelling data well within them, lets you balance cost, flexibility, and query
+performance for different consumers.
+NARRATION: Warehouses suit structured analytics, lakes store raw data cheaply, and lakehouses combine both.
+
+SLIDE 6 | Data Modelling for Analytics
+How you model data in the warehouse shapes performance and usability. Patterns like
+dimensional modelling, fact tables of events surrounded by dimension tables of
+context, make analytics fast and intuitive. Good modelling balances query speed,
+storage, and clarity, and turns raw tables into a layer analysts can use without
+deep technical knowledge.
+NARRATION: Model warehouse data, e.g. dimensional fact and dimension tables, for fast, intuitive analytics.
+
+SLIDE 7 | Data Quality and Validation
+A pipeline that delivers wrong data fast is worse than no pipeline. Build automated
+checks: validate schemas, ranges, uniqueness, and freshness, and fail loudly or
+quarantine bad data rather than silently passing it on. Treat data quality as a
+first-class feature with tests, just like software, so downstream consumers can trust
+what they receive.
+NARRATION: Build automated data-quality checks for schema, ranges, uniqueness, and freshness; fail loudly on bad data.
+
+SLIDE 8 | Orchestration and Scheduling
+Real platforms run many interdependent jobs. Orchestration tools schedule pipelines,
+manage dependencies so steps run in the right order, retry failures, and alert on
+problems. Defining pipelines as code makes them versioned, testable, and
+reproducible. Orchestration is what turns a pile of scripts into a dependable,
+observable system.
+NARRATION: Orchestration schedules pipelines, manages dependencies, retries failures, and makes them reproducible as code.
+
+SLIDE 9 | Scalability and Performance
+As data grows, naive approaches break. Engineers use partitioning, indexing,
+distributed processing, and efficient file formats to keep pipelines and queries fast
+and affordable. Understand where time and money go, often data movement and full
+scans, and design to minimise them. Scalability is about doing more work without cost
+and latency exploding.
+NARRATION: Use partitioning, indexing, and distributed processing to keep growing data fast and affordable.
+
+SLIDE 10 | Reliability, Monitoring, and Cost
+Production pipelines need monitoring of success, latency, freshness, and cost, with
+alerts when they break or drift. Cloud data processing bills by usage, so inefficient
+jobs get expensive quietly. Build in observability, set budgets, and design for
+graceful recovery. A platform is only valuable if it is reliable and its running cost
+is understood and controlled.
+NARRATION: Monitor pipeline success, freshness, and cost; cloud usage billing makes inefficiency expensive.
+
+SLIDE 11 | Governance, Security, and Privacy
+Engineers are stewards of sensitive data at scale. Control access with least
+privilege, protect data in transit and at rest, track lineage so you know where data
+came from and where it flows, and comply with privacy regulation. Document datasets so
+consumers understand their meaning and limits. Governance built into the platform
+protects both people and the business.
+NARRATION: Apply least-privilege access, encryption, data lineage, and privacy compliance across the platform.
+
+SLIDE 12 | Engineering Practices: Code, Tests, CI/CD
+Treat data pipelines as software: version control, code review, automated tests, and
+continuous integration and deployment. This makes changes safe, reproducible, and
+collaborative, and catches breakage before it hits production. The discipline that
+makes software reliable makes data platforms reliable too, and is what distinguishes
+engineering from ad hoc scripting.
+NARRATION: Apply software discipline, version control, tests, and CI/CD, to make data pipelines safe and reproducible.
+
+SLIDE 13 | Course Summary and Next Steps
+You can now design pipelines, choose batch or streaming, pick and model storage,
+enforce data quality, orchestrate jobs, scale for growth, and operate platforms
+reliably, securely, and affordably. Take one real data flow your team depends on,
+rebuild it as a tested, orchestrated pipeline, and add quality checks. That is how a
+data engineer turns fragile scripts into dependable infrastructure.
+NARRATION: Rebuild one real data flow as a tested, orchestrated pipeline with quality checks to apply the skills.
+
+FACT: A data engineer builds and operates the pipelines and platforms that ingest, transform, store, and serve reliable data at scale.
+FACT: In ETL data is transformed before loading, while in ELT raw data is loaded first and transformed in the warehouse, common with cloud platforms.
+FACT: Batch processing suits most needs, while streaming processes events in near real time for cases that genuinely need fresh data.
+FACT: Data warehouses store structured query-optimised data, data lakes store raw data cheaply, and lakehouses combine both.
+FACT: Dimensional modelling uses fact tables of events surrounded by dimension tables of context to make analytics fast and intuitive.
+FACT: Data-quality checks should validate schema, ranges, uniqueness, and freshness, and fail loudly rather than passing bad data on.
+FACT: Orchestration tools schedule pipelines, manage dependencies, retry failures, and make pipelines reproducible as code.
+FACT: Scalability uses partitioning, indexing, distributed processing, and efficient file formats to keep growing data fast and affordable.
+FACT: Production pipelines require monitoring of success, latency, freshness, and cost, since cloud usage billing makes inefficiency expensive.
+FACT: Data governance includes least-privilege access, encryption in transit and at rest, data lineage, and privacy compliance.
+FACT: Treating pipelines as software with version control, tests, and CI/CD makes changes safe, reproducible, and collaborative.

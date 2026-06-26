@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView,
-         StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator, Image, ImageBackground, Modal, RefreshControl, ScrollView,
+  StyleSheet, Text, View,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import {
   getAudioCategories, listAudioCourses,
@@ -10,10 +13,14 @@ import {
   bumpStreak, getInterests, getMyList, getStreak, listContinue,
   recordInterest, type ContinueRow,
 } from "../storage";
+import AnimatedPressable from "../components/AnimatedPressable";
+import GlassPanel from "../components/GlassPanel";
+import PrimaryButton from "../components/PrimaryButton";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
+import MascotSvg from "../components/MascotSvg";
 import { useT } from "../i18n";
+import { theme, wallpapers } from "../theme";
 
-const BAYON_BUDDY = require("../../assets/bayon_buddy_s_bodhi_512.png");
 const LOGO_MARK = require("../../assets/salareen_mark_256.png");
 
 const EMOJIS_BY_CATEGORY: Record<string, string> = {
@@ -24,10 +31,11 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory,
+  onOpenCourse, onOpenCategory, onOpenCareers,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
+  onOpenCareers: () => void;
 }) {
   const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
@@ -109,30 +117,50 @@ export default function HomeScreen({
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#0ea5e9" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={theme.colors.netflix} size="large" />
+      </View>
+    );
   }
   return (
     <ScrollView
-      contentContainerStyle={{ paddingBottom: 28, paddingTop: 56 }}
+      contentContainerStyle={{ paddingBottom: 32 }}
       style={styles.bg}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); void load(); }}
+          tintColor={theme.colors.netflix}
+        />
+      }
     >
-      <View style={styles.heroBox}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Show Bayon Buddy mascot"
-          onPress={() => setShowMascot(true)}
-          style={styles.logoButton}
-        >
-          <Image source={LOGO_MARK} style={styles.logoImg} resizeMode="contain" />
-          <Text style={styles.logoText}>Salareen</Text>
-        </Pressable>
-        <Text style={styles.kicker}>{t("home.kicker")}</Text>
-        <Text style={styles.hero}>{t("home.hero")}</Text>
-        <Text style={styles.heroSub}>
-          {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
-        </Text>
-      </View>
+      <ImageBackground source={wallpapers.hero} style={styles.heroBanner} imageStyle={styles.heroImage}>
+        <LinearGradient
+          colors={["rgba(11,16,32,0.2)", "rgba(11,16,32,0.75)", "rgba(11,16,32,0.95)"]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroInner}>
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityLabel="Show Bayon Buddy mascot"
+            onPress={() => setShowMascot(true)}
+            style={styles.logoButton}
+          >
+            <Image source={LOGO_MARK} style={styles.logoImg} resizeMode="contain" />
+            <Text style={styles.logoText}>Salareen</Text>
+          </AnimatedPressable>
+          <Text style={styles.kicker}>{t("home.kicker")}</Text>
+          <Text style={styles.hero}>{t("home.hero")}</Text>
+          <Text style={styles.heroSub}>
+            {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
+          </Text>
+          <View style={styles.heroActions}>
+            <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
+          </View>
+          <Text style={styles.careersSub}>{t("home.careersSub")}</Text>
+        </View>
+      </ImageBackground>
 
       <Modal
         animationType="fade"
@@ -140,19 +168,23 @@ export default function HomeScreen({
         visible={showMascot}
         onRequestClose={() => setShowMascot(false)}
       >
-        <Pressable style={styles.modalScrim} onPress={() => setShowMascot(false)}>
-          <Pressable style={styles.mascotCard} onPress={() => {}}>
-            <Text style={styles.mascotTitle}>Bayon Buddy</Text>
-            <Text style={styles.mascotSub}>Photo-real mascot hugging the S + Bodhi leaf mark.</Text>
-            <Image source={BAYON_BUDDY} resizeMode="contain" style={styles.mascotImage} />
-            <Pressable style={styles.closeButton} onPress={() => setShowMascot(false)}>
-              <Text style={styles.closeText}>Close</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+        <AnimatedPressable style={styles.modalScrim} onPress={() => setShowMascot(false)}>
+          <GlassPanel style={styles.mascotCard} padded={false}>
+            <View style={{ padding: 18, alignItems: "center" }}>
+              <Text style={styles.mascotTitle}>Bayon Buddy</Text>
+              <Text style={styles.mascotSub}>Locale-aware study buddy with the S + Bodhi leaf mark.</Text>
+              <MascotSvg width={220} height={360} showCaption />
+              <PrimaryButton label="Close" onPress={() => setShowMascot(false)} variant="brand" />
+            </View>
+          </GlassPanel>
+        </AnimatedPressable>
       </Modal>
 
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+      {error ? (
+        <GlassPanel style={styles.errPanel}>
+          <Text style={styles.err}>{error}</Text>
+        </GlassPanel>
+      ) : null}
 
       {continueRows.length > 0 ? (
         <Rail
@@ -164,6 +196,7 @@ export default function HomeScreen({
             <CourseCard
               emoji="▶"
               title={c.title}
+              category={c.category}
               meta={t("meta.segmentOf", { i: c.segment + 1, n: c.total })}
               onPress={() => open(c.id, c.category)}
               progressPct={Math.round(((c.segment + 1) / Math.max(1, c.total)) * 100)}
@@ -182,6 +215,7 @@ export default function HomeScreen({
             <CourseCard
               emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
               title={c.title}
+              category={c.category}
               meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
               savedBadge
               onPress={() => open(c.id, c.category)}
@@ -199,6 +233,7 @@ export default function HomeScreen({
           <CourseCard
             emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
             title={c.title}
+            category={c.category}
             meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
@@ -215,6 +250,7 @@ export default function HomeScreen({
           <CourseCard
             emoji={EMOJIS_BY_CATEGORY[c.category] || "🎧"}
             title={c.title}
+            category={c.category}
             meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
@@ -230,6 +266,7 @@ export default function HomeScreen({
           <CourseCard
             emoji="📈"
             title={c.title}
+            category={c.category}
             meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
             savedBadge={savedSet.has(c.id)}
             onPress={() => open(c.id, c.category)}
@@ -252,33 +289,29 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  bg: { backgroundColor: "#0b1020" },
-  center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
-  heroBox: { paddingHorizontal: 16, paddingBottom: 16 },
+  bg: { flex: 1, backgroundColor: "transparent" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  heroBanner: { minHeight: 340, justifyContent: "flex-end" },
+  heroImage: { opacity: 0.95 },
+  heroInner: { paddingHorizontal: theme.spacing.screenX, paddingTop: 56, paddingBottom: 24 },
   logoButton: {
     alignItems: "center", alignSelf: "flex-start", flexDirection: "row",
-    gap: 8, marginBottom: 12,
+    gap: 10, marginBottom: 14,
   },
-  logoImg: { height: 38, width: 38 },
-  logoText: { color: "#e8ecf6", fontSize: 14, fontWeight: "800", letterSpacing: 0.8 },
-  kicker: { color: "#9aa6c2", fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
-  hero: { color: "#e8ecf6", fontSize: 26, fontWeight: "800", marginTop: 4 },
-  heroSub: { color: "#c5cce0", marginTop: 6 },
-  err: { color: "#ff6b6b", paddingHorizontal: 16, paddingBottom: 12 },
+  logoImg: { height: 44, width: 44, ...theme.shadow.hero },
+  logoText: { color: theme.colors.text, fontSize: 15, fontWeight: "800", letterSpacing: 1 },
+  kicker: { ...theme.typography.kicker, color: theme.colors.muted },
+  hero: { ...theme.typography.hero, color: theme.colors.text, marginTop: 6 },
+  heroSub: { color: "#c5cce0", marginTop: 8, ...theme.typography.body },
+  heroActions: { marginTop: 18, maxWidth: 220 },
+  careersSub: { color: theme.colors.muted, fontSize: 12, marginTop: 8 },
+  errPanel: { marginHorizontal: theme.spacing.screenX, marginBottom: 12 },
+  err: { color: "#ff8a8a", ...theme.typography.body },
   modalScrim: {
-    alignItems: "center", backgroundColor: "rgba(3,7,18,0.78)", flex: 1,
+    alignItems: "center", backgroundColor: "rgba(3,7,18,0.82)", flex: 1,
     justifyContent: "center", padding: 20,
   },
-  mascotCard: {
-    alignItems: "center", backgroundColor: "#111827", borderColor: "#334155",
-    borderRadius: 24, borderWidth: 1, maxWidth: 340, padding: 18, width: "100%",
-  },
-  mascotTitle: { color: "#e8ecf6", fontSize: 22, fontWeight: "900" },
-  mascotSub: { color: "#9aa6c2", marginBottom: 8, marginTop: 4, textAlign: "center" },
-  mascotImage: { height: 360, width: 220 },
-  closeButton: {
-    backgroundColor: "#0ea5e9", borderRadius: 999, marginTop: 10,
-    paddingHorizontal: 18, paddingVertical: 9,
-  },
-  closeText: { color: "#001022", fontWeight: "900" },
+  mascotCard: { maxWidth: 340, width: "100%" },
+  mascotTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "900" },
+  mascotSub: { color: theme.colors.muted, marginBottom: 8, marginTop: 4, textAlign: "center" },
 });

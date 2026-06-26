@@ -377,35 +377,84 @@ def search_courses(
     maturity: str | None = None,
     audience: str | None = None,
     core_skill: bool | None = None,
+    source: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[Course]:
-    """Netflix-style faceted catalog search (name/category/language/audio/audience/...)."""
-    rows = app.state.catalog.search_courses(
+    """Unified faceted search across catalog, audio, live lessons, languages, games."""
+    return _search_learnable_as_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
-        delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
+        access_tier=access_tier, maturity=maturity, audience=audience,
+        core_skill=core_skill, source=source, limit=limit, offset=offset,
     )
-    if audience or core_skill is not None:
-        from aoep_shared.skills_taxonomy import course_relevance
-        out = []
-        for c in rows:
-            rel = course_relevance({"title": c.title, "subject": c.subject,
-                                    "category": c.category, "tags": c.tags,
-                                    "audiences": c.audiences, "core_skill": c.core_skill})
-            if audience and audience.lower() not in rel["audiences"]:
-                continue
-            if core_skill is not None and rel["core_skill"] != core_skill:
-                continue
-            out.append(c)
-        rows = out
-    return rows
+
+
+def _learnable_index(locale: str = "en"):
+    from curriculum.learnable_service import build_index_for_store
+
+    return build_index_for_store(app.state.catalog, locale=locale)
+
+
+def _search_learnable_as_courses(**kwargs) -> list[Course]:
+    from aoep_shared.learnable import search_learnable
+
+    limit = int(kwargs.pop("limit", 100))
+    offset = int(kwargs.pop("offset", 0))
+    audio = kwargs.pop("audio", None)
+    media_format = kwargs.pop("media_format", None)
+    result = search_learnable(
+        _learnable_index(),
+        q=kwargs.get("q"),
+        category=kwargs.get("category"),
+        language=kwargs.get("language"),
+        audio_language=audio,
+        format=media_format,
+        level=kwargs.get("level"),
+        tag=kwargs.get("tag"),
+        hands_on=kwargs.get("hands_on"),
+        maturity=kwargs.get("maturity"),
+        audience=kwargs.get("audience"),
+        core_skill=kwargs.get("core_skill"),
+        source=kwargs.get("source"),
+        offset=offset,
+        limit=limit,
+    )
+    return [_course_from_learnable_item(i) for i in result["items"]]
+
+
+def _course_from_learnable_item(item) -> Course:
+    from aoep_shared.learnable.index import _item_as_catalog_dict
+
+    data = _item_as_catalog_dict(item)
+    return Course(
+        course_id=data["course_id"],
+        title=data["title"],
+        subject=data["subject"],
+        category=data["category"],
+        language=data["language"],
+        audio_language=data["audio_language"],
+        media_format=data["media_format"],
+        level=data["level"],
+        duration_min=data["duration_min"],
+        hands_on=data["hands_on"],
+        preview=data["preview"],
+        description=data["description"],
+        tags=data["tags"],
+        access_tier=data["access_tier"],
+        delivery_mode=DeliveryMode.AI,
+        maturity_rating=data["maturity_rating"],
+        popularity=data.get("popularity", 0),
+        source=data.get("source", ""),
+        deep_link=data.get("deep_link", ""),
+        global_id=data.get("global_id", ""),
+    )
 
 
 def _catalog_dicts() -> list[dict]:
-    return [
-        {"course_id": c.course_id, "title": c.title, "subject": c.subject,
-         "category": c.category, "tags": c.tags}
-        for c in app.state.catalog.list_courses()
-    ]
+    from aoep_shared.learnable import learnable_catalog_dicts
+
+    return learnable_catalog_dicts(_learnable_index())
 
 
 def _course_relevance_dict(course) -> dict:
@@ -508,42 +557,122 @@ def audio_categories(locale: str = "en") -> dict:
 @app.get("/audio/courses")
 def audio_courses(category: str | None = None, q: str | None = None,
                   max_minutes: int | None = None, offset: int = 0,
-                  limit: int = 50, locale: str = "en") -> dict:
-    """Audio-only, drive-safe classes (hundreds) for hands-free / on-the-road learning.
+                  limit: int = 50, locale: str = "en",
+                  training_locale: str | None = None) -> dict:
+    """Audio-only, drive-safe classes for hands-free learning.
 
-    ``locale`` localizes every course's title, category, subject, level,
-    segment headings, and the templated intro/recap narration. The
-    factual body of knowledge courses (the "key idea" bullets) is the
-    original English; the framing around it (intro/recap/headings) is
-    localized. Languages-category courses are fully localized.
+    ``locale`` localizes category/level labels and segment headings.
+    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS;
+    defaults from ``locale`` when omitted.
     """
     from aoep_shared.audio_courses import list_courses
 
     return list_courses(category=category, q=q, max_minutes=max_minutes,
                         offset=max(0, offset), limit=max(1, min(limit, 100)),
-                        locale=locale)
+                        locale=locale, training_locale=training_locale)
 
 
 @app.get("/audio/courses/{course_id}")
-def audio_course(course_id: str, locale: str = "en") -> dict:
+def audio_course(course_id: str, locale: str = "en",
+                 training_locale: str | None = None) -> dict:
     """Full course (with every segment) in the requested locale."""
     from aoep_shared.audio_courses import get_course
+    from aoep_shared.training_content_i18n import normalize_training_locale
 
-    c = get_course(course_id, locale=locale)
+    tloc = normalize_training_locale(training_locale or locale)
+    c = get_course(course_id, locale=locale, training_locale=tloc)
     if c is None:
         raise HTTPException(status_code=404, detail="unknown audio course")
     out = c.model_dump()
     out["locale"] = locale
+    out["training_locale"] = tloc
     return out
 
 
 @app.get("/home")
-def home_feed(kids: bool = False, per_rail: int = 12) -> dict:
-    """Netflix-style home feed: ordered carousel rows of courses.
+def home_feed(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
+    """Netflix-style home feed from the unified learnable index."""
+    from aoep_shared.learnable import learnable_home_rails
 
-    kids=true returns only child-appropriate (all/kids) content for the kids mode.
-    """
-    return {"rails": app.state.catalog.home_rails(kids_only=kids, per_rail=per_rail)}
+    return {
+        "rails": learnable_home_rails(
+            _learnable_index(locale=locale), kids_only=kids, per_rail=per_rail,
+        ),
+        "locale": locale,
+    }
+
+
+@app.get("/learn/search")
+def learn_search(
+    q: str | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    format: str | None = None,
+    level: str | None = None,
+    language: str | None = None,
+    maturity: str | None = None,
+    hands_on: bool | None = None,
+    tag: str | None = None,
+    audience: str | None = None,
+    core_skill: bool | None = None,
+    kids: bool = False,
+    limit: int = 50,
+    offset: int = 0,
+    locale: str = "en",
+) -> dict:
+    """Search all learnable content (catalog, audio, live, languages, games)."""
+    from aoep_shared.course_artwork import resolve_course_poster_from_mapping
+    from aoep_shared.learnable import search_learnable
+
+    result = search_learnable(
+        _learnable_index(locale=locale),
+        q=q, category=category, source=source, format=format, level=level,
+        language=language, maturity=maturity, hands_on=hands_on, tag=tag,
+        audience=audience, core_skill=core_skill, kids_only=kids,
+        offset=offset, limit=limit,
+    )
+    return {
+        **result,
+        "items": [
+            {
+                **i.model_dump(),
+                "thumbnail": resolve_course_poster_from_mapping({
+                    **i.model_dump(),
+                    "format": i.format,
+                }),
+            }
+            for i in result["items"]
+        ],
+    }
+
+
+@app.get("/learn/facets")
+def learn_facets() -> dict:
+    from aoep_shared.learnable import learnable_facets
+
+    return learnable_facets(_learnable_index())
+
+
+@app.get("/learn/home")
+def learn_home(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
+    from aoep_shared.learnable import learnable_home_rails
+
+    return {
+        "rails": learnable_home_rails(
+            _learnable_index(locale=locale), kids_only=kids, per_rail=per_rail,
+        ),
+        "locale": locale,
+    }
+
+
+@app.get("/learn/items/{global_id}")
+def learn_item(global_id: str) -> dict:
+    from curriculum.learnable_service import find_item
+
+    item = find_item(_learnable_index(), global_id=global_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="unknown learnable item")
+    return item.model_dump()
 
 
 @app.get("/notifications/feed")
@@ -607,35 +736,39 @@ class RecommendRequest(BaseModel):
     top_n: int = 5
 
 
+def _course_duration_min(course_id: str) -> int:
+    """Resolve duration from catalog or the unified learnable index."""
+    from curriculum.learnable_service import find_item
+
+    course = app.state.catalog.get_course(course_id)
+    if course is not None:
+        return int(course.duration_min or 0)
+    idx = _learnable_index()
+    item = find_item(idx, global_id=course_id) or find_item(idx, source_id=course_id)
+    if item is not None:
+        return int(item.duration_min or 5)
+    return 5
+
+
 @app.post("/recommend")
 def recommend(req: RecommendRequest) -> dict:
     """Foresight: suggest courses + gaps + adapted difficulty for a student.
 
-    Maps catalog courses to Foresight CourseFeatures (skills = tags or [category])
-    and runs LearnerForesight over the student's mastery/history.
+    New / empty profiles get popular beginner starter picks (cold_start=true)
+    instead of an error or empty list.
     """
-    from aoep_shared.foresight import CourseFeature, LearnerForesight, StudentProfile
+    from aoep_shared.foresight import StudentProfile
+
+    from .recommend_service import run_recommend
 
     courses = app.state.catalog.list_courses()
-    features = [
-        CourseFeature(
-            course_id=c.course_id, title=c.title,
-            skills=(c.tags or [c.category or c.subject]),
-            level=c.level, category=(c.category or c.subject),
-        )
-        for c in courses
-    ]
-    skills = sorted({s for f in features for s in f.skills})
-    if not skills:
-        return {"student_id": req.student_id, "difficulty": "beginner",
-                "gaps": [], "recommendations": [], "relational_map": {"nodes": [], "edges": []}}
-    lf = LearnerForesight(skills)
-    profile = StudentProfile(student_id=req.student_id, mastery=req.mastery,
-                             completed_course_ids=req.completed_course_ids,
-                             interests=req.interests)
-    out = lf.predict(profile, features)
-    out["recommendations"] = out["recommendations"][: req.top_n]
-    return out
+    profile = StudentProfile(
+        student_id=req.student_id,
+        mastery=req.mastery or {},
+        completed_course_ids=req.completed_course_ids or [],
+        interests=req.interests or [],
+    )
+    return run_recommend(profile, courses, top_n=req.top_n)
 
 
 @app.get("/courses/{course_id}/ad-breaks")
@@ -646,11 +779,19 @@ def course_ad_breaks(course_id: str, tier: str = "free", format: str = "json"):
     """
     from aoep_shared.ads import AD_FREE_TIERS, ad_plan_for, build_vmap
 
-    course = app.state.catalog.get_course(course_id)
-    if course is None:
-        raise HTTPException(status_code=404, detail="course not found")
+    # Existence check must be independent of duration (which defaults to a
+    # positive value for unknown ids), so unknown courses still 404.
+    if app.state.catalog.get_course(course_id) is None:
+        from curriculum.learnable_service import find_item
 
-    breaks = ad_plan_for(tier, duration_min=int(course.duration_min or 0))
+        idx = _learnable_index()
+        if find_item(idx, global_id=course_id) is None and (
+            find_item(idx, source_id=course_id) is None
+        ):
+            raise HTTPException(status_code=404, detail="course not found")
+
+    duration = _course_duration_min(course_id)
+    breaks = ad_plan_for(tier, duration_min=max(1, duration))
     if format == "vmap":
         from fastapi import Response
 
@@ -683,23 +824,12 @@ def catalog_export(format: str = "json"):
 
 @app.get("/courses/facets")
 def course_facets() -> dict:
-    """Distinct values for each browse facet (drives the filter UI)."""
-    courses = app.state.catalog.list_courses()
-    def _distinct(key):
-        vals = {getattr(c, key) for c in courses if getattr(c, key)}
-        return sorted(str(v) for v in vals)
-    tags = sorted({t for c in courses for t in c.tags})
-    return {
-        "categories": sorted({(c.category or c.subject) for c in courses if (c.category or c.subject)}),
-        "languages": _distinct("language"),
-        "audio_languages": sorted({(c.audio_language or c.language) for c in courses}),
-        "media_formats": _distinct("media_format"),
-        "levels": _distinct("level"),
-        "tags": tags,
-        "maturity_ratings": _distinct("maturity_rating"),
-        "access_tiers": _distinct("access_tier"),
-        "audiences": _course_audiences_facet(courses),
-    }
+    """Distinct facet values from the unified learnable index."""
+    from aoep_shared.learnable import learnable_facets
+
+    facets = learnable_facets(_learnable_index())
+    facets.setdefault("media_formats", facets.get("formats", []))
+    return facets
 
 
 def _course_audiences_facet(courses) -> list[dict]:
@@ -717,10 +847,15 @@ def _course_audiences_facet(courses) -> list[dict]:
 
 @app.get("/courses/{course_id}", response_model=Course)
 def get_course(course_id: str) -> Course:
+    from curriculum.learnable_service import find_item
+
     course = app.state.catalog.get_course(course_id)
-    if course is None:
+    if course is not None:
+        return course
+    item = find_item(_learnable_index(), source_id=course_id)
+    if item is None:
         raise HTTPException(status_code=404, detail="unknown course")
-    return course
+    return _course_from_learnable_item(item)
 
 
 @app.delete("/courses/{course_id}")

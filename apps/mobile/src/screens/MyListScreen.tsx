@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator, FlatList, Pressable, RefreshControl,
+  ActivityIndicator, FlatList, RefreshControl,
   StyleSheet, Text, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { listAudioCourses, type AudioCourseRow } from "../api";
+import AnimatedPressable from "../components/AnimatedPressable";
+import GlassPanel from "../components/GlassPanel";
 import { getMyList, toggleMyList } from "../storage";
 import { useT } from "../i18n";
+import { categoryGradient, theme } from "../theme";
 
 export default function MyListScreen({ onOpenCourse }: {
   onOpenCourse: (id: string) => void;
@@ -33,59 +38,83 @@ export default function MyListScreen({ onOpenCourse }: {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#0ea5e9" /></View>;
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={theme.colors.netflix} size="large" />
+      </View>
+    );
   }
   return (
     <FlatList
       style={styles.bg}
       contentContainerStyle={{ paddingTop: 56, paddingBottom: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor="#0ea5e9" />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); void load(); }}
+          tintColor={theme.colors.netflix}
+        />
+      }
       ListHeaderComponent={
         <View style={styles.header}>
+          <Text style={styles.kicker}>{t("tab.mylist")}</Text>
           <Text style={styles.title}>{t("mylist.title")}</Text>
           <Text style={styles.sub}>{t("mylist.sub")}</Text>
         </View>
       }
       ListEmptyComponent={
-        <View style={styles.empty}>
+        <GlassPanel style={styles.empty}>
+          <Ionicons name="bookmark-outline" size={36} color={theme.colors.muted} />
           <Text style={styles.emptyTitle}>{t("mylist.emptyTitle")}</Text>
           <Text style={styles.emptyBody}>{t("mylist.emptyBody")}</Text>
-        </View>
+        </GlassPanel>
       }
       data={rows}
       keyExtractor={(c) => c.id}
-      renderItem={({ item }) => (
-        <Pressable style={styles.row} onPress={() => onOpenCourse(item.id)}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>🎧 {item.title}</Text>
-            <Text style={styles.rowMeta}>
-              {item.category} · {item.duration_min} {t("meta.min")} · {item.segments} {t("meta.segments")}
-            </Text>
-          </View>
-          <Pressable onPress={() => void remove(item.id)} hitSlop={12}>
-            <Text style={styles.star}>★</Text>
-          </Pressable>
-        </Pressable>
-      )}
+      renderItem={({ item }) => {
+        const [c1, c2] = categoryGradient(item.category);
+        return (
+          <AnimatedPressable onPress={() => onOpenCourse(item.id)} style={styles.rowWrap}>
+            <GlassPanel style={styles.row} padded={false}>
+              <LinearGradient colors={[c1, c2]} style={styles.thumb}>
+                <Ionicons name="headset" size={22} color="#fff" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.rowMeta}>
+                  {item.category} · {item.duration_min} {t("meta.min")} · {item.segments} {t("meta.segments")}
+                </Text>
+              </View>
+              <AnimatedPressable onPress={() => void remove(item.id)} hitSlop={12} style={styles.removeBtn}>
+                <Ionicons name="bookmark" size={22} color={theme.colors.gold} />
+              </AnimatedPressable>
+            </GlassPanel>
+          </AnimatedPressable>
+        );
+      }}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { backgroundColor: "#0b1020" },
-  center: { flex: 1, backgroundColor: "#0b1020", alignItems: "center", justifyContent: "center" },
-  header: { paddingHorizontal: 16, paddingBottom: 12 },
-  title: { color: "#e8ecf6", fontSize: 24, fontWeight: "800" },
-  sub: { color: "#9aa6c2", marginTop: 4 },
-  empty: { alignItems: "center", paddingHorizontal: 28, paddingTop: 60 },
-  emptyTitle: { color: "#e8ecf6", fontSize: 18, fontWeight: "700" },
-  emptyBody: { color: "#9aa6c2", marginTop: 8, textAlign: "center" },
+  bg: { flex: 1, backgroundColor: "transparent" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  header: { paddingHorizontal: theme.spacing.screenX, paddingBottom: 16 },
+  kicker: { ...theme.typography.kicker, color: theme.colors.muted },
+  title: { ...theme.typography.title, color: theme.colors.text, marginTop: 4 },
+  sub: { color: theme.colors.muted, marginTop: 6, ...theme.typography.body },
+  empty: { alignItems: "center", marginHorizontal: theme.spacing.screenX, marginTop: 40, padding: 28, gap: 8 },
+  emptyTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 8 },
+  emptyBody: { color: theme.colors.muted, textAlign: "center", ...theme.typography.body },
+  rowWrap: { marginHorizontal: theme.spacing.screenX, marginBottom: 10 },
   row: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#151c34", borderRadius: 12,
-    padding: 14, marginHorizontal: 12, marginBottom: 10,
+    flexDirection: "row", alignItems: "center", gap: 12, padding: 12,
   },
-  rowTitle: { color: "#e8ecf6", fontSize: 15, fontWeight: "700" },
-  rowMeta: { color: "#9aa6c2", fontSize: 12, marginTop: 4 },
-  star: { color: "#fbbf24", fontSize: 26, fontWeight: "800", paddingHorizontal: 6 },
+  thumb: {
+    width: 52, height: 52, borderRadius: theme.radius.sm,
+    alignItems: "center", justifyContent: "center",
+  },
+  rowTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
+  rowMeta: { color: theme.colors.muted, fontSize: 12, marginTop: 4 },
+  removeBtn: { padding: 4 },
 });

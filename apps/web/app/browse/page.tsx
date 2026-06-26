@@ -2,76 +2,128 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   enrollCourse,
-  getFacets,
+  getLearnFacets,
   getToken,
-  searchCourses,
-  type CatalogCourse,
+  searchLearnable,
   type Facets,
+  type LearnableItem,
 } from "../lib/api";
+import { CoursePosterImg } from "../components/CoursePosterImg";
+import { useT } from "../lib/i18n";
 
 export default function BrowsePage() {
+  const router = useRouter();
+  const { t, locale } = useT();
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [facets, setFacets] = useState<Facets | null>(null);
-  const [courses, setCourses] = useState<CatalogCourse[]>([]);
+  const [items, setItems] = useState<LearnableItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({
-    q: "", category: "", language: "", audio: "", media_format: "", level: "", hands_on: "",
-    audience: "", core_skill: "",
+    q: "", category: "", language: "", format: "", source: "", level: "",
+    hands_on: "", audience: "", core_skill: "",
   });
 
+  const formatLabel = (f: string) => t(`browse.format.${f}`) !== `browse.format.${f}` ? t(`browse.format.${f}`) : f;
+  const sourceLabel = (s: string) => t(`browse.source.${s}`) !== `browse.source.${s}` ? t(`browse.source.${s}`) : s;
+
   useEffect(() => {
-    getFacets().then(setFacets).catch(() => setFacets(null));
+    const authed = Boolean(getToken());
+    setLoggedIn(authed);
+    setAuthResolved(true);
+    if (!authed) return;
+    getLearnFacets().then(setFacets).catch(() => setFacets(null));
   }, []);
 
   useEffect(() => {
-    searchCourses(filters).then(setCourses).catch((e) => setError(String(e)));
-  }, [filters]);
+    if (!loggedIn) return;
+    searchLearnable({ ...filters, limit: "80" }, locale)
+      .then((r) => { setItems(r.items); setTotal(r.total); })
+      .catch((e) => setError(String(e)));
+  }, [filters, loggedIn, locale]);
 
   function set(key: string, value: string) {
     setFilters((f) => ({ ...f, [key]: value }));
   }
 
-  async function onEnroll(c: CatalogCourse) {
+  function openItem(item: LearnableItem) {
+    if (item.deep_link) {
+      router.push(item.deep_link);
+      return;
+    }
+    if (item.format === "audio") {
+      router.push(`/drive?course=${encodeURIComponent(item.source_id)}`);
+    }
+  }
+
+  async function onEnroll(item: LearnableItem) {
     setMsg("");
     if (!getToken()) {
-      setMsg("Please sign in to enroll.");
+      setMsg(t("browse.signInEnroll"));
+      return;
+    }
+    if (item.source !== "catalog") {
+      openItem(item);
       return;
     }
     try {
-      await enrollCourse(c.course_id, c.title);
-      setMsg(`Enrolled in "${c.title}". See it in your Account.`);
+      await enrollCourse(item.source_id, item.title);
+      setMsg(t("browse.enrolled", { title: item.title }));
     } catch (e) {
       setError(String(e));
     }
   }
 
+  if (!authResolved) {
+    return (
+      <main className="container">
+        <p className="muted">{t("browse.loading")}</p>
+      </main>
+    );
+  }
+
+  if (!loggedIn) {
+    return (
+      <main className="container">
+        <h1>{t("browse.title")}</h1>
+        <div className="card">
+          <p>{t("browse.signIn")} <Link href="/login">{t("profile.signIn")}</Link></p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="container">
-      <h1>Browse courses</h1>
-      <p className="muted">
-        Preview and enroll. Search by name and filter by category, language, audio,
-        format, level, and hands-on. {!getToken() && <Link href="/login">Sign in</Link>} to build your portfolio.
-      </p>
+      <h1>{t("browse.heading")}</h1>
+      <p className="muted">{t("browse.subtitle")}</p>
 
       <div className="card">
         <input
-          placeholder="Search courses…"
+          placeholder={t("browse.searchPlaceholder")}
           value={filters.q}
           onChange={(e) => set("q", e.target.value)}
           style={{ width: "100%", padding: 8, marginBottom: 8 }}
         />
         <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
-          <Facet label="Category" value={filters.category} onChange={(v) => set("category", v)} options={facets?.categories} />
-          <Facet label="Language" value={filters.language} onChange={(v) => set("language", v)} options={facets?.languages} />
-          <Facet label="Audio" value={filters.audio} onChange={(v) => set("audio", v)} options={facets?.audio_languages} />
-          <Facet label="Format" value={filters.media_format} onChange={(v) => set("media_format", v)} options={facets?.media_formats} />
-          <Facet label="Level" value={filters.level} onChange={(v) => set("level", v)} options={facets?.levels} />
+          <Facet label={t("browse.category")} value={filters.category} onChange={(v) => set("category", v)} options={facets?.categories} />
+          <Facet label={t("browse.type")} value={filters.format} onChange={(v) => set("format", v)}
+            options={facets?.formats?.map((f) => formatLabel(f))}
+            optionValues={facets?.formats} />
+          <Facet label={t("browse.source")} value={filters.source} onChange={(v) => set("source", v)}
+            options={facets?.sources?.map((s) => sourceLabel(s))}
+            optionValues={facets?.sources} />
+          <Facet label={t("browse.language")} value={filters.language} onChange={(v) => set("language", v)} options={facets?.languages} />
+          <Facet label={t("browse.level")} value={filters.level} onChange={(v) => set("level", v)} options={facets?.levels} />
           <label style={{ fontSize: 13 }}>
-            For&nbsp;
+            {t("browse.for")}&nbsp;
             <select value={filters.audience} onChange={(e) => set("audience", e.target.value)}>
-              <option value="">Anyone</option>
+              <option value="">{t("browse.anyone")}</option>
               {(facets?.audiences ?? []).map((a) => (
                 <option key={a.slug} value={a.slug}>{a.label}</option>
               ))}
@@ -80,12 +132,7 @@ export default function BrowsePage() {
           <label className="row">
             <input type="checkbox" checked={filters.hands_on === "true"}
               onChange={(e) => set("hands_on", e.target.checked ? "true" : "")} />
-            &nbsp;Hands-on only
-          </label>
-          <label className="row">
-            <input type="checkbox" checked={filters.core_skill === "true"}
-              onChange={(e) => set("core_skill", e.target.checked ? "true" : "")} />
-            &nbsp;Core skills
+            &nbsp;{t("browse.handsOn")}
           </label>
         </div>
       </div>
@@ -93,27 +140,45 @@ export default function BrowsePage() {
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
       {msg && <div className="card" style={{ borderColor: "#34d399" }}><div className="muted">{msg}</div></div>}
 
+      <p className="muted" style={{ marginBottom: 8 }}>
+        {total === 1 ? t("browse.resultOne") : t("browse.results", { total })}
+      </p>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {courses.length === 0 && <div className="muted">No courses match these filters.</div>}
-        {courses.map((c) => (
-          <div className="card" key={c.course_id}>
-            <h3 style={{ marginBottom: 4 }}>{c.title}</h3>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {c.category} · {c.language}
-              {c.audio_language && c.audio_language !== c.language ? ` · audio ${c.audio_language}` : ""}
-              {" · "}{c.media_format} · {c.level}
+        {items.length === 0 && <div className="muted">{t("browse.noMatches")}</div>}
+        {items.map((c) => (
+          <div className="tile browse-tile" key={c.id}>
+            <div className="tile-art">
+              <CoursePosterImg
+                className="tile-poster"
+                input={{
+                  title: c.title,
+                  category: c.category,
+                  subject: c.subject,
+                  tags: c.tags,
+                  format: c.format,
+                  thumbnail: c.thumbnail,
+                }}
+              />
+              <div className="tile-art-scrim" aria-hidden />
             </div>
-            {c.hands_on && (
-              <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 999, border: "1px solid #f59e0b", color: "#b45309" }}>
-                Hands-on training
-              </span>
-            )}
-            <p className="muted" style={{ marginTop: 6 }}>{c.preview || c.description}</p>
+            <div className="tile-body">
+            <h3 style={{ marginBottom: 4, fontSize: 14 }}>{c.title}</h3>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {formatLabel(c.format)} · {c.category || c.subject} · {c.level}
+              {c.duration_min ? ` · ${c.duration_min} min` : ""}
+            </div>
+            <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span className="pill" style={{ color: "#0ea5e9" }}>{sourceLabel(c.source)}</span>
+              {c.drive_safe && <span className="pill" style={{ color: "#16a34a" }}>{t("browse.driveSafe")}</span>}
+            </div>
+            <p className="muted" style={{ marginTop: 6 }}>{c.preview || c.subtitle}</p>
             <div className="row" style={{ marginTop: 8, gap: 8 }}>
-              <button onClick={() => onEnroll(c)}>Enroll</button>
-              <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>
-                {c.access_tier !== "free" ? `${c.access_tier} plan` : "free"}
-              </span>
+              <button type="button" onClick={() => openItem(c)}>{t("browse.open")}</button>
+              {c.source === "catalog" && (
+                <button type="button" onClick={() => onEnroll(c)}>{t("browse.enroll")}</button>
+              )}
+            </div>
             </div>
           </div>
         ))}
@@ -122,16 +187,22 @@ export default function BrowsePage() {
   );
 }
 
-function Facet({ label, value, onChange, options }: {
+function Facet({ label, value, onChange, options, optionValues }: {
   label: string; value: string; onChange: (v: string) => void; options?: string[];
+  optionValues?: string[];
 }) {
+  const { t } = useT();
+  const values = optionValues ?? options ?? [];
+  const labels = options ?? values;
   return (
     <label style={{ fontSize: 13 }}>
       {label}&nbsp;
       <select value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Any</option>
-        {(options ?? []).map((o) => (
-          <option key={o} value={o}>{o}</option>
+        <option value="">{t("browse.any")}</option>
+        {values.map((v, i) => (
+          <option key={v} value={v}>
+            {labels[i] || v}
+          </option>
         ))}
       </select>
     </label>

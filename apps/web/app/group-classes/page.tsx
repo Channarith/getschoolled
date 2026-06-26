@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   getToken,
+  groupClassCalendarUrl,
   listGroupClasses,
   listLessons,
   registerGroupClass,
@@ -130,9 +131,14 @@ export default function GroupClassesPage() {
     if (!requireAccount()) return;
     const name = window.prompt(t("group.registerPrompt"));
     if (!name) return;
+    const email = window.prompt("Email for calendar invite (optional):") || "";
     setBusy(true);
     try {
-      await registerGroupClass(gc.id, name);
+      await registerGroupClass(gc.id, name, email);
+      const calUrl = groupClassCalendarUrl(gc.id, name, email);
+      if (window.confirm("Added to class! Download a calendar invite (.ics)?")) {
+        window.open(calUrl, "_blank", "noopener");
+      }
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));

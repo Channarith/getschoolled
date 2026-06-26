@@ -3,6 +3,9 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import type { NarrationVoicePref } from "./voiceProfiles";
+import { normalizeTrainingLocale, type TrainingLocale } from "./trainingLocale";
+
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
   myList: "@aic/mylist.v1",         // string[]
@@ -10,7 +13,11 @@ const KEYS = {
   inboxRead: "@aic/inbox-read.v1",  // string[] (notification ids marked as read)
   streak: "@aic/streak.v1",         // { days: number, lastDayISO: string }
   interests: "@aic/interests.v1",   // string[] (categories the user has opened)
+  authToken: "@aic/auth-token.v1",  // identity JWT
 } as const;
+
+/** In-memory auth cache (AsyncStorage is async; API client reads sync). */
+let tokenCache: string | null = null;
 
 export type ContinueRow = {
   id: string; title: string; category?: string;
@@ -24,7 +31,23 @@ export type Settings = {
   newContentAlerts: boolean;
   completionAlerts: boolean;
   studentId: string;
+  /** Master toggle: GPS + motion driving detection for Drive Mode. */
+  driveDetectionEnabled: boolean;
+  /** Use GPS speed from device location (requires permission). */
+  driveUseLocation: boolean;
+  /** Use accelerometer/gyro to augment motion context (requires permission on iOS). */
+  driveUseMotionSensors: boolean;
+  /** Open Drive tab when driving is detected. */
+  driveAutoLaunch: boolean;
+  /** Local alert when driving starts. */
+  driveDrivingAlerts: boolean;
+  /** auto = infer from learning profile (child, accessibility, pace). */
+  narrationVoicePref: NarrationVoicePref;
+  /** Spoken lesson language for Drive Mode (en / es / zh). */
+  trainingLocale: TrainingLocale;
 };
+
+export type { TrainingLocale };
 
 export const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: true,
@@ -33,6 +56,13 @@ export const DEFAULT_SETTINGS: Settings = {
   newContentAlerts: true,
   completionAlerts: true,
   studentId: "guest",
+  driveDetectionEnabled: false,
+  driveUseLocation: true,
+  driveUseMotionSensors: true,
+  driveAutoLaunch: false,
+  driveDrivingAlerts: true,
+  narrationVoicePref: "auto",
+  trainingLocale: "en",
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -83,7 +113,9 @@ export async function toggleMyList(id: string): Promise<boolean> {
 
 export async function getSettings(): Promise<Settings> {
   const s = await readJSON<Partial<Settings>>(KEYS.settings, {});
-  return { ...DEFAULT_SETTINGS, ...s };
+  const merged = { ...DEFAULT_SETTINGS, ...s };
+  merged.trainingLocale = normalizeTrainingLocale(merged.trainingLocale);
+  return merged;
 }
 export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   const cur = await getSettings();
@@ -139,4 +171,27 @@ export async function recordInterest(category: string): Promise<void> {
   const set = new Set(await getInterests());
   set.add(category.toLowerCase());
   await writeJSON(KEYS.interests, Array.from(set).slice(-12));
+}
+
+export function getToken(): string | null {
+  return tokenCache;
+}
+
+export async function loadAuthToken(): Promise<string | null> {
+  try {
+    tokenCache = await AsyncStorage.getItem(KEYS.authToken);
+  } catch {
+    tokenCache = null;
+  }
+  return tokenCache;
+}
+
+export async function setAuthToken(token: string): Promise<void> {
+  tokenCache = token;
+  try { await AsyncStorage.setItem(KEYS.authToken, token); } catch { /* ignore */ }
+}
+
+export async function clearAuthToken(): Promise<void> {
+  tokenCache = null;
+  try { await AsyncStorage.removeItem(KEYS.authToken); } catch { /* ignore */ }
 }

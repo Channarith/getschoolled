@@ -22,7 +22,10 @@ def test_create_list_and_mastery():
     assert a["display_name"] == "Kid A" and a["age_band"] == "child"
 
     students = client.get("/students", headers=h).json()["students"]
-    assert len(students) == 2
+    # Signup auto-creates one default learner profile (onboarding survey path).
+    assert len(students) == 3
+    names = {s["display_name"] for s in students}
+    assert {"Kid A", "Adult B"}.issubset(names)
 
     upd = client.post(f"/students/{a['id']}/mastery", headers=h, json={"skill": "fractions", "value": 0.3}).json()
     assert upd["mastery"]["fractions"] == 0.3
@@ -36,7 +39,10 @@ def test_create_list_and_mastery():
 def test_profiles_are_isolated_per_account():
     h2 = _auth()  # a fresh, distinct account
     client.post("/students", headers=h2, json={"display_name": "Only Me"})
-    assert len(client.get("/students", headers=h2).json()["students"]) == 1
+    students = client.get("/students", headers=h2).json()["students"]
+    # Default profile from signup + the one we added.
+    assert len(students) == 2
+    assert any(s["display_name"] == "Only Me" for s in students)
 
 
 def test_unknown_student_404():

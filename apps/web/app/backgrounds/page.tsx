@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   BACKGROUNDS,
   CATEGORIES,
-  backgroundStyle,
+  backgroundLayerStyle,
+  backgroundMotionClass,
   getBackground,
   seasonalBackgroundId,
   type Background,
@@ -85,7 +86,12 @@ export default function BackgroundsPage() {
                 padding: 0, border: active ? "3px solid #6ea8fe" : "1px solid var(--border)",
                 borderRadius: 12, overflow: "hidden", cursor: "pointer", background: "none", textAlign: "left",
               }}>
-              <div style={{ height: 120, ...backgroundStyle(b), backgroundAttachment: "scroll" }} />
+              <div className="site-bg-preview" style={{ height: 120 }}>
+                <div
+                  className={`site-bg-preview-layer ${backgroundMotionClass(b)}`}
+                  style={backgroundLayerStyle(b)}
+                />
+              </div>
               <div style={{ padding: "8px 10px", background: "var(--panel)" }}>
                 <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>{b.name}</div>
                 <div className="muted" style={{ fontSize: 11 }}>

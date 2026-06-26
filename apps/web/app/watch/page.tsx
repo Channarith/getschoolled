@@ -3,15 +3,19 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { getAdBreaks, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
+import { getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 const COURSE_SECONDS = 60; // compressed demo runtime for the simulated player
+const AD_FREE_TIERS = new Set(["pro", "premium"]);
 
 function WatchInner() {
+  const { t } = useT();
   const params = useSearchParams();
   const [courses, setCourses] = useState<CatalogCourse[]>([]);
   const [courseId, setCourseId] = useState(params.get("course") ?? "");
-  const [tier, setTier] = useState("free");
+  const [tier, setTier] = useState("basic");
+  const [tierLabel, setTierLabel] = useState("standard");
   const [plan, setPlan] = useState<AdPlan | null>(null);
   const [error, setError] = useState("");
 
@@ -31,6 +35,24 @@ function WatchInner() {
     }).catch((e) => setError(String(e)));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!getToken()) {
+      setTier("basic");
+      setTierLabel("standard (sign in for your tier)");
+      return;
+    }
+    getMe()
+      .then((acct) => {
+        const t = (acct.tier || "basic").toLowerCase();
+        setTier(t);
+        setTierLabel(AD_FREE_TIERS.has(t) ? "VIP (ad-free)" : "standard (ads)");
+      })
+      .catch(() => {
+        setTier("basic");
+        setTierLabel("standard");
+      });
+  }, []);
+
   function note(msg: string) {
     log.current = [`${new Date().toLocaleTimeString()}  ${msg}`, ...log.current].slice(0, 8);
     force((n) => n + 1);
@@ -42,7 +64,7 @@ function WatchInner() {
     const p = await getAdBreaks(courseId, tier).catch((e) => { setError(String(e)); return null; });
     if (!p) return;
     setPlan(p);
-    note(p.ad_free ? `Ad-free playback (${tier} member)` : `Loaded ${p.breaks.length} ad break(s)`);
+    note(p.ad_free ? `Ad-free playback (${tierLabel})` : `Loaded ${p.breaks.length} ad break(s)`);
     const pre = p.breaks.find((b) => b.position === "preroll");
     if (pre) { startAd(pre); } else { setPlaying(true); }
   }
@@ -91,81 +113,55 @@ function WatchInner() {
 
   const skipIn = ad ? Math.max(0, (ad.ads[0]?.skippable_after_s ?? 9999) - adTime) : 0;
   const canSkip = ad ? adTime >= (ad.ads[0]?.skippable_after_s ?? Infinity) : false;
+  const adFree = AD_FREE_TIERS.has(tier);
 
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ marginBottom: 4 }}>Watch</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        Course playback with monetized video ads (IAB VAST/VMAP). Paid tiers are ad-free.
-      </p>
+      <h1 style={{ marginBottom: 4 }}>{t("watch.title")}</h1>
+      <p style={{ color: "#666", marginTop: 0 }}>{t("watch.intro")}</p>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
         <select value={courseId} onChange={(e) => setCourseId(e.target.value)}
           style={{ padding: 8, minWidth: 220 }}>
           {courses.map((c) => <option key={c.course_id} value={c.course_id}>{c.title}</option>)}
         </select>
-        <label>Tier:&nbsp;
-          <select value={tier} onChange={(e) => setTier(e.target.value)} style={{ padding: 8 }}>
-            <option value="free">free (ads)</option>
-            <option value="basic">basic (ads)</option>
-            <option value="pro">pro (ad-free)</option>
-            <option value="premium">premium (ad-free)</option>
-          </select>
-        </label>
+        <span style={{ padding: "8px 12px", borderRadius: 8, background: adFree ? "#14532d" : "#1e293b", color: "#e2e8f0", fontSize: 13 }}>
+          {t("watch.plan")} <strong>{tierLabel}</strong>
+        </span>
         <button onClick={start} disabled={!courseId}
           style={{ padding: "8px 18px", background: "#e50914", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer" }}>
-          ▶ Play
+          {t("watch.play")}
         </button>
-        <Link href="/account" style={{ marginLeft: "auto", fontSize: 13 }}>Go ad-free →</Link>
+        {!adFree && <Link href="/account" style={{ marginLeft: "auto", fontSize: 13 }}>{t("watch.goAdFree")}</Link>}
       </div>
 
-      {error && <p style={{ color: "#b00" }}>{error}</p>}
+      {error && <p style={{ color: "#e11d48" }}>{error}</p>}
 
-      <div style={{ position: "relative", background: "#000", borderRadius: 10, aspectRatio: "16 / 9",
-        display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", overflow: "hidden" }}>
+      <div style={{ background: "#000", borderRadius: 12, aspectRatio: "16/9", display: "flex",
+        alignItems: "center", justifyContent: "center", color: "#888", marginTop: 16 }}>
         {ad ? (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ position: "absolute", top: 10, left: 10, background: "#facc15", color: "#000",
-              fontWeight: 700, fontSize: 12, padding: "2px 8px", borderRadius: 4 }}>
-              Ad · {ad.position}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{ad.ads[0]?.title}</div>
-            <div style={{ opacity: 0.7, marginTop: 6 }}>{ad.ads[0]?.advertiser} · {ad.ads[0]?.duration_s}s</div>
-            <div style={{ marginTop: 16 }}>
-              <button onClick={endAd} disabled={!canSkip}
-                style={{ padding: "8px 16px", borderRadius: 6, border: 0, cursor: canSkip ? "pointer" : "not-allowed",
-                  background: canSkip ? "#fff" : "#555", color: canSkip ? "#000" : "#aaa" }}>
-                {canSkip ? "Skip Ad ⏭" : `Skip in ${skipIn}s`}
-              </button>
-            </div>
+          <div style={{ textAlign: "center", padding: 24 }}>
+            <div style={{ color: "#fbbf24", fontSize: 13, marginBottom: 8 }}>AD — {ad.position}</div>
+            <div style={{ fontSize: 20, color: "#fff" }}>{ad.ads[0]?.title}</div>
+            <div style={{ color: "#aaa", marginTop: 8 }}>{ad.ads[0]?.advertiser} · {adTime}s / {ad.ads[0]?.duration_s}s</div>
+            {canSkip
+              ? <button onClick={endAd} style={{ marginTop: 16, padding: "8px 20px" }}>Skip ad →</button>
+              : skipIn < 9999 && <div style={{ marginTop: 12, color: "#666" }}>Skip in {skipIn}s</div>}
           </div>
         ) : playing ? (
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>▶ Now playing</div>
-            <div style={{ opacity: 0.8 }}>{courses.find((c) => c.course_id === courseId)?.title}</div>
-            <div style={{ opacity: 0.6, marginTop: 8 }}>{contentTime}s / {COURSE_SECONDS}s</div>
+            <div style={{ fontSize: 28, color: "#fff" }}>▶ Playing course</div>
+            <div style={{ color: "#aaa", marginTop: 8 }}>{contentTime}s / {COURSE_SECONDS}s</div>
           </div>
         ) : (
-          <div style={{ opacity: 0.6 }}>Press Play to start</div>
+          <div>Press Play to start</div>
         )}
-        {/* progress bar */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 5, background: "#333" }}>
-          <div style={{ height: "100%", width: `${Math.min(100, (contentTime / COURSE_SECONDS) * 100)}%`,
-            background: "#e50914" }} />
-        </div>
       </div>
 
-      {plan && (
-        <p style={{ marginTop: 10, fontSize: 13, color: plan.ad_free ? "#16a34a" : "#666" }}>
-          {plan.ad_free
-            ? "✓ Ad-free experience for this membership tier."
-            : `Monetized: ${plan.breaks.length} ad break(s) scheduled (pre-roll + mid-rolls).`}
-        </p>
-      )}
-
       {log.current.length > 0 && (
-        <pre style={{ background: "#0b1020", color: "#9ee", padding: 12, borderRadius: 8, fontSize: 12,
-          marginTop: 12, whiteSpace: "pre-wrap" }}>{log.current.join("\n")}</pre>
+        <div style={{ marginTop: 16, fontSize: 12, color: "#666", fontFamily: "monospace" }}>
+          {log.current.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
       )}
     </main>
   );

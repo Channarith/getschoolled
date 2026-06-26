@@ -1,0 +1,68 @@
+{
+  "course_id": "java-software-engineering",
+  "title": "Java Software Engineering",
+  "level": "Level 4 Apprenticeship",
+  "role": "Software Developer",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "The programmer's problem-solving mindset: decompose, implement, verify and iterate.",
+    "K2": "Java fundamentals: types, variables, expressions and control flow.",
+    "K3": "Object-oriented programming: classes, objects, encapsulation, inheritance and polymorphism.",
+    "K4": "Data structures and Java collections such as lists, sets and maps.",
+    "K5": "Clean, maintainable code practices.",
+    "K6": "Error handling with exceptions and building robust software.",
+    "K7": "Build tools, dependencies and the JVM.",
+    "K8": "Automated testing, unit and integration, for example with JUnit.",
+    "K9": "Databases and SQL for persistence.",
+    "K10": "APIs and HTTP/JSON for integrating systems.",
+    "K11": "Security and reliability practices: input validation, secrets and vulnerabilities.",
+    "K12": "Professional engineering collaboration: version control, code review and conventions."
+  },
+  "skills": {
+    "S1": "Decompose a problem into precise, implementable steps.",
+    "S2": "Write correct Java using types, control flow and methods.",
+    "S3": "Design classes and objects using OOP principles.",
+    "S4": "Choose and use appropriate data structures.",
+    "S5": "Write clean, readable, maintainable code.",
+    "S6": "Handle errors and edge cases robustly.",
+    "S7": "Use build tools and manage dependencies.",
+    "S8": "Write automated tests and refactor with confidence.",
+    "S9": "Read and write data using SQL databases.",
+    "S10": "Design and consume HTTP/JSON APIs.",
+    "S11": "Apply security practices: validate input and manage secrets.",
+    "S12": "Collaborate using version control and code review."
+  },
+  "behaviours": {
+    "B1": "Curious and self-directed in learning.",
+    "B2": "Takes responsibility for code quality and correctness.",
+    "B3": "Collaborates well and communicates clearly.",
+    "B4": "Acts with integrity on security and quality.",
+    "B5": "Persistent in solving complex problems."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Solve problems and write correct Java code.",
+      "ksbs": ["K1", "K2", "S1", "S2", "B1", "B5"]
+    },
+    "Duty 2": {
+      "statement": "Design well-structured object-oriented programs.",
+      "ksbs": ["K3", "K4", "S3", "S4", "B2"]
+    },
+    "Duty 3": {
+      "statement": "Write clean, robust, maintainable code.",
+      "ksbs": ["K5", "K6", "S5", "S6", "B2"]
+    },
+    "Duty 4": {
+      "statement": "Use tooling and automated testing.",
+      "ksbs": ["K7", "K8", "S7", "S8", "B5"]
+    },
+    "Duty 5": {
+      "statement": "Connect software to data and other systems.",
+      "ksbs": ["K9", "K10", "S9", "S10", "B3"]
+    },
+    "Duty 6": {
+      "statement": "Build secure software and collaborate professionally.",
+      "ksbs": ["K11", "K12", "S11", "S12", "B3", "B4"]
+    }
+  }
+}

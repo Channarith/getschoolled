@@ -3,17 +3,22 @@
 import { useEffect, useState } from "react";
 import {
   adminListFlags,
+  adminListFlagsSession,
   adminSetFlag,
+  adminSetFlagSession,
   adminSurveyInsights,
   getAllTelemetry,
+  getMe,
   getServiceErrors,
   getServiceVersions,
+  getToken,
   SERVICE_URLS,
   type FlagSpec,
   type ServiceVersion,
   type TelemetryError,
   type TelemetrySummary,
 } from "../lib/api";
+import MascotPreviewPanel from "../components/MascotPreviewPanel";
 import { APP_VERSION } from "../lib/version";
 
 type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
@@ -47,6 +52,23 @@ export default function AdminPage() {
   const [errorsFor, setErrorsFor] = useState<string>("");
   const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
+
+  // Logged-in operator admins skip the secret prompt (BFF uses server ADMIN_SECRET).
+  useEffect(() => {
+    if (!getToken()) return;
+    getMe()
+      .then(async (me) => {
+        if (!me.is_admin) return;
+        try {
+          const f = await adminListFlagsSession();
+          setFlags(f);
+          setAuthed(true);
+        } catch {
+          /* fall back to manual secret entry */
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (authed) getServiceVersions().then(setVersions).catch(() => setVersions([]));
@@ -91,7 +113,9 @@ export default function AdminPage() {
   async function patch(key: string, p: Parameters<typeof adminSetFlag>[2]) {
     setBusy(key);
     try {
-      const updated = await adminSetFlag(secret, key, p);
+      const updated = getToken()
+        ? await adminSetFlagSession(key, p)
+        : await adminSetFlag(secret, key, p);
       setFlags((prev) => prev.map((f) => (f.key === key ? updated : f)));
     } catch (e) {
       setError(`Update failed for ${key}: ${String(e)}`);
@@ -105,7 +129,8 @@ export default function AdminPage() {
       <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
         <h1>Admin · Feature Flags</h1>
         <p style={{ color: "#666" }}>
-          Enter the administrative secret to manage platform feature flags.
+          Sign in as an operator admin account to manage flags automatically, or enter the
+          administrative secret below.
         </p>
         <input
           type="password" placeholder="Admin secret" value={secret}
@@ -132,6 +157,8 @@ export default function AdminPage() {
         Toggle features, run percentage rollouts, target membership tiers. Changes apply immediately.
       </p>
       {error && <p style={{ color: "#b00" }}>{error}</p>}
+
+      <MascotPreviewPanel flags={flags} onPatch={patch} busy={busy} />
 
       <section style={{ marginTop: 16 }}>
         <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>

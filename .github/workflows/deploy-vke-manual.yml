@@ -1,0 +1,98 @@
+# Manual VKE deploy for identity + memory + web (QA login / survey / UI fixes).
+# No skip conditions — always runs when you click "Run workflow".
+name: Deploy VKE (identity + web)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag (default: commit SHA)"
+        required: false
+        default: ""
+      include_memory:
+        description: "Also build and roll memory (flags, mascots, survey template)"
+        type: boolean
+        required: false
+        default: true
+      include_web:
+        description: "Also build and roll web (uncheck for backend-only deploy)"
+        type: boolean
+        required: false
+        default: true
+
+env:
+  REGISTRY: ${{ vars.REGISTRY || 'sjc.vultrcr.com/salareen' }}
+
+jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+      services: ${{ steps.mk.outputs.services }}
+    steps:
+      - id: mk
+        run: |
+          MATRIX='[{"name":"identity","dockerfile":"services/identity/Dockerfile","context":"."}'
+          SVCS="identity"
+          if [ "${{ inputs.include_memory }}" = "true" ]; then
+            MATRIX="${MATRIX},{\"name\":\"memory\",\"dockerfile\":\"services/memory/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} memory"
+          fi
+          if [ "${{ inputs.include_web }}" = "true" ]; then
+            MATRIX="${MATRIX},{\"name\":\"web\",\"dockerfile\":\"apps/web/Dockerfile\",\"context\":\".\"}"
+            SVCS="${SVCS} web"
+          fi
+          MATRIX="${MATRIX}]"
+          echo "matrix={\"include\":${MATRIX}}" >> "$GITHUB_OUTPUT"
+          echo "services=${SVCS}" >> "$GITHUB_OUTPUT"
+
+  build-push:
+    needs: setup-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to Vultr Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Build + push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
+
+  roll:
+    needs: [setup-matrix, build-push]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: bash scripts/github_configure_kubeconfig.sh
+      - name: Roll deployments
+        env:
+          TAG: ${{ github.event.inputs.tag || github.sha }}
+          SVCS: ${{ needs.setup-matrix.outputs.services }}
+        run: |
+          set -euo pipefail
+          for svc in $SVCS; do
+            kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}"
+            kubectl -n aoep rollout status "deployment/$svc" --timeout=300s
+          done
+          echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"

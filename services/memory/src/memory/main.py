@@ -11,6 +11,14 @@ from aoep_shared.legal import NOTICES, REQUIRED_NOTICE_IDS, AcceptanceStore, not
 from aoep_shared.schemas import ConsentRecord, ConsentScope, Region
 from aoep_shared.service import create_service
 from aoep_shared.survey import SurveyResponse, SurveyStore, template as survey_template
+from aoep_shared.learning_profile import (
+    OnboardingSurveyRecord,
+    OnboardingSurveyStore,
+    derive_learning_profile,
+    onboarding_template,
+    validate_onboarding_answers,
+)
+from aoep_shared.mascots import mascot_catalog_list, normalize_mascot_locale, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -22,6 +30,7 @@ app.state.store = MemoryStore()
 app.state.acceptances = AcceptanceStore()
 app.state.flags = FlagStore()
 app.state.surveys = SurveyStore()
+app.state.onboarding_surveys = OnboardingSurveyStore()
 
 
 def _admin_secret() -> str:
@@ -257,6 +266,69 @@ def survey_submit(req: SurveySubmit) -> dict:
     return {"id": resp.id, "course_id": resp.course_id, "recorded": True}
 
 
+# --------------------------------------------------------------------------- #
+# One-time onboarding learning-behavior survey (post-signup personalization)
+# --------------------------------------------------------------------------- #
+@app.get("/survey/onboarding")
+def survey_onboarding(subject: str | None = None, tier: str | None = None) -> dict:
+    enabled = bool(app.state.flags.resolve(
+        "engagement.onboarding_survey", subject=subject, tier=tier))
+    return {"enabled": enabled, "template": onboarding_template() if enabled else None}
+
+
+class OnboardingSurveySubmit(BaseModel):
+    account_id: str = ""
+    student_id: str = ""
+    answers: dict
+
+
+@app.post("/survey/onboarding")
+def survey_onboarding_submit(req: OnboardingSurveySubmit) -> dict:
+    try:
+        validate_onboarding_answers(req.answers)
+        profile = derive_learning_profile(req.answers)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    record = app.state.onboarding_surveys.submit(
+        OnboardingSurveyRecord(
+            account_id=req.account_id,
+            student_id=req.student_id,
+            profile=profile,
+        ))
+    return {
+        "id": record.id,
+        "recorded": True,
+        "learner_category": profile.learner_category,
+        "profile": profile.model_dump(),
+    }
+
+
+@app.get("/admin/survey/onboarding/summary")
+def survey_onboarding_summary(_: str = Depends(require_admin_header)) -> dict:
+    return app.state.onboarding_surveys.summary()
+
+
+# --------------------------------------------------------------------------- #
+# Locale-specific Bayon Buddy mascots (27 languages)
+# --------------------------------------------------------------------------- #
+@app.get("/mascots/catalog")
+def mascots_catalog() -> dict:
+    return {"count": len(mascot_catalog_list()), "mascots": mascot_catalog_list()}
+
+
+@app.get("/mascots/resolve")
+def mascots_resolve(
+    locale: str = "en",
+    subject: str | None = None,
+    tier: str | None = None,
+) -> dict:
+    enabled = bool(app.state.flags.resolve("ux.locale_mascots", subject=subject, tier=tier))
+    preview = app.state.flags.resolve("ux.locale_mascots_preview_locale", subject=subject, tier=tier)
+    preview_locale = None if preview in (None, "", "auto") else str(preview)
+    resolved = resolve_mascot(locale, enabled=enabled, preview_locale=preview_locale)
+    return {"enabled": enabled, "preview_locale": preview_locale, **resolved}
+
+
 @app.get("/survey/summary/{course_id}")
 def survey_course_summary(course_id: str) -> dict:
     return app.state.surveys.course_summary(course_id)
@@ -294,6 +366,7 @@ def test_reset(scope: str = "all", _: str = Depends(require_admin_header)) -> di
         reset.append("flags")
     if scope in ("all", "surveys"):
         app.state.surveys = SurveyStore()
+        app.state.onboarding_surveys = OnboardingSurveyStore()
         reset.append("surveys")
     if scope in ("all", "acceptances"):
         app.state.acceptances = AcceptanceStore()

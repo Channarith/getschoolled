@@ -1,0 +1,135 @@
+LESSON: Data Fellowship
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Data
+LEVEL: Level 4 Apprenticeship
+ROLE: Data Analyst
+DELIVERY: 13 month delivery
+FIT: Aspiring and new data analysts.
+SUMMARY: Empower your team with programming, data modelling, and analysis skills to unlock the full potential of your data.
+
+SLIDE 1 | What This Course Is About
+This fellowship builds the core skills of a working data analyst: getting data,
+cleaning and modelling it, analysing it with code and statistics, and
+communicating findings that change decisions. It assumes no prior programming and
+takes you to the point where you can independently answer real business questions
+with data. The emphasis is on practical analysis you can apply to your
+organisation's own data.
+NARRATION: This fellowship builds practical data analyst skills, from getting and cleaning data to analysing and communicating it.
+
+SLIDE 2 | The Analyst's Workflow
+Analysis follows a repeatable loop: understand the question, gather the data, clean
+and shape it, explore and analyse, then communicate the result and recommend an
+action. Most beginners rush to charts; strong analysts spend their time framing the
+question and preparing the data, because that is where accuracy and insight are won
+or lost. Learn the whole loop, not just the visible end.
+NARRATION: The analyst loop is question, gather, clean, analyse, communicate; framing and prep matter most.
+
+SLIDE 3 | Asking Analytical Questions
+A useful analysis starts with a specific, decision-linked question, such as which
+customer segment has the highest churn and why, not a vague "how are we doing." A
+sharp question defines what data you need and what a good answer looks like.
+Translating a fuzzy business request into a precise, answerable question is one of
+the most valuable skills an analyst has.
+NARRATION: Turn vague requests into specific, decision-linked questions; that defines the data and the answer.
+
+SLIDE 4 | SQL: Getting the Data
+Most business data lives in relational databases, and SQL is the language for
+asking it questions. With SELECT, WHERE, GROUP BY, and JOIN you can filter, summarise,
+and combine tables to assemble exactly the dataset your question needs. SQL is the
+analyst's most-used tool because it lets you pull and shape data at the source
+rather than wrestling exports in a spreadsheet.
+NARRATION: SQL filters, aggregates, and joins tables so you can pull exactly the data your question needs.
+
+SLIDE 5 | Data Modelling and Structure
+How data is organised shapes what you can do with it. Understand tables, keys, and
+relationships, and the idea of tidy data where each row is an observation and each
+column a variable. Well-structured data makes analysis straightforward; messy,
+inconsistent structure makes every step harder. Part of an analyst's job is
+reshaping data into a clean, analysable model.
+NARRATION: Understand tables, keys, and tidy data; clean structure makes every later step easier.
+
+SLIDE 6 | Cleaning and Preparing Data
+Real data is messy: missing values, duplicates, inconsistent formats, and errors.
+Cleaning, deciding how to handle gaps, removing duplicates, standardising
+categories and dates, is unglamorous but decisive, because analysis built on dirty
+data is confidently wrong. Document the choices you make while cleaning so your work
+is transparent and reproducible.
+NARRATION: Clean data by handling missing values, duplicates, and inconsistencies; document your choices.
+
+SLIDE 7 | Programming for Analysis
+Code, typically Python with libraries like pandas, lets you analyse data at a scale
+and repeatability spreadsheets cannot match. You load data, transform it, compute
+summaries, and produce charts in a script you can rerun and audit. Programming turns
+a one-off manual analysis into a reliable, repeatable process, which matters as
+questions recur and datasets grow.
+NARRATION: Programming, e.g. Python with pandas, makes analysis scalable, repeatable, and auditable.
+
+SLIDE 8 | Descriptive Statistics and Distributions
+Summarise data honestly: use the mean and median to describe typical values,
+knowing the median resists extremes, and always look at the spread and the shape of
+the distribution. A single number hides detail, and an average can describe nobody.
+Understanding variation and distribution is what separates a real finding from a
+misleading headline.
+NARRATION: Summarise with mean, median, and spread, and read the distribution; averages can hide or mislead.
+
+SLIDE 9 | Exploratory Data Analysis
+Before drawing conclusions, explore: chart distributions, compare groups, look for
+trends and outliers, and check relationships between variables. Exploration builds
+intuition, surfaces data-quality problems, and generates hypotheses worth testing.
+It is detective work, and it almost always changes your initial assumptions about
+what the data says.
+NARRATION: Explore data with charts and comparisons to build intuition, find issues, and form hypotheses.
+
+SLIDE 10 | Correlation, Causation, and Significance
+Two variables moving together does not prove one causes the other; a hidden factor
+may drive both. And a difference between groups may be random noise rather than a
+real effect. Analysts must be careful not to over-claim: distinguish correlation
+from causation, and understand that apparent patterns need enough data to be
+trustworthy before they drive a decision.
+NARRATION: Correlation is not causation, and apparent differences may be noise; do not over-claim from data.
+
+SLIDE 11 | Visualisation and Dashboards
+Choose charts that answer the question at a glance: lines for change over time, bars
+to compare categories, scatter for relationships. Avoid misleading scales and
+clutter. Dashboards put key metrics in front of decision-makers continuously, but
+only work when they show the few numbers that drive action rather than everything
+measurable.
+NARRATION: Pick honest charts for the question, and build dashboards around the few metrics that drive action.
+
+SLIDE 12 | Communicating Insight
+A correct analysis no one understands changes nothing. Lead with the headline
+finding, support it with one or two clear visuals, and end with a recommendation.
+Tailor depth to the audience and state your assumptions and confidence. The analyst's
+real product is not a chart but a decision made better, so communication is part of
+the job, not an afterthought.
+NARRATION: Lead with the finding, support with a clear visual, recommend an action, and state your confidence.
+
+SLIDE 13 | Working Responsibly with Data
+Handle data ethically and securely: protect personal and sensitive information,
+follow data-protection rules and your organisation's policy, and watch for bias from
+unrepresentative data. Make your work reproducible and your assumptions explicit so
+others can trust and check it. Responsible practice protects both the people in the
+data and the credibility of your analysis.
+NARRATION: Protect personal data, follow policy, watch for bias, and keep your work reproducible and transparent.
+
+SLIDE 14 | Course Summary and Next Steps
+You now have the analyst's toolkit: frame a sharp question, pull data with SQL,
+model and clean it, analyse with code and statistics, avoid the common traps,
+visualise honestly, and communicate a clear recommendation. Take one real question
+from your team, work it end to end, and present the result. Analytical skill grows by
+doing it on data that matters.
+NARRATION: Work one real question end to end, from SQL to recommendation, to put the analyst toolkit into practice.
+
+FACT: The data analyst workflow is to understand the question, gather data, clean and shape it, analyse, and communicate a recommendation.
+FACT: A useful analysis starts from a specific, decision-linked question that defines the needed data and what a good answer looks like.
+FACT: SQL uses SELECT, WHERE, GROUP BY, and JOIN to filter, summarise, and combine tables from relational databases.
+FACT: Tidy data has each row as an observation and each column as a variable, and clean structure makes analysis easier.
+FACT: Data cleaning handles missing values, duplicates, and inconsistent formats, and the choices should be documented.
+FACT: Programming with tools like Python and pandas makes analysis scalable, repeatable, and auditable.
+FACT: The median resists extreme values better than the mean, and the spread and shape of a distribution must also be considered.
+FACT: Exploratory data analysis uses charts and comparisons to build intuition, surface data-quality issues, and form hypotheses.
+FACT: Correlation does not imply causation, and apparent group differences may be random noise rather than a real effect.
+FACT: Effective visualisation matches the chart to the question and avoids misleading scales, and dashboards should focus on action-driving metrics.
+FACT: Communicating insight means leading with the finding, supporting it with a clear visual, recommending an action, and stating confidence.
+FACT: Responsible data work protects personal data, follows policy, watches for bias, and keeps analysis reproducible.

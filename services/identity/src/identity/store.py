@@ -15,6 +15,13 @@ import uuid
 from typing import Dict, List, Optional
 
 from aoep_shared.auth import hash_password, verify_password
+from aoep_shared.membership import membership_class_for_tier
+from aoep_shared.plan_pricing import (
+    anchor_day_from_timestamp,
+    initial_next_billing_at,
+    price_usd_for_tier,
+    tier_requires_payment,
+)
 from aoep_shared.rewards import PointsLedger
 from aoep_shared.schemas import PlanTier, Region
 from pydantic import BaseModel, Field
@@ -74,7 +81,39 @@ class StudentProfile(BaseModel):
     completed_course_ids: List[str] = Field(default_factory=list)
     interests: List[str] = Field(default_factory=list)
     class_contexts: List[ClassContext] = Field(default_factory=list)
+    # One-time onboarding learning-behavior survey (modalities, pace, accessibility).
+    primary_style: str = "mixed"
+    learning_pace: str = "moderate"
+    learning_structure: str = "step_by_step"
+    session_length: str = "medium"
+    group_preference: str = "either"
+    reading_level: str = "intermediate"
+    motivation: str = "personal"
+    accessibility: Dict[str, bool] = Field(default_factory=dict)
+    accommodations_notes: str = ""
+    learner_category: str = ""
+    onboarding_completed_at: Optional[float] = None
+    # Raw survey answers for re-opening / editing the learning profile from Settings.
+    onboarding_answers: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
+
+
+class BillingAddress(BaseModel):
+    line1: str = ""
+    line2: str = ""
+    city: str = ""
+    state: str = ""
+    postal_code: str = ""
+    country: str = "US"
+    phone: str = ""
+
+
+class LoginEvent(BaseModel):
+    ts: float = Field(default_factory=lambda: time.time())
+    success: bool = True
+    ip: str = ""
+    user_agent: str = ""
+    country_hint: str = ""
 
 
 class Account(BaseModel):
@@ -84,11 +123,25 @@ class Account(BaseModel):
     password_hash: str = ""
     tier: PlanTier = PlanTier.FREE
     region: Region = Region.US
+    membership_class: str = "standard"   # standard | vip (derived from tier)
     is_admin: bool = False
     created_at: float = Field(default_factory=lambda: time.time())
+    # Subscription billing (Netflix-style calendar-day monthly).
+    subscription_started_at: Optional[float] = None
+    billing_anchor_day: Optional[int] = None   # 1–31, day of month they signed up
+    next_billing_at: Optional[float] = None  # unix ts of next charge
+    billing_amount_usd: Optional[float] = None
     # Security signals.
     last_login_at: Optional[float] = None
     failed_logins: int = 0
+    login_count: int = 0
+    locked_until: Optional[float] = None
+    membership_class: str = "standard"   # standard | vip (derived from tier)
+    onboarding_completed_at: Optional[float] = None
+    billing_address: Optional[BillingAddress] = None
+    card_last4: str = ""
+    billing_validated_at: Optional[float] = None
+    login_events: List[LoginEvent] = Field(default_factory=list)
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
@@ -100,11 +153,21 @@ class Account(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     def public(self) -> dict:
+        from aoep_shared.plan_pricing import subscription_public
+
         return {
             "id": self.id, "email": self.email, "display_name": self.display_name,
             "tier": self.tier.value, "region": self.region.value,
+            "membership_class": self.membership_class,
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
+            "subscription": subscription_public(
+                tier=self.tier.value,
+                subscription_started_at=self.subscription_started_at,
+                billing_anchor_day=self.billing_anchor_day,
+                next_billing_at=self.next_billing_at,
+                billing_amount_usd=self.billing_amount_usd,
+            ),
         }
 
 
@@ -117,6 +180,15 @@ class AccountStore:
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
 
+    def _persist(self) -> None:
+        from .persistence import persist_hook
+
+        persist_hook(self)
+
+    def list_all_accounts(self) -> List[Account]:
+        """All accounts (operator/admin tooling)."""
+        return list(self._by_id.values())
+
     def create(self, email: str, password: str, *, display_name: str = "",
                tier: PlanTier = PlanTier.FREE, region: Region = Region.US) -> Account:
         email = email.strip().lower()
@@ -124,31 +196,86 @@ class AccountStore:
             raise ValueError("a valid email is required")
         if email in self._id_by_email:
             raise ValueError("an account with that email already exists")
-        acct = Account(email=email, display_name=display_name or email.split("@")[0],
-                       password_hash=hash_password(password), tier=tier, region=region)
+        acct = Account(
+            email=email,
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(password),
+            tier=tier,
+            region=region,
+            membership_class=membership_class_for_tier(tier.value),
+        )
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
+        self._persist()
+        return acct
+
+    def seed_account(
+        self,
+        email: str,
+        password: str,
+        *,
+        display_name: str = "",
+        tier: PlanTier = PlanTier.FREE,
+        region: Region = Region.US,
+        username: str = "",
+        is_admin: bool = False,
+        force_password: bool = False,
+    ) -> Account:
+        """Create (idempotently) a seeded account. Optionally registers a bare
+        username alias for login. When ``force_password`` is True (QA personas),
+        always re-hash the password so known test credentials keep working after
+        Redis reloads or a prior manual signup with a different password."""
+        email = email.strip().lower()
+        alias = username.strip().lower()
+        existing = self.by_email(email)
+        if existing is None and alias:
+            existing = self._by_id.get(self._id_by_email.get(alias, ""))
+        if existing is not None:
+            existing.tier = tier
+            existing.membership_class = membership_class_for_tier(tier.value)
+            existing.is_admin = existing.is_admin or is_admin
+            if display_name:
+                existing.display_name = display_name
+            if force_password:
+                existing.password_hash = hash_password(password)
+            if alias and alias not in self._id_by_email:
+                self._id_by_email[alias] = existing.id
+            self._persist()
+            return existing
+        acct = Account(
+            email=email,
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(password),
+            tier=tier,
+            region=region,
+            is_admin=is_admin,
+            membership_class=membership_class_for_tier(tier.value),
+        )
+        self._by_id[acct.id] = acct
+        self._id_by_email[email] = acct.id
+        if alias and alias not in self._id_by_email:
+            self._id_by_email[alias] = acct.id
+        self._persist()
         return acct
 
     def seed_admin(self, email: str, password: str, *, username: str = "admin",
-                   display_name: str = "Administrator") -> Account:
+                   display_name: str = "Administrator",
+                   force_password: bool = True) -> Account:
         """Create (idempotently) a default admin account. Also registers a bare
         `username` alias so you can log in with just "admin". Marked is_admin so
-        the web unlocks operator surfaces (e.g. the Homework grader)."""
-        email = email.strip().lower()
-        existing = self.by_email(email) or (
-            self._by_id.get(self._id_by_email.get(username.strip().lower(), "")))
-        if existing is not None:
-            existing.is_admin = True
-            return existing
-        acct = Account(email=email, display_name=display_name,
-                       password_hash=hash_password(password), is_admin=True)
-        self._by_id[acct.id] = acct
-        self._id_by_email[email] = acct.id
-        alias = username.strip().lower()
-        if alias and alias not in self._id_by_email:
-            self._id_by_email[alias] = acct.id   # allow login with just "admin"
-        return acct
+        the web unlocks operator surfaces (e.g. the Homework grader).
+
+        ``force_password`` re-syncs the hash on every startup (same as QA
+        personas) so DEFAULT_ADMIN_* credentials keep working after Redis reloads
+        or an accidental manual signup on the admin email."""
+        return self.seed_account(
+            email,
+            password,
+            display_name=display_name,
+            username=username,
+            is_admin=True,
+            force_password=force_password,
+        )
 
     def by_email(self, email: str) -> Optional[Account]:
         aid = self._id_by_email.get(email.strip().lower())
@@ -157,24 +284,110 @@ class AccountStore:
     def by_id(self, account_id: str) -> Optional[Account]:
         return self._by_id.get(account_id)
 
-    def authenticate(self, email: str, password: str) -> Optional[Account]:
+    def authenticate(
+        self,
+        email: str,
+        password: str,
+        *,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+    ) -> Optional[Account]:
         acct = self.by_email(email)
         if acct is None:
             return None
+        if acct.locked_until and acct.locked_until > time.time():
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+                reason="locked",
+            )
+            return None
         if not verify_password(password, acct.password_hash):
             acct.failed_logins += 1
+            if acct.failed_logins >= 5:
+                acct.locked_until = time.time() + 900  # 15 min lockout
+            self.record_login_event(
+                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+            )
+            self._persist()
             return None
         acct.failed_logins = 0
+        acct.locked_until = None
         acct.last_login_at = time.time()
+        acct.login_count += 1
+        self.record_login_event(
+            acct.id, success=True, ip=ip, user_agent=user_agent, country_hint=country_hint,
+        )
+        self._persist()
         return acct
+
+    def record_login_event(
+        self,
+        account_id: str,
+        *,
+        success: bool,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+        reason: str = "",
+    ) -> None:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return
+        acct.login_events.append(LoginEvent(
+            success=success,
+            ip=(ip or "")[:64],
+            user_agent=(user_agent or "")[:256],
+            country_hint=(country_hint or reason or "")[:32],
+        ))
+        if len(acct.login_events) > 50:
+            acct.login_events = acct.login_events[-50:]
+        self._persist()
+
+    def login_history(self, account_id: str, limit: int = 20) -> List[dict]:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return []
+        rows = [e.model_dump() for e in reversed(acct.login_events)]
+        return rows[:limit]
 
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]
         acct.password_hash = hash_password(new_password)
+        self._persist()
 
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]
         acct.tier = tier
+        acct.membership_class = membership_class_for_tier(tier.value)
+        if not tier_requires_payment(tier.value):
+            acct.subscription_started_at = None
+            acct.billing_anchor_day = None
+            acct.next_billing_at = None
+            acct.billing_amount_usd = None
+        self._persist()
+        return acct
+
+    def activate_subscription(
+        self,
+        account_id: str,
+        tier: PlanTier,
+        *,
+        started_at: Optional[float] = None,
+    ) -> Account:
+        """Start or change a paid plan with calendar-day monthly billing."""
+        if not tier_requires_payment(tier.value):
+            return self.set_tier(account_id, tier)
+        acct = self._by_id[account_id]
+        now = started_at if started_at is not None else time.time()
+        anchor = anchor_day_from_timestamp(now)
+        acct.tier = tier
+        acct.membership_class = membership_class_for_tier(tier.value)
+        acct.subscription_started_at = now
+        acct.billing_anchor_day = anchor
+        acct.billing_amount_usd = price_usd_for_tier(tier.value)
+        acct.next_billing_at = initial_next_billing_at(now, anchor_day=anchor)
+        self._persist()
         return acct
 
     # --- portfolio --------------------------------------------------------- #
@@ -188,8 +401,10 @@ class AccountStore:
             if enrollment.title:
                 existing.title = enrollment.title
             existing.updated_at = time.time()
+            self._persist()
             return existing
         acct.enrollments[enrollment.course_id] = enrollment
+        self._persist()
         return enrollment
 
     def set_status(self, account_id: str, course_id: str, status: EnrollmentStatus,
@@ -215,6 +430,7 @@ class AccountStore:
                                         hands_on=enr.hands_on)
             acct.points.earn(pts, reason="course_passed", ref=course_id)
             enr.points_awarded = True
+        self._persist()
         return enr
 
     # --- rewards ----------------------------------------------------------- #
@@ -232,6 +448,7 @@ class AccountStore:
         if nonce:
             self._used_grant_nonces.add(nonce)
         acct.points.earn(points, reason=reason, ref=ref)
+        self._persist()
         return acct.points.balance, points
 
     def redeem(self, account_id: str, prize) -> dict:
@@ -246,6 +463,7 @@ class AccountStore:
             "detail": redemption.detail, "created_at": redemption.created_at,
         }
         acct.redemptions.append(rec)
+        self._persist()
         return rec
 
     def rewards_summary(self, account_id: str) -> dict:
@@ -284,6 +502,7 @@ class AccountStore:
         st["best_by_subject"][subject] = max(prev, pts)
         st["points_by_age"][age_group] = st["points_by_age"].get(age_group, 0) + pts
         st["last_age_group"] = age_group
+        self._persist()
         return st
 
     def leaderboard(self, *, subject: Optional[str] = None, age_group: Optional[str] = None,
@@ -325,7 +544,48 @@ class AccountStore:
         prof = StudentProfile(display_name=display_name, age_band=age_band,
                               interests=list(interests or []))
         acct.students[prof.id] = prof
+        self._persist()
         return prof
+
+    def apply_learning_profile(self, account_id: str, student_id: str, profile) -> StudentProfile:
+        """Persist onboarding survey results on a student profile."""
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        prof.primary_style = profile.primary_style
+        prof.learning_pace = profile.pace
+        prof.learning_structure = profile.structure
+        prof.session_length = profile.session_length
+        prof.group_preference = profile.group_preference
+        prof.reading_level = profile.reading_level
+        prof.motivation = profile.motivation
+        prof.accessibility = dict(profile.accessibility)
+        prof.accommodations_notes = profile.accommodations_notes
+        prof.learner_category = profile.learner_category
+        prof.onboarding_completed_at = profile.completed_at
+        prof.onboarding_answers = dict(profile.raw_answers)
+        self._persist()
+        return prof
+
+    def skip_learning_profile(self, account_id: str, student_id: str) -> StudentProfile:
+        """Record that the user dismissed the one-time survey (persisted, not local-only)."""
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        if prof.onboarding_completed_at is None:
+            prof.onboarding_completed_at = time.time()
+        if not prof.learner_category:
+            prof.learner_category = "skipped"
+        self._persist()
+        return prof
+
+    def ensure_default_student(self, account_id: str) -> StudentProfile:
+        """Create a primary student profile if the account has none (post-signup)."""
+        acct = self._by_id[account_id]
+        if acct.students:
+            return next(iter(acct.students.values()))
+        name = acct.display_name or acct.email.split("@")[0]
+        return self.add_student(account_id, name, age_band="adult")
 
     def list_students(self, account_id: str) -> List[StudentProfile]:
         return list(self._by_id[account_id].students.values())
@@ -340,6 +600,7 @@ class AccountStore:
         if prof is None:
             raise KeyError(student_id)
         prof.mastery[skill] = max(0.0, min(1.0, float(value)))
+        self._persist()
         return prof
 
     def record_completion(
@@ -353,6 +614,7 @@ class AccountStore:
             prof.completed_course_ids.append(course_id)
         for s in (skills or []):
             prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
+        self._persist()
         return prof
 
     def record_class_context(self, account_id: str, student_id: str,
@@ -370,8 +632,10 @@ class AccountStore:
                 context.id = existing.id
                 context.created_at = existing.created_at
                 prof.class_contexts[idx] = context
+                self._persist()
                 return context
         prof.class_contexts.append(context)
+        self._persist()
         return context
 
     def create_profile_share_grant(self, account_id: str, student_id: str, *,
@@ -386,6 +650,7 @@ class AccountStore:
             expires_at=time.time() + max(60, min(int(ttl_s), 86_400)),
         )
         self._by_id[account_id].profile_share_grants[grant.id] = grant
+        self._persist()
         return grant
 
     def profile_share_grant(self, account_id: str, grant_id: str) -> Optional[ProfileShareGrant]:

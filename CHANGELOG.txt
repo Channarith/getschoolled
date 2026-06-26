@@ -23,6 +23,364 @@ Format: newest first. No markdown per project convention.
   on the teaching hot path, logs swallowed failures at debug (so a misconfigured
   MEMORY_URL is diagnosable), and reengage degrades gracefully on a zero-slide
   lesson instead of 500ing.
+[unreleased]
+- 2026-06-23 - Netflix-style consumer pricing: Standard (basic) $19.99/month with
+  ads, VIP (premium) $29.99/month ad-free. Calendar-day monthly billing — renewals
+  land on the signup day each month (Jan 31 -> Feb 28/29). New aoep_shared
+  plan_pricing + membership modules; identity stores subscription_started_at,
+  billing_anchor_day, next_billing_at; GET /membership/subscription and POST
+  /membership/subscribe; billing GET /plans enriched with prices and GET
+  /plans/consumer; web /billing page and account membership picker updated.
+  Version 0.5.0 -> 0.5.1.
+- 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
+  (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
+  follow-up /api/sessions/{id}/advance|ask served by a different replica no
+  longer 404s "unknown session". Backend is env-selected like the rate limiter:
+  Redis when REDIS_URL is set (sessions JSON-serialised with a TTL, shared across
+  replicas), in-memory otherwise; a Redis blip degrades gracefully to in-memory
+  rather than failing the class. Pinned redis==5.0.7 for the orchestrator (no
+  manifest change needed - REDIS_URL is already in the aoep-config ConfigMap).
+  Tests cover both backends, the env factory, graceful fallback, and a two-pod
+  simulation (shared store serves the session; separate stores reproduce the 404).
+- 2026-06-25 - Corporate training: added a KSB (Knowledge/Skills/Behaviours)
+  framework that models each of the 11 corporate courses as a
+  UK-apprenticeship-style occupational standard (occupation duties mapped to
+  KSBs). Data lives next to each lesson at sample-curriculum/<course>/ksb.json
+  (ai-ml-fellowship uses the real ST1398 Machine Learning Engineer standard,
+  OGL v3.0; the rest authored to match the format). New numpy-backed
+  scripts/ksb/ package (framework.py with KSB_DTYPE/DUTY_DTYPE structured arrays,
+  KSBStandard with from_dict/from_json, validate, duty_matrix, npz save/load) and
+  scripts/build_ksb.py to load/validate/summarise and export .npz; all 11 validate
+  clean (every duty maps to existing KSBs; every KSB is exercised by a duty).
+  Orchestrator: loads ksb.json per course, adds GET /api/lessons/{id}/ksb, and
+  feeds duties/KSBs into the Tutor's RAG passages so the AI teacher can reference
+  what a programme covers.
+- 2026-06-25 - Corporate training: built out the full Multiverse-style catalog with
+  eight new AI-led programmes - AI-Powered Productivity (AI, L3), AI Solutions Builder
+  (AI, L4), AI Transformation Architect (AI, L4), Data Fellowship (Data, L4),
+  Applied Data Engineering (Data, L5), DevOps Engineering Upskiller (Engineering,
+  L4), Java Software Engineering (Engineering, L4) and AI Product Engineering
+  (Engineering, L6). 11 corporate programmes now grouped across AI/Data/Engineering
+  tracks; content-only (no code change), redeployed orchestrator.
+- 2026-06-25 - Orchestrator: import fastapi Response at module scope so the
+  /api/group-classes/{id}/calendar.ics route's return annotation resolves at
+  startup (pydantic 2.7 raised PydanticUndefinedAnnotation, crash-looping the pod).
+  Web: ClassRoom finish state is now a discriminated union (fixes a next build
+  typecheck error). Version 0.4.2 -> 0.4.3.
+- 2026-06-25 - Corporate training: Multiverse-style AI-led programme catalog. New
+  lessons "Data & Insights for Business Decisions" (Data) and "AI and Machine
+  Learning Fellowship" (AI); optional lesson catalog metadata (TRACK/LEVEL/ROLE/
+  DELIVERY/FIT/SUMMARY) parsed by the orchestrator and rendered as cards grouped
+  by track on /corporate. Added scripts/make_corporate_lesson.py to generate
+  lesson.txt from an openly-licensed outline (e.g. apprenticeship-standard KSBs).
+- 2026-06-25 - Mobile (Expo Go): fixed dynamic require() in src/nativeModules.ts
+  that broke Metro bundling (literal requires for the optional native modules).
+- 2026-06-25 - Auto-merge no longer deletes the merged branch (dropped
+  --delete-branch); merged PR branches are kept so releases can be monitored and
+  correlated to their source branch.
+- 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
+  Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
+  Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
+  (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
+  the Auto-merge workflow completing successfully; it still checks out main and
+  is idempotent (skips if the tag already exists).
+- 2026-06-25 - Locale mascots now vary by physique + pose, not just colour. Each
+  of the 27 languages gets its own base carving with a slightly different build
+  and arm/leg placement (e.g. sw broad grounded kneel, ja lean upright kneel, hi
+  cross-legged seat, ru heavy seated) while keeping the same serene face, lotus
+  crown, and S-with-bodhi-leaf medallion; the per-locale stone colour tint is
+  still layered on top. Adds build/pose to MASCOT_CATALOG, a new
+  scripts/build_mascot_bases.py (reference-guided raws -> transparent base/
+  carvings; km base = canonical master), rewires scripts/generate_locale_mascots.py
+  to tint each base, regenerates all web + mobile {locale}.webp + the mobile
+  manifest, and adds a 27-locale contact sheet (docs/screens/mascots_locale_variants.webp).
+- 2026-06-25 - Fix web typecheck (tsc) errors. ClassRoom finish state is now a
+  discriminated union so the "earned" branch guarantees earned/balance are
+  numbers (not number|undefined); rewards page coerces a nullable raffle entry id
+  to a string before interpolation. Unblocks `pnpm run typecheck` in CI.
+- 2026-06-25 - Fix curriculum CI failures. /courses/{id}/ad-breaks now 404s for
+  unknown ids (existence check no longer masked by the default duration). /recommend
+  ranks over the managed catalog instead of the entire learnable universe, so a
+  student's real gap course surfaces instead of unrelated audio/language courses.
+  Audio course intro/recap framing narration is localized by the UI locale (all 13
+  locales, e.g. fr "Bienvenue") again, while only the factual bullets follow the
+  en/es/zh training locale. Teaching orchestrator test treats the .pptx export as
+  best-effort (only asserted when python-pptx is installed).
+- 2026-06-25 - Teaching flow tie-together (harvest -> teach -> present). Part 1->2
+  bridge: aoep_shared.harvest.export writes a course as .pptx (narration in
+  speaker notes) + .course.json so the external ppt_trainer agent reads it with
+  zero changes. Part 2: aoep_shared.teaching builds an engine-agnostic LessonPlan
+  (deterministic offline builder reusing harvester narration, or delegates to the
+  ppt_trainer CLI). Part 3: aoep_shared.meeting presents the lesson live - provider
+  abstraction with Google Meet (Calendar+conferenceData), Zoom (S2S OAuth), Teams
+  (Graph onlineMeetings), and an offline MockMeetingProvider; a presenter builds a
+  timed presentation plan and drives slide->speak->advance with a transcript +
+  event log; factory falls back to mock when a real provider has no creds.
+  run_end_to_end orchestrator + scripts/teach_and_present.py CLI +
+  scripts/validate_pipeline.py (13-check end-to-end smoke). Tests added for export,
+  meeting providers/presenter/factory, and the offline end-to-end flow.
+- 2026-06-25 - Harvester PCS: formalized the course score as the Salareen
+  Pedagogical Composition Score (PCS), a custom/patent-pending algorithm. Named
+  the fixed formula constants (QUANT_RESOLUTION/STRUCT_NODE_COEFF/
+  STRUCT_CATEGORY_COEFF/DEFAULT_SCORE_MODULUS; no behavior change), documented
+  the full math formula + worked example + novelty/patent claims + data-flow and
+  design (mermaid) diagrams in README "Course Composition Score (PCS)", and
+  cross-referenced it from the harvester RUNBOOK. Added a test pinning the
+  published worked example (PCS 649).
+- 2026-06-25 - Harvester: quantifiable course composition + multi-source generation.
+  New aoep_shared.harvest modules: extractors (text/html/url/pdf/pptx/docx/database),
+  composition (numpy node/sub-node matrix -> deterministic composition_score "recipe
+  fingerprint" + quality_index/metrics + CompositionOutcomeLedger to compare e.g.
+  score 247 vs 148 by survey happiness), tagging (JSON/meta: free/expensive,
+  LinkedIn job, career path, core-fundamental, labels), generate (extract->slides->
+  compose->score->tag reviewable artifact), critique (HarvestCritic grade/issues/
+  suggestions + optimize_with_ledger revertible quality tracking). harvester run.py
+  gains --generate/--critique/--instructions CLI modes (offline). Tests added;
+  numpy now a core aoep-shared dep; python-pptx/python-docx pinned (lazy import).
+- 2026-06-25 - i18n follow-up: jobs/careers, corporate, rewards, homework, legal,
+  transparency, recommended, kids (locale feed), consent, arcade, languages, watch.
+- 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum
+  service (fixes 500). Watch/ad-breaks resolve learnable IDs (fixes 404). Careers
+  USA location filter. Arcade rounds persist in Redis across replicas. Group classes:
+  daily noon/5pm Google Meet seed + .ics calendar invites. QA tiers: qa-pro VIP
+  (pro), qa-learner/parent standard (basic). Web Drive: 0.5–3x speed, draggable
+  progress, voice replay on change, Ask-only (no Hey Sala). Mobile Drive: speed
+  chips, visible format filters, safe voice engine init.
+- 2026-06-25 - i18n: login, account, and live class picker/ClassRoom UI translate on language
+  switch; locale on curriculum home/browse/drive APIs; Our Story client component; mobile
+  version sync (0.4.x) and Careers bottom tab.
+
+[0.4.0] - 2026-06-25
+- 2026-06-25 - Mobile cloud backend: use https://www.salareen.com (same paths as web)
+  instead of raw HTTP to 45.63.91.80 — fixes iOS simulator ATS "Network request failed".
+- 2026-06-25 - Mobile Android Expo Go: lazy-load expo-location/expo-speech-recognition
+  so missing native modules no longer crash startup; use launch:android:native for
+  full Drive Mode voice + driving detection.
+- 2026-06-25 - Mobile EAS iOS: eas-build-post-install runs expo-device Xcode 26 patch
+  after pod install (TARGET_OS_SIMULATOR not in Swift); mobile-patch-native.js
+  orchestrator; remove package-lock.json for pnpm-only EAS installs.
+- 2026-06-25 - Mobile EAS: fix expo doctor (schema-valid app.json, app.config.js
+  config merge, expo-build-properties cleartext); disable EAS doctor step on
+  Xcode 26 image (SDK 51 table caps at 16.2 — we patch for 26).
+- 2026-06-25 - Mobile iOS Xcode 26 native build: RuntimeScheduler include guards,
+  mobile-ios-pod-refresh.sh re-runs pod install when Pods reference pnpm react-native
+  (fixes C++ redefinition errors); complements expo-device UIDevice patch.
+- 2026-06-23 - Mobile Drive Mode: fix Hey Sala voice assistant using native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
+- 2026-06-23 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
+- 2026-06-23 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Learning profile survey: show once after login (not on every route
+  change or tab); persist skip/save to identity student profile; cross-tab debounce
+  on web; mobile auto-prompt gated per auth session.
+- 2026-06-25 - Mobile: driving detection (opt-in GPS speed + gyro/motion sensors);
+  Settings DRIVE MODE section with permission prompts; driving alerts and optional
+  auto-launch Drive Mode; status badge in player. deps: expo-location, expo-sensors.
+- 2026-06-25 - Mobile Drive Mode: Hey Sala voice assistant via native speech
+  recognition (expo-speech-recognition — Siri on iOS, Google on Android) instead
+  of unavailable Web Speech API; locale-aware; optional Google voice shortcut.
+- 2026-06-25 - Narration voice profiles: child-friendly, accessible (slower),
+  calm, and clear styles with auto inference from learning profile (age band,
+  extra time, assistive tech). Web Drive Mode + mobile Settings/Drive pick OS
+  voices by style; shared aoep_shared.voice_profiles prosody + ranking hints.
+- 2026-06-25 - Mobile iOS: patch expo-device UIDevice.swift for Xcode 16.3+/26
+  (TARGET_OS_SIMULATOR not in Swift; use targetEnvironment(simulator) on SDK 51).
+- 2026-06-25 - Mobile: default backend to Vultr cloud (http://45.63.91.80/identity,
+  /curriculum, /memory) for emulator and device; MOBILE_DEPLOY_MODE=local for Mac
+  services. app.config.js + mobile-check-backends.sh cloud probes.
+- 2026-06-25 - Mobile Android native build + Metro: Gradle patches (local node_modules,
+  implementation project(':expo')); ensure-metro-local-deps.js materializes pnpm
+  symlinks outside apps/mobile before bundling (fixes @babel/runtime / expo 500 red
+  screen on dev client).
+- 2026-06-25 - Course posters: subject-aware Unsplash artwork on web rails/browse
+  tiles and mobile CourseCard; aoep_shared.course_artwork resolves thumbnails in
+  /home and /learn/search API responses.
+- 2026-06-25 - Mobile UI: Netflix-style redesign (cinematic wallpaper, glass panels,
+  Ionicons tabs, poster rails, spring press feedback) aligned with web; login
+  reachability checks, clearer backend errors, mobile-check-backends.sh, Android
+  cleartext HTTP for local dev.
+- 2026-06-25 - Mobile: sync pnpm-lock.yaml with expo-linear-gradient (fixes CI Auto Push Build).
+- 2026-06-25 - Mobile: sync pnpm-lock.yaml with @babel/runtime direct dep (fixes CI Auto Push Build).
+- 2026-06-25 - Mobile EAS iOS: pin macos-sequoia-15.6-xcode-26.2 (App Store requires
+  Xcode 26+ from April 2026; SDK 51 auto image was still Xcode 15).
+- 2026-06-25 - Mobile iOS: expo-localization patch uses @unknown default only (fixes EAS
+  on Xcode 16; prior iOS-26-only calendar cases broke cloud builds).
+- 2026-06-25 - Mobile iOS: patch expo-localization for Xcode 26 calendar identifiers
+  (fixes Swift "switch must be exhaustive" on native build).
+- 2026-06-25 - Mobile iOS native build: mobile-run-ios.sh boots iPhone 17 on iOS 26.4+
+  by default (fixes xcodebuild error 70 when an iOS 18.x simulator is booted).
+- 2026-06-25 - Mobile Android: fix Metro 500 (@babel/runtime must be copied into
+  apps/mobile/node_modules; package-import-method=copy; disable Watchman); map
+  localhost→10.0.2.2 on Android for API URLs.
+- 2026-06-25 - Mobile setup: doctor no longer blocks first-time Expo Go install
+  (setup step 2 treats missing Expo Go as WARN; step 3 runs CDN install).
+- 2026-06-24 - Corporate training track + chemistry arcade. Lessons can be tagged
+  AUDIENCE: corporate (orchestrator curriculum loader + Lesson.audience); the Live
+  Class picker hides corporate lessons and the /corporate page lists AI-led courses
+  that launch in a dedicated course player (/corporate/learn) reusing a shared
+  ClassRoom component (slides + Ask-the-AI-teacher, auto-start). New Potion Lab
+  real-time arcade game (apps/web/app/arcade/chemistry) with age-scaled difficulty
+  (kids/tween/teen/adult), hazards (bacteria/bombs), level progression, and a
+  guarantee that every required atom is always on the field.
+- 2026-06-24 - Add sample corporate-training curriculum "AI Fluency Essentials"
+  (sample-curriculum/ai-fluency-essentials, 20 slides, FACT-grounded for RAG) plus
+  scripts/demo_ai_fluency.py to drive the orchestrator end-to-end (list -> start ->
+  advance -> ask) for a live teaching demo.
+- 2026-06-24 - Mobile typecheck: tsconfig.typecheck.json + preflight script; verbose
+  mode no longer runs tsc --listFilesOnly (Mac Node 22 OOM). doctor checks for
+  stale package.json typecheck scripts.
+- 2026-06-25 - Mobile first-time setup: mobile-setup.sh wizard (deps + doctor +
+  Expo Go CDN install); mobile-install-expo-go-direct.js avoids Metro hang;
+  doctor checks Expo Go/Orbit/SDK; RUN.txt FIRST-TIME SETUP section; pnpm setup.
+- 2026-06-25 - Mobile launch: debug on by default; EXPO_OFFLINE=1 always (local bundled
+  modules); CI=false; separate mobile-install-expo-go-ios.sh for first-time Expo Go.
+- 2026-06-25 - Mobile iOS launch: EXPO_OFFLINE only when Expo Go is already on the
+  simulator (fixes "Expo Go is not installed while running in offline mode" on first run).
+- 2026-06-25 - Mobile Metro: cleanup stale port 8081, CI+EXPO_OFFLINE, --localhost iOS;
+  fixes freeze at port prompt and bundledNativeModules network hang.
+- 2026-06-24 - Fix CI version-bump check: use PR base SHA (PR_BASE_SHA) instead of
+  merge-base on local main ref (failed with "Not a valid object name main" on forks).
+- 2026-06-24 - Fix mobile export: Metro blockList no longer blocks node_modules/*/dist
+  (broke memoize-one). Fix mascot.ts asset path (../assets not ../../assets).
+- 2026-06-24 - Fix mobile typecheck/export OOM: tsconfig scoped to src/ only
+  (was **/*.ts which typechecked all of node_modules). assetBundlePatterns
+  narrowed to assets/**. export targets ios+android only (not web). Metro
+  exclusionList for dist/.expo. typecheck:verbose + export:verbose scripts.
+- 2026-06-24 - Learning profile survey: cloud persistence (onboarding_completed_at
+  + onboarding_answers on student profile). Skip saves to identity, not
+  localStorage. Account → Learning profile reopens/updates the survey.
+  scripts/k8s_verify_signup_flow.sh smoke-tests signup + save + skip on VKE.
+- 2026-06-24 - Deploy VKE manual workflow: include_memory (default on) + verify
+  scripts for memory routes and new-account signup flow.
+- 2026-06-24 - Add Deploy VKE (identity + web) manual workflow (never skipped).
+  Deploy workflow gate job explains skip on push without AUTO_DEPLOY=true.
+- 2026-06-24 - RUNBOOK: 404 on ops-reseed means stale identity image — run Deploy
+  workflow before rollout restart. k8s_ops_reseed_identity.sh prints deploy hint.
+- 2026-06-24 - Fix k8s ops-reseed scripts: kubectl exec -i required for stdin
+  heredocs (without -i, python3 received no script and printed nothing).
+- 2026-06-24 - scripts/k8s_ops_reseed_identity.sh: ops-reseed via python3 (identity
+  slim images have no curl). k8s_diagnose_identity.sh uses python3 for ops probe.
+- 2026-06-24 - Identity ops-reseed reloads Redis before bootstrap; returns login_ok
+  for the live uvicorn store. scripts/k8s_diagnose_identity.sh compares Redis vs
+  HTTP login on every pod and probes /admin/ops/reseed-seeded.
+- 2026-06-24 - Fix QA login after k8s reseed (Redis OK but browser still 401).
+  The reseed Python script ran in a separate process — login_ok there did not
+  update live uvicorn workers. k8s_reseed_accounts.sh now ops-reseeds every
+  identity pod (POST /admin/ops/reseed-seeded) and verifies HTTP login on each
+  replica. Identity startup reloads Redis with retry before bootstrap.
+  configmap-vke.yaml documents IDENTITY_ORIGIN/MEMORY_ORIGIN for web rewrites.
+- 2026-06-24 - VKE QA login verify/fix script. scripts/k8s_verify_qa_login.sh
+  diagnoses identity/web/redis, tests login in-cluster, runs reseed + auto
+  rollout restart + post-restart verify. k8s_reseed_accounts.sh now auto-restarts
+  identity, verifies HTTP login, and falls back to redis-cli SET when Python
+  persist fails. identity_reseed_redis.py emits RESULT_JSON for automation.
+- 2026-06-24 - Fix test isolation: identity ops-reseed tests used os.environ for
+  ADMIN_SECRET/seed flags (leaked into memory admin API tests → 401). Use
+  monkeypatch; give operator admin test a distinct username alias.
+- 2026-06-24 - Fix k8s identity reseed on 0.3.82 images (persisted=false, qa3 401).
+  identity_reseed_redis.py now registers qa1/qa2/qa3 username aliases after bootstrap
+  (old images only create email accounts). Redis save uses a minimal RESP/TCP client
+  when the redis PyPI package is missing from the identity image. Tries REDIS_URL plus
+  cluster fallbacks; prints persist_error/load_error in the result dict.
+- 2026-06-24 - Fix identity_reseed_redis.py for pre-persistence images (~0.3.82):
+  inline Redis load/save when identity.persistence is missing; pipe script via
+  kubectl exec -i (no kubectl cp). Restart identity after persisted=true.
+- 2026-06-24 - Fix k8s_reseed_accounts.sh: resolve a Running identity pod before
+  kubectl cp/exec (deploy/identity is not valid for cp; caused "pods identity not
+  found").
+- 2026-06-24 - Identity operator reseed for QA accounts (no JWT). POST
+  /identity/admin/ops/reseed-seeded accepts X-Admin-Secret (same as memory admin).
+  scripts/k8s_reseed_accounts.sh + identity_reseed_redis.py reseed via kubectl exec
+  on running pods (works before a new image is deployed). RUNBOOK troubleshooting.
+- 2026-06-24 - Fix QA test account login on multi-replica identity (Redis). Startup
+  bootstrap now seeds admin + QA on FastAPI startup with Redis persist retries so
+  qa-learner/parent/pro accounts sync to every pod (admin could work while QA 401'd
+  when only admin was in Redis). Blank QA_ACCOUNTS_PASSWORD env falls back to
+  QaTest123. Admin POST /admin/accounts/reseed-seeded for one-shot recovery.
+- 2026-06-24 - Fix VKE ingress apply: duplicate host "_" paths. The VKE overlay
+  added bare-IP routes on aoep + aoep-apis while base ingress-origin.yaml still
+  defined aoep-origin-web/apis (same / and /orchestrator paths). VKE now deletes
+  the origin Ingress pair via ingress-vke-delete-origin.yaml. RUNBOOK §Verify.
+- 2026-06-24 - Photo-realistic locale mascots (27 languages). Replaced flat SVG
+  variants with WebP renditions of the canonical stone-carving Bayon Buddy
+  (apps/web/public/bayon-mark.webp). Khmer (km) uses the master art unchanged;
+  other locales apply subtle stone hue/warmth shifts via
+  scripts/generate_locale_mascots.py. Mobile bundles WebP assets
+  (apps/mobile/src/mascots/imageAssets.ts).
+- 2026-06-24 - Fix localhost admin login and local service startup. Default admin
+  seed now force-resyncs password on every identity startup (same as QA personas),
+  so admin@salareen.com / DEFAULT_ADMIN_PASSWORD keeps working after manual
+  signups or stale in-memory stores. New scripts/run_local_service.sh + make
+  run-identity|run-memory|run-orchestrator load config/local.env automatically.
+- 2026-06-24 - Fix CI: identity student API tests account for the default learner
+  profile auto-created on signup (onboarding survey, PR #131).
+- 2026-06-24 - Release version bump on every PR to main. New rule (AGENTS.md,
+  docs/cloud-agent-task.txt, docs/release-testing.txt §8): every PR merging to
+  main must run scripts/bump_pr_version.py (make bump-version). CI job
+  version-bump enforces VERSION > base. Auto Push Build now uses --refresh-only
+  (no double bump); Release workflow also runs on push to main.
+- 2026-06-24 - Fix QA test account login on deployed stacks. QA seed now
+  force-resyncs passwords on every identity startup (survives Redis reloads and
+  accidental signups on qa-* emails). VKE ingress adds hostless /identity,
+  /memory, /orchestrator, etc. routes on the bare LB IP (fixes 404 on feature
+  flags and API calls). docs/release-testing.txt §4e troubleshooting.
+- 2026-06-24 - Locale-specific Bayon Buddy mascots (27 languages). Each supported
+  language has a culturally inspired SVG variant (generated by
+  scripts/generate_locale_mascots.py). Web and mobile load the mascot matching
+  the user's locale via memory /mascots/resolve (respects i18n language, not
+  geo-IP). Flags: ux.locale_mascots (default on) and admin-only
+  ux.locale_mascots_preview_locale (force a locale for testing). Admin console
+  includes a live preview panel with locale rotator. Mobile bundles SVGs offline
+  via apps/mobile/src/mascots/svgContent.ts.
+
+- 2026-06-24 - One-time onboarding learning survey (post-signup). After the legal
+  disclaimer, new members see a learning-behavior gauge (modalities, pace,
+  structure, session length, group preference, reading level, motivation, and
+  optional accessibility needs). Answers persist on the student profile
+  (identity), assign a learner_category for grouping/adaptation, and feed memory
+  analytics. Flag: engagement.onboarding_survey (default on). Signup auto-creates
+  a default student profile. Cold-start adaptive hints via pacing_from_declared_profile.
+
+- 2026-06-24 - Mobile macOS dev fixes. Added pnpm run doctor (env check),
+  dev:ios / dev:android / dev:*:offline scripts, metro.config.js, explicit
+  babel-preset-expo, and RUN.txt/README troubleshooting for when nothing
+  happens (wrong directory, pnpm ios vs dev:ios, open Simulator first).
+
+- 2026-06-23 - Login: password show/hide eye toggle. The Sign in / Create
+  account password field now has an inline eye button (inline SVG, no new deps)
+  that toggles the input between masked and plain text; the glyph switches to an
+  eye-with-slash while revealed. Accessible (type=button, aria-label/aria-pressed,
+  title) so it never submits the form. apps/web/app/login/page.tsx.
+
+- 2026-06-23 - Mobile emulator docs (macOS). README + apps/mobile/RUN.txt now
+  distinguish Expo Go (pnpm run start:ios / start:android — fastest) from native
+  dev builds (pnpm ios / android). Added macOS Xcode + Android Studio setup,
+  ANDROID_HOME, and a troubleshooting section for simulators that won't launch.
+- 2026-06-23 - QA test accounts for manual testing. Identity seeds three fixed
+  personas at startup (env-gated SEED_QA_ACCOUNTS): qa-learner@salareen.com (qa1,
+  free tier), qa-parent@salareen.com (qa2, with child profile "QA Kid"), and
+  qa-pro@salareen.com (qa3, Pro tier). Shared password QA_ACCOUNTS_PASSWORD
+  (default QaTest123). Idempotent; disable with SEED_QA_ACCOUNTS=0. Documented
+  in docs/release-testing.txt.
+- 2026-06-23 - Netflix-style animated site themes. Site-wide wallpapers and the
+  signed-out landing hero now use a slow Ken Burns zoom/pan (image themes) or
+  gentle drift (CSS gradient themes), with four motion variants per theme id.
+  Respects prefers-reduced-motion. Theme picker previews animate on hover.
+- 2026-06-23 - Identity multi-replica fix + admin UX. Root cause of 401 on
+  /identity/rewards, /identity/students, and /account after login: identity used
+  an in-memory AccountStore across 3 replicas — login on pod A, next request on
+  pod B returned "account not found". When REDIS_URL is set, identity now
+  snapshots the full store to Redis after every mutation (services/identity/
+  persistence.py). Homework nav is gated by the access.homework_grader feature
+  flag (default off) instead of auto-unlocking for is_admin logins. Operator
+  admins get GET /admin/accounts (member list on Account page), and /admin
+  feature flags auto-load when signed in as is_admin (Next.js BFF at
+  /api/admin/flags using server ADMIN_SECRET). Fixed REDIS_URL in k8s configmap
+  to redis://redis:6379/0.
 
 - 2026-06-23 - Deploy reliability: stop the cluster running stale images, and put
   the default-admin seed into release config. Root cause of "code is on main but
@@ -297,6 +655,7 @@ Format: newest first. No markdown per project convention.
 
 - 2026-06-23 - CI fix: curriculum ingest PDF tests failed with
   "ModuleNotFoundError: No module named 'fpdf'". CI installs each package's
+
   [test] extra (not requirements-dev.txt), and services/curriculum's test extra
   omitted fpdf2 (the test fixtures call fpdf to generate PDFs). Added
   fpdf2==2.7.9 to services/curriculum/pyproject.toml [project.optional-
@@ -1486,8 +1845,10 @@ Format: newest first. No markdown per project convention.
 - add .gitignore, .editorconfig, .python-version.
 
 Note: versions 0.2.1 and 0.2.3-0.2.14 were automated build bumps whose notes
-were lost to the changelog-rolling bug fixed in [unreleased]; their content is
-[unreleased]
+were lost to the changelog-rolling bug fixed in the release workflow; their content is
+archived in git history only.
+
+[0.3.83] - 2026-06-24
 - (no changes yet)
 
 [0.3.82] - 2026-06-23

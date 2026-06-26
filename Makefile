@@ -10,8 +10,9 @@ COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
 	compose-config k8s-build up down clean qa stress coverage lint regression \
-	mobile-install mobile-typecheck mobile-build mobile-prebuild \
-	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke
+	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
+	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
+	run-identity run-memory run-orchestrator validate-pipeline
 
 help:
 	@echo "Targets:"
@@ -19,6 +20,7 @@ help:
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
+	@echo "  validate-pipeline  E2E smoke: harvest -> teach -> present (offline)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -27,8 +29,17 @@ help:
 	@echo "  web-install    npm install for apps/web"
 	@echo "  web-build      Build the Next.js web app"
 	@echo "  mobile-install Install Expo mobile deps (apps/mobile)"
+	@echo "  mobile-setup   First-time setup: deps + doctor + Expo Go (apps/mobile)"
+	@echo "  mobile-doctor  Check mobile dev env (Xcode, simulators, deps)"
+	@echo "  mobile-dev-ios Launch Expo Go on iOS Simulator (macOS)"
+	@echo "  mobile-dev-android Launch Expo Go on Android emulator"
 	@echo "  mobile-build   Bundle production iOS+Android JS (apps/mobile/dist)"
 	@echo "  mobile-prebuild Generate native ios/ and android/ projects (offline-blocked here)"
+	@echo "  bump-version   Advance VERSION for a PR merging to main"
+	@echo "  check-version  Verify VERSION was bumped vs main (CI helper)"
+	@echo "  run-identity   Start identity on :8008 (loads config/local.env)"
+	@echo "  run-memory     Start memory on :8004 (loads config/local.env)"
+	@echo "  run-orchestrator Start orchestrator on :8000 (loads config/local.env)"
 	@echo "  compose-config Validate the docker compose file"
 	@echo "  k8s-build      Render k8s manifests with kustomize"
 	@echo "  k8s-build-vke  Render Vultr VKE k8s overlay"
@@ -56,6 +67,10 @@ test test-py:
 MIN ?= 0
 test-inventory:
 	$(VENV_PY) scripts/test_inventory.py --min $(MIN)
+
+# End-to-end smoke for the harvest -> teach -> present flow (no keys/network).
+validate-pipeline:
+	$(VENV_PY) scripts/validate_pipeline.py
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
@@ -93,7 +108,46 @@ web-build:
 
 # --- Mobile (Expo: Android + iOS) ----------------------------------------- #
 mobile-install:
+	cd apps/mobile && bash scripts/mobile-install.sh
+
+mobile-setup:
+	cd apps/mobile && bash scripts/mobile-setup.sh
+
+mobile-install-pnpm:
 	cd apps/mobile && pnpm install
+
+mobile-doctor:
+	cd apps/mobile && bash scripts/mobile-doctor.sh
+
+mobile-doctor-verbose:
+	cd apps/mobile && VERBOSE=1 bash scripts/mobile-doctor.sh
+
+mobile-doctor-pnpm:
+	cd apps/mobile && pnpm run doctor
+
+mobile-dev-ios:
+	cd apps/mobile && pnpm run dev:ios
+
+mobile-dev-ios-debug:
+	cd apps/mobile && pnpm run dev:ios:debug
+
+mobile-launch-ios:
+	cd apps/mobile && pnpm run launch:ios
+
+mobile-launch-ios-debug:
+	cd apps/mobile && pnpm run launch:ios:debug
+
+mobile-dev-android:
+	cd apps/mobile && pnpm run dev:android
+
+mobile-dev-android-debug:
+	cd apps/mobile && pnpm run dev:android:debug
+
+mobile-launch-android:
+	cd apps/mobile && pnpm run launch:android
+
+mobile-launch-android-debug:
+	cd apps/mobile && pnpm run launch:android:debug
 
 mobile-typecheck:
 	cd apps/mobile && pnpm typecheck
@@ -101,7 +155,7 @@ mobile-typecheck:
 # Produce production JS bundles for iOS + Android (apps/mobile/dist).
 # Native binaries (.apk/.aab/.ipa) build via EAS - see apps/mobile/RUN.txt.
 mobile-build: mobile-typecheck
-	cd apps/mobile && pnpm run export
+	cd apps/mobile && bash scripts/mobile-export.sh ios android
 
 # Generate native ios/ + android/ Gradle/Xcode projects from app.json.
 # (Requires network access to fetch the prebuild template.)
@@ -138,3 +192,18 @@ scale-down:
 
 clean:
 	rm -rf $(VENV) apps/web/node_modules apps/web/.next
+
+bump-version:
+	$(PY) scripts/bump_pr_version.py
+
+check-version:
+	bash scripts/check_pr_version_bump.sh
+
+run-identity:
+	./scripts/run_local_service.sh identity
+
+run-memory:
+	./scripts/run_local_service.sh memory
+
+run-orchestrator:
+	./scripts/run_local_service.sh orchestrator

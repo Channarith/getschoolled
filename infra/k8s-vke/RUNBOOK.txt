@@ -62,6 +62,22 @@ Get kubeconfig
   export KUBECONFIG=$PWD/kubeconfig-vke.yaml
   kubectl get nodes
 
+GitHub Actions secret (KUBE_CONFIG_B64)
+---------------------------------------
+Deploy workflows need cluster access. Store a base64 kubeconfig in repo secret
+KUBE_CONFIG_B64 (Settings → Secrets and variables → Actions):
+
+  vultr-cli kubernetes config <cluster-id> > kubeconfig-vke.yaml
+  base64 -i kubeconfig-vke.yaml | tr -d '\n'     # macOS — paste ONE line into secret
+  base64 -w 0 kubeconfig-vke.yaml                # Linux
+
+Do NOT paste raw YAML into KUBE_CONFIG_B64 unless you base64-encode it first.
+Symptom of a bad secret: "yaml: mapping values are not allowed in this context"
+when the roll job runs kubectl.
+
+Alternative: multiline secret KUBE_CONFIG with the raw kubeconfig YAML (no base64).
+Workflows use scripts/github_configure_kubeconfig.sh to decode and validate.
+
 Install ingress-nginx
 ---------------------
   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -116,12 +132,15 @@ Do NOT commit real secrets. Replace placeholders:
     --from-literal=OBJECT_STORE_SECRET_KEY=... \
     --from-literal=DATABASE_URL='postgresql://user:pass@host:5432/db' \
     --from-literal=PAYMENT_API_KEY=... \
-    --from-literal=DEFAULT_ADMIN_PASSWORD=88888888
+    --from-literal=DEFAULT_ADMIN_PASSWORD=88888888 \
+    --from-literal=QA_ACCOUNTS_PASSWORD=QaTest123
 
 DEFAULT_ADMIN_PASSWORD seeds the platform's default admin (admin@salareen.com /
-username "admin"). If you omit it, the identity code default (88888888) is used.
-ROTATE it for a real deployment, or set SEED_DEFAULT_ADMIN=0 in the ConfigMap and
-create the admin manually.
+username "admin"). QA_ACCOUNTS_PASSWORD seeds three QA personas (qa-learner@,
+qa-parent@, qa-pro@ — or log in as qa1 / qa2 / qa3). If you omit them, the
+identity code defaults apply (88888888 / QaTest123). ROTATE for a real deployment,
+or set SEED_DEFAULT_ADMIN=0 / SEED_QA_ACCOUNTS=0 in the ConfigMap and create
+accounts manually.
 
 If the namespace does not exist yet, first:
   kubectl apply -f infra/k8s/namespace.yaml
@@ -168,6 +187,110 @@ Confirm the running image actually has the new code, e.g. the admin seed:
     python3 -c "import identity.store as s; print('seed_admin' in dir(s.AccountStore))"
   # expect: True   (then admin@salareen.com / 88888888 logs in)
 
+QA personas (qa-pro@ / qa3 / QaTest123) still 401 while admin works
+-------------------------------------------------------------------
+Usually QA accounts were not persisted to Redis on every replica, OR the cluster
+Secret QA_ACCOUNTS_PASSWORD differs from QaTest123, OR the running identity image
+predates the bootstrap fix. One-command diagnose + fix (run where kubectl works):
+
+  git pull origin main
+  chmod +x scripts/k8s_verify_qa_login.sh scripts/k8s_reseed_accounts.sh
+  ./scripts/k8s_verify_qa_login.sh
+
+Or ops-reseed live pods only (identity images have no curl — use python3):
+
+  chmod +x scripts/k8s_ops_reseed_identity.sh
+  ./scripts/k8s_ops_reseed_identity.sh
+
+That script prints identity/web/redis pod status, tests login in-cluster (same
+path the browser uses via web -> identity), reseeds Redis, restarts identity,
+and verifies qa-pro + qa3 before you retry the browser.
+
+Manual steps if you prefer:
+
+  chmod +x scripts/k8s_reseed_accounts.sh
+  ./scripts/k8s_reseed_accounts.sh
+
+The script picks a Running identity pod automatically (kubectl cp does not accept
+deploy/identity). If it fails, pick a pod manually:
+
+  POD=$(kubectl -n aoep get pods -l app=identity -o jsonpath='{.items[0].metadata.name}')
+  kubectl -n aoep exec -i "$POD" -- python3 - < scripts/identity_reseed_redis.py
+  kubectl -n aoep rollout restart deployment/identity
+
+Works on old identity images (e.g. 0.3.82) that lack identity.persistence — the
+script inlines Redis read/write. Always restart identity after persisted=true.
+all true in the printed JSON.
+
+If ops-reseed returns HTTP 404 (Not Found)
+------------------------------------------
+The running identity IMAGE is stale — the cluster keeps re-pulling the same old
+:latest from Vultr registry. Redis reseed + rollout restart cannot fix QA login
+until a NEW image is built and pushed.
+
+  1) GitHub → Actions → Deploy VKE (identity + web) → Run workflow
+     (fastest for QA login; no skip conditions). OR full Deploy → Run workflow.
+     Needs secrets: VULTR_REGISTRY_USERNAME, VULTR_REGISTRY_PASSWORD, KUBE_CONFIG_B64.
+     Push-to-main runs skip unless repo variable AUTO_DEPLOY=true (Settings → Variables).
+  2) Wait for build-push + roll jobs to finish
+  3) kubectl -n aoep rollout restart deployment/identity
+  4) Verify version + ops route (python3 — identity pods have no curl):
+       POD=$(kubectl -n aoep get pods -l app=identity -o jsonpath='{.items[0].metadata.name}')
+       kubectl -n aoep exec "$POD" -- python3 -c "
+         import urllib.request, json
+         print('version', json.loads(urllib.request.urlopen('http://127.0.0.1:8000/version').read()))
+         req = urllib.request.Request('http://127.0.0.1:8000/admin/ops/reseed-seeded',
+           data=b'', headers={'X-Admin-Secret': 'dev-admin-secret'}, method='POST')
+         try:
+           urllib.request.urlopen(req); print('ops-reseed: OK')
+         except urllib.error.HTTPError as e:
+           print('ops-reseed:', e.code)
+       "
+  5) ./scripts/k8s_ops_reseed_identity.sh   (expect 200, not 404)
+  6) Retry browser: qa-pro@salareen.com / QaTest123
+
+After deploying a newer identity image (0.3.91+), you can also reseed over HTTP:
+
+  curl -s -X POST http://<host>/identity/admin/ops/reseed-seeded \
+    -H "X-Admin-Secret: dev-admin-secret"
+
+Do NOT use the browser "admin unlock" password as Authorization: Bearer — that
+is a UI-only gate. Get a real session JWT via login (starts with "eyJ") OR use
+X-Admin-Secret as above.
+
+Verify the identity build exposes the route:
+  curl -s http://<host>/identity/version
+  curl -s http://<host>/identity/__meta | grep reseed
+
+Then rollout restart if you changed the Secret:
+  kubectl -n aoep rollout restart deployment/identity
+  kubectl -n aoep rollout status deployment/identity
+
+Check secret password:
+  kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
+
+Browser console 404 on /memory/* (flags, mascots, onboarding survey)
+----------------------------------------------------------------------
+Symptoms (DevTools → Network): repeated 404 for paths like
+  /memory/flags/access.homework_grader
+  /memory/mascots/resolve?locale=en
+  /memory/survey/onboarding?subject=...&tier=free
+These are separate from QA login 401 (identity). The web app calls memory on
+every page for feature flags, locale mascots, and the post-signup survey. A
+stale memory image (same problem as identity 0.3.82) returns 404 for routes
+or flag keys that exist only in newer builds.
+
+Fix:
+  1) GitHub → Actions → Deploy VKE (identity + web) → Run workflow
+     Leave "include_memory" checked (default). Needs VULTR registry + KUBE secrets.
+  2) Or run the full Deploy workflow (builds all services including memory).
+  3) Verify from a machine with kubectl:
+       chmod +x scripts/k8s_verify_memory.sh
+       ./scripts/k8s_verify_memory.sh
+     Expect OK 200 on version, access.homework_grader, mascots/resolve, survey.
+  4) Hard-refresh the browser (Ctrl+Shift+R). Nav and mascots degrade gracefully
+     when memory is down, but the network tab will still show 404 until deployed.
+
 Verify
 ------
   kubectl -n aoep get pods
@@ -175,6 +298,63 @@ Verify
   curl -I https://api.salareen.com/health
   curl -I https://salareen.com
   curl -I https://www.salareen.com
+
+Post-deploy smoke tests (new accounts + QA login + memory routes)
+-----------------------------------------------------------------
+After Deploy VKE or full Deploy finishes, run from a machine with kubectl:
+
+  chmod +x scripts/k8s_verify_qa_login.sh scripts/k8s_verify_memory.sh \
+           scripts/k8s_verify_signup_flow.sh
+  ./scripts/k8s_verify_qa_login.sh      # QA/admin HTTP login on every pod
+  ./scripts/k8s_verify_memory.sh        # flags, mascots, onboarding template
+  ./scripts/k8s_verify_signup_flow.sh   # signup → default student → save survey
+
+All three should exit 0 before you tell users the deploy is good.
+
+Learning profile survey (cloud persistence)
+---------------------------------------------
+The post-signup survey saves to identity on the student profile
+(onboarding_completed_at + onboarding_answers). It does NOT rely on browser
+localStorage — clearing site data will NOT re-prompt if already completed.
+Users can reopen or update it from Account → Learning profile.
+
+If "Save my learning profile" shows 404, the identity image is stale (missing
+POST /students/{id}/learning-profile). Deploy identity + web, then retry.
+
+Verify from your laptop:
+  ./scripts/k8s_verify_learning_profile.sh http://45.63.91.80
+  # expect: OK identity version=... exposes learning-profile routes
+
+Careers page (/jobs) shows raw JSON instead of HTML
+---------------------------------------------------
+The public Careers UI is served by the web (Next.js) app at /jobs. The jobs API
+lives at /curriculum/jobs (aoep-apis rewrite). If /jobs returns curriculum JSON,
+the aoep Ingress still routes /jobs to the curriculum service — apply the VKE
+ingress patch:
+
+  kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+
+Verify:
+  BASE_URL=http://45.63.91.80 bash scripts/k8s_verify_jobs_page.sh
+  # expect: OK /jobs returns HTML (Careers page)
+  #         OK /curriculum/jobs returns JSON job list
+
+Apply ingress (www/salareen.com /identity routing):
+  kubectl apply -f infra/k8s-vke/ingress-vke.yaml
+
+After deploy, survey saves onboarding_completed_at to identity (one-time; won't
+re-prompt). Web hides the auto-prompt if API is missing (no infinite loop).
+
+Ingress apply errors (duplicate host "_")
+-----------------------------------------
+If `kubectl apply -k infra/k8s-vke` fails with nginx admission webhook errors
+like "host _ and path /orchestrator is already defined", the VKE overlay was
+defining the same bare-IP routes twice (aoep + aoep-apis AND aoep-origin-*).
+Pull the latest main: ingress-vke.yaml deletes aoep-origin-web / aoep-origin-apis
+for VKE. If stale origin Ingresses already exist in the cluster, remove them:
+  kubectl -n aoep delete ingress aoep-origin-web aoep-origin-apis --ignore-not-found
+Then re-apply:
+  kubectl -n aoep apply -k infra/k8s-vke
 
 Operational notes
 -----------------

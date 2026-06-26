@@ -1,0 +1,68 @@
+{
+  "course_id": "ai-product-engineering",
+  "title": "AI Product Engineering",
+  "level": "Level 6 Degree Apprenticeship",
+  "role": "AI Product Engineer",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "How AI products differ from deterministic software: probabilistic behaviour and designing for uncertainty.",
+    "K2": "Foundation models as building blocks accessed via APIs, including their capabilities, limits and cost.",
+    "K3": "Prompt engineering and structured output, treating prompts as versioned, tested code.",
+    "K4": "Retrieval-augmented generation to ground features in your data.",
+    "K5": "Building agents with tool use and appropriate guardrails.",
+    "K6": "Fine-tuning and model adaptation trade-offs.",
+    "K7": "Evaluating AI features against realistic test sets for quality and safety.",
+    "K8": "Productionising AI (LLMOps): versioning, cost, latency, fallbacks and monitoring.",
+    "K9": "Designing AI UX for imperfection: sources, correction and human control.",
+    "K10": "Responsible AI and safety: hallucination, bias, privacy and prompt injection.",
+    "K11": "Product thinking and measuring value.",
+    "K12": "Software engineering foundations applied to AI features."
+  },
+  "skills": {
+    "S1": "Design AI features that handle variability and uncertainty.",
+    "S2": "Select and integrate foundation models for a feature.",
+    "S3": "Engineer reliable prompts with structured output.",
+    "S4": "Implement retrieval to ground features in data.",
+    "S5": "Build agents with bounded tools and guardrails.",
+    "S6": "Adapt or fine-tune models when justified.",
+    "S7": "Build evaluation sets and score features rigorously.",
+    "S8": "Operate AI features with LLMOps discipline.",
+    "S9": "Design AI UX that surfaces sources and enables correction.",
+    "S10": "Build safeguards against AI-specific risks.",
+    "S11": "Start from a user problem and measure value.",
+    "S12": "Apply software engineering practices to AI feature delivery."
+  },
+  "behaviours": {
+    "B1": "Innovates with emerging AI through self-directed learning.",
+    "B2": "Takes responsibility for feature reliability and safety.",
+    "B3": "Collaborates across product, design and engineering.",
+    "B4": "Acts with integrity on AI ethics, safety and privacy.",
+    "B5": "Operates effectively amid technical complexity and uncertainty."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Design AI-powered features for real user problems.",
+      "ksbs": ["K1", "K11", "S1", "S11", "B1", "B3"]
+    },
+    "Duty 2": {
+      "statement": "Build features on foundation models with prompts and retrieval.",
+      "ksbs": ["K2", "K3", "K4", "S2", "S3", "S4", "B5"]
+    },
+    "Duty 3": {
+      "statement": "Add agents and model adaptation where justified.",
+      "ksbs": ["K5", "K6", "S5", "S6", "B5"]
+    },
+    "Duty 4": {
+      "statement": "Evaluate AI features rigorously.",
+      "ksbs": ["K7", "S7", "B2"]
+    },
+    "Duty 5": {
+      "statement": "Productionise and operate AI features reliably.",
+      "ksbs": ["K8", "K12", "S8", "S12", "B2"]
+    },
+    "Duty 6": {
+      "statement": "Ship responsibly with safe, well-designed UX.",
+      "ksbs": ["K9", "K10", "S9", "S10", "B4"]
+    }
+  }
+}

@@ -4,57 +4,80 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppBadges from "./components/AppBadges";
+import AdSlot from "./components/AdSlot";
 import { Rail } from "./components/CourseRail";
+import MascotImage from "./components/MascotImage";
 import {
+  AUTH_EVENT,
   getHomeFeed,
-  getPreview,
+  getMe,
   getToken,
-  setPreview as persistPreview,
   type HomeRail,
 } from "./lib/api";
 import { friendlyError } from "./lib/errors";
 import { useT } from "./lib/i18n";
 
 export default function HomePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [email, setEmail] = useState("");
+  const [tier, setTier] = useState("free");
 
   useEffect(() => {
-    setLoggedIn(Boolean(getToken()));
-    setPreview(getPreview());
-    setAuthResolved(true);
-    getHomeFeed().then(setRails).catch((e) => setError(String(e)));
-  }, []);
-
-  function startPreview() {
-    persistPreview(true);   // shared flag so the nav unlocks too
-    setPreview(true);
-  }
+    const sync = () => {
+      const authed = Boolean(getToken());
+      setLoggedIn(authed);
+      setAuthResolved(true);
+      if (authed) {
+        getHomeFeed(false, locale).then(setRails).catch((e) => setError(String(e)));
+        getMe().then((m) => setTier(m.tier || "free")).catch(() => setTier("free"));
+      } else {
+        setRails(null);
+        setError("");
+      }
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [locale]);
 
   function onGetStarted(e: React.FormEvent) {
     e.preventDefault();
     router.push(`/login?mode=signup${email ? `&email=${encodeURIComponent(email)}` : ""}`);
   }
 
-  // Netflix-style landing for signed-out visitors: a full-page live wallpaper
-  // with glowing text, "Get Started" / "Sign In", and a Preview button that
-  // reveals the catalog so they can see what's inside before creating an account.
-  if (authResolved && !loggedIn && !preview) {
+  if (!authResolved) {
     return (
-      <main className="landing-hero" style={{
-        backgroundImage:
-          "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
-      }}>
+      <main className="landing-hero">
+        <p className="muted" style={{ textAlign: "center", paddingTop: 80 }}>{t("home.loading")}</p>
+      </main>
+    );
+  }
+
+  // Signed-out visitors see the marketing landing only — no catalog rails.
+  if (!loggedIn) {
+    return (
+      <main className="landing-hero">
+        <div
+          className="landing-hero-bg site-bg-layer site-bg-kenburns site-bg-motion-2"
+          style={{
+            backgroundImage:
+              "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+          aria-hidden
+        />
         <div className="landing-inner">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/bayon-mark.webp" alt="Salareen mascot" className="landing-mascot"
-               width={160} height={328} />
+          <MascotImage width={160} className="landing-mascot" alt="Salareen mascot" />
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title glow" style={{ fontSize: 52, maxWidth: "20ch", margin: "14px auto 12px" }}>
             {t("hero.title")}
@@ -72,12 +95,7 @@ export default function HomePage() {
           </form>
           <div className="hero-cta" style={{ justifyContent: "center", marginTop: 18 }}>
             <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("landing.signIn")}</button></Link>
-            <button className="theme-btn" onClick={startPreview}
-                    style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,.6)" }}>
-              ▶ {t("landing.preview")}
-            </button>
           </div>
-          {/* Get the app: App Store + Google Play badges right on the front page. */}
           <p className="glow" style={{ marginTop: 22, marginBottom: 0, opacity: 0.95 }}>
             {t("hero.getAppTitle")}
           </p>
@@ -97,28 +115,18 @@ export default function HomePage() {
       }}>
         <div className="theme-hero-inner"
              style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
-          {/* Salareen brand mascot: the Bayon Buddy cradling the gold
-              S-medallion with the Bodhi leaf. Transparent webp so the
-              character floats over the wisdom wallpaper. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/bayon-mark.webp"
-               alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
-               width={200} height={409}
-               style={{ flex: "0 0 auto", width: 200, height: "auto",
-                        filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }} />
+          <MascotImage
+            width={200}
+            alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark"
+            style={{ flex: "0 0 auto", width: 200, height: "auto",
+                      filter: "drop-shadow(0 16px 28px rgba(2,6,23,.55))" }}
+          />
           <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <span className="theme-badge">{t("hero.kicker")}</span>
           <h1 className="theme-title glow" style={{ marginTop: 14 }}>
             {t("hero.title")}
           </h1>
-          <p className="theme-subtitle glow">
-            {loggedIn ? t("hero.subLoggedIn") : t("hero.subLoggedOut")}
-          </p>
-          {!loggedIn && preview && (
-            <p className="muted" style={{ marginTop: 8 }}>
-              <Link href="/login">{t("landing.signIn")}</Link>
-            </p>
-          )}
+          <p className="theme-subtitle glow">{t("hero.subLoggedIn")}</p>
           <div className="hero-cta">
             <Link href="/class"><button className="theme-btn">{t("hero.trySample")}</button></Link>
             <Link href="/browse"><button className="theme-btn" style={{ background: "#e50914", color: "#fff" }}>{t("hero.browseAll")}</button></Link>
@@ -127,11 +135,8 @@ export default function HomePage() {
             <Link href="/jobs"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.careers")}</button></Link>
             <Link href="/kids"><button className="theme-btn" style={{ background: "#f59e0b" }}>{t("hero.kids")}</button></Link>
             <Link href="/corporate"><button className="theme-btn" style={{ background: "#0ea5e9", color: "#fff" }}>{t("hero.corporate")}</button></Link>
-            {loggedIn
-              ? <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
-              : <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("nav.signin")}</button></Link>}
+            <Link href="/recommended"><button className="theme-btn" style={{ background: "#16a34a", color: "#fff" }}>{t("hero.forYou")}</button></Link>
           </div>
-          {/* Get the app: store badges right in the hero. */}
           <p className="muted" style={{ marginTop: 16, marginBottom: 0 }}>{t("hero.getAppTitle")}</p>
           <AppBadges />
           </div>
@@ -139,6 +144,7 @@ export default function HomePage() {
       </section>
 
       <div className="feed">
+        <AdSlot slotId="home-banner" tier={tier} />
         {error && (
           <div className="card" style={{ borderColor: "#ff6b6b" }}>
             <strong>{t("home.error")}</strong>

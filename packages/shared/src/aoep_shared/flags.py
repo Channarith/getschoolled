@@ -54,6 +54,10 @@ FLAG_CATALOG: List[FlagSpec] = [
     FlagSpec("engagement.post_class_survey", FlagType.BOOL, False, "engagement",
              "Show an optional one-time survey at the end of a class to gauge how "
              "good the course was; results feed course improvement + data mining."),
+    FlagSpec("engagement.onboarding_survey", FlagType.BOOL, True, "engagement",
+             "Show a one-time learning-behavior survey after signup to measure "
+             "modalities, pace, structure, and accessibility needs; adapts courses "
+             "and assigns learner categories."),
     FlagSpec("engagement.nps_survey", FlagType.BOOL, False, "engagement",
              "Periodic Net Promoter Score survey for the platform."),
     FlagSpec("engagement.in_class_polls", FlagType.BOOL, False, "engagement",
@@ -83,6 +87,8 @@ FLAG_CATALOG: List[FlagSpec] = [
              options=("guest", "standard", "power", "educator", "admin")),
     FlagSpec("access.educator_console", FlagType.BOOL, True, "access",
              "Expose the educator/HIL teaching console."),
+    FlagSpec("access.homework_grader", FlagType.BOOL, False, "access",
+             "Expose the AI homework grader in navigation (operator-only tool)."),
     FlagSpec("access.parental_controls", FlagType.BOOL, True, "access",
              "Parental controls + content maturity gating for minors."),
     FlagSpec("access.beta_program", FlagType.PERCENT, 0, "access",
@@ -122,6 +128,15 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Personalized Netflix-style browse carousels rollout."),
     FlagSpec("ux.new_player", FlagType.PERCENT, 0, "ux",
              "Rollout of the redesigned video player."),
+    FlagSpec("ux.locale_mascots", FlagType.BOOL, True, "ux",
+             "Show locale-specific Bayon Buddy mascot variants for each of the "
+             "27 supported languages (fallback to default when off)."),
+    FlagSpec("ux.locale_mascots_preview_locale", FlagType.STRING, "auto", "ux",
+             "Admin: force a mascot locale for testing (auto = follow user language).",
+             admin_only=True,
+             options=("auto", "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru",
+                      "uk", "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja",
+                      "ko", "vi", "th", "id", "sw", "el", "cs", "km")),
 
     # --- operational kill-switches ------------------------------------------- #
     FlagSpec("ops.maintenance_mode", FlagType.BOOL, False, "ops",

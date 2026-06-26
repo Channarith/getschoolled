@@ -112,6 +112,37 @@ shared infra" (auth, rate limiting, telemetry, caching, service scaffolding) and
   - Rate limiting: 429 + Retry-After under abuse.
 
 ============================================================================
+4e. QA TEST ACCOUNTS (seeded at identity startup)
+============================================================================
+Three fixed personas for manual GUI smoke and release QA. Enabled by default
+(SEED_QA_ACCOUNTS=1); set SEED_QA_ACCOUNTS=0 before a public production cut if
+you do not want them. Shared password from QA_ACCOUNTS_PASSWORD (default
+QaTest123). Log in with the email OR the short username alias.
+
+  Email                      Username   Tier   Notes
+  -------------------------  ---------  -----  --------------------------------
+  qa-learner@salareen.com    qa1        Free   Standard learner smoke tests
+  qa-parent@salareen.com     qa2        Free   Has child profile "QA Kid"
+  qa-pro@salareen.com        qa3        Pro    Entitlement / premium smoke tests
+
+Operator admin (separate): admin@salareen.com or "admin" / DEFAULT_ADMIN_PASSWORD
+(default 88888888). Not a QA persona — use only for operator/admin surfaces.
+
+If QA login returns 401 but admin works: QA accounts may exist only on one
+identity pod (Redis persist failed at seed time) or QA_ACCOUNTS_PASSWORD in the
+cluster Secret differs from QaTest123. Fix:
+
+  1) Confirm secret: kubectl -n aoep get secret aoep-secrets -o jsonpath='{.data.QA_ACCOUNTS_PASSWORD}' | base64 -d; echo
+  2) Restart identity: kubectl -n aoep rollout restart deployment/identity
+  3) Or log in as admin, then POST /identity/admin/accounts/reseed-seeded (Bearer
+     admin token) to force re-sync + Redis persist.
+  4) Verify QA in admin account list: GET /identity/admin/accounts (admin token).
+
+QA passwords are re-synced to QA_ACCOUNTS_PASSWORD on every identity pod start.
+Verify routing with `curl -s http://<host>/identity/health` (should be 200, not 404).
+Try email OR username alias (qa1 / qa2 / qa3).
+
+============================================================================
 5. MANUAL GUI SMOKE MATRIX (per release, per sub-app)
 ============================================================================
 Run against a deployed/built stack; capture a screenshot/clip per row.
@@ -160,3 +191,16 @@ Immediate next steps:
   python3 scripts/check_api_docs.py      # API docs coverage (167/167)
   cd apps/web && pnpm run typecheck && pnpm run lint && pnpm run build
   cd apps/mobile && pnpm run typecheck && pnpm run build
+
+============================================================================
+8. VERSION BUMP ON EVERY MERGE TO MAIN
+============================================================================
+Every pull request that merges into main MUST advance VERSION before merge.
+This is enforced in CI (scripts/check_pr_version_bump.sh).
+
+  python3 scripts/bump_pr_version.py     # patch bump (minor if >8 pending entries)
+  python3 scripts/bump_pr_version.py --check   # dry run
+
+Updates: VERSION, build-info.txt, apps/web/app/lib/version.ts, apps/web/package.json.
+After merge, the Auto Push Build workflow refreshes build-info.txt only (no second
+bump). The Release workflow creates a GitHub Release tag when VERSION is new.

@@ -1,0 +1,180 @@
+LESSON: AI and Machine Learning Fellowship
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: AI
+LEVEL: Level 6 Apprenticeship
+ROLE: Machine Learning Engineer
+DELIVERY: 16 month delivery, plus 3 month assessment
+FIT: Data science teams.
+SUMMARY: Turn raw data into production machine learning, and weave ML responsibly into how your organisation works.
+
+SLIDE 1 | What This Course Is About
+This fellowship is for practitioners who will build and ship machine learning, not
+just talk about it. It covers the full lifecycle: framing a problem, preparing
+data, training and evaluating models, deploying them, and keeping them healthy in
+production. It assumes comfort with Python and basic statistics, and it treats
+machine learning as an engineering discipline where reliability, measurement, and
+responsibility matter as much as model accuracy.
+NARRATION: This fellowship takes you through the full ML lifecycle, from framing a problem to running it in production.
+
+SLIDE 2 | What Machine Learning Really Is
+Machine learning is the practice of building systems that learn patterns from
+data to make predictions or decisions, instead of following hand-written rules.
+The shift in mindset is important: you do not program the answer, you provide
+examples and an objective, and the algorithm finds a function that fits. This is
+powerful when rules are too complex to write by hand, but it also means the model
+is only ever as good and as fair as the data and objective you give it.
+NARRATION: In ML you supply examples and an objective; the algorithm learns a function instead of being told the rules.
+
+SLIDE 3 | Supervised, Unsupervised, and Reinforcement Learning
+There are three broad families. Supervised learning learns from labeled examples
+to predict a target, such as classifying email as spam or predicting a price.
+Unsupervised learning finds structure in unlabeled data, such as clustering
+customers into segments. Reinforcement learning learns by trial and error through
+rewards, as in game-playing or robotics. Most business value today comes from
+supervised learning because labeled outcomes are common.
+NARRATION: Supervised learning predicts from labels, unsupervised finds structure, reinforcement learns from rewards.
+
+SLIDE 4 | Framing the Problem
+The most expensive mistakes happen before any model is trained. Frame the problem
+as a precise prediction tied to a decision and a measurable business outcome:
+what exactly are we predicting, for whom, when, and what action follows. Decide
+how you will know it worked. A technically excellent model that predicts the
+wrong thing, or one no one acts on, is wasted work. Good framing aligns the model
+with value.
+NARRATION: Frame ML as a precise prediction tied to a decision and a measurable outcome before training anything.
+
+SLIDE 5 | Data Preparation and Feature Engineering
+Real-world data is messy, and practitioners spend most of their time here.
+Cleaning handles missing values, outliers, and inconsistent formats. Feature
+engineering transforms raw fields into inputs a model can learn from, such as
+turning a timestamp into day-of-week or encoding categories as numbers. The
+features you craft often matter more than the choice of algorithm, because a
+model can only learn from the signal you expose to it.
+NARRATION: Most ML work is data prep and feature engineering; good features matter more than the algorithm choice.
+
+SLIDE 6 | Training, Validation, and Test Splits
+To estimate how a model will perform on new data, you must hold some data back.
+Train on one portion, tune choices on a separate validation set, and report final
+performance on a test set the model has never seen. If you make decisions using
+the test set, it stops being an honest estimate. This discipline is what
+separates a real performance claim from wishful thinking.
+NARRATION: Split data into train, validation, and test sets; keep the test set untouched until the final estimate.
+
+SLIDE 7 | Overfitting and Underfitting
+A model underfits when it is too simple to capture the pattern, doing poorly even
+on training data. It overfits when it memorizes the training data, including its
+noise, and then fails on new data. The goal is generalization: good performance
+on data it has not seen. The gap between training and validation performance is
+your main warning sign of overfitting.
+NARRATION: Underfitting is too simple, overfitting is memorizing noise; aim for generalization to unseen data.
+
+SLIDE 8 | The Bias-Variance Tradeoff
+Generalization error has two competing sources. Bias is error from overly simple
+assumptions that miss the real pattern; variance is error from being too
+sensitive to the particular training sample. Simpler models tend to have high
+bias and low variance, complex models the reverse. Good modeling finds the sweet
+spot, often using techniques like regularization to control complexity.
+NARRATION: Bias is error from oversimplifying, variance from oversensitivity; tune complexity to balance them.
+
+SLIDE 9 | Common Algorithms and When to Use Them
+Start simple. Linear and logistic regression are fast, interpretable baselines.
+Decision trees capture nonlinear rules but overfit alone, which is why ensembles
+like random forests and gradient boosting, which combine many trees, are
+workhorses for tabular data. Neural networks excel on unstructured data like
+images, audio, and text. A strong simple baseline first tells you whether
+complexity is even worth it.
+NARRATION: Begin with simple baselines; ensembles dominate tabular data and neural nets shine on unstructured data.
+
+SLIDE 10 | Evaluating Models Honestly
+Accuracy alone is misleading, especially with imbalanced data: a model that
+always predicts the majority class can look accurate while being useless. Use
+precision and recall to understand the kinds of mistakes, the F1 score to balance
+them, and metrics like ROC AUC for ranking quality. Choose the metric that
+matches the cost of errors in your problem, because a false positive and a false
+negative rarely cost the same.
+NARRATION: Go beyond accuracy; precision, recall, and F1 reveal error types, and the right metric matches error cost.
+
+SLIDE 11 | Deep Learning and Neural Networks
+Neural networks stack layers of simple units that transform inputs into
+increasingly abstract representations, learning features automatically rather
+than by hand. Deep learning powers modern image, speech, and language systems.
+The cost is that networks need large data and compute, are harder to interpret,
+and are easier to fool, so they are a tool for the right problem, not a default.
+NARRATION: Neural networks learn features automatically and power modern AI, but need lots of data and are hard to interpret.
+
+SLIDE 12 | Large Language Models and Foundation Models
+Foundation models, including large language models, are trained on vast data and
+adapted to many tasks. Instead of training from scratch, teams now often fine-tune
+or prompt a pretrained model, and ground it in their own data through retrieval.
+This shifts much ML work from building models to adapting, evaluating, and safely
+integrating them. Their fluency can mask errors, so evaluation remains essential.
+NARRATION: Foundation models are pretrained and adapted by fine-tuning, prompting, or retrieval rather than built from scratch.
+
+SLIDE 13 | From Notebook to Production: MLOps
+A model in a notebook delivers no value until it runs reliably where decisions
+happen. MLOps applies software engineering to ML: version your data, code, and
+models; automate training and deployment pipelines; and serve predictions through
+monitored, testable services. Reproducibility matters: you should be able to
+rebuild any model from recorded data and code. Most ML projects fail in this gap,
+not in the math.
+NARRATION: MLOps brings versioning, pipelines, and reliable serving so models actually run where decisions are made.
+
+SLIDE 14 | Monitoring and Model Drift
+Models decay because the world changes. Data drift is when incoming data differs
+from training data; concept drift is when the relationship you learned no longer
+holds. A model that was accurate at launch can quietly degrade. Monitor input
+distributions and live performance, set alerts, and plan to retrain. A deployed
+model is a living system that needs ongoing care, not a finished artifact.
+NARRATION: Models drift as the world changes; monitor inputs and performance, and retrain before they quietly degrade.
+
+SLIDE 15 | Responsible AI: Fairness and Bias
+Because models learn from historical data, they can reproduce and amplify human
+bias, performing worse for some groups or encoding past discrimination. Test
+performance across subgroups, not just overall, and decide what fairness means
+for your context. High-stakes decisions about people, like lending or hiring,
+demand extra scrutiny, human oversight, and the ability to challenge an outcome.
+NARRATION: Models can amplify bias from historical data; test across subgroups and keep humans in high-stakes decisions.
+
+SLIDE 16 | Interpretability and Trust
+Stakeholders rarely trust a black box, and regulations increasingly require
+explanations. Use interpretable models where you can, and explanation techniques
+that show which features drove a prediction where you cannot. Being able to say
+why a model made a decision supports debugging, builds trust, and is often a
+legal necessity. Interpretability is part of the engineering, not an afterthought.
+NARRATION: Explain why a model predicts what it does; interpretability builds trust and is often legally required.
+
+SLIDE 17 | Privacy, Security, and Governance
+ML systems concentrate sensitive data and create new risks. Follow data
+protection rules, minimize and protect the data you use, and document datasets and
+models so their limits are known. Models can be attacked through poisoned data or
+crafted inputs, and can leak information about their training data. Treat data
+governance and security as core requirements, agreed with the business, not as
+optional extras.
+NARRATION: Protect and document data, guard against attacks and leakage, and treat governance as a core requirement.
+
+SLIDE 18 | Course Summary and Next Steps
+You now have the full lifecycle: frame the problem around a decision, prepare data
+and craft features, train and evaluate honestly, deploy with MLOps, monitor for
+drift, and embed fairness, interpretability, and governance throughout. The
+strongest ML engineers pair technical depth with judgment about value and risk.
+Pick a real problem, build the simplest baseline that could work, and iterate
+toward production.
+NARRATION: Master the lifecycle and pair technical depth with judgment; start simple and iterate toward production.
+
+FACT: Machine learning builds systems that learn patterns from data to make predictions, instead of following hand-written rules.
+FACT: Supervised learning predicts a target from labeled examples, unsupervised learning finds structure in unlabeled data, and reinforcement learning learns from rewards through trial and error.
+FACT: Framing an ML problem as a precise prediction tied to a decision and a measurable outcome should happen before any model is trained.
+FACT: Feature engineering transforms raw data into model inputs, and good features often matter more than the choice of algorithm.
+FACT: Data should be split into training, validation, and test sets, and the test set must stay untouched until the final performance estimate.
+FACT: Underfitting is when a model is too simple to capture the pattern, while overfitting is when it memorizes training data including noise and fails on new data.
+FACT: The bias-variance tradeoff balances error from oversimplifying (bias) against error from oversensitivity to the training sample (variance).
+FACT: Ensemble methods like random forests and gradient boosting combine many decision trees and are strong on tabular data.
+FACT: Accuracy can mislead on imbalanced data, so precision, recall, F1, and ROC AUC are used, chosen to match the cost of errors.
+FACT: Neural networks learn features automatically and power modern image, speech, and language systems but need large data and are hard to interpret.
+FACT: Foundation models and large language models are pretrained on vast data and adapted by fine-tuning, prompting, or retrieval rather than trained from scratch.
+FACT: MLOps applies software engineering practices such as versioning, automated pipelines, and monitored serving so models run reliably in production.
+FACT: Data drift is when incoming data differs from training data and concept drift is when the learned relationship no longer holds, both causing deployed models to degrade.
+FACT: Machine learning models can reproduce and amplify bias from historical data, so performance should be tested across subgroups, not just overall.
+FACT: Interpretability, explaining which features drove a prediction, supports debugging, builds trust, and is often a legal requirement.
+FACT: ML systems require data governance, privacy protection, and security against attacks such as data poisoning and information leakage.

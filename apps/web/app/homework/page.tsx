@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { gradeHomework, isAdminUnlocked, unlockAdmin, type HomeworkGrade } from "../lib/api";
+import Link from "next/link";
+import { getFlag, gradeHomework, type HomeworkGrade } from "../lib/api";
+import { useT } from "../lib/i18n";
 
 export default function HomeworkPage() {
-  const [admin, setAdmin] = useState(false);
-  const [adminReady, setAdminReady] = useState(false);
-  const [pw, setPw] = useState("");
-  const [pwError, setPwError] = useState("");
-  useEffect(() => {
-    setAdmin(isAdminUnlocked());
-    setAdminReady(true);
-  }, []);
+  const { t } = useT();
+  const [flagReady, setFlagReady] = useState(false);
+  const [homeworkOn, setHomeworkOn] = useState(false);
 
   const [subject, setSubject] = useState("biology");
   const [submission, setSubmission] = useState(
@@ -22,11 +19,17 @@ export default function HomeworkPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    getFlag("access.homework_grader")
+      .then((v) => setHomeworkOn(Boolean(v)))
+      .catch(() => setHomeworkOn(false))
+      .finally(() => setFlagReady(true));
+  }, []);
+
   async function onGrade() {
     setError("");
     setBusy(true);
     try {
-      // Minimal demo assignment (two short-answer questions).
       const assignment = {
         title: "Homework",
         subject,
@@ -44,110 +47,66 @@ export default function HomeworkPage() {
     }
   }
 
-  function onUnlock(e: React.FormEvent) {
-    e.preventDefault();
-    if (unlockAdmin(pw)) {
-      setAdmin(true);
-      setPwError("");
-    } else {
-      setPwError("Incorrect admin password.");
-    }
-    setPw("");
-  }
-
-  // Operator-only tool: gate behind the admin password (default 88888888,
-  // configurable via NEXT_PUBLIC_ADMIN_UNLOCK). Server endpoints are already
-  // internal-only; this hides the UI from learners/preview/paying customers.
-  if (adminReady && !admin) {
+  if (flagReady && !homeworkOn) {
     return (
-      <main className="container" style={{ maxWidth: 480 }}>
-        <h1>🔒 Admin only</h1>
-        <p className="muted">
-          The Homework grader is an operator tool, not a learner feature. Enter the
-          admin password to access it.
-        </p>
-        <form onSubmit={onUnlock} className="card">
-          <label style={{ display: "block", marginBottom: 8 }}>Admin password</label>
-          <input
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="••••••••"
-            autoFocus
-            style={{ width: "100%", padding: 10 }}
-          />
-          {pwError && <div className="muted" style={{ color: "#ff6b6b", marginTop: 8 }}>{pwError}</div>}
-          <div className="row" style={{ marginTop: 12 }}>
-            <button type="submit" disabled={!pw}>Unlock</button>
-          </div>
-        </form>
+      <main className="container" style={{ maxWidth: 520 }}>
+        <h1>{t("homework.title")}</h1>
+        <div className="card">
+          <p className="muted">
+            {t("homework.disabledBefore")}{" "}
+            <Link href="/admin">{t("account.admin")}</Link>{" "}
+            {t("homework.disabledAfter")}
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
     <main className="container">
-      <h1>Homework grader</h1>
-      <p className="muted">
-        Paste (or scan) a submission. We check correctness against our catalog and
-        trusted sources, flag possible AI authorship, and route disputes to a human.
-      </p>
+      <h1>{t("homework.title")}</h1>
+      <p className="muted">{t("homework.intro")}</p>
 
       <div className="card">
-        <label>Subject&nbsp;
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <label style={{ display: "block", marginBottom: 8 }}>
+          {t("homework.subject")}
+          <input value={subject} onChange={(e) => setSubject(e.target.value)}
+            style={{ width: "100%", padding: 8 }} />
         </label>
-        <label style={{ marginLeft: 12 }}>
+        <label style={{ display: "block", marginBottom: 8 }}>
+          {t("homework.submission")}
+          <textarea value={submission} onChange={(e) => setSubmission(e.target.value)}
+            rows={8} style={{ width: "100%", padding: 8 }} />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <input type="checkbox" checked={handwritten} onChange={(e) => setHandwritten(e.target.checked)} />
-          &nbsp;handwritten
+          {t("homework.handwritten")}
         </label>
-        <textarea
-          value={submission}
-          onChange={(e) => setSubmission(e.target.value)}
-          rows={6}
-          style={{ width: "100%", marginTop: 8 }}
-        />
-        <div className="row" style={{ marginTop: 8 }}>
-          <button onClick={onGrade} disabled={busy || !submission.trim()}>
-            {busy ? "Grading…" : "Grade homework"}
-          </button>
-        </div>
+        <button onClick={onGrade} disabled={busy}>
+          {busy ? t("homework.grading") : t("homework.gradeBtn")}
+        </button>
       </div>
 
-      {error && (
-        <div className="card" style={{ borderColor: "#ff6b6b" }}>
-          <div className="muted">{error}</div>
-        </div>
-      )}
+      {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
       {grade && (
         <div className="card">
-          <h3>
-            Score: {grade.score} / {grade.max_score} ({grade.percentage}%)
-          </h3>
-          <div className="muted">
-            Authorship: {grade.authorship_label ?? "n/a"}
-            {grade.validity_flags.length > 0 && (
-              <> · flags: {grade.validity_flags.join(", ")}</>
-            )}
-          </div>
-          <ul>
-            {grade.items.map((it, i) => (
-              <li key={i}>
-                <strong>{it.type}</strong>: score {it.score}{" "}
-                {it.correct === true ? "✓" : it.correct === false ? "✗" : "(needs review)"}
-                {it.citations.length > 0 && (
-                  <div className="muted">
-                    sources:{" "}
-                    {it.citations
-                      .map((c) => c.url || c.source || "")
-                      .filter(Boolean)
-                      .join(", ")}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+          <h3>{t("homework.result")}</h3>
+          <p>{t("homework.score", {
+            pct: Math.round(grade.percentage * 100) / 100,
+            score: grade.score,
+            max: grade.max_score,
+          })}</p>
+          {grade.items.length > 0 && (
+            <ul>
+              {grade.items.map((it, i) => (
+                <li key={i} className="muted">{it.rationale}</li>
+              ))}
+            </ul>
+          )}
+          {grade.validity_flags.length > 0 && (
+            <p className="muted">{t("homework.flags")} {grade.validity_flags.join(", ")}</p>
+          )}
         </div>
       )}
     </main>

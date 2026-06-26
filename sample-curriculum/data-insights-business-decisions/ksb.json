@@ -1,0 +1,68 @@
+{
+  "course_id": "data-insights-business-decisions",
+  "title": "Data & Insights for Business Decisions",
+  "level": "Level 3 Apprenticeship",
+  "role": "Data Technician",
+  "source": "Authored for the Salareen corporate catalog; structured to mirror the UK apprenticeship standard format.",
+  "knowledge": {
+    "K1": "How data supports better business decisions.",
+    "K2": "Types and sources of business data and basic data literacy.",
+    "K3": "How to gather and organise data in spreadsheets and simple databases.",
+    "K4": "Basic data cleaning and quality checks.",
+    "K5": "Summarising data with totals, averages and percentages.",
+    "K6": "Reading and choosing simple charts appropriately.",
+    "K7": "Spotting trends, comparisons and outliers.",
+    "K8": "Common pitfalls and misleading data presentations.",
+    "K9": "Turning a finding into a clear, actionable recommendation.",
+    "K10": "Data-protection basics and handling data responsibly.",
+    "K11": "How to present findings to non-technical colleagues.",
+    "K12": "Tools commonly used for everyday data work."
+  },
+  "skills": {
+    "S1": "Identify the decision a piece of analysis should support.",
+    "S2": "Collect and organise relevant data.",
+    "S3": "Clean and check data for basic quality issues.",
+    "S4": "Summarise data using simple calculations.",
+    "S5": "Create clear, appropriate charts.",
+    "S6": "Identify trends, comparisons and outliers.",
+    "S7": "Avoid and recognise misleading presentations.",
+    "S8": "Draft a clear recommendation from a finding.",
+    "S9": "Build a simple dashboard or report.",
+    "S10": "Handle data securely and follow policy.",
+    "S11": "Present results clearly to a non-technical audience.",
+    "S12": "Use everyday data tools effectively."
+  },
+  "behaviours": {
+    "B1": "Curious about what data can reveal.",
+    "B2": "Careful and accurate with data.",
+    "B3": "Communicates clearly and helpfully.",
+    "B4": "Acts responsibly with data and privacy.",
+    "B5": "Willing to learn new tools and methods."
+  },
+  "duties": {
+    "Duty 1": {
+      "statement": "Identify the decision and the data needed.",
+      "ksbs": ["K1", "K2", "S1", "B1"]
+    },
+    "Duty 2": {
+      "statement": "Gather, organise and clean business data.",
+      "ksbs": ["K3", "K4", "S2", "S3", "B2"]
+    },
+    "Duty 3": {
+      "statement": "Summarise and visualise data.",
+      "ksbs": ["K5", "K6", "S4", "S5", "B5"]
+    },
+    "Duty 4": {
+      "statement": "Interpret data and avoid pitfalls.",
+      "ksbs": ["K7", "K8", "S6", "S7", "B2"]
+    },
+    "Duty 5": {
+      "statement": "Recommend actions and report results.",
+      "ksbs": ["K9", "K11", "S8", "S9", "S11", "B3"]
+    },
+    "Duty 6": {
+      "statement": "Handle data responsibly using appropriate tools.",
+      "ksbs": ["K10", "K12", "S10", "S12", "B4", "B5"]
+    }
+  }
+}

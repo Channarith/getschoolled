@@ -1,21 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { recordConsent } from "../lib/api";
+import { useT } from "../lib/i18n";
 
-const SCOPES: { id: string; label: string }[] = [
-  { id: "face_recognition", label: "Face recognition (recognize me across classes)" },
-  { id: "attention_tracking", label: "Attention/engagement tracking" },
-  { id: "recording", label: "Session recording" },
-  { id: "cross_class_memory", label: "Cross-class memory of my progress" },
-];
+const SCOPE_KEYS = [
+  "face", "attention", "recording", "memory",
+] as const;
 
 export default function ConsentPage() {
+  const { t } = useT();
   const [granted, setGranted] = useState<Record<string, boolean>>({});
   const [region, setRegion] = useState("us");
   const [written, setWritten] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+
+  const scopes = SCOPE_KEYS.map((id) => ({
+    id: id === "face" ? "face_recognition"
+      : id === "attention" ? "attention_tracking"
+      : id === "recording" ? "recording"
+      : "cross_class_memory",
+    labelKey: `consent.scope.${id}` as const,
+  }));
 
   function toggle(id: string) {
     setGranted((g) => ({ ...g, [id]: !g[id] }));
@@ -26,8 +34,7 @@ export default function ConsentPage() {
     setError("");
     setStatus("");
     try {
-      // Persist each scope decision to the memory consent API.
-      for (const s of SCOPES) {
+      for (const s of scopes) {
         await recordConsent({
           student_id: "current-user",
           scope: s.id,
@@ -36,11 +43,11 @@ export default function ConsentPage() {
           written,
         });
       }
-      const enabled = SCOPES.filter((s) => granted[s.id]).map((s) => s.label);
+      const enabled = scopes.filter((s) => granted[s.id]).map((s) => t(s.labelKey));
       setStatus(
         enabled.length
-          ? `Saved. Enabled: ${enabled.join("; ")}.`
-          : "Saved. All optional vision/biometric features remain off."
+          ? t("consent.savedEnabled", { list: enabled.join("; ") })
+          : t("consent.savedOff")
       );
     } catch (e) {
       setError(String(e));
@@ -51,18 +58,16 @@ export default function ConsentPage() {
 
   return (
     <main className="container">
-      <h1>Biometric &amp; data consent</h1>
+      <h1>{t("consent.title")}</h1>
       <div className="card">
         <p>
-          These features are <strong>opt-in</strong>, with a name-only fallback.
-          Biometric data is processed by self-hosted vision models, never leaves
-          the configured boundary, is stored encrypted, and is deletable on
-          request. Your choices are recorded for audit and enforced by the
-          per-region compliance policy. See the <a href="/legal">Legal</a> page.
+          {t("consent.introBefore")}{" "}
+          <Link href="/legal">{t("consent.legalLink")}</Link>{" "}
+          {t("consent.introAfter")}
         </p>
 
         <label className="row" style={{ marginBottom: 8 }}>
-          Region&nbsp;
+          {t("legal.region")}&nbsp;
           <select value={region} onChange={(e) => setRegion(e.target.value)}>
             <option value="us">US (FERPA/COPPA)</option>
             <option value="us_il">US-IL (BIPA)</option>
@@ -71,29 +76,26 @@ export default function ConsentPage() {
           </select>
         </label>
 
-        {SCOPES.map((s) => (
+        {scopes.map((s) => (
           <label className="row" key={s.id} style={{ display: "block", margin: "4px 0" }}>
             <input
               type="checkbox"
               checked={Boolean(granted[s.id])}
               onChange={() => toggle(s.id)}
             />
-            &nbsp;<span>{s.label}</span>
+            &nbsp;<span>{t(s.labelKey)}</span>
           </label>
         ))}
 
         {ilNeedsWritten && (
           <label className="row" style={{ marginTop: 8 }}>
             <input type="checkbox" checked={written} onChange={(e) => setWritten(e.target.checked)} />
-            &nbsp;<span>
-              I provide written consent (required for biometrics in this region,
-              e.g. BIPA / GDPR).
-            </span>
+            &nbsp;<span>{t("consent.written")}</span>
           </label>
         )}
 
         <div className="row" style={{ marginTop: 12 }}>
-          <button onClick={onSave}>Save consent</button>
+          <button onClick={onSave}>{t("consent.save")}</button>
           {status && <span className="muted">{status}</span>}
         </div>
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}

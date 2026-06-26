@@ -251,3 +251,108 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
             f"{gc.platform}."
         ),
     }
+
+
+def google_meet_url(class_id: str) -> str:
+    """Deterministic placeholder Google Meet join link for a scheduled class."""
+    import hashlib
+
+    h = hashlib.sha256(class_id.encode()).hexdigest()
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    def part(start: int, length: int) -> str:
+        return "".join(alphabet[int(h[i : i + 2], 16) % 26] for i in range(start, start + length * 2, 2))
+
+    return f"https://meet.google.com/{part(0, 3)}-{part(6, 4)}-{part(14, 3)}"
+
+
+def calendar_ics(
+    gc: GroupClass,
+    *,
+    attendee_name: str = "",
+    attendee_email: str = "",
+) -> str:
+    """Build a minimal .ics invite learners can add to phone or desktop calendar."""
+    start = gc.start_dt
+    from datetime import timedelta
+
+    end = start + timedelta(minutes=gc.duration_min)
+    fmt = lambda dt: dt.strftime("%Y%m%dT%H%M%SZ")
+    join = gc.meeting_url or google_meet_url(gc.id)
+    desc = (gc.description or f"Salareen group class: {gc.title}").replace("\n", "\\n")
+    if join:
+        desc += f"\\nJoin: {join}"
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Salareen//Group Classes//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:group-class-{gc.id}@salareen.com",
+        f"DTSTAMP:{fmt(_now())}",
+        f"DTSTART:{fmt(start)}",
+        f"DTEND:{fmt(end)}",
+        f"SUMMARY:{gc.title}",
+        f"DESCRIPTION:{desc}",
+        f"LOCATION:{join}",
+        f"URL:{join}",
+    ]
+    if attendee_email:
+        lines.append(f"ATTENDEE;CN={attendee_name or attendee_email}:MAILTO:{attendee_email}")
+    lines.extend(["END:VEVENT", "END:VCALENDAR"])
+    return "\r\n".join(lines) + "\r\n"
+
+
+def ensure_standard_daily_classes(
+    store: GroupClassStore,
+    *,
+    lesson_ids: Optional[List[str]] = None,
+    days_ahead: int = 14,
+    tz_name: str = "America/New_York",
+) -> int:
+    """Seed bookable standard classes at noon and 5pm daily on Google Meet."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    lessons = [lid for lid in (lesson_ids or []) if lid]
+    if not lessons:
+        lessons = ["intro-to-fractions", "intro-to-photosynthesis"]
+    tz = ZoneInfo(tz_name)
+    now_local = _now().astimezone(tz)
+    created = 0
+    slot_hours = (12, 17)
+    titles = {
+        12: "Standard Group Class — Midday",
+        17: "Standard Group Class — Evening",
+    }
+    for day_offset in range(days_ahead):
+        day = (now_local + timedelta(days=day_offset)).date()
+        for hour in slot_hours:
+            start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
+            if start_local <= now_local:
+                continue
+            start_iso = start_local.astimezone(timezone.utc).isoformat()
+            lesson_id = lessons[(day_offset * len(slot_hours) + slot_hours.index(hour)) % len(lessons)]
+            title = titles[hour]
+            existing = [
+                c for c in store.list(upcoming_only=False)
+                if c.platform == "meet" and c.start_time == start_iso and c.lesson_id == lesson_id
+            ]
+            if existing:
+                continue
+            gc = store.schedule(
+                title=title,
+                lesson_id=lesson_id,
+                platform="meet",
+                meeting_url=google_meet_url(f"{lesson_id}-{start_iso}"),
+                start_time=start_iso,
+                duration_min=60,
+                host="Salareen AI",
+                capacity=100,
+                language="en",
+                description="Daily standard group class on Google Meet. Book to receive a calendar invite.",
+            )
+            gc.meeting_url = google_meet_url(gc.id)
+            created += 1
+    return created

@@ -19,3 +19,8 @@ os.environ.setdefault("RATE_LIMIT_DISABLED", "1")
 # Bypass the internal-auth gate by default in tests. Specific tests
 # that exercise the gate clear this env via monkeypatch.
 os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
+
+# Keep live-class sessions in-process for tests so a stray REDIS_URL in the
+# environment can't make the suite talk to a real Redis. Tests that exercise the
+# store factory override this via monkeypatch.
+os.environ.setdefault("SESSION_BACKEND", "memory")

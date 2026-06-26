@@ -12,26 +12,39 @@ import os
 import time
 
 from aoep_shared.auth import sign_token, verify_token
+from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
+from .store import AccountStore, BillingAddress, ClassContext, Enrollment, EnrollmentStatus
+from .persistence import load_from_redis
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
+load_from_redis(app.state.accounts)
 
-# Seed a default admin account so the platform is usable out of the box (and the
-# operator can reach admin-only surfaces). Idempotent; configurable; disable with
-# SEED_DEFAULT_ADMIN=0. CHANGE THE PASSWORD for any real deployment.
-if os.environ.get("SEED_DEFAULT_ADMIN", "1").lower() in ("1", "true", "yes"):
-    app.state.accounts.seed_admin(
-        os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@salareen.com"),
-        os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888"),
-        username=os.environ.get("DEFAULT_ADMIN_USERNAME", "admin"),
-    )
+
+def _bootstrap_on_startup() -> None:
+    import logging
+
+    from .bootstrap import bootstrap_accounts
+    from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
+
+    if not load_from_redis_with_retry(app.state.accounts):
+        logging.getLogger(__name__).info(
+            "identity startup: no Redis snapshot loaded (will bootstrap in-memory)")
+    stats = bootstrap_accounts(app.state.accounts)
+    if not save_to_redis_with_retry(app.state.accounts):
+        logging.getLogger(__name__).error(
+            "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
+
+
+@app.on_event("startup")
+def _startup_seed_accounts() -> None:
+    _bootstrap_on_startup()
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()
@@ -51,6 +64,47 @@ def current_account(authorization: str = Header(default="")):
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
     return acct
+
+
+def require_admin_account(acct=Depends(current_account)):
+    """Operator accounts (is_admin) for admin-only read APIs."""
+    if not acct.is_admin:
+        raise HTTPException(status_code=403, detail="admin access required")
+    return acct
+
+
+def _admin_secret() -> str:
+    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+
+
+def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
+    """Operator shared secret (same header memory admin routes use)."""
+    if not require_admin(x_admin_secret, _admin_secret()):
+        raise HTTPException(status_code=403, detail="admin secret required")
+    return x_admin_secret
+
+
+def _run_reseed_seeded() -> dict:
+    from .bootstrap import bootstrap_accounts, env_seed_password
+    from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
+
+    load_from_redis_with_retry(app.state.accounts)
+    stats = bootstrap_accounts(app.state.accounts)
+    persisted = save_to_redis_with_retry(app.state.accounts)
+    qa_pw = env_seed_password("QA_ACCOUNTS_PASSWORD", "QaTest123")
+    admin_pw = env_seed_password("DEFAULT_ADMIN_PASSWORD", "88888888")
+    login_ok = {
+        "admin@salareen.com": app.state.accounts.authenticate("admin@salareen.com", admin_pw) is not None,
+        "qa-pro@salareen.com": app.state.accounts.authenticate("qa-pro@salareen.com", qa_pw) is not None,
+        "qa3": app.state.accounts.authenticate("qa3", qa_pw) is not None,
+    }
+    return {
+        "reseeded": True,
+        "stats": stats,
+        "persisted": persisted,
+        "accounts": len(app.state.accounts._by_id),
+        "login_ok": login_ok,
+    }
 
 
 PROFILE_SHARE_SCOPES = {"profile", "interests", "mastery", "completions", "class_context"}
@@ -97,35 +151,91 @@ class LoginRequest(BaseModel):
     password: str
 
 
+def _client_info(request: Request) -> dict:
+    fwd = request.headers.get("X-Forwarded-For", "")
+    ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "")
+    return {
+        "ip": ip,
+        "user_agent": request.headers.get("User-Agent", "")[:256],
+        "country_hint": request.headers.get("CF-IPCountry", "") or request.headers.get("X-Country", ""),
+    }
+
+
 def _session(acct) -> dict:
     token = sign_token({"sub": acct.id, "email": acct.email}, _token_key())
     return {"token": token, "account": acct.public()}
 
 
 @app.post("/auth/signup")
-def signup(req: SignupRequest) -> dict:
+def signup(req: SignupRequest, request: Request) -> dict:
     from aoep_shared.passwords import validate_password
 
     try:
         validate_password(req.password)
         acct = app.state.accounts.create(
             req.email, req.password, display_name=req.display_name, region=req.region)
+        app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    info = _client_info(request)
+    app.state.accounts.record_login_event(acct.id, success=True, **info)
     return _session(acct)
 
 
 @app.post("/auth/login")
-def login(req: LoginRequest) -> dict:
-    acct = app.state.accounts.authenticate(req.email, req.password)
+def login(req: LoginRequest, request: Request) -> dict:
+    info = _client_info(request)
+    acct = app.state.accounts.by_email(req.email)
+    if acct and acct.locked_until and acct.locked_until > time.time():
+        raise HTTPException(status_code=429, detail="account temporarily locked; try again later")
+    acct = app.state.accounts.authenticate(req.email, req.password, **info)
     if acct is None:
         raise HTTPException(status_code=401, detail="invalid email or password")
     return _session(acct)
 
 
+@app.get("/auth/login-history")
+def login_history(acct=Depends(current_account)) -> dict:
+    return {"events": app.state.accounts.login_history(acct.id)}
+
+
+@app.get("/auth/onboarding-status")
+def onboarding_status(acct=Depends(current_account)) -> dict:
+    from aoep_shared.membership import tier_requires_payment
+
+    return {
+        "completed": acct.onboarding_completed_at is not None,
+        "completed_at": acct.onboarding_completed_at,
+        "tier": acct.tier.value,
+        "membership_class": acct.membership_class,
+        "billing_required": tier_requires_payment(acct.tier.value),
+        "billing_validated": acct.billing_validated_at is not None,
+    }
+
+
 @app.get("/auth/me")
 def me(acct=Depends(current_account)) -> dict:
     return acct.public()
+
+
+@app.get("/admin/accounts")
+def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
+    """List every member account (operator admin UI)."""
+    rows = [a.public() for a in app.state.accounts.list_all_accounts()]
+    rows.sort(key=lambda r: r.get("created_at", 0), reverse=True)
+    return {"accounts": rows, "count": len(rows)}
+
+
+@app.post("/admin/accounts/reseed-seeded")
+def admin_reseed_seeded(_acct=Depends(require_admin_account)) -> dict:
+    """Re-sync default admin + QA personas and persist to Redis (admin session)."""
+    return _run_reseed_seeded()
+
+
+@app.post("/admin/ops/reseed-seeded")
+def ops_reseed_seeded(_: str = Depends(require_admin_secret)) -> dict:
+    """Operator recovery: reseed admin + QA using X-Admin-Secret (no login JWT)."""
+    return _run_reseed_seeded()
 
 
 class PasswordChange(BaseModel):
@@ -154,6 +264,46 @@ class TierChange(BaseModel):
     tier: PlanTier
 
 
+@app.get("/membership/subscription")
+def get_subscription(acct=Depends(current_account)) -> dict:
+    from aoep_shared.plan_pricing import subscription_public
+
+    return subscription_public(
+        tier=acct.tier.value,
+        subscription_started_at=acct.subscription_started_at,
+        billing_anchor_day=acct.billing_anchor_day,
+        next_billing_at=acct.next_billing_at,
+        billing_amount_usd=acct.billing_amount_usd,
+    )
+
+
+class SubscribeRequest(BaseModel):
+    tier: PlanTier
+
+
+@app.post("/membership/subscribe")
+def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
+    """Activate Standard ($19.99) or VIP ($29.99) with calendar-day billing.
+
+    In local/sandbox mode this completes immediately after checkout; production
+    should route through the billing webhook with ``require_internal`` tier sync.
+    """
+    from aoep_shared.plan_pricing import CONSUMER_TIERS, tier_requires_payment
+
+    tier_val = req.tier.value
+    if tier_val not in CONSUMER_TIERS:
+        raise HTTPException(status_code=422, detail=f"tier {tier_val!r} is not a consumer plan")
+    if tier_requires_payment(tier_val):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
+    return {
+        "tier": updated.tier.value,
+        "membership_class": updated.membership_class,
+        "subscription": updated.public()["subscription"],
+    }
+
+
 @app.post("/membership/tier", dependencies=[Depends(require_internal)])
 def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     """Update the caller's subscription tier.
@@ -163,7 +313,12 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     a teacher / admin agent - not by the user themselves. The
     billing webhook handler forwards an internal token here.
     """
-    updated = app.state.accounts.set_tier(acct.id, req.tier)
+    from aoep_shared.plan_pricing import tier_requires_payment
+
+    if tier_requires_payment(req.tier.value):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {"tier": updated.tier.value}
 
 
@@ -228,6 +383,39 @@ def get_student(student_id: str, acct=Depends(current_account)) -> dict:
     if prof is None:
         raise HTTPException(status_code=404, detail="unknown student profile")
     return prof.model_dump()
+
+
+class LearningProfileSubmit(BaseModel):
+    answers: dict
+
+
+@app.post("/students/{student_id}/learning-profile")
+def submit_learning_profile(student_id: str, req: LearningProfileSubmit,
+                              acct=Depends(current_account)) -> dict:
+    from aoep_shared.learning_profile import derive_learning_profile, validate_onboarding_answers
+
+    try:
+        validate_onboarding_answers(req.answers)
+        profile = derive_learning_profile(req.answers)
+        prof = app.state.accounts.apply_learning_profile(acct.id, student_id, profile)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {
+        "student": prof.model_dump(),
+        "learner_category": profile.learner_category,
+        "recorded": True,
+    }
+
+
+@app.post("/students/{student_id}/learning-profile/skip")
+def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.skip_learning_profile(acct.id, student_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "skipped": True}
 
 
 class MasteryUpdate(BaseModel):
@@ -351,6 +539,9 @@ def games_new(req: NewGameRequest) -> dict:
         raise HTTPException(status_code=422, detail="unknown age_group")
     rnd = make_round(req.subject, gt, age_group=age, n=max(1, min(req.n, 8)))
     app.state.game_rounds[rnd.game_id] = rnd
+    from .persistence import save_game_round
+
+    save_game_round(rnd.model_dump_json(), rnd.game_id)
     return rnd.public()
 
 
@@ -365,6 +556,14 @@ def games_submit(req: SubmitGameRequest, acct=Depends(current_account)) -> dict:
     from aoep_shared.games import score_round
 
     rnd = app.state.game_rounds.get(req.game_id)
+    if rnd is None:
+        from aoep_shared.games import GameRound
+        from .persistence import load_game_round
+
+        raw = load_game_round(req.game_id)
+        if raw:
+            rnd = GameRound.model_validate_json(raw)
+            app.state.game_rounds[req.game_id] = rnd
     if rnd is None:
         raise HTTPException(status_code=404, detail="unknown or expired game")
     if req.game_id in app.state.game_submitted:
