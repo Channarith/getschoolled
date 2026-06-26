@@ -2,31 +2,25 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-06-24 - Release strategy fix: stop 0.x ballooning. scripts/bump_pr_version.py
-  now does a PATCH bump by default (0.9.y for routine PRs) and no longer auto-
-  promotes to a MINOR bump from the size of the [unreleased] changelog block. That
-  block is only rolled by build_release.py at formal release time, so per-PR it
-  kept growing past the 8-item threshold and forced a minor bump on every single
-  PR (which is how we jumped toward 0.10 on small fixes). Minor (0.x.0) and major
-  (x.0.0) bumps are now an explicit decision via --force-level minor|major. No
-  change to build_release.py, which still rolls the changelog and counts entries
-  at release time. This cleanup ships as 0.9.1.
-- 2026-06-24 - Repo-wide lint/type cleanup (zero errors, zero warnings). Python:
-  cleared all 39 ruff findings across packages/shared + every service - removed
-  35 unused imports (F401), moved the lesson_depth import in learnable/lessons.py
-  to module top (E402), dropped the unused meeting_ref binding in
-  meeting_agents/lab.py (F841) while keeping the parse_meeting_ref validation
-  call, rewrote the .ics timestamp lambda in group_classes.py as a def (E731),
-  and annotated the intentional late auth_security import in identity/main.py
-  with a documented noqa (E402, needs app + helpers defined first). Web: cleared
-  the last three react-hooks/exhaustive-deps warnings - arcade finish() now lists
-  the stable t() translator dep; drive's course-refetch effect depends on a
-  hoisted selectedCourseId (the full course object would loop because the effect
-  calls setCourse); recommended's applyHomeFallback is wrapped in useCallback and
-  moved above its effect so the dep is honored without re-running every render.
-  No behavior change. Verified: ruff clean, web lint clean (0 warnings),
-  tsc --noEmit clean, next build green (38/38 pages), and the full backend suite
-  (1325 tests) passes.
+- 2026-06-24 - Make Redis durable (fixes lost points, re-popping onboarding
+  survey, and admin/account resets after every redeploy). Identity snapshots its
+  whole state (accounts, points/rewards ledgers, student profiles, onboarding-
+  survey completion) into Redis, so Redis is a system of record - but the Redis
+  StatefulSet ran with --save "" --appendonly no, allkeys-lru, and NO volume, so
+  every Redis restart/redeploy (or memory pressure) wiped all of it. infra/k8s/
+  redis.yaml now: mounts a 10Gi PersistentVolume at /data (volumeClaimTemplates,
+  cluster-default StorageClass = vultr-block-storage on VKE), enables AOF
+  (--appendonly yes, --appendfsync everysec) plus periodic RDB save points, and
+  switches eviction to volatile-lru so only TTL'd keys (rate-limit buckets,
+  arcade rounds) can be evicted and the no-TTL identity snapshot never is. Adds
+  fsGroup 999 so redis:alpine owns the volume. infra/compose/docker-compose.yml
+  redis gets the same durability (AOF + ./data/redis bind mount + volatile-lru)
+  so local `docker compose down/up` no longer wipes accounts. Verified with a
+  real redis: identity points (300) + onboarding completion survive a kill -9 +
+  restart, volatile-lru evicts 1087 TTL'd cache keys while keeping the identity
+  snapshot, and the identity store round-trips through Redis across a simulated
+  redeploy. No application code changed.
+
 - 2026-06-24 - Teaching Brain: wire the per-student live teaching loop. The
   orchestrator now persists one Director + counters per session, records
   behavior/mastery to the memory service (new MEMORY_URL / memory_base_url; best-

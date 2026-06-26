@@ -19,6 +19,24 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Durable: identity snapshots its state here, so persist to a bind mount and
+    # use volatile-lru so the no-TTL identity key is never evicted. Mirrors prod
+    # (infra/k8s/redis.yaml). Without this, a `docker compose down` wiped accounts
+    # /points and re-popped the onboarding survey on the next `up`.
+    command:
+      - redis-server
+      - --dir
+      - /data
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --save
+      - "900 1 300 10 60 10000"
+      - --maxmemory-policy
+      - volatile-lru
+    volumes:
+      - ./data/redis:/data
     ports:
       - "6379:6379"
 
