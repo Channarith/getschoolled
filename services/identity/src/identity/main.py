@@ -166,6 +166,11 @@ def _session(acct) -> dict:
     return {"token": token, "account": acct.public()}
 
 
+from .auth_security import register_auth_security_routes
+
+register_auth_security_routes(app, token_key_fn=_token_key, current_account=current_account, session_fn=_session)
+
+
 @app.post("/auth/signup")
 def signup(req: SignupRequest, request: Request) -> dict:
     from aoep_shared.passwords import validate_password
