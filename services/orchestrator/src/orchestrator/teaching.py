@@ -15,6 +15,7 @@ from aoep_shared.groundedness import guard_answer
 from aoep_shared.providers.base import ChatMessage
 from aoep_shared.rag import Document, RagIndex
 from aoep_shared.slang import default_lexicon
+from aoep_shared.dialect import humanize_narration, tutor_tone_hint
 from pydantic import BaseModel, Field
 
 from .curriculum import CurriculumStore, Lesson, Slide
@@ -144,8 +145,10 @@ class TeachingSessions:
         self.store.save(session)
         return lesson.slides[session.current_slide]  # type: ignore[union-attr]
 
-    def ask(self, session_id: str, question: str, language: str = "en") -> Answer:
+    def ask(self, session_id: str, question: str, language: str = "en",
+            dialect: str | None = None) -> Answer:
         session = self._require(session_id)
+        tone = tutor_tone_hint(dialect, language=language)
         # Understand culture-specific slang/idioms before retrieval/answering, so
         # "it's a piece of cake" is treated as "very easy".
         norm = default_lexicon().normalize(question, language=language)
@@ -158,19 +161,23 @@ class TeachingSessions:
         prompt = (
             "You are a patient teacher. Answer the student's question using only "
             "the lesson context. If the student used slang/idioms, interpret them "
-            "by their meaning.\n"
+            "by their meaning. Speak in a natural, colloquial register: "
+            f"{tone}\n"
             f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
         try:
             text = self.llm.complete(
                 [
-                    ChatMessage(role="system", content="You are a helpful teacher."),
+                    ChatMessage(role="system",
+                                content=f"You are a helpful teacher. {tone}"),
                     ChatMessage(role="user", content=prompt),
                 ]
             ).text
         except NotImplementedError:
             # No model server configured -> deterministic grounded fallback.
-            text = _offline_answer(question, context)
+            text = humanize_narration(
+                _offline_answer(question, context), dialect, language=language,
+            )
         # Hallucination guard: only serve answers grounded in the retrieved
         # context; otherwise abstain/ground to avoid showing unsupported claims.
         safe_text, report = guard_answer(text, context, question=question)

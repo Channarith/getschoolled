@@ -39,6 +39,10 @@ LEXICON: List[SlangEntry] = [
     SlangEntry("lit", "exciting or excellent", "en", "us", "slang"),
     SlangEntry("my bad", "my mistake / I apologize", "en", "us", "slang"),
     SlangEntry("ghosted", "suddenly stopped responding", "en", "us", "slang"),
+    SlangEntry("hella", "very / a lot (Northern California)", "en", "us", "slang"),
+    SlangEntry("for sure", "definitely / agreed", "en", "us", "slang"),
+    SlangEntry("y'all", "you all", "en", "us", "slang"),
+    SlangEntry("fixin' to", "about to / preparing to", "en", "us", "slang"),
     # English (UK)
     SlangEntry("knackered", "very tired / exhausted", "en", "uk", "slang"),
     SlangEntry("chuffed", "very pleased", "en", "uk", "slang"),
