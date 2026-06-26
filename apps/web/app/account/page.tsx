@@ -12,7 +12,7 @@ import {
   getRewards,
   getToken,
   listStudents,
-  setMembershipTier,
+  subscribeToPlan,
   setStudentMastery,
   type Account,
   type Portfolio,
@@ -21,7 +21,11 @@ import {
 import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
 import { useT } from "../lib/i18n";
 
-const TIERS = ["free", "basic", "pro", "premium"];
+const PLANS = [
+  { id: "free", label: "Free", price: "$0", ads: true },
+  { id: "basic", label: "Standard", price: "$19.99/mo", ads: true },
+  { id: "premium", label: "VIP", price: "$29.99/mo", ads: false },
+] as const;
 const STATUS_ORDER = ["in_progress", "enrolled", "saved", "passed", "failed"];
 
 export default function AccountPage() {
@@ -124,11 +128,18 @@ export default function AccountPage() {
 
   async function onTier(tier: string) {
     try {
-      await setMembershipTier(tier);
+      await subscribeToPlan(tier);
       await refresh();
     } catch (e) {
       setError(String(e));
     }
+  }
+
+  function formatNextBill(ts: number | null | undefined): string {
+    if (!ts) return "";
+    return new Date(ts * 1000).toLocaleDateString(undefined, {
+      month: "short", day: "numeric", year: "numeric",
+    });
   }
 
   async function onChangePassword(e: React.FormEvent) {
@@ -210,18 +221,30 @@ export default function AccountPage() {
 
           <div className="card">
             <h3>{t("account.membership")}</h3>
-            <div className="row" style={{ gap: 8 }}>
-              {TIERS.map((tier) => (
-                <button key={tier} onClick={() => onTier(tier)}
-                  style={{ fontWeight: portfolio.tier === tier ? 700 : 400,
-                           outline: portfolio.tier === tier ? "2px solid #6ea8fe" : "none" }}>
-                  {tier}
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              {PLANS.map((plan) => (
+                <button key={plan.id} onClick={() => onTier(plan.id)}
+                  style={{ fontWeight: portfolio.tier === plan.id ? 700 : 400,
+                           outline: portfolio.tier === plan.id ? "2px solid #6ea8fe" : "none",
+                           minWidth: 120 }}>
+                  <div>{plan.label}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{plan.price}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{plan.ads ? "With ads" : "No ads"}</div>
                 </button>
               ))}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>
-              {t("account.currentPlan", { tier: portfolio.tier })}
+              {t("account.currentPlan", { tier: portfolio.tier })}{" "}
+              <Link href="/billing">Billing</Link>
             </p>
+            {portfolio.account.subscription?.next_billing_at && (
+              <p className="muted" style={{ fontSize: 13 }}>
+                Next bill: {formatNextBill(portfolio.account.subscription.next_billing_at)}
+                {portfolio.account.subscription.billing_anchor_day
+                  ? ` (day ${portfolio.account.subscription.billing_anchor_day} each month)`
+                  : ""}
+              </p>
+            )}
           </div>
 
           <div className="card">

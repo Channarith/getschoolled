@@ -173,12 +173,25 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+export type Subscription = {
+  tier: string;
+  display_name: string;
+  price_usd: number;
+  billing_interval: string;
+  ads: boolean;
+  subscription_started_at: number | null;
+  billing_anchor_day: number | null;
+  next_billing_at: number | null;
+};
+
 export type Account = {
   id: string;
   email: string;
   display_name: string;
   tier: string;
   region: string;
+  membership_class?: "standard" | "vip";
+  subscription?: Subscription;
   is_admin?: boolean;
 };
 
@@ -222,6 +235,38 @@ export async function setMembershipTier(tier: string): Promise<{ tier: string }>
       body: JSON.stringify({ tier }),
     })
   );
+}
+
+export async function subscribeToPlan(tier: string): Promise<{
+  tier: string;
+  membership_class: string;
+  subscription: Subscription;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/membership/subscribe`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ tier }),
+    })
+  );
+}
+
+export async function getSubscription(): Promise<Subscription> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/membership/subscription`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export type ConsumerPlan = {
+  tier: string;
+  display_name: string;
+  price_usd: number;
+  billing_interval: string;
+  ads: boolean;
+  blurb: string;
+};
+
+export async function getConsumerPlans(): Promise<Record<string, ConsumerPlan>> {
+  return jsonOrThrow(await fetch(`${BILLING_URL}/plans/consumer`, { cache: "no-store" }));
 }
 
 export type Enrollment = {

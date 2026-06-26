@@ -3,6 +3,14 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-23 - Netflix-style consumer pricing: Standard (basic) $19.99/month with
+  ads, VIP (premium) $29.99/month ad-free. Calendar-day monthly billing — renewals
+  land on the signup day each month (Jan 31 -> Feb 28/29). New aoep_shared
+  plan_pricing + membership modules; identity stores subscription_started_at,
+  billing_anchor_day, next_billing_at; GET /membership/subscription and POST
+  /membership/subscribe; billing GET /plans enriched with prices and GET
+  /plans/consumer; web /billing page and account membership picker updated.
+  Version 0.5.0 -> 0.5.1.
 - 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
   (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
   follow-up /api/sessions/{id}/advance|ask served by a different replica no

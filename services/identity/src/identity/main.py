@@ -229,6 +229,46 @@ class TierChange(BaseModel):
     tier: PlanTier
 
 
+@app.get("/membership/subscription")
+def get_subscription(acct=Depends(current_account)) -> dict:
+    from aoep_shared.plan_pricing import subscription_public
+
+    return subscription_public(
+        tier=acct.tier.value,
+        subscription_started_at=acct.subscription_started_at,
+        billing_anchor_day=acct.billing_anchor_day,
+        next_billing_at=acct.next_billing_at,
+        billing_amount_usd=acct.billing_amount_usd,
+    )
+
+
+class SubscribeRequest(BaseModel):
+    tier: PlanTier
+
+
+@app.post("/membership/subscribe")
+def subscribe(req: SubscribeRequest, acct=Depends(current_account)) -> dict:
+    """Activate Standard ($19.99) or VIP ($29.99) with calendar-day billing.
+
+    In local/sandbox mode this completes immediately after checkout; production
+    should route through the billing webhook with ``require_internal`` tier sync.
+    """
+    from aoep_shared.plan_pricing import CONSUMER_TIERS, tier_requires_payment
+
+    tier_val = req.tier.value
+    if tier_val not in CONSUMER_TIERS:
+        raise HTTPException(status_code=422, detail=f"tier {tier_val!r} is not a consumer plan")
+    if tier_requires_payment(tier_val):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
+    return {
+        "tier": updated.tier.value,
+        "membership_class": updated.membership_class,
+        "subscription": updated.public()["subscription"],
+    }
+
+
 @app.post("/membership/tier", dependencies=[Depends(require_internal)])
 def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     """Update the caller's subscription tier.
@@ -238,7 +278,12 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     a teacher / admin agent - not by the user themselves. The
     billing webhook handler forwards an internal token here.
     """
-    updated = app.state.accounts.set_tier(acct.id, req.tier)
+    from aoep_shared.plan_pricing import tier_requires_payment
+
+    if tier_requires_payment(req.tier.value):
+        updated = app.state.accounts.activate_subscription(acct.id, req.tier)
+    else:
+        updated = app.state.accounts.set_tier(acct.id, req.tier)
     return {"tier": updated.tier.value}
 
 
