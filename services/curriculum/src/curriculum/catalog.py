@@ -57,6 +57,7 @@ class Course(BaseModel):
     media_format: str = "video"         # video | audio | text | interactive
     level: str = "beginner"             # beginner | intermediate | advanced
     duration_min: int = 0
+    complexity: int = 0               # 0 = infer from level/maturity; else 1–5
     hands_on: bool = False              # requires hands-on/lab training
     preview: str = ""                   # short preview/trailer blurb
     access_tier: str = "free"           # membership tier required to enroll

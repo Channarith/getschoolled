@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ..dialect import dialect_intro, dialect_outro, humanize_narration, normalize_dialect
+
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
 
@@ -111,23 +113,27 @@ def _auto_outro(title: str) -> str:
     )
 
 
-def lesson_from_generated_course(course) -> LessonPlan:
+def lesson_from_generated_course(course, *, dialect: Optional[str] = None,
+                                 language: str = "en") -> LessonPlan:
     """Build a LessonPlan directly from a harvester ``GeneratedCourse`` (offline)."""
+    dialect_id = normalize_dialect(dialect, language=language)
     headings = [s.title for s in course.slides]
     steps: List[LessonStep] = [
         LessonStep(order=0, kind="intro", title=f"Welcome to {course.title}",
-                   narration=_auto_intro(course.title, headings),
+                   narration=dialect_intro(course.title, headings, dialect_id, language=language),
                    on_screen_points=headings[:6])
     ]
     for i, slide in enumerate(course.slides, start=1):
-        narration = (slide.narration or slide.body or slide.title).strip()
+        raw = (slide.narration or slide.body or slide.title).strip()
+        narration = humanize_narration(raw, dialect_id, language=language)
         steps.append(LessonStep(
             order=i, kind="segment", title=slide.title, narration=narration,
             on_screen_points=_bullets(slide.body), section_index=i - 1,
             category=getattr(slide, "category", ""),
         ))
     steps.append(LessonStep(order=len(steps), kind="outro",
-                            title="Closing", narration=_auto_outro(course.title)))
+                            title="Closing",
+                            narration=dialect_outro(course.title, dialect_id, language=language)))
     return LessonPlan(title=course.title, subject=course.subject,
                       engine="fallback", steps=steps)
 
@@ -197,7 +203,8 @@ def teach_with_ppt_trainer(pptx_path: str | Path, *, out_dir: str | Path,
 
 def teach_course(course, *, engine: str = "fallback", pptx_path: Optional[str | Path] = None,
                  out_dir: Optional[str | Path] = None, audience: str = "curious beginners",
-                 fallback_on_error: bool = True) -> LessonPlan:
+                 fallback_on_error: bool = True, dialect: Optional[str] = None,
+                 language: str = "en") -> LessonPlan:
     """Build a LessonPlan for a harvested course.
 
     engine="fallback" -> deterministic offline lesson (default).
@@ -216,4 +223,4 @@ def teach_course(course, *, engine: str = "fallback", pptx_path: Optional[str | 
             except RuntimeError:
                 if not fallback_on_error:
                     raise
-    return lesson_from_generated_course(course)
+    return lesson_from_generated_course(course, dialect=dialect, language=language)

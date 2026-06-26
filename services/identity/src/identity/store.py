@@ -22,6 +22,7 @@ from aoep_shared.plan_pricing import (
     price_usd_for_tier,
     tier_requires_payment,
 )
+from aoep_shared.passkeys import PasskeyCredential
 from aoep_shared.rewards import PointsLedger
 from aoep_shared.schemas import PlanTier, Region
 from pydantic import BaseModel, Field
@@ -95,6 +96,10 @@ class StudentProfile(BaseModel):
     onboarding_completed_at: Optional[float] = None
     # Raw survey answers for re-opening / editing the learning profile from Settings.
     onboarding_answers: Dict[str, object] = Field(default_factory=dict)
+    # Evolving adaptation (pace, goals, triggers, failed teaching approaches).
+    learning_goals: List[str] = Field(default_factory=list)
+    goal_timeline: str = ""
+    adaptation: Dict[str, object] = Field(default_factory=dict)
     created_at: float = Field(default_factory=lambda: time.time())
 
 
@@ -114,6 +119,7 @@ class LoginEvent(BaseModel):
     ip: str = ""
     user_agent: str = ""
     country_hint: str = ""
+    method: str = "password"   # password | google | facebook | passkey | mfa
 
 
 class Account(BaseModel):
@@ -136,12 +142,16 @@ class Account(BaseModel):
     failed_logins: int = 0
     login_count: int = 0
     locked_until: Optional[float] = None
+    login_events: List[LoginEvent] = Field(default_factory=list)
+    totp_secret: str = ""
+    totp_enabled: bool = False
+    oauth_subject: str = ""          # provider:sub when passwordless OAuth linked
+    passkeys: List[PasskeyCredential] = Field(default_factory=list)
     membership_class: str = "standard"   # standard | vip (derived from tier)
     onboarding_completed_at: Optional[float] = None
     billing_address: Optional[BillingAddress] = None
     card_last4: str = ""
     billing_validated_at: Optional[float] = None
-    login_events: List[LoginEvent] = Field(default_factory=list)
     enrollments: Dict[str, Enrollment] = Field(default_factory=dict)
     # Learner sub-profiles (one account, multiple students).
     students: Dict[str, StudentProfile] = Field(default_factory=dict)
@@ -161,6 +171,10 @@ class Account(BaseModel):
             "membership_class": self.membership_class,
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
+            "login_count": self.login_count,
+            "totp_enabled": self.totp_enabled,
+            "has_passkeys": bool(self.passkeys),
+            "oauth_linked": bool(self.oauth_subject),
             "subscription": subscription_public(
                 tier=self.tier.value,
                 subscription_started_at=self.subscription_started_at,
@@ -179,6 +193,7 @@ class AccountStore:
         self._game_stats: Dict[str, dict] = {}
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
+        self._passkey_challenges: Dict[str, str] = {}
 
     def _persist(self) -> None:
         from .persistence import persist_hook
@@ -298,8 +313,8 @@ class AccountStore:
             return None
         if acct.locked_until and acct.locked_until > time.time():
             self.record_login_event(
-                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
-                reason="locked",
+                acct.id, success=False, ip=ip, user_agent=user_agent,
+                country_hint=country_hint, method="password", reason="locked",
             )
             return None
         if not verify_password(password, acct.password_hash):
@@ -307,7 +322,8 @@ class AccountStore:
             if acct.failed_logins >= 5:
                 acct.locked_until = time.time() + 900  # 15 min lockout
             self.record_login_event(
-                acct.id, success=False, ip=ip, user_agent=user_agent, country_hint=country_hint,
+                acct.id, success=False, ip=ip, user_agent=user_agent,
+                country_hint=country_hint, method="password", reason="bad_password",
             )
             self._persist()
             return None
@@ -316,7 +332,8 @@ class AccountStore:
         acct.last_login_at = time.time()
         acct.login_count += 1
         self.record_login_event(
-            acct.id, success=True, ip=ip, user_agent=user_agent, country_hint=country_hint,
+            acct.id, success=True, ip=ip, user_agent=user_agent,
+            country_hint=country_hint, method="password",
         )
         self._persist()
         return acct
@@ -329,6 +346,7 @@ class AccountStore:
         ip: str = "",
         user_agent: str = "",
         country_hint: str = "",
+        method: str = "password",
         reason: str = "",
     ) -> None:
         acct = self._by_id.get(account_id)
@@ -339,6 +357,7 @@ class AccountStore:
             ip=(ip or "")[:64],
             user_agent=(user_agent or "")[:256],
             country_hint=(country_hint or reason or "")[:32],
+            method=method[:24],
         ))
         if len(acct.login_events) > 50:
             acct.login_events = acct.login_events[-50:]
@@ -348,13 +367,154 @@ class AccountStore:
         acct = self._by_id.get(account_id)
         if acct is None:
             return []
-        rows = [e.model_dump() for e in reversed(acct.login_events)]
-        return rows[:limit]
+        return [e.model_dump() for e in reversed(acct.login_events)][:limit]
+
+    def find_by_oauth_subject(self, subject: str) -> Optional[Account]:
+        sub = (subject or "").strip()
+        if not sub:
+            return None
+        for acct in self._by_id.values():
+            if acct.oauth_subject == sub:
+                return acct
+        return None
+
+    def link_oauth(
+        self,
+        account_id: str,
+        *,
+        subject: str,
+        display_name: str = "",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.oauth_subject = subject
+        if display_name and not acct.display_name:
+            acct.display_name = display_name
+        self._persist()
+        return acct
+
+    def oauth_login_success(
+        self,
+        account_id: str,
+        *,
+        ip: str = "",
+        user_agent: str = "",
+        country_hint: str = "",
+        method: str = "google",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.failed_logins = 0
+        acct.locked_until = None
+        acct.last_login_at = time.time()
+        acct.login_count += 1
+        self.record_login_event(
+            account_id, success=True, ip=ip, user_agent=user_agent,
+            country_hint=country_hint, method=method,
+        )
+        return acct
+
+    def get_or_create_oauth_account(
+        self,
+        *,
+        email: str,
+        subject: str,
+        display_name: str = "",
+    ) -> Account:
+        existing = self.find_by_oauth_subject(subject)
+        if existing:
+            return existing
+        by_email = self.by_email(email)
+        if by_email:
+            return self.link_oauth(by_email.id, subject=subject, display_name=display_name)
+        acct = Account(
+            email=email.strip().lower(),
+            display_name=display_name or email.split("@")[0],
+            password_hash=hash_password(uuid.uuid4().hex),
+            oauth_subject=subject,
+            membership_class=membership_class_for_tier(PlanTier.FREE.value),
+        )
+        self._by_id[acct.id] = acct
+        self._id_by_email[acct.email] = acct.id
+        self.ensure_default_student(acct.id)
+        self._persist()
+        return acct
+
+    def set_totp_secret(self, account_id: str, secret: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_secret = secret
+        acct.totp_enabled = False
+        self._persist()
+
+    def enable_totp(self, account_id: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_enabled = True
+        self._persist()
+
+    def disable_totp(self, account_id: str) -> None:
+        acct = self._by_id[account_id]
+        acct.totp_secret = ""
+        acct.totp_enabled = False
+        self._persist()
+
+    def add_passkey(self, account_id: str, cred: PasskeyCredential) -> None:
+        acct = self._by_id[account_id]
+        acct.passkeys = [c for c in acct.passkeys if c.credential_id != cred.credential_id]
+        acct.passkeys.append(cred)
+        self._persist()
+
+    def passkey_by_id(self, account_id: str, credential_id: str) -> Optional[PasskeyCredential]:
+        acct = self._by_id.get(account_id)
+        if acct is None:
+            return None
+        for c in acct.passkeys:
+            if c.credential_id == credential_id:
+                return c
+        return None
+
+    def store_passkey_challenge(self, account_id: str, challenge: str) -> None:
+        self._passkey_challenges[account_id] = challenge
+
+    def pop_passkey_challenge(self, account_id: str) -> str:
+        return self._passkey_challenges.pop(account_id, "")
+
+    def find_account_by_passkey(self, credential_id: str) -> Optional[Account]:
+        for acct in self._by_id.values():
+            if any(c.credential_id == credential_id for c in acct.passkeys):
+                return acct
+        return None
 
     def set_password(self, account_id: str, new_password: str) -> None:
         acct = self._by_id[account_id]
         acct.password_hash = hash_password(new_password)
         self._persist()
+
+    def set_billing_profile(
+        self,
+        account_id: str,
+        address: BillingAddress,
+        *,
+        card_last4: str = "",
+    ) -> Account:
+        acct = self._by_id[account_id]
+        acct.billing_address = address
+        if card_last4:
+            acct.card_last4 = card_last4
+        acct.billing_validated_at = time.time()
+        self._persist()
+        return acct
+
+    def complete_onboarding(self, account_id: str) -> Account:
+        acct = self._by_id[account_id]
+        acct.onboarding_completed_at = time.time()
+        self._persist()
+        return acct
+
+    def patch_account(self, account_id: str, **fields) -> Account:
+        acct = self._by_id[account_id]
+        for key, val in fields.items():
+            if val is not None and hasattr(acct, key):
+                setattr(acct, key, val)
+        self._persist()
+        return acct
 
     def set_tier(self, account_id: str, tier: PlanTier) -> Account:
         acct = self._by_id[account_id]
@@ -567,6 +727,99 @@ class AccountStore:
         self._persist()
         return prof
 
+    def record_adaptation_event(
+        self,
+        account_id: str,
+        student_id: str,
+        event_type: str,
+        payload: dict,
+    ) -> StudentProfile:
+        from aoep_shared.learner_adaptation import LearnerAdaptation, adaptation_from_dict
+
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        raw = dict(prof.adaptation or {})
+        adapt = adaptation_from_dict(
+            raw,
+            learning_goals=list(prof.learning_goals or []),
+            goal_timeline=str(prof.goal_timeline or ""),
+        )
+        et = (event_type or "").strip().lower()
+        if et == "completion_pace":
+            adapt.record_completion(float(payload.get("minutes", 20)))
+        elif et in ("course_completion", "course_finish"):
+            adapt.record_course_finish(
+                str(payload.get("course_id", "")),
+                float(payload.get("minutes", 20)),
+                expected_min=float(payload.get("expected_min", 25)),
+                complexity=int(payload.get("complexity", 3)),
+            )
+        elif et in ("wellness", "mood"):
+            adapt.record_wellness(
+                str(payload.get("state", "ok")),
+                str(payload.get("reason", "")),
+            )
+        elif et in ("lx_tick", "lx_session_end"):
+            adapt.record_lx_sample(
+                float(payload.get("score", 0)),
+                strategy=str(payload.get("strategy", "")),
+                success=payload.get("success") if "success" in payload else None,
+            )
+        elif et == "pulse_survey":
+            from aoep_shared.pulse_survey import interpret_pulse
+
+            hints = interpret_pulse(
+                going_well=int(payload.get("going_well", 3)),
+                pace=str(payload.get("pace", "just right")),
+                working_best=payload.get("working_best"),
+                teaching_strategy=str(payload.get("teaching_strategy", "")),
+            )
+            adapt.record_lx_sample(
+                hints["lx_score"],
+                strategy=str(payload.get("teaching_strategy", "") or hints.get("preferred_strategy", "")),
+                success=hints["strategy_success"] or hints["lx_score"] >= 70,
+            )
+            if hints["strategy_failure"] and hints.get("preferred_strategy"):
+                adapt.record_failed_approach(
+                    str(payload.get("teaching_strategy", "default")),
+                    str(payload.get("course_id", "")),
+                    f"pulse: learner prefers {hints['preferred_strategy']}",
+                )
+            elif hints["strategy_success"]:
+                adapt.record_strategy(str(payload.get("teaching_strategy", "default")), success=True)
+            elif hints.get("preferred_strategy") and hints["lx_score"] >= 70:
+                adapt.record_strategy(hints["preferred_strategy"], success=True)
+            for tr in hints.get("triggers", []):
+                adapt.record_trigger(
+                    tr["trigger"], tr["reason"], severity="medium", allow_retry=True,
+                )
+        elif et == "strategy_success":
+            adapt.record_strategy(str(payload.get("strategy", "default")), success=True)
+        elif et == "strategy_failure":
+            adapt.record_failed_approach(
+                str(payload.get("strategy", "default")),
+                str(payload.get("topic", "")),
+                str(payload.get("reason", "")),
+            )
+        elif et == "trigger":
+            adapt.record_trigger(
+                str(payload.get("trigger", "")),
+                str(payload.get("reason", "")),
+                severity=str(payload.get("severity", "medium")),
+                allow_retry=bool(payload.get("allow_retry", False)),
+            )
+        elif et == "goals":
+            goals = payload.get("goals")
+            if isinstance(goals, list):
+                prof.learning_goals = [str(g) for g in goals]
+            if payload.get("timeline"):
+                prof.goal_timeline = str(payload["timeline"])
+            adapt.profile_revision += 1
+        prof.adaptation = adapt.to_dict()
+        self._persist()
+        return prof
+
     def skip_learning_profile(self, account_id: str, student_id: str) -> StudentProfile:
         """Record that the user dismissed the one-time survey (persisted, not local-only)."""
         prof = self._by_id[account_id].students.get(student_id)
@@ -605,7 +858,10 @@ class AccountStore:
 
     def record_completion(
         self, account_id: str, student_id: str, course_id: str,
-        skills: Optional[List[str]] = None, *, mastery: float = 0.8
+        skills: Optional[List[str]] = None, *, mastery: float = 0.8,
+        minutes: Optional[float] = None,
+        expected_min: Optional[float] = None,
+        complexity: Optional[int] = None,
     ) -> StudentProfile:
         prof = self._by_id[account_id].students.get(student_id)
         if prof is None:
@@ -614,7 +870,18 @@ class AccountStore:
             prof.completed_course_ids.append(course_id)
         for s in (skills or []):
             prof.mastery[s] = max(prof.mastery.get(s, 0.0), mastery)
-        self._persist()
+        if minutes is not None and minutes > 0:
+            self.record_adaptation_event(
+                account_id, student_id, "course_completion", {
+                    "course_id": course_id,
+                    "minutes": minutes,
+                    "expected_min": expected_min or 25,
+                    "complexity": complexity or 3,
+                },
+            )
+            prof = self._by_id[account_id].students[student_id]
+        else:
+            self._persist()
         return prof
 
     def record_class_context(self, account_id: str, student_id: str,
@@ -662,12 +929,33 @@ class AccountStore:
         prof = acct.students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
-        wanted = set(scopes or ["profile", "interests", "mastery", "completions", "class_context"])
+        wanted = set(scopes or [
+            "profile", "interests", "mastery", "completions", "class_context",
+            "learning_profile", "adaptation", "pace",
+        ])
         student = {"id": prof.id, "display_name": prof.display_name, "age_band": prof.age_band}
         if "interests" in wanted or "profile" in wanted:
             student["interests"] = list(prof.interests)
+        if "learning_profile" in wanted or "profile" in wanted:
+            from aoep_shared.content_access import needs_simplified_content
+
+            student["learning_profile"] = {
+                "primary_style": prof.primary_style,
+                "learning_pace": prof.learning_pace,
+                "reading_level": prof.reading_level,
+                "accessibility": dict(prof.accessibility),
+                "accommodations_notes": prof.accommodations_notes,
+                "learner_category": prof.learner_category,
+                "needs_simplified_content": needs_simplified_content(
+                    age_band=prof.age_band,
+                    reading_level=prof.reading_level,
+                    accessibility=prof.accessibility,
+                    accommodations_notes=prof.accommodations_notes,
+                    learner_category=prof.learner_category,
+                ),
+            }
         out = {
-            "schema_version": "aoep.profile_context.v1",
+            "schema_version": "aoep.profile_context.v2",
             "account_id": acct.id,
             "student": student,
             "exported_at": time.time(),
@@ -679,4 +967,15 @@ class AccountStore:
             out["completed_course_ids"] = list(prof.completed_course_ids)
         if "class_context" in wanted:
             out["class_contexts"] = [c.model_dump() for c in prof.class_contexts]
+        if "adaptation" in wanted or "pace" in wanted:
+            out["adaptation"] = dict(prof.adaptation or {})
+        if "pace" in wanted:
+            raw = prof.adaptation or {}
+            finishes = raw.get("course_finishes") or []
+            out["course_pace"] = {
+                "observed_pace": raw.get("observed_pace", "moderate"),
+                "avg_minutes_per_lesson": raw.get("avg_minutes_per_lesson"),
+                "recent_finishes": finishes[-5:],
+                "wellness_state": raw.get("wellness_state", "ok"),
+            }
         return out

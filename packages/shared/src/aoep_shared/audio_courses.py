@@ -36,12 +36,14 @@ from .training_content_i18n import (
 from .language_learning import LANGUAGE_META, phrases_for
 from .languages import SUPPORTED_LANGUAGES
 
-WORDS_PER_MINUTE = 150
+WORDS_PER_MINUTE = 120
+MIN_AUDIO_MINUTES = 20
 
 
 class AudioSegment(BaseModel):
     heading: str
     text: str
+    kind: str = "narration"   # narration | quiz | reinforcement
 
 
 class AudioCourse(BaseModel):
@@ -64,8 +66,38 @@ class AudioCourse(BaseModel):
 
 
 def _duration(segments: List[AudioSegment]) -> int:
-    words = sum(len(s.text.split()) for s in segments)
-    return max(3, round(words / WORDS_PER_MINUTE))
+    words = sum(len(s.text.split()) for s in segments if s.kind != "quiz")
+    return max(MIN_AUDIO_MINUTES, round(words / WORDS_PER_MINUTE))
+
+
+def _enrich_audio_segments(segs: List[AudioSegment], *, topic: str = "this topic") -> List[AudioSegment]:
+    """Pad drive-mode lessons to 20+ minutes with reinforcement and pop quizzes."""
+    out: List[AudioSegment] = list(segs)
+    target_words = MIN_AUDIO_MINUTES * WORDS_PER_MINUTE
+    i = 0
+    while sum(len(s.text.split()) for s in out if s.kind != "quiz") < target_words:
+        src = segs[i % len(segs)] if segs else None
+        if src is None:
+            break
+        i += 1
+        out.append(AudioSegment(
+            heading=f"Reinforcement: {src.heading}",
+            text=(
+                f"Let's revisit {topic}. {src.text} "
+                "Pause and summarize this section aloud before continuing."
+            ),
+            kind="reinforcement",
+        ))
+        if len(out) % 4 == 0:
+            out.append(AudioSegment(
+                heading="Pop quiz",
+                text=(
+                    f"Quick check on {topic}: what were the two main ideas from the last section? "
+                    "Say your answer out loud. If unsure, use voice rewind to hear it again."
+                ),
+                kind="quiz",
+            ))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -109,6 +141,7 @@ def _language_courses(locale: str) -> List[AudioCourse]:
                 heading=localize_heading("Recap", locale),
                 text=narration("lang_recap", locale,
                                language=name_in_locale, recap=recap)))
+            segs = _enrich_audio_segments(segs, topic=lesson_local)
             out.append(AudioCourse(
                 id=f"lang-{code}-{category}",
                 title=f"{name_in_locale}: {lesson_local} (audio)",
@@ -378,6 +411,7 @@ def _knowledge_course(
                 text=narration("know_fallback_recap", locale, title=display_title)),
         ]
         body_loc = tloc
+    segs = _enrich_audio_segments(segs, topic=display_title)
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
         id=f"audio-{slug}",

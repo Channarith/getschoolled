@@ -75,6 +75,9 @@ test-inventory:
 validate-pipeline:
 	$(VENV_PY) scripts/validate_pipeline.py
 
+meeting-agents-lab:
+	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
+
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
 	$(VENV_PY) -m pytest packages/shared/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q \
