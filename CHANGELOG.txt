@@ -2,6 +2,25 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-24 - Make Redis durable (fixes lost points, re-popping onboarding
+  survey, and admin/account resets after every redeploy). Identity snapshots its
+  whole state (accounts, points/rewards ledgers, student profiles, onboarding-
+  survey completion) into Redis, so Redis is a system of record - but the Redis
+  StatefulSet ran with --save "" --appendonly no, allkeys-lru, and NO volume, so
+  every Redis restart/redeploy (or memory pressure) wiped all of it. infra/k8s/
+  redis.yaml now: mounts a 10Gi PersistentVolume at /data (volumeClaimTemplates,
+  cluster-default StorageClass = vultr-block-storage on VKE), enables AOF
+  (--appendonly yes, --appendfsync everysec) plus periodic RDB save points, and
+  switches eviction to volatile-lru so only TTL'd keys (rate-limit buckets,
+  arcade rounds) can be evicted and the no-TTL identity snapshot never is. Adds
+  fsGroup 999 so redis:alpine owns the volume. infra/compose/docker-compose.yml
+  redis gets the same durability (AOF + ./data/redis bind mount + volatile-lru)
+  so local `docker compose down/up` no longer wipes accounts. Verified with a
+  real redis: identity points (300) + onboarding completion survive a kill -9 +
+  restart, volatile-lru evicts 1087 TTL'd cache keys while keeping the identity
+  snapshot, and the identity store round-trips through Redis across a simulated
+  redeploy. No application code changed.
+
 - 2026-06-24 - Teaching Brain: wire the per-student live teaching loop. The
   orchestrator now persists one Director + counters per session, records
   behavior/mastery to the memory service (new MEMORY_URL / memory_base_url; best-
