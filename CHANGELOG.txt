@@ -24,7 +24,11 @@ Format: newest first. No markdown per project convention.
   MEMORY_URL is diagnosable), and reengage degrades gracefully on a zero-slide
   lesson instead of 500ing.
 [unreleased]
-- 2026-06-23 - Netflix-style consumer pricing: Standard (basic) $19.99/month with
+- 2026-06-23 - Offline meeting agents lab: scripts/meeting_agents_lab.py exercises
+  harvest → teach → present → Zoom/Teams/Meet bridge simulation with five agents
+  (teacher, chat tutor, perception, interrupt host, moderator). Regional dialect
+  profiles (California, Texas, Mexican Spanish, Brazilian Portuguese) humanize
+  lesson narration and tutor tone; slang lexicon expanded. Version 0.6.0 -> 0.6.1.
   ads, VIP (premium) $29.99/month ad-free. Calendar-day monthly billing — renewals
   land on the signup day each month (Jan 31 -> Feb 28/29). New aoep_shared
   plan_pricing + membership modules; identity stores subscription_started_at,

@@ -467,6 +467,10 @@ class PlanRequest(DirectorTickRequest):
     avg_response_latency_s: float = 5.0
     attention_trend: float = 1.0
     question_rate: float = 0.0
+    declared_pace: str = "moderate"
+    adaptation: dict = {}
+    course_complexity: int = 3
+    wellness_state: str = "ok"
 
 
 class PlanResponse(BaseModel):
@@ -495,7 +499,42 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         attention_trend=req.attention_trend,
         question_rate=req.question_rate,
     )
-    state, plan = director.plan(ctx, signals)
+    from aoep_shared.learner_adaptation import LearnerAdaptation, merge_pacing_plan
+
+    adapt = LearnerAdaptation(**{
+        k: req.adaptation.get(k)
+        for k in (
+            "learning_goals", "goal_timeline", "observed_pace", "avg_minutes_per_lesson",
+            "completion_samples", "strategy_wins", "strategy_losses", "known_triggers",
+            "wellness_state", "wellness_reason", "wellness_updated_at",
+            "profile_revision",
+        )
+        if k in req.adaptation
+    }) if req.adaptation else None
+    if adapt and req.adaptation.get("failed_approaches"):
+        from aoep_shared.learner_adaptation import FailedApproach
+        adapt.failed_approaches = [
+            FailedApproach(**f) for f in req.adaptation["failed_approaches"]
+        ]
+    if adapt and req.adaptation.get("sensitivity_rules"):
+        from aoep_shared.learner_adaptation import SensitivityRule
+        adapt.sensitivity_rules = [
+            SensitivityRule(**r) for r in req.adaptation["sensitivity_rules"]
+        ]
+    if adapt and req.adaptation.get("course_finishes"):
+        from aoep_shared.learner_adaptation import CourseFinishRecord
+        adapt.course_finishes = [
+            CourseFinishRecord(**r) for r in req.adaptation["course_finishes"]
+        ]
+    state, base_plan = director.plan(ctx, signals)
+    plan = merge_pacing_plan(
+        signals,
+        declared_pace=req.declared_pace,
+        adaptation=adapt,
+        class_type=req.class_type,
+        course_complexity=req.course_complexity,
+        wellness_state=req.wellness_state,
+    )
     assert plan is not None
     return PlanResponse(
         next_state=state,
@@ -503,6 +542,84 @@ def director_plan(req: PlanRequest) -> PlanResponse:
         difficulty=plan.difficulty,
         reteach=plan.reteach,
         reasons=plan.reasons,
+    )
+
+
+class LxTickRequest(PlanRequest):
+    frustration_events: int = 0
+
+
+class LxTickResponse(BaseModel):
+    lx_score: float
+    lx_components: dict
+    lx_target: float
+    teaching_strategy: str
+    improve_actions: list[str]
+    pacing: Pacing
+    difficulty: Difficulty
+    reteach: bool
+    reasons: list[str]
+    next_state: LessonState
+
+
+@app.post("/director/lx-tick", response_model=LxTickResponse)
+def director_lx_tick(req: LxTickRequest) -> LxTickResponse:
+    """Measure learning experience and return adaptations to improve the score."""
+    from aoep_shared.learning_experience import LX_TARGET, lx_tick
+    from aoep_shared.learner_adaptation import LearnerAdaptation, adaptation_from_dict
+
+    director = Director()
+    ctx = ClassContext(
+        class_type=req.class_type,
+        slides_total=req.slides_total,
+        slide_index=req.slide_index,
+        pending_questions=req.pending_questions,
+        attention=req.attention,
+        slides_since_quiz=req.slides_since_quiz,
+    )
+    signals = LearnerSignals(
+        topic_mastery=req.topic_mastery,
+        quiz_accuracy=req.quiz_accuracy,
+        avg_response_latency_s=req.avg_response_latency_s,
+        attention_trend=req.attention_trend,
+        question_rate=req.question_rate,
+    )
+    adapt = adaptation_from_dict(req.adaptation) if req.adaptation else None
+    if adapt and req.adaptation.get("failed_approaches"):
+        from aoep_shared.learner_adaptation import FailedApproach
+        adapt.failed_approaches = [
+            FailedApproach(**f) for f in req.adaptation["failed_approaches"]
+        ]
+    if adapt and req.adaptation.get("sensitivity_rules"):
+        from aoep_shared.learner_adaptation import SensitivityRule
+        adapt.sensitivity_rules = [
+            SensitivityRule(**r) for r in req.adaptation["sensitivity_rules"]
+        ]
+    bandit = (adapt.strategy_bandit if adapt else {}) or req.adaptation.get("strategy_bandit", {})
+    result = lx_tick(
+        signals=signals,
+        slide_index=req.slide_index,
+        slides_total=req.slides_total,
+        class_type=req.class_type,
+        declared_pace=req.declared_pace,
+        adaptation=adapt,
+        wellness_state=req.wellness_state,
+        course_complexity=req.course_complexity,
+        frustration_events=req.frustration_events,
+        strategy_bandit=bandit,
+    )
+    state, _ = director.plan(ctx, signals)
+    return LxTickResponse(
+        lx_score=result.lx_score,
+        lx_components=result.components.as_dict(),
+        lx_target=LX_TARGET,
+        teaching_strategy=result.teaching_strategy,
+        improve_actions=result.improve_actions,
+        pacing=result.pacing,
+        difficulty=result.difficulty,
+        reteach=result.reteach,
+        reasons=result.reasons,
+        next_state=state,
     )
 
 

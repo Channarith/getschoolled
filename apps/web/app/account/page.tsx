@@ -194,6 +194,7 @@ export default function AccountPage() {
               <Link href="/consent"><button>{t("account.consent")}</button></Link>
               <Link href="/transparency"><button>{t("account.transparency")}</button></Link>
               <Link href="/legal"><button>{t("account.legal")}</button></Link>
+              <Link href="/security"><button>Sign-in security</button></Link>
             </div>
           </div>
 

@@ -19,7 +19,16 @@ def test_every_course_is_audio_only_and_drive_safe():
         assert c.visual_required is False
         assert c.drive_safe is True
         assert len(c.segments) >= 2          # has narration
-        assert c.duration_min >= 3
+        assert c.duration_min >= 20
+
+
+def test_enriched_courses_include_quiz_segments():
+    cat = build_catalog()
+    with_quiz = [c for c in cat if any(s.kind == "quiz" for s in c.segments)]
+    assert len(with_quiz) >= len(cat) // 2
+    sample = with_quiz[0]
+    quiz = next(s for s in sample.segments if s.kind == "quiz")
+    assert quiz.text
 
 
 def test_language_courses_are_included():

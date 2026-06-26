@@ -83,6 +83,8 @@ def run_end_to_end(
     start_iso: str = "",
     duration_min: Optional[int] = None,
     write_pptx: bool = True,
+    dialect: Optional[str] = None,
+    language: str = "en",
 ) -> EndToEndResult:
     """Run harvest -> teach -> present and return a manifest of all artifacts."""
     out_dir = Path(out_dir)
@@ -112,7 +114,8 @@ def run_end_to_end(
     lesson_dir = out_dir / "lesson"
     lesson_dir.mkdir(parents=True, exist_ok=True)
     lesson = teach_course(course, engine=teach_engine, pptx_path=package.pptx_path,
-                          out_dir=lesson_dir, audience=audience)
+                          out_dir=lesson_dir, audience=audience,
+                          dialect=dialect, language=language)
     lesson_json = lesson_dir / "lesson_plan.json"
     lesson_json.write_text(lesson.to_json(), encoding="utf-8")
     artifacts["lesson_plan"] = str(lesson_json)
