@@ -6,17 +6,21 @@ import {
   advance,
   ask,
   enrollCourse,
+  generateClassQuiz,
   getDisclosure,
   grantReward,
   getPostClassSurvey,
   getRewards,
   getToken,
   listLessons,
+  listStudents,
+  recordAdaptationEvent,
   reportIssue,
   setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
   type Answer,
+  type ClassQuizItem,
   type Disclosure,
   type Lesson,
   type SessionView,
@@ -88,12 +92,18 @@ export default function ClassRoom({
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
+  const [slidesSinceQuiz, setSlidesSinceQuiz] = useState(0);
+  const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
+  const [studentId, setStudentId] = useState("");
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const autoStartedRef = useRef(false);
 
   useEffect(() => {
     const signedIn = Boolean(getToken());
     setLoggedIn(signedIn);
+    if (signedIn) {
+      listStudents().then((r) => setStudentId(r.students[0]?.id ?? "")).catch(() => {});
+    }
     if (!locked) {
       listLessons()
         .then((ls) => {
@@ -161,16 +171,32 @@ export default function ClassRoom({
   }
 
   async function onAdvance() {
-    if (!view) return;
+    if (!view || popQuiz) return;
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
       setSlide(s);
+      const nextCount = slidesSinceQuiz + 1;
+      setSlidesSinceQuiz(nextCount);
+      if (nextCount >= 3) {
+        const passages = view.lesson.slides
+          .slice(Math.max(0, s.index - 3), s.index + 1)
+          .map((sl) => `${sl.title}: ${sl.body || sl.narration}`);
+        const quiz = await generateClassQuiz(view.lesson.title, passages, 2);
+        if (quiz.items?.length) {
+          setPopQuiz(quiz.items);
+          setSlidesSinceQuiz(0);
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
       setBusy(false);
     }
+  }
+
+  function dismissPopQuiz() {
+    setPopQuiz(null);
   }
 
   // End the class: reward the completion (logged-in learners earn points), then
@@ -208,6 +234,10 @@ export default function ClassRoom({
       const before = await getRewards().then((r) => r.balance).catch(() => 0);
       const res = await setEnrollmentStatus(lessonId, "passed");
       const earned = Math.max(0, res.points_balance - before);
+      if (studentId) {
+        const mins = Math.max(20, view.lesson.slides.length * 2);
+        recordAdaptationEvent(studentId, "completion_pace", { minutes: mins }).catch(() => {});
+      }
       setFinish(
         earned > 0
           ? { kind: "earned", earned, balance: res.points_balance }
@@ -267,6 +297,14 @@ export default function ClassRoom({
     if (!view || !question.trim()) return;
     const q = question.trim();
     setQuestion("");
+    const frustration = /(stupid|hate this|confus|frustrat|angry|doesn't work|too fast|too slow)/i.test(q);
+    if (frustration && studentId && getToken()) {
+      recordAdaptationEvent(studentId, "trigger", {
+        trigger: q.slice(0, 80).toLowerCase(),
+        reason: "student expressed frustration during class Q&A",
+        severity: "medium",
+      }).catch(() => {});
+    }
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
@@ -442,6 +480,23 @@ export default function ClassRoom({
               <span className="muted">{t("class.session", { id: view.session.session_id })}</span>
             </div>
           </div>
+
+          {popQuiz && popQuiz.length > 0 && (
+            <div className="card" style={{ borderColor: "#6ea8fe" }}>
+              <h3 style={{ marginTop: 0 }}>Pop quiz — check your understanding</h3>
+              {popQuiz.map((item) => (
+                <div key={item.item_id} style={{ marginBottom: 12 }}>
+                  <p><strong>{item.prompt}</strong></p>
+                  <ul>
+                    {item.options.map((opt, i) => (
+                      <li key={i}>{opt}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button type="button" onClick={dismissPopQuiz}>Continue lesson</button>
+            </div>
+          )}
 
           <div className="card">
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>

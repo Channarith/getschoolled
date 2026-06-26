@@ -112,6 +112,8 @@ def lesson_category(lesson_id: str, title: str) -> str:
     return "Live Class"
 
 
+from .lesson_depth import TEACHING_WPM, TARGET_MIN_MINUTES, duration_minutes
+
+
 def lesson_duration_min(slides: List[SampleSlide]) -> int:
-    words = sum(len((s.body or s.narration).split()) for s in slides)
-    return max(5, round(words / 150))
+    return duration_minutes(slides, wpm=TEACHING_WPM)

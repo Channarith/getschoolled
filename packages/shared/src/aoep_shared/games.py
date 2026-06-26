@@ -27,6 +27,7 @@ class GameType(str, enum.Enum):
     QUIZ = "quiz"
     SPEED = "speed"
     MATCH = "match"
+    MARATHON = "marathon"
 
 
 class AgeGroup(str, enum.Enum):
@@ -52,6 +53,9 @@ GAME_SUBJECTS: List[str] = [
 ]
 
 SPEED_TIME_LIMIT_S = 45
+MARATHON_TIME_LIMIT_S = 180
+MAX_ROUND_ITEMS = 25
+DEFAULT_MARATHON_ITEMS = 20
 
 
 class MCQItem(BaseModel):
@@ -278,16 +282,32 @@ _ADULT_MCQ: Dict[str, List[dict]] = {
 def mcq_bank_for(subject: str, age: AgeGroup) -> List[dict]:
     """Age-appropriate MCQ pool for a subject (with sensible fallbacks)."""
     if age is AgeGroup.KIDS:
-        return _KIDS_MCQ.get(subject) or _MCQ_BANK[subject]
-    if age is AgeGroup.ADULT:
-        return _MCQ_BANK[subject] + _ADULT_MCQ.get(subject, [])
-    return _MCQ_BANK[subject]  # tween / teen use the core bank
+        core = _KIDS_MCQ.get(subject) or _MCQ_BANK.get(subject, [])
+    elif age is AgeGroup.ADULT:
+        core = _MCQ_BANK.get(subject, []) + _ADULT_MCQ.get(subject, [])
+    else:
+        core = _MCQ_BANK.get(subject, [])
+    if not core:
+        core = _MCQ_BANK.get("science", [])
+    # Triple the bank with review/challenge variants for longer, addictive sessions.
+    expanded: List[dict] = []
+    for prefix in ("", "Review — ", "Challenge — "):
+        for q in core:
+            expanded.append({**q, "prompt": prefix + q["prompt"]})
+    return expanded
 
 
 def pair_bank_for(subject: str, age: AgeGroup) -> List[tuple]:
     if age is AgeGroup.KIDS:
-        return _KIDS_PAIRS.get(subject) or _PAIR_BANK[subject]
-    return _PAIR_BANK[subject]
+        core = _KIDS_PAIRS.get(subject) or _PAIR_BANK.get(subject, [])
+    else:
+        core = _PAIR_BANK.get(subject, [])
+    if not core:
+        core = _PAIR_BANK.get("science", [])
+    expanded = list(core)
+    for term, match in core:
+        expanded.append((f"Review: {term}", match))
+    return expanded
 
 
 class GameRound(BaseModel):
@@ -343,16 +363,25 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
                n: int = 5, seed: Optional[int] = None) -> GameRound:
     subject = subject if subject in GAME_SUBJECTS else "science"
     rng = random.Random(seed)
+    if game_type is GameType.MARATHON:
+        n = max(n, DEFAULT_MARATHON_ITEMS)
+    cap = MAX_ROUND_ITEMS if game_type is GameType.MARATHON else min(n, MAX_ROUND_ITEMS)
     if game_type is GameType.MATCH:
         bank = pair_bank_for(subject, age_group)[:]
         rng.shuffle(bank)
         pairs = [MatchPair(id=uuid.uuid4().hex[:8], term=t, match=m)
-                 for t, m in bank[: max(2, min(n, len(bank)))]]
+                 for t, m in bank[: max(2, min(n, len(bank), cap))]]
         return GameRound(subject=subject, game_type=game_type, age_group=age_group, pairs=pairs)
     bank = mcq_bank_for(subject, age_group)[:]
     rng.shuffle(bank)
-    mcqs = [MCQItem(id=uuid.uuid4().hex[:8], **q) for q in bank[: max(1, min(n, len(bank)))]]
-    tl = SPEED_TIME_LIMIT_S if game_type is GameType.SPEED else 0
+    take = max(1, min(n, len(bank), cap))
+    mcqs = [MCQItem(id=uuid.uuid4().hex[:8], **q) for q in bank[:take]]
+    if game_type is GameType.MARATHON:
+        tl = MARATHON_TIME_LIMIT_S
+    elif game_type is GameType.SPEED:
+        tl = SPEED_TIME_LIMIT_S
+    else:
+        tl = 0
     return GameRound(subject=subject, game_type=game_type, age_group=age_group,
                      mcqs=mcqs, time_limit_s=tl)
 
@@ -387,7 +416,10 @@ def score_round(rnd: GameRound, answers: Dict[str, object],
             and elapsed_s is not None and elapsed_s < rnd.time_limit_s:
         frac_left = max(0.0, 1.0 - (elapsed_s / rnd.time_limit_s))
         speed_bonus = int(round(base * frac_left * 0.5))
-    points = base + accuracy_bonus + speed_bonus
+    marathon_bonus = 0
+    if rnd.game_type is GameType.MARATHON and correct >= 3:
+        marathon_bonus = correct * 5 + (10 if correct == total else 0)
+    points = base + accuracy_bonus + speed_bonus + marathon_bonus
     return ScoreResult(
         game_id=rnd.game_id, subject=rnd.subject, game_type=rnd.game_type,
         correct=correct, total=total, accuracy=accuracy, base_points=base,
@@ -404,5 +436,6 @@ def games_catalog() -> dict:
             {"id": GameType.QUIZ.value, "name": "Quiz", "desc": "Pick the correct answer."},
             {"id": GameType.SPEED.value, "name": "Speed Round", "desc": "Beat the clock for a bonus."},
             {"id": GameType.MATCH.value, "name": "Match", "desc": "Match terms to definitions."},
+            {"id": GameType.MARATHON.value, "name": "Marathon", "desc": "20+ questions, streak bonuses, 3 min timer."},
         ],
     }

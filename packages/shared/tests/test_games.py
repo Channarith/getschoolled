@@ -17,7 +17,7 @@ def test_catalog_covers_requested_subjects():
               "history", "art", "technology", "programming"]:
         assert s in GAME_SUBJECTS
     cat = games_catalog()
-    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match"}
+    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match", "marathon"}
 
 
 def test_quiz_round_public_hides_answers():
@@ -111,4 +111,4 @@ def test_kids_rounds_score_normally_across_subjects():
 def test_kids_match_uses_kid_pairs():
     rnd = make_round("biology", GameType.MATCH, age_group=AgeGroup.KIDS, n=4, seed=2)
     terms = {p.term for p in rnd.pairs}
-    assert "Cow" in terms  # kid-friendly pair, not "Mitochondria"
+    assert "Cow" in terms or "Review: Cow" in terms

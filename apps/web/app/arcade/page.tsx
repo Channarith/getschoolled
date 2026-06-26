@@ -87,7 +87,8 @@ export default function ArcadePage() {
     }
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     try {
-      const r = await newGame(subject, gameType, ageGroup, gameType === "match" ? 4 : 5);
+      const n = gameType === "marathon" ? 20 : gameType === "match" ? 8 : 12;
+      const r = await newGame(subject, gameType, ageGroup, n);
       startedAt.current = Date.now();
       setTimeLeft(r.time_limit_s || 0);
       setRound(r);

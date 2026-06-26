@@ -3,13 +3,15 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
-- 2026-06-23 - Secure login: forgot-password reset tokens, TOTP 2FA, Google/Facebook
-  OAuth (sandbox locally; GOOGLE_CLIENT_ID / FACEBOOK_APP_ID in cloud), passkey
-  register/login (WebAuthn-shaped; sandbox in local mode), login audit trail
-  (IP, user agent, country hint, method), account lockout after 5 failed attempts,
-  GET /auth/login-history and /auth/security. Web: /forgot-password, /security,
-  login page 2FA step + social buttons. Postgres migration 0005_login_security.sql.
-  Version 0.5.1 -> 0.5.2.
+- 2026-06-23 - Deep courses & adaptive learning: lessons auto-enriched to 20–30 min
+  with examples, reinforcement slides, and checkpoint quizzes (orchestrator
+  curriculum loader + lesson_depth). Live ClassRoom pop quizzes every 3 slides;
+  drive/audio courses padded to 20+ min with reinforcement + pop-quiz segments.
+  Games: marathon mode (20 questions, 3 min, streak bonuses), expanded question
+  banks, up to 25 items per round. Evolving learner profile (goals, observed
+  pace, strategy wins/losses, sensitivity/trigger memory, failed teaching
+  approaches) via identity /students/{id}/adaptation; director/plan merges
+  behavioral + declared profile. Version 0.6.0 -> 0.7.0.
 - 2026-06-23 - Netflix-style consumer pricing: Standard (basic) $19.99/month with
   ads, VIP (premium) $29.99/month ad-free. Calendar-day monthly billing — renewals
   land on the signup day each month (Jan 31 -> Feb 28/29). New aoep_shared

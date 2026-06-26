@@ -423,6 +423,36 @@ def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dic
     return {"student": prof.model_dump(), "skipped": True}
 
 
+class AdaptationEvent(BaseModel):
+    event_type: str
+    payload: dict = {}
+
+
+@app.post("/students/{student_id}/adaptation")
+def record_adaptation(student_id: str, req: AdaptationEvent, acct=Depends(current_account)) -> dict:
+    try:
+        prof = app.state.accounts.record_adaptation_event(
+            acct.id, student_id, req.event_type, req.payload,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student": prof.model_dump(), "adaptation": prof.adaptation}
+
+
+@app.get("/students/{student_id}/adaptation")
+def get_adaptation(student_id: str, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {
+        "learning_goals": prof.learning_goals,
+        "goal_timeline": prof.goal_timeline,
+        "adaptation": prof.adaptation,
+        "learning_pace": prof.learning_pace,
+        "learner_category": prof.learner_category,
+    }
+
+
 class MasteryUpdate(BaseModel):
     skill: str
     value: float
@@ -532,7 +562,7 @@ class NewGameRequest(BaseModel):
 
 @app.post("/games/new")
 def games_new(req: NewGameRequest) -> dict:
-    from aoep_shared.games import AgeGroup, GameType, make_round
+    from aoep_shared.games import AgeGroup, GameType, MAX_ROUND_ITEMS, make_round
 
     try:
         gt = GameType(req.game_type)
@@ -542,7 +572,7 @@ def games_new(req: NewGameRequest) -> dict:
         age = AgeGroup(req.age_group)
     except ValueError:
         raise HTTPException(status_code=422, detail="unknown age_group")
-    rnd = make_round(req.subject, gt, age_group=age, n=max(1, min(req.n, 8)))
+    rnd = make_round(req.subject, gt, age_group=age, n=max(1, min(req.n, MAX_ROUND_ITEMS)))
     app.state.game_rounds[rnd.game_id] = rnd
     from .persistence import save_game_round
 

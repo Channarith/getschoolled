@@ -1096,6 +1096,52 @@ export async function advance(sessionId: string): Promise<Slide> {
   );
 }
 
+export type ClassQuizItem = {
+  item_id: string;
+  prompt: string;
+  options: string[];
+};
+
+export async function generateClassQuiz(topic: string, passages: string[], maxItems = 3): Promise<{
+  items: ClassQuizItem[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/quiz`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, passages, max_items: maxItems }),
+    })
+  );
+}
+
+export async function gradeClassQuiz(
+  topic: string,
+  answers: Record<string, number>,
+  difficulty = "medium",
+): Promise<{ score: number; mastery_target: number; feedback: string[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topic, answers, difficulty }),
+    })
+  );
+}
+
+export async function recordAdaptationEvent(
+  studentId: string,
+  eventType: string,
+  payload: Record<string, unknown>,
+): Promise<{ adaptation: Record<string, unknown> }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ event_type: eventType, payload }),
+    })
+  );
+}
+
 export type LegalNotice = {
   id: string;
   title: string;
