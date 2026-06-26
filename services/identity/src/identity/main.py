@@ -16,10 +16,10 @@ from aoep_shared.flags import require_admin
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import PlanTier, Region
 from aoep_shared.service import create_service
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
+from .store import AccountStore, BillingAddress, ClassContext, Enrollment, EnrollmentStatus
 from .persistence import load_from_redis
 
 app = create_service("identity")
@@ -151,13 +151,23 @@ class LoginRequest(BaseModel):
     password: str
 
 
+def _client_info(request: Request) -> dict:
+    fwd = request.headers.get("X-Forwarded-For", "")
+    ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "")
+    return {
+        "ip": ip,
+        "user_agent": request.headers.get("User-Agent", "")[:256],
+        "country_hint": request.headers.get("CF-IPCountry", "") or request.headers.get("X-Country", ""),
+    }
+
+
 def _session(acct) -> dict:
     token = sign_token({"sub": acct.id, "email": acct.email}, _token_key())
     return {"token": token, "account": acct.public()}
 
 
 @app.post("/auth/signup")
-def signup(req: SignupRequest) -> dict:
+def signup(req: SignupRequest, request: Request) -> dict:
     from aoep_shared.passwords import validate_password
 
     try:
@@ -167,15 +177,40 @@ def signup(req: SignupRequest) -> dict:
         app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    info = _client_info(request)
+    app.state.accounts.record_login_event(acct.id, success=True, **info)
     return _session(acct)
 
 
 @app.post("/auth/login")
-def login(req: LoginRequest) -> dict:
-    acct = app.state.accounts.authenticate(req.email, req.password)
+def login(req: LoginRequest, request: Request) -> dict:
+    info = _client_info(request)
+    acct = app.state.accounts.by_email(req.email)
+    if acct and acct.locked_until and acct.locked_until > time.time():
+        raise HTTPException(status_code=429, detail="account temporarily locked; try again later")
+    acct = app.state.accounts.authenticate(req.email, req.password, **info)
     if acct is None:
         raise HTTPException(status_code=401, detail="invalid email or password")
     return _session(acct)
+
+
+@app.get("/auth/login-history")
+def login_history(acct=Depends(current_account)) -> dict:
+    return {"events": app.state.accounts.login_history(acct.id)}
+
+
+@app.get("/auth/onboarding-status")
+def onboarding_status(acct=Depends(current_account)) -> dict:
+    from aoep_shared.membership import tier_requires_payment
+
+    return {
+        "completed": acct.onboarding_completed_at is not None,
+        "completed_at": acct.onboarding_completed_at,
+        "tier": acct.tier.value,
+        "membership_class": acct.membership_class,
+        "billing_required": tier_requires_payment(acct.tier.value),
+        "billing_validated": acct.billing_validated_at is not None,
+    }
 
 
 @app.get("/auth/me")
@@ -239,7 +274,136 @@ def set_tier(req: TierChange, acct=Depends(current_account)) -> dict:
     billing webhook handler forwards an internal token here.
     """
     updated = app.state.accounts.set_tier(acct.id, req.tier)
-    return {"tier": updated.tier.value}
+    return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+
+
+class InternalTierChange(BaseModel):
+    account_id: str
+    tier: PlanTier
+
+
+@app.post("/internal/membership/tier", dependencies=[Depends(require_internal)])
+def internal_set_tier(req: InternalTierChange) -> dict:
+    """Billing webhooks / sandbox checkout: set tier by account id."""
+    acct = app.state.accounts.by_id(req.account_id)
+    if acct is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    updated = app.state.accounts.set_tier(req.account_id, req.tier)
+    return {"account_id": updated.id, "tier": updated.tier.value,
+            "membership_class": updated.membership_class}
+
+
+# --------------------------------------------------------------------------- #
+# Netflix-style onboarding (plan + billing + profile)
+# --------------------------------------------------------------------------- #
+class OnboardingProfileRequest(BaseModel):
+    display_name: str = ""
+    phone: str = ""
+    region: Region | None = None
+
+
+class OnboardingBillingRequest(BaseModel):
+    line1: str
+    line2: str = ""
+    city: str
+    state: str = ""
+    postal_code: str
+    country: str = "US"
+    phone: str = ""
+    card_number: str
+    exp_month: int = Field(ge=1, le=12)
+    exp_year: int = Field(ge=2020, le=2099)
+    cvv: str
+
+
+class OnboardingPlanRequest(BaseModel):
+    tier: PlanTier
+
+
+class OnboardingCompleteRequest(BaseModel):
+    learner_name: str = ""
+    age_band: str = "adult"
+
+
+@app.post("/onboarding/profile")
+def onboarding_profile(req: OnboardingProfileRequest, acct=Depends(current_account)) -> dict:
+    patch: dict = {}
+    if req.display_name.strip():
+        patch["display_name"] = req.display_name.strip()
+    if req.region is not None:
+        patch["region"] = req.region
+    if patch:
+        acct = app.state.accounts.patch_account(acct.id, **patch)
+    if req.phone.strip():
+        addr = acct.billing_address or BillingAddress()
+        addr.phone = req.phone.strip()
+        app.state.accounts.set_billing_profile(acct.id, addr, card_last4=acct.card_last4 or "")
+        acct = app.state.accounts.by_id(acct.id)
+    return {"ok": True, "display_name": acct.display_name}
+
+
+@app.post("/onboarding/billing")
+def onboarding_billing(req: OnboardingBillingRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.billing_validation import (
+        mask_card_last4, validate_billing_address, validate_card,
+    )
+
+    addr_errors = validate_billing_address(
+        line1=req.line1, city=req.city, postal_code=req.postal_code,
+        country=req.country, state=req.state,
+    )
+    card_errors = validate_card(req.card_number, req.exp_month, req.exp_year, req.cvv)
+    errors = addr_errors + card_errors
+    if errors:
+        raise HTTPException(status_code=422, detail="; ".join(errors))
+    address = BillingAddress(
+        line1=req.line1.strip(), line2=req.line2.strip(), city=req.city.strip(),
+        state=req.state.strip(), postal_code=req.postal_code.strip(),
+        country=req.country.strip().upper()[:2], phone=req.phone.strip(),
+    )
+    updated = app.state.accounts.set_billing_profile(
+        acct.id, address, card_last4=mask_card_last4(req.card_number))
+    return {"validated": True, "card_last4": updated.card_last4}
+
+
+@app.post("/onboarding/plan")
+def onboarding_plan(req: OnboardingPlanRequest, acct=Depends(current_account)) -> dict:
+    from aoep_shared.membership import tier_requires_payment
+
+    tier = req.tier
+    if tier_requires_payment(tier.value) and acct.billing_validated_at is None:
+        raise HTTPException(
+            status_code=402,
+            detail="billing address and payment method required before selecting a paid plan",
+        )
+    updated = app.state.accounts.set_tier(acct.id, tier)
+    return {"tier": updated.tier.value, "membership_class": updated.membership_class}
+
+
+@app.post("/onboarding/complete")
+def onboarding_complete(req: OnboardingCompleteRequest, acct=Depends(current_account)) -> dict:
+    if req.learner_name.strip():
+        students = list(acct.students.values())
+        if students:
+            students[0].display_name = req.learner_name.strip()
+            if req.age_band in ("child", "teen", "adult"):
+                students[0].age_band = req.age_band
+    updated = app.state.accounts.complete_onboarding(acct.id)
+    return {
+        "completed": True,
+        "completed_at": updated.onboarding_completed_at,
+        "membership_class": updated.membership_class,
+    }
+
+
+@app.get("/admin/login-events")
+def admin_login_events(_acct=Depends(require_admin_account)) -> dict:
+    rows = []
+    for a in app.state.accounts.list_all_accounts():
+        for ev in app.state.accounts.login_history(a.id, limit=10):
+            rows.append({"account_id": a.id, "email": a.email, **ev})
+    rows.sort(key=lambda r: r.get("ts", 0), reverse=True)
+    return {"events": rows[:200], "count": len(rows)}
 
 
 # --------------------------------------------------------------------------- #
