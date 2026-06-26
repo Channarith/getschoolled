@@ -82,6 +82,8 @@ jobs:
       - uses: azure/setup-kubectl@v4
       - name: Configure kubeconfig
         env:
+          VULTR_API_KEY: ${{ secrets.VULTR_API_KEY }}
+          VKE_CLUSTER_ID: ${{ vars.VKE_CLUSTER_ID || 'bb09a491-8a40-4262-9a65-03ee5113c5a8' }}
           KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: bash scripts/github_configure_kubeconfig.sh

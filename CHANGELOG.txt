@@ -15,6 +15,18 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-26 - CI deploy self-healing kubeconfig (fixes stale production / the
+  /api/admin/flags 404). Root cause: the VKE roll step authenticated with a
+  once-captured KUBE_CONFIG_B64 secret whose client credentials had rotated/
+  expired, so build-push kept pushing fresh images but the cluster was never
+  rolled - production stayed on an old web build missing newer routes (e.g. the
+  /api/admin/flags BFF route, which 404'd instead of 403). scripts/
+  github_configure_kubeconfig.sh now regenerates a fresh kubeconfig from the
+  Vultr API (GET /v2/kubernetes/clusters/{id}/config) on every run when
+  VULTR_API_KEY + VKE_CLUSTER_ID are set, falling back to KUBE_CONFIG_B64/
+  KUBE_CONFIG. deploy.yml and deploy-vke-manual.yml pass those env vars to the
+  Configure-kubeconfig step (cluster id defaults to the VKE cluster, overridable
+  via repo var VKE_CLUSTER_ID). No application code changed.
 
 - 2026-06-24 - Rewards catalog revamp + mobile/web sync clarification. Points are
   awarded server-side in identity (course pass, arcade games, language practice)

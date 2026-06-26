@@ -61,6 +61,27 @@ print_fix_hint() {
   fi
 }
 
+# Preferred: regenerate a fresh kubeconfig straight from the Vultr API on every
+# run. VKE client credentials rotate, so a once-captured KUBE_CONFIG_B64 silently
+# expires and the deploy's roll step fails (cluster never picks up new images).
+# With VULTR_API_KEY + VKE_CLUSTER_ID this is self-healing.
+if [ -n "${VULTR_API_KEY:-}" ] && [ -n "${VKE_CLUSTER_ID:-}" ]; then
+  echo "Fetching fresh kubeconfig from Vultr API for cluster ${VKE_CLUSTER_ID}…"
+  RESP="$(curl -fsS -H "Authorization: Bearer ${VULTR_API_KEY}" \
+    "https://api.vultr.com/v2/kubernetes/clusters/${VKE_CLUSTER_ID}/config" 2>/dev/null || true)"
+  if [ -n "$RESP" ] && KCFG="$(printf '%s' "$RESP" | python3 -c \
+      'import sys,json,base64; print(base64.b64decode(json.load(sys.stdin)["kube_config"]).decode())' 2>/dev/null)"; then
+    write_config "$KCFG"
+    if validate_config; then
+      echo "OK kubeconfig regenerated from Vultr API."
+      exit 0
+    fi
+    echo "WARN: Vultr API kubeconfig invalid — falling back to KUBE_CONFIG_B64…" >&2
+  else
+    echo "WARN: Vultr API config fetch/parse failed — falling back to KUBE_CONFIG_B64…" >&2
+  fi
+fi
+
 if [ -n "${KUBE_CONFIG:-}" ]; then
   write_config "$KUBE_CONFIG"
   if validate_config; then
