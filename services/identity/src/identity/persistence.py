@@ -85,7 +85,6 @@ def _deserialize_account(raw: dict) -> "Account":
         failed_logins=int(raw.get("failed_logins", 0)),
         login_count=int(raw.get("login_count", 0)),
         locked_until=raw.get("locked_until"),
-        membership_class=raw.get("membership_class", "standard"),
         onboarding_completed_at=raw.get("onboarding_completed_at"),
         card_last4=raw.get("card_last4", ""),
         billing_validated_at=raw.get("billing_validated_at"),

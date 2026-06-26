@@ -17,7 +17,9 @@ def test_catalog_covers_requested_subjects():
               "history", "art", "technology", "programming"]:
         assert s in GAME_SUBJECTS
     cat = games_catalog()
-    assert {g["id"] for g in cat["game_types"]} == {"quiz", "speed", "match"}
+    ids = {g["id"] for g in cat["game_types"]}
+    assert "quiz" in ids and "tiles" in ids and "farm" in ids
+    assert len(cat["game_types"]) >= 15
 
 
 def test_quiz_round_public_hides_answers():
@@ -112,3 +114,30 @@ def test_kids_match_uses_kid_pairs():
     rnd = make_round("biology", GameType.MATCH, age_group=AgeGroup.KIDS, n=4, seed=2)
     terms = {p.term for p in rnd.pairs}
     assert "Cow" in terms  # kid-friendly pair, not "Mitochondria"
+
+
+def test_extended_tiles_round():
+    rnd = make_round("wordplay", GameType.TILES, n=3, seed=1)
+    assert len(rnd.mcqs) >= 1
+    assert rnd.mcqs[0].kind == "tiles"
+    pub = rnd.public()
+    assert pub["items"][0].get("meta", {}).get("letters")
+
+
+def test_etiquette_subject_uses_extended_content():
+    rnd = make_round("etiquette", GameType.QUIZ, n=3, seed=2)
+    assert any("napkin" in m.prompt.lower() or "gift" in m.prompt.lower()
+               or "chat" in m.prompt.lower() for m in rnd.mcqs)
+
+
+def test_geometry_game_mode():
+    rnd = make_round("geometry", GameType.GEOMETRY, n=3, seed=3)
+    assert all(m.kind == "geometry" for m in rnd.mcqs)
+
+
+def test_catalog_localized_spanish():
+    cat = games_catalog(locale="es")
+    types = {g["id"]: g["name"] for g in cat["game_types"]}
+    assert types["tiles"] != "Word Tiles"  # localized
+    subs = {s["id"]: s["name"] for s in cat["subjects_localized"]}
+    assert subs["etiquette"] != "etiquette"

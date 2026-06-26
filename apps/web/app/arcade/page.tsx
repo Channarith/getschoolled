@@ -19,10 +19,22 @@ import { useT } from "../lib/i18n";
 const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
   history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
+  life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
+  creation: "🛠️", farming: "🌾",
 };
 
+const KIND_BADGE: Record<string, string> = {
+  tiles: "🍌", resource: "⚖️", dependency: "🔗", rpg: "🎭", cartoon: "📺",
+  idiom: "💬", create: "✨", doing: "🙌", farm: "🚜", spelling: "✏️", geometry: "📐",
+};
+
+function subjectLabel(cat: GamesCatalog | null, id: string): string {
+  const loc = cat?.subjects_localized?.find((s) => s.id === id);
+  return loc?.name ?? id.replace(/_/g, " ");
+}
+
 export default function ArcadePage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [subject, setSubject] = useState("biology");
@@ -41,7 +53,9 @@ export default function ArcadePage() {
 
   // Read auth on the client only (avoids SSR/client hydration mismatch).
   useEffect(() => { setLoggedIn(Boolean(getToken())); }, []);
-  useEffect(() => { getGamesCatalog().then(setCat).catch((e) => setError(String(e))); }, []);
+  useEffect(() => {
+    getGamesCatalog(locale).then(setCat).catch((e) => setError(String(e)));
+  }, [locale]);
 
   const [lbAge, setLbAge] = useState<string>("");
   const loadLeaders = useCallback(() => {
@@ -70,12 +84,13 @@ export default function ArcadePage() {
     }
   }, [round, answers, loggedIn, loadLeaders]);
 
-  // Speed-round countdown -> auto-submit at zero.
+  // Timed modes: speed + marathon countdown -> auto-submit at zero.
   useEffect(() => {
-    if (!round || round.game_type !== "speed" || round.time_limit_s <= 0) return;
+    const timed = round && (round.game_type === "speed" || round.game_type === "marathon");
+    if (!timed || round!.time_limit_s <= 0) return;
     if (timeLeft <= 0) { void finish(); return; }
-    const t = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
   }, [round, timeLeft, finish]);
 
   async function play() {
@@ -87,7 +102,8 @@ export default function ArcadePage() {
     }
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     try {
-      const r = await newGame(subject, gameType, ageGroup, gameType === "match" ? 4 : 5);
+      const n = gameType === "marathon" ? 20 : gameType === "match" ? 8 : 6;
+      const r = await newGame(subject, gameType, ageGroup, n, locale);
       startedAt.current = Date.now();
       setTimeLeft(r.time_limit_s || 0);
       setRound(r);
@@ -123,7 +139,7 @@ export default function ArcadePage() {
               <button key={s}
                 onClick={() => { setSubject(s); if (s !== "chemistry" && gameType === "potion") setGameType("quiz"); }}
                 style={{ opacity: subject === s ? 1 : 0.55, fontSize: 14 }}>
-                {SUBJECT_ICON[s] ?? "📘"} {s}
+                {SUBJECT_ICON[s] ?? "📘"} {subjectLabel(cat, s)}
               </button>
             ))}
           </div>
@@ -166,13 +182,38 @@ export default function ArcadePage() {
       {round && round.items && (
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <h3 style={{ margin: 0 }}>{SUBJECT_ICON[round.subject]} {round.subject} · {round.game_type}</h3>
-            {round.game_type === "speed" && (
+            <h3 style={{ margin: 0 }}>
+              {SUBJECT_ICON[round.subject] ?? "📘"} {subjectLabel(cat, round.subject)} · {round.game_type}
+            </h3>
+            {(round.game_type === "speed" || round.game_type === "marathon") && round.time_limit_s > 0 && (
               <span style={{ fontWeight: 700, color: timeLeft <= 10 ? "#e11d48" : "#16a34a" }}>⏱ {timeLeft}s</span>
             )}
           </div>
-          {round.items.map((it, qi) => (
-            <div key={it.id} style={{ margin: "12px 0" }}>
+          {round.items.map((it, qi) => {
+            const kind = it.kind ?? "mcq";
+            const meta = it.meta ?? {};
+            return (
+            <div key={it.id} style={{ margin: "12px 0", padding: kind !== "mcq" ? 10 : 0,
+              border: kind !== "mcq" ? "1px solid var(--border)" : undefined, borderRadius: 8 }}>
+              {kind !== "mcq" && (
+                <span style={{ fontSize: 12, opacity: 0.75 }}>{KIND_BADGE[kind] ?? "🎮"} {kind}</span>
+              )}
+              {kind === "tiles" && meta.letters && (
+                <div style={{ fontFamily: "monospace", fontSize: 20, letterSpacing: 6, margin: "6px 0" }}>
+                  {(String(meta.letters)).split("").join(" ")}
+                </div>
+              )}
+              {kind === "cartoon" && (
+                <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
+                  📺 {t("arcade.cartoonScene")} {meta.focus ? `· ${meta.focus}` : ""}
+                </div>
+              )}
+              {kind === "farm" && meta.crop && (
+                <div className="muted" style={{ fontSize: 13 }}>🌾 {String(meta.crop)}</div>
+              )}
+              {kind === "rpg" && meta.scene && (
+                <div className="muted" style={{ fontSize: 13 }}>🎭 {String(meta.scene)}</div>
+              )}
               <div style={{ fontWeight: 600 }}>{qi + 1}. {it.prompt}</div>
               <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                 {it.options.map((opt, idx) => (
@@ -187,7 +228,7 @@ export default function ArcadePage() {
                 ))}
               </div>
             </div>
-          ))}
+          );})}
           <button onClick={finish} style={{ marginTop: 8, background: "#16a34a", color: "#fff" }}>{t("arcade.submit")}</button>
         </div>
       )}
@@ -259,7 +300,7 @@ export default function ArcadePage() {
           </select>
           <select value={lbSubject} onChange={(e) => { setLbSubject(e.target.value); if (e.target.value) setLbAge(""); }}>
             <option value="">{t("arcade.overall")}</option>
-            {cat?.subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+            {cat?.subjects.map((s) => <option key={s} value={s}>{subjectLabel(cat, s)}</option>)}
           </select>
         </div>
         {leaders.length === 0 ? (

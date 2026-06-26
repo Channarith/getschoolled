@@ -3,6 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-06-23 - Expanded learning arcade: 11 new game modes (word tiles/Bananagrams-style,
+  resource constraints, dependencies, story RPG, cartoon morals/STEM, slang & idioms,
+  create & recognize, learn-by-doing, farm sim, spelling, geometry) plus 6 new subjects
+  (life & growth, etiquette, wordplay, geometry, creation, farming). Localized catalog
+  and question content across all 27 platform languages (14 hand-translated UI locales;
+  others fall back to English). Version 0.6.0 -> 0.6.1.
 - 2026-06-23 - Netflix-style consumer pricing: Standard (basic) $19.99/month with
   ads, VIP (premium) $29.99/month ad-free. Calendar-day monthly billing — renewals
   land on the signup day each month (Jan 31 -> Feb 28/29). New aoep_shared

@@ -638,6 +638,7 @@ const SHARED: Record<string, string> = {
   "arcade.allAges": "All ages",
   "arcade.overall": "Overall",
   "arcade.noScores": "No scores yet — be the first to play!",
+  "arcade.cartoonScene": "Scene",
   "arcade.colPlayer": "Player",
   "arcade.colBest": "Best",
   "arcade.colPoints": "Points",
