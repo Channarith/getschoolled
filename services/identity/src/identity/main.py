@@ -19,7 +19,7 @@ from aoep_shared.service import create_service
 from fastapi import Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from .store import AccountStore, BillingAddress, ClassContext, Enrollment, EnrollmentStatus
+from .store import AccountStore, ClassContext, Enrollment, EnrollmentStatus
 from .persistence import load_from_redis
 
 app = create_service("identity")

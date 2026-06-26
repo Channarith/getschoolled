@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .store import Account, AccountStore
@@ -57,7 +57,7 @@ def _deserialize_account(raw: dict) -> "Account":
     from aoep_shared.rewards import PointsEntry, PointsLedger
     from aoep_shared.schemas import PlanTier, Region
 
-    from .store import Account, BillingAddress, ClassContext, Enrollment, LoginEvent, ProfileShareGrant, StudentProfile
+    from .store import Account, BillingAddress, Enrollment, LoginEvent, ProfileShareGrant, StudentProfile
 
     ledger_raw = raw.pop("points_ledger", [])
     redemptions = raw.pop("redemptions", [])
@@ -85,7 +85,6 @@ def _deserialize_account(raw: dict) -> "Account":
         failed_logins=int(raw.get("failed_logins", 0)),
         login_count=int(raw.get("login_count", 0)),
         locked_until=raw.get("locked_until"),
-        membership_class=raw.get("membership_class", "standard"),
         onboarding_completed_at=raw.get("onboarding_completed_at"),
         card_last4=raw.get("card_last4", ""),
         billing_validated_at=raw.get("billing_validated_at"),
