@@ -568,6 +568,34 @@ def get_adaptation(student_id: str, acct=Depends(current_account)) -> dict:
     }
 
 
+@app.get("/students/{student_id}/learning-experience")
+def get_learning_experience(student_id: str, acct=Depends(current_account)) -> dict:
+    from aoep_shared.learning_experience import LX_TARGET
+
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    raw = dict(prof.adaptation or {})
+    ema = raw.get("lx_score_ema")
+    samples = list(raw.get("lx_samples") or [])
+    trend = "stable"
+    if len(samples) >= 2:
+        if samples[-1] > samples[-2] + 2:
+            trend = "improving"
+        elif samples[-1] < samples[-2] - 2:
+            trend = "declining"
+    return {
+        "student_id": student_id,
+        "lx_score_ema": ema,
+        "lx_target": LX_TARGET,
+        "lx_trend": trend,
+        "recent_samples": samples[-10:],
+        "strategy_bandit": raw.get("strategy_bandit", {}),
+        "wellness_state": raw.get("wellness_state", "ok"),
+        "observed_pace": raw.get("observed_pace", "moderate"),
+    }
+
+
 class WellnessCheckIn(BaseModel):
     state: str = "ok"   # ok | low_energy | stressed | unwell
     reason: str = ""

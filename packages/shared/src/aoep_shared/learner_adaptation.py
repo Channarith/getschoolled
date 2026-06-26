@@ -59,6 +59,9 @@ class LearnerAdaptation:
     wellness_state: str = "ok"
     wellness_reason: str = ""
     wellness_updated_at: Optional[float] = None
+    lx_score_ema: Optional[float] = None
+    lx_samples: List[float] = field(default_factory=list)
+    strategy_bandit: Dict[str, List[float]] = field(default_factory=dict)
     profile_revision: int = 0
 
     def record_completion(self, minutes: float) -> None:
@@ -171,6 +174,30 @@ class LearnerAdaptation:
             return None
         return sum(r.complexity for r in self.course_finishes) / len(self.course_finishes)
 
+    def record_lx_sample(
+        self,
+        score: float,
+        *,
+        strategy: str = "",
+        success: Optional[bool] = None,
+    ) -> None:
+        from .learning_experience import (
+            bandit_from_dict, bandit_to_dict, record_strategy_outcome, update_lx_ema,
+        )
+
+        self.lx_samples.append(float(score))
+        if len(self.lx_samples) > 40:
+            self.lx_samples = self.lx_samples[-40:]
+        self.lx_score_ema = update_lx_ema(self.lx_score_ema, float(score))
+        if strategy:
+            bandit = bandit_from_dict(self.strategy_bandit or None)
+            if success is None:
+                success = score >= 70.0
+            record_strategy_outcome(bandit, strategy, success=success)
+            self.strategy_bandit = bandit_to_dict(bandit)
+            self.record_strategy(strategy, success=success)
+        self.profile_revision += 1
+
     def to_dict(self) -> dict:
         return {
             "learning_goals": self.learning_goals,
@@ -203,6 +230,9 @@ class LearnerAdaptation:
             "wellness_state": self.wellness_state,
             "wellness_reason": self.wellness_reason,
             "wellness_updated_at": self.wellness_updated_at,
+            "lx_score_ema": self.lx_score_ema,
+            "lx_samples": self.lx_samples[-20:],
+            "strategy_bandit": dict(self.strategy_bandit),
             "profile_revision": self.profile_revision,
         }
 
@@ -222,6 +252,9 @@ def adaptation_from_dict(raw: dict, *, learning_goals: Optional[List[str]] = Non
         wellness_state=str(raw.get("wellness_state", "ok")),
         wellness_reason=str(raw.get("wellness_reason", "")),
         wellness_updated_at=raw.get("wellness_updated_at"),
+        lx_score_ema=raw.get("lx_score_ema"),
+        lx_samples=list(raw.get("lx_samples", [])),
+        strategy_bandit=dict(raw.get("strategy_bandit", {})),
         profile_revision=int(raw.get("profile_revision", 0)),
     )
     adapt.failed_approaches = [

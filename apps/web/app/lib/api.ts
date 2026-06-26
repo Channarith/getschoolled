@@ -1100,6 +1100,9 @@ export type ClassQuizItem = {
   item_id: string;
   prompt: string;
   options: string[];
+  answer_index: number;
+  difficulty?: string;
+  topic?: string;
 };
 
 export async function generateClassQuiz(topic: string, passages: string[], maxItems = 3): Promise<{
@@ -1114,6 +1117,26 @@ export async function generateClassQuiz(topic: string, passages: string[], maxIt
   );
 }
 
+export async function gradeQuizItem(
+  item: ClassQuizItem,
+  chosenIndex: number,
+): Promise<{ correct: boolean; mastery_target: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/grade`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        item_id: item.item_id,
+        options: item.options,
+        answer_index: item.answer_index,
+        chosen_index: chosenIndex,
+        difficulty: item.difficulty ?? "medium",
+        topic: item.topic ?? "",
+      }),
+    })
+  );
+}
+
 export async function gradeClassQuiz(
   topic: string,
   answers: Record<string, number>,
@@ -1124,6 +1147,100 @@ export async function gradeClassQuiz(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ topic, answers, difficulty }),
+    })
+  );
+}
+
+export async function checkContentAccess(
+  studentId: string,
+  body: { maturity_rating?: string; level?: string; duration_min?: number; complexity?: number },
+): Promise<{ allowed: boolean; reason: string; needs_simplified_content: boolean; complexity: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/content-access`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+export async function recordBehavior(event: {
+  student_id: string;
+  topic: string;
+  quiz_correct?: boolean | null;
+  response_latency_s?: number | null;
+  attention?: number | null;
+  asked_question?: boolean;
+  saw_slide?: boolean;
+}): Promise<{ recorded: boolean }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/behavior`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event),
+    })
+  );
+}
+
+export async function updateTopicMastery(
+  studentId: string,
+  topic: string,
+  correct: boolean,
+): Promise<{ mastery: number }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/mastery`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ student_id: studentId, topic, correct }),
+    })
+  );
+}
+
+export type LxTickResult = {
+  lx_score: number;
+  lx_components: Record<string, number>;
+  lx_target: number;
+  teaching_strategy: string;
+  improve_actions: string[];
+  pacing: string;
+  difficulty: string;
+  reteach: boolean;
+  reasons: string[];
+};
+
+export async function directorLxTick(body: Record<string, unknown>): Promise<LxTickResult> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/director/lx-tick`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+export async function getLearningExperience(studentId: string): Promise<{
+  lx_score_ema: number | null;
+  lx_target: number;
+  lx_trend: string;
+  recent_samples: number[];
+  wellness_state: string;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-experience`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    })
+  );
+}
+
+export async function getStudentAdaptation(studentId: string): Promise<{
+  adaptation: Record<string, unknown>;
+  learning_pace: string;
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/adaptation`, {
+      headers: authHeaders(),
+      cache: "no-store",
     })
   );
 }
