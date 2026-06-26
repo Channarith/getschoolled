@@ -866,7 +866,7 @@ def rewards_catalog() -> dict:
     from aoep_shared.rewards import REWARDS_CATALOG
 
     return {"prizes": [
-        {"id": p.id, "name": p.name, "kind": p.kind.value,
+        {"id": p.id, "name": p.name, "kind": p.kind.value, "kind_label": p.kind_label,
          "cost_points": p.cost_points, "detail": p.detail}
         for p in REWARDS_CATALOG
     ]}

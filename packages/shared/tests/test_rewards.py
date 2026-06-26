@@ -47,12 +47,30 @@ def test_redeem_discount_voucher():
 
 def test_redeem_raffle_entry():
     led = PointsLedger()
-    led.earn(300, "x")
+    led.earn(2000, "x")
     prize = prize_by_id("raffle_ps5")
     r = redeem_prize(led, prize)
     assert r.kind == PrizeKind.RAFFLE.value
     assert r.raffle_entry_id and r.detail.get("prize") == "PlayStation 5"
-    assert led.balance == 300 - prize.cost_points
+    assert led.balance == 2000 - prize.cost_points
+
+
+def test_redeem_gift_card_voucher():
+    led = PointsLedger()
+    led.earn(5000, "x")
+    prize = prize_by_id("gift_amazon_5")
+    assert prize.kind is PrizeKind.GIFT_CARD
+    assert prize.kind_label == "Gift card"
+    r = redeem_prize(led, prize)
+    assert r.voucher_code and r.voucher_code.startswith("AOEP-")
+    assert r.detail.get("brand") == "Amazon" and r.detail.get("value_usd") == 5
+    assert led.balance == 0
+
+
+def test_raffle_costs_raised():
+    # Raffle entries should feel meaningful, not 150/400 pts.
+    assert prize_by_id("raffle_ps5").cost_points >= 1000
+    assert prize_by_id("raffle_gold").cost_points >= 1000
 
 
 def test_redeem_insufficient_raises():

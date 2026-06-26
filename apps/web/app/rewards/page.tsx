@@ -92,7 +92,7 @@ export default function RewardsPage() {
           return (
             <div className="card" key={p.id}>
               <strong>{p.name}</strong>
-              <div className="muted" style={{ fontSize: 12, textTransform: "capitalize" }}>{p.kind}</div>
+              <div className="muted" style={{ fontSize: 12, textTransform: "capitalize" }}>{p.kind_label ?? p.kind}</div>
               <p style={{ margin: "6px 0" }}>
                 {p.cost_points} pts{p.kind === "raffle" ? t("rewards.perEntry") : ""}
               </p>
