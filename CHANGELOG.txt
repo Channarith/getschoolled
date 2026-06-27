@@ -15,6 +15,20 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-27 - Ground every training scenario in real, cited safety data. New
+  knowledge_base.py is a curated corpus of authoritative facts, procedures,
+  regulations, and published statistics attributed to their issuing bodies (FAA
+  14 CFR 91.3, NHTSA seat-belt/skid/blowout guidance, FMCSA CDL stopping
+  distances, FRA/Operation Lifesaver crossing rules, IMO/USCG COLREGs Rules
+  5-7, AHA CPR 100-120/min + BE-FAST, ACS Stop the Bleed, NFPA RACE/PASS,
+  DHS/CISA Run-Hide-Fight, I Love U Guys Standard Response Protocol, PHMSA ERG,
+  NWS Turn-Around-Dont-Drown, etc.). ScenarioDefinition gains a references field;
+  get_scenario, generate, and training sessions attach matching real references
+  by domain + keywords, so all ~3.19M addressable scenarios are grounded with
+  citations. API adds /api/training/knowledge (search by domain/category/source/
+  query), /api/training/knowledge/meta, /api/training/knowledge/sources, and
+  /api/training/scenarios/{id} (full scenario with references); session views now
+  include references. Build/dump via scripts/build_knowledge_base.py.
 - 2026-06-27 - Procedural safety-scenario engine: millions of addressable
   situations across road (car, motorcycle, truck, bus), rail (train + subway/
   transit), micromobility (bicycle, e-scooter), marine (boats + paddle/PWC),

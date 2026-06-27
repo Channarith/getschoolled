@@ -102,6 +102,11 @@ class TrainingSession:
             "score": self.state.score,
             "last_coaching": self.state.last_coaching,
             "active_agent": self.state.active_agent,
+            "references": [
+                {"fact": r.fact, "source": r.source, "reference": r.reference,
+                 "category": r.category, "url": r.url}
+                for r in self.scenario.references
+            ],
             "events": [
                 {"agent": e.agent, "kind": e.kind, "detail": e.detail, "meta": e.meta}
                 for e in self.state.events[-20:]

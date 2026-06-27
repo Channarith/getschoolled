@@ -15,6 +15,40 @@ def test_agents_roster_lists_training_coaches():
     assert "emergency_training" in roles
 
 
+def test_training_knowledge_base_real_and_cited():
+    meta = client.get("/api/training/knowledge/meta").json()
+    assert meta["count"] >= 60
+    assert meta["sources"] >= 30
+
+    sources = client.get("/api/training/knowledge/sources").json()
+    names = {s["source"] for s in sources}
+    assert any("NHTSA" in n for n in names)
+    assert any("FAA" in n for n in names)
+
+    body = client.get("/api/training/knowledge", params={"domain": "marine", "limit": 50}).json()
+    assert body["total"] >= 3
+    for f in body["facts"]:
+        assert f["fact"] and f["source"] and f["reference"]
+
+
+def test_scenario_detail_includes_real_references():
+    detail = client.get("/api/training/scenarios/road_car__1000").json()
+    assert detail["scenario_id"] == "road_car__1000"
+    assert detail["references"]
+    assert all(r["source"] and r["reference"] for r in detail["references"])
+
+
+def test_session_view_includes_references():
+    created = client.post(
+        "/api/training/sessions",
+        json={"scenario_id": "medical_triage_quick"},
+    ).json()
+    sid = created["session_id"]
+    got = client.get(f"/api/training/sessions/{sid}").json()
+    assert "references" in got
+    assert got["references"]
+
+
 def test_training_catalog_has_thousands():
     meta = client.get("/api/training/catalog").json()
     assert meta["count"] >= 3000

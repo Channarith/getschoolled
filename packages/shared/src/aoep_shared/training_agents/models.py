@@ -104,6 +104,17 @@ class ScenarioCue:
 
 
 @dataclass
+class ReferenceFact:
+    """A real, citable piece of authoritative safety knowledge."""
+
+    fact: str
+    source: str            # issuing authority, e.g. "FAA", "NHTSA", "USCG"
+    reference: str         # document / standard id, e.g. "14 CFR 91.3"
+    category: str = "guideline"  # regulation | procedure | statistic | checklist | guideline
+    url: str = ""
+
+
+@dataclass
 class ScenarioDefinition:
     scenario_id: str
     title: str
@@ -117,6 +128,7 @@ class ScenarioDefinition:
     critical_thinking_prompts: List[str] = field(default_factory=list)
     debrief_rubric: List[str] = field(default_factory=list)
     skills: List[str] = field(default_factory=list)
+    references: List[ReferenceFact] = field(default_factory=list)
 
 
 @dataclass

@@ -82,13 +82,15 @@ def count_scenarios(
 
 
 def get_scenario(scenario_id: str) -> Optional[ScenarioDefinition]:
+    from .knowledge_base import attach_references
+
     found = _load_scenarios().get(scenario_id)
     if found is not None:
-        return found
+        return attach_references(found)
     # Fall back to deterministic procedural generation for <family>__<index> ids.
     from .procedural import resolve_procedural
 
-    return resolve_procedural(scenario_id)
+    return attach_references(resolve_procedural(scenario_id))
 
 
 def catalog_capacity() -> dict:
@@ -120,10 +122,40 @@ def list_families_meta() -> List[dict]:
     ]
 
 
+def knowledge_overview() -> dict:
+    from .knowledge_base import knowledge_meta
+
+    return knowledge_meta()
+
+
+def knowledge_source_list() -> List[dict]:
+    from .knowledge_base import knowledge_sources
+
+    return knowledge_sources()
+
+
+def search_knowledge(
+    *,
+    q: Optional[str] = None,
+    domain: Optional[str] = None,
+    category: Optional[str] = None,
+    source: Optional[str] = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> Tuple[int, List[dict]]:
+    from .knowledge_base import count_facts, fact_to_dict, search_facts
+
+    total = count_facts(q=q, domain=domain, category=category, source=source)
+    items = search_facts(q=q, domain=domain, category=category, source=source,
+                         offset=offset, limit=limit)
+    return total, [fact_to_dict(f) for f in items]
+
+
 def generate_scenario(family_id: str, index: int) -> Optional[ScenarioDefinition]:
+    from .knowledge_base import attach_references
     from .procedural import generate
 
-    return generate(family_id, index)
+    return attach_references(generate(family_id, index))
 
 
 def random_procedural_scenario(
@@ -131,6 +163,7 @@ def random_procedural_scenario(
     family_id: Optional[str] = None,
     seed: Optional[int] = None,
 ) -> Optional[ScenarioDefinition]:
+    from .knowledge_base import attach_references
     from .procedural import FAMILIES, generate, list_families
 
     rng = random.Random(seed)
@@ -138,7 +171,7 @@ def random_procedural_scenario(
     if not families:
         return None
     fam = rng.choice(families)
-    return generate(fam.family_id, rng.randrange(fam.capacity))
+    return attach_references(generate(fam.family_id, rng.randrange(fam.capacity)))
 
 
 def list_domains() -> List[Tuple[str, int]]:

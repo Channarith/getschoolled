@@ -12,7 +12,10 @@ from aoep_shared.training_agents import (
     count_scenarios,
     count_scenarios_for_track,
     generate_scenario,
+    get_scenario,
     get_track,
+    knowledge_overview,
+    knowledge_source_list,
     list_domains,
     list_families_meta,
     list_scenarios,
@@ -20,6 +23,7 @@ from aoep_shared.training_agents import (
     list_tracks,
     random_procedural_scenario,
     random_scenario,
+    search_knowledge,
     track_to_dict,
 )
 from pydantic import BaseModel, Field
@@ -70,6 +74,7 @@ class TrainingSessionView(BaseModel):
     score: Optional[float] = None
     last_coaching: str
     active_agent: Optional[str] = None
+    references: List[dict] = Field(default_factory=list)
     events: List[dict] = Field(default_factory=list)
 
 
@@ -227,6 +232,14 @@ class FamilySummary(BaseModel):
     skills: List[str] = Field(default_factory=list)
 
 
+class ReferenceFactView(BaseModel):
+    fact: str
+    source: str
+    reference: str
+    category: str = "guideline"
+    url: str = ""
+
+
 class GeneratedScenario(BaseModel):
     scenario_id: str
     title: str
@@ -240,6 +253,7 @@ class GeneratedScenario(BaseModel):
     critical_thinking_prompts: List[str] = Field(default_factory=list)
     debrief_rubric: List[str] = Field(default_factory=list)
     skills: List[str] = Field(default_factory=list)
+    references: List[ReferenceFactView] = Field(default_factory=list)
 
 
 def _generated_view(s) -> GeneratedScenario:
@@ -256,6 +270,13 @@ def _generated_view(s) -> GeneratedScenario:
         critical_thinking_prompts=s.critical_thinking_prompts,
         debrief_rubric=s.debrief_rubric,
         skills=s.skills,
+        references=[
+            ReferenceFactView(
+                fact=r.fact, source=r.source, reference=r.reference,
+                category=r.category, url=r.url,
+            )
+            for r in s.references
+        ],
     )
 
 
@@ -281,6 +302,55 @@ def generate_random(
     if s is None:
         return None
     return _generated_view(s)
+
+
+def get_full_scenario(scenario_id: str) -> Optional[GeneratedScenario]:
+    s = get_scenario(scenario_id)
+    if s is None:
+        return None
+    return _generated_view(s)
+
+
+class KnowledgeMetaResponse(BaseModel):
+    count: int
+    sources: int
+    categories: dict[str, int] = Field(default_factory=dict)
+    domains: dict[str, int] = Field(default_factory=dict)
+
+
+class KnowledgeListResponse(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    facts: List[ReferenceFactView] = Field(default_factory=list)
+
+
+def knowledge_meta_view() -> KnowledgeMetaResponse:
+    return KnowledgeMetaResponse(**knowledge_overview())
+
+
+def knowledge_sources_view() -> list[dict]:
+    return knowledge_source_list()
+
+
+def knowledge_search_view(
+    *,
+    q: Optional[str] = None,
+    domain: Optional[str] = None,
+    category: Optional[str] = None,
+    source: Optional[str] = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> KnowledgeListResponse:
+    total, items = search_knowledge(
+        q=q, domain=domain, category=category, source=source, offset=offset, limit=limit
+    )
+    return KnowledgeListResponse(
+        total=total,
+        offset=offset,
+        limit=limit,
+        facts=[ReferenceFactView(**f) for f in items],
+    )
 
 
 def create_training_session(scenario_id: str):

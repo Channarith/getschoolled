@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .catalog_generators import generate_all_scenarios
-from .models import ScenarioCue, ScenarioDefinition, ScenarioDomain
+from .models import ReferenceFact, ScenarioCue, ScenarioDefinition, ScenarioDomain
 
 
 def scenario_to_dict(s: ScenarioDefinition) -> dict:
@@ -29,6 +29,11 @@ def scenario_to_dict(s: ScenarioDefinition) -> dict:
         "critical_thinking_prompts": s.critical_thinking_prompts,
         "debrief_rubric": s.debrief_rubric,
         "skills": s.skills,
+        "references": [
+            {"fact": r.fact, "source": r.source, "reference": r.reference,
+             "category": r.category, "url": r.url}
+            for r in s.references
+        ],
     }
 
 
@@ -53,6 +58,13 @@ def scenario_from_dict(raw: dict) -> ScenarioDefinition:
         critical_thinking_prompts=list(raw.get("critical_thinking_prompts", [])),
         debrief_rubric=list(raw.get("debrief_rubric", [])),
         skills=list(raw.get("skills", [])),
+        references=[
+            ReferenceFact(
+                fact=r["fact"], source=r["source"], reference=r["reference"],
+                category=r.get("category", "guideline"), url=r.get("url", ""),
+            )
+            for r in raw.get("references", [])
+        ],
     )
 
 

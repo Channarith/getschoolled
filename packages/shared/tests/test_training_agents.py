@@ -5,13 +5,17 @@ import pytest
 from aoep_shared.training_agents import (
     TrainingSession,
     agent_roster_dict,
+    all_facts,
     catalog_capacity,
     catalog_meta,
     count_scenarios,
     count_scenarios_for_track,
+    facts_for,
     generate_scenario,
     get_scenario,
     get_track,
+    knowledge_overview,
+    knowledge_source_list,
     list_domains,
     list_families_meta,
     list_scenarios,
@@ -20,7 +24,49 @@ from aoep_shared.training_agents import (
     random_procedural_scenario,
     random_scenario,
     reload_catalog,
+    search_knowledge,
 )
+
+
+def test_knowledge_base_is_real_and_cited():
+    facts = all_facts()
+    assert len(facts) >= 60
+    for f in facts:
+        assert f.fact and f.source and f.reference
+    meta = knowledge_overview()
+    assert meta["sources"] >= 30
+    # Real authorities must be represented.
+    sources = {s["source"] for s in knowledge_source_list()}
+    assert any("NHTSA" in s for s in sources)
+    assert any("FAA" in s for s in sources)
+    assert any("USCG" in s for s in sources)
+    assert any("Heart Association" in s for s in sources)
+
+
+def test_knowledge_search_by_domain_and_query():
+    total, items = search_knowledge(domain="marine", limit=50)
+    assert total >= 3
+    assert all(items)
+    _, cpr = search_knowledge(q="compressions", limit=10)
+    assert any("100" in f["fact"] for f in cpr)
+
+
+def test_scenarios_are_grounded_in_real_data():
+    s = get_scenario("road_car__1000")
+    assert s is not None
+    assert s.references
+    assert all(r.source and r.reference for r in s.references)
+    # CPR fact should ground a cardiac medical scenario.
+    facts = facts_for("medical", text="cardiac arrest unresponsive compressions")
+    assert any("compressions" in f.fact.lower() for f in facts)
+
+
+def test_generated_scenario_carries_references():
+    s = generate_scenario("boat", 500)
+    assert s is not None
+    assert s.references
+    assert any("USCG" in r.source or "COLREGs" in r.reference or "IMO" in r.source
+               for r in s.references)
 
 
 def test_capacity_reaches_millions():

@@ -880,6 +880,8 @@ from .training import (  # noqa: E402
     CreateTrainingSessionRequest,
     FamilySummary,
     GeneratedScenario,
+    KnowledgeListResponse,
+    KnowledgeMetaResponse,
     RespondRequest,
     RespondResponse,
     ScenarioListResponse,
@@ -894,7 +896,11 @@ from .training import (  # noqa: E402
     create_training_session,
     generate_one,
     generate_random,
+    get_full_scenario,
     get_training_session,
+    knowledge_meta_view,
+    knowledge_search_view,
+    knowledge_sources_view,
     list_domain_counts,
     list_family_summaries,
     list_scenario_summaries,
@@ -947,6 +953,31 @@ def training_generate_random(
     return gen
 
 
+@app.get("/api/training/knowledge", response_model=KnowledgeListResponse)
+def training_knowledge(
+    q: str | None = None,
+    domain: str | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> KnowledgeListResponse:
+    """Browse the real, cited safety knowledge base grounding the scenarios."""
+    return knowledge_search_view(
+        q=q, domain=domain, category=category, source=source, offset=offset, limit=limit
+    )
+
+
+@app.get("/api/training/knowledge/meta", response_model=KnowledgeMetaResponse)
+def training_knowledge_meta() -> KnowledgeMetaResponse:
+    return knowledge_meta_view()
+
+
+@app.get("/api/training/knowledge/sources")
+def training_knowledge_sources() -> list[dict]:
+    return knowledge_sources_view()
+
+
 @app.get("/api/training/domains")
 def training_domains() -> list[dict]:
     return list_domain_counts()
@@ -990,6 +1021,15 @@ def training_track_scenarios(
     if body is None:
         raise HTTPException(status_code=404, detail="unknown track")
     return body
+
+
+@app.get("/api/training/scenarios/{scenario_id}", response_model=GeneratedScenario)
+def training_scenario_detail(scenario_id: str) -> GeneratedScenario:
+    """Full scenario (materialized or procedural) with real cited references."""
+    full = get_full_scenario(scenario_id)
+    if full is None:
+        raise HTTPException(status_code=404, detail="unknown scenario")
+    return full
 
 
 @app.post("/api/training/sessions", response_model=TrainingSessionView)
