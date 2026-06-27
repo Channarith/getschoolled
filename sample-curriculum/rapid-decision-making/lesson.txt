@@ -1,0 +1,135 @@
+LESSON: Rapid Decision-Making Under Pressure
+LANGUAGE: en
+
+SLIDE 1 | The Neuroscience of Split-Second Decisions
+When a threat is detected, the amygdala triggers a stress response before
+the prefrontal cortex (responsible for deliberate reasoning) is even aware
+of the stimulus. This 200–500 ms gap is the window where trained reflex
+either saves you or lets automatic fear responses take over.
+Elite decision-makers in aviation, surgery, and special operations have
+trained this window by thousands of repetitions — building "muscle memory"
+that bypasses deliberation for the most critical actions.
+NARRATION: You cannot think your way through a decision that must happen
+in 400 milliseconds. But you can train the response that fires automatically.
+That is exactly what rapid decision training does.
+
+SLIDE 2 | Recognition-Primed Decision Making (RPD)
+Gary Klein's RPD model describes how experts actually decide in the field.
+They do not compare options — they recognize a pattern and simulate the
+first plausible course of action mentally. If it "feels right," they act.
+If the mental simulation fails, they cycle to the next option.
+This is fundamentally different from classical decision theory (evaluate
+all options, choose the best). RPD is faster, more robust under time pressure,
+and explains why experts say "I just knew."
+Training RPD: deliberate practice with many scenario variants builds the
+pattern library. The expert's "intuition" is compressed experience.
+NARRATION: Chess masters recognize 50,000+ patterns. Commercial pilots
+have filed 10,000 hours of flight time. The apparent magic of expert
+intuition is actually the result of systematic, deliberate practice.
+
+SLIDE 3 | The Danger of Fast Decisions
+Faster is not always better. Cognitive shortcuts introduce predictable errors:
+- Plan continuation bias: continue the original plan even when conditions
+  have changed (the leading cause of controlled flight into terrain)
+- Sunk cost effect: commit further to a bad decision because of effort invested
+- Fixation error: lock onto one explanation and filter out contradicting data
+- Tunnel vision: narrowing of attention under stress to one object or task
+Good rapid decision training explicitly trains WHEN to slow down — building
+recognition of situations that require deliberate rather than intuitive processing.
+NARRATION: The skill is not just deciding fast — it is knowing which decisions
+can be fast and which ones demand a pause. That discernment is itself trainable.
+
+SLIDE 4 | Pressure Calibration: The Yerkes-Dodson Curve
+The Yerkes-Dodson law describes an inverted-U relationship between arousal
+(stress/pressure) and performance. For complex tasks:
+- Too little arousal: boredom, inattention, low motivation
+- Optimal arousal: peak performance zone (the "flow state")
+- Too much arousal: cognitive narrowing, working memory impairment, panic
+Rapid decision training uses progressive pressure calibration to move your
+optimal performance zone upward — increasing the arousal level at which
+you still perform at peak. This is stress inoculation in action.
+NARRATION: Top performers are not unaffected by pressure — they simply have
+a higher ceiling. Training under gradually increasing pressure is the only
+scientifically validated way to raise it.
+
+SLIDE 5 | Aviation: Engine Failure Decisions
+The engine-out decision tree is the canonical example of pre-programmed
+rapid decision-making. Below 500 ft AGL on takeoff:
+- Turn back to runway: PROHIBITED (insufficient altitude = stall/spin)
+- Land straight ahead: REQUIRED (survivable forced landing in any clear area)
+This rule is absolute. There is no deliberation, no "maybe I can make it."
+The rule exists because accident data showed that attempting the turn-back
+below 500 ft was fatal in nearly every case. The rule removes the choice.
+NARRATION: The genius of the rule is that it removes a decision that a pilot
+under extreme stress should not have to make in real time. The training
+creates the reflex; the rule provides the authority to act on it.
+
+SLIDE 6 | Medical: Triage in Mass Casualty Events
+In mass casualty triage (START protocol), responders categorize patients
+in under 60 seconds each:
+- Black: expectant (not breathing after airway repositioning)
+- Red: immediate (life-threatening, survivable with treatment)
+- Yellow: delayed (serious but stable)
+- Green: minor (walking wounded)
+The most counterintuitive rule: the loudest, most demanding patient is
+almost never the highest priority. The silent, pale patient with rapid
+weak pulse (compensated shock) requires immediate intervention.
+NARRATION: Triage violates every social instinct. You walk past the screaming
+patient to reach the silent one. Only training and the cognitive framework of
+START make this possible under the emotional weight of a mass casualty event.
+
+SLIDE 7 | Cybersecurity: The Incident Response Window
+In a ransomware incident, the first 30 minutes are decisive. The sequence:
+1. Isolate (cut network segment — do not investigate first)
+2. Preserve (memory snapshot before shutdown — forensic evidence)
+3. Assess (backup integrity, blast radius)
+4. Escalate (board, legal, CISO — in that order)
+5. Communicate (regulator within legal window)
+Every minute of delay before isolation allows lateral movement. An
+organization that spends 20 minutes "investigating" before isolating
+typically finds the infection has tripled in scope.
+NARRATION: The incident response playbook is the cyber equivalent of the
+emergency checklist. It removes deliberation from the highest-pressure phase
+of the incident — exactly when cognitive load is highest.
+
+SLIDE 8 | Training Method: Drills with Timed Windows
+Effective rapid decision training uses:
+- Short vignettes (2–3 sentences max) presenting the critical decision point
+- Multiple plausible options (including tempting wrong answers)
+- A time window calibrated to the domain (3–8 seconds for the most critical)
+- Immediate feedback with rationale (not just "wrong — the answer is X")
+- After-Decision Review identifying the key recognition cue
+Drill sets begin at "deliberate" pace (no time pressure) to build the
+correct mental model, then progressively tighten the window as accuracy improves.
+NARRATION: The time window is the key variable. Too short too soon builds
+speed without accuracy — producing dangerous overconfidence. The calibration
+algorithm adapts to your performance, never pushing you past 85% accuracy.
+
+SLIDE 9 | The After-Decision Review (ADR)
+Every drill ends with an ADR that answers:
+1. What was the key recognition cue in this situation?
+2. What decision did you make, and why?
+3. If incorrect: what made the wrong option tempting?
+4. What is the expert's decision, and what is the rationale?
+5. What would you look for next time to make this faster?
+The ADR is as important as the drill itself. Speed without accurate
+pattern recognition is dangerous. The ADR builds the mental model
+that makes the next drill faster and more accurate.
+NARRATION: Drill without debrief is practice of an uncertain performance.
+Drill with ADR is deliberate practice — the only kind that produces
+genuine improvement.
+
+SLIDE 10 | Building Your Rapid Decision Skill Path
+Your personalised skill path:
+1. Domain assessment (which domain has highest stakes for you?)
+2. Deliberate pace drills (build pattern recognition, no time pressure)
+3. Moderate pressure (2× expert time — still deliberate but feels rushed)
+4. Time-critical (1.1× expert time — no margin for deliberation)
+5. Split-second (0.6× expert time — pure reflex from trained pattern)
+6. Cross-domain transfer (use aviation patterns in medical context and vice versa)
+The AI agent tracks your accuracy and time-to-decision across all drills,
+calibrates the pressure level to your performance, and flags the
+behavioral patterns that need attention.
+NARRATION: This is not about becoming a robot. It is about building a
+cognitive toolkit that is accessible even when everything around you
+is telling you to panic. You train this — and it is always there when you need it.

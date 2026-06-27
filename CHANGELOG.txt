@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Version 0.10.0 (minor bump; supersedes 0.9.5 — 18 pending changelog
+  entries exceeded the >8 minor-bump threshold). Incorporates all cognitive training
+  agents, feature-flags wire-up, kubeconfig security fix, and all prior 0.9.x changes.
+
 - 2026-06-27 - Version 0.9.5 (autobump: >8 features changed). Web/mobile VERSION,
   package.json, version.ts, app.json synced to 0.9.5.
 
@@ -23,6 +27,21 @@ Format: newest first. No markdown per project convention.
   ux.locale_mascots and data.multidim_datamart were already enforced server-side in
   the memory service; they appeared inert only because flag writes were 404ing (see
   the toggle-fallback fix), and now respond to the admin toggles.
+- 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
+  (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
+  SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
+  RapidDecisionAgent (time-pressured drills, pressure calibration, After-Decision Review),
+  EmergencyScenarioAgent (full simulation: aircraft emergency landing, anaphylaxis,
+  ransomware incident; plus After Action Review generation), MentalReadinessAgent
+  (pre-mortem analysis, mental rehearsal scripts, Threat & Error Management, stress
+  inoculation, emotional regulation check-in), and BehaviorAdaptationAgent + CognitiveTrainer
+  master facade. All agents are wellness-sensitive: stressed/unwell learners are
+  wellness-gated from high-pressure scenarios and receive restorative exercises.
+  New meeting_agents roles: COGNITIVE_COACH, CRITICAL_THINKING_TRAINER,
+  SITUATIONAL_AWARENESS_TRAINER, RAPID_DECISION_TRAINER, EMERGENCY_SCENARIO_TRAINER,
+  MENTAL_READINESS_TRAINER. New orchestrator REST API at /api/cognitive/* (19 endpoints).
+  New sample curriculum: emergency-critical-thinking, situational-awareness-training,
+  rapid-decision-making. 139 new tests all passing.
 
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
