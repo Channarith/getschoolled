@@ -15,6 +15,16 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-26 - Built-in accounts skip the new-user onboarding/payment wizard.
+  admin@salareen.com and the QA personas (qa1/qa2/qa3) were seeded without an
+  onboarding-completed marker, so every login + hard refresh bounced them through
+  the 4-step "Your info / Choose plan / Payment / Who's learning" flow. seed_account
+  now takes mark_onboarded (set for admin + QA): it stamps onboarding_completed_at
+  and billing_validated_at if unset. These persist to Redis (cloud) via model_dump,
+  so the wizard never re-prompts after a refresh/pod restart. The marker is only
+  set when unset, so the idempotent startup re-seed never resets it, and real new
+  users are unaffected. Added tests for both admin and QA.
+
 - 2026-06-26 - Admin / Feature Flags login robustness: the Unlock button now
   prefers the operator-admin session path (server-side ADMIN_SECRET, no typing)
   whenever a JWT is present, and only falls back to the typed secret. Clarified the

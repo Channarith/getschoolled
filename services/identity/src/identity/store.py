@@ -234,11 +234,18 @@ class AccountStore:
         username: str = "",
         is_admin: bool = False,
         force_password: bool = False,
+        mark_onboarded: bool = False,
     ) -> Account:
         """Create (idempotently) a seeded account. Optionally registers a bare
         username alias for login. When ``force_password`` is True (QA personas),
         always re-hash the password so known test credentials keep working after
-        Redis reloads or a prior manual signup with a different password."""
+        Redis reloads or a prior manual signup with a different password.
+
+        When ``mark_onboarded`` is True (admin + QA personas), the account is
+        treated as already onboarded: ``onboarding_completed_at`` and
+        ``billing_validated_at`` are set if unset, so these built-in accounts skip
+        the new-user payment/onboarding wizard. The flags persist to Redis (cloud),
+        so a hard refresh or pod restart will NOT re-prompt them."""
         email = email.strip().lower()
         alias = username.strip().lower()
         existing = self.by_email(email)
@@ -252,6 +259,11 @@ class AccountStore:
                 existing.display_name = display_name
             if force_password:
                 existing.password_hash = hash_password(password)
+            if mark_onboarded:
+                if existing.onboarding_completed_at is None:
+                    existing.onboarding_completed_at = time.time()
+                if existing.billing_validated_at is None:
+                    existing.billing_validated_at = time.time()
             if alias and alias not in self._id_by_email:
                 self._id_by_email[alias] = existing.id
             self._persist()
@@ -265,6 +277,9 @@ class AccountStore:
             is_admin=is_admin,
             membership_class=membership_class_for_tier(tier.value),
         )
+        if mark_onboarded:
+            acct.onboarding_completed_at = time.time()
+            acct.billing_validated_at = time.time()
         self._by_id[acct.id] = acct
         self._id_by_email[email] = acct.id
         if alias and alias not in self._id_by_email:
@@ -294,6 +309,7 @@ class AccountStore:
             is_admin=True,
             tier=PlanTier.PREMIUM,
             force_password=force_password,
+            mark_onboarded=True,
         )
 
     def by_email(self, email: str) -> Optional[Account]:
