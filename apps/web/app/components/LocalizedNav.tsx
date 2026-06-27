@@ -62,6 +62,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
           <Link href="/arcade">{t("nav.arcade")}</Link>
           <Link href="/watch">{t("nav.watch")}</Link>
           <Link href="/class">{t("nav.liveClass")}</Link>
+          <Link href="/train">Drills</Link>
           <Link href="/group-classes">{t("nav.groupClasses")}</Link>
           {/* Homework grader: hidden unless the access.homework_grader flag is on. */}
           {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}

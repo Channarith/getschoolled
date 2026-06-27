@@ -1946,3 +1946,180 @@ export async function ask(sessionId: string, text: string, language = "en"): Pro
     }),
   );
 }
+
+// --- cognitive training agents (critical thinking & emergency drills) ----- //
+// These train HOW a learner thinks under pressure: situational awareness,
+// pre-mortem forecasting, split-second decisions, reasoning critique, and
+// behavior-adaptive coaching (e.g. flying a simulated engine-out emergency
+// landing). Backed by deterministic, offline agents on the orchestrator.
+export type TrainingScenario = {
+  id: string;
+  title: string;
+  domain: string;
+  summary: string;
+  difficulty: string;
+  phases: number;
+  learning_objectives: string[];
+  skills: string[];
+};
+
+export type SituationPicture = {
+  perception: string[];
+  comprehension: string[];
+  projection: string[];
+  sa_score: number | null;
+  missed_cues: string[];
+};
+
+export type PreMortem = {
+  headline: string;
+  risks: { risk: string; likelihood: string; mitigation: string }[];
+  contingency: string;
+};
+
+export type PhaseBrief = {
+  phase_id: string;
+  title: string;
+  situation: string;
+  prompt: string;
+  options: { id: string; text: string }[];
+  decision_window_s: number;
+  situation_picture: SituationPicture;
+  premortem: PreMortem;
+  skills: string[];
+};
+
+export type RapidDecisionResult = {
+  quality: number;
+  timeliness: number;
+  score: number;
+  on_time: boolean;
+  elapsed_s: number;
+  window_s: number;
+  ooda: Record<string, string>;
+  note: string;
+};
+
+export type ReasoningReview = {
+  reasoning_score: number;
+  rubric: Record<string, number>;
+  detected_issues: string[];
+  strengths: string[];
+  socratic_probe: string;
+  emotional_markers: number;
+};
+
+export type BehaviorAdaptation = {
+  pacing: string;
+  difficulty: string;
+  coaching_style: string;
+  tone: string;
+  window_scale: number;
+  flags: string[];
+  recommendation: string;
+};
+
+export type TrainingSummary = {
+  session_id: string;
+  scenario_id: string;
+  scenario_title: string;
+  decisions: number;
+  completed: boolean;
+  passed: boolean;
+  overall_score: number;
+  avg_quality: number;
+  avg_timeliness: number;
+  avg_reasoning: number;
+  per_skill: Record<string, number>;
+  strengths: string[];
+  growth_areas: string[];
+  debrief: string;
+};
+
+export type TrainingView = {
+  session_id: string;
+  scenario_id: string;
+  scenario_title: string;
+  domain: string;
+  class_type: string;
+  done: boolean;
+  phase_index: number;
+  phases_total: number;
+  brief: PhaseBrief | null;
+  summary: TrainingSummary | null;
+};
+
+export type TrainingDecisionResult = {
+  session_id: string;
+  phase_id: string;
+  chosen_option_id: string;
+  correct: boolean;
+  quality: number;
+  score: number;
+  consequence: string;
+  feedback: string;
+  recommended: string;
+  rapid: RapidDecisionResult;
+  reasoning: ReasoningReview;
+  behavior: BehaviorAdaptation;
+  next_phase_id: string | null;
+  done: boolean;
+  phase_index: number;
+  phases_total: number;
+  next_brief: PhaseBrief | null;
+  summary: TrainingSummary | null;
+};
+
+export async function listTrainingScenarios(): Promise<TrainingScenario[]> {
+  const r = await jsonOrThrow<{ scenarios: TrainingScenario[] }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/training/scenarios`, { cache: "no-store" }),
+  );
+  return r.scenarios;
+}
+
+export async function startTraining(scenarioId: string, classType = "solo"): Promise<TrainingView> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/training/sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario_id: scenarioId, class_type: classType }),
+    }),
+  );
+}
+
+export async function getTraining(sessionId: string): Promise<TrainingView> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/training/sessions/${encodeURIComponent(sessionId)}`, {
+      cache: "no-store",
+    }),
+  );
+}
+
+export async function trainingForecast(sessionId: string, noticed: string[]): Promise<TrainingView> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/training/sessions/${encodeURIComponent(sessionId)}/forecast`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ noticed }),
+    }),
+  );
+}
+
+export async function trainingDecide(args: {
+  sessionId: string;
+  optionId: string;
+  elapsedS: number;
+  rationale?: string;
+}): Promise<TrainingDecisionResult> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/training/sessions/${encodeURIComponent(args.sessionId)}/decide`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        option_id: args.optionId,
+        elapsed_s: args.elapsedS,
+        rationale: args.rationale ?? "",
+      }),
+    }),
+  );
+}

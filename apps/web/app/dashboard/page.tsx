@@ -7,6 +7,11 @@ const AGENTS = [
   ["Speech", "Streaming multilingual ASR, language ID, translation, TTS."],
   ["Memory / Profile", "Long-term per-student profile and mastery graph."],
   ["Consent / Compliance", "Gates biometrics; enforces retention (FERPA/GDPR/BIPA)."],
+  ["Situational Awareness", "Perceive → comprehend → project; scores cue recall in drills."],
+  ["Forecasting", "Pre-mortem: anticipates failure modes before they happen."],
+  ["Rapid Decision", "OODA-loop scoring of split-second decisions under the clock."],
+  ["Critical Thinking", "Critiques reasoning, flags biases/fallacies, probes Socratically."],
+  ["Learning Behavior", "Adapts pacing/difficulty/tone; sensitive to overload and frustration."],
 ];
 
 export default function DashboardPage() {
