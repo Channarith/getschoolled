@@ -5,19 +5,46 @@ import pytest
 from aoep_shared.training_agents import (
     TrainingSession,
     agent_roster_dict,
+    catalog_meta,
+    count_scenarios,
     get_scenario,
+    list_domains,
     list_scenarios,
+    reload_catalog,
 )
 
 
+def test_catalog_has_hundreds_of_scenarios():
+    meta = catalog_meta()
+    assert meta["count"] >= 400
+    assert count_scenarios() >= 400
+    assert len(list_domains()) >= 15
+
+
 def test_builtin_scenarios_include_aviation_emergency():
-    scenarios = list_scenarios()
-    ids = {s.scenario_id for s in scenarios}
-    assert "aviation_emergency_landing" in ids
     av = get_scenario("aviation_emergency_landing")
     assert av is not None
     assert len(av.emergency_steps) >= 4
     assert any("Aviate" in s for s in av.emergency_steps)
+
+
+def test_list_scenarios_pagination():
+    page1 = list_scenarios(limit=25, offset=0)
+    page2 = list_scenarios(limit=25, offset=25)
+    assert len(page1) == 25
+    assert page1[0].scenario_id != page2[0].scenario_id
+
+
+def test_list_scenarios_domain_filter():
+    aviation = list_scenarios(domain="aviation", limit=100)
+    assert aviation
+    assert all(s.domain.value == "aviation" for s in aviation)
+
+
+def test_list_scenarios_search():
+    hits = list_scenarios(q="engine", limit=20)
+    assert hits
+    assert any("engine" in s.title.lower() or "engine" in s.briefing.lower() for s in hits)
 
 
 def test_agent_roster_includes_harvester_presenter_chatbot_and_coaches():
@@ -76,3 +103,8 @@ def test_aviation_emergency_coach_and_debrief():
 def test_unknown_scenario_raises():
     with pytest.raises(ValueError, match="unknown scenario"):
         TrainingSession.start("not_a_real_scenario")
+
+
+def test_reload_catalog_after_rebuild():
+    reload_catalog()
+    assert count_scenarios() >= 400

@@ -7,6 +7,9 @@ from typing import List, Optional
 from aoep_shared.training_agents import (
     TrainingSessionStore,
     agent_roster_dict,
+    catalog_meta,
+    count_scenarios,
+    list_domains,
     list_scenarios,
 )
 from pydantic import BaseModel, Field
@@ -24,6 +27,20 @@ class ScenarioSummary(BaseModel):
     title: str
     domain: str
     skills: List[str] = Field(default_factory=list)
+
+
+class ScenarioListResponse(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    scenarios: List[ScenarioSummary] = Field(default_factory=list)
+
+
+class CatalogMetaResponse(BaseModel):
+    version: int
+    generated_at: str
+    count: int
+    domains: dict[str, int] = Field(default_factory=dict)
 
 
 class CreateTrainingSessionRequest(BaseModel):
@@ -79,16 +96,39 @@ def _turn_views(turns) -> List[AgentTurnView]:
     ]
 
 
-def list_scenario_summaries() -> List[ScenarioSummary]:
-    return [
-        ScenarioSummary(
-            scenario_id=s.scenario_id,
-            title=s.title,
-            domain=s.domain.value,
-            skills=s.skills,
-        )
-        for s in list_scenarios()
-    ]
+def catalog_summary() -> CatalogMetaResponse:
+    meta = catalog_meta()
+    return CatalogMetaResponse(**meta)
+
+
+def list_scenario_summaries(
+    *,
+    domain: Optional[str] = None,
+    skill: Optional[str] = None,
+    q: Optional[str] = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> ScenarioListResponse:
+    total = count_scenarios(domain=domain, skill=skill, q=q)
+    items = list_scenarios(domain=domain, skill=skill, q=q, offset=offset, limit=limit)
+    return ScenarioListResponse(
+        total=total,
+        offset=offset,
+        limit=limit,
+        scenarios=[
+            ScenarioSummary(
+                scenario_id=s.scenario_id,
+                title=s.title,
+                domain=s.domain.value,
+                skills=s.skills,
+            )
+            for s in items
+        ],
+    )
+
+
+def list_domain_counts() -> list[dict]:
+    return [{"domain": d, "count": n} for d, n in list_domains()]
 
 
 def create_training_session(scenario_id: str):

@@ -34,8 +34,31 @@ class ScenarioDomain(str, Enum):
     AVIATION = "aviation"
     MEDICAL = "medical"
     FIRE_SAFETY = "fire_safety"
-    GENERAL = "general"
+    MARITIME = "maritime"
+    CYBERSECURITY = "cybersecurity"
+    INDUSTRIAL = "industrial"
+    TRANSPORT = "transport"
+    WEATHER = "weather"
+    SECURITY = "security"
+    LEADERSHIP = "leadership"
+    EDUCATION = "education"
+    HOSPITALITY = "hospitality"
+    CONSTRUCTION = "construction"
+    AGRICULTURE = "agriculture"
+    TACTICAL = "tactical"
+    FINANCE = "finance"
     MEDIA_LITERACY = "media_literacy"
+    CHILD_SAFETY = "child_safety"
+    MENTAL_HEALTH = "mental_health"
+    SPORTS = "sports"
+    GENERAL = "general"
+
+    @classmethod
+    def from_value(cls, raw: str) -> ScenarioDomain:
+        try:
+            return cls(raw)
+        except ValueError:
+            return cls.GENERAL
 
 
 @dataclass

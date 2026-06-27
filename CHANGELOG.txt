@@ -15,6 +15,14 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-27 - Training scenario catalog expanded to 570+ situations across 21
+  domains (aviation, medical, maritime, cybersecurity, industrial, transport,
+  weather, security, leadership, education, hospitality, construction, agriculture,
+  tactical, finance, media literacy, child safety, mental health, sports, fire
+  safety, general). Template-driven generators in catalog_generators.py; committed
+  scenario_catalog.json; build via scripts/build_scenario_catalog.py. API adds
+  /api/training/catalog, /api/training/domains, and paginated /api/training/scenarios
+  (domain, skill, q, offset, limit filters).
 - 2026-06-27 - Training agents for sensitive coaching beyond answer delivery.
   Added aoep_shared.training_agents with six coaches: Learning Behavior (adaptive
   pace, frustration/wellness sensitivity), Critical Thinking (Socratic probes),

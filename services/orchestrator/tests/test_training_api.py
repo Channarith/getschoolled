@@ -15,9 +15,29 @@ def test_agents_roster_lists_training_coaches():
     assert "emergency_training" in roles
 
 
+def test_training_catalog_has_hundreds():
+    meta = client.get("/api/training/catalog").json()
+    assert meta["count"] >= 400
+    domains = client.get("/api/training/domains").json()
+    assert len(domains) >= 15
+
+
+def test_training_scenarios_paginated():
+    body = client.get("/api/training/scenarios", params={"limit": 10, "offset": 0}).json()
+    assert body["total"] >= 400
+    assert body["limit"] == 10
+    assert len(body["scenarios"]) == 10
+
+
 def test_training_scenario_session_tick_respond():
-    scenarios = client.get("/api/training/scenarios").json()
-    assert any(s["scenario_id"] == "aviation_emergency_landing" for s in scenarios)
+    scenarios = client.get(
+        "/api/training/scenarios",
+        params={"domain": "aviation", "limit": 5},
+    ).json()
+    sid_scenario = scenarios["scenarios"][0]["scenario_id"]
+    if sid_scenario != "aviation_emergency_landing":
+        # ensure legacy id still works
+        assert client.get("/api/training/scenarios", params={"q": "aviation_emergency"}).json()["total"] >= 1
 
     created = client.post(
         "/api/training/sessions",

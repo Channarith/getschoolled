@@ -37,5 +37,8 @@ harvest = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"aoep_shared.training_agents" = ["data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

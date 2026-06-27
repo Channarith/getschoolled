@@ -875,15 +875,19 @@ def start_group_class(class_id: str) -> dict:
 # Scenario training agents (critical thinking, emergency drills)
 # --------------------------------------------------------------------------- #
 from .training import (  # noqa: E402
+    CatalogMetaResponse,
     CreateTrainingSessionRequest,
     RespondRequest,
     RespondResponse,
+    ScenarioListResponse,
     ScenarioSummary,
     TickResponse,
     TrainingSessionView,
     agent_roster_dict,
+    catalog_summary,
     create_training_session,
     get_training_session,
+    list_domain_counts,
     list_scenario_summaries,
     respond_training_session,
     tick_training_session,
@@ -896,9 +900,25 @@ def agents_roster() -> list[dict]:
     return agent_roster_dict()
 
 
-@app.get("/api/training/scenarios", response_model=list[ScenarioSummary])
-def training_scenarios() -> list[ScenarioSummary]:
-    return list_scenario_summaries()
+@app.get("/api/training/catalog", response_model=CatalogMetaResponse)
+def training_catalog() -> CatalogMetaResponse:
+    return catalog_summary()
+
+
+@app.get("/api/training/domains")
+def training_domains() -> list[dict]:
+    return list_domain_counts()
+
+
+@app.get("/api/training/scenarios", response_model=ScenarioListResponse)
+def training_scenarios(
+    domain: str | None = None,
+    skill: str | None = None,
+    q: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> ScenarioListResponse:
+    return list_scenario_summaries(domain=domain, skill=skill, q=q, offset=offset, limit=limit)
 
 
 @app.post("/api/training/sessions", response_model=TrainingSessionView)
