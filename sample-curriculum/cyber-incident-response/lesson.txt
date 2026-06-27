@@ -1,0 +1,25 @@
+Cyber Incident Response Drills
+==============================
+
+Containment without destruction — ransomware, breach, and insider scenarios.
+Use track_id ``cyber_ir`` or domain ``cybersecurity``.
+
+Module 1 — Isolate to slow spread
+---------------------------------
+Segment affected hosts; avoid wiping disks before evidence preservation unless
+business survival requires it.
+
+Module 2 — Verify before trust
+------------------------------
+CEO fraud wires and phishing pages look urgent. Out-of-band verification is not
+optional.
+
+Module 3 — Communicate facts only
+---------------------------------
+PR and leadership will ask for answers. Separate confirmed facts from hypotheses.
+
+Module 4 — Foresight — what spreads in 15 minutes
+-------------------------------------------------
+Map lateral movement paths before declaring containment complete.
+
+Practice scenarios: cyber_* , telecom_* outage variants.

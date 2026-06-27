@@ -869,8 +869,10 @@ ALL_GENERATORS = [
 
 
 def generate_all_scenarios() -> List[ScenarioDefinition]:
+    from .catalog_generators_extended import EXTENDED_GENERATORS
+
     seen: Dict[str, ScenarioDefinition] = {}
-    for gen in ALL_GENERATORS:
+    for gen in ALL_GENERATORS + EXTENDED_GENERATORS:
         for scenario in gen():
             if scenario.scenario_id in seen:
                 continue

@@ -15,30 +15,36 @@ def test_agents_roster_lists_training_coaches():
     assert "emergency_training" in roles
 
 
-def test_training_catalog_has_hundreds():
+def test_training_catalog_has_thousand_plus():
     meta = client.get("/api/training/catalog").json()
-    assert meta["count"] >= 400
+    assert meta["count"] >= 1000
     domains = client.get("/api/training/domains").json()
-    assert len(domains) >= 15
+    assert len(domains) >= 30
 
 
 def test_training_scenarios_paginated():
     body = client.get("/api/training/scenarios", params={"limit": 10, "offset": 0}).json()
-    assert body["total"] >= 400
+    assert body["total"] >= 1000
     assert body["limit"] == 10
     assert len(body["scenarios"]) == 10
 
 
-def test_training_scenario_session_tick_respond():
-    scenarios = client.get(
-        "/api/training/scenarios",
-        params={"domain": "aviation", "limit": 5},
-    ).json()
-    sid_scenario = scenarios["scenarios"][0]["scenario_id"]
-    if sid_scenario != "aviation_emergency_landing":
-        # ensure legacy id still works
-        assert client.get("/api/training/scenarios", params={"q": "aviation_emergency"}).json()["total"] >= 1
+def test_training_tracks_and_random():
+    tracks = client.get("/api/training/tracks").json()
+    assert len(tracks) >= 10
+    pilot = next(t for t in tracks if t["track_id"] == "pilot_emergency")
+    assert pilot["scenario_count"] >= 20
 
+    track_body = client.get("/api/training/tracks/pilot_emergency").json()
+    assert track_body["total"] >= 20
+    assert track_body["scenarios"]
+
+    rnd = client.get("/api/training/scenarios/random", params={"track_id": "pilot_emergency", "seed": 7})
+    assert rnd.status_code == 200
+    assert rnd.json()["scenario_id"]
+
+
+def test_training_scenario_session_tick_respond():
     created = client.post(
         "/api/training/sessions",
         json={"scenario_id": "aviation_emergency_landing"},

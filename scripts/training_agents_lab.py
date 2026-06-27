@@ -7,7 +7,14 @@ import argparse
 import json
 import sys
 
-from aoep_shared.training_agents import TrainingSession, agent_roster_dict, list_scenarios
+from aoep_shared.training_agents import (
+    TrainingSession,
+    agent_roster_dict,
+    catalog_meta,
+    list_scenarios,
+    list_tracks,
+    track_to_dict,
+)
 
 
 def main() -> int:
@@ -22,8 +29,16 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.list:
-        print("Scenarios:")
-        for s in list_scenarios():
+        meta = catalog_meta()
+        print(f"Catalog: {meta['count']} scenarios across {len(meta['domains'])} domains")
+        for domain, n in sorted(meta["domains"].items(), key=lambda x: -x[1])[:12]:
+            print(f"  {domain}: {n}")
+        print("  ...")
+        print("\nLearning tracks:")
+        for t in list_tracks():
+            print(f"  {t.track_id}: {t.title}")
+        print("\nSample scenarios:")
+        for s in list_scenarios(limit=8):
             print(f"  {s.scenario_id}: {s.title} [{s.domain.value}]")
         print("\nAgent roster:")
         for a in agent_roster_dict():

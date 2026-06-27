@@ -9,8 +9,14 @@ from aoep_shared.training_agents import (
     agent_roster_dict,
     catalog_meta,
     count_scenarios,
+    count_scenarios_for_track,
+    get_track,
     list_domains,
     list_scenarios,
+    list_scenarios_for_track,
+    list_tracks,
+    random_scenario,
+    track_to_dict,
 )
 from pydantic import BaseModel, Field
 
@@ -129,6 +135,77 @@ def list_scenario_summaries(
 
 def list_domain_counts() -> list[dict]:
     return [{"domain": d, "count": n} for d, n in list_domains()]
+
+
+class TrackSummary(BaseModel):
+    track_id: str
+    title: str
+    description: str
+    domains: List[str] = Field(default_factory=list)
+    skills: List[str] = Field(default_factory=list)
+    scenario_count: int = 0
+    recommended_count: int = 12
+
+
+class TrackScenarioListResponse(BaseModel):
+    track_id: str
+    title: str
+    total: int
+    scenarios: List[ScenarioSummary] = Field(default_factory=list)
+
+
+def list_track_summaries() -> List[TrackSummary]:
+    return [
+        TrackSummary(
+            **{k: v for k, v in track_to_dict(t).items() if k != "keywords"},
+            scenario_count=count_scenarios_for_track(t.track_id),
+        )
+        for t in list_tracks()
+    ]
+
+
+def track_scenarios(
+    track_id: str,
+    *,
+    offset: int = 0,
+    limit: int = 50,
+) -> Optional[TrackScenarioListResponse]:
+    track = get_track(track_id)
+    if track is None:
+        return None
+    total = count_scenarios_for_track(track_id)
+    items = list_scenarios_for_track(track_id, offset=offset, limit=limit)
+    return TrackScenarioListResponse(
+        track_id=track_id,
+        title=track.title,
+        total=total,
+        scenarios=[
+            ScenarioSummary(
+                scenario_id=s.scenario_id,
+                title=s.title,
+                domain=s.domain.value,
+                skills=s.skills,
+            )
+            for s in items
+        ],
+    )
+
+
+def pick_random_scenario(
+    *,
+    domain: Optional[str] = None,
+    track_id: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> Optional[ScenarioSummary]:
+    s = random_scenario(domain=domain, track_id=track_id, seed=seed)
+    if s is None:
+        return None
+    return ScenarioSummary(
+        scenario_id=s.scenario_id,
+        title=s.title,
+        domain=s.domain.value,
+        skills=s.skills,
+    )
 
 
 def create_training_session(scenario_id: str):

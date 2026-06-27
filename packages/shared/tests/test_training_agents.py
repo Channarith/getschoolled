@@ -7,18 +7,46 @@ from aoep_shared.training_agents import (
     agent_roster_dict,
     catalog_meta,
     count_scenarios,
+    count_scenarios_for_track,
     get_scenario,
+    get_track,
     list_domains,
     list_scenarios,
+    list_scenarios_for_track,
+    list_tracks,
+    random_scenario,
     reload_catalog,
 )
 
 
-def test_catalog_has_hundreds_of_scenarios():
+def test_catalog_has_thousand_plus_scenarios():
     meta = catalog_meta()
-    assert meta["count"] >= 400
-    assert count_scenarios() >= 400
-    assert len(list_domains()) >= 15
+    assert meta["count"] >= 1000
+    assert count_scenarios() >= 1000
+    assert len(list_domains()) >= 30
+
+
+def test_extended_domains_present():
+    domains = {d for d, _ in list_domains()}
+    for dom in ("nursing", "hazmat", "aviation_ifr", "wilderness", "pharma"):
+        assert dom in domains
+
+
+def test_training_tracks_exist_and_have_scenarios():
+    tracks = list_tracks()
+    assert len(tracks) >= 10
+    pilot = get_track("pilot_emergency")
+    assert pilot is not None
+    assert count_scenarios_for_track("pilot_emergency") >= 20
+    items = list_scenarios_for_track("pilot_emergency", limit=5)
+    assert len(items) == 5
+
+
+def test_random_scenario_deterministic_with_seed():
+    a = random_scenario(track_id="first_responder", seed=42)
+    b = random_scenario(track_id="first_responder", seed=42)
+    assert a is not None and b is not None
+    assert a.scenario_id == b.scenario_id
 
 
 def test_builtin_scenarios_include_aviation_emergency():
@@ -107,4 +135,4 @@ def test_unknown_scenario_raises():
 
 def test_reload_catalog_after_rebuild():
     reload_catalog()
-    assert count_scenarios() >= 400
+    assert count_scenarios() >= 1000

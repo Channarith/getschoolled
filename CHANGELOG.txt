@@ -15,7 +15,16 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
-- 2026-06-27 - Training scenario catalog expanded to 570+ situations across 21
+- 2026-06-27 - Training catalog expanded to 1,370 scenarios across 38 domains and 15
+  learning tracks. Added catalog_generators_extended (nursing, hazmat, energy, SAR,
+  legal, parenting, conflict, disaster recovery, aviation IFR, wilderness, water
+  safety, food safety, retail, mining, pharma, social work, telecom, plus expanded
+  aviation/medical libraries). New tracks.py curated paths (pilot emergency, first
+  responder, healthcare, cyber IR, leadership, educator safety, parent caregiver,
+  critical thinking, maritime/industrial, mental wellness, wilderness SAR, transport
+  security, food/retail, sports, IFR advanced). API: /api/training/tracks,
+  /api/training/tracks/{id}, /api/training/scenarios/random. Sample curriculum packs
+  for first responder, IFR, nursing, and cyber IR.
   domains (aviation, medical, maritime, cybersecurity, industrial, transport,
   weather, security, leadership, education, hospitality, construction, agriculture,
   tactical, finance, media literacy, child safety, mental health, sports, fire

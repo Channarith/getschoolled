@@ -52,6 +52,23 @@ class ScenarioDomain(str, Enum):
     MENTAL_HEALTH = "mental_health"
     SPORTS = "sports"
     GENERAL = "general"
+    NURSING = "nursing"
+    HAZMAT = "hazmat"
+    ENERGY = "energy"
+    SEARCH_RESCUE = "search_rescue"
+    LEGAL = "legal"
+    PARENTING = "parenting"
+    CONFLICT = "conflict"
+    DISASTER_RECOVERY = "disaster_recovery"
+    AVIATION_IFR = "aviation_ifr"
+    WILDERNESS = "wilderness"
+    WATER_SAFETY = "water_safety"
+    FOOD_SAFETY = "food_safety"
+    RETAIL = "retail"
+    MINING = "mining"
+    PHARMA = "pharma"
+    SOCIAL_WORK = "social_work"
+    TELECOM = "telecom"
 
     @classmethod
     def from_value(cls, raw: str) -> ScenarioDomain:

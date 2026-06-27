@@ -882,6 +882,8 @@ from .training import (  # noqa: E402
     ScenarioListResponse,
     ScenarioSummary,
     TickResponse,
+    TrackScenarioListResponse,
+    TrackSummary,
     TrainingSessionView,
     agent_roster_dict,
     catalog_summary,
@@ -889,8 +891,11 @@ from .training import (  # noqa: E402
     get_training_session,
     list_domain_counts,
     list_scenario_summaries,
+    list_track_summaries,
+    pick_random_scenario,
     respond_training_session,
     tick_training_session,
+    track_scenarios,
 )
 
 
@@ -919,6 +924,35 @@ def training_scenarios(
     limit: int = 50,
 ) -> ScenarioListResponse:
     return list_scenario_summaries(domain=domain, skill=skill, q=q, offset=offset, limit=limit)
+
+
+@app.get("/api/training/scenarios/random", response_model=ScenarioSummary)
+def training_scenario_random(
+    domain: str | None = None,
+    track_id: str | None = None,
+    seed: int | None = None,
+) -> ScenarioSummary:
+    picked = pick_random_scenario(domain=domain, track_id=track_id, seed=seed)
+    if picked is None:
+        raise HTTPException(status_code=404, detail="no matching scenario")
+    return picked
+
+
+@app.get("/api/training/tracks", response_model=list[TrackSummary])
+def training_tracks() -> list[TrackSummary]:
+    return list_track_summaries()
+
+
+@app.get("/api/training/tracks/{track_id}", response_model=TrackScenarioListResponse)
+def training_track_scenarios(
+    track_id: str,
+    offset: int = 0,
+    limit: int = 50,
+) -> TrackScenarioListResponse:
+    body = track_scenarios(track_id, offset=offset, limit=limit)
+    if body is None:
+        raise HTTPException(status_code=404, detail="unknown track")
+    return body
 
 
 @app.post("/api/training/sessions", response_model=TrainingSessionView)
