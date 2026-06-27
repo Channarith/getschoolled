@@ -152,7 +152,7 @@ export default function AdminPage() {
             type={showSecret ? "text" : "password"} placeholder="Admin secret" value={secret}
             onChange={(e) => setSecret(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load(secret)}
-            style={{ width: "100%", padding: 10, paddingRight: 44, boxSizing: "border-box" }}
+            style={{ width: "100%", padding: 10, paddingRight: 56, boxSizing: "border-box" }}
           />
           <button type="button" onClick={() => setShowSecret((s) => !s)}
             aria-label={showSecret ? "Hide admin secret" : "Show admin secret"}
@@ -161,10 +161,10 @@ export default function AdminPage() {
             style={{
               position: "absolute", right: 4, top: 0, bottom: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              width: 36, border: 0, background: "transparent",
+              width: 48, border: 0, background: "transparent",
               cursor: "pointer", color: "#9aa4b2",
             }}>
-            <EyeIcon off={showSecret} />
+            <EyeIcon off={showSecret} size={26} />
           </button>
         </span>
         <button onClick={() => load(secret)}

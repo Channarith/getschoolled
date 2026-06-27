@@ -15,6 +15,12 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-27 - Admin Feature Flags: enlarged the show/hide eye icon on the admin-
+  secret field (EyeIcon now takes a size prop; admin uses 26px in a wider hit area).
+  Memory admin auth now also accepts the platform admin password (88888888 /
+  DEFAULT_ADMIN_PASSWORD) in addition to ADMIN_SECRET, so operators can unlock the
+  page with the same credential they log in with. Added a memory test.
+
 - 2026-06-26 - Built-in accounts skip the new-user onboarding/payment wizard.
   admin@salareen.com and the QA personas (qa1/qa2/qa3) were seeded without an
   onboarding-completed marker, so every login + hard refresh bounced them through

@@ -1,6 +1,6 @@
-export function EyeIcon({ off }: { off: boolean }) {
+export function EyeIcon({ off, size = 18 }: { off: boolean; size?: number }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true" focusable="false">
       {off ? (
