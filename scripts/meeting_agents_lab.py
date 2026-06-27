@@ -7,7 +7,8 @@ vendor SDKs, keys, or network required. Validates:
   Part 1  Harvester pipeline (scored course)
   Part 2  AI presenter script (with regional dialect)
   Part 3  Bridge connect + chat read/reply bots
-  Agents  Teacher, chat tutor, perception, interrupt host, moderator
+  Agents  Teacher, chat tutor, perception, situational coach, interrupt host,
+          moderator
 
 Usage:
   python3 scripts/meeting_agents_lab.py --platform zoom --dialect us_ca

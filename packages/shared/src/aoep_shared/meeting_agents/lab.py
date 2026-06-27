@@ -19,9 +19,10 @@ from .agents import (
     ModeratorAgent,
     PerceptionAgent,
     SharedSessionState,
+    SituationalCoachAgent,
     TeacherAgent,
 )
-from .simulation import SimulatedMeetingTransport, VideoFrameEvent
+from .simulation import ScenarioEvent, SimulatedMeetingTransport, VideoFrameEvent
 
 
 # Sample meeting URLs for each platform (parsed offline; no network).
@@ -44,6 +45,24 @@ _DEFAULT_VIDEO_SCRIPT = [
     VideoFrameEvent("student-1", attention=0.9),
     VideoFrameEvent("student-2", attention=0.35, looking_away=True),
     VideoFrameEvent("student-3", attention=0.7, hand_raised=True),
+]
+
+_DEFAULT_SCENARIO_SCRIPT = [
+    ScenarioEvent(
+        scenario_id="sim-airplane-engine-failure",
+        domain="aviation",
+        cue="Simulator cue: engine power drops after takeoff and the runway is behind you.",
+        severity=0.92,
+        time_pressure_seconds=60,
+        expected_action=(
+            "pitch for best glide, pick a landing area, run restart checks, "
+            "and make the mayday call"
+        ),
+        risk_forecast=(
+            "altitude is bleeding off, so delaying the landing choice removes "
+            "survivable options"
+        ),
+    ),
 ]
 
 
@@ -84,6 +103,7 @@ def run_meeting_agents_lab(
     sample_text: Optional[str] = None,
     out_dir: Optional[str | Path] = None,
     chat_script: Optional[List[tuple[str, str]]] = None,
+    scenario_script: Optional[List[ScenarioEvent]] = None,
     ticks: int = 8,
 ) -> MeetingAgentsLabResult:
     """Run the full offline experiment and return a structured report."""
@@ -136,6 +156,7 @@ def run_meeting_agents_lab(
     chat_tutor = ChatTutorAgent()
     teacher = TeacherAgent()
     perception = PerceptionAgent()
+    situational = SituationalCoachAgent()
     interrupt = InterruptHostAgent()
     moderator = ModeratorAgent()
 
@@ -150,6 +171,7 @@ def run_meeting_agents_lab(
     transport = SimulatedMeetingTransport(
         on_inbound_chat=_handle_chat,
         on_video_frame=lambda f: perception.on_video(state, f),
+        on_scenario_event=lambda e: situational.on_scenario(state, e),
     )
 
     bridge = get_bridge(plat)
@@ -164,15 +186,22 @@ def run_meeting_agents_lab(
     bridge_holder["session"] = bridge_session
 
     _check(checks, "Bridge: transport opened", transport.opened)
-    _check(checks, "Bridge: disclosure announced", any(c.op == "announce" for c in transport.calls))
+    _check(
+        checks,
+        "Bridge: disclosure announced",
+        any(c.op == "announce" for c in transport.calls),
+    )
 
     # Inject meeting chat + video (simulates chatbot reading the meeting)
     transport.drain_chat_script(chat_script or _DEFAULT_CHAT_SCRIPT)
     for frame in _DEFAULT_VIDEO_SCRIPT:
         transport.inject_video(frame)
+    scenarios = scenario_script if scenario_script is not None else _DEFAULT_SCENARIO_SCRIPT
 
     # Multi-agent tick loop
     for tick in range(ticks):
+        if tick < len(scenarios):
+            transport.inject_scenario(scenarios[tick])
         if interrupt.tick(state, chat_tutor):
             if bridge_session:
                 bridge_session.post_to_chat(state.events[-1].detail)
@@ -181,20 +210,60 @@ def run_meeting_agents_lab(
         mod = moderator.tick(state)
         if mod and bridge_session:
             bridge_session.post_to_chat(mod)
+        coaching = situational.tick(state)
+        if coaching and bridge_session:
+            bridge_session.post_to_chat(coaching)
         if tick % 3 == 2 and state.slide_index < state.slides_total - 1:
             state.slide_index += 1
             if e2e.lesson.segments:
-                seg = e2e.lesson.segments[min(state.slide_index, len(e2e.lesson.segments) - 1)]
-                state.lesson_snippet = humanize_narration(seg.narration, dialect_id, language=language)
+                seg = e2e.lesson.segments[
+                    min(state.slide_index, len(e2e.lesson.segments) - 1)
+                ]
+                state.lesson_snippet = humanize_narration(
+                    seg.narration, dialect_id, language=language
+                )
 
     if bridge_session:
         bridge_session.stop()
 
-    _check(checks, "Agents: teacher narrated", any(e.agent == "teacher" for e in state.events))
-    _check(checks, "Agents: chat tutor replied", any(e.agent == "chat_tutor" for e in state.events))
-    _check(checks, "Agents: perception observed", any(e.agent == "perception" for e in state.events))
-    _check(checks, "Agents: interrupt or moderator acted",
-           any(e.agent in ("interrupt_host", "moderator") for e in state.events))
+    _check(
+        checks,
+        "Agents: teacher narrated",
+        any(e.agent == "teacher" for e in state.events),
+    )
+    _check(
+        checks,
+        "Agents: chat tutor replied",
+        any(e.agent == "chat_tutor" for e in state.events),
+    )
+    _check(
+        checks,
+        "Agents: perception observed",
+        any(e.agent == "perception" for e in state.events),
+    )
+    _check(
+        checks,
+        "Agents: situational coach forecasted",
+        any(
+            e.agent == "situational_coach" and e.kind == "forecast"
+            for e in state.events
+        ),
+    )
+    _check(
+        checks,
+        "Agents: emergency critical thinking trained",
+        any(
+            e.agent == "situational_coach"
+            and e.kind == "critical_thinking_drill"
+            and e.meta.get("domain") == "aviation"
+            for e in state.events
+        ),
+    )
+    _check(
+        checks,
+        "Agents: interrupt or moderator acted",
+        any(e.agent in ("interrupt_host", "moderator") for e in state.events),
+    )
     _check(checks, "Bridge: chat outbound", len(transport.chat_sent) >= 1)
     intro_narration = e2e.lesson.steps[0].narration if e2e.lesson.steps else ""
     _check(checks, "Dialect: colloquial intro",
@@ -207,8 +276,10 @@ def run_meeting_agents_lab(
         dialect=dialect_id,
         provider_used=e2e.provider_used,
         bridge_state=bridge_session.state.value if bridge_session else "unknown",
-        agent_events=[{"agent": e.agent, "kind": e.kind, "detail": e.detail, "meta": e.meta}
-                      for e in state.events],
+        agent_events=[
+            {"agent": e.agent, "kind": e.kind, "detail": e.detail, "meta": e.meta}
+            for e in state.events
+        ],
         chat_sent=list(transport.chat_sent),
         checks=checks,
         artifacts=dict(e2e.artifacts),

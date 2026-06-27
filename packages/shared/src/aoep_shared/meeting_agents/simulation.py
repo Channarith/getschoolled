@@ -26,6 +26,19 @@ class VideoFrameEvent:
     looking_away: bool = False
 
 
+@dataclass
+class ScenarioEvent:
+    """Synthetic high-stakes training scenario injected into the class."""
+
+    scenario_id: str
+    domain: str
+    cue: str
+    severity: float
+    time_pressure_seconds: int
+    expected_action: str
+    risk_forecast: str
+
+
 class SimulatedMeetingTransport(FakeTransport):
     """FakeTransport plus inbound chat/video injection for agent labs."""
 
@@ -34,12 +47,15 @@ class SimulatedMeetingTransport(FakeTransport):
         *,
         on_inbound_chat: Optional[Callable[[InboundChat], None]] = None,
         on_video_frame: Optional[Callable[[VideoFrameEvent], None]] = None,
+        on_scenario_event: Optional[Callable[[ScenarioEvent], None]] = None,
     ) -> None:
         super().__init__()
         self._on_chat = on_inbound_chat
         self._on_video = on_video_frame
+        self._on_scenario = on_scenario_event
         self.inbound_chat: List[InboundChat] = []
         self.video_frames: List[VideoFrameEvent] = []
+        self.scenario_events: List[ScenarioEvent] = []
 
     def inject_chat(self, text: str, *, author: str = "student") -> None:
         msg = InboundChat(author=author, text=text)
@@ -51,6 +67,11 @@ class SimulatedMeetingTransport(FakeTransport):
         self.video_frames.append(event)
         if self._on_video:
             self._on_video(event)
+
+    def inject_scenario(self, event: ScenarioEvent) -> None:
+        self.scenario_events.append(event)
+        if self._on_scenario:
+            self._on_scenario(event)
 
     def drain_chat_script(self, script: List[tuple[str, str]]) -> None:
         """(author, text) pairs fired as if read from meeting chat."""

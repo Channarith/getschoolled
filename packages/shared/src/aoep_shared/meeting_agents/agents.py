@@ -9,13 +9,14 @@ from typing import List, Optional
 from aoep_shared.dialect import get_dialect, humanize_narration, tutor_tone_hint
 from aoep_shared.slang import default_lexicon
 
-from .simulation import AgentEvent, InboundChat, VideoFrameEvent
+from .simulation import AgentEvent, InboundChat, ScenarioEvent, VideoFrameEvent
 
 
 class AgentRole(str, Enum):
     TEACHER = "teacher"
     CHAT_TUTOR = "chat_tutor"
     PERCEPTION = "perception"
+    SITUATIONAL_COACH = "situational_coach"
     INTERRUPT_HOST = "interrupt_host"
     MODERATOR = "moderator"
 
@@ -60,11 +61,21 @@ class SharedSessionState:
     language: str = "en"
     subject: str = "general"
     lesson_snippet: str = ""
+    current_scenario: Optional[ScenarioEvent] = None
+    behavior_adaptations: List[str] = field(default_factory=list)
+    situational_briefings: List[str] = field(default_factory=list)
+    split_minute_drills: List[str] = field(default_factory=list)
     chat_answered: List[str] = field(default_factory=list)
     events: List[AgentEvent] = field(default_factory=list)
 
 
-def _log(state: SharedSessionState, agent: AgentRole, kind: str, detail: str, **meta) -> None:
+def _log(
+    state: SharedSessionState,
+    agent: AgentRole,
+    kind: str,
+    detail: str,
+    **meta,
+) -> None:
     state.events.append(AgentEvent(agent=agent.value, kind=kind, detail=detail, meta=meta))
 
 
@@ -83,7 +94,10 @@ class TeacherAgent:
         )
         if lesson_state is not _LessonState.TEACHING:
             return None
-        line = state.lesson_snippet or f"Slide {state.slide_index + 1} of {state.slides_total}."
+        line = (
+            state.lesson_snippet
+            or f"Slide {state.slide_index + 1} of {state.slides_total}."
+        )
         spoken = humanize_narration(line, state.dialect, language=state.language)
         _log(state, AgentRole.TEACHER, "narrate", spoken, slide=state.slide_index)
         return spoken
@@ -134,6 +148,93 @@ class PerceptionAgent:
             f"attention={frame.attention:.2f} hand={frame.hand_raised}",
             student=frame.student_id,
         )
+
+
+@dataclass
+class SituationalCoachAgent:
+    """Trains adaptive behavior, forecasting, and fast critical decisions."""
+
+    attention_floor: float = 0.55
+
+    def on_scenario(self, state: SharedSessionState, event: ScenarioEvent) -> str:
+        state.current_scenario = event
+        briefing = humanize_narration(
+            f"Forecast before action: {event.risk_forecast}",
+            state.dialect,
+            language=state.language,
+        )
+        state.situational_briefings.append(briefing)
+        _log(
+            state,
+            AgentRole.SITUATIONAL_COACH,
+            "forecast",
+            briefing,
+            scenario=event.scenario_id,
+            domain=event.domain,
+            severity=event.severity,
+        )
+        return briefing
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        adaptation = self._adapt_to_behavior(state)
+        if adaptation:
+            state.behavior_adaptations.append(adaptation)
+            _log(
+                state,
+                AgentRole.SITUATIONAL_COACH,
+                "behavior_adaptation",
+                adaptation,
+                attention=state.attention,
+                hands_raised=state.hands_raised,
+                pending_questions=len(state.pending_questions),
+            )
+
+        if state.current_scenario is None:
+            return adaptation
+
+        event = state.current_scenario
+        drill = self._build_drill(state, event)
+        state.split_minute_drills.append(drill)
+        state.current_scenario = None
+        _log(
+            state,
+            AgentRole.SITUATIONAL_COACH,
+            "critical_thinking_drill",
+            drill,
+            scenario=event.scenario_id,
+            domain=event.domain,
+            seconds=event.time_pressure_seconds,
+        )
+        return drill
+
+    def _adapt_to_behavior(self, state: SharedSessionState) -> Optional[str]:
+        if state.attention < self.attention_floor:
+            line = (
+                "Learning behavior check: pause, breathe, scan the facts, "
+                "then explain the next safest move in one sentence."
+            )
+            return humanize_narration(line, state.dialect, language=state.language)
+        if state.hands_raised or len(state.pending_questions) >= 2:
+            line = (
+                "Learning behavior check: questions are stacking up, so we "
+                "slow the pace and ask learners to name the risk they see."
+            )
+            return humanize_narration(line, state.dialect, language=state.language)
+        return None
+
+    def _build_drill(self, state: SharedSessionState, event: ScenarioEvent) -> str:
+        if event.domain.lower() == "aviation":
+            action = (
+                "emergency landing drill: aviate, navigate, communicate; "
+                f"{event.expected_action}"
+            )
+        else:
+            action = f"critical response drill: {event.expected_action}"
+        line = (
+            f"{event.cue} You have {event.time_pressure_seconds} seconds. "
+            f"First, state what can go wrong next. Then choose: {action}."
+        )
+        return humanize_narration(line, state.dialect, language=state.language)
 
 
 @dataclass

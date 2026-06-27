@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Meeting agents now include a situational coach for adaptive
+  critical-thinking training. The offline meeting lab can inject high-stakes
+  ScenarioEvent drills, forecasts the risk before action, adapts prompts to
+  learner attention/questions, and trains a timed simulator airplane emergency
+  landing response alongside the teacher, chat tutor, perception, interrupt,
+  and moderator agents. Added regression coverage for the forecast and 60-second
+  aviation emergency drill.
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is
