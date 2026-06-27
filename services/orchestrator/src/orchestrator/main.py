@@ -869,3 +869,70 @@ def start_group_class(class_id: str) -> dict:
         ).model_dump(),
         "bridge": plan,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Scenario training agents (critical thinking, emergency drills)
+# --------------------------------------------------------------------------- #
+from .training import (  # noqa: E402
+    CreateTrainingSessionRequest,
+    RespondRequest,
+    RespondResponse,
+    ScenarioSummary,
+    TickResponse,
+    TrainingSessionView,
+    agent_roster_dict,
+    create_training_session,
+    get_training_session,
+    list_scenario_summaries,
+    respond_training_session,
+    tick_training_session,
+)
+
+
+@app.get("/api/agents/roster")
+def agents_roster() -> list[dict]:
+    """Full platform agent roster: harvester, presenter, chatbot, training coaches."""
+    return agent_roster_dict()
+
+
+@app.get("/api/training/scenarios", response_model=list[ScenarioSummary])
+def training_scenarios() -> list[ScenarioSummary]:
+    return list_scenario_summaries()
+
+
+@app.post("/api/training/sessions", response_model=TrainingSessionView)
+def training_session_create(req: CreateTrainingSessionRequest) -> TrainingSessionView:
+    try:
+        session = create_training_session(req.scenario_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return TrainingSessionView(**session.to_view())
+
+
+@app.get("/api/training/sessions/{session_id}", response_model=TrainingSessionView)
+def training_session_get(session_id: str) -> TrainingSessionView:
+    session = get_training_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    return TrainingSessionView(**session.to_view())
+
+
+@app.post("/api/training/sessions/{session_id}/tick", response_model=TickResponse)
+def training_session_tick(session_id: str) -> TickResponse:
+    session, turns = tick_training_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    from .training import _session_view, _turn_views
+
+    return TickResponse(session=_session_view(session), turns=_turn_views(turns or []))
+
+
+@app.post("/api/training/sessions/{session_id}/respond", response_model=RespondResponse)
+def training_session_respond(session_id: str, req: RespondRequest) -> RespondResponse:
+    session, turns = respond_training_session(session_id, req.text)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    from .training import _session_view, _turn_views
+
+    return RespondResponse(session=_session_view(session), turns=_turn_views(turns or []))
