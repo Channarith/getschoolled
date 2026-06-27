@@ -444,6 +444,102 @@ def slang_normalize(req: SlangRequest) -> SlangResponse:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Cognitive training agents: critical-thinking & emergency-response drills.
+# Trains *how a person thinks* under pressure (situational awareness, pre-mortem
+# forecasting, split-second decisions, reasoning critique) and adapts to the
+# learner's behavior. Deterministic + offline (no model server required).
+# --------------------------------------------------------------------------- #
+from .training import TrainingSessions  # noqa: E402
+
+_training: TrainingSessions | None = None
+
+
+def get_training() -> TrainingSessions:
+    global _training
+    if _training is None:
+        _training = TrainingSessions()
+    return _training
+
+
+class StartTrainingRequest(BaseModel):
+    scenario_id: str
+    class_type: ClassType = ClassType.SOLO
+
+
+class TrainingDecisionRequest(BaseModel):
+    option_id: str
+    elapsed_s: float = 0.0
+    rationale: str = ""
+
+
+class TrainingForecastRequest(BaseModel):
+    # Optional: cues the learner reports noticing, scored for situational awareness.
+    noticed: list[str] = []
+
+
+@app.get("/api/training/scenarios")
+def training_scenarios() -> dict:
+    return {"scenarios": get_training().list_scenarios()}
+
+
+@app.post("/api/training/sessions")
+def training_start(req: StartTrainingRequest) -> dict:
+    try:
+        session = get_training().start(req.scenario_id, req.class_type.value)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown scenario {req.scenario_id}")
+    return get_training().view(session)
+
+
+@app.get("/api/training/sessions/{session_id}")
+def training_get(session_id: str) -> dict:
+    try:
+        session = get_training().get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    return get_training().view(session)
+
+
+@app.post("/api/training/sessions/{session_id}/forecast")
+def training_forecast(session_id: str, req: TrainingForecastRequest) -> dict:
+    """Pre-mortem brief for the current phase: anticipate failures BEFORE they
+    happen, plus an optional situational-awareness recall score for reported cues."""
+    training = get_training()
+    try:
+        session = training.get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    if session.done:
+        raise HTTPException(status_code=409, detail="session already complete")
+    return training.view(session, noticed=req.noticed or None)
+
+
+@app.post("/api/training/sessions/{session_id}/decide")
+def training_decide(session_id: str, req: TrainingDecisionRequest) -> dict:
+    training = get_training()
+    try:
+        return training.decide(
+            session_id, req.option_id,
+            elapsed_s=req.elapsed_s, rationale=req.rationale,
+        )
+    except KeyError as exc:
+        # Distinguish unknown session vs unknown option.
+        detail = "unknown training session" if str(exc).strip("'") == session_id else "unknown option"
+        raise HTTPException(status_code=404, detail=detail)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.get("/api/training/sessions/{session_id}/summary")
+def training_summary(session_id: str) -> dict:
+    try:
+        session = get_training().get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    return session.summary()
+
+
 @app.post("/director/tick", response_model=DirectorTickResponse)
 def director_tick(req: DirectorTickRequest) -> DirectorTickResponse:
     director = Director()
