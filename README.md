@@ -144,6 +144,7 @@ Additional screenshots live in `docs/screens/`.
 | Area | Status | Key surfaces |
 | --- | --- | --- |
 | Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue | `apps/web/app/class`, `services/orchestrator` |
+| Cognitive training agents | Critical-thinking & emergency drills: situational awareness, pre-mortem forecasting, split-second (OODA) decisions, reasoning critique, behavior-adaptive coaching (e.g. simulated engine-out emergency landing) | `apps/web/app/train`, `aoep_shared/training_agents`, `services/orchestrator` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
 | Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
 | Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |
@@ -554,8 +555,8 @@ pnpm run dev
 ```
 
 Then open `http://localhost:3000`, `http://localhost:3000/class`,
-`http://localhost:3000/drive`, `http://localhost:3000/jobs`, or
-`http://localhost:3000/backgrounds`.
+`http://localhost:3000/train`, `http://localhost:3000/drive`,
+`http://localhost:3000/jobs`, or `http://localhost:3000/backgrounds`.
 
 Full compose stack:
 

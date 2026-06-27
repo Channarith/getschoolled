@@ -2,6 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Cognitive training agents (critical thinking & emergency drills).
+  New offline-first subsystem aoep_shared.training_agents adds five specialized
+  agents that train HOW a person thinks under pressure rather than just answering:
+  SituationalAwarenessAgent (perceive/comprehend/project + cue-recall scoring),
+  ForecastingAgent (pre-mortem: anticipate failure modes before they happen),
+  RapidDecisionAgent (OODA-loop scoring under a split-second clock),
+  CriticalThinkingAgent (reasoning rubric + bias/fallacy detection + Socratic
+  probes), and LearningBehaviorAgent (adapts pacing/difficulty/tone via the
+  shared AdaptivePolicy, sensitive to overload/frustration). A branching Scenario
+  engine drives drills - flagship "Engine Failure & Emergency Landing (Cessna
+  172)" plus a stovetop-fire scenario; new domains are authored as data, no code
+  forks. Exposed on the orchestrator at /api/training/scenarios|sessions|
+  {id}/forecast|decide|summary, with a new web /train "Emergency Drills" page
+  (EmergencyTrainer) and nav entry. Deterministic; no model server required.
+  Tests: packages/shared/tests/test_training_agents.py (13) and
+  services/orchestrator/tests/test_training_api.py (7).
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is
