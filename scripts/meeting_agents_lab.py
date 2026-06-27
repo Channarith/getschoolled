@@ -7,12 +7,15 @@ vendor SDKs, keys, or network required. Validates:
   Part 1  Harvester pipeline (scored course)
   Part 2  AI presenter script (with regional dialect)
   Part 3  Bridge connect + chat read/reply bots
-  Agents  Teacher, chat tutor, perception, interrupt host, moderator
+  Agents  Teacher, chat tutor, perception, interrupt host, moderator,
+          adaptive coach, critical-thinking coach, situational analyst,
+          rapid-response coach, forecasting mentor, emergency-sim coach
 
 Usage:
   python3 scripts/meeting_agents_lab.py --platform zoom --dialect us_ca
   python3 scripts/meeting_agents_lab.py --platform teams --dialect us_tx
   python3 scripts/meeting_agents_lab.py --platform meet --dialect es_mx --all
+  python3 scripts/meeting_agents_lab.py --scenario aviation_emergency_engine_loss
 """
 
 from __future__ import annotations
@@ -35,6 +38,8 @@ def main() -> int:
                    help="Regional tone: us_ca, us_tx, us_general, es_mx, pt_br, ...")
     p.add_argument("--language", default="en")
     p.add_argument("--subject", default="chemistry")
+    p.add_argument("--scenario", default="aviation_emergency_engine_loss")
+    p.add_argument("--scenario-risk", type=float, default=0.62)
     p.add_argument("--out", type=Path, default=None, help="Keep artifacts here")
     p.add_argument("--all", action="store_true", help="Run zoom + teams + meet")
     p.add_argument("--list-dialects", action="store_true")
@@ -54,6 +59,8 @@ def main() -> int:
             dialect=args.dialect,
             language=args.language,
             subject=args.subject,
+            scenario=args.scenario,
+            scenario_risk=args.scenario_risk,
             out_dir=args.out,
         )
         for label, ok in result.checks:

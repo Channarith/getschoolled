@@ -14,11 +14,17 @@ from aoep_shared.dialect import normalize_dialect
 from aoep_shared.teaching import run_end_to_end
 
 from .agents import (
+    AdaptiveCoachAgent,
     ChatTutorAgent,
+    CriticalThinkingCoachAgent,
+    EmergencySimulationCoachAgent,
+    ForecastingMentorAgent,
     InterruptHostAgent,
     ModeratorAgent,
     PerceptionAgent,
+    RapidResponseCoachAgent,
     SharedSessionState,
+    SituationalAnalystAgent,
     TeacherAgent,
 )
 from .simulation import SimulatedMeetingTransport, VideoFrameEvent
@@ -51,6 +57,7 @@ _DEFAULT_VIDEO_SCRIPT = [
 class MeetingAgentsLabResult:
     platform: str
     dialect: str
+    scenario: str
     provider_used: str
     bridge_state: str
     agent_events: List[dict]
@@ -62,6 +69,7 @@ class MeetingAgentsLabResult:
         return {
             "platform": self.platform,
             "dialect": self.dialect,
+            "scenario": self.scenario,
             "provider_used": self.provider_used,
             "bridge_state": self.bridge_state,
             "agent_events": self.agent_events,
@@ -84,6 +92,8 @@ def run_meeting_agents_lab(
     sample_text: Optional[str] = None,
     out_dir: Optional[str | Path] = None,
     chat_script: Optional[List[tuple[str, str]]] = None,
+    scenario: str = "aviation_emergency_engine_loss",
+    scenario_risk: float = 0.62,
     ticks: int = 8,
 ) -> MeetingAgentsLabResult:
     """Run the full offline experiment and return a structured report."""
@@ -132,12 +142,21 @@ def run_meeting_agents_lab(
         language=language,
         subject=subject,
         lesson_snippet=lesson_bit,
+        active_scenario=scenario,
+        scenario_risk=max(0.0, min(1.0, scenario_risk)),
+        stress_level=max(0.0, min(1.0, 1.0 - _DEFAULT_VIDEO_SCRIPT[0].attention)),
     )
     chat_tutor = ChatTutorAgent()
     teacher = TeacherAgent()
     perception = PerceptionAgent()
     interrupt = InterruptHostAgent()
     moderator = ModeratorAgent()
+    adaptive = AdaptiveCoachAgent()
+    critical = CriticalThinkingCoachAgent()
+    situational = SituationalAnalystAgent()
+    rapid = RapidResponseCoachAgent()
+    forecasting = ForecastingMentorAgent()
+    emergency = EmergencySimulationCoachAgent()
 
     bridge_holder: dict = {"session": None}
 
@@ -181,6 +200,13 @@ def run_meeting_agents_lab(
         mod = moderator.tick(state)
         if mod and bridge_session:
             bridge_session.post_to_chat(mod)
+        # Scenario pressure evolves from engagement and unresolved learner signals.
+        pressure = (0.5 - state.attention) * 0.18 + (0.03 * len(state.pending_questions))
+        state.scenario_risk = max(0.0, min(1.0, state.scenario_risk + pressure))
+        for specialist in (adaptive, critical, situational, rapid, forecasting, emergency):
+            note = specialist.tick(state)
+            if note and bridge_session:
+                bridge_session.post_to_chat(note)
         if tick % 3 == 2 and state.slide_index < state.slides_total - 1:
             state.slide_index += 1
             if e2e.lesson.segments:
@@ -195,6 +221,18 @@ def run_meeting_agents_lab(
     _check(checks, "Agents: perception observed", any(e.agent == "perception" for e in state.events))
     _check(checks, "Agents: interrupt or moderator acted",
            any(e.agent in ("interrupt_host", "moderator") for e in state.events))
+    _check(checks, "Agents: adaptive coach acted",
+           any(e.agent == "adaptive_coach" for e in state.events))
+    _check(checks, "Agents: critical-thinking coach acted",
+           any(e.agent == "critical_thinking_coach" for e in state.events))
+    _check(checks, "Agents: situational analyst acted",
+           any(e.agent == "situational_analyst" for e in state.events))
+    _check(checks, "Agents: rapid-response coach acted",
+           any(e.agent == "rapid_response_coach" for e in state.events))
+    _check(checks, "Agents: forecasting mentor acted",
+           any(e.agent == "forecasting_mentor" for e in state.events))
+    _check(checks, "Agents: emergency simulation coach acted",
+           any(e.agent == "emergency_sim_coach" for e in state.events))
     _check(checks, "Bridge: chat outbound", len(transport.chat_sent) >= 1)
     intro_narration = e2e.lesson.steps[0].narration if e2e.lesson.steps else ""
     _check(checks, "Dialect: colloquial intro",
@@ -205,6 +243,7 @@ def run_meeting_agents_lab(
     result = MeetingAgentsLabResult(
         platform=platform,
         dialect=dialect_id,
+        scenario=scenario,
         provider_used=e2e.provider_used,
         bridge_state=bridge_session.state.value if bridge_session else "unknown",
         agent_events=[{"agent": e.agent, "kind": e.kind, "detail": e.detail, "meta": e.meta}

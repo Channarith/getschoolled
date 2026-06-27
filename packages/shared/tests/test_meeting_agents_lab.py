@@ -11,6 +11,12 @@ def test_meeting_agents_lab_offline(platform: str):
     assert result.bridge_state == "closed"
     assert any(e["agent"] == "chat_tutor" for e in result.agent_events)
     assert any(e["agent"] == "teacher" for e in result.agent_events)
+    assert any(e["agent"] == "adaptive_coach" for e in result.agent_events)
+    assert any(e["agent"] == "critical_thinking_coach" for e in result.agent_events)
+    assert any(e["agent"] == "situational_analyst" for e in result.agent_events)
+    assert any(e["agent"] == "rapid_response_coach" for e in result.agent_events)
+    assert any(e["agent"] == "forecasting_mentor" for e in result.agent_events)
+    assert any(e["agent"] == "emergency_sim_coach" for e in result.agent_events)
     failed = [label for label, ok in result.checks if not ok]
     assert not failed, failed
 
@@ -19,3 +25,15 @@ def test_lab_texan_dialect_events():
     result = run_meeting_agents_lab(platform="zoom", dialect="us_tx", ticks=5)
     text = " ".join(e["detail"] for e in result.agent_events)
     assert "y'all" in text.lower() or "howdy" in text.lower() or "alright" in text.lower()
+
+
+def test_lab_emergency_landing_drill_present():
+    result = run_meeting_agents_lab(
+        platform="zoom",
+        dialect="us_general",
+        scenario="aviation_emergency_landing_drill",
+        scenario_risk=0.75,
+        ticks=5,
+    )
+    joined = " ".join(e["detail"].lower() for e in result.agent_events)
+    assert "emergency landing drill" in joined

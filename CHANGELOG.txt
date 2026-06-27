@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Added six specialized training agents to the offline meeting lab
+  for high-stakes coaching: adaptive_coach (learning-behavior pacing),
+  critical_thinking_coach, situational_analyst, rapid_response_coach,
+  forecasting_mentor, and emergency_sim_coach (aviation emergency landing
+  drills). Shared session state now tracks scenario risk/stress and drill
+  history, scripts/meeting_agents_lab.py accepts scenario controls, and
+  packages/shared/tests/test_meeting_agents_lab.py verifies the new agents fire.
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is

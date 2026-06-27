@@ -18,6 +18,12 @@ class AgentRole(str, Enum):
     PERCEPTION = "perception"
     INTERRUPT_HOST = "interrupt_host"
     MODERATOR = "moderator"
+    ADAPTIVE_COACH = "adaptive_coach"
+    CRITICAL_THINKING_COACH = "critical_thinking_coach"
+    SITUATIONAL_ANALYST = "situational_analyst"
+    RAPID_RESPONSE_COACH = "rapid_response_coach"
+    FORECASTING_MENTOR = "forecasting_mentor"
+    EMERGENCY_SIM_COACH = "emergency_sim_coach"
 
 
 class _LessonState(str, Enum):
@@ -61,6 +67,17 @@ class SharedSessionState:
     subject: str = "general"
     lesson_snippet: str = ""
     chat_answered: List[str] = field(default_factory=list)
+    active_scenario: str = "general_classroom"
+    scenario_risk: float = 0.2
+    stress_level: float = 0.2
+    forecast_horizon_min: int = 15
+    adaptations_issued: int = 0
+    critical_prompts_issued: int = 0
+    situational_briefs_issued: int = 0
+    rapid_drills_issued: int = 0
+    forecast_notes_issued: int = 0
+    emergency_drills_issued: int = 0
+    drill_history: List[str] = field(default_factory=list)
     events: List[AgentEvent] = field(default_factory=list)
 
 
@@ -126,6 +143,7 @@ class PerceptionAgent:
 
     def on_video(self, state: SharedSessionState, frame: VideoFrameEvent) -> None:
         state.attention = max(0.0, min(1.0, frame.attention))
+        state.stress_level = min(1.0, max(0.0, 1.0 - state.attention))
         if frame.hand_raised:
             state.hands_raised += 1
             state.pending_questions.append(f"[hand raise] {frame.student_id}")
@@ -188,3 +206,171 @@ class ModeratorAgent:
             state.attention = min(1.0, state.attention + 0.15)
             return line
         return None
+
+
+@dataclass
+class AdaptiveCoachAgent:
+    """Adjusts pace based on learning behavior, stress, and engagement."""
+
+    stress_floor: float = 0.55
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        should_adapt = (
+            state.attention < 0.65
+            or state.stress_level > self.stress_floor
+            or len(state.pending_questions) >= 2
+            or (state.scenario_risk >= 0.5 and state.adaptations_issued == 0)
+        )
+        if not should_adapt:
+            return None
+        pace = "slowing down"
+        if state.attention > 0.8 and state.stress_level < 0.3:
+            pace = "speeding up"
+        line = humanize_narration(
+            f"Adapting pace now: {pace}. I will use shorter beats and check understanding each step.",
+            state.dialect, language=state.language,
+        )
+        state.adaptations_issued += 1
+        state.attention = min(1.0, state.attention + 0.1)
+        _log(
+            state,
+            AgentRole.ADAPTIVE_COACH,
+            "adapt_pacing",
+            line,
+            pace=pace,
+            stress=round(state.stress_level, 3),
+            attention=round(state.attention, 3),
+        )
+        return line
+
+
+@dataclass
+class CriticalThinkingCoachAgent:
+    """Issues short prompts that force evidence-based reasoning."""
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        if state.critical_prompts_issued >= 2:
+            return None
+        if state.slide_index % 2 != 0 and state.scenario_risk < 0.45:
+            return None
+        prompt = humanize_narration(
+            "Critical check: what evidence supports your first instinct, and what evidence contradicts it?",
+            state.dialect, language=state.language,
+        )
+        state.critical_prompts_issued += 1
+        _log(
+            state,
+            AgentRole.CRITICAL_THINKING_COACH,
+            "critical_prompt",
+            prompt,
+            scenario=state.active_scenario,
+            risk=round(state.scenario_risk, 3),
+        )
+        return prompt
+
+
+@dataclass
+class SituationalAnalystAgent:
+    """Summarizes key situational cues before the learner acts."""
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        if state.scenario_risk < 0.35:
+            return None
+        if state.situational_briefs_issued >= 2:
+            return None
+        detail = (
+            f"Situation brief: scenario={state.active_scenario}, "
+            f"risk={state.scenario_risk:.2f}, stress={state.stress_level:.2f}. "
+            "Prioritize aviate, navigate, communicate."
+        )
+        spoken = humanize_narration(detail, state.dialect, language=state.language)
+        state.situational_briefs_issued += 1
+        _log(
+            state,
+            AgentRole.SITUATIONAL_ANALYST,
+            "situational_brief",
+            spoken,
+            scenario=state.active_scenario,
+        )
+        return spoken
+
+
+@dataclass
+class RapidResponseCoachAgent:
+    """Runs split-second decision drills under pressure."""
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        if state.rapid_drills_issued >= 2:
+            return None
+        if state.scenario_risk < 0.5 and state.stress_level < 0.5:
+            return None
+        drill = humanize_narration(
+            "Rapid drill: 30-second decision. Say your immediate action, backup action, and abort trigger.",
+            state.dialect, language=state.language,
+        )
+        state.rapid_drills_issued += 1
+        state.drill_history.append("rapid_response")
+        _log(
+            state,
+            AgentRole.RAPID_RESPONSE_COACH,
+            "split_second_drill",
+            drill,
+            scenario=state.active_scenario,
+            drills=state.rapid_drills_issued,
+        )
+        return drill
+
+
+@dataclass
+class ForecastingMentorAgent:
+    """Forecasts near-term scenario shifts to train anticipation."""
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        if state.forecast_notes_issued >= 2:
+            return None
+        if state.scenario_risk < 0.4:
+            return None
+        trend = "stable"
+        if state.stress_level > 0.55 or state.attention < 0.5:
+            trend = "worsening"
+        note = humanize_narration(
+            f"Forecast for next {state.forecast_horizon_min} minutes: {trend} risk path. "
+            "Pre-brief your mitigation now before the issue compounds.",
+            state.dialect, language=state.language,
+        )
+        state.forecast_notes_issued += 1
+        _log(
+            state,
+            AgentRole.FORECASTING_MENTOR,
+            "forecast",
+            note,
+            trend=trend,
+            horizon_min=state.forecast_horizon_min,
+        )
+        return note
+
+
+@dataclass
+class EmergencySimulationCoachAgent:
+    """Runs high-stakes emergency drills such as flight emergency landings."""
+
+    def tick(self, state: SharedSessionState) -> Optional[str]:
+        if "aviation" not in state.active_scenario and "landing" not in state.active_scenario:
+            return None
+        if state.emergency_drills_issued >= 2:
+            return None
+        runbook = humanize_narration(
+            "Emergency landing drill: pitch for best glide, pick a landing zone, run engine-failure "
+            "checks, then transmit mayday and commit to final approach.",
+            state.dialect, language=state.language,
+        )
+        state.emergency_drills_issued += 1
+        state.drill_history.append("emergency_landing")
+        _log(
+            state,
+            AgentRole.EMERGENCY_SIM_COACH,
+            "emergency_drill",
+            runbook,
+            scenario=state.active_scenario,
+        )
+        return runbook
