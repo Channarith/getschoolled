@@ -216,7 +216,7 @@ export default function EmergencyTrainer() {
 
             {/* Situational awareness + pre-mortem forecast */}
             <div className="row" style={{ alignItems: "stretch", gap: 12 }}>
-              <div className="card" style={{ flex: 1, minWidth: 240, background: "#f0f9ff", borderColor: "#7dd3fc" }}>
+              <div className="card" style={{ flex: 1, minWidth: 240, background: "rgba(56,189,248,0.10)", borderColor: "#38bdf8" }}>
                 <strong>🧭 Situational picture</strong>
                 <div className="muted" style={{ marginTop: 6 }}>Notice now</div>
                 <ul style={{ margin: "4px 0 8px 18px" }}>
@@ -227,7 +227,7 @@ export default function EmergencyTrainer() {
                   {brief.situation_picture.projection.map((c, i) => <li key={i}>{c}</li>)}
                 </ul>
               </div>
-              <div className="card" style={{ flex: 1, minWidth: 240, background: "#fff7ed", borderColor: "#fdba74" }}>
+              <div className="card" style={{ flex: 1, minWidth: 240, background: "rgba(251,146,60,0.12)", borderColor: "#fb923c" }}>
                 <strong>🔮 Pre-mortem (forecast)</strong>
                 <p className="muted" style={{ marginTop: 6 }}>{brief.premortem.headline}</p>
                 {brief.premortem.risks.map((r, i) => (
@@ -244,7 +244,8 @@ export default function EmergencyTrainer() {
               <div style={{ marginTop: 12 }}>
                 <label className="muted">What do you notice? (optional — scored for situational awareness)</label>
                 <div className="row" style={{ marginTop: 4 }}>
-                  <input style={{ flex: 1, minWidth: 240 }} placeholder="e.g. engine quiet, altitude, field into wind"
+                  <input style={{ flex: 1, minWidth: 240, color: "#e8ecf6", background: "#1d2746" }}
+                    placeholder="e.g. engine quiet, altitude, field into wind"
                     value={noticed} onChange={(e) => setNoticed(e.target.value)} />
                   <button onClick={onCheckCues} disabled={busy || !noticed.trim()}>Check</button>
                 </div>
@@ -264,7 +265,7 @@ export default function EmergencyTrainer() {
             <div className="card">
               <h3 style={{ marginTop: 0 }}>{brief.prompt}</h3>
               <label className="muted">Why? (optional — your reasoning is critiqued)</label>
-              <textarea rows={2} style={{ width: "100%", marginTop: 4 }}
+              <textarea rows={2} style={{ width: "100%", marginTop: 4, color: "#e8ecf6", background: "#1d2746" }}
                 placeholder="Explain your reasoning…"
                 value={rationale} onChange={(e) => setRationale(e.target.value)} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
@@ -300,7 +301,7 @@ export default function EmergencyTrainer() {
                     <ScoreBar key={k} label={k} value={v} />
                   ))}
                   {result.reasoning.detected_issues.length > 0 && (
-                    <div style={{ color: "#b45309", fontSize: 13, marginTop: 6 }}>
+                    <div style={{ color: "#fbbf24", fontSize: 13, marginTop: 6 }}>
                       ⚠ {result.reasoning.detected_issues.join(" · ")}
                     </div>
                   )}
