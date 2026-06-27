@@ -15,7 +15,19 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
-- 2026-06-27 - Training catalog expanded to 1,370 scenarios across 38 domains and 15
+- 2026-06-27 - Procedural safety-scenario engine: millions of addressable
+  situations across road (car, motorcycle, truck, bus), rail (train + subway/
+  transit), micromobility (bicycle, e-scooter), marine (boats + paddle/PWC),
+  pedestrian, police/public-safety, and student & teacher safety. New
+  procedural.py composes scenarios from independent axes (event × subject ×
+  setting × condition × time × severity) via mixed-radix indexing, giving 3.19M
+  unique scenarios that generate deterministically by id (<family>__<index>) with
+  no disk blowup. Committed catalog grows to 3,050 browsable scenarios across 45
+  domains (120 materialized samples per family). API adds /api/training/capacity,
+  /api/training/families, /api/training/generate, /api/training/generate/random;
+  get_scenario and training sessions resolve procedural ids. 8 new learning
+  tracks (road, rail, micromobility, marine recreation, pedestrian, police,
+  student & teacher safety).
   learning tracks. Added catalog_generators_extended (nursing, hazmat, energy, SAR,
   legal, parenting, conflict, disaster recovery, aviation IFR, wilderness, water
   safety, food safety, retail, mining, pharma, social work, telecom, plus expanded

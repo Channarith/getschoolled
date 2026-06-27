@@ -870,6 +870,7 @@ ALL_GENERATORS = [
 
 def generate_all_scenarios() -> List[ScenarioDefinition]:
     from .catalog_generators_extended import EXTENDED_GENERATORS
+    from .procedural import materialize_samples
 
     seen: Dict[str, ScenarioDefinition] = {}
     for gen in ALL_GENERATORS + EXTENDED_GENERATORS:
@@ -877,4 +878,8 @@ def generate_all_scenarios() -> List[ScenarioDefinition]:
             if scenario.scenario_id in seen:
                 continue
             seen[scenario.scenario_id] = scenario
+    for scenario in materialize_samples():
+        if scenario.scenario_id in seen:
+            continue
+        seen[scenario.scenario_id] = scenario
     return list(seen.values())

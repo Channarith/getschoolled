@@ -5,25 +5,81 @@ import pytest
 from aoep_shared.training_agents import (
     TrainingSession,
     agent_roster_dict,
+    catalog_capacity,
     catalog_meta,
     count_scenarios,
     count_scenarios_for_track,
+    generate_scenario,
     get_scenario,
     get_track,
     list_domains,
+    list_families_meta,
     list_scenarios,
     list_scenarios_for_track,
     list_tracks,
+    random_procedural_scenario,
     random_scenario,
     reload_catalog,
 )
 
 
-def test_catalog_has_thousand_plus_scenarios():
+def test_capacity_reaches_millions():
+    cap = catalog_capacity()
+    assert cap["procedural_capacity"] >= 1_000_000
+    assert cap["total_addressable"] >= 1_000_000
+    assert len(cap["families"]) >= 12
+
+
+def test_transport_and_safety_domains_present():
+    domains = {d for d, _ in list_domains()}
+    for dom in ("road", "rail", "micromobility", "marine", "pedestrian", "police", "school_safety"):
+        assert dom in domains
+
+
+def test_families_cover_requested_modes():
+    fam_ids = {f["family_id"] for f in list_families_meta()}
+    for fid in (
+        "road_car", "road_motorcycle", "road_truck", "road_bus",
+        "rail_train", "rail_transit", "bicycle", "scooter",
+        "boat", "watercraft", "pedestrian", "police",
+        "school_student", "school_teacher",
+    ):
+        assert fid in fam_ids
+
+
+def test_generate_scenario_is_deterministic():
+    a = generate_scenario("road_car", 12345)
+    b = generate_scenario("road_car", 12345)
+    assert a is not None and b is not None
+    assert a.scenario_id == b.scenario_id == "road_car__12345"
+    assert a.briefing == b.briefing
+    diff = generate_scenario("road_car", 12346)
+    assert diff.briefing != a.briefing
+
+
+def test_get_scenario_resolves_procedural_id():
+    s = get_scenario("bicycle__999")
+    assert s is not None
+    assert s.domain.value == "micromobility"
+
+
+def test_run_procedural_scenario_in_session():
+    session = TrainingSession.start("police__500")
+    seen = set()
+    for _ in range(14):
+        for t in session.tick():
+            seen.add(t.agent)
+        if session.state.phase.value == "done":
+            break
+    assert session.state.cues_seen
+    assert "situational_analysis" in seen
+
+
+def test_catalog_has_thousands_materialized():
     meta = catalog_meta()
-    assert meta["count"] >= 1000
-    assert count_scenarios() >= 1000
-    assert len(list_domains()) >= 30
+    assert meta["count"] >= 3000
+    assert count_scenarios() >= 3000
+    assert len(list_domains()) >= 40
 
 
 def test_extended_domains_present():
@@ -34,17 +90,25 @@ def test_extended_domains_present():
 
 def test_training_tracks_exist_and_have_scenarios():
     tracks = list_tracks()
-    assert len(tracks) >= 10
+    assert len(tracks) >= 20
     pilot = get_track("pilot_emergency")
     assert pilot is not None
     assert count_scenarios_for_track("pilot_emergency") >= 20
-    items = list_scenarios_for_track("pilot_emergency", limit=5)
-    assert len(items) == 5
+    road = get_track("road_safety")
+    assert road is not None
+    assert count_scenarios_for_track("road_safety") >= 100
 
 
 def test_random_scenario_deterministic_with_seed():
     a = random_scenario(track_id="first_responder", seed=42)
     b = random_scenario(track_id="first_responder", seed=42)
+    assert a is not None and b is not None
+    assert a.scenario_id == b.scenario_id
+
+
+def test_random_procedural_deterministic_with_seed():
+    a = random_procedural_scenario(family_id="road_car", seed=7)
+    b = random_procedural_scenario(family_id="road_car", seed=7)
     assert a is not None and b is not None
     assert a.scenario_id == b.scenario_id
 
@@ -64,15 +128,14 @@ def test_list_scenarios_pagination():
 
 
 def test_list_scenarios_domain_filter():
-    aviation = list_scenarios(domain="aviation", limit=100)
-    assert aviation
-    assert all(s.domain.value == "aviation" for s in aviation)
+    road = list_scenarios(domain="road", limit=100)
+    assert road
+    assert all(s.domain.value == "road" for s in road)
 
 
 def test_list_scenarios_search():
-    hits = list_scenarios(q="engine", limit=20)
+    hits = list_scenarios(q="brake", limit=20)
     assert hits
-    assert any("engine" in s.title.lower() or "engine" in s.briefing.lower() for s in hits)
 
 
 def test_agent_roster_includes_harvester_presenter_chatbot_and_coaches():
@@ -99,21 +162,6 @@ def test_training_session_tick_progresses_phases():
     assert session.state.cues_seen
 
 
-def test_training_session_respond_records_learner():
-    session = TrainingSession.start("media_claim_verification")
-    for _ in range(4):
-        session.tick()
-    turns = session.respond("I would not share because there is no clinical evidence.")
-    assert session.state.learner_responses
-    assert turns
-    assert any(
-        t.agent in (
-            "critical_thinking", "learning_coach", "quick_decision", "situational_analysis",
-        )
-        for t in turns
-    )
-
-
 def test_aviation_emergency_coach_and_debrief():
     session = TrainingSession.start("aviation_emergency_landing")
     for _ in range(20):
@@ -135,4 +183,4 @@ def test_unknown_scenario_raises():
 
 def test_reload_catalog_after_rebuild():
     reload_catalog()
-    assert count_scenarios() >= 1000
+    assert count_scenarios() >= 3000

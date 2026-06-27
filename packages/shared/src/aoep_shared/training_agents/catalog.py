@@ -82,7 +82,63 @@ def count_scenarios(
 
 
 def get_scenario(scenario_id: str) -> Optional[ScenarioDefinition]:
-    return _load_scenarios().get(scenario_id)
+    found = _load_scenarios().get(scenario_id)
+    if found is not None:
+        return found
+    # Fall back to deterministic procedural generation for <family>__<index> ids.
+    from .procedural import resolve_procedural
+
+    return resolve_procedural(scenario_id)
+
+
+def catalog_capacity() -> dict:
+    """Total addressable scenarios — materialized plus procedurally generable."""
+    from .procedural import capacity_by_family, total_capacity
+
+    materialized = len(_load_scenarios())
+    proc_total = total_capacity()
+    return {
+        "materialized": materialized,
+        "procedural_capacity": proc_total,
+        "total_addressable": materialized + proc_total,
+        "families": capacity_by_family(),
+    }
+
+
+def list_families_meta() -> List[dict]:
+    from .procedural import list_families
+
+    return [
+        {
+            "family_id": f.family_id,
+            "title": f.title,
+            "domain": f.domain.value,
+            "capacity": f.capacity,
+            "skills": list(f.skills),
+        }
+        for f in list_families()
+    ]
+
+
+def generate_scenario(family_id: str, index: int) -> Optional[ScenarioDefinition]:
+    from .procedural import generate
+
+    return generate(family_id, index)
+
+
+def random_procedural_scenario(
+    *,
+    family_id: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> Optional[ScenarioDefinition]:
+    from .procedural import FAMILIES, generate, list_families
+
+    rng = random.Random(seed)
+    families = [FAMILIES[family_id]] if family_id in FAMILIES else list_families()
+    if not families:
+        return None
+    fam = rng.choice(families)
+    return generate(fam.family_id, rng.randrange(fam.capacity))
 
 
 def list_domains() -> List[Tuple[str, int]]:

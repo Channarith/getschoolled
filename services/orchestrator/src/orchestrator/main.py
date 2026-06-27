@@ -875,8 +875,11 @@ def start_group_class(class_id: str) -> dict:
 # Scenario training agents (critical thinking, emergency drills)
 # --------------------------------------------------------------------------- #
 from .training import (  # noqa: E402
+    CapacityResponse,
     CatalogMetaResponse,
     CreateTrainingSessionRequest,
+    FamilySummary,
+    GeneratedScenario,
     RespondRequest,
     RespondResponse,
     ScenarioListResponse,
@@ -886,10 +889,14 @@ from .training import (  # noqa: E402
     TrackSummary,
     TrainingSessionView,
     agent_roster_dict,
+    capacity_report,
     catalog_summary,
     create_training_session,
+    generate_one,
+    generate_random,
     get_training_session,
     list_domain_counts,
+    list_family_summaries,
     list_scenario_summaries,
     list_track_summaries,
     pick_random_scenario,
@@ -908,6 +915,36 @@ def agents_roster() -> list[dict]:
 @app.get("/api/training/catalog", response_model=CatalogMetaResponse)
 def training_catalog() -> CatalogMetaResponse:
     return catalog_summary()
+
+
+@app.get("/api/training/capacity", response_model=CapacityResponse)
+def training_capacity() -> CapacityResponse:
+    """Total addressable scenarios: materialized + procedurally generable (millions)."""
+    return capacity_report()
+
+
+@app.get("/api/training/families", response_model=list[FamilySummary])
+def training_families() -> list[FamilySummary]:
+    return list_family_summaries()
+
+
+@app.get("/api/training/generate", response_model=GeneratedScenario)
+def training_generate(family_id: str, index: int = 0) -> GeneratedScenario:
+    """Deterministically generate any scenario in a family by index."""
+    gen = generate_one(family_id, index)
+    if gen is None:
+        raise HTTPException(status_code=404, detail="unknown family")
+    return gen
+
+
+@app.get("/api/training/generate/random", response_model=GeneratedScenario)
+def training_generate_random(
+    family_id: str | None = None, seed: int | None = None
+) -> GeneratedScenario:
+    gen = generate_random(family_id=family_id, seed=seed)
+    if gen is None:
+        raise HTTPException(status_code=404, detail="no scenario available")
+    return gen
 
 
 @app.get("/api/training/domains")

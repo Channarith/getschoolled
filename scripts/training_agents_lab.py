@@ -29,17 +29,21 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.list:
+        from aoep_shared.training_agents import catalog_capacity, list_families_meta
+
         meta = catalog_meta()
-        print(f"Catalog: {meta['count']} scenarios across {len(meta['domains'])} domains")
+        cap = catalog_capacity()
+        print(f"Catalog: {meta['count']} browsable scenarios across {len(meta['domains'])} domains")
+        print(f"Addressable (procedural): {cap['total_addressable']:,} total")
         for domain, n in sorted(meta["domains"].items(), key=lambda x: -x[1])[:12]:
             print(f"  {domain}: {n}")
         print("  ...")
+        print("\nProcedural families (generate any index):")
+        for f in list_families_meta():
+            print(f"  {f['family_id']}: {f['title']} — {f['capacity']:,} scenarios")
         print("\nLearning tracks:")
         for t in list_tracks():
             print(f"  {t.track_id}: {t.title}")
-        print("\nSample scenarios:")
-        for s in list_scenarios(limit=8):
-            print(f"  {s.scenario_id}: {s.title} [{s.domain.value}]")
         print("\nAgent roster:")
         for a in agent_roster_dict():
             print(f"  {a['role_id']}: {a['name']} ({a['category']})")

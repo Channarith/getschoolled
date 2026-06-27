@@ -15,11 +15,45 @@ def test_agents_roster_lists_training_coaches():
     assert "emergency_training" in roles
 
 
-def test_training_catalog_has_thousand_plus():
+def test_training_catalog_has_thousands():
     meta = client.get("/api/training/catalog").json()
-    assert meta["count"] >= 1000
+    assert meta["count"] >= 3000
     domains = client.get("/api/training/domains").json()
-    assert len(domains) >= 30
+    assert len(domains) >= 40
+
+
+def test_training_capacity_in_millions():
+    cap = client.get("/api/training/capacity").json()
+    assert cap["procedural_capacity"] >= 1_000_000
+    assert cap["total_addressable"] >= 1_000_000
+
+
+def test_training_families_and_generate():
+    fams = client.get("/api/training/families").json()
+    fam_ids = {f["family_id"] for f in fams}
+    for fid in ("road_car", "rail_train", "bicycle", "boat", "pedestrian", "police", "school_student"):
+        assert fid in fam_ids
+
+    gen = client.get("/api/training/generate", params={"family_id": "road_car", "index": 1000}).json()
+    assert gen["scenario_id"] == "road_car__1000"
+    assert gen["briefing"]
+    assert gen["domain"] == "road"
+
+    rnd = client.get("/api/training/generate/random", params={"family_id": "scooter", "seed": 3}).json()
+    assert rnd["scenario_id"].startswith("scooter__")
+
+
+def test_run_generated_scenario_session():
+    created = client.post(
+        "/api/training/sessions",
+        json={"scenario_id": "road_motorcycle__250"},
+    )
+    assert created.status_code == 200
+    sid = created.json()["session_id"]
+    for _ in range(6):
+        assert client.post(f"/api/training/sessions/{sid}/tick").status_code == 200
+    got = client.get(f"/api/training/sessions/{sid}")
+    assert got.json()["cues_seen"]
 
 
 def test_training_scenarios_paginated():
