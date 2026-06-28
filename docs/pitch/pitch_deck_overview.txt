@@ -1,0 +1,112 @@
+SALAREEN INVESTOR PITCH DECK — OVERVIEW AND CHECKLIST
+Version 0.10.0 | June 2026
+==============================================================
+
+FILES IN THIS DIRECTORY
+
+  pitch_deck_script.txt   Full slide-by-slide content, speaker notes,
+                          and visual/video direction for every slide.
+
+  video_script.txt        Complete 4m30s narration script for the
+                          self-running pitch video, with voice direction,
+                          music cues, and b-roll notes.
+
+  pitch_deck_overview.txt This file — master checklist and next steps.
+
+SLIDE STRUCTURE (12 slides + appendix)
+
+  0. Cover / Title
+  1. Story — The Classroom of 1825  [hooks emotion]
+  2. The Problem                    [defines urgency]
+  3. The Solution                   [introduces product]
+  4. Unique Value Proposition       [differentiators + moat]
+  5. Market Opportunity             [TAM / SAM / SOM]
+  6. Traction & Milestones         [proof of execution]
+  7. Business Model                 [how we make money]
+  8. The Competition               [honest landscape]
+  9. The Team                       [why us]
+ 10. Financial Projections          [3-year model]
+ 11. The Ask                        [amount, use, milestones]
+ 12. Appendix                       [data sources, metrics]
+
+KEY FIGURES TO EMBED (all sourced in appendix slide 12)
+
+  Market:
+    TAM  $7.3T global education spending (UNESCO/OECD 2023)
+    SAM  $340B EdTech (HolonIQ 2024)
+    SOM  $18B AI tutoring (Grand View Research + MarketsandMarkets)
+    CAGR 14.3% through 2030 (HolonIQ)
+    Jobs gap: 85M unfilled by 2030 (WEF 2023)
+
+  Product:
+    Response latency: 6.3 ms p95 (measured)
+    Cost per learner: $0.0012 / month at 5M DAU (modelled)
+    Languages: 27
+    Tests: 739 passing (v0.10.0)
+    Services: 7 microservices
+
+  Unit economics:
+    B2C CAC: ~$8 (digital acquisition)
+    B2C Pro LTV: ~$252 (18 months x $15/mo, measured churn)
+    LTV/CAC: 31.5x
+    Gross margin: ~72% at Pro scale
+    COGS per learner: ~$2.40 / year
+
+  The Ask:
+    Round: $5M Seed
+    Instrument: SAFE note, $20M valuation cap, 20% discount
+    Close target: Q3 2026
+    Use: 40% growth, 30% R&D, 20% B2B sales, 10% ops
+
+  Milestones:
+    Month 3:  10,000 active learners
+    Month 6:  First paid B2B cohort (500+ seats)
+    Month 12: $3.6M ARR run rate
+    Month 18: Series A ready ($15-20M target)
+
+EXISTING VIDEO ASSETS TO PULL FROM (in docs/demos/)
+
+  docs/demos/salareen_investor_pitch.mp4
+    — Scale/power-grid visuals (0:22-0:26)
+    — "200 years" closing (0:27-end)
+
+  docs/demos/persona_live_ai_class_student.gif
+  docs/demos/drive_mode_audio_courses_demo.gif
+  docs/demos/language_learning_demo.gif
+  docs/demos/careers_jobs_matching_demo.gif
+  docs/demos/kids_mode_platform_demo.gif
+  docs/demos/netflix_ui_walkthrough.mp4
+  docs/demos/mobile_preview_walkthrough.mp4
+
+OPENING VIDEO (to integrate)
+
+  The "Salareen Unteachable Wisdom" video provided by the team
+  should open the pitch — it replaces slides 0-1 and bridges
+  into the structured investor pitch at slide 2.
+
+  Integration point: the last line of the Unteachable Wisdom
+  video should connect to the question "What if every learner
+  had their own teacher?" which opens slide 2.
+
+PRODUCTION NEXT STEPS
+
+  [ ] Design the slides in Figma or Keynote using pitch_deck_script.txt
+  [ ] Record the voiceover narration using video_script.txt
+  [ ] Assemble the 4m30s pitch video (existing demos + new narration)
+  [ ] Capture fresh screenshots of current platform for slides 3 & 6
+  [ ] Confirm team headshots and bios for slide 9
+  [ ] Have legal review the SAFE terms on slide 11 before use
+  [ ] Validate all market figures with cited sources (appendix slide 12)
+  [ ] Create a PDF export of the slide deck for email distribution
+  [ ] Test the live pitch timing (target: 10-12 minutes spoken)
+
+PITCH DECK DESIGN REFERENCE
+
+  Brand colors: #0b1020 (background), #C9A03C (gold), #F5F5F5 (white)
+  Font: Inter (or equivalent)
+  Format: 16:9, 1920x1080
+  Mascot: docs/brand/salareen_bayon_buddy_mascot.png
+  Logo mark: apps/web/public/logo-mark.webp
+
+  Tone: Visionary but grounded. Not flashy. Clean dark background
+  with precise data. The data is the story — let it breathe.
