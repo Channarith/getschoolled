@@ -1,0 +1,60 @@
+{
+  "programme": "Emergency Critical Thinking and Mental Readiness",
+  "version": "1.0",
+  "duties": [
+    {
+      "id": "D1",
+      "title": "Demonstrate situational awareness in dynamic environments",
+      "description": "Identify, interpret, and project situational cues to maintain an accurate picture of events."
+    },
+    {
+      "id": "D2",
+      "title": "Apply structured decision frameworks under time pressure",
+      "description": "Use OODA and DECIDE models to make sound decisions when information is incomplete and time is short."
+    },
+    {
+      "id": "D3",
+      "title": "Execute emergency procedures from trained reflex",
+      "description": "Perform life-safety procedures accurately even under high physiological arousal."
+    },
+    {
+      "id": "D4",
+      "title": "Conduct pre-operational risk analysis",
+      "description": "Identify failure modes, build mitigations, and establish decision gates before high-stakes events."
+    },
+    {
+      "id": "D5",
+      "title": "Debrief and learn from simulated and real incidents",
+      "description": "Conduct structured After Action Reviews to identify root causes and prevent recurrence."
+    }
+  ],
+  "knowledge": [
+    {"id": "K1", "duty": "D1", "statement": "Describe Endsley's three levels of situational awareness and how each is trained."},
+    {"id": "K2", "duty": "D2", "statement": "Explain the OODA loop and its application to non-aviation domains."},
+    {"id": "K3", "duty": "D2", "statement": "Apply the DECIDE model to a novel emergency scenario."},
+    {"id": "K4", "duty": "D3", "statement": "Identify the immediate actions for engine failure below 500 ft AGL."},
+    {"id": "K5", "duty": "D3", "statement": "State the first-line treatment for anaphylaxis and the rationale."},
+    {"id": "K6", "duty": "D3", "statement": "Describe the containment-first principle in cybersecurity incident response."},
+    {"id": "K7", "duty": "D4", "statement": "Conduct a pre-mortem analysis on a given operational plan."},
+    {"id": "K8", "duty": "D4", "statement": "Categorise threats using the TEM (Threat and Error Management) model."},
+    {"id": "K9", "duty": "D1", "statement": "Identify common cognitive biases that degrade emergency decision-making."},
+    {"id": "K10", "duty": "D5", "statement": "Structure an After Action Review using the four-question framework."}
+  ],
+  "skills": [
+    {"id": "S1", "duty": "D1", "statement": "Complete an OODA observation phase for a complex scenario, identifying all critical cues."},
+    {"id": "S2", "duty": "D2", "statement": "Score ≥ 80% on a time-pressured DECIDE model exercise."},
+    {"id": "S3", "duty": "D3", "statement": "Choose the correct action in a rapid-decision drill within the allowed time window."},
+    {"id": "S4", "duty": "D3", "statement": "Complete a full emergency simulation scenario with outcome score ≥ 0.7."},
+    {"id": "S5", "duty": "D4", "statement": "List ≥ 5 failure modes for a given plan and propose mitigations for each."},
+    {"id": "S6", "duty": "D1", "statement": "Perform a structured mental rehearsal from a provided script."},
+    {"id": "S7", "duty": "D2", "statement": "Answer Socratic questions at ANALYZE or higher Bloom level on emergency doctrine."},
+    {"id": "S8", "duty": "D5", "statement": "Critically evaluate own performance in an AAR and identify one pattern to change."}
+  ],
+  "behaviours": [
+    {"id": "B1", "statement": "Remains calm and methodical when scenario pressure escalates."},
+    {"id": "B2", "statement": "Seeks competing hypotheses before committing to a course of action."},
+    {"id": "B3", "statement": "Communicates clearly and concisely in high-workload situations."},
+    {"id": "B4", "statement": "Acknowledges and corrects errors without defensive rationalisation."},
+    {"id": "B5", "statement": "Monitors own wellness state and adjusts cognitive load accordingly."}
+  ]
+}
