@@ -17,6 +17,7 @@ from .catalog import (
     get_scenario,
     knowledge_overview,
     knowledge_source_list,
+    knowledge_store_status,
     list_domains,
     list_families_meta,
     list_scenarios,
@@ -33,6 +34,7 @@ from .knowledge_base import (
     attach_references,
     facts_for,
 )
+from .knowledge_store import KnowledgeStore, get_store, reset_store
 from .models import (
     AgentTurn,
     ScenarioDefinition,
@@ -59,11 +61,15 @@ __all__ = [
     "ForesightPrepAgent",
     "generate_scenario",
     "get_scenario",
+    "get_store",
     "get_track",
     "KNOWLEDGE",
+    "KnowledgeStore",
     "knowledge_overview",
     "knowledge_source_list",
+    "knowledge_store_status",
     "LearningBehaviorCoachAgent",
+    "reset_store",
     "list_domains",
     "list_families_meta",
     "list_scenarios",

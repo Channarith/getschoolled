@@ -413,6 +413,11 @@ _RAW: List[dict] = [
 ]
 
 
+# Bump when the corpus schema/seeding logic changes; combined with the fact
+# count it forms a signature the embedded DB uses to detect a stale cache.
+KNOWLEDGE_CORPUS_VERSION = "1"
+
+
 KNOWLEDGE: List[ReferenceFact] = [
     ReferenceFact(
         fact=e["fact"], source=e["source"], reference=e["reference"], category=e["category"],
@@ -422,6 +427,17 @@ KNOWLEDGE: List[ReferenceFact] = [
 
 # Parallel metadata for matching (domains + keywords), aligned by index.
 _META: List[dict] = [{"domains": e["domains"], "keywords": e["keywords"]} for e in _RAW]
+
+
+def corpus_signature() -> str:
+    """Identifies the exact corpus content for cache-staleness detection."""
+    return f"{KNOWLEDGE_CORPUS_VERSION}:{len(KNOWLEDGE)}"
+
+
+def iter_facts_with_meta():
+    """Yield (ReferenceFact, domains tuple, keywords tuple) for persistence."""
+    for fact, meta in zip(KNOWLEDGE, _META):
+        yield fact, tuple(meta["domains"]), tuple(meta["keywords"])
 
 
 def all_facts() -> List[ReferenceFact]:

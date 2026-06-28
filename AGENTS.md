@@ -58,6 +58,13 @@ behind a provider abstraction (`packages/shared`); frontend = Next.js
 (`apps/web`). The dev loop runs services natively; `infra/compose` is for the
 full containerized stack.
 
+Training knowledge base: the canonical safety corpus is authored in
+`packages/shared/src/aoep_shared/training_agents/knowledge_base.py` and persisted
+to an embedded SQLite DB by `knowledge_store.py`. The DB (default
+`~/.cache/aoep/knowledge.db`, override with `AOEP_KNOWLEDGE_DB`) is gitignored and
+self-heals: it auto-rebuilds from the corpus when missing/stale and falls back to
+in-memory if the filesystem is read-only — so no manual DB step is required.
+
 Environment / setup caveats (non-obvious):
 - The update script creates `.venv` (system Python 3.12; the repo's
   `.python-version` requests 3.11 but it is not installable offline here — 3.12

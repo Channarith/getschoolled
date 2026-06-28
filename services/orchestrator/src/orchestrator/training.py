@@ -16,6 +16,7 @@ from aoep_shared.training_agents import (
     get_track,
     knowledge_overview,
     knowledge_source_list,
+    knowledge_store_status,
     list_domains,
     list_families_meta,
     list_scenarios,
@@ -311,11 +312,21 @@ def get_full_scenario(scenario_id: str) -> Optional[GeneratedScenario]:
     return _generated_view(s)
 
 
+class KnowledgeStoreStatus(BaseModel):
+    backend: str
+    persistent: bool
+    db_path: str = ""
+    fts5: bool = False
+    count: int = 0
+    signature: str = ""
+
+
 class KnowledgeMetaResponse(BaseModel):
     count: int
     sources: int
     categories: dict[str, int] = Field(default_factory=dict)
     domains: dict[str, int] = Field(default_factory=dict)
+    store: KnowledgeStoreStatus | None = None
 
 
 class KnowledgeListResponse(BaseModel):
@@ -331,6 +342,10 @@ def knowledge_meta_view() -> KnowledgeMetaResponse:
 
 def knowledge_sources_view() -> list[dict]:
     return knowledge_source_list()
+
+
+def knowledge_store_view() -> KnowledgeStoreStatus:
+    return KnowledgeStoreStatus(**knowledge_store_status())
 
 
 def knowledge_search_view(

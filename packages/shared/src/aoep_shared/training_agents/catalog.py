@@ -123,15 +123,25 @@ def list_families_meta() -> List[dict]:
 
 
 def knowledge_overview() -> dict:
+    """Knowledge corpus meta, augmented with persistent-store status."""
     from .knowledge_base import knowledge_meta
+    from .knowledge_store import get_store
 
-    return knowledge_meta()
+    meta = knowledge_meta()
+    meta["store"] = get_store().status()
+    return meta
 
 
 def knowledge_source_list() -> List[dict]:
-    from .knowledge_base import knowledge_sources
+    from .knowledge_store import get_store
 
-    return knowledge_sources()
+    return get_store().sources()
+
+
+def knowledge_store_status() -> dict:
+    from .knowledge_store import get_store
+
+    return get_store().status()
 
 
 def search_knowledge(
@@ -143,12 +153,14 @@ def search_knowledge(
     offset: int = 0,
     limit: int = 50,
 ) -> Tuple[int, List[dict]]:
-    from .knowledge_base import count_facts, fact_to_dict, search_facts
+    """Query the persistent embedded knowledge database (SQLite)."""
+    from .knowledge_store import get_store
 
-    total = count_facts(q=q, domain=domain, category=category, source=source)
-    items = search_facts(q=q, domain=domain, category=category, source=source,
+    store = get_store()
+    total = store.count(q=q, domain=domain, category=category, source=source)
+    items = store.search(q=q, domain=domain, category=category, source=source,
                          offset=offset, limit=limit)
-    return total, [fact_to_dict(f) for f in items]
+    return total, items
 
 
 def generate_scenario(family_id: str, index: int) -> Optional[ScenarioDefinition]:

@@ -31,6 +31,14 @@ def test_training_knowledge_base_real_and_cited():
         assert f["fact"] and f["source"] and f["reference"]
 
 
+def test_training_knowledge_status_persistent_db():
+    status = client.get("/api/training/knowledge/status").json()
+    assert status["backend"] in ("sqlite", "memory")
+    assert status["count"] >= 60
+    meta = client.get("/api/training/knowledge/meta").json()
+    assert meta["store"]["backend"] in ("sqlite", "memory")
+
+
 def test_scenario_detail_includes_real_references():
     detail = client.get("/api/training/scenarios/road_car__1000").json()
     assert detail["scenario_id"] == "road_car__1000"

@@ -15,6 +15,16 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-28 - Persist the safety knowledge base to an embedded SQLite database so
+  it is always available and durable across restarts. New knowledge_store.py builds
+  a file-based SQLite DB (FTS5 full-text search when available, LIKE fallback)
+  deterministically from the canonical corpus; it self-heals (auto-rebuilds when
+  missing or when the corpus signature changes) and transparently falls back to an
+  in-memory backend if the filesystem is read-only, so reads never fail. DB path is
+  configurable via AOEP_KNOWLEDGE_DB (default ~/.cache/aoep/knowledge.db; *.db is
+  gitignored and regenerated). Knowledge search/sources/meta now run against the
+  store; added GET /api/training/knowledge/status and a store block in
+  /api/training/knowledge/meta. Build/pre-warm via scripts/build_knowledge_db.py.
 - 2026-06-27 - Ground every training scenario in real, cited safety data. New
   knowledge_base.py is a curated corpus of authoritative facts, procedures,
   regulations, and published statistics attributed to their issuing bodies (FAA

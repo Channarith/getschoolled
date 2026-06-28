@@ -882,6 +882,7 @@ from .training import (  # noqa: E402
     GeneratedScenario,
     KnowledgeListResponse,
     KnowledgeMetaResponse,
+    KnowledgeStoreStatus,
     RespondRequest,
     RespondResponse,
     ScenarioListResponse,
@@ -901,6 +902,7 @@ from .training import (  # noqa: E402
     knowledge_meta_view,
     knowledge_search_view,
     knowledge_sources_view,
+    knowledge_store_view,
     list_domain_counts,
     list_family_summaries,
     list_scenario_summaries,
@@ -976,6 +978,12 @@ def training_knowledge_meta() -> KnowledgeMetaResponse:
 @app.get("/api/training/knowledge/sources")
 def training_knowledge_sources() -> list[dict]:
     return knowledge_sources_view()
+
+
+@app.get("/api/training/knowledge/status", response_model=KnowledgeStoreStatus)
+def training_knowledge_status() -> KnowledgeStoreStatus:
+    """Persistent embedded knowledge DB status (backend, path, FTS5, count)."""
+    return knowledge_store_view()
 
 
 @app.get("/api/training/domains")
