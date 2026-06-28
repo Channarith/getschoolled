@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Add investor pitch deck video generator (scripts/generate_pitch_video.py)
+  and output video (docs/demos/salareen_pitch_deck_2026.mp4, 3m09s, 1080p H.264).
+  25 rendered clips across 14 segments: cover, opening story, problem/market stats, 5
+  product demos (live class, Drive Mode, languages, careers, kids), platform tour, UVP
+  with numbers, market TAM/SAM/SOM, traction, business model, competition, team,
+  financials, the ask with milestones, and closing. Dark-branded slides + xfade transitions.
+
 - 2026-06-27 - Add investor pitch deck materials (docs/pitch/): full 12-slide pitch
   deck script with speaker notes and visual direction covering problem, solution, TAM/
   SAM/SOM ($7.3T / $340B / $18B), traction, business model, competitive landscape,
