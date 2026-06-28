@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Add investor pitch deck materials (docs/pitch/): full 12-slide pitch
+  deck script with speaker notes and visual direction covering problem, solution, TAM/
+  SAM/SOM ($7.3T / $340B / $18B), traction, business model, competitive landscape,
+  team, 3-year financial projections (Year 3: $86.4M ARR, 75% gross margin), and
+  $5M Seed SAFE ask. Video narration script (4m30s) with voice/music/b-roll direction
+  for the self-running investor video. References existing demo assets and the
+  "Salareen Unteachable Wisdom" opening video.
+
 - 2026-06-27 - Version 0.10.0 (minor bump; supersedes 0.9.5 — 18 pending changelog
   entries exceeded the >8 minor-bump threshold). Incorporates all cognitive training
   agents, feature-flags wire-up, kubeconfig security fix, and all prior 0.9.x changes.

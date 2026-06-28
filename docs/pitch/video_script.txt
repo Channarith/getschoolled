@@ -1,0 +1,312 @@
+SALAREEN — PITCH VIDEO NARRATION SCRIPT
+Full voiceover script for the investor pitch video
+Integrates with: "Salareen Unteachable Wisdom" (opening),
+and docs/demos/salareen_investor_pitch.mp4 (supporting visuals)
+Version 0.10.0 | June 2026
+==============================================================
+
+TOTAL RUNTIME TARGET: 4 minutes 30 seconds (self-running deck)
+VOICE TONE: Warm. Measured. Confident. Not a sales pitch — a story.
+KEY RULE: Never rush. Let the images breathe.
+
+==============================================================
+SEGMENT 1 — OPENING STORY [0:00 - 0:45]
+Visual: The Classroom of 1825
+Music: Soft, minimalist piano. Single instrument. Slow tempo.
+==============================================================
+
+[PAUSE — 3 seconds of silence over the image of an old classroom]
+
+There is a room you have been in before.
+
+[The image slowly reveals: rows of desks, a single teacher at the
+front, thirty children of different abilities]
+
+One teacher.
+One pace.
+Thirty different minds.
+
+[Three children are highlighted in turn]
+
+That child in the back row — the one staring out the window?
+She understood this lesson twenty minutes ago. She is bored.
+She will never reach her potential in this room.
+
+That child in the middle? He is keeping up — barely.
+He will not ask for help. He does not want to seem slow.
+He will graduate knowing less than he should.
+
+And the child in the front left — the one who is quietly falling
+behind, too proud to raise her hand, too far behind to catch up?
+She will leave school believing she is not smart.
+
+She is wrong. But nobody told her.
+
+This classroom was built in 1825.
+
+[Long pause. Single statistic appears on screen]
+
+It has not changed.
+
+==============================================================
+SEGMENT 2 — THE QUESTION [0:45 - 1:00]
+Visual: Black screen. White text. Single question.
+Music: Music stops. Silence.
+==============================================================
+
+[Silence for two full seconds]
+
+What if every learner had their own teacher?
+
+[Hold. Three seconds.]
+
+Not a worksheet.
+Not a chatbot.
+Not a video that plays at the same speed for everyone.
+
+A teacher.
+Patient. Adaptive. In any language.
+One that remembers every student. Forever.
+
+==============================================================
+SEGMENT 3 — THE PRODUCT [1:00 - 2:15]
+Visual: Product demos cycling — Live class, Drive Mode, Languages,
+        Careers, Kids Mode
+Music: Subtle, forward-moving background rhythm — not distracting
+==============================================================
+
+That is Salareen.
+
+[The Bayon Buddy mascot appears, then transitions to the platform UI]
+
+One AI campus. Thousands of classes.
+
+[Cut to live AI class demo]
+
+A live AI tutor that does not just display content.
+It teaches. It asks you questions. It notices when you look
+confused and slows down. It notices when you are racing ahead
+and speeds up.
+
+It knows your name. It remembers what you studied last week
+and what you have not mastered yet.
+
+[Cut to Drive Mode]
+
+It teaches you on your commute — audio only, hands-free —
+then picks up exactly where you left off when you sit down again.
+
+[Cut to language selector — 27 flags]
+
+It speaks your language. Twenty-seven of them.
+A farmer in rural Cambodia learning accounting in Khmer.
+A taxi driver in Nairobi studying programming in Swahili.
+An engineer in São Paulo retraining in AI in Portuguese.
+The language of your education should not limit what you can learn.
+
+[Cut to Careers dashboard]
+
+And every lesson connects to a real job.
+We read current job postings so the curriculum stays current
+with what employers actually want today — not three years ago.
+
+[Cut to Kids Mode]
+
+Built safe for children, too. Gamified. Guardrailed. With consent.
+A different kind of teacher for a different kind of learner.
+
+[End product demo — return to plain background]
+
+Like Netflix for learning.
+Except Netflix just shows you something.
+Salareen actually teaches you.
+
+==============================================================
+SEGMENT 4 — THE TRUTH [2:15 - 2:35]
+Visual: Single white text on dark screen — each line appears alone
+Music: Music drops back. Almost silence. Single piano note.
+==============================================================
+
+And it does it honestly.
+
+Every answer shows its sources.
+Every lesson is grounded in a verified knowledge base.
+When it does not know — it says so.
+
+[Pause]
+
+In education, an AI that makes things up is not helpful.
+It is dangerous.
+
+We built Salareen to never bluff.
+
+==============================================================
+SEGMENT 5 — THE SCALE [2:35 - 2:55]
+Visual: The "Power Grid" animation — numbers appearing on screen
+Music: Returns — confident, building
+==============================================================
+
+And it scales.
+
+Five million learners a day. Ready on day one.
+Six point three milliseconds to answer.
+A whole campus for the price of one small server.
+
+[Key metric in large type: $0.0012 per learner per month]
+
+The entire platform — live AI classes, Drive Mode,
+assessments, adaptive learning, 27 languages —
+costs one point two tenths of a cent per learner per month.
+
+That is not a budget. That is a business model.
+
+==============================================================
+SEGMENT 6 — THE MARKET [2:55 - 3:10]
+Visual: Three concentric rings — TAM, SAM, SOM with dollar figures
+Music: Continues — building
+==============================================================
+
+The market we are entering is seven trillion dollars per year.
+
+The digitally accessible slice — EdTech — is $340 billion and
+growing at 14% annually.
+
+We are entering at the fastest-growing inflection point in the
+history of education technology: AI capability has crossed the
+threshold of genuine usefulness. Mobile penetration has reached
+the developing world. The global teacher shortage has become a
+crisis.
+
+These forces converge now. Not in five years. Now.
+
+==============================================================
+SEGMENT 7 — WHY US [3:10 - 3:30]
+Visual: The team brief — or the platform version history / build
+Music: Slightly lighter — we are winning
+==============================================================
+
+We did not pitch this idea. We built it.
+
+Salareen version 0.10.0 is a live, deployed, multi-service platform
+with a multi-agent AI teaching brain, six microservices,
+mobile apps on iOS and Android, and 739 automated tests — all passing.
+
+We have filed a provisional patent on our predictive inference engine.
+We are in compliance with FERPA, GDPR, COPPA, and BIPA — by design.
+
+The ask today is not "help us build something."
+The ask is "help us scale something that already works."
+
+==============================================================
+SEGMENT 8 — THE ASK [3:30 - 4:05]
+Visual: Clean use-of-funds breakdown — then milestone timeline
+Music: Resolving — warm, steady
+==============================================================
+
+We are raising five million dollars.
+
+Two million to acquire learners — at eight dollars per acquisition,
+that reaches 250,000 learners. More than enough to prove the model.
+
+One and a half million to advance our AI — fine-tuning our own
+education model, extending the Foresight predictive engine,
+and preparing the platform for embodied AI tutors.
+
+One million to build the B2B channel — the corporate learning
+market that will become our largest revenue stream.
+
+And five hundred thousand for operations and compliance —
+the certifications and legal infrastructure that unlock
+institutional and government contracts.
+
+At 18 months, we arrive at Series A with proven traction:
+real learners, real revenue, real unit economics.
+
+[Pause. Hold. Let it breathe.]
+
+==============================================================
+CLOSING [4:05 - 4:30]
+Visual: Return to the child in the classroom — then the platform.
+Then the tagline.
+Music: Returns to the opening piano theme — full circle
+==============================================================
+
+[The classroom image from the opening returns]
+
+That child in the front left. The one falling behind.
+The one who left school thinking she was not smart.
+
+[Platform appears — the AI tutor begins a class]
+
+She is not in that classroom anymore.
+
+She is learning at her pace.
+In her language.
+With a teacher that will not give up on her.
+
+[The Bayon Buddy mascot]
+
+This is what we are building.
+This is what we are asking you to help us build.
+
+[Final screen — dark background, gold wordmark, tagline]
+
+SALAREEN
+Invest in the next 200 years of school.
+
+[Contact information appears]
+
+[MUSIC OUT]
+
+[END]
+
+==============================================================
+PRODUCTION NOTES
+==============================================================
+
+Voice direction:
+- Use a single narrator throughout. Not AI-generated — human voice.
+- Warm, slightly accented is fine and authentic to the Khmer/
+  multicultural origin of the product name.
+- Slow down for statistics. The $0.0012 figure needs a full
+  three-second pause before and after.
+- The question "What if every learner had their own teacher?"
+  should be read at half the speed of the surrounding text.
+
+Music direction:
+- Opening: Einaudi-style piano. Single instrument. Sparse.
+- Product section: add a subtle percussive layer — not distracting,
+  forward-moving. Think Apple product video pacing.
+- Scale section: the music builds — this is the "power" moment.
+- Closing: return to the piano theme from the opening.
+  Full emotional circle.
+
+B-roll to license or capture:
+- Real classroom footage (diverse, international — not stock-photo
+  American)
+- Close-up of a child's face concentrating, then smiling
+- Commuter on phone / earbuds (Drive Mode scene)
+- Coding on a laptop in a non-Western setting
+- Parent and child at a tablet together
+- Optional: brief clip of a humanoid robot (public domain or licensed)
+  for the "robot-ready" moment in the product section
+
+Existing assets to use (no licensing needed):
+- docs/demos/salareen_investor_pitch.mp4 — scale/power-grid section
+- docs/demos/persona_live_ai_class_student.gif — live class demo
+- docs/demos/drive_mode_audio_courses_demo.gif — Drive Mode
+- docs/demos/language_learning_demo.gif — multilingual demo
+- docs/demos/careers_jobs_matching_demo.gif — careers
+- docs/demos/kids_mode_platform_demo.gif — kids mode
+- docs/screens/browse_catalog.webp — catalog screenshot
+- docs/screens/careers_board.webp — careers screenshot
+- docs/brand/salareen_bayon_buddy_mascot.png — mascot
+
+Unteachable Wisdom integration:
+If the "Salareen Unteachable Wisdom" video is approved for the
+investor pitch, it should replace Segments 1-2 entirely (the
+opening 45 seconds). It presumably covers the "wisdom that cannot
+be taught in a classroom" thesis — which transitions perfectly
+into "what if every learner had their own teacher?" as the pivot.
+Confirm the video's ending line and match the narration bridge
+to flow directly into Segment 3 (The Product).
