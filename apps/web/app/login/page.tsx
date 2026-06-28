@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook, getOnboardingStatus } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { EyeIcon } from "../components/EyeIcon";
+import { useFlag } from "../lib/flags";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
   const problems: string[] = [];
@@ -17,6 +18,7 @@ function passwordProblems(pw: string, t: (k: string) => string): string[] {
 export default function LoginPage() {
   const { t } = useT();
   const router = useRouter();
+  const signupsOpen = useFlag<boolean>("ops.new_signups", true);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,9 +37,19 @@ export default function LoginPage() {
     if (em) setEmail(em);
   }, []);
 
+  // ops.new_signups kill-switch: if registration is paused, force the form back to
+  // sign-in so nobody can land on (or stay in) the signup view.
+  useEffect(() => {
+    if (!signupsOpen && mode === "signup") setMode("login");
+  }, [signupsOpen, mode]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (mode === "signup" && !signupsOpen) {
+      setError("New account sign-ups are temporarily paused. Please check back soon.");
+      return;
+    }
     if (mode === "signup") {
       const problems = passwordProblems(password, t);
       if (problems.length) {
@@ -167,15 +179,21 @@ export default function LoginPage() {
           </>
         )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
-        <p className="muted" style={{ marginTop: 12 }}>
-          {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}
-          <button
-            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
-            style={{ background: "none", border: "none", color: "#6ea8fe", cursor: "pointer", padding: 0 }}
-          >
-            {mode === "login" ? t("login.createAccount") : t("login.signInLink")}
-          </button>
-        </p>
+        {signupsOpen ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}
+            <button
+              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
+              style={{ background: "none", border: "none", color: "#6ea8fe", cursor: "pointer", padding: 0 }}
+            >
+              {mode === "login" ? t("login.createAccount") : t("login.signInLink")}
+            </button>
+          </p>
+        ) : (
+          <p className="muted" style={{ marginTop: 12 }}>
+            New account sign-ups are temporarily paused.
+          </p>
+        )}
       </div>
     </main>
   );

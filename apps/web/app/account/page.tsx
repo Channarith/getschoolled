@@ -18,6 +18,7 @@ import {
   type Portfolio,
   type StudentProfile,
 } from "../lib/api";
+import { useFlag } from "../lib/flags";
 import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
 import { useT } from "../lib/i18n";
 
@@ -30,6 +31,7 @@ const STATUS_ORDER = ["in_progress", "enrolled", "saved", "passed", "failed"];
 
 export default function AccountPage() {
   const { t } = useT();
+  const consoleOn = useFlag<boolean>("access.educator_console", true);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [error, setError] = useState("");
   const [pwMsg, setPwMsg] = useState("");
@@ -188,7 +190,7 @@ export default function AccountPage() {
             <p className="muted">{t("account.settingsDesc")}</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               <Link href="/dashboard"><button>{t("account.dashboard")}</button></Link>
-              <Link href="/console"><button>{t("account.console")}</button></Link>
+              {consoleOn && <Link href="/console"><button>{t("account.console")}</button></Link>}
               <Link href="/admin"><button>{t("account.admin")}</button></Link>
               <Link href="/backgrounds"><button>{t("account.themes")}</button></Link>
               <Link href="/consent"><button>{t("account.consent")}</button></Link>

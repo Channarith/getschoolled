@@ -6,7 +6,9 @@ import OnboardingSurveyGate from "./components/OnboardingSurveyGate";
 import BackgroundProvider from "./components/BackgroundProvider";
 import LocalizedNav from "./components/LocalizedNav";
 import SiteFooter from "./components/SiteFooter";
+import MaintenanceBanner from "./components/MaintenanceBanner";
 import { LocaleProvider } from "./lib/i18n";
+import { FlagsProvider } from "./lib/flags";
 
 export const metadata: Metadata = {
   title: "Salareen — Agentic Online Education Platform",
@@ -25,12 +27,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <LocaleProvider>
-          <BackgroundProvider />
-          <DisclaimerGate />
-          <OnboardingSurveyGate />
-          <LocalizedNav appVersion={APP_VERSION} />
-          {children}
-          <SiteFooter />
+          <FlagsProvider>
+            <MaintenanceBanner />
+            <BackgroundProvider />
+            <DisclaimerGate />
+            <OnboardingSurveyGate />
+            <LocalizedNav appVersion={APP_VERSION} />
+            {children}
+            <SiteFooter />
+          </FlagsProvider>
         </LocaleProvider>
       </body>
     </html>

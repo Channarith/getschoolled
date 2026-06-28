@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppBadges from "./components/AppBadges";
 import AdSlot from "./components/AdSlot";
-import { Rail } from "./components/CourseRail";
+import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
+import { useFlag } from "./lib/flags";
 import {
   AUTH_EVENT,
   getHomeFeed,
@@ -19,6 +20,7 @@ import { useT } from "./lib/i18n";
 
 export default function HomePage() {
   const { t, locale } = useT();
+  const carousels = useFlag<boolean>("ux.netflix_carousels", true);
   const router = useRouter();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
@@ -155,7 +157,22 @@ export default function HomePage() {
         {rails && rails.length === 0 && (
           <p className="muted">{t("home.empty")} <Link href="/browse">{t("home.browse")}</Link> {t("home.toGetStarted")}</p>
         )}
-        {rails?.map((r) => <Rail key={r.key} rail={r} />)}
+        {rails && (carousels
+          ? rails.map((r) => <Rail key={r.key} rail={r} />)
+          : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 16,
+                marginTop: 12,
+              }}
+            >
+              {rails.flatMap((r) => r.courses ?? []).map((c) => (
+                <Tile key={c.course_id} course={c} />
+              ))}
+            </div>
+          ))}
       </div>
     </main>
   );

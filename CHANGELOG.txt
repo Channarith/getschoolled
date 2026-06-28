@@ -2,6 +2,28 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Version 0.9.5 (autobump: >8 features changed). Web/mobile VERSION,
+  package.json, version.ts, app.json synced to 0.9.5.
+
+- 2026-06-27 - Feature flags now actually take effect in the web UI. Added a central
+  client flags provider (apps/web/app/lib/flags.tsx: FlagsProvider + useFlag/useFlags)
+  that bulk-evaluates /flags/evaluate (bucketed on the signed-in account id + tier),
+  also fetches the admin-only ops kill-switches via /flags/<key>, and re-resolves on
+  auth/storage changes. Mounted in app/layout.tsx. Newly wired flags:
+    * ops.maintenance_mode / ops.read_only_mode -> site-wide MaintenanceBanner.
+    * ops.new_signups -> login page hides the signup toggle, forces sign-in mode,
+      and blocks signup submission when paused.
+    * monetization.video_ads -> AdSlot renders nothing and watch/page skips ad
+      breaks for everyone when off (independent of tier).
+    * ux.netflix_carousels -> home feed shows carousels when on, a flat course grid
+      when off.
+    * access.educator_console -> /console page guard + hides the console button on
+      the account page (mirrors the existing access.homework_grader pattern).
+  Note: engagement.post_class_survey / pulse_survey / onboarding_survey,
+  ux.locale_mascots and data.multidim_datamart were already enforced server-side in
+  the memory service; they appeared inert only because flag writes were 404ing (see
+  the toggle-fallback fix), and now respond to the admin toggles.
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is
