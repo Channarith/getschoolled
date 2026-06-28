@@ -1,0 +1,135 @@
+LESSON: Situational Awareness Training — OODA and DECIDE in Practice
+LANGUAGE: en
+
+SLIDE 1 | What Is Situational Awareness?
+Situational awareness (SA) is the accurate perception of the elements in
+the environment within a volume of time and space, the comprehension of
+their meaning, and the projection of their status in the near future.
+It is NOT the same as paying attention — it is structured, active mental
+modelling of a changing environment. Airline captains, ER physicians, air
+traffic controllers, and military commanders all train SA as a primary skill.
+NARRATION: Situational awareness is the foundation on which every good
+decision in a dynamic environment rests. Without it, the best procedures
+in the world cannot save you.
+
+SLIDE 2 | Level 1 SA — Perceiving the Environment
+Level 1 (Perception) is about raw data gathering. It requires:
+- A structured scan pattern (not random glancing)
+- Knowing what to look for (instrument scan, threat cues, patient vitals)
+- Monitoring channels that are easy to neglect (temperature, background noise)
+- Recognising absence as a cue (the dog that didn't bark — no alarm sounding)
+Common failures: channelled attention (fixating on one instrument), cognitive
+tunnelling (high workload narrows the scan to a single track), and inattentional
+blindness (missing unexpected stimuli when task-focused).
+NARRATION: The first enemy of Level 1 SA is busyness. The higher your
+workload, the narrower your scan becomes — exactly when you need it widest.
+SLIDE 3 | Level 2 SA — Comprehending the Picture
+Level 2 (Comprehension) requires integrating perceived cues into a coherent
+mental model. This is where pattern recognition from experience does the
+heavy lifting. A cardiologist looking at an ECG trace is doing Level 2 SA —
+they see the same squiggles as a layperson but their mental model transforms
+raw data into "inferior ST elevation — probable STEMI."
+Training Level 2 SA means:
+- Deliberate exposure to many scenario variants
+- After-action analysis of what cues were missed and why
+- Explicit mental model building ("if X then probably Y")
+NARRATION: Level 2 is where training pays its dividends. Every scenario you
+practice adds another pattern to your recognition library.
+
+SLIDE 4 | Level 3 SA — Projecting the Future
+Level 3 (Projection) means predicting how the situation will evolve over
+the next 30 seconds, 5 minutes, or 2 hours. It enables proactive rather
+than reactive action. Examples:
+- Pilot: "With this headwind, I will be 20 nm short of fuel on current routing"
+- Doctor: "This patient's pressure trend means shock within 10 minutes"
+- Incident responder: "Ransomware has been active 6 hours; backup is probably intact"
+Level 3 failures often manifest as "tunnel vision" on the current state,
+missing the trajectory. The fix: build prediction into the monitoring cycle.
+NARRATION: Level 3 SA transforms a reactive firefighter into a proactive
+chess player. It is the most trainable level and the highest-leverage skill.
+
+SLIDE 5 | OODA Loop — Cycle Time Is Everything
+Boyd's insight was that the OODA loop is not a one-time process — it
+cycles continuously, and the agent with the shorter loop controls the
+encounter. Key implications:
+- Disrupting the adversary's OODA loop (introducing fog, speed, novelty)
+  is as powerful as improving your own
+- Re-orientation (updating your mental model when new data arrives) is the
+  hardest and most critical phase
+- Excessive deliberation at Decide slows the loop fatally
+- Pre-built decision rules (if-then scripts from training) short-circuit
+  the Decide phase and massively accelerate action
+NARRATION: Every emergency checklist is a pre-built if-then script designed
+to collapse the DECIDE phase. We build them in training so we don't have to
+construct them under fire.
+
+SLIDE 6 | The DECIDE Model in Aviation Context
+The Federal Aviation Administration teaches DECIDE to student pilots
+because novice pilots under stress default to the first option they
+think of — which is often wrong. The DECIDE model enforces:
+D — Detect the problem (name it explicitly)
+E — Estimate the need for action (what happens if I do nothing?)
+C — Choose the desired outcome (what do I want to achieve?)
+I — Identify actions needed (what resources do I have?)
+D — Do the necessary actions (commit and execute)
+E — Evaluate the effect (is it working? what is my next decision point?)
+NARRATION: Notice the model ends with Evaluate, not Do. That is intentional.
+In a dynamic situation, action is not the end of the process — it is the
+beginning of the next OBSERVE phase.
+
+SLIDE 7 | Scenario Practice: Engine Roughness at Cruise
+Scenario: You are at 8,500 ft, OAT -5°C. The engine develops a roughness.
+EGT rises 50°F. Fuel flow is normal.
+OODA Application:
+- Observe: engine roughness (audible), EGT +50°F (visual), OAT (visual), fuel flow (visual)
+- Orient: OAT in icing range + roughness + rising EGT = probable carb ice
+- Decide: apply carb heat; monitor 60 s; if no improvement, declare precautionary
+- Act: carb heat ON; begin diversion assessment
+Critical cue: OAT -5°C places the engine squarely in the carburetor ice
+risk band (-15°C to +5°C with high humidity). Miss this cue and you may
+diagnose a fuel problem instead.
+NARRATION: Notice that the correct decision follows directly from correct
+orientation. Misidentifying the problem leads to wrong action — enriching
+mixture instead of applying carb heat, making the situation worse.
+
+SLIDE 8 | Scenario Practice: Medical Emergency in Public
+Scenario: Adult found collapsed in shopping mall. Unresponsive, agonal
+breathing. AED 30 m away. Two bystanders present.
+DECIDE Application:
+D — Detect: cardiac arrest (unresponsive + absent normal breathing)
+E — Estimate: without CPR, survival drops ~10% per minute
+C — Choose: start CPR + retrieve AED + call emergency services simultaneously
+I — Identify: two bystanders (send one for AED; one calls), own hands for CPR
+D — Do: begin chest compressions; direct bystanders
+E — Evaluate: depth ≥ 5 cm, rate 100–120/min; AED arriving; EMS en route
+Common mistake: running to get the AED before starting CPR. The 30-second
+delay is costlier than a 30-second AED delay.
+NARRATION: The DECIDE model prevents the instinct to "go get help" before
+the most critical intervention. In cardiac arrest, the CPR-giver IS the help.
+
+SLIDE 9 | Building Your Situational Scan
+A repeatable SA scan process for any high-stakes environment:
+1. Define your key indicators (what 5–7 things will tell you the situation
+   is changing in a dangerous way?)
+2. Set your scan frequency (how often must each be checked?)
+3. Build alerting thresholds (what value triggers action?)
+4. Share the picture (brief your team on what you are monitoring and why)
+5. Pre-brief threat cues (what are the three most likely things to go wrong
+   in this mission/procedure/shift?)
+NARRATION: Professional pilots brief threat cues before every flight.
+They walk through the "what if" before takeoff so the answer is
+pre-computed, not invented under pressure.
+
+SLIDE 10 | Debrief: The Learning Loop
+No SA training cycle is complete without debrief. The structured AAR format:
+1. What did we intend to happen?
+2. What actually happened?
+3. Why was there a difference?
+4. What will we change next time?
+The most important rule of debrief: psychological safety. A team that
+cannot honestly name its errors learns nothing. The best-performing teams
+in military, aviation, and medicine have cultures where debrief is routine,
+expected, and blame-free.
+NARRATION: The debrief transforms a single experience into a shared lesson.
+Multiplied over thousands of scenarios, it is the mechanism by which
+individual performance compounds into team excellence.
