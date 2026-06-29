@@ -15,6 +15,19 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Course-scoring admin: review, manually edit, override, and tune the
+  numpy composition scoring. New aoep_shared/course_scoring.py adds (1) an editable,
+  JSON-persisted ScoringConfig (quality-index weights, depth target, quality label
+  bands) - the PCS composition_score fingerprint stays fixed; (2) score_breakdown()
+  that explains a course's PCS code step by step (positional sub-node sums, prime
+  mix R, structural N/K terms, raw-before-modulus, modulus) plus quality metrics
+  and label, so the scoring system is reviewable; (3) OverrideStore for manual
+  per-course label/score/quality overrides with provenance; (4) TelemetryStore that
+  collects per-course telemetry, compares courses, builds a leaderboard, and
+  recommends quality-weight adjustments by correlating composition metrics with
+  observed happiness. Curriculum service exposes /scoring/breakdown, /scoring/config
+  (GET/PUT), /scoring/overrides, /scoring/telemetry, /scoring/leaderboard,
+  /scoring/compare, and /scoring/recommend (mutations gated by require_internal).
 - 2026-06-29 - Data-driven growth system to scale content by orders of magnitude
   without code changes. New aoep_shared/content_packs.py discovers and merges
   JSON/JSONL packs (kinds: knowledge, slang, scenarios, courses, presentation)
