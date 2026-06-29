@@ -1684,3 +1684,56 @@ def scoring_recommend() -> dict:
     """INTERNAL-ONLY. Suggest quality-weight adjustments from telemetry by
     correlating composition quality metrics with observed happiness."""
     return app.state.scoring_telemetry.recommend_weight_adjustments(app.state.scoring_config)
+
+
+# --------------------------------------------------------------------------- #
+# Market intelligence + investor value projection
+# --------------------------------------------------------------------------- #
+@app.get("/market/meta")
+def market_meta() -> dict:
+    """Cited market-reference corpus meta (counts, regions, sources, disclaimer)."""
+    from aoep_shared.market_intel import meta
+
+    return meta()
+
+
+@app.get("/market/regions")
+def market_regions() -> dict:
+    from aoep_shared.market_intel import regions, sources
+
+    return {"regions": regions(), "sources": sources()}
+
+
+@app.get("/market/references")
+def market_references(region: str | None = None, category: str | None = None,
+                      metric: str | None = None, q: str | None = None,
+                      offset: int = 0, limit: int = 100) -> list[dict]:
+    """Search the cited market/ROI reference points (datamined + curated)."""
+    from aoep_shared.market_intel import search_references
+
+    return [r.to_dict() for r in search_references(
+        region=region, category=category, metric=metric, q=q, offset=offset, limit=limit)]
+
+
+class ValueProjectionRequest(BaseModel):
+    users_by_region: dict[str, int]
+    arpu_usd_per_year: float | None = None
+    paid_conversion: float | None = None
+
+
+@app.post("/market/projection")
+def market_projection(req: ValueProjectionRequest) -> dict:
+    """Project annual revenue + TAM capture by region (MODEL OUTPUT, not a guarantee)."""
+    from aoep_shared.market_intel import (
+        DEFAULT_ARPU_USD_PER_YEAR,
+        DEFAULT_PAID_CONVERSION,
+        value_projection,
+    )
+
+    return value_projection(
+        {k: int(v) for k, v in req.users_by_region.items()},
+        arpu_usd_per_year=(req.arpu_usd_per_year if req.arpu_usd_per_year is not None
+                           else DEFAULT_ARPU_USD_PER_YEAR),
+        paid_conversion=(req.paid_conversion if req.paid_conversion is not None
+                         else DEFAULT_PAID_CONVERSION),
+    )

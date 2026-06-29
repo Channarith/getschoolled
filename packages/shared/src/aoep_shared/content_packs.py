@@ -29,7 +29,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List
 
-KNOWN_KINDS = ("knowledge", "slang", "scenarios", "courses", "presentation")
+KNOWN_KINDS = ("knowledge", "slang", "scenarios", "courses", "presentation", "market")
 
 
 def _packaged_root() -> Path:

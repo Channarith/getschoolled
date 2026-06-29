@@ -1,0 +1,20 @@
+PROJECTED ANNUAL REVENUE BY USER TIER (MODEL OUTPUT)
+============================================================
+Assumptions: ARPU $96/yr, 5% paid conversion. Regional mix: US 45%, EU 20%, India 20%, LATAM 10%, MENA 5%.
+Projections combine our capacity tiers with cited EdTech market references (see docs/capacity-projection.txt + market_intel).
+
+   Daily users |   Paid users |   Proj. annual revenue
+------------------------------------------------------
+            10 |            0 |                    $43
+           100 |            5 |                   $480
+            1k |           50 |                  $4.8k
+            1M |       50,000 |                  $4.8M
+
+Per-region at 1,000,000 daily users:
+  eu            10,000 paid     $960.0k/yr  (0.0032% of TAM)
+  india         10,000 paid     $960.0k/yr  (0.0096% of TAM)
+  latam          5,000 paid     $480.0k/yr  (0.0053% of TAM)
+  mena           2,500 paid     $240.0k/yr  (0.0034% of TAM)
+  us            22,500 paid       $2.2M/yr  (0.0048% of TAM)
+
+DISCLAIMER: Projection from the stated assumptions and cited market references. Figures are model outputs to be validated, not guarantees.

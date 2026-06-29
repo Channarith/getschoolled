@@ -15,6 +15,21 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Market intelligence + investor value model and datamining pipeline.
+  New aoep_shared/market_intel.py: a cited, growable corpus of education/EdTech
+  market reference points (market sizes, growth, public spend, per-student value,
+  demographics) across regions and US states, every entry attributed with source +
+  reference + a "verify before investor use" note. value_projection() projects
+  annual revenue + TAM capture by region from user tiers (clearly labelled model
+  output). Growth via datamining: harvest/market_bridge.py extracts $ amounts and
+  percentages from text and writes content packs of kind market that merge
+  automatically; scripts/datamine_market.py drives it (--seed offline, --from-file
+  offline ingest, --url network-gated live fetch that fails gracefully with
+  egress guidance, --list). Investor SVG chart via scripts/market_value_chart.py
+  (docs/charts/investor_value.svg + docs/investor-value.txt). Curriculum API:
+  /market/meta, /market/regions, /market/references, /market/projection. NOTE:
+  live web scraping requires outbound network egress to be enabled; the seed
+  figures are real public estimates that must be verified before investor use.
 - 2026-06-29 - Ecosystem performance projection chart. New
   scripts/capacity_projection.py turns the docs/scalability.txt measured baseline
   (940 RPS/pod @ p95 6.3 ms, 1.3 RPS/user, Little's-law concurrency, 2x peak, HPA
