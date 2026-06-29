@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Regenerate the AI Classroom brand assets from the SVG sources.
+"""Regenerate the legacy "S" wordmark + print brand assets from the SVG sources.
 
 Source of truth: docs/brand/aiclassroom_mark.svg (icon) and
 docs/brand/aiclassroom_wordmark.svg (horizontal lockup).
 
+NOTE: the canonical brand mark is now the Bayon Buddy holding the golden "S"
+medallion. The web browser/app icons (favicon.ico, logo-mark.webp, logo.webp,
+icon.png) are built from that master by scripts/build_bayon_icons.py and are NOT
+produced here, so re-running this script never regresses the buddy brand.
+
 Outputs:
-  apps/web/public/favicon.ico        16/32/48 multi-size, light mark on navy
-  apps/web/public/logo-mark.webp     128x128 light mark on navy (nav)
-  apps/web/public/logo.webp          512x512 light mark on navy (hero)
   apps/web/public/logo-mark.svg      raw SVG (themable via currentColor)
   apps/web/public/wordmark.webp      1024x224 light mark on navy
 
@@ -95,22 +97,13 @@ def main() -> int:
 
     PUBLIC.mkdir(parents=True, exist_ok=True)
 
-    nav = render_icon(128)
-    nav.save(PUBLIC / "logo-mark.webp", format="WEBP", quality=92, method=6)
-    hero = render_icon(512)
-    hero.save(PUBLIC / "logo.webp", format="WEBP", quality=92, method=6)
-
+    # The web browser/app icons (favicon.ico, logo-mark.webp, logo.webp,
+    # icon.png) are derived from the Bayon Buddy master by
+    # scripts/build_bayon_icons.py - do not regenerate them here.
     shutil.copy2(MARK_SVG, PUBLIC / "logo-mark.svg")
 
     wordmark = render_wordmark(1024, 224)
     wordmark.save(PUBLIC / "wordmark.webp", format="WEBP", quality=92, method=6)
-
-    sizes = [16, 32, 48, 64]
-    favicon_src = render_icon(256, rounded=False)
-    favicon_src.save(
-        PUBLIC / "favicon.ico", format="ICO",
-        sizes=[(s, s) for s in sizes],
-    )
 
     color = render_icon(1024)
     color.save(BRAND / "aiclassroom_logo.png", format="PNG", optimize=True)
@@ -129,9 +122,7 @@ def main() -> int:
 
     print("wrote:")
     for p in [
-        PUBLIC / "logo-mark.webp", PUBLIC / "logo.webp",
         PUBLIC / "logo-mark.svg", PUBLIC / "wordmark.webp",
-        PUBLIC / "favicon.ico",
         BRAND / "aiclassroom_logo.png", BRAND / "aiclassroom_logo.webp",
         BRAND / "aiclassroom_logo_binary.png",
         BRAND / "aiclassroom_logo_binary_threshold.png",

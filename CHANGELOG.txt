@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-29 - Version 0.11.0 (autobump; >8 pending changelog entries).
+
+- 2026-06-29 - Brand/logo/icon is now the Salareen Bayon Buddy holding the golden
+  "S" medallion (the canonical mark). The web favicon, nav + profile badge,
+  apple-touch/app icon, and hero/OG image are rendered from apps/web/public/
+  bayon-mark.webp onto a navy rounded square by new scripts/build_bayon_icons.py
+  (favicon.ico, logo-mark.webp, logo.webp, icon.png). layout.tsx now serves
+  /favicon.ico + /icon.png (dropped the legacy "S" SVG favicon). The old "S"
+  monogram is demoted to wordmark/1-color print only; build_brand_assets.py no
+  longer overwrites the web icons. branding.txt + README brand table updated.
+
 - 2026-06-27 - Version 0.10.0 (autobump). Web/mobile VERSION, package.json,
   version.ts, app.json synced to 0.10.0 (supersedes the interim 0.9.5 bump).
 - 2026-06-27 - Add investor pitch deck video generator (scripts/generate_pitch_video.py)

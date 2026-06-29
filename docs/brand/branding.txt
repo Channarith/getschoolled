@@ -5,11 +5,19 @@ Plain text on purpose (repo no-markdown house rule).
 -----------------------------------------------------------------------------
 1. LOGO
 -----------------------------------------------------------------------------
-Concept: a minimalist, single-color mark in the spirit of Apple / X / Micron.
-A graduation mortarboard whose tassel curls back into the bowl of a capital G
-- the cap is the G's top stroke, the tassel curl is the body. Reads as
-"graduation" at favicon size and as a clean monogram at any scale. No
-gradients, no detail, one solid silhouette.
+Canonical brand mark: the Salareen Bayon Buddy - a friendly, secular Khmer-
+inspired stone character holding a dark golden medallion stamped with a capital
+"S" and a green bodhi leaf. This single character IS the brand, logo, and app
+icon: it is the favicon, the nav badge, the apple-touch / app icon, and the
+hero/share image. Master art (transparent, full figure):
+    apps/web/public/bayon-mark.webp
+The square web icons (favicon.ico, logo-mark.webp, logo.webp, icon.png) are
+rendered from that master onto a navy rounded square by
+scripts/build_bayon_icons.py - do not hand-edit them.
+
+Legacy monogram (kept for the wordmark / 1-color print only): a thin "S" inside
+a circular seal crowned by a bodhi leaf (docs/brand/aiclassroom_mark.svg,
+apps/web/public/logo-mark.svg). It is no longer used as the favicon or app icon.
 
 Salareen study buddy (product mascot):
   Concept: a friendly, SECULAR character - a calm, gently-smiling face in the
@@ -66,11 +74,14 @@ Generated raster assets (do NOT edit by hand; regenerate via
                                                   for stamps / screen print /
                                                   single-ink / laser engraving
 
-Web assets (apps/web/public/, served from /):
-  /favicon.ico       multi-size browser icon (16/32/48/64)
-  /logo-mark.webp    128x128 nav icon
-  /logo-mark.svg     same as the source SVG (themable via currentColor)
-  /logo.webp         512x512 hero / share / OG-image
+Web assets (apps/web/public/, served from /) - the buddy brand icons are built
+by scripts/build_bayon_icons.py from /bayon-mark.webp:
+  /favicon.ico       multi-size browser icon (16/32/48/64), buddy on navy
+  /logo-mark.webp    128x128 nav + profile badge, buddy on navy rounded square
+  /logo.webp         512x512 apple-touch / hero / OG-image, buddy on navy
+  /icon.png          512x512 PNG app icon (same buddy art)
+  /bayon-mark.webp   full-figure buddy master (transparent)
+  /logo-mark.svg     legacy "S" monogram (themable via currentColor; print only)
   /wordmark.webp     1024x224 horizontal lockup (header / press kit)
 
 Brand colors (UI uses CSS vars; mark uses solids):
