@@ -1,0 +1,22 @@
+{
+  "name": "salareen-pitch-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Salareen investor pitch video (Remotion -> MP4)",
+  "scripts": {
+    "preview": "remotion studio",
+    "render": "remotion render InvestorPitch ../../docs/demos/salareen_investor_pitch.mp4 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\"",
+    "render:square": "remotion render InvestorPitchSquare ../../docs/demos/salareen_investor_pitch_square.mp4 --browser-executable=\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\""
+  },
+  "dependencies": {
+    "@remotion/google-fonts": "4.0.379",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.379"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.379",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

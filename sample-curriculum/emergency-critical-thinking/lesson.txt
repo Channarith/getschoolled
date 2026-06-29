@@ -1,0 +1,167 @@
+LESSON: Emergency Critical Thinking and Mental Readiness
+LANGUAGE: en
+
+SLIDE 1 | Why Emergency Thinking Is a Trainable Skill
+Research in aviation, medicine, and military operations consistently shows
+that performance under extreme pressure is not fixed — it is trainable.
+The brain's threat-response system (amygdala) can be conditioned through
+graduated exposure so that calm, deliberate reasoning remains accessible
+even when adrenaline spikes. This is the foundation of emergency critical
+thinking training.
+NARRATION: Today we explore how elite professionals in aviation, medicine,
+and crisis management train their brains to stay sharp when everything goes wrong.
+This is not about removing fear — it is about channelling it.
+
+SLIDE 2 | The OODA Loop: Think at the Speed of Events
+The OODA loop — Observe, Orient, Decide, Act — was developed by fighter
+pilot and military strategist John Boyd. It describes how any thinking
+agent processes reality and responds. The key insight: faster OODA loops
+win. An expert does not think through each step consciously — they
+compress the loop through pattern recognition built in training.
+- Observe: gather raw data from the environment
+- Orient: filter through experience, culture, mental models
+- Decide: select a course of action
+- Act: execute and immediately start a new observation cycle
+NARRATION: The OODA loop is why a chess grandmaster can play 40 opponents
+simultaneously. Pattern recognition replaces deliberation. We train this
+same compression in emergency scenarios.
+
+SLIDE 3 | Situational Awareness: Levels 1, 2, and 3
+Endsley's model defines situational awareness across three levels:
+- Level 1 (Perception): detecting the elements in the environment
+  (instruments, people, sounds, changes)
+- Level 2 (Comprehension): understanding what those elements mean
+  (this EGT rise + OAT = probable carburetor ice)
+- Level 3 (Projection): predicting how the situation will evolve
+  (if I do nothing, I have 4 minutes before the engine quits)
+Loss of situational awareness is the root cause of most accidents. The
+fix is structured scan patterns and pre-brief of threat cues.
+NARRATION: Level 3 — projection — is what separates a reactive response
+from a proactive one. We will practice building all three levels.
+
+SLIDE 4 | The DECIDE Model for Emergency Decisions
+Used widely in aviation and emergency services, DECIDE provides a
+checklist to prevent rushed, incomplete decisions:
+- Detect: identify that a problem exists
+- Estimate: assess urgency and consequences of inaction
+- Choose: generate and select from multiple options (never only one)
+- Identify: list resources, people, and time needed
+- Do: execute with commitment
+- Evaluate: monitor the outcome and be ready to switch plans
+The model slows down the impulse to act on the first idea and forces
+the decision-maker to consider at least two alternatives.
+NARRATION: The most dangerous phrase in an emergency is "there's only one option."
+DECIDE forces you to prove it. Eighty percent of the time, you will find a better one.
+
+SLIDE 5 | Pre-Mortem Analysis: Failing Before You Begin
+Gary Klein's pre-mortem technique asks: imagine it is six months from now
+and this plan has failed catastrophically. What went wrong? Working
+backwards from failure is cognitively easier and more productive than
+trying to predict failure from the starting point. It surfaces:
+- Hidden assumptions that have not been tested
+- Single points of failure (no backup)
+- Over-optimistic timelines
+- Human factors risks (fatigue, distraction, overconfidence)
+NARRATION: A pre-mortem is not pessimism — it is responsible planning.
+Aviation and surgery use this technique because the cost of discovering
+a flaw in training is zero; the cost during an actual emergency can be catastrophic.
+
+SLIDE 6 | Threat and Error Management (TEM)
+TEM is a framework from aviation Crew Resource Management. It organises
+every factor that could cause an error into three categories:
+1. Threats — hazards outside our direct control (weather, equipment faults,
+   workload spikes, system failures)
+2. Errors — our own mistakes in response (misidentify, forget, rush)
+3. Undesired states — the dangerous situation that results when threats
+   and errors interact
+Good TEM practice means identifying threats BEFORE they trigger errors,
+and building explicit countermeasures into the plan.
+NARRATION: TEM is the reason that a commercial airline with two pilots
+and multiple checklists rarely has accidents. It is not redundancy for
+its own sake — it is systematic threat identification baked into operations.
+
+SLIDE 7 | Mental Rehearsal: The Flight Sim in Your Head
+Mental rehearsal (or mental simulation) is the controlled practice of a
+scenario in the mind's eye with the same emotional engagement as the real
+event. Studies with Olympic athletes, surgeons, and fighter pilots show
+measurable performance improvement from mental rehearsal alone. Effective
+rehearsal includes:
+- Specificity: rehearse the exact procedure step by step
+- Sensory anchors: include sounds, feelings, visual cues
+- Decision gates: rehearse choosing, not just doing
+- Adversity: include one thing going wrong and recovering
+NARRATION: When an airline captain says "I've done this approach a thousand
+times," half of those times may have been in a simulator or in their head.
+We will guide you through your first structured mental rehearsal today.
+
+SLIDE 8 | Stress Inoculation: Graduated Exposure
+Stress inoculation training (SIT) involves three phases:
+1. Conceptual: understand the stress response and why it affects performance
+2. Skills acquisition: learn the procedures in a low-stress environment
+3. Application: practice under progressively increasing stress
+The goal is not immunity to stress — that would remove the performance
+boost that moderate arousal provides (Yerkes-Dodson law). The goal is
+the ability to function in the optimal performance zone even when the
+situation feels catastrophic.
+NARRATION: This is the science behind why astronauts train in water tanks,
+why trauma surgeons practice on cadavers, and why hostage negotiators
+do role-play before real incidents. Graduated exposure calibrates the
+stress response so it works for you, not against you.
+
+SLIDE 9 | Critical Thinking Under Time Pressure
+When time is short, cognitive shortcuts (heuristics) take over from
+deliberate reasoning. Many of these shortcuts are useful — pattern
+recognition is fast and often correct. But they also introduce
+predictable errors:
+- Confirmation bias: seeking evidence that confirms the first hypothesis
+- Anchoring: fixating on the first number or option
+- Availability bias: overweighting vivid, recent, or dramatic events
+- Fixation error: locking onto one explanation and ignoring new data
+Training countermeasures: maintain a short "competing hypothesis" list,
+build in explicit "am I wrong?" check-ins, and use checklists to bypass
+individual memory.
+NARRATION: Top-gun pilots are taught to ask "what else could this be?"
+as a reflex. We can train that same reflex — and this module will start you on that path.
+
+SLIDE 10 | Emergency Landing Decision Framework
+Using the engine-failure emergency as a worked example, we walk through
+the decision framework that all pilots must internalize:
+1. Aviate first: establish best-glide speed (65 kts for C172)
+2. Navigate: select the best landing site within glide range
+3. Communicate: Mayday call on 121.5 / squawk 7700 (never first)
+The critical insight: altitude is time. A pilot who delays best-glide
+by 10 seconds loses 150–300 feet of altitude they can never recover.
+The decision framework must be so well rehearsed that it executes
+reflexively, freeing cognitive capacity for the field-selection problem.
+NARRATION: The most survivable forced landing is not the one with the
+best field — it is the one where the pilot established best glide
+within 3 seconds. We will practice this decision until it becomes automatic.
+
+SLIDE 11 | Emotional Regulation in Emergencies
+High-performance emergency response requires emotional regulation, not
+emotional suppression. Physiological arousal (adrenaline, cortisol) is
+unavoidable — and partly beneficial. The target is the "performance zone":
+aroused enough to act quickly, calm enough to reason clearly.
+Techniques that work under training conditions:
+- Tactical breathing (box breathing: 4-4-4-4)
+- Positive self-talk anchors ("I am trained for this")
+- Pre-brief of the most likely stressor (the unexpected becomes expected)
+- Pair awareness (monitoring your partner's state and your own)
+NARRATION: Research on combat soldiers, firefighters, and ER physicians
+consistently shows that the best performers are not the ones who feel
+no fear — they are the ones who have learned to act despite it.
+
+SLIDE 12 | Building Your Cognitive Training Programme
+A complete cognitive training programme integrates:
+1. Conceptual understanding (this lesson)
+2. Skill acquisition (procedures, checklists, frameworks)
+3. Scenario practice (OODA drills, DECIDE exercises)
+4. Rapid decision drills (timed, pressure-calibrated)
+5. Emergency simulation (full scenario with AAR debrief)
+6. Mental rehearsal (daily, 5–10 minutes)
+7. Pre-mortem and TEM analysis (before any high-stakes operation)
+The platform's AI agents guide each of these phases and adapt the
+intensity to your current wellness, mastery, and behavioral patterns.
+NARRATION: You now have the conceptual map. The next step is practice.
+The AI coaching agents will personalise your path, track your patterns,
+and ensure that every session builds on the last. Let's begin.

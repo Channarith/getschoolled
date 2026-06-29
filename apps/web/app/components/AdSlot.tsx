@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getAdSlot, type AdSlotPayload } from "../lib/api";
+import { useFlag } from "../lib/flags";
 
 type Props = {
   slotId: string;
@@ -9,19 +10,22 @@ type Props = {
   className?: string;
 };
 
-/** Display ad slot for standard (non-VIP) members; VIP tiers see nothing. */
+/** Display ad slot for standard (non-VIP) members; VIP tiers see nothing.
+ * Globally gated by the monetization.video_ads feature flag. */
 export default function AdSlot({ slotId, tier, className }: Props) {
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const [slot, setSlot] = useState<AdSlotPayload | null>(null);
 
   useEffect(() => {
+    if (!adsEnabled) { setSlot({ show: false }); return; }
     let cancelled = false;
     getAdSlot(slotId, tier)
       .then((s) => { if (!cancelled) setSlot(s); })
       .catch(() => { if (!cancelled) setSlot({ show: false }); });
     return () => { cancelled = true; };
-  }, [slotId, tier]);
+  }, [slotId, tier, adsEnabled]);
 
-  if (!slot?.show) return null;
+  if (!adsEnabled || !slot?.show) return null;
 
   if (slot.house && slot.click_url) {
     return (

@@ -128,12 +128,24 @@ export default function AdminPage() {
   async function patch(key: string, p: Parameters<typeof adminSetFlag>[2]) {
     setBusy(key);
     try {
-      const updated = getToken()
-        ? await adminSetFlagSession(key, p)
-        : await adminSetFlag(secret, key, p);
+      // Prefer the operator-admin session (BFF) when signed in, but fall back to
+      // the direct memory path with the entered secret if the BFF is unavailable
+      // (e.g. expired session, or a web build without the /api/admin route).
+      let updated: FlagSpec;
+      if (getToken()) {
+        try {
+          updated = await adminSetFlagSession(key, p);
+        } catch {
+          updated = await adminSetFlag(secret, key, p);
+        }
+      } else {
+        updated = await adminSetFlag(secret, key, p);
+      }
       setFlags((prev) => prev.map((f) => (f.key === key ? updated : f)));
     } catch (e) {
-      setError(`Update failed for ${key}: ${String(e)}`);
+      setError(
+        `Update failed for ${key}. If your session expired, enter the admin secret (88888888) above and try again. (${String(e)})`,
+      );
     } finally {
       setBusy("");
     }

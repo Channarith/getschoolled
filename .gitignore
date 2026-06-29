@@ -33,6 +33,12 @@ htmlcov/
 !config/local.env
 !config/cloud.env
 
+# ---- Kubeconfigs / cluster credentials (NEVER commit) ----
+*kubeconfig*.yaml
+*kubeconfig*.yml
+kubeconfig-vke.yaml
+salareen-kubeconfig*.yaml
+
 # Local dev-launcher runtime (scripts/dev_up.sh)
 logs/
 *.local

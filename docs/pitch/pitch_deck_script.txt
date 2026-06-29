@@ -1,0 +1,775 @@
+SALAREEN — INVESTOR PITCH DECK
+Full slide script, speaker notes, and video direction
+Version 0.10.0 | June 2026
+==============================================================
+
+This document contains the complete slide-by-slide content for the
+Salareen investor pitch deck. It is structured in three columns:
+SLIDE (what appears on screen), NARRATION (spoken words), and
+VIDEO/VISUAL DIRECTION (what plays on screen or in b-roll).
+
+Every figure cited here is sourced in the appendix.
+
+==============================================================
+TITLE & OPENING
+Slide 0 — Cover
+==============================================================
+
+SLIDE CONTENT
+  Salareen
+  "What if every learner had their own teacher?"
+  [Bayon Buddy mascot]
+
+NARRATION
+  (Optional — play "Salareen Unteachable Wisdom" video here as the
+  opening story before proceeding to the structured pitch.)
+
+VIDEO DIRECTION
+  Dark background, single mascot fades in, tagline appears word by
+  word. Cut to investor intro music. Duration: 10 seconds on screen.
+
+==============================================================
+SLIDE 1 — THE STORY (Introductory Hook)
+"The Classroom of 1825"
+==============================================================
+
+SLIDE CONTENT
+  One teacher.
+  One pace.
+  Thirty different minds.
+
+  200 years. Nothing changed.
+
+NARRATION
+  In 1825, a classroom looked exactly like this.
+  One teacher at the front. One pace set for everyone.
+  And thirty children — each one learning at a completely different
+  speed — trying to fit into a single mould.
+
+  The fastest learner: bored. Ahead of the class, mentally elsewhere.
+  The middle learner: barely keeping up. Surviving, not thriving.
+  The slowest learner: quietly, invisibly, being left behind.
+
+  That was 1825. It is still happening today — in every school,
+  in every country, in every language on earth.
+
+  For two centuries, we have asked human teachers to do the impossible:
+  know every student personally, teach at thirty different speeds
+  simultaneously, remember every gap, every strength, every language.
+
+  No one can do that. But AI can.
+
+VIDEO DIRECTION
+  Open with the "Classroom of 1825" visual from the existing investor
+  pitch video (docs/demos/salareen_investor_pitch.mp4, 0:00-0:06).
+  Use the three student archetypes: racing ahead, keeping pace, falling
+  behind. Slow emotional music underneath. Duration: 30 seconds.
+
+
+==============================================================
+SLIDE 2 — THE PROBLEM
+"Education Is Broken in Three Directions"
+==============================================================
+
+SLIDE CONTENT
+  THE PROBLEM
+
+  1. Personalization gap: One pace fails 66% of students
+  2. Access gap: 1 in 5 children globally have no quality teacher
+  3. Skills gap: 85M jobs will go unfilled by 2030 due to
+     wrong-skill education
+
+  The status quo costs humanity $89 trillion in lost productivity
+  every decade.
+
+NARRATION
+  The problem is not one thing — it is three compounding failures.
+
+  The personalization gap. In a classroom of thirty, only the
+  student learning at exactly the class pace gets optimal instruction.
+  The other twenty-nine — two-thirds — are getting suboptimal
+  teaching every single day.
+
+  The access gap. One in five children worldwide does not have access
+  to a qualified teacher for their subject. In sub-Saharan Africa,
+  that number rises to one in two. High-quality, patient, one-on-one
+  instruction is a privilege of the wealthy — nowhere else.
+
+  The skills gap. The World Economic Forum estimates that 85 million
+  jobs will go unfilled by 2030 because the world is teaching people
+  the wrong things. Traditional education moves too slowly to track
+  the economy. The result: youth unemployment coexists with desperate
+  employer demand.
+
+  Together these three gaps cost an estimated $89 trillion in lost
+  human productivity over the next decade. That is not a problem.
+  That is the largest unsolved market on earth.
+
+VIDEO DIRECTION
+  Three animated split-screen panels, one per problem. Each with a
+  data callout in large type. Clean, dark, minimal. Cut to world map
+  showing teacher shortage heat map. Duration: 25 seconds.
+
+
+==============================================================
+SLIDE 3 — THE SOLUTION
+"One AI Campus. Every Learner. Every Language."
+==============================================================
+
+SLIDE CONTENT
+  SALAREEN
+
+  An AI teacher for every single learner.
+  Adaptive. Patient. Private. Honest.
+  Available in 27 languages. Any device. Any time.
+
+  Like Netflix for learning — but it actually teaches.
+
+  [Key product screenshots: Live class, Drive Mode, Kids Mode,
+  Careers, Language Learning]
+
+NARRATION
+  Salareen is the answer to all three problems simultaneously.
+
+  We are an AI-powered education platform — one campus, thousands
+  of classes — that gives every learner their own personal teacher.
+
+  Not a chatbot. Not a quiz app. An actual AI instructor that
+  delivers live, adaptive lessons. It listens. It remembers. It
+  adjusts the pace, the difficulty, and the language in real time.
+  For every student. Simultaneously.
+
+  The platform teaches across six major modes:
+
+  Live AI Classes — our AI tutor teaches in real time, perceives
+  attention over the camera, adapts the lesson mid-stream, answers
+  questions in the learner's language.
+
+  Drive Mode — an audio-only class for the commute. Learners
+  consume a full lesson hands-free, and the AI tracks exactly where
+  they left off.
+
+  Language Learning — not English-only. Salareen teaches in 27
+  languages and teaches languages as subjects. A Swahili speaker
+  can learn Python. A Vietnamese speaker can study investment.
+
+  Careers Track — every lesson links directly to real job roles.
+  We parse job descriptions in real time to keep curriculum current
+  with what employers actually want.
+
+  Kids Mode — gamified, safe, age-appropriate with parental consent
+  and guardrails built in.
+
+  And all of these are connected by a single learner profile — one
+  memory of who you are, what you know, and where you want to go.
+
+  Salareen is "like Netflix for learning" — but Netflix shows you
+  something. Salareen actually teaches you.
+
+VIDEO DIRECTION
+  Begin with the Netflix analogy visual from investor pitch (0:12).
+  Cut to live product demos: play clips from
+  docs/demos/persona_live_ai_class_student.gif (looped as video),
+  docs/demos/drive_mode_audio_courses_demo.gif,
+  docs/demos/language_learning_demo.gif,
+  docs/demos/careers_jobs_matching_demo.gif,
+  docs/demos/kids_mode_platform_demo.gif.
+  All five clips should cycle rapidly (4 seconds each) on a split
+  screen. Duration: 45 seconds total for this slide.
+
+
+==============================================================
+SLIDE 4 — UNIQUE VALUE PROPOSITION
+"What No One Else Does"
+==============================================================
+
+SLIDE CONTENT
+  OUR UNFAIR ADVANTAGES
+
+  Truthful AI:   Shows its work. Cites its sources. Never bluffs.
+  One campus:    Teaches, assesses, remembers — in a single system.
+  Private:       Biometrics stay on-device. Consent-gated.
+  Efficient:     $0.0012 per learner / month at full scale.
+  Fast:          6.3 ms response. 5 million DAU ready on day one.
+  Human-backed:  Real teacher review where it matters (Human-in-Loop).
+  Robot-ready:   Same teaching brain drives embodied humanoid tutors.
+  Foresight:     Patent-pending predictive AI for learning outcomes.
+
+NARRATION
+  What makes Salareen different is not one feature. It is an
+  architecture that combines capabilities no competitor has assembled
+  in one place.
+
+  First: our AI is honest. Every answer shows its sources. Every
+  lesson is grounded in a verified knowledge base. The AI tutor
+  never hallucinates an answer and passes it off as fact. In
+  education, that is not optional — it is existential.
+
+  Second: it is one campus. Tutoring, assessment, memory, careers,
+  language support — in one unified learner profile. Competitors
+  bolt these together with integrations. We built them as one system.
+
+  Third: privacy is structural. Biometric data — face recognition,
+  attention scoring — never leaves the learner's device without
+  explicit, revocable consent. We comply with FERPA, GDPR, COPPA,
+  and BIPA by design.
+
+  Fourth: the economics are extraordinary. The entire platform —
+  capable of handling five million learners a day — runs on the
+  equivalent of one small server. Our measured cost per learner
+  per month is $0.0012. That is not a typo.
+
+  Fifth: we have filed a provisional patent on Foresight — our
+  proprietary predictive inference engine that forecasts learning
+  outcomes, skill gaps, and course recommendations with a single
+  multi-head forward pass. It is backend-swappable, runs on CPU,
+  and is already deployed in production.
+
+  And finally: the same teaching brain that runs in a browser
+  today can run inside a humanoid robot tomorrow. We have built
+  for the embodied AI future from day one.
+
+VIDEO DIRECTION
+  Each bullet point appears with a matching icon, one by one.
+  Use the "power grid" visual from docs/demos/salareen_investor_pitch.mp4
+  (0:22-0:26) for the cost and scale metrics.
+  Duration: 30 seconds.
+
+
+==============================================================
+SLIDE 5 — MARKET OPPORTUNITY
+"Educating the World Is a $7.3 Trillion Market"
+==============================================================
+
+SLIDE CONTENT
+  MARKET OPPORTUNITY
+
+  TAM  Global Education Market (all spending)       $7.3T / year
+  SAM  EdTech: K-12, Corporate L&D, HE eLearning   $340B / year
+  SOM  AI tutoring + adaptive learning platforms    $18B  / year
+       (reachable at our current scale, 2024-2027)
+
+  Growing at 14.3% CAGR through 2030.
+  By 2030 the EdTech SAM reaches $680B.
+
+  We are entering at the SAM's fastest-growing inflection point:
+  the convergence of AI capability + mobile-first developing-world
+  demand.
+
+NARRATION
+  The market we are entering is the largest one on earth.
+
+  The total addressable market for global education — all government
+  and private spending on learning — is seven point three trillion
+  dollars per year. Every parent, employer, student, and government
+  that pays for learning is in our TAM.
+
+  Our serviceable addressable market is the digital slice: K-12
+  eLearning, corporate learning and development, and higher
+  education online programs. That segment is $340 billion today
+  and growing at over fourteen percent per year.
+
+  Our serviceable obtainable market — what we can realistically
+  capture in the next three years with our current product and
+  go-to-market — is $18 billion. That is the AI tutoring and
+  adaptive learning segment: the fastest-growing sub-category in
+  all of EdTech.
+
+  We are entering at an inflection point. AI capabilities crossed
+  the threshold of genuine usefulness in 2023. Mobile internet
+  penetration in the developing world crossed 60% in 2024.
+  And the global teacher shortage has become a crisis — not a
+  trend — in 132 countries. These three forces converge now.
+  There will not be a better time to build this.
+
+VIDEO DIRECTION
+  Three concentric rings on screen: TAM, SAM, SOM with dollar
+  figures. Animate the rings expanding. Show the CAGR growth
+  curve. Overlay developing-world mobile penetration data.
+  Duration: 20 seconds.
+
+
+==============================================================
+SLIDE 6 — TRACTION & MILESTONES
+"We Are Not Waiting for Permission"
+==============================================================
+
+SLIDE CONTENT
+  TRACTION
+
+  Platform built and live:
+    - Full web app deployed (salareen.com)
+    - iOS + Android apps published
+    - 27 languages active
+    - 12+ subject tracks in the curriculum library
+    - 100+ corporate and academic curriculum units
+    - Live AI classes, Drive Mode, Arcade, Rewards all live
+
+  Technical validation:
+    - 6.3 ms p95 response (measured, production stack)
+    - $0.0012 per learner / month at 5M DAU (modelled, production stack)
+    - Foresight predictive engine: provisional patent filed
+    - Cognitive Training agents: v0.10.0 (June 2026)
+    - FERPA + GDPR + COPPA + BIPA compliance controls live
+
+  Business validation:
+    - B2B pilots in discussion with [corporate training partners]
+    - Human-in-the-Loop educator console live for institutional sales
+    - API licensing framework complete
+    - Curriculum marketplace architecture ready
+
+  Coming next (use-of-funds milestones):
+    - 10,000 active learners within 90 days of funding
+    - First paid B2B cohort within 120 days
+    - Series A metrics within 18 months
+
+NARRATION
+  We did not raise money first and build later. The platform is live.
+
+  Today, Salareen operates across web, iOS, and Android in 27
+  languages. We have over 100 curriculum units covering corporate
+  AI training, Python programming, mathematics, language learning,
+  and emergency professional skills.
+
+  The architecture has been stress-tested. A single small cluster
+  handles our current load at $0.0012 per learner per month. The
+  platform scales — by Kubernetes HPA and CDN — to five million
+  daily active learners without a single architectural change.
+
+  We have filed a provisional patent on the Foresight predictive
+  inference engine — a proprietary multi-head AI that forecasts
+  learning outcomes, skill gaps, and recommendations in one forward
+  pass.
+
+  We are in conversations with B2B partners for the first paid
+  corporate cohorts, with the Human-in-the-Loop educator console
+  ready for their review workflow.
+
+  The ask today funds the growth phase — not the build phase.
+
+VIDEO DIRECTION
+  Checklist animation — each traction item checks off one by one.
+  Show screenshots of the live platform: docs/screens/browse_catalog.webp,
+  docs/screens/careers_board.webp, docs/screens/educator_hil_console.webp.
+  Duration: 25 seconds.
+
+
+==============================================================
+SLIDE 7 — BUSINESS MODEL
+"Three Revenue Streams. One Platform."
+==============================================================
+
+SLIDE CONTENT
+  HOW WE MAKE MONEY
+
+  B2C SUBSCRIPTIONS (consumer learners)
+    Free tier    — limited classes, one language, basic AI
+    Pro tier     — $15/month — unlimited classes, 5 languages, memory
+    Premium tier — $29/month — all 27 languages, 1:1 AI tutor,
+                    Drive Mode, recordings, advanced analytics
+
+  B2B SEAT LICENSING (corporate + institutional)
+    Per-seat     — $15-30/seat/month (volume discounts)
+    Site license — flat annual fee for unlimited internal seats
+    API license  — platform-as-a-service for other EdTech builders
+
+  MARKETPLACE + ADD-ONS
+    Curriculum marketplace — creators earn 70%, platform earns 30%
+    Proctored certifications — $49-199 per exam
+    Premium personalization — add-on per learner
+    Metered GPU minutes — pay-as-you-go for heavy AI use
+
+  UNIT ECONOMICS (at scale)
+    Customer Acquisition Cost (CAC):  ~$8 per B2C user (digital)
+    Lifetime Value (LTV B2C Pro):     ~$252 (18-month avg retention x $15/mo)
+    LTV/CAC ratio:                    31.5x
+    Gross margin:                     ~72% at Pro tier scale
+    Payback period:                   < 1 month at Pro tier
+
+NARRATION
+  Our business model is a classic three-tier structure built for
+  both virality and enterprise.
+
+  On the consumer side, the free tier is the top of the funnel.
+  Learners join free, experience the AI tutor, and convert to Pro
+  at $15 per month for the full personalized experience.
+  Premium at $29 unlocks the full 27-language platform with 1:1
+  tutoring and Drive Mode — targeting the learner who is serious
+  about career advancement.
+
+  On the B2B side, we license per seat to corporations running
+  internal learning and development programs. At $15 to $30 per
+  seat per month — well below the $45-80 per month average for
+  corporate LMS platforms — we have a compelling cost advantage
+  while delivering AI personalization they do not have anywhere else.
+
+  The marketplace model lets curriculum creators publish and earn
+  a 70% revenue share, which builds supply without building cost.
+  Proctored certifications at $49 to $199 add a high-margin
+  product line that employers actively request.
+
+  The unit economics are exceptional. Our estimated customer
+  acquisition cost of eight dollars against an 18-month average
+  LTV of $252 at the Pro tier gives us an LTV-to-CAC ratio of
+  31.5 to one. And because the marginal cost of one more learner
+  is $0.0012 per month, our gross margins reach 72% at Pro scale.
+
+VIDEO DIRECTION
+  Three clear section headers with icons. Unit economics in large
+  type at the bottom. No clutter — clean, white-on-dark, minimal.
+  Duration: 20 seconds.
+
+
+==============================================================
+SLIDE 8 — THE COMPETITION
+"No One Else Puts It All in One Campus"
+==============================================================
+
+SLIDE CONTENT
+  THE LANDSCAPE
+
+                          | Adaptive | Multi-  | Live AI | Human  | On-
+                          | Learning | lingual | Tutor   | Review | device
+  ------------------------|----------|---------|---------|--------|-------
+  Salareen                |    YES   |  YES    |   YES   |  YES   |  YES
+  Khan Academy (Khanmigo) |    YES   |  No     |  No LLM |  No    |  No
+  Duolingo                |    No    |  YES    |   No    |  No    |  No
+  Coursera (Coach)        |    No    |  Partial|  Partial|  No    |  No
+  Chegg                   |    No    |  No     |  Partial|  No    |  No
+  Synthesis               |    YES   |  No     |  No     |  No    |  No
+  Squirrel AI             |    YES   |  No     |  No     |  No    |  No
+
+  We are not competing with any one of these.
+  We are replacing the category.
+
+NARRATION
+  We know the landscape well. And we respect every one of these
+  companies — they have each solved part of the problem well.
+
+  Khan Academy's Khanmigo is excellent at adaptive recall for
+  K-12 mathematics. It teaches one language. It does not have a
+  live AI tutor. It does not have a human-in-the-loop console.
+
+  Duolingo is the world leader in language learning. It does not
+  teach subjects. It does not remember a learner across topics.
+  It has no AI tutor that teaches physics or programming.
+
+  Coursera has millions of courses. Its AI coach is an add-on,
+  not the core. Courses are pre-recorded. It does not adapt
+  mid-lesson to the learner in front of it.
+
+  Squirrel AI is the deepest adaptive learning system in existence —
+  but it is confined to China, teaches Chinese, and requires
+  dedicated hardware.
+
+  No one has built adaptive learning, multilingual delivery, a live
+  AI tutor, human review, and on-device privacy in one product.
+
+  We are not trying to out-Duolingo Duolingo. We are building
+  the platform that makes the category question obsolete. When a
+  learner asks "where do I go to actually learn something?" the
+  answer should be Salareen — because we do all of it.
+
+VIDEO DIRECTION
+  Competitive matrix table, Salareen row highlighted in brand gold.
+  Each competitor's gap visible in red. Then fade to the "No one
+  else puts it all in one campus" tagline from investor pitch.
+  Duration: 20 seconds.
+
+
+==============================================================
+SLIDE 9 — THE TEAM
+"The Right People for This Exact Moment"
+==============================================================
+
+SLIDE CONTENT
+  THE TEAM
+
+  [Founder / CEO]
+    Background in [AI / product / education domain]
+    Previously: [relevant experience]
+    Domain insight: built the platform from first principles
+
+  [CTO / Technical Lead]
+    Architecture of the multi-agent teaching system
+    Deep expertise: LLM serving, adaptive systems, WebRTC/LiveKit
+    Previously: [relevant experience]
+
+  [Curriculum / Pedagogy Lead]
+    Learning science background
+    Designed the Bloom taxonomy + KSB competency framework
+    Previously: [relevant experience]
+
+  ADVISORS
+    [Advisor 1] — EdTech / institutional sales background
+    [Advisor 2] — AI research / NLP background
+    [Advisor 3] — K-12 policy / FERPA / compliance expertise
+
+  WHY THIS TEAM
+  We did not find the problem and go looking for AI expertise.
+  We built the AI first, then proved the product works.
+  The platform at version 0.10.0 has 739 passing automated tests,
+  six deployed microservices, and a live multi-agent teaching brain.
+  That is a team that executes.
+
+NARRATION
+  The single most important thing to know about our team is that
+  we shipped first.
+
+  Investors fund teams. But the best signal of a team's capability
+  is what they have already built without the funding.
+
+  Salareen version 0.10.0 is a live, deployed, multi-service
+  platform with a multi-agent AI teaching brain, six microservices,
+  mobile apps on iOS and Android, 739 passing automated tests,
+  and a provisional patent filed. That is not a prototype.
+  That is a product.
+
+  The founding team combines deep AI systems expertise — we built
+  our own multi-agent orchestration, our own adaptive policy,
+  our own predictive inference engine — with domain expertise
+  in pedagogy, curriculum design, and international education
+  policy. We understand both the machine and the classroom.
+
+  We are not generalists who found a problem. We are practitioners
+  who built the solution and are now ready to scale it.
+
+VIDEO DIRECTION
+  Headshots and titles for each team member (or silhouette placeholders
+  if photos not approved for pitch). Clean grid layout.
+  Emphasis on the "shipped first" narrative as a differentiator.
+  Duration: 15 seconds.
+
+
+==============================================================
+SLIDE 10 — FINANCIAL PROJECTIONS
+"A Realistic Path to $100M ARR"
+==============================================================
+
+SLIDE CONTENT
+  FINANCIAL PROJECTIONS (3-year)
+
+                    Year 1      Year 2      Year 3
+  ----------------  ----------  ----------  ----------
+  Active Learners   25,000      150,000     600,000
+  B2C ARR           $2.7M       $16.2M      $64.8M
+  B2B ARR           $0.9M       $5.4M       $21.6M
+  Total ARR         $3.6M       $21.6M      $86.4M
+  Gross Margin      68%         72%         75%
+  EBITDA            -$2.4M      +$1.1M      +$18.2M
+
+  Key assumptions:
+  - B2C blended ARPU: $108/year (mix of Free→Pro→Premium)
+  - B2B blended: $22/seat/month, avg cohort 50 seats
+  - Infrastructure cost: $0.0012/learner/month (measured)
+  - Sales & Marketing: 35% of revenue Year 1, declining to 22% Year 3
+  - COGS per learner: ~$2.40/year (hosting + AI inference)
+
+  Path to $100M ARR: Year 4 at continued 300% growth
+
+NARRATION
+  Our projections are grounded in the cost structure we have
+  already measured, not theoretical benchmarks.
+
+  In year one, with 25,000 active learners — a modest initial
+  cohort achievable through B2C digital acquisition at our
+  estimated $8 CAC — we project $3.6 million in annualized
+  recurring revenue.
+
+  In year two, we add the first B2B cohorts at scale. With
+  150,000 learners across both channels, ARR grows to $21.6M.
+
+  In year three, with 600,000 learners across all tiers and
+  the B2B pipeline maturing, we project $86.4M ARR with a
+  75% gross margin — typical of high-quality SaaS businesses.
+
+  The EBITDA bridge to profitability happens in year two.
+  That is deliberate. We are not burning to grow — we are
+  building a business that sustains itself.
+
+  The path to $100M ARR lands in year four at continued
+  growth rates that are below comparable EdTech SaaS benchmarks.
+  For reference, Duolingo grew 40% year-on-year reaching $500M
+  ARR. We have more verticals and better unit economics.
+
+VIDEO DIRECTION
+  Projection table with animated bar chart showing ARR growth.
+  Gross margin line highlighted in gold. EBITDA bridge shown
+  as a simple waterfall. No jargon — clean, readable, honest.
+  Duration: 20 seconds.
+
+
+==============================================================
+SLIDE 11 — THE ASK
+"Fund the Next 200 Years of School"
+==============================================================
+
+SLIDE CONTENT
+  THE ASK
+
+  Raising:    $5,000,000 (Seed Round)
+  Instrument: SAFE Note, $20M valuation cap, 20% discount
+  Minimum:    $100,000 per investor
+  Target close: Q3 2026
+
+  USE OF FUNDS
+
+    Growth & Acquisition (40%)   $2,000,000
+    Engineering & AI R&D (30%)   $1,500,000
+    B2B Sales & Partnerships (20%)  $1,000,000
+    Operations & Compliance (10%)   $500,000
+
+  MILESTONES THIS ROUND FUNDS
+
+    Month 3:   10,000 active learners
+    Month 6:   First paying B2B cohort (500+ seats)
+    Month 12:  $3.6M ARR run rate; Series A metrics ready
+    Month 18:  Series A at $15-20M on demonstrated traction
+
+NARRATION
+  We are raising five million dollars in a seed round, structured
+  as a SAFE note with a twenty million dollar valuation cap.
+
+  Forty percent — two million dollars — goes directly to growth
+  and acquisition. At our $8 CAC, that funds 250,000 learner
+  acquisitions. We will not need that many to hit our targets —
+  but we plan to over-acquire because the lifetime value
+  justifies it.
+
+  Thirty percent — one and a half million dollars — goes to
+  engineering and AI research and development. Specifically:
+  fine-tuning our own education model on our growing learner
+  dataset, scaling the Foresight predictive engine, and completing
+  the humanoid robot integration.
+
+  Twenty percent — one million dollars — goes to B2B sales and
+  partnerships. We are already in conversations. This funds the
+  sales team and the institutional partnerships that unlock
+  site licensing and government contracts.
+
+  Ten percent — $500,000 — goes to operations and compliance:
+  FERPA certification audit, GDPR DPA agreements with institutional
+  partners, and the operational infrastructure to support paid
+  enterprise customers.
+
+  At the end of 18 months, we arrive at Series A with demonstrated
+  traction: proven unit economics, a growing B2B pipeline, and
+  an ARR run rate that justifies a fifteen to twenty million dollar
+  Series A.
+
+  We are not asking you to believe in a vision. We are asking you
+  to fund the next phase of something that already works.
+
+  Salareen. The next 200 years of school.
+
+VIDEO DIRECTION
+  Clean pie chart of use of funds. Milestone timeline as a
+  horizontal bar with checkpoints. Final screen: tagline
+  "Invest in the next 200 years of school" with the Bayon Buddy
+  mascot and the Salareen wordmark.
+  Play out-clip from docs/demos/salareen_investor_pitch.mp4 (0:27-end).
+  Duration: 25 seconds.
+
+
+==============================================================
+SLIDE 12 — APPENDIX: KEY METRICS REFERENCE
+==============================================================
+
+SLIDE CONTENT
+  APPENDIX
+
+  Platform metrics (measured, production stack):
+    Response latency (p95, 1 CPU pod):   6.3 ms
+    Cost per learner / month (5M DAU):   $0.0012
+    HPA scale range (per service):       3 to 30 replicas
+    Peak capacity (single region):       ~50,000 RPS
+    Languages supported (TTS+ASR+UI):   27
+    Automated test coverage:             739 tests passing (0.10.0)
+    Services in production:              7 microservices
+
+  Market sources:
+    TAM ($7.3T):  UNESCO Global Education Monitoring Report 2023;
+                   OECD Education at a Glance 2023
+    SAM ($340B):  HolonIQ EdTech Intelligence; GSV Ventures 2024
+    SOM ($18B):   Grand View Research, AI in Education Market 2024;
+                   MarketsandMarkets EdTech AI 2024-2030
+    CAGR (14.3%): HolonIQ Global EdTech Market Outlook 2024-2030
+    Jobs gap:     WEF Future of Jobs Report 2023 (85M unfilled by 2030)
+    Teacher shortage: UNESCO "No teacher, no class" 2024 report
+    Lost productivity: McKinsey Global Institute, Education & GDP 2023
+
+  Comparable exits / benchmarks:
+    Duolingo IPO 2021: $5.6B market cap, $250M ARR at listing
+    Coursera IPO 2021: $4.3B market cap
+    Chegg 2013-2022 peak: $12.8B market cap
+    2U (EdX acquisition): $800M transaction
+    Squirrel AI Series C: $100M (China, adaptive only)
+    Byju's peak (India): $22B valuation (cautionary tale on unit econ)
+
+  Competitive feature sources:
+    Khan Academy / Khanmigo feature set: khanacademy.org/khanmigo, 2024
+    Duolingo Max: blog.duolingo.com/duolingo-max, 2024
+    Coursera Coach: coursera.org, 2024
+    Synthesis: synthesis.com, 2024
+    Squirrel AI: squirrelai.com, 2024
+
+
+==============================================================
+VIDEO PRODUCTION NOTES
+==============================================================
+
+OPENING VIDEO (use provided "Salareen Unteachable Wisdom" video)
+  Purpose: replace slides 0-1 with a cinematic 60-90 second
+  introductory story that builds emotional investment before
+  the pitch begins.
+  Placement: Play in full before slide 2 (The Problem).
+  If not available: use the classroom-of-1825 section from
+  docs/demos/salareen_investor_pitch.mp4 (0:00-0:06 segment)
+  expanded with the narrative from slide 1 above.
+
+DEMO VIDEO (embed at slide 3)
+  Suggested clip sequence for a 45-second product demo:
+  1. docs/demos/netflix_ui_walkthrough.mp4 (0:00-0:08)
+     — Netflix-style browsing experience
+  2. docs/demos/persona_live_ai_class_student.gif animated
+     — live AI class in progress
+  3. docs/demos/drive_mode_audio_courses_demo.gif
+     — Drive Mode audio player
+  4. docs/demos/language_learning_demo.gif
+     — multilingual selector + lesson
+  5. docs/demos/careers_jobs_matching_demo.gif
+     — careers dashboard
+  6. docs/demos/kids_mode_platform_demo.gif
+     — kids safe mode
+
+CLOSING VIDEO (use docs/demos/salareen_investor_pitch.mp4 closing section)
+  End of slide 11: the final "200 years of school" outro from the
+  investor pitch video provides the cinematic close.
+
+PRODUCTION FORMAT
+  Slides: 16:9 widescreen, 1920x1080, dark background (#0b1020)
+  Brand colors: Gold (#C9A03C), White (#F5F5F5), Dark (#0b1020)
+  Font: Inter or equivalent clean sans-serif
+  Video: H.264 MP4, 1080p, 30fps minimum
+  Duration target: 10-12 minutes total for a full live pitch
+  Self-running deck target: 4-5 minutes with narration baked in
+
+
+==============================================================
+SPEAKER TIPS
+==============================================================
+
+- Start with the story (Unteachable Wisdom video or classroom-of-1825
+  narrative). Do not lead with a company name or funding ask.
+- Pause after "What if every learner had their own teacher?" — let it
+  land. It is the thesis of the company in one sentence.
+- The competitive slide is the most important trust-building moment.
+  Acknowledge competitors genuinely. Investors know if you're bluffing.
+- On the $0.0012 cost figure: say it slowly, spell it out. It will
+  not be believed unless you explain it is measured on the actual
+  production stack.
+- Close by returning to the opening story. If you began with a
+  child being left behind in 1825, end by naming what their life
+  looks like with Salareen. Make it human, not a number.
+- The ask is the last thing you say, not the first. Investors fund
+  missions, then they evaluate returns. Give them the mission first.

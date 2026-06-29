@@ -5,12 +5,14 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useFlag } from "../lib/flags";
 
 const COURSE_SECONDS = 60; // compressed demo runtime for the simulated player
 const AD_FREE_TIERS = new Set(["pro", "premium"]);
 
 function WatchInner() {
   const { t } = useT();
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const params = useSearchParams();
   const [courses, setCourses] = useState<CatalogCourse[]>([]);
   const [courseId, setCourseId] = useState(params.get("course") ?? "");
@@ -61,6 +63,13 @@ function WatchInner() {
   async function start() {
     if (!courseId) return;
     setError(""); setContentTime(0); playedMidrolls.current = new Set(); log.current = [];
+    // monetization.video_ads off => no ad breaks for anyone, regardless of tier.
+    if (!adsEnabled) {
+      setPlan({ course_id: courseId, tier, ad_free: true, breaks: [] });
+      note("Ads disabled platform-wide (monetization.video_ads off)");
+      setPlaying(true);
+      return;
+    }
     const p = await getAdBreaks(courseId, tier).catch((e) => { setError(String(e)); return null; });
     if (!p) return;
     setPlan(p);

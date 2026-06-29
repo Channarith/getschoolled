@@ -2,6 +2,80 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-27 - Version 0.10.0 (autobump). Web/mobile VERSION, package.json,
+  version.ts, app.json synced to 0.10.0 (supersedes the interim 0.9.5 bump).
+- 2026-06-27 - Add investor pitch deck video generator (scripts/generate_pitch_video.py)
+  and output video (docs/demos/salareen_pitch_deck_2026.mp4, 3m09s, 1080p H.264).
+  25 rendered clips across 14 segments: cover, opening story, problem/market stats, 5
+  product demos (live class, Drive Mode, languages, careers, kids), platform tour, UVP
+  with numbers, market TAM/SAM/SOM, traction, business model, competition, team,
+  financials, the ask with milestones, and closing. Dark-branded slides + xfade transitions.
+
+- 2026-06-27 - Add investor pitch deck materials (docs/pitch/): full 12-slide pitch
+  deck script with speaker notes and visual direction covering problem, solution, TAM/
+  SAM/SOM ($7.3T / $340B / $18B), traction, business model, competitive landscape,
+  team, 3-year financial projections (Year 3: $86.4M ARR, 75% gross margin), and
+  $5M Seed SAFE ask. Video narration script (4m30s) with voice/music/b-roll direction
+  for the self-running investor video. References existing demo assets and the
+  "Salareen Unteachable Wisdom" opening video.
+
+- 2026-06-27 - Version 0.10.0 (minor bump; supersedes 0.9.5 — 18 pending changelog
+  entries exceeded the >8 minor-bump threshold). Incorporates all cognitive training
+  agents, feature-flags wire-up, kubeconfig security fix, and all prior 0.9.x changes.
+
+- 2026-06-27 - Version 0.9.5 (autobump: >8 features changed). Web/mobile VERSION,
+  package.json, version.ts, app.json synced to 0.9.5.
+
+- 2026-06-27 - Feature flags now actually take effect in the web UI. Added a central
+  client flags provider (apps/web/app/lib/flags.tsx: FlagsProvider + useFlag/useFlags)
+  that bulk-evaluates /flags/evaluate (bucketed on the signed-in account id + tier),
+  also fetches the admin-only ops kill-switches via /flags/<key>, and re-resolves on
+  auth/storage changes. Mounted in app/layout.tsx. Newly wired flags:
+    * ops.maintenance_mode / ops.read_only_mode -> site-wide MaintenanceBanner.
+    * ops.new_signups -> login page hides the signup toggle, forces sign-in mode,
+      and blocks signup submission when paused.
+    * monetization.video_ads -> AdSlot renders nothing and watch/page skips ad
+      breaks for everyone when off (independent of tier).
+    * ux.netflix_carousels -> home feed shows carousels when on, a flat course grid
+      when off.
+    * access.educator_console -> /console page guard + hides the console button on
+      the account page (mirrors the existing access.homework_grader pattern).
+  Note: engagement.post_class_survey / pulse_survey / onboarding_survey,
+  ux.locale_mascots and data.multidim_datamart were already enforced server-side in
+  the memory service; they appeared inert only because flag writes were 404ing (see
+  the toggle-fallback fix), and now respond to the admin toggles.
+- 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
+  (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
+  SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
+  RapidDecisionAgent (time-pressured drills, pressure calibration, After-Decision Review),
+  EmergencyScenarioAgent (full simulation: aircraft emergency landing, anaphylaxis,
+  ransomware incident; plus After Action Review generation), MentalReadinessAgent
+  (pre-mortem analysis, mental rehearsal scripts, Threat & Error Management, stress
+  inoculation, emotional regulation check-in), and BehaviorAdaptationAgent + CognitiveTrainer
+  master facade. All agents are wellness-sensitive: stressed/unwell learners are
+  wellness-gated from high-pressure scenarios and receive restorative exercises.
+  New meeting_agents roles: COGNITIVE_COACH, CRITICAL_THINKING_TRAINER,
+  SITUATIONAL_AWARENESS_TRAINER, RAPID_DECISION_TRAINER, EMERGENCY_SCENARIO_TRAINER,
+  MENTAL_READINESS_TRAINER. New orchestrator REST API at /api/cognitive/* (19 endpoints).
+  New sample curriculum: emergency-critical-thinking, situational-awareness-training,
+  rapid-decision-making. 139 new tests all passing.
+
+- 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
+  (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
+  SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
+  RapidDecisionAgent (time-pressured drills, pressure calibration, After-Decision Review),
+  EmergencyScenarioAgent (full simulation: aircraft emergency landing, anaphylaxis,
+  ransomware incident; plus After Action Review generation), MentalReadinessAgent
+  (pre-mortem analysis, mental rehearsal scripts, Threat & Error Management, stress
+  inoculation, emotional regulation check-in), and BehaviorAdaptationAgent + CognitiveTrainer
+  master facade. All agents are wellness-sensitive: stressed/unwell learners are
+  wellness-gated from high-pressure scenarios and receive restorative exercises.
+  New meeting_agents roles: COGNITIVE_COACH, CRITICAL_THINKING_TRAINER,
+  SITUATIONAL_AWARENESS_TRAINER, RAPID_DECISION_TRAINER, EMERGENCY_SCENARIO_TRAINER,
+  MENTAL_READINESS_TRAINER. New orchestrator REST API at /api/cognitive/* (19 endpoints).
+  New sample curriculum: emergency-critical-thinking, situational-awareness-training,
+  rapid-decision-making. 139 new tests all passing.
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is
@@ -15,6 +89,11 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Merge main into the training-agents branch; make orchestrator
+  curriculum _parse_ksb tolerant of both KSB schemas (the legacy {code: {...}}
+  map AND a list of {id/code, title/description/statement} objects). This fixes
+  orchestrator teaching tests that broke on main after a curriculum pack shipped
+  list-shaped duties. Resolved version files to a fresh 0.10.1.
 - 2026-06-29 - Market intelligence + investor value model and datamining pipeline.
   New aoep_shared/market_intel.py: a cited, growable corpus of education/EdTech
   market reference points (market sizes, growth, public spend, per-student value,
@@ -137,6 +216,14 @@ Format: newest first. No markdown per project convention.
   AI Presenter, and AI Chatbot are documented in the canonical agent roster.
   Orchestrator exposes /api/agents/roster and /api/training/*; dashboard lists all
   agents. Sample curriculum: aviation-emergency-basics. CLI: training_agents_lab.py.
+- 2026-06-27 - Admin Feature Flags: toggling now works even when the operator-admin
+  session/BFF is unavailable. patch() (flag writes) now mirrors load(): it tries the
+  /api/admin BFF when a token is present but falls back to the direct, ingress-proxied
+  /memory/admin/flags path with the entered secret. Previously a stale/expired session
+  made every toggle PUT /api/admin/flags/<key> 404 with no fallback. Error text now
+  prompts to enter the admin secret (88888888) if the session expired.
+
+- 2026-06-27 - Admin Feature Flags: enlarged the show/hide eye icon on the admin-
   secret field (EyeIcon now takes a size prop; admin uses 26px in a wider hit area).
   Memory admin auth now also accepts the platform admin password (88888888 /
   DEFAULT_ADMIN_PASSWORD) in addition to ADMIN_SECRET, so operators can unlock the
