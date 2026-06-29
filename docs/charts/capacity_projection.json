@@ -1,0 +1,304 @@
+{
+  "tiers": [
+    {
+      "dau": 10,
+      "concurrent_users": 0.31,
+      "avg_aggregate_rps": 0.41,
+      "peak_aggregate_rps": 0.81,
+      "p95_ms": 6.3,
+      "total_pods_peak": 21,
+      "regions_needed": 1,
+      "single_region_ok": true,
+      "services": {
+        "curriculum": {
+          "share": 0.4,
+          "peak_rps": 0.33,
+          "origin_peak_rps": 0.07,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "orchestrator": {
+          "share": 0.25,
+          "peak_rps": 0.2,
+          "origin_peak_rps": 0.2,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "identity": {
+          "share": 0.15,
+          "peak_rps": 0.12,
+          "origin_peak_rps": 0.11,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "memory": {
+          "share": 0.1,
+          "peak_rps": 0.08,
+          "origin_peak_rps": 0.08,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "speech": {
+          "share": 0.05,
+          "peak_rps": 0.04,
+          "origin_peak_rps": 0.04,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "perception": {
+          "share": 0.03,
+          "peak_rps": 0.02,
+          "origin_peak_rps": 0.02,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "billing": {
+          "share": 0.02,
+          "peak_rps": 0.02,
+          "origin_peak_rps": 0.02,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "dau": 100,
+      "concurrent_users": 3.12,
+      "avg_aggregate_rps": 4.06,
+      "peak_aggregate_rps": 8.12,
+      "p95_ms": 6.3,
+      "total_pods_peak": 21,
+      "regions_needed": 1,
+      "single_region_ok": true,
+      "services": {
+        "curriculum": {
+          "share": 0.4,
+          "peak_rps": 3.25,
+          "origin_peak_rps": 0.65,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "orchestrator": {
+          "share": 0.25,
+          "peak_rps": 2.03,
+          "origin_peak_rps": 2.03,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "identity": {
+          "share": 0.15,
+          "peak_rps": 1.22,
+          "origin_peak_rps": 1.1,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "memory": {
+          "share": 0.1,
+          "peak_rps": 0.81,
+          "origin_peak_rps": 0.81,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "speech": {
+          "share": 0.05,
+          "peak_rps": 0.41,
+          "origin_peak_rps": 0.41,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "perception": {
+          "share": 0.03,
+          "peak_rps": 0.24,
+          "origin_peak_rps": 0.24,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "billing": {
+          "share": 0.02,
+          "peak_rps": 0.16,
+          "origin_peak_rps": 0.16,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "dau": 1000,
+      "concurrent_users": 31.25,
+      "avg_aggregate_rps": 40.62,
+      "peak_aggregate_rps": 81.25,
+      "p95_ms": 6.3,
+      "total_pods_peak": 21,
+      "regions_needed": 1,
+      "single_region_ok": true,
+      "services": {
+        "curriculum": {
+          "share": 0.4,
+          "peak_rps": 32.5,
+          "origin_peak_rps": 6.5,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "orchestrator": {
+          "share": 0.25,
+          "peak_rps": 20.31,
+          "origin_peak_rps": 20.31,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "identity": {
+          "share": 0.15,
+          "peak_rps": 12.19,
+          "origin_peak_rps": 10.97,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "memory": {
+          "share": 0.1,
+          "peak_rps": 8.12,
+          "origin_peak_rps": 8.12,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "speech": {
+          "share": 0.05,
+          "peak_rps": 4.06,
+          "origin_peak_rps": 4.06,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "perception": {
+          "share": 0.03,
+          "peak_rps": 2.44,
+          "origin_peak_rps": 2.44,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "billing": {
+          "share": 0.02,
+          "peak_rps": 1.62,
+          "origin_peak_rps": 1.62,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "dau": 1000000,
+      "concurrent_users": 31250.0,
+      "avg_aggregate_rps": 40625.0,
+      "peak_aggregate_rps": 81250.0,
+      "p95_ms": 6.3,
+      "total_pods_peak": 61,
+      "regions_needed": 1,
+      "single_region_ok": true,
+      "services": {
+        "curriculum": {
+          "share": 0.4,
+          "peak_rps": 32500.0,
+          "origin_peak_rps": 6500.0,
+          "pods_needed": 7,
+          "pods_per_region": 7,
+          "regions": 1,
+          "saturated": false
+        },
+        "orchestrator": {
+          "share": 0.25,
+          "peak_rps": 20312.5,
+          "origin_peak_rps": 20312.5,
+          "pods_needed": 22,
+          "pods_per_region": 22,
+          "regions": 1,
+          "saturated": false
+        },
+        "identity": {
+          "share": 0.15,
+          "peak_rps": 12187.5,
+          "origin_peak_rps": 10968.75,
+          "pods_needed": 12,
+          "pods_per_region": 12,
+          "regions": 1,
+          "saturated": false
+        },
+        "memory": {
+          "share": 0.1,
+          "peak_rps": 8125.0,
+          "origin_peak_rps": 8125.0,
+          "pods_needed": 9,
+          "pods_per_region": 9,
+          "regions": 1,
+          "saturated": false
+        },
+        "speech": {
+          "share": 0.05,
+          "peak_rps": 4062.5,
+          "origin_peak_rps": 4062.5,
+          "pods_needed": 5,
+          "pods_per_region": 5,
+          "regions": 1,
+          "saturated": false
+        },
+        "perception": {
+          "share": 0.03,
+          "peak_rps": 2437.5,
+          "origin_peak_rps": 2437.5,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        },
+        "billing": {
+          "share": 0.02,
+          "peak_rps": 1625.0,
+          "origin_peak_rps": 1625.0,
+          "pods_needed": 3,
+          "pods_per_region": 3,
+          "regions": 1,
+          "saturated": false
+        }
+      }
+    }
+  ]
+}

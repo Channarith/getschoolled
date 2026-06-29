@@ -1,0 +1,50 @@
+PROJECTED ECOSYSTEM PERFORMANCE BY USER TIER
+============================================================
+Model: Little's law concurrency, 1.3 RPS/user, 2x peak,
+940 RPS/pod @ p95 6.3 ms (measured), HPA 3..30 pods/service,
+CDN absorbs ~80% of curriculum reads. Source: docs/scalability.txt
+
+   Daily users |  Concurrent |   Peak RPS |     p95 | Pods(peak) | Regions | 1-region?
+--------------------------------------------------------------------------------------
+            10 |           0 |          1 |   6.3 ms |         21 |       1 |       yes
+           100 |           3 |          8 |   6.3 ms |         21 |       1 |       yes
+         1,000 |          31 |         81 |   6.3 ms |         21 |       1 |       yes
+     1,000,000 |      31,250 |     81,250 |   6.3 ms |         61 |       1 |       yes
+
+Per-service peak RPS (and pods needed) at each tier:
+
+  10 daily users (peak 1 RPS):
+    curriculum             0 RPS  -> origin          0 RPS  ->  3 pods
+    orchestrator           0 RPS  -> origin          0 RPS  ->  3 pods
+    identity               0 RPS  -> origin          0 RPS  ->  3 pods
+    memory                 0 RPS  -> origin          0 RPS  ->  3 pods
+    speech                 0 RPS  -> origin          0 RPS  ->  3 pods
+    perception             0 RPS  -> origin          0 RPS  ->  3 pods
+    billing                0 RPS  -> origin          0 RPS  ->  3 pods
+
+  100 daily users (peak 8 RPS):
+    curriculum             3 RPS  -> origin          1 RPS  ->  3 pods
+    orchestrator           2 RPS  -> origin          2 RPS  ->  3 pods
+    identity               1 RPS  -> origin          1 RPS  ->  3 pods
+    memory                 1 RPS  -> origin          1 RPS  ->  3 pods
+    speech                 0 RPS  -> origin          0 RPS  ->  3 pods
+    perception             0 RPS  -> origin          0 RPS  ->  3 pods
+    billing                0 RPS  -> origin          0 RPS  ->  3 pods
+
+  1,000 daily users (peak 81 RPS):
+    curriculum            32 RPS  -> origin          6 RPS  ->  3 pods
+    orchestrator          20 RPS  -> origin         20 RPS  ->  3 pods
+    identity              12 RPS  -> origin         11 RPS  ->  3 pods
+    memory                 8 RPS  -> origin          8 RPS  ->  3 pods
+    speech                 4 RPS  -> origin          4 RPS  ->  3 pods
+    perception             2 RPS  -> origin          2 RPS  ->  3 pods
+    billing                2 RPS  -> origin          2 RPS  ->  3 pods
+
+  1,000,000 daily users (peak 81,250 RPS):
+    curriculum        32,500 RPS  -> origin      6,500 RPS  ->  7 pods
+    orchestrator      20,312 RPS  -> origin     20,312 RPS  -> 22 pods
+    identity          12,188 RPS  -> origin     10,969 RPS  -> 12 pods
+    memory             8,125 RPS  -> origin      8,125 RPS  ->  9 pods
+    speech             4,062 RPS  -> origin      4,062 RPS  ->  5 pods
+    perception         2,438 RPS  -> origin      2,438 RPS  ->  3 pods
+    billing            1,625 RPS  -> origin      1,625 RPS  ->  3 pods

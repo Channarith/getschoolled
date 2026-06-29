@@ -15,6 +15,14 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Ecosystem performance projection chart. New
+  scripts/capacity_projection.py turns the docs/scalability.txt measured baseline
+  (940 RPS/pod @ p95 6.3 ms, 1.3 RPS/user, Little's-law concurrency, 2x peak, HPA
+  3-30 pods/service, ~80% CDN offload on catalog reads) into a per-tier projection
+  for 10 / 100 / 1,000 / 1,000,000 daily users. Renders a dependency-free SVG chart
+  (docs/charts/capacity_projection.svg), a plain-text table (docs/capacity-projection.txt),
+  and JSON. Result: 1M DAU = 31,250 concurrent, ~81,250 peak RPS, ~61 pods, p95 6.3 ms,
+  single region. Tests in scripts/tests/test_capacity_projection.py.
 - 2026-06-29 - Expand regression coverage for course scoring + telemetry. Added
   edge-case tests in packages/shared/tests/test_course_scoring.py (published-PCS
   breakdown match, normalized-weight sum, override delete persistence, negative-
