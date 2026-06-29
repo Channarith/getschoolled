@@ -1,6 +1,32 @@
 CHANGELOG - Agentic Online Education Platform
 =============================================
-Format: newest first. No markdown per project convention.
+Format: newest first, no markdown per project convention. Entries are grouped
+under a versioned, dated release header: [x.y.z] - YYYY-MM-DD (newest first),
+with [unreleased] holding changes not yet shipped in a numbered build. Each
+bullet also keeps its own - YYYY-MM-DD - date prefix so the version and date
+always line up. New work goes under [unreleased]; scripts/build_release.py
+rolls it into a [version] - date section on release.
+
+[unreleased]
+- (no changes yet)
+
+[0.11.0] - 2026-06-29
+- 2026-06-29 - Changelog now correlates version with date: entries are grouped
+  under [version] - date release headers (newest first) with an [unreleased]
+  block on top, matching scripts/build_release.py's roller. Restructured the
+  drifted flat top region (recent entries had been prepended ABOVE the stray
+  [unreleased] header with no version tag) into [0.11.0] plus an accumulated
+  [0.4.1 - 0.10.2] section; older [0.4.0]-and-below sections were already
+  versioned and are unchanged. Updated the file's format note.
+
+- 2026-06-29 - Web build now stamps the real version into the client bundle so
+  the deployed UI always shows the built version (fixes the UI showing a stale
+  v0.10.1). apps/web/Dockerfile reads --build-arg APP_VERSION (falls back to the
+  repo VERSION file) and sets NEXT_PUBLIC_APP_VERSION before `next build`;
+  deploy.yml passes APP_VERSION for the web image (also busts the build cache on
+  version change); infra/compose builds web from the repo root so it can read
+  VERSION too. version.ts already preferred NEXT_PUBLIC_APP_VERSION over the
+  committed GENERATED_VERSION.
 
 - 2026-06-29 - Our Story page mascot (apps/web/public/salareen-mascot.webp) was
   still the old line-art face; regenerate it as the transparent medallion-S Bayon
@@ -28,8 +54,10 @@ Format: newest first. No markdown per project convention.
   monogram is demoted to wordmark/1-color print only; build_brand_assets.py no
   longer overwrites the web icons. branding.txt + README brand table updated.
 
+[0.4.1 - 0.10.2] - 2026-06-23 to 2026-06-29 (accumulated interim releases between 0.4.0 and 0.11.0; never individually version-rolled, per-entry dates retained)
 - 2026-06-27 - Version 0.10.0 (autobump). Web/mobile VERSION, package.json,
   version.ts, app.json synced to 0.10.0 (supersedes the interim 0.9.5 bump).
+
 - 2026-06-27 - Add investor pitch deck video generator (scripts/generate_pitch_video.py)
   and output video (docs/demos/salareen_pitch_deck_2026.mp4, 3m09s, 1080p H.264).
   25 rendered clips across 14 segments: cover, opening story, problem/market stats, 5
@@ -70,6 +98,7 @@ Format: newest first. No markdown per project convention.
   ux.locale_mascots and data.multidim_datamart were already enforced server-side in
   the memory service; they appeared inert only because flag writes were 404ing (see
   the toggle-fallback fix), and now respond to the admin toggles.
+
 - 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
   (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
   SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
@@ -110,11 +139,13 @@ Format: newest first. No markdown per project convention.
   script deleted. Version bumping is now an explicit, optional step at release
   time via scripts/bump_pr_version.py (docs/release-testing.txt updated). The
   Auto Push Build + Release workflows still pick up VERSION when it does change.
+
 - 2026-06-24 - Admin accounts default to VIP billing. seed_admin now seeds the
   operator account at the PREMIUM tier (membership_class "vip"), so admins get
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+
 - 2026-06-29 - Consolidate the two parallel training/cognitive stacks under one
   canonical home. training_agents now re-exports the cognitive_trainer engines
   (CognitiveTrainer, CognitiveLearnerProfile, LearningPattern,
@@ -127,11 +158,13 @@ Format: newest first. No markdown per project convention.
   endpoint gives one unified directory of both suites. Fixed a latent bug in
   meeting_agents RapidDecisionTrainerAgent.deliver_drill (DecisionOption.label/
   .text instead of .action_id). The /api/cognitive/* routes remain for back-compat.
+
 - 2026-06-29 - Merge main into the training-agents branch; make orchestrator
   curriculum _parse_ksb tolerant of both KSB schemas (the legacy {code: {...}}
   map AND a list of {id/code, title/description/statement} objects). This fixes
   orchestrator teaching tests that broke on main after a curriculum pack shipped
   list-shaped duties. Resolved version files to a fresh 0.10.1.
+
 - 2026-06-29 - Market intelligence + investor value model and datamining pipeline.
   New aoep_shared/market_intel.py: a cited, growable corpus of education/EdTech
   market reference points (market sizes, growth, public spend, per-student value,
@@ -147,6 +180,7 @@ Format: newest first. No markdown per project convention.
   /market/meta, /market/regions, /market/references, /market/projection. NOTE:
   live web scraping requires outbound network egress to be enabled; the seed
   figures are real public estimates that must be verified before investor use.
+
 - 2026-06-29 - Ecosystem performance projection chart. New
   scripts/capacity_projection.py turns the docs/scalability.txt measured baseline
   (940 RPS/pod @ p95 6.3 ms, 1.3 RPS/user, Little's-law concurrency, 2x peak, HPA
@@ -155,6 +189,7 @@ Format: newest first. No markdown per project convention.
   (docs/charts/capacity_projection.svg), a plain-text table (docs/capacity-projection.txt),
   and JSON. Result: 1M DAU = 31,250 concurrent, ~81,250 peak RPS, ~61 pods, p95 6.3 ms,
   single region. Tests in scripts/tests/test_capacity_projection.py.
+
 - 2026-06-29 - Expand regression coverage for course scoring + telemetry. Added
   edge-case tests in packages/shared/tests/test_course_scoring.py (published-PCS
   breakdown match, normalized-weight sum, override delete persistence, negative-
@@ -163,6 +198,7 @@ Format: newest first. No markdown per project convention.
   full gate: backend matrix 1401 tests + coverage PASS, web typecheck/lint/build
   PASS, api-stress smoke PASS (qa/regression.py). Note: apps/web and apps/mobile
   still have no JS unit-test runner (validated via typecheck+lint+build only).
+
 - 2026-06-29 - Course-scoring admin: review, manually edit, override, and tune the
   numpy composition scoring. New aoep_shared/course_scoring.py adds (1) an editable,
   JSON-persisted ScoringConfig (quality-index weights, depth target, quality label
@@ -176,6 +212,7 @@ Format: newest first. No markdown per project convention.
   observed happiness. Curriculum service exposes /scoring/breakdown, /scoring/config
   (GET/PUT), /scoring/overrides, /scoring/telemetry, /scoring/leaderboard,
   /scoring/compare, and /scoring/recommend (mutations gated by require_internal).
+
 - 2026-06-29 - Data-driven growth system to scale content by orders of magnitude
   without code changes. New aoep_shared/content_packs.py discovers and merges
   JSON/JSONL packs (kinds: knowledge, slang, scenarios, courses, presentation)
@@ -192,6 +229,7 @@ Format: newest first. No markdown per project convention.
   New APIs: /api/training/growth, /api/language/readability,
   /api/presentation/techniques, /api/presentation/skill-plan; knowledge meta now
   reports builtin/from_packs counts.
+
 - 2026-06-28 - Persist the safety knowledge base to an embedded SQLite database so
   it is always available and durable across restarts. New knowledge_store.py builds
   a file-based SQLite DB (FTS5 full-text search when available, LIKE fallback)
@@ -202,6 +240,7 @@ Format: newest first. No markdown per project convention.
   gitignored and regenerated). Knowledge search/sources/meta now run against the
   store; added GET /api/training/knowledge/status and a store block in
   /api/training/knowledge/meta. Build/pre-warm via scripts/build_knowledge_db.py.
+
 - 2026-06-27 - Ground every training scenario in real, cited safety data. New
   knowledge_base.py is a curated corpus of authoritative facts, procedures,
   regulations, and published statistics attributed to their issuing bodies (FAA
@@ -216,6 +255,7 @@ Format: newest first. No markdown per project convention.
   query), /api/training/knowledge/meta, /api/training/knowledge/sources, and
   /api/training/scenarios/{id} (full scenario with references); session views now
   include references. Build/dump via scripts/build_knowledge_base.py.
+
 - 2026-06-27 - Procedural safety-scenario engine: millions of addressable
   situations across road (car, motorcycle, truck, bus), rail (train + subway/
   transit), micromobility (bicycle, e-scooter), marine (boats + paddle/PWC),
@@ -245,6 +285,7 @@ Format: newest first. No markdown per project convention.
   scenario_catalog.json; build via scripts/build_scenario_catalog.py. API adds
   /api/training/catalog, /api/training/domains, and paginated /api/training/scenarios
   (domain, skill, q, offset, limit filters).
+
 - 2026-06-27 - Training agents for sensitive coaching beyond answer delivery.
   Added aoep_shared.training_agents with six coaches: Learning Behavior (adaptive
   pace, frustration/wellness sensitivity), Critical Thinking (Socratic probes),
@@ -254,6 +295,7 @@ Format: newest first. No markdown per project convention.
   AI Presenter, and AI Chatbot are documented in the canonical agent roster.
   Orchestrator exposes /api/agents/roster and /api/training/*; dashboard lists all
   agents. Sample curriculum: aviation-emergency-basics. CLI: training_agents_lab.py.
+
 - 2026-06-27 - Admin Feature Flags: toggling now works even when the operator-admin
   session/BFF is unavailable. patch() (flag writes) now mirrors load(): it tries the
   /api/admin BFF when a token is present but falls back to the direct, ingress-proxied
@@ -364,6 +406,7 @@ Format: newest first. No markdown per project convention.
   on the teaching hot path, logs swallowed failures at debug (so a misconfigured
   MEMORY_URL is diagnosable), and reengage degrades gracefully on a zero-slide
   lesson instead of 500ing.
+
 - Local dev launcher + live-integration wiring: new scripts/dev_up.sh (make
   dev-all) brings the WHOLE stack up natively - all 8 FastAPI services + the
   Next.js web app - in the background, wired together, idempotent, with health
@@ -375,7 +418,6 @@ Format: newest first. No markdown per project convention.
   services/identity/src/identity/persistence.py (duplicate membership_class kwarg)
   that prevented the identity service from starting. logs/ gitignored.
 
-[unreleased]
 - 2026-06-23 - Offline meeting agents lab: scripts/meeting_agents_lab.py exercises
   harvest → teach → present → Zoom/Teams/Meet bridge simulation with five agents
   (teacher, chat tutor, perception, interrupt host, moderator). Regional dialect
@@ -388,6 +430,7 @@ Format: newest first. No markdown per project convention.
   /membership/subscribe; billing GET /plans enriched with prices and GET
   /plans/consumer; web /billing page and account membership picker updated.
   Version 0.5.0 -> 0.5.1.
+
 - 2026-06-25 - Orchestrator: live-class sessions now use a shared session store
   (new orchestrator.sessions) instead of a per-pod in-memory dict, so a
   follow-up /api/sessions/{id}/advance|ask served by a different replica no
@@ -398,6 +441,7 @@ Format: newest first. No markdown per project convention.
   manifest change needed - REDIS_URL is already in the aoep-config ConfigMap).
   Tests cover both backends, the env factory, graceful fallback, and a two-pod
   simulation (shared store serves the session; separate stores reproduce the 404).
+
 - 2026-06-25 - Corporate training: added a KSB (Knowledge/Skills/Behaviours)
   framework that models each of the 11 corporate courses as a
   UK-apprenticeship-style occupational standard (occupation duties mapped to
@@ -411,6 +455,7 @@ Format: newest first. No markdown per project convention.
   Orchestrator: loads ksb.json per course, adds GET /api/lessons/{id}/ksb, and
   feeds duties/KSBs into the Tutor's RAG passages so the AI teacher can reference
   what a programme covers.
+
 - 2026-06-25 - Corporate training: built out the full Multiverse-style catalog with
   eight new AI-led programmes - AI-Powered Productivity (AI, L3), AI Solutions Builder
   (AI, L4), AI Transformation Architect (AI, L4), Data Fellowship (Data, L4),
@@ -418,28 +463,34 @@ Format: newest first. No markdown per project convention.
   L4), Java Software Engineering (Engineering, L4) and AI Product Engineering
   (Engineering, L6). 11 corporate programmes now grouped across AI/Data/Engineering
   tracks; content-only (no code change), redeployed orchestrator.
+
 - 2026-06-25 - Orchestrator: import fastapi Response at module scope so the
   /api/group-classes/{id}/calendar.ics route's return annotation resolves at
   startup (pydantic 2.7 raised PydanticUndefinedAnnotation, crash-looping the pod).
   Web: ClassRoom finish state is now a discriminated union (fixes a next build
   typecheck error). Version 0.4.2 -> 0.4.3.
+
 - 2026-06-25 - Corporate training: Multiverse-style AI-led programme catalog. New
   lessons "Data & Insights for Business Decisions" (Data) and "AI and Machine
   Learning Fellowship" (AI); optional lesson catalog metadata (TRACK/LEVEL/ROLE/
   DELIVERY/FIT/SUMMARY) parsed by the orchestrator and rendered as cards grouped
   by track on /corporate. Added scripts/make_corporate_lesson.py to generate
   lesson.txt from an openly-licensed outline (e.g. apprenticeship-standard KSBs).
+
 - 2026-06-25 - Mobile (Expo Go): fixed dynamic require() in src/nativeModules.ts
   that broke Metro bundling (literal requires for the optional native modules).
+
 - 2026-06-25 - Auto-merge no longer deletes the merged branch (dropped
   --delete-branch); merged PR branches are kept so releases can be monitored and
   correlated to their source branch.
+
 - 2026-06-25 - Release automation: cut a release after Auto-merge lands a PR.
   Auto-merge merges with the built-in GITHUB_TOKEN, whose pushes do not fire the
   Release workflow's push trigger (GitHub anti-recursion), so auto-merged PRs
   (e.g. v0.4.5) shipped to main without a tag/release. Release now also runs on
   the Auto-merge workflow completing successfully; it still checks out main and
   is idempotent (skips if the tag already exists).
+
 - 2026-06-25 - Locale mascots now vary by physique + pose, not just colour. Each
   of the 27 languages gets its own base carving with a slightly different build
   and arm/leg placement (e.g. sw broad grounded kneel, ja lean upright kneel, hi
@@ -450,10 +501,12 @@ Format: newest first. No markdown per project convention.
   carvings; km base = canonical master), rewires scripts/generate_locale_mascots.py
   to tint each base, regenerates all web + mobile {locale}.webp + the mobile
   manifest, and adds a 27-locale contact sheet (docs/screens/mascots_locale_variants.webp).
+
 - 2026-06-25 - Fix web typecheck (tsc) errors. ClassRoom finish state is now a
   discriminated union so the "earned" branch guarantees earned/balance are
   numbers (not number|undefined); rewards page coerces a nullable raffle entry id
   to a string before interpolation. Unblocks `pnpm run typecheck` in CI.
+
 - 2026-06-25 - Fix curriculum CI failures. /courses/{id}/ad-breaks now 404s for
   unknown ids (existence check no longer masked by the default duration). /recommend
   ranks over the managed catalog instead of the entire learnable universe, so a
@@ -462,6 +515,7 @@ Format: newest first. No markdown per project convention.
   locales, e.g. fr "Bienvenue") again, while only the factual bullets follow the
   en/es/zh training locale. Teaching orchestrator test treats the .pptx export as
   best-effort (only asserted when python-pptx is installed).
+
 - 2026-06-25 - Teaching flow tie-together (harvest -> teach -> present). Part 1->2
   bridge: aoep_shared.harvest.export writes a course as .pptx (narration in
   speaker notes) + .course.json so the external ppt_trainer agent reads it with
@@ -475,6 +529,7 @@ Format: newest first. No markdown per project convention.
   run_end_to_end orchestrator + scripts/teach_and_present.py CLI +
   scripts/validate_pipeline.py (13-check end-to-end smoke). Tests added for export,
   meeting providers/presenter/factory, and the offline end-to-end flow.
+
 - 2026-06-25 - Harvester PCS: formalized the course score as the Salareen
   Pedagogical Composition Score (PCS), a custom/patent-pending algorithm. Named
   the fixed formula constants (QUANT_RESOLUTION/STRUCT_NODE_COEFF/
@@ -483,6 +538,7 @@ Format: newest first. No markdown per project convention.
   design (mermaid) diagrams in README "Course Composition Score (PCS)", and
   cross-referenced it from the harvester RUNBOOK. Added a test pinning the
   published worked example (PCS 649).
+
 - 2026-06-25 - Harvester: quantifiable course composition + multi-source generation.
   New aoep_shared.harvest modules: extractors (text/html/url/pdf/pptx/docx/database),
   composition (numpy node/sub-node matrix -> deterministic composition_score "recipe
@@ -493,8 +549,10 @@ Format: newest first. No markdown per project convention.
   suggestions + optimize_with_ledger revertible quality tracking). harvester run.py
   gains --generate/--critique/--instructions CLI modes (offline). Tests added;
   numpy now a core aoep-shared dep; python-pptx/python-docx pinned (lazy import).
+
 - 2026-06-25 - i18n follow-up: jobs/careers, corporate, rewards, homework, legal,
   transparency, recommended, kids (locale feed), consent, arcade, languages, watch.
+
 - 2026-06-25 - Foresight /recommended: learnable-index courses + numpy in curriculum
   service (fixes 500). Watch/ad-breaks resolve learnable IDs (fixes 404). Careers
   USA location filter. Arcade rounds persist in Redis across replicas. Group classes:
@@ -502,6 +560,7 @@ Format: newest first. No markdown per project convention.
   (pro), qa-learner/parent standard (basic). Web Drive: 0.5–3x speed, draggable
   progress, voice replay on change, Ask-only (no Hey Sala). Mobile Drive: speed
   chips, visible format filters, safe voice engine init.
+
 - 2026-06-25 - i18n: login, account, and live class picker/ClassRoom UI translate on language
   switch; locale on curriculum home/browse/drive APIs; Our Story client component; mobile
   version sync (0.4.x) and Careers bottom tab.

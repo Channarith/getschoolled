@@ -164,8 +164,11 @@ services:
 
   web:
     build:
-      context: ../../apps/web
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Falls back to the repo VERSION file inside the Dockerfile when unset.
+        APP_VERSION: ${APP_VERSION:-}
     # No NEXT_PUBLIC_*_URL needed: the browser bundle derives backend URLs from
     # the page origin and same-origin path prefixes (see apps/web/app/lib/api.ts),
     # which the `edge` gateway rewrites to each service. Port 3000 stays exposed

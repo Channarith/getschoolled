@@ -85,9 +85,11 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
           password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
-      - name: Resolve tag
+      - name: Resolve tag + version
         id: tag
-        run: echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "tag=${{ github.event.inputs.tag || github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "app_version=$(cat VERSION 2>/dev/null || echo)" >> "$GITHUB_OUTPUT"
       - name: Build + push ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
@@ -97,6 +99,10 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ matrix.name }}:latest
             ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
+          # Stamp the real version into the web client bundle so the deployed UI
+          # always shows this build's version. The changing value also busts the
+          # build cache for the bundle step whenever the version changes.
+          build-args: ${{ matrix.name == 'web' && format('APP_VERSION={0}', steps.tag.outputs.app_version) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
