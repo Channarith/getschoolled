@@ -44,6 +44,14 @@ from .models import (
     TrainingSessionState,
 )
 from .roster import PLATFORM_AGENTS, PlatformAgent, agent_roster_dict, list_agents
+from .cognitive import (
+    BehaviorAdaptationAgent,
+    CognitiveLearnerProfile,
+    CognitiveTrainer,
+    LearningPattern,
+    cognitive_scenario_records,
+    scenarios_from_cognitive,
+)
 from .tracks import TRAINING_TRACKS, TrainingTrack, get_track, list_tracks, track_to_dict
 from .session import TrainingSession, TrainingSessionStore
 
@@ -51,7 +59,13 @@ __all__ = [
     "AgentTurn",
     "all_facts",
     "attach_references",
+    "BehaviorAdaptationAgent",
     "catalog_capacity",
+    "CognitiveLearnerProfile",
+    "CognitiveTrainer",
+    "cognitive_scenario_records",
+    "LearningPattern",
+    "scenarios_from_cognitive",
     "catalog_meta",
     "count_scenarios",
     "count_scenarios_for_track",

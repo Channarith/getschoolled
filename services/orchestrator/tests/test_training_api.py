@@ -51,6 +51,26 @@ def test_presentation_techniques_and_plan():
     assert all(p["techniques"] for p in plan)
 
 
+def test_training_capabilities_unifies_suites():
+    caps = client.get("/api/training/capabilities").json()
+    assert caps["canonical_package"] == "aoep_shared.training_agents"
+    assert "training" in caps["suites"] and "cognitive" in caps["suites"]
+    assert caps["suites"]["cognitive"]["api_prefix"] == "/api/cognitive"
+    assert len(caps["suites"]["cognitive"]["agents"]) == 6
+    assert caps["total_agents"] >= 13
+
+
+def test_roster_endpoint_includes_cognitive():
+    roles = {a["role_id"] for a in client.get("/api/agents/roster").json()}
+    assert "cognitive_coach" in roles
+    assert "emergency_scenario_trainer" in roles
+
+
+def test_unified_catalog_has_cognitive_scenarios():
+    body = client.get("/api/training/scenarios", params={"q": "em_av_engine_failure"}).json()
+    assert body["total"] >= 1
+
+
 def test_training_growth_status():
     g = client.get("/api/training/growth").json()
     assert g["knowledge_facts"] >= 130

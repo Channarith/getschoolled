@@ -341,6 +341,36 @@ class GrowthStatusResponse(BaseModel):
     content_packs: dict = Field(default_factory=dict)
 
 
+def training_capabilities() -> dict:
+    """One unified view of the whole training+cognitive suite (consolidated)."""
+    from aoep_shared.training_agents import agent_roster_dict, catalog_capacity, catalog_meta
+
+    roster = agent_roster_dict()
+    by_category: dict[str, list] = {}
+    for a in roster:
+        by_category.setdefault(a["category"], []).append(a["role_id"])
+    return {
+        "canonical_package": "aoep_shared.training_agents",
+        "suites": {
+            "training": {
+                "description": "Procedural scenario catalog, knowledge base, sessions, tracks.",
+                "api_prefix": "/api/training",
+                "scenario_catalog": catalog_meta()["count"],
+                "scenario_capacity": catalog_capacity().get("total_addressable", 0),
+                "agents": by_category.get("training", []),
+            },
+            "cognitive": {
+                "description": "Bloom/OODA/DECIDE, branching emergency sims + AAR, "
+                               "rapid-decision drills, mental readiness.",
+                "api_prefix": "/api/cognitive",
+                "agents": by_category.get("cognitive", []),
+            },
+        },
+        "agent_categories": {k: len(v) for k, v in by_category.items()},
+        "total_agents": len(roster),
+    }
+
+
 def growth_status() -> GrowthStatusResponse:
     from aoep_shared.content_packs import pack_summary
     from aoep_shared.presentation_skills import technique_count

@@ -358,7 +358,7 @@ class RapidDecisionTrainerAgent:
         )
         prompt = (
             f"[Rapid Decision — {allowed}s] {drill.situation}\n\n"
-            + "\n".join(f"  {o.action_id}: {o.label}" for o in drill.options)
+            + "\n".join(f"  {o.label}: {o.text}" for o in drill.options)
         )
         msg = humanize_narration(prompt, state.dialect, language=state.language)
         _log(state, AgentRole.RAPID_DECISION_TRAINER, "drill_delivered", msg,

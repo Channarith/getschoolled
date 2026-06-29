@@ -89,6 +89,18 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Consolidate the two parallel training/cognitive stacks under one
+  canonical home. training_agents now re-exports the cognitive_trainer engines
+  (CognitiveTrainer, CognitiveLearnerProfile, LearningPattern,
+  BehaviorAdaptationAgent) via training_agents/cognitive.py, the platform roster
+  (/api/agents/roster) gains the 6 cognitive agents (category "cognitive"), and
+  the cognitive stack's 13 curated high-fidelity scenarios/drills (engine-failure
+  sim, anaphylaxis, ransomware, OODA scenarios, rapid drills) are promoted into
+  the single /api/training/scenarios catalog via a committed cognitive_gold_v1
+  scenarios pack (scripts/build_cognitive_pack.py). New /api/training/capabilities
+  endpoint gives one unified directory of both suites. Fixed a latent bug in
+  meeting_agents RapidDecisionTrainerAgent.deliver_drill (DecisionOption.label/
+  .text instead of .action_id). The /api/cognitive/* routes remain for back-compat.
 - 2026-06-29 - Merge main into the training-agents branch; make orchestrator
   curriculum _parse_ksb tolerant of both KSB schemas (the legacy {code: {...}}
   map AND a list of {id/code, title/description/statement} objects). This fixes

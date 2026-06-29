@@ -913,6 +913,7 @@ from .training import (  # noqa: E402
     respond_training_session,
     tick_training_session,
     track_scenarios,
+    training_capabilities,
 )
 
 
@@ -992,6 +993,12 @@ def training_knowledge_status() -> KnowledgeStoreStatus:
 def training_growth() -> GrowthStatusResponse:
     """Aggregate growth metrics across knowledge, scenarios, slang, presentation, packs."""
     return growth_status()
+
+
+@app.get("/api/training/capabilities")
+def training_capabilities_endpoint() -> dict:
+    """Unified directory of the consolidated training + cognitive agent suites."""
+    return training_capabilities()
 
 
 @app.get("/api/language/readability")

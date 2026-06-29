@@ -111,6 +111,50 @@ PLATFORM_AGENTS: Tuple[PlatformAgent, ...] = (
         "Emergency procedures (e.g. sim airplane engine-out landing, triage, evacuation).",
         "active",
     ),
+    # Cognitive training suite (consolidated from the cognitive_trainer engines;
+    # served via /api/cognitive/*; richer pedagogy: Bloom, OODA/DECIDE, AAR sims).
+    PlatformAgent(
+        "Cognitive Coach",
+        "cognitive_coach",
+        "cognitive",
+        "Detects cross-session learning patterns and routes the next session by wellness.",
+        "active",
+    ),
+    PlatformAgent(
+        "Critical Thinking Trainer",
+        "critical_thinking_trainer",
+        "cognitive",
+        "Bloom-level Socratic questioning, fallacy detection, and argument mapping.",
+        "active",
+    ),
+    PlatformAgent(
+        "Situational Awareness Trainer",
+        "situational_awareness_trainer",
+        "cognitive",
+        "OODA and DECIDE framework drills with cue-recognition scoring.",
+        "active",
+    ),
+    PlatformAgent(
+        "Rapid Decision Trainer",
+        "rapid_decision_trainer",
+        "cognitive",
+        "Recognition-primed drill library with pressure tiers and after-decision review.",
+        "active",
+    ),
+    PlatformAgent(
+        "Emergency Scenario Trainer",
+        "emergency_scenario_trainer",
+        "cognitive",
+        "Branching emergency simulations with phase trees and After-Action Review.",
+        "active",
+    ),
+    PlatformAgent(
+        "Mental Readiness Trainer",
+        "mental_readiness_trainer",
+        "cognitive",
+        "Pre-mortems, mental rehearsal, threat-and-error management, stress inoculation.",
+        "active",
+    ),
 )
 
 

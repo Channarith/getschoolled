@@ -1,0 +1,583 @@
+{
+  "pack": "cognitive_gold_v1",
+  "description": "Curated high-fidelity scenarios promoted from the cognitive trainer stack.",
+  "records": [
+    {
+      "scenario_id": "em_av_engine_failure",
+      "title": "Engine Failure \u2014 Emergency Landing",
+      "domain": "aviation",
+      "briefing": "You are the pilot-in-command of a single-engine Cessna 172 at 4,500 ft AGL, 7 nm east of Riverside Airport (KRAL). Suddenly the engine stops producing power. The propeller is windmilling. You have approximately 7 minutes of glide time. The ATIS last reported winds 270\u00b0 at 12 kt.",
+      "cues": [
+        {
+          "cue_id": "ph1_immediate_actions",
+          "text": "Engine has stopped. Propeller windmilling. Airspeed indicator shows 90 kts and decreasing. Altitude 4,500 ft.",
+          "priority": "high"
+        },
+        {
+          "cue_id": "ph2_restart_attempt",
+          "text": "Glide established. Altitude 4,100 ft. You have time for one restart attempt. Fuel selector: LEFT. Mixture: RICH. Carb heat: OFF. Magnetos: BOTH.",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "ph3_field_selection",
+          "text": "Engine not restarting. Altitude 3,600 ft. You can see ahead: (1) Large grass field, 1.5 nm, into wind. (2) Road \u2014 cars present. (3) Airport KRAL \u2014 7 nm away (gl",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "ph4_approach_landing",
+          "text": "Turning final. Altitude 600 ft AGL. Speed 70 kts. Field is clear. Wind directly on nose. Gear: fixed. You still have time for one of: full flaps, partial flaps,",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "What is your first action?",
+      "decision_time_limit_s": 60,
+      "emergency_steps": [
+        "Immediate Actions: Pitch for best-glide speed (65 kts for C172) \u2014 Aviate first: establish best-glide speed immediately. Every second at the wrong airspeed costs altitude.",
+        "Engine Restart Attempt: Apply carb heat ON; switch fuel to BOTH; check magnetos \u2014 Carburetor ice causes ~30% of engine failures in training aircraft. Carb heat ON + fuel switching is the standard first response.",
+        "Forced Landing Field Selection: Grass field 1.5 nm \u2014 into wind, clear, within glide range \u2014 Select the closest suitable site \u2014 never stretch a glide hoping to reach a distant preferred surface. An off-airport landing on a clear field is survivable; running out of altitude short of the airport is not.",
+        "Final Approach and Landing: Full flaps \u2014 fly stabilised to touchdown \u2014 Use full flaps on the final approach to maximise drag and minimise touch-down speed, reducing kinetic energy on impact. Once committed to the field, do not change configuration."
+      ],
+      "foresight_prompts": [
+        "Apply the 3-step immediate action drill (aviate-navigate-communicate)",
+        "Select the best forced-landing field using altitude/wind/surface criteria",
+        "Fly a stabilised approach to an off-airport landing"
+      ],
+      "critical_thinking_prompts": [
+        "Why is the expert action best at: Immediate Actions?",
+        "Why is the expert action best at: Engine Restart Attempt?",
+        "Why is the expert action best at: Forced Landing Field Selection?"
+      ],
+      "debrief_rubric": [
+        "Apply the 3-step immediate action drill (aviate-navigate-communicate)",
+        "Select the best forced-landing field using altitude/wind/surface criteria",
+        "Fly a stabilised approach to an off-airport landing",
+        "Mayday call content and timing"
+      ],
+      "skills": [
+        "basic_flight_controls",
+        "emergency_procedures",
+        "emergency-procedures",
+        "branching-simulation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "em_med_anaphylaxis",
+      "title": "Anaphylaxis \u2014 Emergency Response",
+      "domain": "medical",
+      "briefing": "You are a school nurse. A 14-year-old student runs in saying they ate something with nuts by mistake. Within 2 minutes: face is swelling, hives on arms, student says throat 'feels tight'. Known nut allergy; epinephrine auto-injector (EpiPen) is in the medical cabinet.",
+      "cues": [
+        {
+          "cue_id": "ph1_recognition",
+          "text": "Student: swollen face, hives, throat tightness after nut ingestion. Conscious.",
+          "priority": "high"
+        },
+        {
+          "cue_id": "ph2_monitoring",
+          "text": "EpiPen given. Student improving: swelling reducing. EMS en route (8 min). At 6 min post-EpiPen, student says they feel better and wants to go to class.",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "What is your immediate first action?",
+      "decision_time_limit_s": 60,
+      "emergency_steps": [
+        "Recognition and First Action: Administer EpiPen to outer thigh; call 999/911 \u2014 Epinephrine is the ONLY first-line treatment for anaphylaxis. Antihistamines and steroids are adjuncts \u2014 they work too slowly for airway compromise.",
+        "Post-Epinephrine Monitoring: Keep student supine; continue to monitor; await EMS \u2014 Biphasic anaphylaxis occurs in 5\u201320% of cases, 1\u201372 hours after the initial reaction. All anaphylaxis patients require hospital observation for at least 4 hours."
+      ],
+      "foresight_prompts": [
+        "Recognise anaphylaxis signs rapidly (skin + airway + systemic)",
+        "Administer epinephrine as first-line treatment",
+        "Call emergency services and position patient correctly"
+      ],
+      "critical_thinking_prompts": [
+        "Why is the expert action best at: Recognition and First Action?",
+        "Why is the expert action best at: Post-Epinephrine Monitoring?"
+      ],
+      "debrief_rubric": [
+        "Recognise anaphylaxis signs rapidly (skin + airway + systemic)",
+        "Administer epinephrine as first-line treatment",
+        "Call emergency services and position patient correctly",
+        "Prepare for biphasic reaction"
+      ],
+      "skills": [
+        "basic_first_aid",
+        "emergency-procedures",
+        "branching-simulation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "em_crisis_ransomware",
+      "title": "Active Ransomware Incident Response",
+      "domain": "security",
+      "briefing": "You are the CISO. It is 2 AM. SOC alerts: 40 servers are encrypting files. Ransomware has spread from a phishing email opened 6 hours ago. Backup server status: unknown. Customer-facing services are still running. Ransom note demands $2M in 48 hours.",
+      "cues": [
+        {
+          "cue_id": "ph1_containment",
+          "text": "40 servers encrypting. Customer services still live. Backup status unknown.",
+          "priority": "high"
+        },
+        {
+          "cue_id": "ph2_backup_assessment",
+          "text": "Contained. Backup server checked: last clean backup is 18 hours old. Encryption began 6 hours ago so most critical data is in clean backup.",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "ph3_communication",
+          "text": "Recovery in progress. Board, legal, and regulator (24-hour notification requirement) must be informed. Media is asking questions on social media.",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "What is your first action?",
+      "decision_time_limit_s": 60,
+      "emergency_steps": [
+        "Initial Containment: Isolate affected network segment; take memory snapshots; preserve logs \u2014 Containment must precede investigation. Every minute of network connectivity allows lateral spread. Take snapshots of running memory on affected hosts for forensics before shutdown.",
+        "Backup Assessment and Recovery Path: Wipe affected systems; restore from 18-hour backup; accept data loss window \u2014 An 18-hour-old clean backup is a viable recovery path. Wipe and restore is almost always faster and safer than decryption with an attacker-supplied key.",
+        "Stakeholder Communication: Board \u2192 Legal \u2192 Regulator \u2192 Customers \u2192 Public statement \u2014 Notify board and legal first (decision authority), then regulator within required window, then customers, then public statement. Never lead with public statement \u2014 it creates a vacuum you cannot control."
+      ],
+      "foresight_prompts": [
+        "Containment before eradication \u2014 isolate before investigating",
+        "Preserve evidence for forensics while containing",
+        "Communication protocol: internal escalation before public statement"
+      ],
+      "critical_thinking_prompts": [
+        "Why is the expert action best at: Initial Containment?",
+        "Why is the expert action best at: Backup Assessment and Recovery Path?",
+        "Why is the expert action best at: Stakeholder Communication?"
+      ],
+      "debrief_rubric": [
+        "Containment before eradication \u2014 isolate before investigating",
+        "Preserve evidence for forensics while containing",
+        "Communication protocol: internal escalation before public statement",
+        "Never pay ransom as the first response"
+      ],
+      "skills": [
+        "incident_response_basics",
+        "emergency-procedures",
+        "branching-simulation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "sa_av_01",
+      "title": "Engine Roughness at Cruise",
+      "domain": "aviation",
+      "briefing": "You are flying a single-engine piston aircraft at 8,500 ft. The engine develops a slight roughness; EGT rises 50\u00b0F; fuel flow is nominal; outside air temperature is -5\u00b0C. You are 40 nm from the nearest airport.",
+      "cues": [
+        {
+          "cue_id": "c1",
+          "text": "Engine roughness audible",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c2",
+          "text": "EGT +50\u00b0F above normal",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c3",
+          "text": "OAT -5\u00b0C (carburetor ice risk window)",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c4",
+          "text": "Fuel flow nominal",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "c5",
+          "text": "40 nm to nearest airport",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "Scan the situation (OODA/DECIDE): what is the correct decision and why?",
+      "decision_time_limit_s": 120,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What cue would warn you earliest?"
+      ],
+      "critical_thinking_prompts": [
+        "Ignoring OAT cue",
+        "Enriching mixture first",
+        "Not declaring precautionary early enough"
+      ],
+      "debrief_rubric": [
+        "Apply carburetor heat immediately; monitor EGT/RPM recovery; declare precautionary if no improvement within 60 s.",
+        "Ignoring OAT cue",
+        "Enriching mixture first",
+        "Not declaring precautionary early enough"
+      ],
+      "skills": [
+        "situational-analysis",
+        "ooda-decide",
+        "aviation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "sa_med_01",
+      "title": "Unresponsive Patient in Public",
+      "domain": "medical",
+      "briefing": "You find an adult collapsed in a shopping mall. They are unresponsive, not breathing normally. A bystander says the person 'just fell'. An AED is 30 m away. Two bystanders are present.",
+      "cues": [
+        {
+          "cue_id": "c1",
+          "text": "Unresponsive \u2014 no response to voice/touch",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c2",
+          "text": "Absent / agonal breathing",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c3",
+          "text": "AED 30 m away",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c4",
+          "text": "Two bystanders available",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "c5",
+          "text": "Bystander account: 'just fell' (not trauma)",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "Scan the situation (OODA/DECIDE): what is the correct decision and why?",
+      "decision_time_limit_s": 60,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What cue would warn you earliest?"
+      ],
+      "critical_thinking_prompts": [
+        "Waiting for paramedics before starting CPR",
+        "Not delegating AED retrieval",
+        "Recovery position instead of CPR"
+      ],
+      "debrief_rubric": [
+        "Call emergency services \u2192 start CPR \u2192 send bystander for AED \u2192 use AED as soon as available.",
+        "Waiting for paramedics before starting CPR",
+        "Not delegating AED retrieval",
+        "Recovery position instead of CPR"
+      ],
+      "skills": [
+        "situational-analysis",
+        "ooda-decide",
+        "medical"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "sa_fire_01",
+      "title": "Smoke in Office Building",
+      "domain": "fire_safety",
+      "briefing": "You are a floor warden on the 12th floor. You smell smoke; fire alarm activates. The elevator bank shows one lift is stuck between floors. There are 25 people on your floor including one wheelchair user. The nearest stairwell door feels warm to the touch.",
+      "cues": [
+        {
+          "cue_id": "c1",
+          "text": "Smoke smell",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c2",
+          "text": "Fire alarm activated",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "c3",
+          "text": "Stairwell door warm \u2014 fire likely beyond",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c4",
+          "text": "Elevator stuck \u2014 cannot use for evacuation",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c5",
+          "text": "Wheelchair user needs assistance",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c6",
+          "text": "25 people on floor",
+          "priority": "medium"
+        }
+      ],
+      "decision_prompt": "Scan the situation (OODA/DECIDE): what is the correct decision and why?",
+      "decision_time_limit_s": 90,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What cue would warn you earliest?"
+      ],
+      "critical_thinking_prompts": [
+        "Opening warm stairwell door",
+        "Using elevator",
+        "Not accounting for wheelchair user"
+      ],
+      "debrief_rubric": [
+        "Do NOT open warm stairwell door. Use alternate stairwell. Assist wheelchair user to refuge area. Call fire brigade and report location.",
+        "Opening warm stairwell door",
+        "Using elevator",
+        "Not accounting for wheelchair user"
+      ],
+      "skills": [
+        "situational-analysis",
+        "ooda-decide",
+        "fire_safety"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "sa_cyber_01",
+      "title": "Suspected Ransomware Alert",
+      "domain": "cybersecurity",
+      "briefing": "IT security alerts you at 9 AM: three workstations on the finance floor are showing unusual file-encryption activity. The payroll run is scheduled at 10 AM. Network logs show lateral movement to a file server. CEO is traveling and unreachable by phone.",
+      "cues": [
+        {
+          "cue_id": "c1",
+          "text": "File-encryption activity on 3 workstations",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c2",
+          "text": "Lateral movement to file server in logs",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c3",
+          "text": "Payroll run in 60 min",
+          "priority": "critical"
+        },
+        {
+          "cue_id": "c4",
+          "text": "CEO unreachable",
+          "priority": "medium"
+        },
+        {
+          "cue_id": "c5",
+          "text": "Finance floor affected (payroll data at risk)",
+          "priority": "critical"
+        }
+      ],
+      "decision_prompt": "Scan the situation (OODA/DECIDE): what is the correct decision and why?",
+      "decision_time_limit_s": 180,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What cue would warn you earliest?"
+      ],
+      "critical_thinking_prompts": [
+        "Waiting for CEO approval before isolating",
+        "Running payroll on compromised network",
+        "Not isolating file server"
+      ],
+      "debrief_rubric": [
+        "Isolate affected workstations and file server from network immediately; defer payroll run; escalate to CISO/deputy; invoke IR playbook.",
+        "Waiting for CEO approval before isolating",
+        "Running payroll on compromised network",
+        "Not isolating file server"
+      ],
+      "skills": [
+        "situational-analysis",
+        "ooda-decide",
+        "cybersecurity"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_av_01",
+      "title": "Rapid drill: Engine stops on takeoff at 300 ft AGL. Runway remaining is 4",
+      "domain": "aviation",
+      "briefing": "Engine stops on takeoff at 300 ft AGL. Runway remaining is 400 ft. Terrain ahead is flat open field. Wind is calm.",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "300 ft AGL \u2192 below decision height for turn-back",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Land straight ahead on remaining runway or field; B) Turn back to runway (180\u00b0 turn); C) Climb and troubleshoot engine; D) Declare Mayday and wait for vectors",
+      "decision_time_limit_s": 8,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Attempting runway turn-back below 500 ft"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: 300 ft AGL \u2192 below decision height for turn-back",
+        "Avoid the failure mode: Attempting runway turn-back below 500 ft"
+      ],
+      "skills": [
+        "aviation_emergency",
+        "quick-decision",
+        "aviation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_av_02",
+      "title": "Rapid drill: IFR flight: autopilot disconnects, attitude indicator shows ",
+      "domain": "aviation",
+      "briefing": "IFR flight: autopilot disconnects, attitude indicator shows 60\u00b0 bank. Aircraft descending at 2,000 fpm. Clouds obscure outside reference.",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "High bank + descending = incipient spiral dive",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Level wings on attitude indicator; reduce power; pull gently; B) Pull back to stop descent first; C) Increase power to climb out; D) Declare emergency and ask for vectors",
+      "decision_time_limit_s": 10,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Pulling back before levelling wings"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: High bank + descending = incipient spiral dive",
+        "Avoid the failure mode: Pulling back before levelling wings"
+      ],
+      "skills": [
+        "aviation_unusual_attitude",
+        "quick-decision",
+        "aviation"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_med_01",
+      "title": "Rapid drill: ER nurse: patient suddenly becomes unresponsive mid-conversa",
+      "domain": "medical",
+      "briefing": "ER nurse: patient suddenly becomes unresponsive mid-conversation. No pulse felt. Defibrillator is 15 ft away.",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "Unresponsive + no pulse = cardiac arrest \u2192 CPR first",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Start CPR immediately; shout for help + AED; B) Fetch the defibrillator first (15 ft away); C) Call the code first, then start CPR; D) Recheck pulse for 10 s to confirm arrest",
+      "decision_time_limit_s": 6,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Delaying CPR to retrieve equipment"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: Unresponsive + no pulse = cardiac arrest \u2192 CPR first",
+        "Avoid the failure mode: Delaying CPR to retrieve equipment"
+      ],
+      "skills": [
+        "cardiac_arrest",
+        "quick-decision",
+        "medical"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_fire_01",
+      "title": "Rapid drill: You enter a corridor and see thick black smoke near the ceil",
+      "domain": "fire_safety",
+      "briefing": "You enter a corridor and see thick black smoke near the ceiling. The fire exit is at the far end of the corridor (40 m). A stairwell is behind you (3 m).",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "Black smoke near ceiling = high toxicity; closer exit available",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Turn back to stairwell; stay low; use exit behind you; B) Run fast through smoke to far exit; C) Shout for others then assess; D) Open window and await rescue",
+      "decision_time_limit_s": 8,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Committing to the far exit despite closer option"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: Black smoke near ceiling = high toxicity; closer exit available",
+        "Avoid the failure mode: Committing to the far exit despite closer option"
+      ],
+      "skills": [
+        "fire_evacuation",
+        "quick-decision",
+        "fire_safety"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_cyber_01",
+      "title": "Rapid drill: SOC alert: a privileged admin account is logging in from an ",
+      "domain": "cybersecurity",
+      "briefing": "SOC alert: a privileged admin account is logging in from an unusual country at 3 AM local time and is running a script that deletes shadow copies. The account holder is currently on holiday.",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "Shadow-copy deletion = ransomware deployment in progress",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Disable account and isolate affected hosts immediately; B) Email the account holder to verify; C) Collect evidence for 30 min before acting; D) Alert management and await authorisation",
+      "decision_time_limit_s": 16,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Evidence collection or approval delays during active attack"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: Shadow-copy deletion = ransomware deployment in progress",
+        "Avoid the failure mode: Evidence collection or approval delays during active attack"
+      ],
+      "skills": [
+        "incident_response",
+        "quick-decision",
+        "cybersecurity"
+      ],
+      "references": []
+    },
+    {
+      "scenario_id": "rd_triage_01",
+      "title": "Rapid drill: Mass casualty event: 4 patients arrive simultaneously. A: un",
+      "domain": "medical",
+      "briefing": "Mass casualty event: 4 patients arrive simultaneously. A: unconscious, not breathing after repositioning airway. B: screaming, leg fracture, walking. C: silent, pale, rapid weak pulse, abdominal wound. D: minor lacerations, alert, demanding treatment.",
+      "cues": [
+        {
+          "cue_id": "key_cue",
+          "text": "Silent + pale + rapid weak pulse = compensated shock \u2192 immediate",
+          "priority": "high"
+        }
+      ],
+      "decision_prompt": "Decide fast \u2014 choose the best option: A) Prioritise C (silent, shock signs, abdominal wound); B) Prioritise A (unconscious, not breathing); C) Prioritise B (screaming, walking); D) Prioritise D (demanding treatment)",
+      "decision_time_limit_s": 12,
+      "emergency_steps": [],
+      "foresight_prompts": [
+        "What is the recognition cue that short-circuits deliberation?"
+      ],
+      "critical_thinking_prompts": [
+        "Common failure mode under pressure: Treating the loudest patient first (they are often the least critical)"
+      ],
+      "debrief_rubric": [
+        "Spot the cue: Silent + pale + rapid weak pulse = compensated shock \u2192 immediate",
+        "Avoid the failure mode: Treating the loudest patient first (they are often the least critical)"
+      ],
+      "skills": [
+        "mass_casualty_triage",
+        "quick-decision",
+        "medical"
+      ],
+      "references": []
+    }
+  ]
+}

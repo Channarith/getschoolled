@@ -65,6 +65,16 @@ to an embedded SQLite DB by `knowledge_store.py`. The DB (default
 self-heals: it auto-rebuilds from the corpus when missing/stale and falls back to
 in-memory if the filesystem is read-only — so no manual DB step is required.
 
+Training/cognitive agents (consolidated): `packages/shared/src/aoep_shared/training_agents/`
+is the canonical home. It owns the procedural scenario catalog, knowledge base +
+SQLite store, training sessions, tracks, content packs, and the platform roster
+(`/api/agents/roster`). The richer cognitive engines from PR #200
+(`aoep_shared/cognitive_trainer.py` + critical_thinking / situational_awareness /
+rapid_decision / emergency_scenarios / mental_readiness, served at
+`/api/cognitive/*`) are re-exported via `training_agents/cognitive.py` and their
+curated scenarios are promoted into the single catalog. Use
+`GET /api/training/capabilities` for the unified directory of both suites.
+
 Content packs (data-driven growth): `aoep_shared/content_packs.py` merges JSON/
 JSONL packs by kind (`knowledge`, `slang`, `scenarios`, `courses`,
 `presentation`) from the packaged baseline
