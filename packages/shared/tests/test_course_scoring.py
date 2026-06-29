@@ -116,3 +116,88 @@ def test_recommend_handles_insufficient_data(tmp_path):
     store = TelemetryStore(tmp_path / "telemetry.jsonl")
     rec = store.recommend_weight_adjustments(ScoringConfig())
     assert rec["status"] == "insufficient_data"
+
+
+def test_breakdown_matches_published_pcs_example():
+    # Same recipe as the composition unit test: PCS raw R' = 649.
+    c = CourseComposition(subject="chemistry")
+    c.add_node("introduction", "Welcome").add_node("example", "Example 1").add_node("example", "Example 2")
+    b = score_breakdown(c)
+    f = b["pcs_formula"]
+    assert f["raw_before_modulus"] == 649
+    assert b["composition_score"] == 649
+    assert f["total_nodes_N"] == 3
+    assert f["breadth_K"] == 2
+
+
+def test_config_normalized_weights_sum_to_one():
+    cfg = ScoringConfig(quality_weights={"coverage": 2, "balance": 1, "interactivity": 1, "depth": 0})
+    w = cfg.normalized_weights()
+    assert abs(sum(w.values()) - 1.0) < 1e-6
+    assert w["coverage"] == 0.5
+
+
+def test_override_delete_persists(tmp_path):
+    path = tmp_path / "overrides.json"
+    store = OverrideStore(path)
+    store.set(ManualOverride(course_id="x", score=128))
+    assert store.get("x") is not None
+    assert store.delete("x") is True
+    # Reload from disk: deletion persisted.
+    assert OverrideStore(path).get("x") is None
+    assert store.delete("missing") is False
+
+
+def test_recommend_negative_correlation_reduces_weight(tmp_path):
+    store = TelemetryStore(tmp_path / "telemetry.jsonl")
+    # Happiness FALLS as depth rises -> depth weight should drop below default.
+    data = [
+        (0.9, {"coverage": 0.5, "balance": 0.5, "interactivity": 0.5, "depth": 0.1}),
+        (0.6, {"coverage": 0.5, "balance": 0.5, "interactivity": 0.5, "depth": 0.4}),
+        (0.4, {"coverage": 0.5, "balance": 0.5, "interactivity": 0.5, "depth": 0.7}),
+        (0.1, {"coverage": 0.5, "balance": 0.5, "interactivity": 0.5, "depth": 0.95}),
+    ]
+    for i, (h, metrics) in enumerate(data):
+        store.record(TelemetrySample(course_id=f"c{i}", composition_score=100 + i,
+                                     quality_index=50, happiness=h, metrics=metrics))
+    rec = store.recommend_weight_adjustments(ScoringConfig())
+    assert rec["status"] == "ok"
+    assert rec["correlations"]["depth"] < 0
+    assert rec["suggested_weights"]["depth"] < ScoringConfig().normalized_weights()["depth"]
+
+
+def test_leaderboard_subject_filter_and_min_samples(tmp_path):
+    store = TelemetryStore(tmp_path / "telemetry.jsonl")
+    store.record(TelemetrySample(course_id="m1", composition_score=1, quality_index=70,
+                                 happiness=0.8, subject="math"))
+    store.record(TelemetrySample(course_id="s1", composition_score=2, quality_index=60,
+                                 happiness=0.9, subject="science"))
+    math_board = store.leaderboard(subject="math")
+    assert [r["course_id"] for r in math_board] == ["m1"]
+    # min_samples filters out single-sample courses.
+    assert store.leaderboard(subject="math", min_samples=2) == []
+
+
+def test_breakdown_modulus_zero_returns_raw():
+    c = CourseComposition().add_node("introduction", "x").add_node("example", "y")
+    # composition_score(modulus=0) is the uncompressed raw R'.
+    assert c.composition_score(modulus=0) == score_breakdown(c)["pcs_formula"]["raw_before_modulus"]
+
+
+def test_override_and_telemetry_integration(tmp_path):
+    """End-to-end: compute, override, record telemetry, and tune together."""
+    comp = _sample_course("flagship")
+    cfg = ScoringConfig()
+    b = score_breakdown(comp, cfg)
+
+    overrides = OverrideStore(tmp_path / "ov.json")
+    overrides.set(ManualOverride(course_id="flagship", label="flagship-128", score=128))
+    eff = overrides.effective("flagship", computed_score=b["composition_score"],
+                              computed_quality=b["quality_index"], computed_label=b["quality_label"])
+    assert eff["score"] == 128 and eff["computed"]["score"] == b["composition_score"]
+
+    tel = TelemetryStore(tmp_path / "tel.jsonl")
+    tel.record(TelemetrySample(course_id="flagship", composition_score=128,
+                               quality_index=b["quality_index"], happiness=0.95,
+                               metrics=comp.quality_metrics(), config_version=cfg.version()))
+    assert tel.course_summary("flagship")["avg_happiness"] == 0.95

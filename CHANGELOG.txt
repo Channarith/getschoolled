@@ -15,6 +15,14 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Expand regression coverage for course scoring + telemetry. Added
+  edge-case tests in packages/shared/tests/test_course_scoring.py (published-PCS
+  breakdown match, normalized-weight sum, override delete persistence, negative-
+  correlation weight reduction, leaderboard subject/min-sample filters, modulus=0
+  raw path, and an override+telemetry+config integration test) and verified the
+  full gate: backend matrix 1401 tests + coverage PASS, web typecheck/lint/build
+  PASS, api-stress smoke PASS (qa/regression.py). Note: apps/web and apps/mobile
+  still have no JS unit-test runner (validated via typecheck+lint+build only).
 - 2026-06-29 - Course-scoring admin: review, manually edit, override, and tune the
   numpy composition scoring. New aoep_shared/course_scoring.py adds (1) an editable,
   JSON-persisted ScoringConfig (quality-index weights, depth target, quality label
