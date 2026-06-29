@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-29 - Our Story page mascot (apps/web/public/salareen-mascot.webp) was
+  still the old line-art face; regenerate it as the transparent medallion-S Bayon
+  Buddy via build_bayon_icons.py and update OurStoryContent (aspect + copy). The
+  nav (top-left) and profile (top-right) badges already use logo-mark.webp, which
+  is the buddy, so they update once the new build deploys.
+
 - 2026-06-29 - Replace the remaining stale brand art with the medallion-S Bayon
   Buddy. scripts/build_bayon_icons.py is now the single buddy-asset generator and
   also rebuilds docs/brand/aiclassroom_logo.{png,webp} (color), the 1-bit print

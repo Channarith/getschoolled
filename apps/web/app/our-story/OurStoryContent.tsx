@@ -27,10 +27,10 @@ export default function OurStoryContent() {
       <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
         <Image
           src="/salareen-mascot.webp"
-          alt="Salareen study buddy"
+          alt="Salareen study buddy holding the golden S medallion with a bodhi leaf"
           width={512}
-          height={341}
-          style={{ width: "min(320px, 70%)", height: "auto" }}
+          height={1097}
+          style={{ width: "min(240px, 60%)", height: "auto" }}
           priority
         />
       </div>
@@ -43,8 +43,8 @@ export default function OurStoryContent() {
         <strong>Salareen</strong> comes from the Khmer <em>salaa rian</em> — “to
         go to school.” Our study buddy is a friendly, <strong>secular</strong>{" "}
         character inspired by classical Khmer craftsmanship, drawn as a modern
-        mascot. Its silhouette forms an <strong>“S”</strong> for Salareen, with a
-        stylized <strong>leaf of knowledge</strong> beside it.
+        mascot. It holds a golden <strong>“S”</strong> medallion for Salareen,
+        crowned with a stylized bodhi <strong>leaf of knowledge</strong>.
       </p>
 
       <h2>{t("story.platformTitle")}</h2>

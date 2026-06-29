@@ -15,6 +15,7 @@ Outputs:
     logo-mark.webp     128x128 nav + profile badge (buddy on navy, rounded)
     logo.webp          512x512 apple-touch / hero / OG image (buddy on navy)
     icon.png           512x512 PNG app icon (PNG fallback for the same art)
+    salareen-mascot.webp  web-optimized transparent buddy (Our Story / hero)
 
   Docs brand sheet (docs/brand/):
     aiclassroom_logo.png / .webp                1024 color buddy on navy (rounded)
@@ -133,6 +134,13 @@ def main() -> int:
         sizes=[(s, s) for s in (16, 32, 48, 64)],
     )
 
+    # Transparent web-optimized buddy for in-page use (Our Story, hero).
+    buddy = _buddy()
+    mw = 512
+    mh = round(mw * buddy.height / buddy.width)
+    buddy.resize((mw, mh), Image.Resampling.LANCZOS).save(
+        PUBLIC / "salareen-mascot.webp", format="WEBP", quality=90, method=6)
+
     # --- docs brand sheet ---
     color = render_badge(1024)
     color.save(BRAND / "aiclassroom_logo.png", format="PNG", optimize=True)
@@ -153,6 +161,7 @@ def main() -> int:
     for p in [
         PUBLIC / "logo-mark.webp", PUBLIC / "logo.webp",
         PUBLIC / "icon.png", PUBLIC / "favicon.ico",
+        PUBLIC / "salareen-mascot.webp",
         BRAND / "aiclassroom_logo.png", BRAND / "aiclassroom_logo.webp",
         BRAND / "aiclassroom_logo_binary.png",
         BRAND / "aiclassroom_logo_binary_threshold.png",
