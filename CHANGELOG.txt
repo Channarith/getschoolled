@@ -15,6 +15,22 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Data-driven growth system to scale content by orders of magnitude
+  without code changes. New aoep_shared/content_packs.py discovers and merges
+  JSON/JSONL packs (kinds: knowledge, slang, scenarios, courses, presentation)
+  from the packaged baseline dir plus any AOEP_CONTENT_PACKS roots; malformed
+  packs are skipped safely. Wired packs into: knowledge base (84 -> 137 facts via
+  safety_expansion pack; SQLite signature includes pack fingerprint), slang/idioms
+  (21 -> 119 entries across 12 languages via idioms_multiregion pack), training
+  scenarios (catalog merges scenario packs at load), and the learnable course
+  index (course packs). Added two capability modules: readability.py (Flesch
+  reading-ease/grade, CEFR estimate, reading-level bucket, deterministic
+  simplify_text) and presentation_skills.py (registry of 30 teaching techniques,
+  enrich_narration, build_skill_plan; pack-extensible). Harvester can grow the
+  knowledge base via harvest/knowledge_bridge.py (write vetted facts as a pack).
+  New APIs: /api/training/growth, /api/language/readability,
+  /api/presentation/techniques, /api/presentation/skill-plan; knowledge meta now
+  reports builtin/from_packs counts.
 - 2026-06-28 - Persist the safety knowledge base to an embedded SQLite database so
   it is always available and durable across restarts. New knowledge_store.py builds
   a file-based SQLite DB (FTS5 full-text search when available, LIKE fallback)

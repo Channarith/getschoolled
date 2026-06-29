@@ -429,19 +429,64 @@ KNOWLEDGE: List[ReferenceFact] = [
 _META: List[dict] = [{"domains": e["domains"], "keywords": e["keywords"]} for e in _RAW]
 
 
+# Built-in corpus paired with its matching metadata.
+_BUILTIN_WITH_META = [
+    (fact, tuple(meta["domains"]), tuple(meta["keywords"]))
+    for fact, meta in zip(KNOWLEDGE, _META)
+]
+
+# Lazily combined (built-in + data packs); refreshed when packs change.
+_COMBINED_CACHE: dict = {"fingerprint": None, "data": None}
+
+
+def _pack_records():
+    from ..content_packs import load_records, pack_fingerprint
+
+    return pack_fingerprint("knowledge"), load_records("knowledge")
+
+
+def _facts_with_meta() -> list:
+    """Built-in facts + facts merged from knowledge data packs."""
+    fingerprint, records = _pack_records()
+    if _COMBINED_CACHE["fingerprint"] == fingerprint and _COMBINED_CACHE["data"] is not None:
+        return _COMBINED_CACHE["data"]
+    combined = list(_BUILTIN_WITH_META)
+    for rec in records:
+        fact_text = rec.get("fact")
+        source = rec.get("source")
+        reference = rec.get("reference")
+        if not (fact_text and source and reference):
+            continue
+        fact = ReferenceFact(
+            fact=str(fact_text),
+            source=str(source),
+            reference=str(reference),
+            category=str(rec.get("category", "guideline")),
+            url=str(rec.get("url", "")),
+        )
+        domains = tuple(rec.get("domains", ()) or ())
+        keywords = tuple(rec.get("keywords", ()) or ())
+        combined.append((fact, domains, keywords))
+    _COMBINED_CACHE["fingerprint"] = fingerprint
+    _COMBINED_CACHE["data"] = combined
+    return combined
+
+
 def corpus_signature() -> str:
     """Identifies the exact corpus content for cache-staleness detection."""
-    return f"{KNOWLEDGE_CORPUS_VERSION}:{len(KNOWLEDGE)}"
+    data = _facts_with_meta()
+    pack_fp, _ = _pack_records()
+    return f"{KNOWLEDGE_CORPUS_VERSION}:{len(data)}:{pack_fp}"
 
 
 def iter_facts_with_meta():
     """Yield (ReferenceFact, domains tuple, keywords tuple) for persistence."""
-    for fact, meta in zip(KNOWLEDGE, _META):
-        yield fact, tuple(meta["domains"]), tuple(meta["keywords"])
+    for fact, domains, keywords in _facts_with_meta():
+        yield fact, domains, keywords
 
 
 def all_facts() -> List[ReferenceFact]:
-    return list(KNOWLEDGE)
+    return [fact for fact, _, _ in _facts_with_meta()]
 
 
 def fact_to_dict(f: ReferenceFact) -> dict:
@@ -459,9 +504,9 @@ def facts_for(domain: str, text: str = "", *, limit: int = 6) -> List[ReferenceF
     text_l = (text or "").lower()
     keyword_hits: List[ReferenceFact] = []
     domain_general: List[ReferenceFact] = []
-    for fact, meta in zip(KNOWLEDGE, _META):
-        in_domain = domain in meta["domains"]
-        kw_match = any(kw in text_l for kw in meta["keywords"]) if text_l else False
+    for fact, domains, keywords in _facts_with_meta():
+        in_domain = domain in domains
+        kw_match = any(kw in text_l for kw in keywords) if text_l else False
         if in_domain and kw_match:
             keyword_hits.append(fact)
         elif in_domain:
@@ -504,15 +549,16 @@ def search_facts(
 ) -> List[ReferenceFact]:
     results: List[ReferenceFact] = []
     ql = (q or "").lower()
-    for fact, meta in zip(KNOWLEDGE, _META):
-        if domain and domain not in meta["domains"]:
+    for fact, domains, keywords in _facts_with_meta():
+        if domain and domain not in domains:
             continue
         if category and fact.category != category:
             continue
         if source and source.lower() not in fact.source.lower():
             continue
         if ql and ql not in fact.fact.lower() and ql not in fact.source.lower() \
-                and ql not in fact.reference.lower():
+                and ql not in fact.reference.lower() \
+                and not any(ql in kw for kw in keywords):
             continue
         results.append(fact)
     if offset:
@@ -535,8 +581,8 @@ def count_facts(
 
 def knowledge_sources() -> List[Dict[str, object]]:
     counts: Dict[str, int] = {}
-    for f in KNOWLEDGE:
-        counts[f.source] = counts.get(f.source, 0) + 1
+    for fact, _, _ in _facts_with_meta():
+        counts[fact.source] = counts.get(fact.source, 0) + 1
     return [
         {"source": s, "count": n}
         for s, n in sorted(counts.items(), key=lambda x: (-x[1], x[0]))
@@ -546,12 +592,17 @@ def knowledge_sources() -> List[Dict[str, object]]:
 def knowledge_meta() -> dict:
     categories: Dict[str, int] = {}
     domains: Dict[str, int] = {}
-    for f, meta in zip(KNOWLEDGE, _META):
-        categories[f.category] = categories.get(f.category, 0) + 1
-        for d in meta["domains"]:
+    data = _facts_with_meta()
+    for fact, doms, _ in data:
+        categories[fact.category] = categories.get(fact.category, 0) + 1
+        for d in doms:
             domains[d] = domains.get(d, 0) + 1
+    from ..content_packs import pack_record_count
+
     return {
-        "count": len(KNOWLEDGE),
+        "count": len(data),
+        "builtin": len(_BUILTIN_WITH_META),
+        "from_packs": pack_record_count("knowledge"),
         "sources": len(knowledge_sources()),
         "categories": categories,
         "domains": domains,

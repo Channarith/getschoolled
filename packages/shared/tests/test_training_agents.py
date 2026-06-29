@@ -28,9 +28,17 @@ from aoep_shared.training_agents import (
 )
 
 
+def test_knowledge_base_grows_via_packs():
+    meta = knowledge_overview()
+    # Built-in 84 + safety_expansion pack (>=50) => well over 120.
+    assert meta["count"] >= 130
+    assert meta["builtin"] >= 80
+    assert meta["from_packs"] >= 50
+
+
 def test_knowledge_base_is_real_and_cited():
     facts = all_facts()
-    assert len(facts) >= 60
+    assert len(facts) >= 130
     for f in facts:
         assert f.fact and f.source and f.reference
     meta = knowledge_overview()

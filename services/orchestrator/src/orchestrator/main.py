@@ -880,6 +880,7 @@ from .training import (  # noqa: E402
     CreateTrainingSessionRequest,
     FamilySummary,
     GeneratedScenario,
+    GrowthStatusResponse,
     KnowledgeListResponse,
     KnowledgeMetaResponse,
     KnowledgeStoreStatus,
@@ -899,6 +900,7 @@ from .training import (  # noqa: E402
     generate_random,
     get_full_scenario,
     get_training_session,
+    growth_status,
     knowledge_meta_view,
     knowledge_search_view,
     knowledge_sources_view,
@@ -984,6 +986,50 @@ def training_knowledge_sources() -> list[dict]:
 def training_knowledge_status() -> KnowledgeStoreStatus:
     """Persistent embedded knowledge DB status (backend, path, FTS5, count)."""
     return knowledge_store_view()
+
+
+@app.get("/api/training/growth", response_model=GrowthStatusResponse)
+def training_growth() -> GrowthStatusResponse:
+    """Aggregate growth metrics across knowledge, scenarios, slang, presentation, packs."""
+    return growth_status()
+
+
+@app.get("/api/language/readability")
+def language_readability(text: str, simplify_to: str | None = None) -> dict:
+    """Score language complexity and optionally simplify toward a reading level."""
+    from aoep_shared.readability import analyze, simplify_text
+
+    out: dict = {"metrics": analyze(text).to_dict()}
+    if simplify_to:
+        simplified = simplify_text(text, reading_level=simplify_to)
+        out["simplified"] = simplified
+        out["simplified_metrics"] = analyze(simplified).to_dict()
+    return out
+
+
+@app.get("/api/presentation/techniques")
+def presentation_techniques(category: str | None = None) -> list[dict]:
+    """List AI presentation/teaching techniques (built-in + content packs)."""
+    from aoep_shared.presentation_skills import list_techniques
+
+    return [
+        {"id": t.id, "name": t.name, "description": t.description,
+         "category": t.category, "tags": list(t.tags)}
+        for t in list_techniques(category=category)
+    ]
+
+
+class SkillPlanRequest(BaseModel):
+    headings: list[str]
+    topic: str = ""
+
+
+@app.post("/api/presentation/skill-plan")
+def presentation_skill_plan(req: SkillPlanRequest) -> list[dict]:
+    """Assign varied presentation techniques across a deck for engaging delivery."""
+    from aoep_shared.presentation_skills import build_skill_plan
+
+    return build_skill_plan(req.headings, topic=req.topic)
 
 
 @app.get("/api/training/domains")

@@ -65,6 +65,15 @@ to an embedded SQLite DB by `knowledge_store.py`. The DB (default
 self-heals: it auto-rebuilds from the corpus when missing/stale and falls back to
 in-memory if the filesystem is read-only — so no manual DB step is required.
 
+Content packs (data-driven growth): `aoep_shared/content_packs.py` merges JSON/
+JSONL packs by kind (`knowledge`, `slang`, `scenarios`, `courses`,
+`presentation`) from the packaged baseline
+(`aoep_shared/data/content_packs/<kind>/`) plus any roots in `AOEP_CONTENT_PACKS`
+(os.pathsep-separated). To grow a dimension, drop a pack file in — no code change.
+Built-in Python content is the baseline; packs add on top. Capability modules
+`readability.py` (complexity scoring + simplification) and `presentation_skills.py`
+(technique registry) are pack-extensible too.
+
 Environment / setup caveats (non-obvious):
 - The update script creates `.venv` (system Python 3.12; the repo's
   `.python-version` requests 3.11 but it is not installable offline here — 3.12

@@ -26,19 +26,43 @@ def _load_raw_catalog() -> dict:
 @lru_cache(maxsize=1)
 def _load_scenarios() -> Dict[str, ScenarioDefinition]:
     raw = _load_raw_catalog()
-    return {
+    scenarios: Dict[str, ScenarioDefinition] = {
         item["scenario_id"]: scenario_from_dict(item)
         for item in raw.get("scenarios", [])
     }
+    # Merge data-driven scenario packs (drop-in JSON growth).
+    for rec in _scenario_pack_records():
+        try:
+            scenario = scenario_from_dict(rec)
+        except (KeyError, TypeError):
+            continue
+        scenarios.setdefault(scenario.scenario_id, scenario)
+    return scenarios
+
+
+def _scenario_pack_records() -> List[dict]:
+    try:
+        from ..content_packs import load_records
+
+        return load_records("scenarios")
+    except Exception:  # pragma: no cover - defensive
+        return []
 
 
 def catalog_meta() -> dict:
     raw = _load_raw_catalog()
+    scenarios = _load_scenarios()
+    domains: Dict[str, int] = {}
+    for s in scenarios.values():
+        domains[s.domain.value] = domains.get(s.domain.value, 0) + 1
+    from ..content_packs import pack_record_count
+
     return {
         "version": raw.get("version", 1),
         "generated_at": raw.get("generated_at", ""),
-        "count": raw.get("count", len(_load_scenarios())),
-        "domains": raw.get("domains", {}),
+        "count": len(scenarios),
+        "from_packs": pack_record_count("scenarios"),
+        "domains": domains,
     }
 
 

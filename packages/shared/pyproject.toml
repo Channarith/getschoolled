@@ -39,6 +39,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "aoep_shared.training_agents" = ["data/*.json"]
+"aoep_shared" = [
+    "data/content_packs/*/*.json",
+    "data/content_packs/*/*.jsonl",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,19 +1,39 @@
 {
   "version": 1,
-  "generated_at": "2026-06-27T23:06:50.466355+00:00",
-  "count": 84,
+  "generated_at": "2026-06-29T13:54:48.972582+00:00",
+  "count": 137,
   "sources": [
     {
       "source": "NHTSA",
-      "count": 11
+      "count": 16
+    },
+    {
+      "source": "NFPA",
+      "count": 8
     },
     {
       "source": "FAA",
       "count": 6
     },
     {
-      "source": "NFPA",
+      "source": "OSHA",
+      "count": 6
+    },
+    {
+      "source": "CISA",
       "count": 5
+    },
+    {
+      "source": "CPSC",
+      "count": 5
+    },
+    {
+      "source": "American Heart Association",
+      "count": 4
+    },
+    {
+      "source": "CDC",
+      "count": 4
     },
     {
       "source": "FMCSA",
@@ -24,15 +44,23 @@
       "count": 3
     },
     {
-      "source": "American Heart Association",
+      "source": "NWS / NOAA",
+      "count": 3
+    },
+    {
+      "source": "USCG",
+      "count": 3
+    },
+    {
+      "source": "American Red Cross",
       "count": 2
     },
     {
-      "source": "CISA",
+      "source": "Child Welfare Information Gateway",
       "count": 2
     },
     {
-      "source": "CPSC",
+      "source": "FEMA Ready.gov",
       "count": 2
     },
     {
@@ -40,7 +68,11 @@
       "count": 2
     },
     {
-      "source": "NWS / NOAA",
+      "source": "NWS / FEMA",
+      "count": 2
+    },
+    {
+      "source": "OSHA / NIOSH",
       "count": 2
     },
     {
@@ -48,11 +80,31 @@
       "count": 2
     },
     {
+      "source": "USDA FSIS",
+      "count": 2
+    },
+    {
+      "source": "988 Suicide & Crisis Lifeline",
+      "count": 1
+    },
+    {
+      "source": "AAAAI",
+      "count": 1
+    },
+    {
       "source": "AAAAI / WAO",
       "count": 1
     },
     {
       "source": "AAMVA",
+      "count": 1
+    },
+    {
+      "source": "AAP",
+      "count": 1
+    },
+    {
+      "source": "AAPCC",
       "count": 1
     },
     {
@@ -68,15 +120,23 @@
       "count": 1
     },
     {
-      "source": "CDC",
+      "source": "CDC / AAP",
+      "count": 1
+    },
+    {
+      "source": "CDC / CPSC",
+      "count": 1
+    },
+    {
+      "source": "CDC / NIOSH",
+      "count": 1
+    },
+    {
+      "source": "CDC HEADS UP",
       "count": 1
     },
     {
       "source": "CIT International / IACP",
-      "count": 1
-    },
-    {
-      "source": "Child Welfare Information Gateway",
       "count": 1
     },
     {
@@ -85,6 +145,10 @@
     },
     {
       "source": "DHS / CISA",
+      "count": 1
+    },
+    {
+      "source": "ESFI / OSHA",
       "count": 1
     },
     {
@@ -97,6 +161,10 @@
     },
     {
       "source": "FEMA",
+      "count": 1
+    },
+    {
+      "source": "FEMA / USGS",
       "count": 1
     },
     {
@@ -124,6 +192,10 @@
       "count": 1
     },
     {
+      "source": "NHTSA / AAP",
+      "count": 1
+    },
+    {
       "source": "NHTSA / CPSC",
       "count": 1
     },
@@ -136,11 +208,19 @@
       "count": 1
     },
     {
-      "source": "NOAA / USLA",
+      "source": "NIOSH",
       "count": 1
     },
     {
-      "source": "NWS / FEMA",
+      "source": "NIST / CISA",
+      "count": 1
+    },
+    {
+      "source": "NOAA / USCG",
+      "count": 1
+    },
+    {
+      "source": "NOAA / USLA",
       "count": 1
     },
     {
@@ -180,6 +260,10 @@
       "count": 1
     },
     {
+      "source": "SAMHSA",
+      "count": 1
+    },
+    {
       "source": "SAMHSA / CDC",
       "count": 1
     },
@@ -212,10 +296,6 @@
       "count": 1
     },
     {
-      "source": "USCG",
-      "count": 1
-    },
-    {
       "source": "USCG / National Center for Cold Water Safety",
       "count": 1
     },
@@ -225,10 +305,10 @@
     }
   ],
   "categories": {
-    "regulation": 9,
-    "procedure": 38,
-    "guideline": 25,
-    "statistic": 12
+    "regulation": 17,
+    "procedure": 51,
+    "guideline": 54,
+    "statistic": 15
   },
   "facts": [
     {
@@ -817,6 +897,377 @@
       "source": "FEMA",
       "reference": "ICS (NIMS)",
       "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "OSHA's Fatal Four in construction are falls, struck-by, caught-in/between, and electrocution; they cause the majority of construction deaths.",
+      "source": "OSHA",
+      "reference": "OSHA Construction Focus Four",
+      "category": "statistic",
+      "url": ""
+    },
+    {
+      "fact": "Falls are the leading cause of death in construction; use guardrails, safety nets, or personal fall arrest above 6 feet.",
+      "source": "OSHA",
+      "reference": "29 CFR 1926.501",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Before maintenance, apply lockout/tagout to isolate hazardous energy so equipment cannot start unexpectedly.",
+      "source": "OSHA",
+      "reference": "29 CFR 1910.147",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Never enter a permit-required confined space without testing the atmosphere and having a trained attendant and rescue plan.",
+      "source": "OSHA",
+      "reference": "29 CFR 1910.146",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Hand hygiene with soap and water or alcohol-based sanitizer is the single most effective way to prevent the spread of infection.",
+      "source": "CDC",
+      "reference": "Hand Hygiene guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Cook poultry to an internal temperature of 165 degrees F (74 C) and keep cold foods below 40 F to prevent foodborne illness.",
+      "source": "USDA FSIS",
+      "reference": "Safe Minimum Internal Temperatures",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "The food danger zone is 40-140 degrees F; perishable food left in it for over two hours should be discarded.",
+      "source": "USDA FSIS",
+      "reference": "Danger Zone guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Carbon monoxide is an odorless, colorless gas; install CO alarms and never run engines or generators indoors.",
+      "source": "CPSC",
+      "reference": "Carbon Monoxide Safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "For heat exhaustion, move to a cool place, loosen clothing, sip water, and cool the body; seek help if symptoms worsen to heat stroke.",
+      "source": "CDC / NIOSH",
+      "reference": "Heat Stress guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Heat stroke is a medical emergency: call 911 and rapidly cool the person with cold water immersion or ice while waiting.",
+      "source": "CDC",
+      "reference": "Heat-Related Illness",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Frostbite appears as numb, white or grayish skin; rewarm gradually and do not rub the affected area.",
+      "source": "CDC",
+      "reference": "Winter Weather guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "During an earthquake, Drop, Cover, and Hold On under sturdy furniture until the shaking stops.",
+      "source": "FEMA / USGS",
+      "reference": "Earthquake Safety",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Assemble an emergency kit with at least three days of water (one gallon per person per day), non-perishable food, and a first-aid kit.",
+      "source": "FEMA Ready.gov",
+      "reference": "Build A Kit",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Keep portable generators outdoors, at least 20 feet from windows, doors, and vents, to prevent carbon monoxide poisoning.",
+      "source": "CPSC",
+      "reference": "Portable Generator Safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Treat every downed power line as energized and deadly; stay at least 35 feet away and call utilities and 911.",
+      "source": "ESFI / OSHA",
+      "reference": "Downed Power Line Safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "If your clothing catches fire, Stop, Drop, and Roll to smother the flames.",
+      "source": "NFPA",
+      "reference": "Stop Drop and Roll",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Plan and practice two ways out of every room and a family meeting place outside the home.",
+      "source": "NFPA",
+      "reference": "Home Fire Escape Planning",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Test smoke alarms monthly and replace batteries at least yearly; replace alarms every 10 years.",
+      "source": "NFPA",
+      "reference": "Smoke Alarm maintenance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Place infants on their backs to sleep, on a firm flat surface with no soft bedding, to reduce the risk of SIDS.",
+      "source": "AAP",
+      "reference": "Safe Sleep recommendations",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Children should ride in a rear-facing car seat as long as possible, up to the seat's height/weight limit.",
+      "source": "NHTSA / AAP",
+      "reference": "Car Seat recommendations",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Never leave a child alone in a vehicle; vehicle interiors can reach lethal temperatures within minutes.",
+      "source": "NHTSA",
+      "reference": "Heatstroke / Hot Cars",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Maintain constant, close supervision of children near water; drowning is fast and silent.",
+      "source": "CDC / AAP",
+      "reference": "Drowning Prevention",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Install four-sided isolation fencing at least 4 feet high around home pools to reduce child drowning.",
+      "source": "CDC / CPSC",
+      "reference": "Pool Fencing",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Wear a properly fitted, certified helmet for cycling, skating, and skiing; it should sit level and snug.",
+      "source": "CPSC",
+      "reference": "Helmet fit guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Suspect a concussion after any blow to the head; remove the athlete from play and do not return the same day.",
+      "source": "CDC HEADS UP",
+      "reference": "Concussion guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "For a nosebleed, sit up, lean slightly forward, and pinch the soft part of the nose for 10-15 minutes.",
+      "source": "American Red Cross",
+      "reference": "First Aid guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "For minor burns, cool with running water for 10-20 minutes; do not apply ice, butter, or ointments to serious burns.",
+      "source": "American Red Cross",
+      "reference": "Burn First Aid",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "For a suspected poisoning, call the Poison Control hotline immediately and have the product container ready.",
+      "source": "AAPCC",
+      "reference": "Poison Control guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Wear seat belts on every trip; air bags are supplemental and do not replace belts.",
+      "source": "NHTSA",
+      "reference": "Air Bag & Seat Belt safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Children under 13 are safest in the back seat, away from front passenger air bags.",
+      "source": "NHTSA",
+      "reference": "Back Seat safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Designate a sober driver or use a ride service; impaired driving causes a large share of traffic deaths.",
+      "source": "NHTSA",
+      "reference": "Impaired Driving",
+      "category": "statistic",
+      "url": ""
+    },
+    {
+      "fact": "Adjust mirrors and seat before driving, and never use a handheld phone while the vehicle is moving.",
+      "source": "NHTSA",
+      "reference": "Distracted Driving",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Boaters should file a float plan with someone ashore stating destination and expected return time.",
+      "source": "USCG",
+      "reference": "Float Plan",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Operating a boat under the influence is illegal and dangerous; sun, wind, and motion intensify impairment on the water.",
+      "source": "USCG",
+      "reference": "Boating Under the Influence",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Check the marine weather forecast before departure and head to shore at the first sign of deteriorating conditions.",
+      "source": "NOAA / USCG",
+      "reference": "Marine Weather safety",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "For severe allergic reaction, use epinephrine, call EMS, and a second dose may be needed if no improvement in 5-15 minutes.",
+      "source": "AAAAI",
+      "reference": "Anaphylaxis Emergency Action",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Recognize the signs of a heart attack: chest discomfort, shortness of breath, and pain in arm, jaw, or back; call 911 early.",
+      "source": "American Heart Association",
+      "reference": "Heart Attack Warning Signs",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Hands-only CPR (call 911, then push hard and fast in the center of the chest) can double or triple survival from cardiac arrest.",
+      "source": "American Heart Association",
+      "reference": "Hands-Only CPR",
+      "category": "statistic",
+      "url": ""
+    },
+    {
+      "fact": "Phishing emails create urgency and ask you to click links or share credentials; verify the sender before acting.",
+      "source": "CISA",
+      "reference": "Phishing guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Use long, unique passphrases and a password manager; never reuse passwords across important accounts.",
+      "source": "NIST / CISA",
+      "reference": "NIST SP 800-63B",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Keep software and devices updated; timely patching closes the vulnerabilities attackers exploit most.",
+      "source": "CISA",
+      "reference": "Update Software guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Back up important data regularly using the 3-2-1 rule: three copies, two media types, one offsite/offline.",
+      "source": "CISA",
+      "reference": "Data Backup guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "De-escalation starts with active listening, a calm tone, and giving the person space and time.",
+      "source": "SAMHSA",
+      "reference": "De-escalation guidance",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "If someone may be suicidal, ask directly, listen without judgment, stay with them, and connect them to crisis help (988 in the US).",
+      "source": "988 Suicide & Crisis Lifeline",
+      "reference": "988 guidance",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Mandatory reporters must report reasonable suspicion of child abuse or neglect promptly to the proper authority.",
+      "source": "Child Welfare Information Gateway",
+      "reference": "Mandatory Reporting",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "When lifting, keep the load close, bend the knees, keep the back straight, and avoid twisting.",
+      "source": "OSHA / NIOSH",
+      "reference": "Safe Lifting / Ergonomics",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Wear the right PPE for the task: eye, hearing, respiratory, and hand protection rated for the specific hazard.",
+      "source": "OSHA",
+      "reference": "29 CFR 1910 Subpart I (PPE)",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Keep tractor rollover protective structures (ROPS) in place and wear the seat belt to prevent fatal rollovers.",
+      "source": "NIOSH",
+      "reference": "Agricultural ROPS",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "Stay clear of grain bins during unloading; flowing grain can engulf and suffocate a person in seconds.",
+      "source": "OSHA / NIOSH",
+      "reference": "Grain Handling 29 CFR 1910.272",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "Read the Safety Data Sheet (SDS) before handling any chemical to understand hazards, PPE, and first aid.",
+      "source": "OSHA",
+      "reference": "Hazard Communication 29 CFR 1910.1200",
+      "category": "regulation",
+      "url": ""
+    },
+    {
+      "fact": "When thunder roars go indoors, and avoid water, plumbing, and corded electronics during a thunderstorm.",
+      "source": "NWS / NOAA",
+      "reference": "Lightning Safety indoors",
+      "category": "guideline",
+      "url": ""
+    },
+    {
+      "fact": "In a tornado warning, go to a small interior room on the lowest floor and cover your head and neck.",
+      "source": "NWS / FEMA",
+      "reference": "Tornado Sheltering",
+      "category": "procedure",
+      "url": ""
+    },
+    {
+      "fact": "Evacuate immediately when ordered for hurricanes or wildfires; do not wait, and follow designated routes.",
+      "source": "FEMA Ready.gov",
+      "reference": "Evacuation guidance",
+      "category": "guideline",
       "url": ""
     }
   ]

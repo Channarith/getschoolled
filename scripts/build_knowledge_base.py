@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from aoep_shared.training_agents.knowledge_base import (
-    KNOWLEDGE,
+    all_facts,
     fact_to_dict,
     knowledge_meta,
     knowledge_sources,
@@ -28,7 +28,7 @@ def main() -> int:
         "count": meta["count"],
         "sources": knowledge_sources(),
         "categories": meta["categories"],
-        "facts": [fact_to_dict(f) for f in KNOWLEDGE],
+        "facts": [fact_to_dict(f) for f in all_facts()],
     }
     out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"Wrote {meta['count']} real cited facts from {meta['sources']} authorities")

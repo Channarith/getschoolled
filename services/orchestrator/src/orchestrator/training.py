@@ -55,6 +55,7 @@ class CatalogMetaResponse(BaseModel):
     version: int
     generated_at: str
     count: int
+    from_packs: int = 0
     domains: dict[str, int] = Field(default_factory=dict)
 
 
@@ -323,10 +324,38 @@ class KnowledgeStoreStatus(BaseModel):
 
 class KnowledgeMetaResponse(BaseModel):
     count: int
+    builtin: int = 0
+    from_packs: int = 0
     sources: int
     categories: dict[str, int] = Field(default_factory=dict)
     domains: dict[str, int] = Field(default_factory=dict)
     store: KnowledgeStoreStatus | None = None
+
+
+class GrowthStatusResponse(BaseModel):
+    knowledge_facts: int
+    scenario_catalog: int
+    scenario_capacity: int
+    slang_entries: int
+    presentation_techniques: int
+    content_packs: dict = Field(default_factory=dict)
+
+
+def growth_status() -> GrowthStatusResponse:
+    from aoep_shared.content_packs import pack_summary
+    from aoep_shared.presentation_skills import technique_count
+    from aoep_shared.slang import lexicon_stats
+    from aoep_shared.training_agents import catalog_capacity, catalog_meta, knowledge_overview
+
+    cap = catalog_capacity()
+    return GrowthStatusResponse(
+        knowledge_facts=knowledge_overview()["count"],
+        scenario_catalog=catalog_meta()["count"],
+        scenario_capacity=cap.get("total_addressable", 0),
+        slang_entries=lexicon_stats()["total"],
+        presentation_techniques=technique_count(),
+        content_packs=pack_summary(),
+    )
 
 
 class KnowledgeListResponse(BaseModel):

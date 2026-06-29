@@ -1,0 +1,16 @@
+{
+  "pack": "techniques_v1",
+  "description": "Additional presentation/teaching techniques (data-driven registry growth).",
+  "records": [
+    {"id": "think_pair_share", "name": "Think-pair-share", "description": "Have learners think, discuss in pairs, then share.", "category": "engagement", "template": "Take a moment to think about {point}, then share your take with a neighbor.", "tags": ["engagement", "collaboration"]},
+    {"id": "advance_organizer", "name": "Advance organizer", "description": "Preview structure to prime understanding.", "category": "structure", "template": "Before details, here's the big picture of {topic}: {point}.", "tags": ["structure"]},
+    {"id": "misconception_flag", "name": "Misconception flag", "description": "Name and correct a common misconception.", "category": "clarity", "template": "A common misconception about {topic} is the opposite of {point} - let's clear that up.", "tags": ["clarity"]},
+    {"id": "dual_coding", "name": "Dual coding", "description": "Pair words with a visual/mental image.", "category": "retention", "template": "Picture {point} as a simple diagram as I explain {topic}.", "tags": ["retention", "clarity"]},
+    {"id": "spaced_recall", "name": "Spaced recall", "description": "Prompt retrieval of earlier material.", "category": "retention", "template": "Without looking back, what do you recall about {point}?", "tags": ["retention", "assessment"]},
+    {"id": "concrete_then_abstract", "name": "Concrete then abstract", "description": "Start concrete, then generalize.", "category": "clarity", "template": "Start with one concrete case of {point}, then we'll generalize the rule.", "tags": ["clarity"]},
+    {"id": "signal_importance", "name": "Importance signaling", "description": "Tell learners what will be assessed or matters most.", "category": "retention", "template": "This part about {point} is exam-worthy - mark it.", "tags": ["retention"]},
+    {"id": "humor_lighten", "name": "Light humor", "description": "A light, on-topic aside to maintain attention.", "category": "engagement", "template": "Here's a light way to remember {point} so it sticks.", "tags": ["engagement"]},
+    {"id": "socratic_followup", "name": "Socratic follow-up", "description": "Probe reasoning with a follow-up question.", "category": "engagement", "template": "Good - and why does {point} hold? What would break it?", "tags": ["engagement", "critical-thinking"]},
+    {"id": "preview_review", "name": "Preview-review sandwich", "description": "Preview, teach, then review the same point.", "category": "structure", "template": "We'll preview {point}, work through it, then review it together.", "tags": ["structure", "retention"]}
+  ]
+}

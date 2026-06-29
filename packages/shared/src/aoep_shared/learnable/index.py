@@ -14,6 +14,16 @@ from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
 from .models import LearnableItem
 
 
+def _load_course_packs() -> List[dict]:
+    """Course records merged from content packs (kind=courses)."""
+    try:
+        from aoep_shared.content_packs import load_records
+
+        return load_records("courses")
+    except Exception:  # pragma: no cover - defensive
+        return []
+
+
 def _preview_audio(ac: AudioCourse) -> str:
     if not ac.segments:
         return ""
@@ -230,6 +240,18 @@ def build_learnable_index(
 
     for c in catalog_courses:
         item = _from_catalog_course(c)
+        items.append(item)
+        catalog_ids.add(item.source_id)
+
+    # Data-driven course packs (drop-in JSON growth; no code changes needed).
+    for c in _load_course_packs():
+        cid = c.get("course_id")
+        if not cid or cid in catalog_ids:
+            continue
+        try:
+            item = _from_catalog_course(c)
+        except (KeyError, TypeError):
+            continue
         items.append(item)
         catalog_ids.add(item.source_id)
 

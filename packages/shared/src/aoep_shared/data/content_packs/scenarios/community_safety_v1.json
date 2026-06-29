@@ -1,0 +1,78 @@
+{
+  "pack": "community_safety_v1",
+  "description": "Curated drop-in training scenarios (data-driven; merged at load time).",
+  "records": [
+    {
+      "scenario_id": "pack_home_kitchen_fire",
+      "title": "Grease fire at home",
+      "domain": "fire_safety",
+      "briefing": "You are cooking when a pan of oil ignites on the stovetop. Flames rise toward the cabinets. Act calmly and correctly under pressure.",
+      "cues": [
+        {"cue_id": "flames", "text": "Oil in the pan is on fire", "priority": "critical"},
+        {"cue_id": "spread", "text": "Cabinets above the stove are close to the flames", "priority": "high"},
+        {"cue_id": "water", "text": "There is a sink full of water nearby (tempting but dangerous)", "priority": "high"},
+        {"cue_id": "lid", "text": "A metal lid sits on the counter", "priority": "medium"}
+      ],
+      "decision_prompt": "What is your first action sequence? State priorities, not every step.",
+      "decision_time_limit_s": 45,
+      "emergency_steps": [
+        "Turn off the heat if you can reach it safely",
+        "Smother the flames with a metal lid or baking soda - never water",
+        "If it spreads, get out and call emergency services",
+        "Do not move the burning pan"
+      ],
+      "foresight_prompts": ["What happens if you throw water on burning oil?", "What is your exit if it spreads?"],
+      "critical_thinking_prompts": ["Why is water dangerous on a grease fire?", "When do you stop fighting and evacuate?"],
+      "debrief_rubric": ["Cut the heat", "Smothered, not doused", "Knew when to evacuate", "Called for help if needed"],
+      "skills": ["fire-safety", "quick-decision", "situational-analysis"]
+    },
+    {
+      "scenario_id": "pack_active_bystander_harassment",
+      "title": "Bystander intervention - public harassment",
+      "domain": "conflict",
+      "briefing": "On a crowded train platform, you witness a person being verbally harassed. Others look away. You can help safely.",
+      "cues": [
+        {"cue_id": "target", "text": "The targeted person looks frightened", "priority": "high"},
+        {"cue_id": "aggressor", "text": "The aggressor is loud but not physically violent yet", "priority": "high"},
+        {"cue_id": "bystanders", "text": "Several bystanders are present but passive", "priority": "medium"},
+        {"cue_id": "exit", "text": "A staffed help point is 20 meters away", "priority": "medium"}
+      ],
+      "decision_prompt": "How do you intervene safely in the next 60 seconds?",
+      "decision_time_limit_s": 60,
+      "emergency_steps": [
+        "Assess safety - do not escalate to violence",
+        "Use the 5 Ds: Distract, Delegate, Document, Delay, Direct",
+        "Support the targeted person; ask what they need",
+        "Get help from staff or call authorities if it escalates"
+      ],
+      "foresight_prompts": ["What if the aggressor turns on you?", "How do you keep the target safe if it escalates?"],
+      "critical_thinking_prompts": ["Which of the 5 Ds is safest here?", "Why might direct confrontation backfire?"],
+      "debrief_rubric": ["Prioritized safety", "Used a de-escalation tactic", "Centered the targeted person", "Engaged help appropriately"],
+      "skills": ["de-escalation", "situational-analysis", "critical-thinking"]
+    },
+    {
+      "scenario_id": "pack_winter_power_outage",
+      "title": "Winter power outage at home",
+      "domain": "disaster_recovery",
+      "briefing": "A severe winter storm knocks out power overnight. Temperatures are dropping fast and you are responsible for a household including an older relative.",
+      "cues": [
+        {"cue_id": "cold", "text": "Indoor temperature is falling", "priority": "high"},
+        {"cue_id": "generator", "text": "A portable generator is in the garage", "priority": "critical"},
+        {"cue_id": "relative", "text": "An older relative is sensitive to cold", "priority": "high"},
+        {"cue_id": "food", "text": "The refrigerator is full of perishable food", "priority": "medium"}
+      ],
+      "decision_prompt": "What are your priorities for the first hour?",
+      "decision_time_limit_s": 90,
+      "emergency_steps": [
+        "Never run a generator indoors or in the garage - carbon monoxide risk",
+        "Conserve heat: close off rooms, layer clothing, use blankets",
+        "Keep refrigerator/freezer closed to preserve food",
+        "Check on vulnerable household members frequently"
+      ],
+      "foresight_prompts": ["What is the danger of running the generator inside?", "How long will food stay safe?"],
+      "critical_thinking_prompts": ["What is the deadliest mistake here?", "How do you balance warmth and ventilation?"],
+      "debrief_rubric": ["Avoided CO hazard", "Conserved heat", "Protected vulnerable members", "Managed food safely"],
+      "skills": ["disaster-recovery", "situational-analysis", "critical-thinking"]
+    }
+  ]
+}

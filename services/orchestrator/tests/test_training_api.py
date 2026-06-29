@@ -31,6 +31,41 @@ def test_training_knowledge_base_real_and_cited():
         assert f["fact"] and f["source"] and f["reference"]
 
 
+def test_language_readability_endpoint():
+    r = client.get("/api/language/readability", params={
+        "text": "Subsequently the participants utilized the apparatus to demonstrate comprehension.",
+        "simplify_to": "beginner",
+    }).json()
+    assert r["metrics"]["flesch_kincaid_grade"] > 0
+    assert "simplified" in r
+    assert r["simplified_metrics"]["flesch_kincaid_grade"] <= r["metrics"]["flesch_kincaid_grade"]
+
+
+def test_presentation_techniques_and_plan():
+    techs = client.get("/api/presentation/techniques").json()
+    assert len(techs) >= 25
+    plan = client.post("/api/presentation/skill-plan", json={
+        "headings": ["Intro", "Core", "Practice"], "topic": "loops",
+    }).json()
+    assert len(plan) == 3
+    assert all(p["techniques"] for p in plan)
+
+
+def test_training_growth_status():
+    g = client.get("/api/training/growth").json()
+    assert g["knowledge_facts"] >= 130
+    assert g["scenario_capacity"] >= 1_000_000
+    assert g["slang_entries"] >= 100
+    assert g["presentation_techniques"] >= 25
+    assert g["content_packs"]["knowledge"]["records"] >= 50
+
+
+def test_training_knowledge_meta_reports_packs():
+    meta = client.get("/api/training/knowledge/meta").json()
+    assert meta["from_packs"] >= 50
+    assert meta["builtin"] >= 80
+
+
 def test_training_knowledge_status_persistent_db():
     status = client.get("/api/training/knowledge/status").json()
     assert status["backend"] in ("sqlite", "memory")

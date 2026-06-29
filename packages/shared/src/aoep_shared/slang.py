@@ -158,11 +158,69 @@ class SlangLexicon:
         return NormalizedText(original=text, plain=plain, detections=detections)
 
 
+def _pack_entries() -> List[SlangEntry]:
+    """Load slang/idiom entries from content packs (data-driven growth)."""
+    try:
+        from .content_packs import load_records
+    except Exception:  # pragma: no cover - content_packs always present
+        return []
+    out: List[SlangEntry] = []
+    for rec in load_records("slang"):
+        phrase = rec.get("phrase")
+        meaning = rec.get("meaning")
+        if not (phrase and meaning):
+            continue
+        out.append(
+            SlangEntry(
+                phrase=str(phrase),
+                meaning=str(meaning),
+                language=str(rec.get("language", "en")),
+                region=str(rec.get("region", "global")),
+                kind=str(rec.get("kind", "idiom")),
+                register=str(rec.get("register", "casual")),
+            )
+        )
+    return out
+
+
+def all_entries() -> List[SlangEntry]:
+    """Built-in lexicon plus every entry merged from slang packs."""
+    return list(LEXICON) + _pack_entries()
+
+
+def lexicon_stats() -> dict:
+    entries = all_entries()
+    by_lang: dict = {}
+    by_region: dict = {}
+    for e in entries:
+        by_lang[e.language] = by_lang.get(e.language, 0) + 1
+        by_region[e.region] = by_region.get(e.region, 0) + 1
+    return {
+        "total": len(entries),
+        "builtin": len(LEXICON),
+        "from_packs": len(_pack_entries()),
+        "languages": by_lang,
+        "regions": by_region,
+    }
+
+
 _default: Optional[SlangLexicon] = None
+_default_fingerprint: Optional[str] = None
 
 
 def default_lexicon() -> SlangLexicon:
-    global _default
-    if _default is None:
-        _default = SlangLexicon()
+    """Singleton lexicon = built-in entries + slang content packs.
+
+    Rebuilt automatically when the slang packs change (fingerprint mismatch).
+    """
+    global _default, _default_fingerprint
+    try:
+        from .content_packs import pack_fingerprint
+
+        fp = pack_fingerprint("slang")
+    except Exception:  # pragma: no cover
+        fp = ""
+    if _default is None or _default_fingerprint != fp:
+        _default = SlangLexicon(all_entries())
+        _default_fingerprint = fp
     return _default
