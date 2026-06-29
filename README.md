@@ -1,8 +1,7 @@
 # Salareen - Agentic Online Education Platform
 
 <p align="center">
-  <img src="docs/brand/salareen_bayon_buddy_mascot.png" alt="Salareen study buddy — a secular Bayon-inspired face forming an S, beside a bodhi-style leaf of knowledge" width="200" />
-  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark" width="180" />
+  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy — a secular Khmer-inspired study buddy holding the golden S medallion with a bodhi leaf" width="200" />
 </p>
 
 Salareen (referred to as AI Classroom across parts of the codebase) is a

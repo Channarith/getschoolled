@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-29 - Replace the remaining stale brand art with the medallion-S Bayon
+  Buddy. scripts/build_bayon_icons.py is now the single buddy-asset generator and
+  also rebuilds docs/brand/aiclassroom_logo.{png,webp} (color), the 1-bit print
+  marks aiclassroom_logo_binary{,_threshold}.png, docs/brand/
+  salareen_bayon_buddy_mascot.png, docs/images/logo.png (was the old graduation+
+  network icon), and marketing/pitch-video/public/brand/mascot.png (was the old
+  line-art face) - all from /bayon-mark.webp. build_brand_assets.py no longer
+  emits those (only the legacy "S" wordmark). Updated branding.txt + README hero.
+
 - 2026-06-29 - Version 0.11.0 (autobump; >8 pending changelog entries).
 
 - 2026-06-29 - Brand/logo/icon is now the Salareen Bayon Buddy holding the golden

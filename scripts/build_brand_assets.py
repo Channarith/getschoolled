@@ -5,18 +5,15 @@ Source of truth: docs/brand/aiclassroom_mark.svg (icon) and
 docs/brand/aiclassroom_wordmark.svg (horizontal lockup).
 
 NOTE: the canonical brand mark is now the Bayon Buddy holding the golden "S"
-medallion. The web browser/app icons (favicon.ico, logo-mark.webp, logo.webp,
-icon.png) are built from that master by scripts/build_bayon_icons.py and are NOT
-produced here, so re-running this script never regresses the buddy brand.
+medallion. ALL buddy brand rasters - the web browser/app icons, the docs/brand
+color + 1-bit logos, the mascot, docs/images/logo.png, and the marketing
+mascot.png - are built from that master by scripts/build_bayon_icons.py and are
+NOT produced here, so re-running this script never regresses the buddy brand.
+This script only emits the legacy 1-color "S" wordmark lockup.
 
 Outputs:
   apps/web/public/logo-mark.svg      raw SVG (themable via currentColor)
   apps/web/public/wordmark.webp      1024x224 light mark on navy
-
-  docs/brand/aiclassroom_logo.png        1024 color on navy
-  docs/brand/aiclassroom_logo.webp       1024 color on navy
-  docs/brand/aiclassroom_logo_binary.png            1-bit dithered (print)
-  docs/brand/aiclassroom_logo_binary_threshold.png  1-bit hard threshold (stamp)
 
 Plain text per the repo no-markdown rule. Idempotent; safe to re-run.
 """
@@ -97,35 +94,18 @@ def main() -> int:
 
     PUBLIC.mkdir(parents=True, exist_ok=True)
 
-    # The web browser/app icons (favicon.ico, logo-mark.webp, logo.webp,
-    # icon.png) are derived from the Bayon Buddy master by
-    # scripts/build_bayon_icons.py - do not regenerate them here.
+    # The buddy brand rasters (web icons + docs/brand color & 1-bit logos +
+    # mascot + docs/images/logo.png + marketing mascot.png) are derived from the
+    # Bayon Buddy master by scripts/build_bayon_icons.py - do not regenerate them
+    # here. This script only produces the legacy 1-color "S" wordmark lockup.
     shutil.copy2(MARK_SVG, PUBLIC / "logo-mark.svg")
 
     wordmark = render_wordmark(1024, 224)
     wordmark.save(PUBLIC / "wordmark.webp", format="WEBP", quality=92, method=6)
 
-    color = render_icon(1024)
-    color.save(BRAND / "aiclassroom_logo.png", format="PNG", optimize=True)
-    color.save(BRAND / "aiclassroom_logo.webp", format="WEBP", quality=92, method=6)
-
-    flat = render_icon(1024, fill="#000000", bg="#ffffff", rounded=False).convert("RGB")
-    flat.convert("L").convert("1", dither=Image.FLOYDSTEINBERG).save(
-        BRAND / "aiclassroom_logo_binary.png", format="PNG", optimize=True,
-    )
-    gray = flat.convert("L")
-    threshold = gray.point(lambda p: 0 if p < 128 else 255, mode="1")
-    threshold.save(
-        BRAND / "aiclassroom_logo_binary_threshold.png",
-        format="PNG", optimize=True,
-    )
-
     print("wrote:")
     for p in [
         PUBLIC / "logo-mark.svg", PUBLIC / "wordmark.webp",
-        BRAND / "aiclassroom_logo.png", BRAND / "aiclassroom_logo.webp",
-        BRAND / "aiclassroom_logo_binary.png",
-        BRAND / "aiclassroom_logo_binary_threshold.png",
     ]:
         try:
             kb = p.stat().st_size / 1024

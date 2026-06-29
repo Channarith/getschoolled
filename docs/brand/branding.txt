@@ -26,8 +26,11 @@ Salareen study buddy (product mascot):
   beside it grows a stylized "leaf of knowledge": a heart-shaped, bodhi-style
   leaf whose veins double as a learning/circuit network. It signals curiosity,
   growth, and lifelong learning - explicitly NOT religion.
-  Files:
-    docs/brand/salareen_bayon_buddy_mascot.png     mascot, color on navy
+  Files (the mascot art IS the medallion-S Bayon Buddy, rendered from the
+  /bayon-mark.webp master by scripts/build_bayon_icons.py):
+    docs/brand/salareen_bayon_buddy_mascot.png     mascot, buddy on navy
+    marketing/pitch-video/public/brand/mascot.png  copy used by the pitch video
+    docs/images/logo.png                           app-icon presentation (white)
     apps/web/public/salareen-mascot.webp           web-optimized mascot
     docs/brand/salareen_platform_ecosystem.png     sub-app ecosystem poster
     apps/web/public/salareen-ecosystem.webp        web-optimized poster
@@ -56,23 +59,27 @@ Mascot/design guardrail:
   - For Khmer-language or Cambodian audience designs, lean on neutral language,
     family, study, food, music, pattern, landscape, or everyday-learning motifs.
 
-Sources (vector, single-source-of-truth):
+Master (single-source-of-truth) for ALL brand rasters:
+  apps/web/public/bayon-mark.webp          the medallion-S Bayon Buddy (transparent)
+
+Legacy "S" monogram sources (wordmark / 1-color vector only):
   docs/brand/aiclassroom_mark.svg          icon (square, viewBox 0 0 256 256)
   docs/brand/aiclassroom_wordmark.svg      horizontal lockup (mark + text)
-
-
 Both SVGs use fill="currentColor" so a single file inverts cleanly on light
 or dark backgrounds via CSS (`color: ...` on the parent / inline style).
 
-Generated raster assets (do NOT edit by hand; regenerate via
-`python3 scripts/build_brand_assets.py`):
-  docs/brand/aiclassroom_logo.png                1024x1024 color on navy
-  docs/brand/aiclassroom_logo.webp               1024x1024 color on navy
-  docs/brand/aiclassroom_logo_binary.png         1-bit Floyd-Steinberg dither,
-                                                  for grayscale/halftone print
-  docs/brand/aiclassroom_logo_binary_threshold.png  1-bit hard threshold,
-                                                  for stamps / screen print /
-                                                  single-ink / laser engraving
+Generated buddy raster assets (do NOT edit by hand; regenerate via
+`python3 scripts/build_bayon_icons.py`):
+  docs/brand/aiclassroom_logo.png                1024x1024 buddy on navy (rounded)
+  docs/brand/aiclassroom_logo.webp               1024x1024 buddy on navy (rounded)
+  docs/brand/aiclassroom_logo_binary.png         1-bit Floyd-Steinberg dither of
+                                                  the buddy, for halftone print
+  docs/brand/aiclassroom_logo_binary_threshold.png  1-bit hard threshold of the
+                                                  buddy, for stamps / screen print
+
+Legacy wordmark raster (regenerate via `python3 scripts/build_brand_assets.py`,
+needs rsvg-convert):
+  apps/web/public/wordmark.webp                  1024x224 "S" horizontal lockup
 
 Web assets (apps/web/public/, served from /) - the buddy brand icons are built
 by scripts/build_bayon_icons.py from /bayon-mark.webp:
