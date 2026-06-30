@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-30 - Add Theodore, the named AI presenter. Back-propagated the teaching
+  strategies of top online instructors - Terence Tao (MasterClass "Mathematical
+  Thinking": deconstruct, story, everyday relevance, demystify, normalize
+  failure), MasterClass production craft (expert authority, behind-the-craft,
+  narrative arc), and Elon Musk ("First Principles": reason from fundamentals,
+  challenge assumptions, probabilistic framing), plus established lecture/MOOC
+  pedagogy - into a new aoep_shared/theodore.py: a 24-strategy registry (each
+  attributed to its source), an LLM system prompt that teaches as Theodore, a
+  deterministic rehearsal loop that scores narration across delivery dimensions
+  and injects the missing strategies, a segment playbook, and attention-aware
+  re-engagement. The live-class Tutor now uses Theodore's system prompt (and a
+  groundedness-safe comprehension check offline); presentation_skills.py gains 12
+  matching techniques; new endpoints GET /api/presenter, POST /api/presenter/
+  rehearse, POST /api/presenter/playbook, GET /api/presenter/attention; and the
+  roster presenter is now "Theodore (AI Presenter)". See docs/theodore-presenter.txt.
+
 - 2026-06-29 - Replace the remaining stale brand art with the medallion-S Bayon
   Buddy. scripts/build_bayon_icons.py is now the single buddy-asset generator and
   also rebuilds docs/brand/aiclassroom_logo.{png,webp} (color), the 1-bit print
