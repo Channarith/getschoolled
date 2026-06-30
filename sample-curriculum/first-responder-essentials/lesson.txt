@@ -1,0 +1,27 @@
+First Responder Training Essentials
+===================================
+
+Mass-casualty triage, scene safety, and split-minute prioritization drills.
+Use track_id ``first_responder`` or domain ``medical`` in the training API.
+
+Module 1 — Scene safety before heroics
+--------------------------------------
+Your safety enables patient care. Scan for fire, traffic, violence, and
+secondary devices before approaching victims.
+
+Module 2 — START triage mindset
+-------------------------------
+Immediate life threats: airway, breathing, circulation. The loudest patient may
+not be the most urgent. Quiet pediatric patients can be critical.
+
+Module 3 — Communicate early
+----------------------------
+Assign someone to call EMS with location, counts, and hazards. Reassess as
+resources arrive.
+
+Module 4 — Hazmat cue awareness
+-------------------------------
+Odors, downwind positioning, and symptom clusters may indicate chemical exposure.
+Do not drive into hot zones without training.
+
+Practice scenarios: medical_triage_quick, hazmat_* , fire_evacuation.

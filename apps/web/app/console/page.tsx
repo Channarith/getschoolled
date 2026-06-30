@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   gradeReviewDecide,
   gradeReviews,
@@ -8,8 +9,11 @@ import {
   hilQueue,
   type ReviewItem,
 } from "../lib/api";
+import { useFlags, useFlag } from "../lib/flags";
 
 export default function ConsolePage() {
+  const { ready: flagsReady } = useFlags();
+  const consoleOn = useFlag<boolean>("access.educator_console", true);
   const [autonomy, setAutonomy] = useState("");
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [grades, setGrades] = useState<ReviewItem[]>([]);
@@ -65,6 +69,20 @@ export default function ConsolePage() {
     } catch (e) {
       setError(String(e));
     }
+  }
+
+  if (flagsReady && !consoleOn) {
+    return (
+      <main className="container" style={{ maxWidth: 520 }}>
+        <h1>Teacher console</h1>
+        <div className="card">
+          <p className="muted">
+            The educator console is currently disabled. An administrator can re-enable it from the{" "}
+            <Link href="/admin">Admin</Link> console (access.educator_console).
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (

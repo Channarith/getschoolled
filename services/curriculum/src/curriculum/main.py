@@ -80,6 +80,19 @@ app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
 app.state.corrections = {}  # id -> Correction (review queue)
 
+# Course scoring admin: editable config + manual overrides + telemetry (Phase: scoring tuning).
+from aoep_shared.course_scoring import (  # noqa: E402
+    OverrideStore,
+    ScoringConfig,
+    TelemetryStore,
+)
+
+_scoring_config_path = os.environ.get("AOEP_SCORING_CONFIG") or None
+app.state.scoring_config = ScoringConfig.load(_scoring_config_path)
+app.state.scoring_config_path = _scoring_config_path
+app.state.scoring_overrides = OverrideStore()
+app.state.scoring_telemetry = TelemetryStore()
+
 # Human-in-the-loop co-grading (Phase 12): a review queue for AI-proposed grades.
 from aoep_shared.hil import (  # noqa: E402
     AutonomyLevel,
@@ -1516,3 +1529,211 @@ def ingest_youtube(req: IngestYouTubeRequest) -> Deck:
     result = extract_transcript(segs, title=req.title or req.video_id)
     deck = sections_to_deck(result, fmt=_fmt(req.fmt), source=f"youtube:{req.video_id}")
     return app.state.decks.add(deck)
+
+
+# --------------------------------------------------------------------------- #
+# Course scoring admin: review, edit config, manual overrides, telemetry tuning
+# --------------------------------------------------------------------------- #
+def _build_composition(req: "ScoringBreakdownRequest"):
+    from aoep_shared.harvest.composition import CourseComposition
+
+    if req.composition:
+        return CourseComposition.from_dict(req.composition)
+    comp = CourseComposition(subject=req.subject or "general", course_id=req.course_id or "")
+    for section in req.sections or []:
+        heading = section.get("heading", "") if isinstance(section, dict) else str(section)
+        body = section.get("body", "") if isinstance(section, dict) else ""
+        comp.add_sections([(heading, body)])
+    return comp
+
+
+class ScoringBreakdownRequest(BaseModel):
+    course_id: str = ""
+    subject: str = "general"
+    composition: dict | None = None          # a CourseComposition.to_dict()
+    sections: list | None = None             # [{"heading","body"}, ...] convenience
+
+
+@app.post("/scoring/breakdown")
+def scoring_breakdown(req: ScoringBreakdownRequest) -> dict:
+    """Review exactly how a course gets its PCS code + quality score, with any
+    manual override applied on top."""
+    from aoep_shared.course_scoring import score_breakdown
+
+    comp = _build_composition(req)
+    cfg = app.state.scoring_config
+    breakdown = score_breakdown(comp, cfg)
+    course_id = req.course_id or comp.course_id
+    effective = app.state.scoring_overrides.effective(
+        course_id,
+        computed_score=breakdown["composition_score"],
+        computed_quality=breakdown["quality_index"],
+        computed_label=breakdown["quality_label"],
+    ) if course_id else None
+    return {"breakdown": breakdown, "effective": effective}
+
+
+@app.get("/scoring/config")
+def scoring_config_get() -> dict:
+    return app.state.scoring_config.to_dict()
+
+
+class ScoringConfigUpdate(BaseModel):
+    quality_weights: dict | None = None
+    depth_target: float | None = None
+    quality_bands: list | None = None        # [[min_score, label], ...]
+    notes: str | None = None
+
+
+@app.put("/scoring/config", dependencies=[Depends(require_internal)])
+def scoring_config_put(req: ScoringConfigUpdate) -> dict:
+    """INTERNAL-ONLY. Edit the tunable scoring config (quality weights, depth
+    target, quality label bands)."""
+    import time as _time
+
+    from aoep_shared.course_scoring import ScoringConfig
+
+    cur = app.state.scoring_config
+    new = ScoringConfig(
+        quality_weights=(req.quality_weights or dict(cur.quality_weights)),
+        depth_target=(req.depth_target if req.depth_target is not None else cur.depth_target),
+        quality_bands=([(float(t), str(l)) for t, l in req.quality_bands]
+                       if req.quality_bands else list(cur.quality_bands)),
+        notes=(req.notes if req.notes is not None else cur.notes),
+        updated_at=_time.time(),
+    )
+    new.save(app.state.scoring_config_path)
+    app.state.scoring_config = new
+    return new.to_dict()
+
+
+@app.get("/scoring/overrides", dependencies=[Depends(require_internal)])
+def scoring_overrides_list() -> list[dict]:
+    return [o.to_dict() for o in app.state.scoring_overrides.list()]
+
+
+class OverrideUpdate(BaseModel):
+    label: str | None = None
+    score: int | None = None
+    quality_index: float | None = None
+    note: str = ""
+    author: str = ""
+
+
+@app.put("/scoring/overrides/{course_id}", dependencies=[Depends(require_internal)])
+def scoring_override_set(course_id: str, req: OverrideUpdate) -> dict:
+    """INTERNAL-ONLY. Manually adjust a course's label/score/quality."""
+    from aoep_shared.course_scoring import ManualOverride
+
+    ov = app.state.scoring_overrides.set(ManualOverride(
+        course_id=course_id, label=req.label, score=req.score,
+        quality_index=req.quality_index, note=req.note, author=req.author,
+    ))
+    return ov.to_dict()
+
+
+@app.delete("/scoring/overrides/{course_id}", dependencies=[Depends(require_internal)])
+def scoring_override_delete(course_id: str) -> dict:
+    return {"deleted": app.state.scoring_overrides.delete(course_id)}
+
+
+class TelemetryRecordRequest(BaseModel):
+    course_id: str
+    composition_score: int
+    quality_index: float
+    subject: str = "general"
+    happiness: float | None = None
+    completion_rate: float | None = None
+    metrics: dict = {}
+
+
+@app.post("/scoring/telemetry")
+def scoring_telemetry_record(req: TelemetryRecordRequest) -> dict:
+    from aoep_shared.course_scoring import TelemetrySample
+
+    sample = TelemetrySample(
+        course_id=req.course_id, composition_score=req.composition_score,
+        quality_index=req.quality_index, subject=req.subject,
+        happiness=req.happiness, completion_rate=req.completion_rate,
+        metrics={k: float(v) for k, v in (req.metrics or {}).items()},
+        config_version=app.state.scoring_config.version(),
+    )
+    app.state.scoring_telemetry.record(sample)
+    return {"recorded": True, "course_id": req.course_id}
+
+
+@app.get("/scoring/telemetry/{course_id}")
+def scoring_telemetry_summary(course_id: str) -> dict:
+    return app.state.scoring_telemetry.course_summary(course_id)
+
+
+@app.get("/scoring/leaderboard")
+def scoring_leaderboard(subject: str | None = None, min_samples: int = 1,
+                        top_n: int = 10) -> list[dict]:
+    return app.state.scoring_telemetry.leaderboard(
+        subject=subject, min_samples=min_samples, top_n=top_n)
+
+
+@app.get("/scoring/compare")
+def scoring_compare(a: str, b: str) -> dict:
+    return app.state.scoring_telemetry.compare_courses(a, b)
+
+
+@app.get("/scoring/recommend", dependencies=[Depends(require_internal)])
+def scoring_recommend() -> dict:
+    """INTERNAL-ONLY. Suggest quality-weight adjustments from telemetry by
+    correlating composition quality metrics with observed happiness."""
+    return app.state.scoring_telemetry.recommend_weight_adjustments(app.state.scoring_config)
+
+
+# --------------------------------------------------------------------------- #
+# Market intelligence + investor value projection
+# --------------------------------------------------------------------------- #
+@app.get("/market/meta")
+def market_meta() -> dict:
+    """Cited market-reference corpus meta (counts, regions, sources, disclaimer)."""
+    from aoep_shared.market_intel import meta
+
+    return meta()
+
+
+@app.get("/market/regions")
+def market_regions() -> dict:
+    from aoep_shared.market_intel import regions, sources
+
+    return {"regions": regions(), "sources": sources()}
+
+
+@app.get("/market/references")
+def market_references(region: str | None = None, category: str | None = None,
+                      metric: str | None = None, q: str | None = None,
+                      offset: int = 0, limit: int = 100) -> list[dict]:
+    """Search the cited market/ROI reference points (datamined + curated)."""
+    from aoep_shared.market_intel import search_references
+
+    return [r.to_dict() for r in search_references(
+        region=region, category=category, metric=metric, q=q, offset=offset, limit=limit)]
+
+
+class ValueProjectionRequest(BaseModel):
+    users_by_region: dict[str, int]
+    arpu_usd_per_year: float | None = None
+    paid_conversion: float | None = None
+
+
+@app.post("/market/projection")
+def market_projection(req: ValueProjectionRequest) -> dict:
+    """Project annual revenue + TAM capture by region (MODEL OUTPUT, not a guarantee)."""
+    from aoep_shared.market_intel import (
+        DEFAULT_ARPU_USD_PER_YEAR,
+        DEFAULT_PAID_CONVERSION,
+        value_projection,
+    )
+
+    return value_projection(
+        {k: int(v) for k, v in req.users_by_region.items()},
+        arpu_usd_per_year=(req.arpu_usd_per_year if req.arpu_usd_per_year is not None
+                           else DEFAULT_ARPU_USD_PER_YEAR),
+        paid_conversion=(req.paid_conversion if req.paid_conversion is not None
+                         else DEFAULT_PAID_CONVERSION),
+    )

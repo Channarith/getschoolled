@@ -43,9 +43,20 @@ def _admin_secret() -> str:
     return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
 
 
+def _accepted_admin_secrets() -> list[str]:
+    """Secrets that unlock the admin surfaces.
+
+    Accepts the configured ADMIN_SECRET and, as a convenience, the platform admin
+    password (DEFAULT_ADMIN_PASSWORD, default 88888888) so operators can use the
+    same credential they log in with on the Feature Flags page.
+    """
+    secrets = [_admin_secret(), os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888")]
+    return [s for s in secrets if s]
+
+
 def require_admin_header(x_admin_secret: str = Header(default="")) -> str:
     """FastAPI dependency: gate administrative writes behind the admin secret."""
-    if not require_admin(x_admin_secret, _admin_secret()):
+    if not any(require_admin(x_admin_secret, s) for s in _accepted_admin_secrets()):
         raise HTTPException(status_code=401, detail="invalid or missing admin secret")
     return "admin"
 

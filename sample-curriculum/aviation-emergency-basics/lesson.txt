@@ -1,0 +1,34 @@
+Aviation Emergency Basics
+=========================
+
+Engine-out and emergency landing mental preparation for flight simulation training.
+Pairs with the platform Emergency Scenario Coach and Situational Analysis agents.
+
+Lesson 1 — Aviate, Navigate, Communicate
+----------------------------------------
+The memory aid ANC orders priorities under stress: maintain aircraft control first,
+then navigate toward a landing area, then communicate. In a sim, practice saying
+your first action aloud before touching controls.
+
+Lesson 2 — Best glide and field selection
+-----------------------------------------
+At partial or total power loss, establish best glide speed promptly. Scan for
+suitable fields within glide range; accept off-airport landing when necessary.
+The training agent reveals cues progressively — practice naming what you see.
+
+Lesson 3 — Emergency landing checklist (Cessna-style)
+-----------------------------------------------------
+Fuel selector BOTH, mixture RICH, ignition BOTH, carb heat ON (if equipped).
+Do not fixate on checklist before establishing glide and a landing spot.
+
+Lesson 4 — Mental rehearsal before the event
+--------------------------------------------
+The Foresight Coach asks: what cues would warn you before failure? What if glide
+range is insufficient? Rehearse these while cruise is stable — not only after the emergency.
+
+Lesson 5 — Debrief rubric
+-------------------------
+Control first. Landing area selected early. Position and intent communicated.
+Checklist without fixation. Post-landing hazards anticipated (fuel, egress).
+
+Use scenario_id ``aviation_emergency_landing`` in the training API to run the full drill.

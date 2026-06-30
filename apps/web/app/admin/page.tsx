@@ -19,6 +19,7 @@ import {
   type TelemetrySummary,
 } from "../lib/api";
 import MascotPreviewPanel from "../components/MascotPreviewPanel";
+import { EyeIcon } from "../components/EyeIcon";
 import { APP_VERSION } from "../lib/version";
 
 type Insights = Awaited<ReturnType<typeof adminSurveyInsights>>;
@@ -42,6 +43,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
   const [flags, setFlags] = useState<FlagSpec[]>([]);
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState("");
@@ -92,11 +94,24 @@ export default function AdminPage() {
   async function load(s: string) {
     setError("");
     try {
-      const f = await adminListFlags(s);
+      // Prefer the operator-admin session (server-side secret, no typing needed)
+      // when signed in; fall back to the manually entered admin secret.
+      let f: FlagSpec[];
+      if (getToken()) {
+        try {
+          f = await adminListFlagsSession();
+        } catch {
+          f = await adminListFlags(s);
+        }
+      } else {
+        f = await adminListFlags(s);
+      }
       setFlags(f);
       setAuthed(true);
     } catch (e) {
-      setError("Invalid admin secret or memory service unavailable.");
+      setError(
+        "Could not load flags. Sign in as an operator admin (admin@salareen.com), or enter the correct admin secret."
+      );
       setAuthed(false);
       void e;
     }
@@ -113,12 +128,24 @@ export default function AdminPage() {
   async function patch(key: string, p: Parameters<typeof adminSetFlag>[2]) {
     setBusy(key);
     try {
-      const updated = getToken()
-        ? await adminSetFlagSession(key, p)
-        : await adminSetFlag(secret, key, p);
+      // Prefer the operator-admin session (BFF) when signed in, but fall back to
+      // the direct memory path with the entered secret if the BFF is unavailable
+      // (e.g. expired session, or a web build without the /api/admin route).
+      let updated: FlagSpec;
+      if (getToken()) {
+        try {
+          updated = await adminSetFlagSession(key, p);
+        } catch {
+          updated = await adminSetFlag(secret, key, p);
+        }
+      } else {
+        updated = await adminSetFlag(secret, key, p);
+      }
       setFlags((prev) => prev.map((f) => (f.key === key ? updated : f)));
     } catch (e) {
-      setError(`Update failed for ${key}: ${String(e)}`);
+      setError(
+        `Update failed for ${key}. If your session expired, enter the admin secret (88888888) above and try again. (${String(e)})`,
+      );
     } finally {
       setBusy("");
     }
@@ -129,15 +156,29 @@ export default function AdminPage() {
       <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
         <h1>Admin · Feature Flags</h1>
         <p style={{ color: "#666" }}>
-          Sign in as an operator admin account to manage flags automatically, or enter the
-          administrative secret below.
+          Sign in as an operator admin account (e.g. admin@salareen.com) to manage flags
+          automatically — no secret needed. Otherwise enter the administrative secret below.
         </p>
-        <input
-          type="password" placeholder="Admin secret" value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && load(secret)}
-          style={{ width: "100%", padding: 10, marginTop: 8 }}
-        />
+        <span style={{ position: "relative", display: "block", marginTop: 8 }}>
+          <input
+            type={showSecret ? "text" : "password"} placeholder="Admin secret" value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && load(secret)}
+            style={{ width: "100%", padding: 10, paddingRight: 56, boxSizing: "border-box" }}
+          />
+          <button type="button" onClick={() => setShowSecret((s) => !s)}
+            aria-label={showSecret ? "Hide admin secret" : "Show admin secret"}
+            aria-pressed={showSecret}
+            title={showSecret ? "Hide admin secret" : "Show admin secret"}
+            style={{
+              position: "absolute", right: 4, top: 0, bottom: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 48, border: 0, background: "transparent",
+              cursor: "pointer", color: "#9aa4b2",
+            }}>
+            <EyeIcon off={showSecret} size={26} />
+          </button>
+        </span>
         <button onClick={() => load(secret)}
           style={{ marginTop: 12, padding: "8px 18px", background: "#111", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer" }}>
           Unlock

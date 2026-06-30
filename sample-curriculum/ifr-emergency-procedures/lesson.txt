@@ -1,0 +1,27 @@
+IFR Emergency Procedures
+========================
+
+Instrument flying emergencies for sim sessions and instrument proficiency.
+Use track_id ``aviation_ifr_advanced`` or domain ``aviation_ifr``.
+
+Module 1 — Trust instruments
+----------------------------
+In IMC spatial disorientation, instrument scan beats somatogravic illusion.
+Aviate first — wings level, safe airspeed.
+
+Module 2 — Partial panel
+------------------------
+Vacuum or electrical failures degrade attitude reference. Know backup instruments
+and when to declare / request vectors.
+
+Module 3 — Icing on approach
+----------------------------
+Hold, divert, or land — decide before accretion exceeds aircraft capability.
+Foresight coach: what would you brief before entering clouds?
+
+Module 4 — Missed approach fuel
+-------------------------------
+Missed approach at minimums with fuel anxiety is a classic trap. Mental rehearsal
+before the approach includes divert airport and fuel reserve.
+
+Practice scenarios: ifr_* , aviation_emergency_landing.

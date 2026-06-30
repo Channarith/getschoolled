@@ -1,0 +1,27 @@
+Nursing Judgment Under Pressure
+===============================
+
+Bedside clinical judgment drills for rapid response, falls, and medication safety.
+Use track_id ``healthcare_clinical`` or domain ``nursing``.
+
+Module 1 — Patient safety first
+-------------------------------
+When alarms stack up, return to ABCs and whether the patient can wait 30 seconds
+for your full attention.
+
+Module 2 — Escalate early
+-------------------------
+Rapid response beats code blue when you recognize deterioration trends early.
+Name what changed: vitals, mental status, work of breathing.
+
+Module 3 — Medication double-check
+----------------------------------
+Wrong patient, wrong dose, wrong route — pause when something feels off.
+Critical thinking coach asks what evidence supports proceeding.
+
+Module 4 — Family and boundaries
+--------------------------------
+High emotion at bedside is data, not distraction to ignore — but maintain
+professional boundaries and call security when needed.
+
+Practice scenarios: nursing_* , medical_* rapid response variants.

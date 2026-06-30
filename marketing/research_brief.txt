@@ -1,0 +1,110 @@
+SALAREEN — MARKETING RESEARCH BRIEF (sourced)
+=============================================
+Purpose: defensible, citable statistics for promo videos, investor decks, and
+the web site. Every figure below lists its source and the year. Use the exact
+phrasing in the "Safe on-screen wording" column when putting a number on screen,
+and keep the source visible (small footer line) so claims stay defensible.
+
+HONESTY RULES (read before using any number)
+- Cite the source on screen for hard numbers (e.g. "World Bank, 2022").
+- Aspirational or anecdotal outcomes ("learned Spanish in 3 days", "remembered
+  my course") must carry "Dramatization. Individual results vary."
+- Forgetting-curve percentages are research-derived ranges, not a single law —
+  word them as "research suggests" / "up to", never as an exact guarantee.
+- Don't merge two sources into one invented number. Keep each stat atomic.
+
+------------------------------------------------------------------------------
+A. THE GLOBAL LEARNING CRISIS (use in "Evolution of Learning" + "By the Numbers")
+------------------------------------------------------------------------------
+1) Learning poverty
+   FIGURE: ~70% of 10-year-olds in low- and middle-income countries cannot read
+           and understand a simple story.
+   SOURCE: World Bank / UNESCO, "The State of Global Learning Poverty: 2022
+           Update." (post-pandemic estimate; pre-pandemic was ~57%).
+   Safe on-screen wording: "70% of 10-year-olds can't read a simple story.
+                            — World Bank, 2022"
+
+2) Economic cost of the crisis
+   FIGURE: This generation of students risks losing ~$21 trillion in lifetime
+           earnings in present value (≈17% of today's global GDP).
+   SOURCE: World Bank, UNESCO, UNICEF — "The State of the Global Education
+           Crisis: A Path to Recovery" (2021/2022).
+   Safe on-screen wording: "$21 trillion in lost lifetime earnings.
+                            — World Bank/UNESCO/UNICEF, 2022"
+
+3) Teacher shortage
+   FIGURE: The world needs ~44 million additional teachers to reach universal
+           basic education by 2030.
+   SOURCE: UNESCO / Global Education Monitoring Report & Teacher Task Force,
+           2023–2024.
+   Safe on-screen wording: "The world is short 44 million teachers.
+                            — UNESCO, 2024"
+
+4) Out-of-school children
+   FIGURE: ~250+ million children and youth are out of school worldwide
+           (UNESCO's 2024 revision put the figure around 251–272M).
+   SOURCE: UNESCO, 2024 out-of-school estimates.
+   Safe on-screen wording: "250M+ children are out of school. — UNESCO, 2024"
+
+------------------------------------------------------------------------------
+B. RETENTION / FORGETTING (use in "20-Minute Expert" corporate)
+------------------------------------------------------------------------------
+5) The forgetting curve
+   FIGURE: Without reinforcement, people forget a large majority of newly
+           learned information within days; commonly cited as up to ~70% within
+           24 hours and ~90% within a week.
+   SOURCE: Derived from Hermann Ebbinghaus's forgetting-curve research (1885)
+           and modern replications (e.g., Murre & Dros, 2015, PLOS ONE).
+   CAUTION: This is a research-derived range, not a fixed constant. Word it as
+            "research suggests" or "up to ~90% within a week."
+   Safe on-screen wording: "Research suggests we forget up to 90% of new
+                            training within a week. — Ebbinghaus; Murre & Dros, 2015"
+
+6) Spaced repetition works
+   FIGURE: Spaced/distributed practice reliably improves long-term retention
+           vs. massed ("cramming") study — one of the most robust findings in
+           learning science.
+   SOURCE: Cepeda et al., 2006 (Psychological Bulletin) meta-analysis;
+           Dunlosky et al., 2013 (Psychological Science in the Public Interest).
+   Safe on-screen wording: "Spaced repetition is proven to make learning stick.
+                            — Cepeda et al., 2006"
+
+------------------------------------------------------------------------------
+C. COST / ACCESS (supporting value story)
+------------------------------------------------------------------------------
+7) Tutoring is expensive / unequal
+   FIGURE: Private 1:1 tutoring in the U.S. commonly runs ~$25–$80+/hour, putting
+           high-dose tutoring out of reach for most families; effective
+           "high-dosage" tutoring is strongly evidence-backed but costly to staff.
+   SOURCE: Industry rate surveys; J-PAL / Education Endowment Foundation reviews
+           of high-dosage tutoring effectiveness.
+   Safe on-screen wording: "1:1 tutoring: $25–$80/hour — out of reach for most.
+                            — industry rates"
+
+8) Chronic absenteeism (U.S.)
+   FIGURE: Roughly 1 in 4 U.S. students was chronically absent in recent years
+           (post-pandemic peak ~28%).
+   SOURCE: U.S. Dept. of Education / NCES; national absenteeism trackers, 2022–2023.
+   Safe on-screen wording: "1 in 4 U.S. students is chronically absent. — NCES"
+
+------------------------------------------------------------------------------
+D. SALAREEN'S ANSWER (pair each problem with our capability)
+------------------------------------------------------------------------------
+  Problem (number)                  ->  Salareen capability shown in product
+  -------------------------------       ----------------------------------------
+  70% can't read / $21T lost (A1,A2)->  Adaptive 1:1 AI tutor, grounded in
+                                         curriculum (RAG), in the learner's
+                                         language — patient, infinite practice.
+  44M teacher gap (A3)             ->   "We multiply great teachers": one teacher
+                                         orchestrates many AI-assisted learners;
+                                         teacher stays in the loop.
+  90% forgotten in a week (B5)     ->   Spaced repetition + auto-quizzing +
+                                         reinforcement scheduling so it sticks.
+  $25–$80/hr tutoring (C7)         ->   Tutoring at software scale; pennies per
+                                         learner per month at container scale.
+  Absenteeism / out-of-school (A4,C8)-> Mobile + offline-capable + Drive Mode
+                                         (hands-free audio) — learn anywhere.
+
+NOTE ON OUR OWN COST CLAIM: any "pennies per learner" figure must be tied to a
+real unit-economics calculation in the investor model before it goes on screen
+as a hard number; otherwise label it illustrative.

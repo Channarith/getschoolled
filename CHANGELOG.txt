@@ -2,6 +2,100 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-29 - Replace the remaining stale brand art with the medallion-S Bayon
+  Buddy. scripts/build_bayon_icons.py is now the single buddy-asset generator and
+  also rebuilds docs/brand/aiclassroom_logo.{png,webp} (color), the 1-bit print
+  marks aiclassroom_logo_binary{,_threshold}.png, docs/brand/
+  salareen_bayon_buddy_mascot.png, docs/images/logo.png (was the old graduation+
+  network icon), and marketing/pitch-video/public/brand/mascot.png (was the old
+  line-art face) - all from /bayon-mark.webp. build_brand_assets.py no longer
+  emits those (only the legacy "S" wordmark). Updated branding.txt + README hero.
+
+- 2026-06-29 - Version 0.11.0 (autobump; >8 pending changelog entries).
+
+- 2026-06-29 - Brand/logo/icon is now the Salareen Bayon Buddy holding the golden
+  "S" medallion (the canonical mark). The web favicon, nav + profile badge,
+  apple-touch/app icon, and hero/OG image are rendered from apps/web/public/
+  bayon-mark.webp onto a navy rounded square by new scripts/build_bayon_icons.py
+  (favicon.ico, logo-mark.webp, logo.webp, icon.png). layout.tsx now serves
+  /favicon.ico + /icon.png (dropped the legacy "S" SVG favicon). The old "S"
+  monogram is demoted to wordmark/1-color print only; build_brand_assets.py no
+  longer overwrites the web icons. branding.txt + README brand table updated.
+
+- 2026-06-27 - Version 0.10.0 (autobump). Web/mobile VERSION, package.json,
+  version.ts, app.json synced to 0.10.0 (supersedes the interim 0.9.5 bump).
+- 2026-06-27 - Add investor pitch deck video generator (scripts/generate_pitch_video.py)
+  and output video (docs/demos/salareen_pitch_deck_2026.mp4, 3m09s, 1080p H.264).
+  25 rendered clips across 14 segments: cover, opening story, problem/market stats, 5
+  product demos (live class, Drive Mode, languages, careers, kids), platform tour, UVP
+  with numbers, market TAM/SAM/SOM, traction, business model, competition, team,
+  financials, the ask with milestones, and closing. Dark-branded slides + xfade transitions.
+
+- 2026-06-27 - Add investor pitch deck materials (docs/pitch/): full 12-slide pitch
+  deck script with speaker notes and visual direction covering problem, solution, TAM/
+  SAM/SOM ($7.3T / $340B / $18B), traction, business model, competitive landscape,
+  team, 3-year financial projections (Year 3: $86.4M ARR, 75% gross margin), and
+  $5M Seed SAFE ask. Video narration script (4m30s) with voice/music/b-roll direction
+  for the self-running investor video. References existing demo assets and the
+  "Salareen Unteachable Wisdom" opening video.
+
+- 2026-06-27 - Version 0.10.0 (minor bump; supersedes 0.9.5 — 18 pending changelog
+  entries exceeded the >8 minor-bump threshold). Incorporates all cognitive training
+  agents, feature-flags wire-up, kubeconfig security fix, and all prior 0.9.x changes.
+
+- 2026-06-27 - Version 0.9.5 (autobump: >8 features changed). Web/mobile VERSION,
+  package.json, version.ts, app.json synced to 0.9.5.
+
+- 2026-06-27 - Feature flags now actually take effect in the web UI. Added a central
+  client flags provider (apps/web/app/lib/flags.tsx: FlagsProvider + useFlag/useFlags)
+  that bulk-evaluates /flags/evaluate (bucketed on the signed-in account id + tier),
+  also fetches the admin-only ops kill-switches via /flags/<key>, and re-resolves on
+  auth/storage changes. Mounted in app/layout.tsx. Newly wired flags:
+    * ops.maintenance_mode / ops.read_only_mode -> site-wide MaintenanceBanner.
+    * ops.new_signups -> login page hides the signup toggle, forces sign-in mode,
+      and blocks signup submission when paused.
+    * monetization.video_ads -> AdSlot renders nothing and watch/page skips ad
+      breaks for everyone when off (independent of tier).
+    * ux.netflix_carousels -> home feed shows carousels when on, a flat course grid
+      when off.
+    * access.educator_console -> /console page guard + hides the console button on
+      the account page (mirrors the existing access.homework_grader pattern).
+  Note: engagement.post_class_survey / pulse_survey / onboarding_survey,
+  ux.locale_mascots and data.multidim_datamart were already enforced server-side in
+  the memory service; they appeared inert only because flag writes were 404ing (see
+  the toggle-fallback fix), and now respond to the admin toggles.
+- 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
+  (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
+  SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
+  RapidDecisionAgent (time-pressured drills, pressure calibration, After-Decision Review),
+  EmergencyScenarioAgent (full simulation: aircraft emergency landing, anaphylaxis,
+  ransomware incident; plus After Action Review generation), MentalReadinessAgent
+  (pre-mortem analysis, mental rehearsal scripts, Threat & Error Management, stress
+  inoculation, emotional regulation check-in), and BehaviorAdaptationAgent + CognitiveTrainer
+  master facade. All agents are wellness-sensitive: stressed/unwell learners are
+  wellness-gated from high-pressure scenarios and receive restorative exercises.
+  New meeting_agents roles: COGNITIVE_COACH, CRITICAL_THINKING_TRAINER,
+  SITUATIONAL_AWARENESS_TRAINER, RAPID_DECISION_TRAINER, EMERGENCY_SCENARIO_TRAINER,
+  MENTAL_READINESS_TRAINER. New orchestrator REST API at /api/cognitive/* (19 endpoints).
+  New sample curriculum: emergency-critical-thinking, situational-awareness-training,
+  rapid-decision-making. 139 new tests all passing.
+
+- 2026-06-27 - Add six cognitive training agents to aoep_shared: CriticalThinkingTrainer
+  (Socratic questioning, Bloom taxonomy, argument analysis, logical fallacy detection),
+  SituationalAwarenessAgent (OODA loop, DECIDE model, 4-domain scenario library),
+  RapidDecisionAgent (time-pressured drills, pressure calibration, After-Decision Review),
+  EmergencyScenarioAgent (full simulation: aircraft emergency landing, anaphylaxis,
+  ransomware incident; plus After Action Review generation), MentalReadinessAgent
+  (pre-mortem analysis, mental rehearsal scripts, Threat & Error Management, stress
+  inoculation, emotional regulation check-in), and BehaviorAdaptationAgent + CognitiveTrainer
+  master facade. All agents are wellness-sensitive: stressed/unwell learners are
+  wellness-gated from high-pressure scenarios and receive restorative exercises.
+  New meeting_agents roles: COGNITIVE_COACH, CRITICAL_THINKING_TRAINER,
+  SITUATIONAL_AWARENESS_TRAINER, RAPID_DECISION_TRAINER, EMERGENCY_SCENARIO_TRAINER,
+  MENTAL_READINESS_TRAINER. New orchestrator REST API at /api/cognitive/* (19 endpoints).
+  New sample curriculum: emergency-critical-thinking, situational-awareness-training,
+  rapid-decision-making. 139 new tests all passing.
+
 - 2026-06-24 - Remove the per-PR version-bump CI gate. The version-bump job in
   .github/workflows/ci.yml (scripts/check_pr_version_bump.sh) failed whenever two
   PRs landed on the same 0.9.x: the one that merged second saw "Base main is
@@ -15,6 +109,186 @@ Format: newest first. No markdown per project convention.
   the full ad-free VIP experience without going through billing. Re-synced on
   every startup by seed_account (idempotent; restores VIP even if downgraded).
   Verified: admin login returns tier=premium, membership_class=vip.
+- 2026-06-29 - Consolidate the two parallel training/cognitive stacks under one
+  canonical home. training_agents now re-exports the cognitive_trainer engines
+  (CognitiveTrainer, CognitiveLearnerProfile, LearningPattern,
+  BehaviorAdaptationAgent) via training_agents/cognitive.py, the platform roster
+  (/api/agents/roster) gains the 6 cognitive agents (category "cognitive"), and
+  the cognitive stack's 13 curated high-fidelity scenarios/drills (engine-failure
+  sim, anaphylaxis, ransomware, OODA scenarios, rapid drills) are promoted into
+  the single /api/training/scenarios catalog via a committed cognitive_gold_v1
+  scenarios pack (scripts/build_cognitive_pack.py). New /api/training/capabilities
+  endpoint gives one unified directory of both suites. Fixed a latent bug in
+  meeting_agents RapidDecisionTrainerAgent.deliver_drill (DecisionOption.label/
+  .text instead of .action_id). The /api/cognitive/* routes remain for back-compat.
+- 2026-06-29 - Merge main into the training-agents branch; make orchestrator
+  curriculum _parse_ksb tolerant of both KSB schemas (the legacy {code: {...}}
+  map AND a list of {id/code, title/description/statement} objects). This fixes
+  orchestrator teaching tests that broke on main after a curriculum pack shipped
+  list-shaped duties. Resolved version files to a fresh 0.10.1.
+- 2026-06-29 - Market intelligence + investor value model and datamining pipeline.
+  New aoep_shared/market_intel.py: a cited, growable corpus of education/EdTech
+  market reference points (market sizes, growth, public spend, per-student value,
+  demographics) across regions and US states, every entry attributed with source +
+  reference + a "verify before investor use" note. value_projection() projects
+  annual revenue + TAM capture by region from user tiers (clearly labelled model
+  output). Growth via datamining: harvest/market_bridge.py extracts $ amounts and
+  percentages from text and writes content packs of kind market that merge
+  automatically; scripts/datamine_market.py drives it (--seed offline, --from-file
+  offline ingest, --url network-gated live fetch that fails gracefully with
+  egress guidance, --list). Investor SVG chart via scripts/market_value_chart.py
+  (docs/charts/investor_value.svg + docs/investor-value.txt). Curriculum API:
+  /market/meta, /market/regions, /market/references, /market/projection. NOTE:
+  live web scraping requires outbound network egress to be enabled; the seed
+  figures are real public estimates that must be verified before investor use.
+- 2026-06-29 - Ecosystem performance projection chart. New
+  scripts/capacity_projection.py turns the docs/scalability.txt measured baseline
+  (940 RPS/pod @ p95 6.3 ms, 1.3 RPS/user, Little's-law concurrency, 2x peak, HPA
+  3-30 pods/service, ~80% CDN offload on catalog reads) into a per-tier projection
+  for 10 / 100 / 1,000 / 1,000,000 daily users. Renders a dependency-free SVG chart
+  (docs/charts/capacity_projection.svg), a plain-text table (docs/capacity-projection.txt),
+  and JSON. Result: 1M DAU = 31,250 concurrent, ~81,250 peak RPS, ~61 pods, p95 6.3 ms,
+  single region. Tests in scripts/tests/test_capacity_projection.py.
+- 2026-06-29 - Expand regression coverage for course scoring + telemetry. Added
+  edge-case tests in packages/shared/tests/test_course_scoring.py (published-PCS
+  breakdown match, normalized-weight sum, override delete persistence, negative-
+  correlation weight reduction, leaderboard subject/min-sample filters, modulus=0
+  raw path, and an override+telemetry+config integration test) and verified the
+  full gate: backend matrix 1401 tests + coverage PASS, web typecheck/lint/build
+  PASS, api-stress smoke PASS (qa/regression.py). Note: apps/web and apps/mobile
+  still have no JS unit-test runner (validated via typecheck+lint+build only).
+- 2026-06-29 - Course-scoring admin: review, manually edit, override, and tune the
+  numpy composition scoring. New aoep_shared/course_scoring.py adds (1) an editable,
+  JSON-persisted ScoringConfig (quality-index weights, depth target, quality label
+  bands) - the PCS composition_score fingerprint stays fixed; (2) score_breakdown()
+  that explains a course's PCS code step by step (positional sub-node sums, prime
+  mix R, structural N/K terms, raw-before-modulus, modulus) plus quality metrics
+  and label, so the scoring system is reviewable; (3) OverrideStore for manual
+  per-course label/score/quality overrides with provenance; (4) TelemetryStore that
+  collects per-course telemetry, compares courses, builds a leaderboard, and
+  recommends quality-weight adjustments by correlating composition metrics with
+  observed happiness. Curriculum service exposes /scoring/breakdown, /scoring/config
+  (GET/PUT), /scoring/overrides, /scoring/telemetry, /scoring/leaderboard,
+  /scoring/compare, and /scoring/recommend (mutations gated by require_internal).
+- 2026-06-29 - Data-driven growth system to scale content by orders of magnitude
+  without code changes. New aoep_shared/content_packs.py discovers and merges
+  JSON/JSONL packs (kinds: knowledge, slang, scenarios, courses, presentation)
+  from the packaged baseline dir plus any AOEP_CONTENT_PACKS roots; malformed
+  packs are skipped safely. Wired packs into: knowledge base (84 -> 137 facts via
+  safety_expansion pack; SQLite signature includes pack fingerprint), slang/idioms
+  (21 -> 119 entries across 12 languages via idioms_multiregion pack), training
+  scenarios (catalog merges scenario packs at load), and the learnable course
+  index (course packs). Added two capability modules: readability.py (Flesch
+  reading-ease/grade, CEFR estimate, reading-level bucket, deterministic
+  simplify_text) and presentation_skills.py (registry of 30 teaching techniques,
+  enrich_narration, build_skill_plan; pack-extensible). Harvester can grow the
+  knowledge base via harvest/knowledge_bridge.py (write vetted facts as a pack).
+  New APIs: /api/training/growth, /api/language/readability,
+  /api/presentation/techniques, /api/presentation/skill-plan; knowledge meta now
+  reports builtin/from_packs counts.
+- 2026-06-28 - Persist the safety knowledge base to an embedded SQLite database so
+  it is always available and durable across restarts. New knowledge_store.py builds
+  a file-based SQLite DB (FTS5 full-text search when available, LIKE fallback)
+  deterministically from the canonical corpus; it self-heals (auto-rebuilds when
+  missing or when the corpus signature changes) and transparently falls back to an
+  in-memory backend if the filesystem is read-only, so reads never fail. DB path is
+  configurable via AOEP_KNOWLEDGE_DB (default ~/.cache/aoep/knowledge.db; *.db is
+  gitignored and regenerated). Knowledge search/sources/meta now run against the
+  store; added GET /api/training/knowledge/status and a store block in
+  /api/training/knowledge/meta. Build/pre-warm via scripts/build_knowledge_db.py.
+- 2026-06-27 - Ground every training scenario in real, cited safety data. New
+  knowledge_base.py is a curated corpus of authoritative facts, procedures,
+  regulations, and published statistics attributed to their issuing bodies (FAA
+  14 CFR 91.3, NHTSA seat-belt/skid/blowout guidance, FMCSA CDL stopping
+  distances, FRA/Operation Lifesaver crossing rules, IMO/USCG COLREGs Rules
+  5-7, AHA CPR 100-120/min + BE-FAST, ACS Stop the Bleed, NFPA RACE/PASS,
+  DHS/CISA Run-Hide-Fight, I Love U Guys Standard Response Protocol, PHMSA ERG,
+  NWS Turn-Around-Dont-Drown, etc.). ScenarioDefinition gains a references field;
+  get_scenario, generate, and training sessions attach matching real references
+  by domain + keywords, so all ~3.19M addressable scenarios are grounded with
+  citations. API adds /api/training/knowledge (search by domain/category/source/
+  query), /api/training/knowledge/meta, /api/training/knowledge/sources, and
+  /api/training/scenarios/{id} (full scenario with references); session views now
+  include references. Build/dump via scripts/build_knowledge_base.py.
+- 2026-06-27 - Procedural safety-scenario engine: millions of addressable
+  situations across road (car, motorcycle, truck, bus), rail (train + subway/
+  transit), micromobility (bicycle, e-scooter), marine (boats + paddle/PWC),
+  pedestrian, police/public-safety, and student & teacher safety. New
+  procedural.py composes scenarios from independent axes (event × subject ×
+  setting × condition × time × severity) via mixed-radix indexing, giving 3.19M
+  unique scenarios that generate deterministically by id (<family>__<index>) with
+  no disk blowup. Committed catalog grows to 3,050 browsable scenarios across 45
+  domains (120 materialized samples per family). API adds /api/training/capacity,
+  /api/training/families, /api/training/generate, /api/training/generate/random;
+  get_scenario and training sessions resolve procedural ids. 8 new learning
+  tracks (road, rail, micromobility, marine recreation, pedestrian, police,
+  student & teacher safety).
+  learning tracks. Added catalog_generators_extended (nursing, hazmat, energy, SAR,
+  legal, parenting, conflict, disaster recovery, aviation IFR, wilderness, water
+  safety, food safety, retail, mining, pharma, social work, telecom, plus expanded
+  aviation/medical libraries). New tracks.py curated paths (pilot emergency, first
+  responder, healthcare, cyber IR, leadership, educator safety, parent caregiver,
+  critical thinking, maritime/industrial, mental wellness, wilderness SAR, transport
+  security, food/retail, sports, IFR advanced). API: /api/training/tracks,
+  /api/training/tracks/{id}, /api/training/scenarios/random. Sample curriculum packs
+  for first responder, IFR, nursing, and cyber IR.
+  domains (aviation, medical, maritime, cybersecurity, industrial, transport,
+  weather, security, leadership, education, hospitality, construction, agriculture,
+  tactical, finance, media literacy, child safety, mental health, sports, fire
+  safety, general). Template-driven generators in catalog_generators.py; committed
+  scenario_catalog.json; build via scripts/build_scenario_catalog.py. API adds
+  /api/training/catalog, /api/training/domains, and paginated /api/training/scenarios
+  (domain, skill, q, offset, limit filters).
+- 2026-06-27 - Training agents for sensitive coaching beyond answer delivery.
+  Added aoep_shared.training_agents with six coaches: Learning Behavior (adaptive
+  pace, frustration/wellness sensitivity), Critical Thinking (Socratic probes),
+  Situational Analysis (progressive cue reveal), Quick Decision (timed drills),
+  Foresight/Mental Prep (forecasting rehearsal), and Emergency Scenario (aviation
+  engine-out landing, triage, fire evacuation, media verification). Harvester,
+  AI Presenter, and AI Chatbot are documented in the canonical agent roster.
+  Orchestrator exposes /api/agents/roster and /api/training/*; dashboard lists all
+  agents. Sample curriculum: aviation-emergency-basics. CLI: training_agents_lab.py.
+- 2026-06-27 - Admin Feature Flags: toggling now works even when the operator-admin
+  session/BFF is unavailable. patch() (flag writes) now mirrors load(): it tries the
+  /api/admin BFF when a token is present but falls back to the direct, ingress-proxied
+  /memory/admin/flags path with the entered secret. Previously a stale/expired session
+  made every toggle PUT /api/admin/flags/<key> 404 with no fallback. Error text now
+  prompts to enter the admin secret (88888888) if the session expired.
+
+- 2026-06-27 - Admin Feature Flags: enlarged the show/hide eye icon on the admin-
+  secret field (EyeIcon now takes a size prop; admin uses 26px in a wider hit area).
+  Memory admin auth now also accepts the platform admin password (88888888 /
+  DEFAULT_ADMIN_PASSWORD) in addition to ADMIN_SECRET, so operators can unlock the
+  page with the same credential they log in with. Added a memory test.
+
+- 2026-06-26 - Built-in accounts skip the new-user onboarding/payment wizard.
+  admin@salareen.com and the QA personas (qa1/qa2/qa3) were seeded without an
+  onboarding-completed marker, so every login + hard refresh bounced them through
+  the 4-step "Your info / Choose plan / Payment / Who's learning" flow. seed_account
+  now takes mark_onboarded (set for admin + QA): it stamps onboarding_completed_at
+  and billing_validated_at if unset. These persist to Redis (cloud) via model_dump,
+  so the wizard never re-prompts after a refresh/pod restart. The marker is only
+  set when unset, so the idempotent startup re-seed never resets it, and real new
+  users are unaffected. Added tests for both admin and QA.
+
+- 2026-06-26 - Admin / Feature Flags login robustness: the Unlock button now
+  prefers the operator-admin session path (server-side ADMIN_SECRET, no typing)
+  whenever a JWT is present, and only falls back to the typed secret. Clarified the
+  helper text + error to point operators at admin@salareen.com. Diagnosed the
+  reported "can't log in": production web+memory are current (/api/admin/flags
+  returns 403, not 404 — the browser 404 was a stale cached response). The live
+  failures were credential issues (401 = wrong admin secret; the deployed
+  ADMIN_SECRET is the dev placeholder "dev-admin-secret"). Root cause of the
+  recurring stale-deploy pain: the VKE control-plane API (:6443) returns Forbidden
+  to GitHub runners AND the local laptop, so the roll step can't run — permanent
+  fix is to allowlist the deploy IPs on the cluster firewall (Vultr dashboard).
+
+- 2026-06-26 - Admin / Feature Flags: add a show/hide (eye) toggle to the admin-
+  secret password field so operators can reveal what they typed, matching the
+  login page. Extracted the existing EyeIcon from app/login/page.tsx into a shared
+  app/components/EyeIcon.tsx and reused it on both the login and admin pages (no
+  duplicate SVG). Visible on production only after the web image is rebuilt/rolled.
+
 - 2026-06-26 - CI deploy self-healing kubeconfig (fixes stale production / the
   /api/admin/flags 404). Root cause: the VKE roll step authenticated with a
   once-captured KUBE_CONFIG_B64 secret whose client credentials had rotated/

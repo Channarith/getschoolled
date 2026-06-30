@@ -43,6 +43,15 @@ def test_admin_write_requires_secret():
     assert r.status_code == 401
 
 
+def test_admin_password_also_works_as_secret():
+    """The platform admin password (88888888) is accepted as an admin secret too."""
+    _reset_store()
+    r = client.put("/admin/flags/engagement.post_class_survey",
+                   json={"enabled": True, "value": True},
+                   headers={"X-Admin-Secret": "88888888"})
+    assert r.status_code == 200
+
+
 def test_admin_can_toggle_flag():
     _reset_store()
     r = client.put("/admin/flags/engagement.post_class_survey",

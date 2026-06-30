@@ -832,7 +832,7 @@ def group_class_calendar(class_id: str, name: str = "", email: str = "") -> Resp
 
 
 @app.post("/api/group-classes/{class_id}/start")
-def start_group_class(class_id: str) -> dict:
+def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
     """Go live: create the teaching session and return the meeting bridge plan.
 
     The AI's coursework runs as a normal teaching session; the returned
@@ -868,4 +868,620 @@ def start_group_class(class_id: str) -> dict:
             slide=sessions.current_slide(state.session_id),
         ).model_dump(),
         "bridge": plan,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Scenario training agents (critical thinking, emergency drills)
+# --------------------------------------------------------------------------- #
+from .training import (  # noqa: E402
+    CapacityResponse,
+    CatalogMetaResponse,
+    CreateTrainingSessionRequest,
+    FamilySummary,
+    GeneratedScenario,
+    GrowthStatusResponse,
+    KnowledgeListResponse,
+    KnowledgeMetaResponse,
+    KnowledgeStoreStatus,
+    RespondRequest,
+    RespondResponse,
+    ScenarioListResponse,
+    ScenarioSummary,
+    TickResponse,
+    TrackScenarioListResponse,
+    TrackSummary,
+    TrainingSessionView,
+    agent_roster_dict,
+    capacity_report,
+    catalog_summary,
+    create_training_session,
+    generate_one,
+    generate_random,
+    get_full_scenario,
+    get_training_session,
+    growth_status,
+    knowledge_meta_view,
+    knowledge_search_view,
+    knowledge_sources_view,
+    knowledge_store_view,
+    list_domain_counts,
+    list_family_summaries,
+    list_scenario_summaries,
+    list_track_summaries,
+    pick_random_scenario,
+    respond_training_session,
+    tick_training_session,
+    track_scenarios,
+    training_capabilities,
+)
+
+
+@app.get("/api/agents/roster")
+def agents_roster() -> list[dict]:
+    """Full platform agent roster: harvester, presenter, chatbot, training coaches."""
+    return agent_roster_dict()
+
+
+@app.get("/api/training/catalog", response_model=CatalogMetaResponse)
+def training_catalog() -> CatalogMetaResponse:
+    return catalog_summary()
+
+
+@app.get("/api/training/capacity", response_model=CapacityResponse)
+def training_capacity() -> CapacityResponse:
+    """Total addressable scenarios: materialized + procedurally generable (millions)."""
+    return capacity_report()
+
+
+@app.get("/api/training/families", response_model=list[FamilySummary])
+def training_families() -> list[FamilySummary]:
+    return list_family_summaries()
+
+
+@app.get("/api/training/generate", response_model=GeneratedScenario)
+def training_generate(family_id: str, index: int = 0) -> GeneratedScenario:
+    """Deterministically generate any scenario in a family by index."""
+    gen = generate_one(family_id, index)
+    if gen is None:
+        raise HTTPException(status_code=404, detail="unknown family")
+    return gen
+
+
+@app.get("/api/training/generate/random", response_model=GeneratedScenario)
+def training_generate_random(
+    family_id: str | None = None, seed: int | None = None
+) -> GeneratedScenario:
+    gen = generate_random(family_id=family_id, seed=seed)
+    if gen is None:
+        raise HTTPException(status_code=404, detail="no scenario available")
+    return gen
+
+
+@app.get("/api/training/knowledge", response_model=KnowledgeListResponse)
+def training_knowledge(
+    q: str | None = None,
+    domain: str | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> KnowledgeListResponse:
+    """Browse the real, cited safety knowledge base grounding the scenarios."""
+    return knowledge_search_view(
+        q=q, domain=domain, category=category, source=source, offset=offset, limit=limit
+    )
+
+
+@app.get("/api/training/knowledge/meta", response_model=KnowledgeMetaResponse)
+def training_knowledge_meta() -> KnowledgeMetaResponse:
+    return knowledge_meta_view()
+
+
+@app.get("/api/training/knowledge/sources")
+def training_knowledge_sources() -> list[dict]:
+    return knowledge_sources_view()
+
+
+@app.get("/api/training/knowledge/status", response_model=KnowledgeStoreStatus)
+def training_knowledge_status() -> KnowledgeStoreStatus:
+    """Persistent embedded knowledge DB status (backend, path, FTS5, count)."""
+    return knowledge_store_view()
+
+
+@app.get("/api/training/growth", response_model=GrowthStatusResponse)
+def training_growth() -> GrowthStatusResponse:
+    """Aggregate growth metrics across knowledge, scenarios, slang, presentation, packs."""
+    return growth_status()
+
+
+@app.get("/api/training/capabilities")
+def training_capabilities_endpoint() -> dict:
+    """Unified directory of the consolidated training + cognitive agent suites."""
+    return training_capabilities()
+
+
+@app.get("/api/language/readability")
+def language_readability(text: str, simplify_to: str | None = None) -> dict:
+    """Score language complexity and optionally simplify toward a reading level."""
+    from aoep_shared.readability import analyze, simplify_text
+
+    out: dict = {"metrics": analyze(text).to_dict()}
+    if simplify_to:
+        simplified = simplify_text(text, reading_level=simplify_to)
+        out["simplified"] = simplified
+        out["simplified_metrics"] = analyze(simplified).to_dict()
+    return out
+
+
+@app.get("/api/presentation/techniques")
+def presentation_techniques(category: str | None = None) -> list[dict]:
+    """List AI presentation/teaching techniques (built-in + content packs)."""
+    from aoep_shared.presentation_skills import list_techniques
+
+    return [
+        {"id": t.id, "name": t.name, "description": t.description,
+         "category": t.category, "tags": list(t.tags)}
+        for t in list_techniques(category=category)
+    ]
+
+
+class SkillPlanRequest(BaseModel):
+    headings: list[str]
+    topic: str = ""
+
+
+@app.post("/api/presentation/skill-plan")
+def presentation_skill_plan(req: SkillPlanRequest) -> list[dict]:
+    """Assign varied presentation techniques across a deck for engaging delivery."""
+    from aoep_shared.presentation_skills import build_skill_plan
+
+    return build_skill_plan(req.headings, topic=req.topic)
+
+
+@app.get("/api/training/domains")
+def training_domains() -> list[dict]:
+    return list_domain_counts()
+
+
+@app.get("/api/training/scenarios", response_model=ScenarioListResponse)
+def training_scenarios(
+    domain: str | None = None,
+    skill: str | None = None,
+    q: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> ScenarioListResponse:
+    return list_scenario_summaries(domain=domain, skill=skill, q=q, offset=offset, limit=limit)
+
+
+@app.get("/api/training/scenarios/random", response_model=ScenarioSummary)
+def training_scenario_random(
+    domain: str | None = None,
+    track_id: str | None = None,
+    seed: int | None = None,
+) -> ScenarioSummary:
+    picked = pick_random_scenario(domain=domain, track_id=track_id, seed=seed)
+    if picked is None:
+        raise HTTPException(status_code=404, detail="no matching scenario")
+    return picked
+
+
+@app.get("/api/training/tracks", response_model=list[TrackSummary])
+def training_tracks() -> list[TrackSummary]:
+    return list_track_summaries()
+
+
+@app.get("/api/training/tracks/{track_id}", response_model=TrackScenarioListResponse)
+def training_track_scenarios(
+    track_id: str,
+    offset: int = 0,
+    limit: int = 50,
+) -> TrackScenarioListResponse:
+    body = track_scenarios(track_id, offset=offset, limit=limit)
+    if body is None:
+        raise HTTPException(status_code=404, detail="unknown track")
+    return body
+
+
+@app.get("/api/training/scenarios/{scenario_id}", response_model=GeneratedScenario)
+def training_scenario_detail(scenario_id: str) -> GeneratedScenario:
+    """Full scenario (materialized or procedural) with real cited references."""
+    full = get_full_scenario(scenario_id)
+    if full is None:
+        raise HTTPException(status_code=404, detail="unknown scenario")
+    return full
+
+
+@app.post("/api/training/sessions", response_model=TrainingSessionView)
+def training_session_create(req: CreateTrainingSessionRequest) -> TrainingSessionView:
+    try:
+        session = create_training_session(req.scenario_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return TrainingSessionView(**session.to_view())
+
+
+@app.get("/api/training/sessions/{session_id}", response_model=TrainingSessionView)
+def training_session_get(session_id: str) -> TrainingSessionView:
+    session = get_training_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    return TrainingSessionView(**session.to_view())
+
+
+@app.post("/api/training/sessions/{session_id}/tick", response_model=TickResponse)
+def training_session_tick(session_id: str) -> TickResponse:
+    session, turns = tick_training_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    from .training import _session_view, _turn_views
+
+    return TickResponse(session=_session_view(session), turns=_turn_views(turns or []))
+
+
+@app.post("/api/training/sessions/{session_id}/respond", response_model=RespondResponse)
+def training_session_respond(session_id: str, req: RespondRequest) -> RespondResponse:
+    session, turns = respond_training_session(session_id, req.text)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown training session")
+    from .training import _session_view, _turn_views
+
+    return RespondResponse(session=_session_view(session), turns=_turn_views(turns or []))
+
+
+# ---------------------------------------------------------------------------
+# Cognitive Training API
+# ---------------------------------------------------------------------------
+from aoep_shared.cognitive_trainer import (  # noqa: E402
+    CognitiveLearnerProfile,
+    CognitiveTrainer,
+)
+
+_cognitive_trainer = CognitiveTrainer()
+_cognitive_profiles: dict[str, CognitiveLearnerProfile] = {}
+
+
+def _get_profile(learner_id: str) -> CognitiveLearnerProfile:
+    if learner_id not in _cognitive_profiles:
+        _cognitive_profiles[learner_id] = _cognitive_trainer.create_profile(learner_id)
+    return _cognitive_profiles[learner_id]
+
+
+class CognitiveCheckInRequest(BaseModel):
+    learner_id: str
+    stress_level: int = 5      # 1–10
+    focus_level: int = 7       # 1–10
+    wellness_state: str = "ok"
+
+
+class CriticalThinkingRequest(BaseModel):
+    learner_id: str
+    term: str
+    passage: str
+    scenario: str = ""
+    claim: str = ""
+
+
+class CriticalThinkingEvalRequest(BaseModel):
+    learner_id: str
+    question_id: str
+    question_text: str
+    bloom_level: str
+    acceptable_keywords: list[str] = []
+    follow_up: str = ""
+    challenge: str = ""
+    hint: str = ""
+    learner_answer: str
+
+
+class SAScenarioRequest(BaseModel):
+    learner_id: str
+    scenario_id: str
+    framework: str = "ooda"    # ooda | decide
+
+
+class RapidDrillRequest(BaseModel):
+    learner_id: str
+    drill_id: str
+    chosen_label: str
+    time_taken_s: float
+    pressure_level: str = "moderate"
+
+
+class EmergencyScenarioRequest(BaseModel):
+    learner_id: str
+    scenario_id: str
+
+
+class EmergencyActionRequest(BaseModel):
+    learner_id: str
+    scenario_id: str
+    phase_id: str
+    action_id: str
+    time_taken_s: float = 0.0
+
+
+class PreMortemRequest(BaseModel):
+    learner_id: str
+    plan_description: str
+    failure_modes: list[str]
+
+
+class RehearsalRequest(BaseModel):
+    learner_id: str
+    rehearsal_key: str
+
+
+class TEMRequest(BaseModel):
+    learner_id: str
+    scenario_description: str
+    learner_threats: list[str]
+
+
+@app.post("/api/cognitive/check-in")
+def cognitive_check_in(req: CognitiveCheckInRequest) -> dict:
+    """Wellness and readiness check-in; returns grounding exercise if needed."""
+    profile = _get_profile(req.learner_id)
+    profile.wellness_state = req.wellness_state
+    result = _cognitive_trainer.check_in(profile, req.stress_level, req.focus_level)
+    return {
+        "stress_level": result.stress_level,
+        "focus_level": result.focus_level,
+        "readiness_note": result.readiness_note,
+        "recommended_exercise": result.recommended_exercise.value,
+        "breath_cue": result.breath_cue,
+    }
+
+
+@app.get("/api/cognitive/recommend/{learner_id}")
+def cognitive_recommend(learner_id: str) -> dict:
+    """Return next recommended cognitive training activity for a learner."""
+    profile = _get_profile(learner_id)
+    return _cognitive_trainer.recommend_next_session(profile)
+
+
+@app.get("/api/cognitive/summary/{learner_id}")
+def cognitive_summary(learner_id: str) -> dict:
+    """Return full cognitive training profile summary."""
+    profile = _get_profile(learner_id)
+    return _cognitive_trainer.adaptation_summary(profile)
+
+
+@app.post("/api/cognitive/critical-thinking/question")
+def critical_thinking_question(req: CriticalThinkingRequest) -> dict:
+    """Generate the next Socratic question for a learner on a term/passage."""
+    profile = _get_profile(req.learner_id)
+    q = _cognitive_trainer.critical_thinking_question(
+        profile, req.term, req.passage,
+        scenario=req.scenario, claim=req.claim,
+    )
+    return {
+        "question_id": q.question_id,
+        "text": q.text,
+        "bloom_level": q.bloom_level.value,
+        "hint": q.hint,
+        "acceptable_keywords": q.acceptable_keywords,
+    }
+
+
+@app.post("/api/cognitive/critical-thinking/evaluate")
+def critical_thinking_evaluate(req: CriticalThinkingEvalRequest) -> dict:
+    """Evaluate a learner's answer to a Socratic question."""
+    from aoep_shared.critical_thinking import BloomLevel, SocraticQuestion
+    profile = _get_profile(req.learner_id)
+    try:
+        bloom = BloomLevel(req.bloom_level)
+    except ValueError:
+        bloom = BloomLevel.UNDERSTAND
+    question = SocraticQuestion(
+        question_id=req.question_id,
+        text=req.question_text,
+        bloom_level=bloom,
+        follow_up=req.follow_up,
+        challenge=req.challenge,
+        hint=req.hint,
+        acceptable_keywords=req.acceptable_keywords,
+    )
+    result = _cognitive_trainer.critical_thinking_evaluate(profile, question, req.learner_answer)
+    return {
+        "score": result.score,
+        "feedback": result.feedback,
+        "keywords_found": result.keywords_found,
+        "bloom_level": result.bloom_level.value,
+        "reasoning_gap": result.reasoning_gap,
+    }
+
+
+@app.get("/api/cognitive/situational/scenarios")
+def list_sa_scenarios(domain: str | None = None) -> dict:
+    """List available situational awareness scenarios."""
+    scenarios = _cognitive_trainer.sa_list_scenarios(domain)
+    return {"scenarios": [
+        {"id": s.scenario_id, "title": s.title, "domain": s.domain,
+         "time_pressure_s": s.time_pressure_seconds}
+        for s in scenarios
+    ]}
+
+
+@app.post("/api/cognitive/situational/ooda-prompt")
+def sa_ooda_prompt(req: SAScenarioRequest) -> dict:
+    """Return the OBSERVE phase prompt for an OODA scenario."""
+    from aoep_shared.situational_awareness import OODAPhase
+    profile = _get_profile(req.learner_id)
+    prompt = _cognitive_trainer.sa_ooda_prompt(profile, req.scenario_id, OODAPhase.OBSERVE)
+    return {"prompt": prompt, "phase": "observe", "scenario_id": req.scenario_id}
+
+
+@app.get("/api/cognitive/rapid-decision/drills")
+def list_rd_drills(domain: str | None = None) -> dict:
+    """List available rapid-decision drills."""
+    drills = _cognitive_trainer.rapid_decision.list_drills(domain)
+    return {"drills": [
+        {"id": d.drill_id, "domain": d.domain, "skill_tag": d.skill_tag,
+         "ideal_seconds": d.ideal_seconds, "situation": d.situation[:120]}
+        for d in drills
+    ]}
+
+
+@app.post("/api/cognitive/rapid-decision/evaluate")
+def rd_evaluate(req: RapidDrillRequest) -> dict:
+    """Evaluate a learner's rapid-decision drill attempt."""
+    from aoep_shared.rapid_decision import PressureLevel as PL
+    profile = _get_profile(req.learner_id)
+    try:
+        pressure = PL(req.pressure_level)
+    except ValueError:
+        pressure = PL.MODERATE
+    result = _cognitive_trainer.rd_evaluate(
+        profile, req.drill_id, req.chosen_label,
+        req.time_taken_s, pressure,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"drill {req.drill_id!r} not found")
+    return {
+        "outcome": result.outcome.value,
+        "feedback": result.feedback,
+        "adr": result.adr,
+        "cue_spotlight": result.cue_spotlight,
+        "correct_option": result.correct_option_label,
+        "time_taken_s": result.time_taken_s,
+        "allowed_seconds": result.allowed_seconds,
+    }
+
+
+@app.get("/api/cognitive/emergency/scenarios")
+def list_emergency_scenarios(domain: str | None = None) -> dict:
+    """List available emergency simulation scenarios."""
+    from aoep_shared.emergency_scenarios import ScenarioDomain as SD
+    dom = None
+    if domain:
+        try:
+            dom = SD(domain)
+        except ValueError:
+            pass
+    scenarios = _cognitive_trainer.em_list_scenarios(dom)
+    return {"scenarios": [
+        {"id": s.scenario_id, "title": s.title, "domain": s.domain.value,
+         "difficulty": s.difficulty,
+         "objectives": s.learning_objectives}
+        for s in scenarios
+    ]}
+
+
+@app.post("/api/cognitive/emergency/start")
+def emergency_start(req: EmergencyScenarioRequest) -> dict:
+    """Start an emergency scenario simulation run."""
+    profile = _get_profile(req.learner_id)
+    run = _cognitive_trainer.em_start(profile, req.scenario_id)
+    if run is None:
+        if profile.wellness_state in ("stressed", "unwell"):
+            raise HTTPException(
+                status_code=409,
+                detail="Emergency simulation unavailable: learner wellness check required first",
+            )
+        raise HTTPException(status_code=404, detail=f"scenario {req.scenario_id!r} not found")
+    scenario = _cognitive_trainer.emergency.get_scenario(req.scenario_id)
+    phase = _cognitive_trainer.emergency.current_phase(run, scenario)
+    prompt = _cognitive_trainer.emergency.phase_prompt(phase)
+    return {
+        "scenario_id": run.scenario_id,
+        "learner_id": run.learner_id,
+        "current_phase": phase.phase_id,
+        "prompt": prompt,
+        "status": run.status.value,
+    }
+
+
+@app.post("/api/cognitive/emergency/action")
+def emergency_action(req: EmergencyActionRequest) -> dict:
+    """Apply a learner's action in an emergency scenario."""
+    profile = _get_profile(req.learner_id)
+    scenario = _cognitive_trainer.emergency.get_scenario(req.scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="scenario not found")
+
+    # Reconstruct run from single-shot (stateless demo mode)
+    run = _cognitive_trainer.em_start(profile, req.scenario_id)
+    if run is None:
+        raise HTTPException(status_code=409, detail="simulation blocked by wellness gate")
+    run.current_phase_id = req.phase_id
+
+    phase = scenario.get_phase(req.phase_id)
+    if not phase:
+        raise HTTPException(status_code=404, detail="phase not found")
+
+    action = _cognitive_trainer.emergency.apply_action(
+        run, phase, req.action_id, req.time_taken_s or None
+    )
+    if action is None:
+        raise HTTPException(status_code=400, detail=f"action {req.action_id!r} not found in phase")
+
+    response: dict = {
+        "action_id": action.action_id,
+        "outcome": action.outcome.value,
+        "consequence": action.consequence,
+        "status": run.status.value,
+    }
+
+    if run.status.value in ("completed", "terminated_early"):
+        aar = _cognitive_trainer.em_aar(profile, run)
+        if aar:
+            response["aar"] = {
+                "outcome_score": aar.outcome_score,
+                "overall_verdict": aar.overall_verdict,
+                "decisions_summary": aar.decisions_summary,
+                "expert_comparison": aar.expert_comparison,
+                "learning_reinforcements": aar.learning_reinforcements,
+            }
+    else:
+        next_phase = scenario.get_phase(run.current_phase_id)
+        if next_phase:
+            response["next_phase"] = next_phase.phase_id
+            response["next_prompt"] = _cognitive_trainer.emergency.phase_prompt(next_phase)
+
+    return response
+
+
+@app.post("/api/cognitive/mental-readiness/pre-mortem")
+def mental_readiness_pre_mortem(req: PreMortemRequest) -> dict:
+    """Run a pre-mortem exercise on a plan."""
+    profile = _get_profile(req.learner_id)
+    result = _cognitive_trainer.readiness_pre_mortem(
+        profile, req.plan_description, req.failure_modes
+    )
+    return {
+        "plan": result.plan_description,
+        "failure_modes": result.failure_modes,
+        "mitigations": result.mitigations,
+        "residual_risks": result.residual_risks,
+        "confidence_adjustment": result.confidence_adjustment,
+    }
+
+
+@app.post("/api/cognitive/mental-readiness/rehearsal")
+def mental_readiness_rehearsal(req: RehearsalRequest) -> dict:
+    """Return a formatted mental rehearsal script."""
+    profile = _get_profile(req.learner_id)
+    text = _cognitive_trainer.readiness_rehearsal(profile, req.rehearsal_key)
+    available = _cognitive_trainer.mental_readiness.list_rehearsal_keys()
+    return {"rehearsal_key": req.rehearsal_key, "text": text, "available_keys": available}
+
+
+@app.post("/api/cognitive/mental-readiness/tem")
+def mental_readiness_tem(req: TEMRequest) -> dict:
+    """Threat and Error Management analysis."""
+    profile = _get_profile(req.learner_id)
+    result = _cognitive_trainer.readiness_tem(
+        profile, req.scenario_description, req.learner_threats
+    )
+    return {
+        "threats_identified": [
+            {"category": t.category.value, "description": t.description,
+             "countermeasure": t.countermeasure}
+            for t in result.threats_identified
+        ],
+        "undetected_threats": result.undetected_threats,
+        "error_traps": result.error_traps,
+        "feedback": result.feedback,
     }

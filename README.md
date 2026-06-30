@@ -1,8 +1,7 @@
 # Salareen - Agentic Online Education Platform
 
 <p align="center">
-  <img src="docs/brand/salareen_bayon_buddy_mascot.png" alt="Salareen study buddy — a secular Bayon-inspired face forming an S, beside a bodhi-style leaf of knowledge" width="200" />
-  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy mascot holding the Bodhi-leaf S mark" width="180" />
+  <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy — a secular Khmer-inspired study buddy holding the golden S medallion with a bodhi leaf" width="200" />
 </p>
 
 Salareen (referred to as AI Classroom across parts of the codebase) is a
@@ -73,12 +72,12 @@ and writes the web + mobile `{locale}.webp` and the mobile asset manifest).
 
 | Asset | Path | Purpose |
 | --- | --- | --- |
-| Bayon Buddy mascot | `apps/web/public/bayon-mark.webp` | Hero / marketing mascot + canonical `km` base (full art: `docs/brand/salareen_bayon_buddy_mascot.png`) |
+| Bayon Buddy brand mark | `apps/web/public/bayon-mark.webp` | Canonical brand/logo/icon master: the buddy holding the golden "S" medallion. Also hero mascot + `km` base |
+| Web brand icons | `apps/web/public/{favicon.ico, logo-mark.webp, logo.webp, icon.png}` | Favicon, nav/profile badge, apple-touch/app icon, hero/OG — buddy on navy; regenerate via `python3 scripts/build_bayon_icons.py` |
 | Locale mascots (27) | `apps/web/public/mascots/{locale}.webp` (+ `base/` carvings, mobile copies) | Per-language mascot: distinct colour + build/pose. Contact sheet: `docs/screens/mascots_locale_variants.webp` |
-| Logo mark | `apps/web/public/logo-mark.webp` + `logo-mark.svg` | Nav + browser/app "S" badge |
 | Kids logo variant | `apps/web/public/logo-cartoon-mark.webp` | Cartoon "S" badge on /kids |
-| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` (+ `salareen_adaptive_fg_1024.png` for Android) | Mascot face + full golden S + bodhi leaf; regenerate via `python3 scripts/generate_salareen_mobile_icon.py` then rebuild native app |
-| Favicon | `apps/web/public/favicon.ico` | Browser favicon |
+| Mobile app icon | `apps/mobile/assets/salareen_icon_1024.png` (+ `salareen_adaptive_fg_1024.png` for Android) | Buddy + full golden S + bodhi leaf; regenerate via `python3 scripts/generate_salareen_mobile_icon.py` then rebuild native app |
+| Legacy "S" monogram | `apps/web/public/logo-mark.svg` + `docs/brand/aiclassroom_mark.svg` | Wordmark / 1-color print only (no longer the favicon/app icon) |
 | Platform diagrams | `docs/brand/salareen_platform_ecosystem.png`, `salareen_workstreams_diagram.png` | Ecosystem poster + workstream map |
 
 Design guardrail: brand and theme art stays **secular**. The Bayon Buddy is a

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook, getOnboardingStatus } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { EyeIcon } from "../components/EyeIcon";
+import { useFlag } from "../lib/flags";
 
 function passwordProblems(pw: string, t: (k: string) => string): string[] {
   const problems: string[] = [];
@@ -16,6 +18,7 @@ function passwordProblems(pw: string, t: (k: string) => string): string[] {
 export default function LoginPage() {
   const { t } = useT();
   const router = useRouter();
+  const signupsOpen = useFlag<boolean>("ops.new_signups", true);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +37,19 @@ export default function LoginPage() {
     if (em) setEmail(em);
   }, []);
 
+  // ops.new_signups kill-switch: if registration is paused, force the form back to
+  // sign-in so nobody can land on (or stay in) the signup view.
+  useEffect(() => {
+    if (!signupsOpen && mode === "signup") setMode("login");
+  }, [signupsOpen, mode]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (mode === "signup" && !signupsOpen) {
+      setError("New account sign-ups are temporarily paused. Please check back soon.");
+      return;
+    }
     if (mode === "signup") {
       const problems = passwordProblems(password, t);
       if (problems.length) {
@@ -166,36 +179,23 @@ export default function LoginPage() {
           </>
         )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
-        <p className="muted" style={{ marginTop: 12 }}>
-          {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}
-          <button
-            onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
-            style={{ background: "none", border: "none", color: "#6ea8fe", cursor: "pointer", padding: 0 }}
-          >
-            {mode === "login" ? t("login.createAccount") : t("login.signInLink")}
-          </button>
-        </p>
+        {signupsOpen ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            {mode === "login" ? t("login.newHere") + " " : t("login.alreadyHave") + " "}
+            <button
+              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
+              style={{ background: "none", border: "none", color: "#6ea8fe", cursor: "pointer", padding: 0 }}
+            >
+              {mode === "login" ? t("login.createAccount") : t("login.signInLink")}
+            </button>
+          </p>
+        ) : (
+          <p className="muted" style={{ marginTop: 12 }}>
+            New account sign-ups are temporarily paused.
+          </p>
+        )}
       </div>
     </main>
   );
 }
 
-function EyeIcon({ off }: { off: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      aria-hidden="true" focusable="false">
-      {off ? (
-        <>
-          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-          <line x1="1" y1="1" x2="23" y2="23" />
-        </>
-      ) : (
-        <>
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </>
-      )}
-    </svg>
-  );
-}

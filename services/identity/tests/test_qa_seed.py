@@ -15,6 +15,14 @@ def test_seed_qa_accounts_login_by_email_and_username():
     assert len(seeded) == 3
     assert all(not a.is_admin for a in seeded)
 
+
+def test_seed_qa_accounts_skip_onboarding_wizard():
+    """QA personas are pre-onboarded so they never hit the new-user payment flow."""
+    store = AccountStore()
+    seeded = seed_qa_accounts(store, "QaTest123")
+    assert all(a.onboarding_completed_at is not None for a in seeded)
+    assert all(a.billing_validated_at is not None for a in seeded)
+
     learner, parent, pro = seeded
     assert learner.email == "qa-learner@salareen.com"
     assert parent.email == "qa-parent@salareen.com"

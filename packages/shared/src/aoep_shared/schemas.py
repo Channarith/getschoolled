@@ -84,6 +84,16 @@ class AgentRole(str, Enum):
     SPEECH = "speech"
     MEMORY = "memory"
     CONSENT = "consent"
+    # Content + training coaches (see aoep_shared.training_agents.roster)
+    HARVESTER = "harvester"
+    PRESENTER = "presenter"
+    CHATBOT = "chatbot"
+    LEARNING_COACH = "learning_coach"
+    CRITICAL_THINKING = "critical_thinking"
+    SITUATIONAL_ANALYSIS = "situational_analysis"
+    QUICK_DECISION = "quick_decision"
+    FORESIGHT_PREP = "foresight_prep"
+    EMERGENCY_TRAINING = "emergency_training"
 
 
 class HealthStatus(BaseModel):

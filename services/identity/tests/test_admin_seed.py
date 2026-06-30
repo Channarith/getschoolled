@@ -12,6 +12,19 @@ def test_seed_admin_login_by_email_and_username_alias():
     assert admin.public()["is_admin"] is True
 
 
+def test_seed_admin_skips_onboarding_wizard():
+    """Admin is pre-onboarded so it never hits the new-user payment/setup flow."""
+    store = AccountStore()
+    admin = store.seed_admin("admin@salareen.com", "88888888", username="admin")
+    assert admin.onboarding_completed_at is not None
+    assert admin.billing_validated_at is not None
+
+    # Idempotent re-seed (every startup) must NOT reset the timestamps.
+    ts = admin.onboarding_completed_at
+    again = store.seed_admin("admin@salareen.com", "88888888", username="admin")
+    assert again.onboarding_completed_at == ts
+
+
 def test_seed_admin_defaults_to_vip_billing():
     """Admin operator accounts get the full ad-free VIP experience by default."""
     store = AccountStore()

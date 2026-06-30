@@ -177,20 +177,39 @@ def _parse_ksb(course_id: str, raw: str) -> Tuple[CourseKSB, List[str]]:
     """
     data = json.loads(raw)
 
-    def _items(mapping: dict, kind: str) -> List[KSBItem]:
+    def _norm_map(section) -> dict:
+        """Accept either {code: value} or a list of {id/code, ...} objects."""
+        if isinstance(section, dict):
+            return section
+        out: dict = {}
+        if isinstance(section, list):
+            for i, entry in enumerate(section):
+                if isinstance(entry, dict):
+                    code = str(entry.get("code") or entry.get("id") or f"{i + 1}")
+                    out[code] = entry
+                else:
+                    out[str(i + 1)] = entry
+        return out
+
+    def _stmt(value) -> str:
+        if isinstance(value, dict):
+            return str(value.get("statement") or value.get("title")
+                       or value.get("description") or "")
+        return str(value)
+
+    def _items(section, kind: str) -> List[KSBItem]:
         return [
-            KSBItem(code=code, kind=kind, statement=str(stmt))
-            for code, stmt in (mapping or {}).items()
+            KSBItem(code=code, kind=kind, statement=_stmt(value))
+            for code, value in _norm_map(section).items()
         ]
 
-    duties = [
-        Duty(
-            code=code,
-            statement=str(body.get("statement", "")),
-            ksbs=list(body.get("ksbs", [])),
-        )
-        for code, body in (data.get("duties") or {}).items()
-    ]
+    duties = []
+    for code, body in _norm_map(data.get("duties")).items():
+        if isinstance(body, dict):
+            ksbs = list(body.get("ksbs", []))
+        else:
+            ksbs = []
+        duties.append(Duty(code=code, statement=_stmt(body), ksbs=ksbs))
     ksb = CourseKSB(
         course_id=data.get("course_id", course_id),
         title=data.get("title", course_id),
