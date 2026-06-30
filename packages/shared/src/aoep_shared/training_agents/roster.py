@@ -26,10 +26,14 @@ PLATFORM_AGENTS: Tuple[PlatformAgent, ...] = (
         "active",
     ),
     PlatformAgent(
-        "AI Presenter",
+        "Theodore (AI Presenter)",
         "presenter",
         "teaching",
-        "Narrates slides and drives live meeting presentation plans (Meet/Zoom/Teams).",
+        "Named AI professor. Narrates slides and drives live presentation plans "
+        "(Meet/Zoom/Teams), teaching with strategies back-propagated from top "
+        "online instructors: curiosity hooks, first-principles reasoning, story, "
+        "everyday relevance, comprehension checks, and a memorable close. Rehearses "
+        "and refines each take via aoep_shared.theodore.",
         "active",
     ),
     PlatformAgent(

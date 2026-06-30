@@ -1039,6 +1039,67 @@ def presentation_skill_plan(req: SkillPlanRequest) -> list[dict]:
     return build_skill_plan(req.headings, topic=req.topic)
 
 
+@app.get("/api/presenter")
+def presenter_profile(category: str | None = None, source: str | None = None) -> dict:
+    """Theodore, the AI presenter: persona + the teaching-strategy playbook
+    back-propagated from top online instructors (Tao, MasterClass, Musk + MOOC
+    pedagogy). Optionally filter strategies by ``category`` or ``source``."""
+    from aoep_shared import theodore
+
+    out = theodore.persona()
+    out["strategies"] = [
+        {"id": s.id, "name": s.name, "category": s.category, "source": s.source,
+         "principle": s.principle, "cue": s.cue}
+        for s in theodore.list_strategies(category=category, source=source)
+    ]
+    return out
+
+
+class RehearseRequest(BaseModel):
+    narration: str
+    topic: str = ""
+    point: str = ""
+    passes: int = 2
+
+
+@app.post("/api/presenter/rehearse")
+def presenter_rehearse(req: RehearseRequest) -> dict:
+    """Rehearse a narration as Theodore: score it across delivery dimensions and
+    iteratively embed the missing strategies, returning the improved take."""
+    from aoep_shared import theodore
+
+    result = theodore.rehearse(req.narration, topic=req.topic, point=req.point,
+                               passes=max(1, min(5, req.passes)))
+    return result.to_dict()
+
+
+class PlaybookRequest(BaseModel):
+    segment_kind: str = "segment"   # intro | segment | outro
+    topic: str = ""
+    point: str = ""
+
+
+@app.post("/api/presenter/playbook")
+def presenter_playbook(req: PlaybookRequest) -> dict:
+    """The ordered strategy arc Theodore uses for a given segment kind."""
+    from aoep_shared import theodore
+
+    return {
+        "segment_kind": req.segment_kind,
+        "steps": theodore.delivery_playbook(
+            segment_kind=req.segment_kind, topic=req.topic, point=req.point),
+    }
+
+
+@app.get("/api/presenter/attention")
+def presenter_attention(score: float, topic: str = "") -> dict:
+    """Given a learner attention score (0..1), the re-engagement strategies
+    Theodore reaches for (pattern-interrupts when attention drops)."""
+    from aoep_shared import theodore
+
+    return theodore.adapt_for_attention(score, topic=topic)
+
+
 @app.get("/api/training/domains")
 def training_domains() -> list[dict]:
     return list_domain_counts()

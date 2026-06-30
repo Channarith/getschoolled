@@ -14,7 +14,7 @@ placeholders so it works offline; an LLM polish layer can sit behind the same
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 
@@ -105,6 +105,57 @@ _BUILTIN: List[PresentationTechnique] = [
         "scaffolding", "Scaffolding", "Build from what the learner already knows.",
         "clarity", "You already know the basics; we'll build from there toward {point}.",
         ("clarity",)),
+    # --- Strategies back-propagated from top online instructors (see Theodore /
+    #     docs/theodore-presenter.txt): Terence Tao, MasterClass craft, Elon Musk
+    #     first principles, plus established lecture pedagogy. -------------------
+    PresentationTechnique(
+        "curiosity_gap", "Curiosity gap", "Open a question/mystery the brain wants closed.",
+        "opening", "Here's a question worth sitting with: what really makes {point} work?",
+        ("opening", "engagement", "tao")),
+    PresentationTechnique(
+        "first_principles", "First principles", "Rebuild the idea from fundamental truths.",
+        "clarity", "Let's reason from first principles: what's fundamentally true about {topic} before we assume anything?",
+        ("clarity", "reasoning", "musk")),
+    PresentationTechnique(
+        "deconstruct", "Deconstruct", "Split a hard problem into smaller known pieces.",
+        "clarity", "Let's break {topic} into a few smaller pieces we already know how to handle.",
+        ("clarity", "tao")),
+    PresentationTechnique(
+        "everyday_relevance", "Everyday relevance", "Anchor the idea in daily life.",
+        "engagement", "In everyday life, {point} shows up whenever you run into it for real.",
+        ("engagement", "relevance", "tao")),
+    PresentationTechnique(
+        "demystify", "Demystify jargon", "Name the scary term, then say it plainly.",
+        "clarity", "In plain terms, {topic} just means: {point}.",
+        ("clarity", "tao")),
+    PresentationTechnique(
+        "normalize_failure", "Normalize failure", "Model a wrong turn and the recovery.",
+        "engagement", "Here's a wrong turn people take with {point} - and how to recover. Getting stuck is part of the work.",
+        ("engagement", "mindset", "tao")),
+    PresentationTechnique(
+        "humor", "Tasteful levity", "A short, kind, on-topic aside to reset attention.",
+        "engagement", "(a light aside) even experts fumble {topic} at first - that's half the fun.",
+        ("engagement",)),
+    PresentationTechnique(
+        "retrieval_practice", "Retrieval practice", "Ask the learner to recall before telling.",
+        "retention", "Before I tell you - try to recall: what do you already know about {point}?",
+        ("retention", "assessment")),
+    PresentationTechnique(
+        "dual_coding", "Dual coding", "Pair the words with one vivid mental image.",
+        "clarity", "Picture {topic} like this concrete image: {point}.",
+        ("clarity", "memory")),
+    PresentationTechnique(
+        "demonstration", "Live demonstration", "Show the idea working, don't just describe it.",
+        "engagement", "Let me show {point} actually working, start to finish.",
+        ("engagement", "clarity")),
+    PresentationTechnique(
+        "behind_the_craft", "Behind the craft", "Reveal the insider move beginners miss.",
+        "engagement", "Here's the move most people miss with {point} - the insider shortcut.",
+        ("engagement", "masterclass")),
+    PresentationTechnique(
+        "probabilistic_framing", "Probabilistic framing", "Frame outcomes as a range of odds.",
+        "clarity", "Outcomes here aren't a single answer - think of a range of odds for {point}.",
+        ("clarity", "judgment", "musk")),
 ]
 
 _BUILTIN_BY_ID: Dict[str, PresentationTechnique] = {t.id: t for t in _BUILTIN}

@@ -12,6 +12,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+from aoep_shared import theodore
 from aoep_shared.groundedness import guard_answer
 from aoep_shared.providers.base import ChatMessage
 from aoep_shared.rag import Document, RagIndex
@@ -211,6 +212,8 @@ class TeachingSessions:
             dialect: str | None = None) -> Answer:
         session = self._require(session_id)
         tone = tutor_tone_hint(dialect, language=language)
+        lesson = self.curriculum.get(session.lesson_id)
+        topic = getattr(lesson, "title", "") or session.lesson_id
         # Understand culture-specific slang/idioms before retrieval/answering, so
         # "it's a piece of cake" is treated as "very easy".
         norm = default_lexicon().normalize(question, language=language)
@@ -220,29 +223,38 @@ class TeachingSessions:
         gloss = (
             f"\nSTUDENT_SLANG: {'; '.join(norm.glossed)}" if norm.detections else ""
         )
+        # Theodore is the AI presenter: the system prompt makes the live model
+        # teach with the back-propagated strategies (curiosity, first principles,
+        # story, everyday relevance, comprehension checks, memorable close).
         prompt = (
-            "You are a patient teacher. Answer the student's question using only "
-            "the lesson context. If the student used slang/idioms, interpret them "
-            "by their meaning. Speak in a natural, colloquial register: "
-            f"{tone}\n"
+            "Answer the student's question using only the lesson context. If the "
+            "student used slang/idioms, interpret them by their meaning.\n"
             f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
+        used_fallback = False
         try:
             text = self.llm.complete(
                 [
                     ChatMessage(role="system",
-                                content=f"You are a helpful teacher. {tone}"),
+                                content=theodore.system_prompt(topic=topic, tone=tone,
+                                                               language=language)),
                     ChatMessage(role="user", content=prompt),
                 ]
             ).text
         except NotImplementedError:
             # No model server configured -> deterministic grounded fallback.
+            used_fallback = True
             text = humanize_narration(
                 _offline_answer(question, context), dialect, language=language,
             )
         # Hallucination guard: only serve answers grounded in the retrieved
         # context; otherwise abstain/ground to avoid showing unsupported claims.
         safe_text, report = guard_answer(text, context, question=question)
+        # On the offline path the model can't self-rehearse, so apply one light,
+        # question-only Theodore touch (a comprehension check) to a grounded
+        # answer. Runs AFTER the guard, so it never affects the grounding verdict.
+        if used_fallback and report.grounded:
+            safe_text = theodore.frame_answer(safe_text, topic=topic)
         session.history.append(ChatTurn(role="student", text=question))
         session.history.append(ChatTurn(role="teacher", text=safe_text))
         self.store.save(session)

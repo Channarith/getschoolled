@@ -1,0 +1,126 @@
+THEODORE - THE AI PRESENTER
+===========================
+Plain text on purpose (repo no-markdown house rule).
+
+Theodore is Salareen's named AI presenter/professor. The goal of this work was
+to study how the best online instructors actually hold attention and teach, and
+to BACK-PROPAGATE those strategies into the AI teaching code so every narrated
+lesson and tutor reply is delivered like a great class - not read off a slide.
+
+Code:
+  packages/shared/src/aoep_shared/theodore.py        persona + strategy registry
+                                                     + system prompt + rehearsal
+  packages/shared/src/aoep_shared/presentation_skills.py  technique phrasing
+                                                     (now includes the new ones)
+  services/orchestrator/src/orchestrator/teaching.py Tutor uses Theodore
+  services/orchestrator/src/orchestrator/main.py     /api/presenter* endpoints
+  packages/shared/src/aoep_shared/training_agents/roster.py  roster entry
+
+-----------------------------------------------------------------------------
+1. SOURCE MATERIAL ANALYZED
+-----------------------------------------------------------------------------
+Three reference talks were analyzed (the network sandbox blocks YouTube, so the
+analysis used the public titles/descriptions/transcript excerpts of each plus
+established pedagogy research):
+
+(A) Terence Tao - "Mathematical Thinking" (MasterClass)
+    https://www.youtube.com/watch?v=axzFfSvQdYQ
+    Draws/strategies observed:
+      - Deconstruct a hard problem into smaller, already-known pieces.
+      - Teach WITH STORY ("solving problems with story").
+      - Anchor in everyday life ("math in your everyday life").
+      - Demystify - strip the fear/jargon out of an intimidating topic.
+      - Normalize productive failure ("Math Fails", "Stumped: navigating
+        roadblocks") - getting stuck is part of the work.
+      - Motivate the problem ("choosing the problem to solve") before solving it.
+
+(B) "The Best MasterClass Courses" (PCMag) - what makes the format work
+    https://www.youtube.com/watch?v=3WzMhgdKS8E
+    Draws/strategies observed:
+      - Earned expert authority (world-class instructor, specific experience).
+      - High production polish + high signal-to-noise.
+      - "Behind-the-craft" insider insight beginners never get.
+      - Narrative arc and aspirational framing of the capability gained.
+
+(C) Elon Musk - "First Principles" (3 rules to learning anything)
+    https://www.youtube.com/watch?v=XK6MyKmIew8
+    Draws/strategies observed:
+      - Reason from first principles (fundamental truths), not by analogy.
+      - Challenge the default assumption ("does it really have to be this way?").
+      - Spend most effort understanding the problem; build the solution up.
+      - Probabilistic framing - outcomes are a range of odds ("be the house").
+
+Layered on top: established lecture/MOOC pedagogy that consistently keeps
+students engaged and improves retention -
+      - Curiosity gaps (open a question the brain wants closed).
+      - Tasteful, on-topic humor / levity to reset attention.
+      - Retrieval practice (recall before being told).
+      - Dual coding (pair words with a vivid image).
+      - Segmenting + pacing (short chunks, deliberate pauses).
+      - Direct address ("you"), rhetorical questions.
+      - Vocal variety / emphasis cues.
+      - Live demonstration (show it working).
+      - Signposting, callbacks, comprehension checks, confident close.
+
+-----------------------------------------------------------------------------
+2. THE STRATEGY REGISTRY (aoep_shared.theodore)
+-----------------------------------------------------------------------------
+Each strategy carries: id, name, category, SOURCE (attribution to the talk it
+came from), principle (why it works), cue (how Theodore performs it live), and a
+deterministic opener template ({topic}/{point}/{everyday}) for offline use.
+
+Categories: hook | rigor | clarity | engagement | humor | relevance | retention
+            | closing | delivery
+
+Source -> strategies:
+  Tao         : deconstruct, story_lens, everyday_relevance, demystify,
+                normalize_failure, choose_the_problem
+  MasterClass : expert_authority, behind_the_craft, narrative_arc,
+                aspirational_framing
+  Musk        : first_principles, challenge_assumptions, probabilistic_framing
+  Pedagogy    : curiosity_gap, humor, retrieval_practice, dual_coding,
+                direct_address, live_demonstration, comprehension_check,
+                callback, signpost, segmenting, confident_close
+
+-----------------------------------------------------------------------------
+3. HOW THE STRATEGIES ARE EMBEDDED ("back-propagated")
+-----------------------------------------------------------------------------
+(1) LIVE LLM DELIVERY - theodore.system_prompt():
+    The Tutor (teaching.py) now sends a Theodore system prompt that names him,
+    tells the model to mentally REHEARSE before answering, and lists the core
+    delivery cues. So when a real model server is configured, answers come out
+    in Theodore's teaching style, grounded in the retrieved context.
+
+(2) OFFLINE / DETERMINISTIC DELIVERY - theodore.rehearse():
+    With no model server, the Tutor's grounded fallback answer gets a light,
+    question-only Theodore touch (a comprehension check) applied AFTER the
+    hallucination guard, so it never changes the grounding verdict.
+    For lesson narration, rehearse() scores a take across delivery dimensions
+    (hook, rigor, clarity, engagement, relevance, retention, humor), finds the
+    weak ones, and iteratively injects the matching strategy openers - literally
+    rehearsing and refining the take until the rubric score climbs. This is the
+    "backprop": measure delivery -> inject the missing strategy -> re-measure.
+
+(3) ANALYTICS-AWARE ADAPTATION - theodore.adapt_for_attention():
+    Given a learner attention score (0..1, from the perception/Director loop),
+    Theodore reaches for pattern-interrupt strategies when attention drops
+    (humor, curiosity gap, live demonstration, direct address) and keeps the
+    standard arc when attention is healthy.
+
+(4) API SURFACE (orchestrator):
+    GET  /api/presenter                 persona + full strategy playbook
+    POST /api/presenter/rehearse        rehearse/score any narration
+    POST /api/presenter/playbook        the strategy arc for a segment kind
+    GET  /api/presenter/attention       re-engagement strategies for a score
+    (plus the existing /api/presentation/techniques + /skill-plan, now richer).
+
+-----------------------------------------------------------------------------
+4. EXTENDING
+-----------------------------------------------------------------------------
+  - Add a strategy: append a TeachingStrategy to _STRATEGIES in theodore.py with
+    a source attribution and an opener template.
+  - Add a phrasing technique surfaced in the deck planner: append a
+    PresentationTechnique in presentation_skills.py (also pack-extensible via
+    content packs of kind "presentation").
+  - Tune the rehearsal rubric: _DIMENSION_MARKERS / _DIMENSION_WEIGHTS /
+    _DIMENSION_FIX in theodore.py.
