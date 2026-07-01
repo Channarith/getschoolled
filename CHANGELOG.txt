@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-30 - Our Story page: full internationalization + two UI fixes.
+  All copy now flows through the i18n system, centralized in a new STORY_STRINGS
+  map (apps/web/app/lib/i18n-pages.ts) with complete translations for English
+  plus es/fr/de/it/pt/ru/ar/hi/zh/ja/ko/vi/km (rich-text markers preserved).
+  Fixed the nav language/profile dropdown rendering behind the /our-story hero:
+  the nav's backdrop-filter made it a stacking context, so it now takes
+  position:relative + z-index so its menu paints above page content. Fixed a
+  React hydration mismatch by injecting the page's scoped <style> via
+  dangerouslySetInnerHTML (server-escaped CSS quotes no longer differ from the
+  client's raw characters).
+
 - 2026-06-29 - Replace the remaining stale brand art with the medallion-S Bayon
   Buddy. scripts/build_bayon_icons.py is now the single buddy-asset generator and
   also rebuilds docs/brand/aiclassroom_logo.{png,webp} (color), the 1-bit print
