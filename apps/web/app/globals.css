@@ -157,6 +157,11 @@ a {
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--panel) 85%, transparent);
   backdrop-filter: blur(8px);
+  /* backdrop-filter makes the nav a stacking context; without positioning + a
+     positive z-index its dropdown (ProfileMenu) gets trapped at z:0 and is
+     painted under later positioned page content (e.g. the Our Story hero). */
+  position: relative;
+  z-index: 100;
 }
 
 .nav .brand {
