@@ -88,7 +88,7 @@ jobs:
             pip install --no-cache-dir -r requirements-dev.txt || true
           fi
           if [ -f packages/shared/pyproject.toml ]; then
-            pip install --no-cache-dir -e packages/shared || true
+            pip install --no-cache-dir -e "packages/shared[harvest]" || true
           fi
 
       - name: Generate build changes

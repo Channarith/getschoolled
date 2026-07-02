@@ -38,3 +38,15 @@ def test_list_dialects_includes_regions():
 def test_normalize_aliases():
     assert normalize_dialect("californian") == "us_ca"
     assert normalize_dialect("texan") == "us_tx"
+    assert normalize_dialect(None) is None
+
+
+def test_neutral_narration_unchanged_without_dialect():
+    raw = "Welcome to our course on physics. We will walk through energy."
+    assert humanize_narration(raw, None) == raw
+
+
+def test_us_general_intro_welcomes_course():
+    intro = dialect_intro("Physics", ["Energy"], "us_general")
+    assert "welcome to our course" in intro.lower()
+    assert "welcome in" not in intro.lower()

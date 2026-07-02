@@ -36,9 +36,48 @@ BRAND = REPO / "docs" / "brand"
 OUT_DIR = DEMOS
 DEFAULT_OUT = DEMOS / "salareen_pitch_deck_2026.mp4"
 
-FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-FONT_REG  = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+# Fonts are resolved at import time so the generator runs on Linux (CI),
+# macOS (local), or anywhere matplotlib's bundled DejaVu fonts are available.
+# DejaVu is preferred so the look matches across platforms; macOS system fonts
+# are the last-resort fallback. Missing fonts were the root cause of unreadable
+# (tiny fallback) text + skipped overlays when run off a Linux box.
+
+def _mpl_font_dir() -> str:
+    try:
+        import matplotlib  # bundled DejaVu ttfs, cross-platform
+        return os.path.join(os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf")
+    except Exception:
+        return ""
+
+
+def _resolve_font(*candidates: str) -> str:
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    # Return the first candidate anyway so failures are loud/diagnosable.
+    return next((c for c in candidates if c), "")
+
+
+_MPL = _mpl_font_dir()
+
+FONT_BOLD = _resolve_font(
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    os.path.join(_MPL, "DejaVuSans-Bold.ttf") if _MPL else "",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/Library/Fonts/Arial Bold.ttf",
+)
+FONT_REG = _resolve_font(
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    os.path.join(_MPL, "DejaVuSans.ttf") if _MPL else "",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/Library/Fonts/Arial.ttf",
+)
+FONT_MONO = _resolve_font(
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    os.path.join(_MPL, "DejaVuSansMono.ttf") if _MPL else "",
+    "/System/Library/Fonts/Supplemental/Courier New.ttf",
+    "/System/Library/Fonts/Menlo.ttc",
+)
 
 # ---------------------------------------------------------------------------
 # Brand palette
@@ -63,6 +102,19 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess:
 
 def ffmpeg(*args: str) -> None:
     run("ffmpeg", "-y", *args)
+
+
+def _probe_duration(src: Path) -> float:
+    """Return a media file's duration in seconds."""
+    result = run(
+        "ffprobe", "-v", "quiet",
+        "-show_entries", "format=duration",
+        "-of", "csv=p=0", str(src),
+    )
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return 0.0
 
 
 def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
@@ -170,22 +222,36 @@ def render_slide(
             draw.text((80, y), line, font=fnt, fill=color)
             y += 52
 
-    # Two-column layout
+    # Multi-column layout — starts BELOW the headline (so it never collides
+    # with a wrapped 2-line title) and honors explicit newlines in both the
+    # column header and body so nothing overruns.
     if columns:
         col_w = (W - 200) // len(columns)
+        col_top = max(280, y + 24)
+        f_colhead = _font(FONT_BOLD, 40)
+        gutter = 24
         for ci, (ch, cc) in enumerate(columns):
             cx = 80 + ci * col_w
-            cy_start = 260
-            draw.text((cx, cy_start), ch, font=f_sub, fill=GOLD)
-            cy = cy_start + 64
-            for ln in _wrap(cc, 30):
-                draw.text((cx, cy), ln, font=f_body, fill=WHITE)
+            cy = col_top
+            for hl in ch.split("\n"):
+                draw.text((cx, cy), hl, font=f_colhead, fill=GOLD)
                 cy += 50
+            cy += 16
+            for para in cc.split("\n"):
+                if not para.strip():
+                    cy += 18
+                    continue
+                for ln in _wrap(para, 24):
+                    draw.text((cx, cy), ln, font=f_body, fill=WHITE)
+                    cy += 46
 
-    # Logo (bottom-right wordmark)
+    # Logo (bottom-right wordmark) — right-aligned so it never clips the edge
     if logo:
-        draw.text((W - 260, H - 70), "SALAREEN", font=f_sub, fill=GOLD)
-        draw.rectangle([(W - 260, H - 80), (W - 80, H - 78)], fill=GOLD)
+        wm = "SALAREEN"
+        ww = draw.textlength(wm, font=f_sub)
+        wx = W - 80 - ww
+        draw.text((wx, H - 70), wm, font=f_sub, fill=GOLD)
+        draw.rectangle([(wx, H - 80), (W - 80, H - 78)], fill=GOLD)
 
     # Bottom slide-number tag (bottom-left)
     if tag:
@@ -230,6 +296,32 @@ def image_to_clip(img_path: Path, duration: float, tmp_dir: Path, name: str) -> 
     return out
 
 
+def panel_image_to_clip(img_path: Path, duration: float, tmp_dir: Path, name: str) -> Path:
+    """Show a full image as a 'hero' slide: sharp, centered, with a subtle
+    blurred-cover background filling the 16:9 frame (no empty pillarbox bars).
+
+    Used for the provided product/architecture diagrams so they read cleanly at
+    full size without distortion or cropping their labels.
+    """
+    out = tmp_dir / f"{name}.mp4"
+    ffmpeg(
+        "-loop", "1", "-i", str(img_path),
+        "-t", str(duration),
+        "-filter_complex", (
+            f"[0:v]split=2[bg][fg];"
+            f"[bg]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+            f"gblur=sigma=24,eq=brightness=-0.20:saturation=0.85[bgb];"
+            f"[fg]scale={W-160}:{H-110}:force_original_aspect_ratio=decrease[fgs];"
+            f"[bgb][fgs]overlay=(W-w)/2:(H-h)/2,setsar=1[v]"
+        ),
+        "-map", "[v]",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-pix_fmt", "yuv420p", "-r", str(FPS), "-an",
+        str(out),
+    )
+    return out
+
+
 def extract_clip(src: Path, start: float, duration: float, tmp_dir: Path, name: str) -> Path:
     """Extract a time range from an existing MP4 (no re-encode for speed)."""
     out = tmp_dir / f"{name}.mp4"
@@ -268,6 +360,83 @@ def gif_to_clip(gif_path: Path, duration: float, tmp_dir: Path, name: str) -> Pa
     return out
 
 
+def _wrap_to_width(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> list[str]:
+    """Word-wrap text to fit within max_w pixels for the given font."""
+    if not text:
+        return []
+    lines: list[str] = []
+    cur = ""
+    for word in text.split():
+        trial = (cur + " " + word).strip()
+        if draw.textlength(trial, font=font) <= max_w or not cur:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def render_caption_png(
+    tmp_dir: Path,
+    name: str,
+    *,
+    title: str = "",
+    subtitle: str = "",
+    position: str = "bottom",
+) -> Path:
+    """Render a transparent caption band (PIL) sized to fit its wrapped text.
+
+    Done in PIL (not ffmpeg drawtext) so it works on any platform regardless of
+    whether ffmpeg was built with libfreetype, and so long captions wrap instead
+    of running off-screen. The band auto-sizes so title and subtitle never
+    overlap.
+    """
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    f_title = _font(FONT_BOLD, 46)
+    f_sub = _font(FONT_REG, 30)
+    max_w = W - 240
+
+    title_lines = _wrap_to_width(draw, title, f_title, max_w)
+    sub_lines = _wrap_to_width(draw, subtitle, f_sub, max_w)
+
+    title_lh, sub_lh, gap, pad = 56, 40, 14, 30
+    content_h = pad
+    if title_lines:
+        content_h += len(title_lines) * title_lh
+    if sub_lines:
+        content_h += (gap if title_lines else 0) + len(sub_lines) * sub_lh
+    content_h += pad
+    band_h = max(112, content_h)
+    band_top = 0 if position == "top" else H - band_h
+
+    # Solid, high-opacity band for guaranteed legibility over busy footage.
+    draw.rectangle([(0, band_top), (W, band_top + band_h)], fill=(11, 16, 32, 224))
+    # Gold rule on the edge facing the video content.
+    if position == "top":
+        draw.rectangle([(0, band_top + band_h - 4), (W, band_top + band_h)], fill=(201, 160, 60, 245))
+    else:
+        draw.rectangle([(0, band_top), (W, band_top + 4)], fill=(201, 160, 60, 245))
+
+    y = band_top + pad
+    for ln in title_lines:
+        tw = draw.textlength(ln, font=f_title)
+        draw.text(((W - tw) // 2, y), ln, font=f_title, fill=(245, 245, 245, 255))
+        y += title_lh
+    if sub_lines:
+        y += gap
+        for ln in sub_lines:
+            sw = draw.textlength(ln, font=f_sub)
+            draw.text(((W - sw) // 2, y), ln, font=f_sub, fill=(201, 160, 60, 255))
+            y += sub_lh
+
+    out = tmp_dir / f"{name}_cap.png"
+    img.save(str(out), "PNG")
+    return out
+
+
 def add_title_overlay(
     base_clip: Path,
     tmp_dir: Path,
@@ -275,55 +444,52 @@ def add_title_overlay(
     *,
     title: str = "",
     subtitle: str = "",
-    position: str = "bottom",   # top | bottom | center
+    position: str = "bottom",   # top | bottom
 ) -> Path:
-    """Burn a semi-transparent title box onto a video clip."""
+    """Composite a readable PIL caption band onto a clip via ffmpeg overlay."""
     out = tmp_dir / f"{name}.mp4"
-    y_pos = {"bottom": "h-140", "top": "20", "center": "(h-text_h)/2"}[position]
 
-    # Build drawtext filter chain
-    filters = [
-        f"scale={W}:{H}:force_original_aspect_ratio=decrease",
-        f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0b1020",
-        "setsar=1",
-    ]
-    if title:
-        safe = title.replace("'", "\\'").replace(":", "\\:")
-        filters.append(
-            f"drawtext=fontfile={FONT_BOLD}:text='{safe}'"
-            f":fontsize=52:fontcolor=white"
-            f":x=(w-text_w)/2:y={y_pos}"
-            f":box=1:boxcolor=0x0b102088:boxborderw=18"
+    if not (title or subtitle):
+        ffmpeg(
+            "-i", str(base_clip),
+            "-vf", (
+                f"scale={W}:{H}:force_original_aspect_ratio=decrease,"
+                f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0b1020,setsar=1"
+            ),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+            "-pix_fmt", "yuv420p", "-r", str(FPS), "-an", str(out),
         )
-    if subtitle:
-        safe2 = subtitle.replace("'", "\\'").replace(":", "\\:")
-        sub_y = f"{y_pos}+65" if position != "center" else "(h-text_h)/2+70"
-        filters.append(
-            f"drawtext=fontfile={FONT_REG}:text='{safe2}'"
-            f":fontsize=34:fontcolor=0xC9A03C"
-            f":x=(w-text_w)/2:y={sub_y}"
-            f":box=1:boxcolor=0x0b102088:boxborderw=12"
-        )
+        return out
 
-    vf = ",".join(filters)
+    cap = render_caption_png(tmp_dir, name, title=title, subtitle=subtitle, position=position)
     ffmpeg(
         "-i", str(base_clip),
-        "-vf", vf,
+        "-i", str(cap),
+        "-filter_complex", (
+            f"[0:v]scale={W}:{H}:force_original_aspect_ratio=decrease,"
+            f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0b1020,setsar=1[v];"
+            f"[v][1:v]overlay=0:0[vo]"
+        ),
+        "-map", "[vo]",
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-pix_fmt", "yuv420p", "-r", str(FPS),
-        "-an",
+        "-pix_fmt", "yuv420p", "-r", str(FPS), "-an",
         str(out),
     )
     return out
 
 
 def concatenate_clips(clips: list[Path], out: Path, tmp_dir: Path) -> Path:
-    """Concatenate clips with xfade crossfade transitions (1s each)."""
+    """Concatenate clips with a brief fade-through-black between segments.
+
+    Uses transition=fadeblack (not a dissolve) so two text-heavy slides are
+    never superimposed during the transition — a plain crossfade made captions
+    and slide text overlap and become unreadable.
+    """
     if len(clips) == 1:
         shutil.copy(str(clips[0]), str(out))
         return out
 
-    fade_dur = 1.0
+    fade_dur = 0.6
 
     # Build the xfade filter chain
     inputs = []
@@ -350,7 +516,7 @@ def concatenate_clips(clips: list[Path], out: Path, tmp_dir: Path) -> Path:
         cumulative_dur += durations[i - 1] - fade_dur
         out_label = "[vout]" if i == len(clips) - 1 else f"[v{i}]"
         filter_parts.append(
-            f"{current_label}[{i}:v]xfade=transition=fade:duration={fade_dur}:offset={offset}{out_label}"
+            f"{current_label}[{i}:v]xfade=transition=fadeblack:duration={fade_dur}:offset={offset}{out_label}"
         )
         current_label = out_label
 
@@ -397,6 +563,22 @@ def seg_title(tmp: Path) -> list[Path]:
         accent_bar=False,
     )
     return [png_to_clip(sl, 4.0, tmp, "c00_cover")]
+
+
+# The opening narrative the deck cold-opens on. Its narration audio is muxed
+# back over the final timeline in build_video (the slide pipeline is silent).
+STORY_INTRO_SRC = DEMOS / "salareen_unteachable_wisdom.mp4"
+
+
+def seg_story_intro(tmp: Path) -> list[Path]:
+    """Cold-open: the full 'Unteachable Wisdom' brand story (video; audio muxed later)."""
+    src = STORY_INTRO_SRC
+    if not src.exists():
+        # Fall back to the prior investor-pitch opening if the story isn't present.
+        return seg_story_existing(tmp)
+    dur = _probe_duration(src) or 46.0
+    c = extract_clip(src, 0, dur, tmp, "c00_story_intro")
+    return [c]
 
 
 def seg_story_existing(tmp: Path) -> list[Path]:
@@ -501,6 +683,42 @@ def seg_solution(tmp: Path) -> list[Path]:
             subtitle="Built to lift students up · never to put them at risk")
         clips.append(c)
 
+    return clips
+
+
+# Provided product/architecture diagrams — how the platform reaches users.
+SLIDE_ARCH = DEMOS / "salareen_slide_architecture.png"
+SLIDE_LIVE = DEMOS / "salareen_slide_live_class.png"
+SLIDE_MEMORY = DEMOS / "salareen_slide_memory.png"
+
+
+def seg_how_it_works(tmp: Path) -> list[Path]:
+    """How the software is delivered to users: architecture → live class → memory."""
+    sl = render_slide(tmp, "s_how",
+        tag="How It Works",
+        headline="From any device to a\npersonal AI campus",
+        subhead="One platform — deployed where your learners already are.",
+        body_lines=[
+            "",
+            "// Meet learners where they are",
+            "  Web · Zoom · Microsoft Teams · Google Meet",
+            "",
+            "// One agent brain does it all",
+            "  Teaching · perception · speech · memory · compliance",
+            "",
+            "// Remembers every learner across classes — private by design",
+        ],
+    )
+    clips = [png_to_clip(sl, 6.0, tmp, "c_how_intro")]
+
+    # Full diagrams shown clean (their own labels stay readable — no overlay).
+    for img, dur, name in [
+        (SLIDE_ARCH, 8.0, "c_how_arch"),
+        (SLIDE_LIVE, 7.0, "c_how_live"),
+        (SLIDE_MEMORY, 8.0, "c_how_mem"),
+    ]:
+        if img.exists():
+            clips.append(panel_image_to_clip(img, dur, tmp, name))
     return clips
 
 
@@ -795,10 +1013,11 @@ def build_video(out_path: Path, preview: bool = False) -> None:
         all_clips: list[Path] = []
 
         segments = [
+            ("Opening Story",     seg_story_intro),
             ("Cover",             seg_title),
-            ("Opening Story",     seg_story_existing),
             ("The Problem",       seg_problem),
             ("The Solution",      seg_solution),
+            ("How It Works",      seg_how_it_works),
             ("Platform Tour",     seg_platform_tour),
             ("Unique Value",      seg_uvp),
             ("Market",            seg_market),
@@ -836,26 +1055,42 @@ def build_video(out_path: Path, preview: bool = False) -> None:
             print(f"xfade concat failed ({exc}), falling back to simple concat...")
             simple_concat(all_clips, concat_out, tmp)
 
-        # Final pass: ensure output is clean 1080p H.264
-        print(f"Writing final output...")
+        # Final pass: clean single re-encode to 1080p H.264. When the opening
+        # story exists, its narration is muxed IN THIS SAME PASS (no separate
+        # stream-copy step, which previously corrupted frame timing). The story
+        # is the first segment, so its audio starts at t=0; apad fills the rest
+        # of the timeline with silence and -shortest trims audio to video length.
+        print("Writing final output...")
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        ffmpeg(
-            "-i", str(concat_out),
-            "-vf", f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0b1020,setsar=1",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-            "-pix_fmt", "yuv420p", "-r", str(FPS),
-            "-movflags", "+faststart",
-            str(out_path),
+        final_vf = (
+            f"scale={W}:{H}:force_original_aspect_ratio=decrease,"
+            f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0b1020,setsar=1"
         )
+        if STORY_INTRO_SRC.exists() and not preview:
+            ffmpeg(
+                "-i", str(concat_out),
+                "-i", str(STORY_INTRO_SRC),
+                "-filter_complex", f"[0:v]{final_vf}[v];[1:a]aresample=48000,apad[a]",
+                "-map", "[v]", "-map", "[a]",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-r", str(FPS),
+                "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
+                "-shortest",
+                "-movflags", "+faststart",
+                str(out_path),
+            )
+        else:
+            ffmpeg(
+                "-i", str(concat_out),
+                "-vf", final_vf,
+                "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+                "-pix_fmt", "yuv420p", "-r", str(FPS),
+                "-movflags", "+faststart",
+                str(out_path),
+            )
 
+        dur_s = _probe_duration(out_path)
         size_mb = out_path.stat().st_size / 1_048_576
-        # Probe duration
-        result = run(
-            "ffprobe", "-v", "quiet",
-            "-show_entries", "format=duration",
-            "-of", "csv=p=0", str(out_path),
-        )
-        dur_s = float(result.stdout.strip())
         m, s = divmod(int(dur_s), 60)
 
     print(f"\n{'='*60}")

@@ -197,9 +197,10 @@ def run_meeting_agents_lab(
            any(e.agent in ("interrupt_host", "moderator") for e in state.events))
     _check(checks, "Bridge: chat outbound", len(transport.chat_sent) >= 1)
     intro_narration = e2e.lesson.steps[0].narration if e2e.lesson.steps else ""
+    _ca_markers = ("stoked", "holler", "so like", "okay cool", "real talk", "basically")
     _check(checks, "Dialect: colloquial intro",
-           dialect_id != "us_ca" or "stoked" in intro_narration.lower()
-           or "holler" in intro_narration.lower())
+           dialect_id != "us_ca"
+           or any(m in intro_narration.lower() for m in _ca_markers))
 
     report_path = out_dir / "meeting_agents_lab.json"
     result = MeetingAgentsLabResult(

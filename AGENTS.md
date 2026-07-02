@@ -25,8 +25,9 @@ once per clone/CI runner that performs a local merge, then merge as usual:
 2. **Release version (required on every PR to main):** run
    `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
    `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
-   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default;
-   minor when more than 8 pending changelog entries have accumulated.
+   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default
+   (`python3 scripts/bump_pr_version.py` → 0.12.1, 0.12.2, …). Use
+   `--force-level minor` only for deliberate feature releases (0.13.0).
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must
@@ -83,6 +84,18 @@ JSONL packs by kind (`knowledge`, `slang`, `scenarios`, `courses`,
 Built-in Python content is the baseline; packs add on top. Capability modules
 `readability.py` (complexity scoring + simplification) and `presentation_skills.py`
 (technique registry) are pack-extensible too.
+
+Harvester export rule: every harvest/crawl run **must** write a `.pptx` alongside
+`*.course.json` (narration in speaker notes). `export_course_package(...,
+write_pptx=True)` is mandatory; install `python-pptx` via
+`pip install -e 'packages/shared[harvest]'`. Crawl output lives under
+`output/harvest/courses/<course_id>/`. Present with
+`python3 scripts/present_course.py <path/to/*.course.json> --with-media`.
+
+Custom presenter voices: register reference audio under `voices/<id>/` via
+`python3 scripts/register_voice.py`; present with `--persona <id> --tts-engine clone`.
+Clone backends: Chatterbox (CHATTERBOX_TTS_URL), XTTS (XTTS_TTS_URL / SPEECH_BASE_URL),
+ElevenLabs (ELEVENLABS_API_KEY). Test all: `python3 scripts/test_voice_engines.py`.
 
 Environment / setup caveats (non-obvious):
 - The update script creates `.venv` (system Python 3.12; the repo's

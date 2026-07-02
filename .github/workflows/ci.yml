@@ -16,7 +16,8 @@ jobs:
       - name: Install Python packages (editable)
         run: |
           python3 -m pip install --upgrade pip
-          for pkg in packages/shared services/orchestrator services/speech \
+          python3 -m pip install -e "packages/shared[test,harvest]"
+          for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
             services/billing apps/agent-runtime; do
             python3 -m pip install -e "$pkg[test]"

@@ -1,0 +1,35 @@
+Introduction to Mechanics
+
+Welcome to a first look at how objects move and exchange energy. We will connect
+everyday motion — a pendulum, a ball in flight — to equations you can predict
+with before you see the demo.
+
+Energy and Conservation
+
+Kinetic energy is the energy of motion: KE = (1/2) m v^2.
+Potential energy stored by height is PE = m g h.
+In a closed system with no friction, total mechanical energy stays constant:
+  E = KE + PE = constant.
+
+Example: Pendulum
+
+A simple pendulum swings back and forth. At the highest point it momentarily stops:
+all energy is potential. At the bottom it moves fastest: energy is mostly kinetic.
+If you know the release height, you can predict the speed at the bottom without
+measuring it — that is the power of conservation.
+
+Demo: Predict Before You Look
+
+Before releasing the pendulum from height h = 0.50 m, predict the speed at the
+bottom. Use g = 9.8 m/s^2 and m = 0.20 kg. The math says v ≈ 3.1 m/s — watch
+whether the demo matches your guess.
+
+Exercise
+
+A 0.15 kg ball drops 1.2 m with negligible air drag. Compute its speed just
+before it hits the ground using energy conservation. Check units: m/s.
+
+Summary
+
+Mechanics is about prediction: write the energy balance, solve for the unknown,
+then test with a measurement. Come back and redo one calculation on paper today.

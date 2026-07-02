@@ -67,11 +67,11 @@ def test_dated_unreleased_header_still_works(monkeypatch, tmp_path):
     assert "[1.0.1] - " in text and "feat: did a thing" in text
 
 
-def test_minor_bump_when_many_features(monkeypatch, tmp_path):
+def test_patch_bump_even_with_many_features(monkeypatch, tmp_path):
     items = "\n".join(f"- feat {i}" for i in range(9))
     _write(tmp_path, "0.3.0", f"CHANGELOG\n====\n\n[unreleased]\n{items}\n\n[0.2.0] - x\n- y\n")
     _point_module_at(tmp_path)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     build_release.main([])
-    # >8 items -> minor bump.
-    assert (tmp_path / "VERSION").read_text().strip() == "0.4.0"
+    # Many unreleased items still patch-bump (0.3.0 -> 0.3.1).
+    assert (tmp_path / "VERSION").read_text().strip() == "0.3.1"

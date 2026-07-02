@@ -1,0 +1,321 @@
+AI PRESENTER RUNBOOK — Smart live class delivery (Part 3)
+========================================================
+
+The AI presenter is Part 3 of the teaching pipeline:
+
+  Part 1  Harvest   → course.json + .pptx  (aoep_shared.harvest)
+  Part 2  Teach     → LessonPlan + script  (aoep_shared.teaching)
+  Part 3  Present   → live meeting + transcript  (aoep_shared.meeting)
+
+The **smart presenter** (default since 2026-06) does NOT read slides verbatim.
+It uses presentation-skills techniques, digressions, summarization, optional
+RAG asides from the harvest corpus, **time-aware pacing**, and a finite
+**presentation-mode matrix** (648 mix-and-match delivery recipes).
+
+
+PRESENTATION MODE MATRIX (finite catalog)
+-----------------------------------------
+
+Content composition (``composition_score``) measures WHAT nodes a course has.
+Presentation modes measure HOW those nodes are delivered live.
+
+Six arcs on five other axes (mixed-radix index 0..647)::
+
+  arc     lecture | workshop | survey | drill | flipped | lewin
+  voice   verbatim | smart | condensed
+  time    fixed | adaptive | strict
+  engage  passive | guided | socratic
+  media   balanced | visual | demo | audio
+
+  capacity = 6 x 3 x 3 x 3 x 4 = 648 modes
+
+  lewin — Walter Lewin theatrical style (predict-before-reveal demos, equation+
+  demo pairing, everyday hooks). Modeled on MIT 8.01 / "For the Love of Physics":
+  https://youtu.be/sJG-rXBbmCc
+
+Each mode decodes to a ``PresentationProfile`` that controls:
+  - Slide structure (try-it, recaps, worked examples) at harvest time
+  - Per-category treatment matrix (speak / summarize / skip / digress / interact)
+  - Presenter voice, time budget, and engagement prompts
+
+List the catalog::
+
+  python3 scripts/present_course.py --list-modes
+
+Pick a mode when presenting (quote pipe strings in zsh/bash — ``|`` is the shell pipe)::
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --present-mode workshop
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --present-mode drill
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --present-mode 'drill|smart|strict|socratic|demo'
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --present-mode lewin
+
+  # Physics-style course with Lewin arc at harvest time:
+  python3 scripts/teach_and_present.py \\
+      --text-file sample-curriculum/intro-physics/lesson.txt \\
+      --subject physics --present-mode lewin --meeting-provider local
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --present-mode 128
+
+At harvest time, pass ``presentation_mode`` to ``generate_course()`` or use an
+arc name as ``fmt`` (lecture, workshop, survey, drill, flipped). The mode index
+is stored in ``presentation_mode_index`` on the course JSON.
+
+Recommend arcs for a composition (Python)::
+
+  from aoep_shared.meeting import recommend_presentation_modes
+  from aoep_shared.harvest.composition import CourseComposition
+
+  comp = CourseComposition.from_dict(course["composition"])
+  print(recommend_presentation_modes(comp, top_n=5))
+
+Implementation: ``aoep_shared/meeting/presentation_matrix.py``
+
+
+WHAT THE SMART PRESENTER DOES
+-----------------------------
+
+1. Realistic delivery
+   - Signposts, analogies, comprehension checks (presentation_skills registry)
+   - Digresses on example / exercise slides with worked-example framing
+   - Optional RAG asides from ``output/harvest/harvest_corpus.db`` when indexed
+
+2. Summarization
+   - Slides with >~110 spoken words are compressed before delivery
+   - Announces that extra detail remains on the slide for self-review
+
+3. Time awareness
+   - You pass ``--duration-min`` (class length) and ``--elapsed-min`` (already used)
+   - If content won't fit in remaining time, the presenter:
+     a) Skips try-it / recap slides with a spoken explanation
+     b) Summarizes long segments
+     c) Speeds up (pace_multiplier) and tells learners they can continue later
+   - Skip/summary/fast actions appear in ``presentation_plan.json`` and the
+     event log (``skip_slide``, ``speak`` with ``[summarize]`` / ``[fast]``)
+
+
+QUICK START (synced slides + neural voice)
+------------------------------------------
+
+  pip install edge-tts pymupdf python-pptx   # voice + native slides + harvest export
+
+  # Present a course from an online crawl (output/harvest/courses/<id>/):
+  python3 scripts/present_course.py \\
+      "output/harvest/courses/bbe7ca91d0a2/Open Textbook Library.course.json" \\
+      --with-media --persona davis --meeting-provider local --duration-min 45
+
+  # Rich visual class (wallpaper + demo videos + themed accents) — REQUIRED for impact:
+  python3 scripts/present_course.py "output/harvest/Patterns, Predictions, and Actions.course.json" \\
+      --with-media --persona jenny --meeting-provider local --duration-min 120
+
+  # Re-harvest from source with media baked in:
+  python3 services/harvester/src/harvester/run.py \\
+      --generate "output/harvest/Patterns, Predictions, and Actions.pptx" \\
+      --subject ai --with-media --out-dir output/harvest
+
+  # Opens browser slide deck; narration synced slide-by-slide
+  python3 scripts/present_course.py output/harvest/algebra.course.json
+
+  # Pick a presenter personality (voice + delivery style)
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --persona davis --present-mode lewin
+
+  python3 scripts/present_course.py --list-personas
+
+  # Show your original PDF/PPTX pages instead of generated HTML bullets
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --slide-source output/harvest/algebra.pptx
+
+
+CUSTOM CLONED VOICES (Chatterbox / XTTS / ElevenLabs)
+-----------------------------------------------------
+
+  See voices/README.txt for full setup.
+
+  # 1. Register from a 10-30s reference recording:
+  python3 scripts/register_voice.py instructor_jane ~/recordings/jane.wav \\
+      --label "Jane Instructor" --present-mode lewin
+
+  # 2. Test every engine (edge + clone backends):
+  python3 scripts/test_voice_engines.py --sample voices/instructor_jane/sample.wav \\
+      --voice-id instructor_jane --play
+
+  # 3. Present with your cloned voice:
+  python3 scripts/present_course.py "output/harvest/courses/.../course.json" \\
+      --persona instructor_jane --tts-engine clone --with-media
+
+  Engine env (pick what you run locally):
+    export CHATTERBOX_TTS_URL=http://127.0.0.1:8004   # MIT Chatterbox server
+    export XTTS_TTS_URL=http://127.0.0.1:8100         # speech gateway / Coqui
+    export ELEVENLABS_API_KEY=...                     # cloud premium
+    export CLONE_TTS_PRIORITY=chatterbox,xtts,elevenlabs,edge
+
+  List voices: python3 scripts/present_course.py --list-voices
+
+  python3 scripts/teach_and_present.py --source deck.pptx --subject physics \\
+      --native-slides --persona davis --meeting-provider local
+
+  # Zoom/Meet/Teams: creates meeting, opens join link, same synced deck locally
+  # In the call: Share Screen → slide deck window → enable "Share computer sound"
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --meeting-provider zoom --open-meeting
+
+  # Captions on slides only (no audio)
+  python3 scripts/present_course.py output/harvest/algebra.course.json --no-audio
+
+  # Plan JSON only — no playback
+  python3 scripts/present_course.py output/harvest/algebra.course.json --no-present
+
+  # CI / silent
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --meeting-provider mock --no-slides
+
+  # Stop mid-lesson: Ctrl-C terminates TTS, closes the slide deck, writes partial
+  # presentation_result.json, and exits 130 (no Python traceback).
+
+
+PROVIDERS
+---------
+
+  local (default)
+    Browser slide deck at ``output/harvest/slide_show/slide_deck.html`` stays in
+    sync with neural TTS (edge-tts ``en-US-AriaNeural``). Each slide is shown,
+    then the AI speaks; audio finishes before the next slide.
+
+  zoom / google_meet / teams + ``--open-meeting``
+    Hybrid synced mode: real meeting URL + the same local slide deck and voice.
+    Share the browser window and system audio into the call so remote attendees
+    see slides and hear the AI in sync. Without API credentials, falls back to
+    local-only playback.
+
+  mock
+    Instant silent run for tests/CI (no slides, no audio).
+
+
+PERSONAS (voice + personality)
+------------------------------
+
+Eight built-in presets map to edge-tts neural voices, speech rate, and optional
+presentation-mode overrides (``davis`` → Lewin arc, ``emma`` → workshop, etc.)::
+
+  python3 scripts/present_course.py --list-personas
+
+  python3 scripts/present_course.py output/harvest/algebra.course.json \\
+      --persona guy
+
+Override voice directly with ``--voice en-US-JennyNeural`` (bypasses persona).
+Personas: aria (default warm), jenny, guy, davis (Lewin theatrical), sonia (UK calm),
+emma (workshop), brian (fast UK), nanami (Japanese).
+
+
+NATIVE SLIDES (PDF / PPTX instead of HTML bullets)
+--------------------------------------------------
+
+Default playback renders harvest bullets in a dark HTML deck. To show the actual
+pages from your source file or exported deck::
+
+  # Explicit path (PDF or PPTX)
+  python3 scripts/present_course.py output/harvest/MyCourse.course.json \\
+      --slide-source path/to/original.pdf
+
+  # End-to-end from a PowerPoint source
+  python3 scripts/teach_and_present.py --source lecture.pptx --subject physics \\
+      --native-slides --persona davis --meeting-provider local
+
+Requirements:
+  - PDF: ``pip install pymupdf`` (or system ``pdftoppm`` from poppler)
+  - PPTX: LibreOffice ``soffice --headless`` converts to PDF first, OR export PDF
+    manually and pass ``--slide-source file.pdf``
+
+The synced browser window still hosts playback (fullscreen page images + presenter
+caption bar). Share that window into Zoom/Meet for hybrid mode.
+
+
+LIVE MEETINGS (Google Meet / Zoom / Teams)
+------------------------------------------
+
+Set credentials per provider (see config/cloud.env), then:
+
+  python3 scripts/present_course.py output/harvest/MyCourse.course.json \\
+      --meeting-provider zoom --open-meeting --duration-min 45
+
+  export MEETING_PROVIDER=zoom   # alternative to CLI flag
+
+Without credentials the factory falls back to **local synced playback** so you
+can still rehearse with slides + neural voice offline.
+
+
+PYTHON API
+----------
+
+  from aoep_shared.teaching import run_end_to_end
+
+  result = run_end_to_end(
+      source="notes.pdf",
+      subject="biology",
+      duration_min=45,
+      elapsed_min=10,
+      smart_present=True,      # default
+      meeting_provider="mock",
+      present=True,
+  )
+  print(result.join_url)
+  print(result.artifacts["presentation_plan"])
+  print(result.artifacts["presentation_result"])
+
+  # Smart plan only (no meeting)
+  from aoep_shared.meeting import build_smart_presentation_plan, corpus_rag_search
+  from aoep_shared.teaching.lesson import teach_course
+
+  lesson = teach_course(course)
+  plan = build_smart_presentation_plan(
+      lesson,
+      duration_min=30,
+      elapsed_min=20,
+      rag_search=corpus_rag_search,
+  )
+
+
+OUTPUT ARTIFACTS
+----------------
+
+  presentation_plan.json   — timed steps with spoken_narration, action, pace
+  presentation_result.json — transcript, events, join_url, steps_presented
+  lesson/lesson_plan.json  — Part 2 narrated script
+  lesson/lesson_script.txt — human-readable script
+
+Inspect the plan before going live:
+
+  python3 -c "
+  import json; from pathlib import Path
+  p = json.loads(Path('output/teaching/presentation_plan.json').read_text())
+  for s in p['steps']:
+      print(s.get('action','speak'), s['heading'][:50])
+      print('  ', (s.get('spoken_narration') or s['narration'])[:120])
+  "
+
+
+MEETING AGENTS LAB (multi-agent Zoom-style simulation)
+------------------------------------------------------
+
+  make meeting-agents-lab
+
+Runs Director / Teacher / ChatTutor / Perception agents with dialect-aware
+speech (``aoep_shared.meeting_agents``). Complements the linear presenter
+for interactive classes with chat Q&A.
+
+
+RELATED DOCS
+------------
+
+  services/harvester/RUNBOOK.txt     — harvest + crawl
+  scripts/teach_and_present.py       — end-to-end CLI
+  scripts/validate_pipeline.py       — smoke test (make validate-pipeline)
+  packages/shared/src/aoep_shared/meeting/smart_presenter.py  — implementation

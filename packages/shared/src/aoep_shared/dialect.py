@@ -35,22 +35,21 @@ DIALECTS: Dict[str, DialectProfile] = {
     "us_general": DialectProfile(
         id="us_general", language="en", label="US (general)", region="us",
         intro_template=(
-            "Hey — welcome in. Today we're digging into {title}. "
-            "We'll hit {preview}{tail}. Jump in whenever you have a question."
+            "Welcome to our course on {title}. "
+            "Today we'll cover {preview}{tail}. Jump in whenever you have a question."
         ),
         outro_template=(
-            "Alright, that's {title} in the bag. Nice work sticking with it. "
-            "Go try it on your own — that's where it really clicks."
+            "That's our session on {title}. Nice work sticking with it. "
+            "Practice one idea on your own today — that's where it really clicks."
         ),
         discourse_markers=("So,", "Okay,", "Right —", "Here's the thing:"),
         replacements=(
-            ("Welcome!", "Hey — welcome in."),
-            ("We will walk through", "We're gonna walk through"),
-            ("Let us get into it", "Let's dive in"),
-            ("That is a wrap on", "Alright, that's"),
+            ("We will walk through", "We're going to walk through"),
+            ("Let us get into it", "Let's get into it"),
+            ("That is a wrap on", "That wraps up"),
             ("Nice work getting through it", "Nice work sticking with it"),
-            ("The best way to make this stick", "Best way this sticks"),
-            ("Take your time", "No rush"),
+            ("The best way to make this stick", "The best way to make this stick"),
+            ("Take your time", "Take your time"),
         ),
         tutor_tone_hint="Friendly American English, conversational, not corporate.",
     ),
@@ -136,25 +135,26 @@ DIALECTS: Dict[str, DialectProfile] = {
 }
 
 
-def normalize_dialect(dialect: Optional[str], *, language: str = "en") -> str:
+def normalize_dialect(dialect: Optional[str], *, language: str = "en") -> Optional[str]:
+    """Return a dialect id, or None for neutral (non-regional) narration."""
     if not dialect:
-        return "us_general" if language.startswith("en") else dialect or "us_general"
+        return None
     key = dialect.lower().replace("-", "_")
     if key in DIALECTS:
         return key
-    # Aliases
     aliases = {
         "california": "us_ca", "ca": "us_ca", "californian": "us_ca",
         "texas": "us_tx", "tx": "us_tx", "texan": "us_tx",
         "mexican": "es_mx", "mexico": "es_mx", "mx": "es_mx",
         "brazilian": "pt_br", "brazil": "pt_br", "br": "pt_br",
-        "en": "us_general", "us": "us_general",
+        "en": "us_general", "us": "us_general", "general": "us_general",
     }
-    return aliases.get(key, "us_general")
+    return aliases.get(key)
 
 
 def get_dialect(dialect: Optional[str], *, language: str = "en") -> DialectProfile:
-    return DIALECTS[normalize_dialect(dialect, language=language)]
+    key = normalize_dialect(dialect, language=language) or "us_general"
+    return DIALECTS[key]
 
 
 def _apply_replacements(text: str, pairs: Sequence[tuple[str, str]]) -> str:
@@ -168,7 +168,10 @@ def humanize_narration(text: str, dialect: Optional[str] = None, *, language: st
     """Rewrite neutral lesson copy into regional colloquial tone."""
     if not text or not text.strip():
         return text
-    prof = get_dialect(dialect, language=language)
+    dialect_id = normalize_dialect(dialect, language=language)
+    if not dialect_id:
+        return text
+    prof = get_dialect(dialect_id, language=language)
     out = _apply_replacements(text, prof.replacements)
     # Sprinkle an occasional discourse marker at sentence starts (deterministic hash).
     if prof.discourse_markers and len(out) > 40:

@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from typing import Callable, Optional, Set
+from typing import Callable, Optional, Set, Union
+
+RawPayload = Union[str, bytes]
 
 from .queue import HarvestQueue
 from .sources import SourceSpec, is_allowed
@@ -27,15 +29,17 @@ class HarvestStats:
     errors: int = 0
 
 
-def _content_hash(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def _content_hash(data: str | bytes) -> str:
+    if isinstance(data, bytes):
+        return hashlib.sha256(data).hexdigest()
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
 class HarvestWorker:
     def __init__(
         self,
-        fetcher: Callable[[SourceSpec], str],
-        extractor: Callable[[SourceSpec, str], dict],
+        fetcher: Callable[[SourceSpec], RawPayload],
+        extractor: Callable[[SourceSpec, RawPayload], dict],
         sink: Callable[[dict], None],
         *,
         allowlist: Optional[Set[str]] = None,
