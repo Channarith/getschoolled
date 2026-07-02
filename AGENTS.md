@@ -84,6 +84,18 @@ Built-in Python content is the baseline; packs add on top. Capability modules
 `readability.py` (complexity scoring + simplification) and `presentation_skills.py`
 (technique registry) are pack-extensible too.
 
+Harvester export rule: every harvest/crawl run **must** write a `.pptx` alongside
+`*.course.json` (narration in speaker notes). `export_course_package(...,
+write_pptx=True)` is mandatory; install `python-pptx` via
+`pip install -e 'packages/shared[harvest]'`. Crawl output lives under
+`output/harvest/courses/<course_id>/`. Present with
+`python3 scripts/present_course.py <path/to/*.course.json> --with-media`.
+
+Custom presenter voices: register reference audio under `voices/<id>/` via
+`python3 scripts/register_voice.py`; present with `--persona <id> --tts-engine clone`.
+Clone backends: Chatterbox (CHATTERBOX_TTS_URL), XTTS (XTTS_TTS_URL / SPEECH_BASE_URL),
+ElevenLabs (ELEVENLABS_API_KEY). Test all: `python3 scripts/test_voice_engines.py`.
+
 Environment / setup caveats (non-obvious):
 - The update script creates `.venv` (system Python 3.12; the repo's
   `.python-version` requests 3.11 but it is not installable offline here — 3.12

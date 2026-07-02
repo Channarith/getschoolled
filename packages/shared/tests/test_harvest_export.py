@@ -52,3 +52,14 @@ def test_pptx_export_is_readable_by_pptx(tmp_path):
         for s in list(prs.slides)[1:] if s.has_notes_slide
     )
     assert course.slides[0].narration.split(".")[0] in notes_blob
+
+
+def test_resolve_course_pptx_sibling(tmp_path):
+    pytest.importorskip("pptx")
+    course = _course()
+    pkg = export_course_package(course, tmp_path, write_pptx=True)
+    from aoep_shared.harvest.export import resolve_course_pptx
+
+    assert pkg.course_json_path
+    resolved = resolve_course_pptx(pkg.course_json_path)
+    assert resolved == pkg.pptx_path

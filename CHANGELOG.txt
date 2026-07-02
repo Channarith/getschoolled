@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-06-30 - Release v0.12.0 (minor): multi-agent online pipeline — OER harvest
+  crawl + corpus RAG, smart presenter (648 modes, personas, native slides, rich
+  deck), cloned voice profiles (Chatterbox/XTTS/ElevenLabs), mandatory .pptx export,
+  compliance harassment seeds, teach_and_present + present_course CLIs.
+
 - 2026-06-30 - Our Story page: full internationalization + two UI fixes.
   All copy now flows through the i18n system, centralized in a new STORY_STRINGS
   map (apps/web/app/lib/i18n-pages.ts) with complete translations for English

@@ -75,6 +75,21 @@ test-inventory:
 validate-pipeline:
 	$(VENV_PY) scripts/validate_pipeline.py
 
+# Online harvest crawl (one batch). Override TOPIC, OUT, ITEMS.
+TOPIC ?= algebra
+HARVEST_OUT ?= output/harvest
+HARVEST_ITEMS ?= 5
+harvest-crawl:
+	$(VENV_PY) services/harvester/src/harvester/run.py --crawl --topic "$(TOPIC)" \
+		--max-items $(HARVEST_ITEMS) --once --out-dir $(HARVEST_OUT)
+
+harvest-crawl-daemon:
+	$(VENV_PY) services/harvester/src/harvester/run.py --crawl --topic "$(TOPIC)" \
+		--daemon --with-media --out-dir $(HARVEST_OUT)
+
+harvest-search:
+	$(VENV_PY) services/harvester/src/harvester/run.py --corpus-search "$(QUERY)" --top-k 8
+
 meeting-agents-lab:
 	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
 

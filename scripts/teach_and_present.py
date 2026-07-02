@@ -9,6 +9,8 @@ Ties the three parts together:
 
 Examples:
   python3 scripts/teach_and_present.py --source notes.pptx --subject chemistry
+  python3 scripts/teach_and_present.py --text-file sample-curriculum/intro-physics/lesson.txt \\
+      --subject physics --present-mode lewin --meeting-provider local
   python3 scripts/teach_and_present.py --text-file lesson.txt --subject algebra \\
       --meeting-provider zoom --teach-engine ppt_trainer
   echo "Intro\\nWelcome..." | python3 scripts/teach_and_present.py --subject demo
@@ -37,7 +39,8 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group()
     src.add_argument("--source", help="input file (text/html/pdf/pptx/docx)")
-    src.add_argument("--text-file", help="plain-text input file")
+    src.add_argument("--text-file", "--generate", dest="text_file",
+                     help="plain-text input file (--generate is an alias)")
     ap.add_argument("--subject", default="general")
     ap.add_argument("--fmt", default="lecture")
     ap.add_argument("--out-dir", default="output/teaching")
@@ -50,6 +53,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--realtime", action="store_true", help="present in real time")
     ap.add_argument("--start-iso", default="", help="ISO start time to schedule")
     ap.add_argument("--duration-min", type=int, default=None)
+    ap.add_argument("--elapsed-min", type=float, default=0.0,
+                    help="minutes already used (smart time-aware pacing)")
+    ap.add_argument("--no-smart-present", action="store_true",
+                    help="verbatim narration (disable smart presenter)")
+    ap.add_argument("--present-mode", default=None,
+                    help="presentation matrix mode (lecture/workshop/drill/lewin/… or pipe string)")
+    ap.add_argument("--persona", default=None,
+                    help="presenter personality (aria, davis, guy, sonia, …)")
+    ap.add_argument("--slide-source", default=None,
+                    help="use this .pdf/.pptx for on-screen slides (native pages, not HTML bullets)")
+    ap.add_argument("--native-slides", action="store_true",
+                    help="with --source: use the source .pdf/.pptx as the slide deck")
+    ap.add_argument("--with-media", action="store_true",
+                    help="export per-slide demo videos + themed backgrounds")
     # tags
     ap.add_argument("--access-tier", default="free")
     ap.add_argument("--price", type=float, default=0.0)
@@ -61,7 +78,18 @@ def main(argv: list[str] | None = None) -> int:
     text = None
     source = args.source
     if args.text_file:
-        text = Path(args.text_file).read_text(encoding="utf-8", errors="replace")
+        text_path = Path(args.text_file)
+        if not text_path.is_file():
+            samples = [
+                _REPO / "sample-curriculum/intro-physics/lesson.txt",
+                _REPO / "output/harvest/algebra.txt",
+            ]
+            hints = [str(p) for p in samples if p.is_file()]
+            msg = f"input file not found: {text_path}"
+            if hints:
+                msg += "\nTry one of these bundled samples:\n  " + "\n  ".join(hints)
+            ap.error(msg)
+        text = text_path.read_text(encoding="utf-8", errors="replace")
     elif not source and not sys.stdin.isatty():
         piped = sys.stdin.read()
         if piped.strip():
@@ -69,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if not source and not text:
         ap.error("provide --source, --text-file, or piped stdin text")
+
+    slide_source = args.slide_source
+    if args.native_slides and source:
+        slide_source = slide_source or source
 
     tags = CourseTags(access_tier=args.access_tier, price_usd=args.price,
                       career_path=args.career_path, linkedin_job_id=args.linkedin_job,
@@ -79,6 +111,11 @@ def main(argv: list[str] | None = None) -> int:
         out_dir=args.out_dir, teach_engine=args.teach_engine, audience=args.audience,
         meeting_provider=args.meeting_provider, present=not args.no_present,
         realtime=args.realtime, start_iso=args.start_iso, duration_min=args.duration_min,
+        elapsed_min=args.elapsed_min, smart_present=not args.no_smart_present,
+        presentation_mode=args.present_mode,
+        persona=args.persona,
+        slide_source=slide_source,
+        with_media=args.with_media,
     )
     print(json.dumps(result.to_dict(), indent=2))
     return 0

@@ -10,6 +10,7 @@ critiques them:
   - critique   : grade + suggest + track quality in the optimization ledger
 """
 
+from .auto_tags import InferredMetadata, infer_harvest_metadata, merge_tags
 from .composition import (
     CATEGORY_INDEX,
     COMPOSITION_VERSION,
@@ -44,9 +45,11 @@ from .extractors import (
 )
 from .export import (
     CoursePackage,
+    ensure_pptx_available,
     export_course_json,
     export_course_package,
     export_pptx,
+    resolve_course_pptx,
 )
 from .generate import (
     GENERATION_INSTRUCTIONS,
@@ -56,7 +59,14 @@ from .generate import (
 )
 from .pipeline import BatchMetrics, CatalogUpsertStore, HarvestPipeline, catalog_key
 from .queue import HarvestQueue, url_key
+from .corpus_store import CorpusHit, HarvestCorpusStore, chunk_text, default_corpus_path
+from .crawl import CrawlMetrics, CrawlSession, open_crawl_session
+from .discovery import discover_topic, load_env_seeds, portal_specs
+from .fetcher import extract_links, fetch_text, fetch_url
+from .queue_store import PersistentHarvestQueue
 from .runner import Checkpoint, harvest_loop
+from .themes import SlideTheme, resolve_slide_theme
+from .section_normalize import normalize_document
 from .sources import LICENSE_ALLOWLIST, SourceSpec, is_allowed, normalize_license
 from .tagging import ACCESS_TIERS, CourseTags
 from .worker import HarvestStats, HarvestWorker
@@ -104,12 +114,34 @@ __all__ = [
     # tagging
     "CourseTags",
     "ACCESS_TIERS",
+    "InferredMetadata",
+    "infer_harvest_metadata",
+    "merge_tags",
     # generation
     "GeneratedCourse",
     "GeneratedSlide",
     "generate_course",
     "GENERATION_INSTRUCTIONS",
+    "normalize_document",
+    # online crawl + corpus
+    "HarvestCorpusStore",
+    "CorpusHit",
+    "chunk_text",
+    "default_corpus_path",
+    "PersistentHarvestQueue",
+    "open_crawl_session",
+    "CrawlSession",
+    "CrawlMetrics",
+    "discover_topic",
+    "portal_specs",
+    "load_env_seeds",
+    "fetch_url",
+    "fetch_text",
+    "resolve_slide_theme",
+    "SlideTheme",
     # export / hand-off (Part 1 -> Part 2)
+    "ensure_pptx_available",
+    "resolve_course_pptx",
     "export_pptx",
     "export_course_json",
     "export_course_package",

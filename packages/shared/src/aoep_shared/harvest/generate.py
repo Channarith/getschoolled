@@ -26,14 +26,17 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from .composition import CourseComposition, classify_section
+from .composition import CourseComposition
 from .extractors import ExtractedDoc
+from .pedagogy import build_teaching_slides
+from .section_normalize import normalize_document
 from .tagging import CourseTags
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
 
-def _condense(text: str, *, max_sentences: int = 3, max_chars: int = 360) -> str:
+def _condense(text: str, *, max_sentences: int = 8, max_chars: int = 1200) -> str:
+    """Legacy helper — prefer ``build_teaching_slides`` for new paths."""
     sentences = _SENTENCE_RE.split(text.strip())
     body = " ".join(sentences[:max_sentences]).strip()
     return body[:max_chars].rstrip()
@@ -45,10 +48,19 @@ class GeneratedSlide:
     body: str
     narration: str
     category: str          # the pedagogical node category this slide fills
+    audio_path: Optional[str] = None
+    media_url: Optional[str] = None
+    media_kind: str = ""   # "audio" | "video" | ""
 
     def to_dict(self) -> Dict:
-        return {"title": self.title, "body": self.body,
-                "narration": self.narration, "category": self.category}
+        d = {"title": self.title, "body": self.body,
+             "narration": self.narration, "category": self.category}
+        if self.audio_path:
+            d["audio_path"] = self.audio_path
+        if self.media_url:
+            d["media_url"] = self.media_url
+            d["media_kind"] = self.media_kind
+        return d
 
 
 @dataclass
@@ -62,6 +74,7 @@ class GeneratedCourse:
     slides: List[GeneratedSlide] = field(default_factory=list)
     composition: Optional[CourseComposition] = None
     tags: Optional[CourseTags] = None
+    presentation_mode_index: int = 0
 
     @property
     def composition_score(self) -> int:
@@ -75,6 +88,7 @@ class GeneratedCourse:
             "language": self.language,
             "source": self.source,
             "format": self.fmt,
+            "presentation_mode_index": self.presentation_mode_index,
             "composition_score": self.composition_score,
             "slides": [s.to_dict() for s in self.slides],
             "composition": self.composition.to_dict() if self.composition else {},
@@ -108,35 +122,37 @@ def generate_course(
     subject: str = "general",
     fmt: str = "lecture",
     tags: Optional[CourseTags] = None,
-    max_slides: int = 40,
     course_id: Optional[str] = None,
     source: str = "",
+    presentation_mode=None,
 ) -> GeneratedCourse:
     """Turn an ``ExtractedDoc`` into a scored, tagged, reviewable course."""
+    from ..meeting.presentation_matrix import PresentationProfile
+
     cid = course_id or uuid.uuid4().hex[:12]
+    doc = normalize_document(doc)
+    profile = PresentationProfile.resolve(presentation_mode or fmt)
+    slides = build_teaching_slides(
+        doc.nonempty_sections(),
+        course_title=doc.title,
+        fmt=profile.arc,
+        subject=subject,
+        profile=profile,
+    )
     comp = CourseComposition(subject=subject, course_id=cid)
-    slides: List[GeneratedSlide] = []
-    for heading, text in doc.nonempty_sections()[:max_slides]:
-        body = _condense(text)
-        if not body:
-            continue
-        category = classify_section(heading, text)
-        comp.add_node(category, subnode=heading)
-        if fmt == "hands_on":
-            body = f"{body}\n\nTry it: practice this step before moving on."
-        narration = (_SENTENCE_RE.split(body.strip())[0] if body else "").strip()
-        slides.append(GeneratedSlide(title=heading[:120], body=body,
-                                     narration=narration, category=category))
+    for slide in slides:
+        comp.add_node(slide.category, subnode=slide.title)
     return GeneratedCourse(
         course_id=cid,
         title=doc.title,
         subject=subject,
         language=doc.language,
         source=source or doc.source_type,
-        fmt=fmt,
+        fmt=profile.arc,
         slides=slides,
         composition=comp,
         tags=tags or CourseTags(),
+        presentation_mode_index=profile.mode_index,
     )
 
 
@@ -147,20 +163,26 @@ HOW COURSE CONTENT IS GENERATED FROM INPUT DATA
 1. INGEST   Pick a source (text/html/url/pdf/pptx/docx/database). The matching
             extractor normalizes it into a title + ordered (heading, text)
             sections. (aoep_shared.harvest.extractors)
-2. SLIDE    Each section becomes one slide: the body is condensed to ~3
-            sentences; the heading is the slide title; the first sentence is the
-            narration. Deterministic + offline (an LLM can polish later).
-3. CLASSIFY Each section is mapped to a pedagogical NODE category (introduction,
+2. NORMALIZE Filter TOC junk / dot leaders; merge small sections into learning
+            units sized for teaching. (aoep_shared.harvest.section_normalize)
+3. SLIDE    Build a teachable deck: welcome hook, concept slides, worked examples,
+            try-it checkpoints, demo-video beats, recaps, closing CTA. Speaker
+            notes use presentation-skills enrichment.
+            (aoep_shared.harvest.pedagogy)
+4. CLASSIFY Each slide maps to a pedagogical NODE category (introduction,
             history, concept, example, video, quiz, q&a, summary, ...) by
-            keyword cues; the heading is recorded as that node's SUB-NODE
+            keyword cues; the slide title is recorded as that node's SUB-NODE
             (subtopic) label.
-4. SCORE    All nodes/sub-nodes are stored in a numpy matrix. We compute:
+5. SCORE    All nodes/sub-nodes are stored in a numpy matrix. We compute:
               - composition_score : the recipe fingerprint (e.g. 247) you key
                 survey happiness on;
               - quality_index/metrics : coverage, balance, depth, interactivity.
-5. TAG      Attach JSON/meta tags: access_tier (free..premium / "expensive"),
-            price, career_path (e.g. nurse), linkedin_job_id, core_fundamental
-            (e.g. algebra), audiences, and free-form labels.
-6. REVIEW   The whole artifact serializes to JSON (slides + composition + score
+6. TAG      RAG over the course catalog + skills taxonomy infer subject,
+            access_tier, price, career_path, core_fundamental, and labels.
+            Manual flags override inferred values. (aoep_shared.harvest.auto_tags)
+7. REVIEW   The whole artifact serializes to JSON (slides + composition + score
             + tags) so a human can review before it is published to the catalog.
+8. MEDIA    Optional (--with-media): per-slide narration audio (macOS say /
+            espeak) + demo-video references in media_manifest.json.
+            (aoep_shared.harvest.media)
 """
