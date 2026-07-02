@@ -62,11 +62,30 @@ class MeetingPresenter:
         topic: Optional[str] = None,
         start_iso: str = "",
         duration_min: Optional[int] = None,
+        elapsed_min: float = 0.0,
         on_event: Optional[EventFn] = None,
         realtime: bool = False,
         meeting: Optional[Meeting] = None,
+        smart: bool = True,
+        rag_search=None,
+        profile=None,
+        plan: Optional[PresentationPlan] = None,
     ) -> PresentationResult:
-        plan = build_presentation_plan(lesson, wpm=self.wpm)
+        if plan is None:
+            if smart:
+                from .smart_presenter import build_smart_presentation_plan, corpus_rag_search
+                from .presentation_matrix import PresentationProfile
+                prof = profile or PresentationProfile.resolve()
+                plan = build_smart_presentation_plan(
+                    lesson,
+                    duration_min=duration_min,
+                    elapsed_min=elapsed_min,
+                    wpm=self.wpm,
+                    rag_search=rag_search or corpus_rag_search,
+                    profile=prof,
+                )
+            else:
+                plan = build_presentation_plan(lesson, wpm=self.wpm)
         if meeting is None:
             meeting = self.provider.create_meeting(
                 topic or plan.title,

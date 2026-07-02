@@ -36,19 +36,74 @@ OPERATE
     (fetched/ingested/skipped_license/skipped_dup/errors).
   - It is safe to stop/restart; the queue + dedup sets make it idempotent.
 
-GENERATE COURSE MATERIAL FROM INPUT (local + reviewable)
-  The harvester does not just crawl; it turns any input into a scored, tagged,
-  reviewable course. Sources: text/markdown, html, url, pdf, pptx (PowerPoint),
-  docx (Word), and database (sqlite path, or any DB-API connection in code).
+ONLINE CRAWL (OER, schools, public data, search engines)
+  Background harvest from the web with a durable SQLite corpus (FTS5 RAG index):
 
-  Run locally (offline). From the repo root, with packages/shared + the service
-  src on PYTHONPATH (see Makefile / conftest):
-    python3 services/harvester/src/harvester/run.py --instructions
-        -> prints the exact 6-step generation recipe.
+    python3 services/harvester/src/harvester/run.py --crawl --topic "algebra" --daemon
+
+  - Discovery: curated OER portals (OpenStax, OER Commons, data.gov, NASA, …)
+    plus search-engine queries (Bing/Google/Brave when API keys are set; offline
+    mock seeds when not). Configure keys via AppConfig / env.
+  - Fetch: polite HTTP (HARVEST_USER_AGENT, HARVEST_MAX_RPS), license gate first.
+  - Generate: full teachable deck (examples, try-it, themes, optional --with-media).
+  - Store: ~/.cache/aoep/harvest_corpus.db (override AOEP_HARVEST_CORPUS_DB).
+    Tables: sources, chunks (FTS5), courses, persistent queue.
+  - Search corpus: --corpus-search "linear equations" [--subject math]
+  - One-shot batch: --crawl --topic "machine learning" --max-items 10 --once
+  - Seeds file: --crawl --seeds seeds.jsonl  (JSONL SourceSpec rows)
+  - Env seeds: HARVEST_SEEDS=/path/to/seeds.jsonl
+
+  Each ingested course lands under output/harvest/courses/<course_id>/ with
+  .pptx, .course.json (includes theme: poster, wallpaper, accent), and optional
+  media_manifest.json + per-slide audio.
+
+  PPTX IS REQUIRED: every successful ingest writes <title>.pptx + <title>.course.json.
+  Install python-pptx before crawling:
+    pip install -e 'packages/shared[harvest]'
+  Without it, --crawl and --generate exit with install instructions.
+
+  Present a crawled course (Part 3):
+    python3 scripts/present_course.py \\
+        "output/harvest/courses/<course_id>/<title>.course.json" \\
+        --with-media --persona davis --meeting-provider local
+
+  After --crawl, the JSON summary includes a ``packages`` list with course_json,
+  pptx, and a ready-to-run ``present`` command when courses exist on disk.
+
+  Crawl until items generate (queue may be large; raise --max-items or drop --once):
+    python3 services/harvester/src/harvester/run.py --crawl \\
+        --seeds seeds/harassment-training.jsonl \\
+        --max-items 20 --once --with-media --out-dir output/harvest
+
+  IMPORTANT: --generate reads YOUR LOCAL FILE. It does not scrape the web.
+  The 24/7 web crawl is the default mode when you run run.py with no flags.
+
+  What happens to your file (offline, deterministic — no LLM required):
+    1. EXTRACT  pypdf/python-pptx/etc. pull text from the file into sections
+                (heading + body pairs).
+    2. NORMALIZE Filter TOC junk, dot leaders, and copyright stubs; extract real
+                prose from noisy PDF text; merge page splits into learning units.
+    3. SLIDE    Build a teachable deck: welcome hook, concept slides (key idea +
+                scaffolding bullets + optional fun fact), try-it checkpoints,
+                periodic recaps, closing CTA. Speaker notes carry a full script.
+                PDF textbooks are chunked into chapter-sized blocks automatically.
+    4. SCORE    A pedagogical composition matrix + PCS fingerprint.
+    5. TAG      RAG + taxonomy infer subject, tier, price, career_path, core, labels
+                (override any field with explicit CLI flags; --no-auto-tags to disable).
+    6. OUTPUT   Writes <title>.course.json + <title>.pptx to output/harvest/
+                by default. Add --with-media for per-slide narration audio
+                (macOS ``say`` / Linux ``espeak``) plus demo-video references
+                in media_manifest.json; worked-example slides are always included.
+
+  Minimal local run (from repo root, after ``make install``):
+    python3 services/harvester/src/harvester/run.py --generate notes.pdf
+
+  With narration audio + demo-video refs:
+    python3 services/harvester/src/harvester/run.py --generate notes.pdf --with-media
+
+  Override a single inferred field when needed:
     python3 services/harvester/src/harvester/run.py --generate notes.pptx \
-        --subject chemistry --access-tier premium --price 299 \
-        --career-path chemist --core --tags "lab,safety"
-        -> prints reviewable JSON: slides + composition matrix + score + tags.
+        --subject chemistry --out-dir output/harvest
     python3 services/harvester/src/harvester/run.py --generate lessons.db \
         --source-type database --query "SELECT topic, body FROM lessons" \
         --heading-column topic --subject biology

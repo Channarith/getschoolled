@@ -47,9 +47,17 @@ class PresentationStep:
     on_screen_points: List[str] = field(default_factory=list)
     est_seconds: float = 0.0
     slide_index: int = 0
+    # Smart presenter (spoken script may differ from slide narration).
+    spoken_narration: str = ""
+    action: str = "speak"          # speak | summarize | skip | fast
+    pace_multiplier: float = 1.0
+    presenter_meta: str = ""
+
+    def spoken_text(self) -> str:
+        return (self.spoken_narration or self.narration or "").strip()
 
     def to_dict(self) -> Dict:
-        return {
+        d = {
             "order": self.order,
             "kind": self.kind,
             "heading": self.heading,
@@ -58,6 +66,15 @@ class PresentationStep:
             "est_seconds": round(self.est_seconds, 2),
             "slide_index": self.slide_index,
         }
+        if self.spoken_narration:
+            d["spoken_narration"] = self.spoken_narration
+        if self.action != "speak":
+            d["action"] = self.action
+        if self.pace_multiplier != 1.0:
+            d["pace_multiplier"] = round(self.pace_multiplier, 2)
+        if self.presenter_meta:
+            d["presenter_meta"] = self.presenter_meta
+        return d
 
 
 @dataclass
@@ -139,6 +156,10 @@ class MeetingProvider(abc.ABC):
         """
         return None
 
+    def _on_speak(self, meeting: Meeting, step: PresentationStep, spoken: str) -> None:
+        """Hook after a step's narration is emitted (TTS, captions, etc.)."""
+        return None
+
     def present(self, meeting: Meeting, plan: PresentationPlan, *,
                 on_event: Optional[EventFn] = None,
                 realtime: bool = False) -> PresentationResult:
@@ -158,21 +179,50 @@ class MeetingProvider(abc.ABC):
             if on_event:
                 on_event(ev)
 
-        for step in plan.steps:
-            emit("open_slide", step.order, step.heading)
-            self._deliver_step(meeting, step)
-            emit("speak", step.order, step.narration[:80])
-            transcript_parts.append(step.narration)
-            if realtime and step.est_seconds > 0:
-                time.sleep(step.est_seconds)
-            clock += step.est_seconds
-            emit("advance", step.order)
+        steps_presented = 0
+        interrupted = False
+        try:
+            for step in plan.steps:
+                spoken = step.spoken_text()
+                if step.action == "skip":
+                    emit("skip_slide", step.order, step.heading)
+                    if spoken:
+                        emit("speak", step.order, spoken[:80])
+                        transcript_parts.append(spoken)
+                        self._on_speak(meeting, step, spoken)
+                    clock += step.est_seconds
+                    steps_presented += 1
+                    emit("advance", step.order)
+                    continue
 
-        emit("end", len(plan.steps), "presentation complete")
+                emit("open_slide", step.order, step.heading)
+                self._deliver_step(meeting, step)
+                detail = spoken[:80]
+                if step.action in ("summarize", "fast"):
+                    detail = f"[{step.action}] {detail}"
+                emit("speak", step.order, detail)
+                transcript_parts.append(spoken)
+                self._on_speak(meeting, step, spoken)
+                step_seconds = step.est_seconds
+                if step.pace_multiplier > 1.0:
+                    step_seconds = max(1.0, step_seconds)
+                if realtime and step_seconds > 0:
+                    time.sleep(step_seconds / max(step.pace_multiplier, 1.0))
+                clock += step_seconds
+                steps_presented += 1
+                emit("advance", step.order)
+        except KeyboardInterrupt:
+            interrupted = True
+            emit("interrupted", steps_presented, "stopped by user")
+
+        if interrupted:
+            emit("end", steps_presented, "presentation stopped")
+        else:
+            emit("end", len(plan.steps), "presentation complete")
         return PresentationResult(
             meeting=meeting,
             plan_title=plan.title,
-            steps_presented=len(plan.steps),
+            steps_presented=steps_presented,
             total_seconds=clock,
             transcript="\n\n".join(transcript_parts),
             events=events,

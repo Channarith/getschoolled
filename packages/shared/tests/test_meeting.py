@@ -4,6 +4,7 @@ import pytest
 
 from aoep_shared.meeting import (
     GoogleMeetProvider,
+    LocalPlayMeetingProvider,
     MeetingPresenter,
     MockMeetingProvider,
     TeamsProvider,
@@ -83,7 +84,36 @@ def test_factory_and_real_providers_need_creds(monkeypatch):
 def test_present_with_provider_falls_back_to_mock(monkeypatch):
     for var in ("ZOOM_ACCOUNT_ID", "ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET"):
         monkeypatch.delenv(var, raising=False)
+    provider_used, result = present_with_provider(
+        _lesson(), provider="zoom", sync_slides=False,
+    )
+    assert provider_used == "zoom->local"
+    assert result.steps_presented == 3
+
+
+def test_present_with_provider_synced_local_fallback(monkeypatch):
+    for var in ("ZOOM_ACCOUNT_ID", "ZOOM_CLIENT_ID", "ZOOM_CLIENT_SECRET"):
+        monkeypatch.delenv(var, raising=False)
     provider_used, result = present_with_provider(_lesson(), provider="zoom")
-    assert provider_used == "zoom->mock"
-    assert result.meeting.offline is True
+    assert provider_used == "zoom->local"
+    assert result.steps_presented == 3
+
+
+def test_local_play_provider_prints_and_speaks(monkeypatch, capsys):
+    from aoep_shared.meeting import LocalPlayMeetingProvider
+
+    spoken = []
+    monkeypatch.setattr(
+        "aoep_shared.meeting.natural_tts.speak_natural_blocking",
+        lambda text, **kw: spoken.append(text) or True,
+    )
+    provider = LocalPlayMeetingProvider(speak=True, sync_slides=False)
+    meeting = provider.create_meeting("Algebra")
+    assert meeting.join_url.startswith("local://classroom/")
+    plan = build_presentation_plan(_lesson())
+    result = provider.present(meeting, plan)
+    out = capsys.readouterr().out
+    assert "SLIDE 1" in out
+    assert "Presenter:" in out
+    assert len(spoken) == 3
     assert result.steps_presented == 3

@@ -32,6 +32,7 @@ SUPPORTED_SOURCE_TYPES: Tuple[str, ...] = (
 )
 
 _HEADING_HINT = re.compile(r"^(chapter|section|unit|lesson|part|module)\b", re.IGNORECASE)
+_DOT_LEADER = re.compile(r"\.{2,}\s*\d*")
 
 
 @dataclass
@@ -159,6 +160,10 @@ def extract_pdf(data: bytes, *, default_title: str = "Untitled") -> ExtractedDoc
     for page in reader.pages:
         for raw in (page.extract_text() or "").splitlines():
             line = raw.strip()
+            if not line:
+                continue
+            line = _DOT_LEADER.sub(" ", line)
+            line = re.sub(r"\s+\d{1,4}\s*$", "", line).strip()
             if not line:
                 continue
             if _looks_like_heading(line):

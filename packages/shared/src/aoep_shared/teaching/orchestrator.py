@@ -82,9 +82,15 @@ def run_end_to_end(
     realtime: bool = False,
     start_iso: str = "",
     duration_min: Optional[int] = None,
+    elapsed_min: float = 0.0,
+    smart_present: bool = True,
     write_pptx: bool = True,
     dialect: Optional[str] = None,
     language: str = "en",
+    presentation_mode=None,
+    persona=None,
+    slide_source=None,
+    with_media: bool = False,
 ) -> EndToEndResult:
     """Run harvest -> teach -> present and return a manifest of all artifacts."""
     out_dir = Path(out_dir)
@@ -100,11 +106,22 @@ def run_end_to_end(
             doc = extract_text(text, default_title=subject.title())
         else:
             raise ValueError("provide one of: course, source, or text")
+        if tags is None:
+            from ..harvest.auto_tags import infer_harvest_metadata, merge_tags
+            inferred = infer_harvest_metadata(doc)
+            subj, tags = merge_tags(
+                inferred,
+                subject=None if subject == "general" else subject,
+            )
+            subject = subj
         course = generate_course(doc, subject=subject, fmt=fmt,
                                  tags=tags or CourseTags(),
                                  source=str(source) if source else "text")
 
-    package = export_course_package(course, out_dir, write_pptx=write_pptx)
+    package = export_course_package(
+        course, out_dir, write_pptx=write_pptx, with_media=with_media,
+        repo_root=Path(__file__).resolve().parents[5],
+    )
     if package.course_json_path:
         artifacts["course_json"] = str(package.course_json_path)
     if package.pptx_path:
@@ -124,7 +141,19 @@ def run_end_to_end(
     artifacts["lesson_script"] = str(script_path)
 
     # -- Part 3: present live (or schedule) ---------------------------------
-    plan = build_presentation_plan(lesson)
+    if smart_present:
+        from ..meeting.smart_presenter import build_smart_presentation_plan, corpus_rag_search
+        from ..meeting.presentation_matrix import PresentationProfile
+        profile = PresentationProfile.resolve(presentation_mode) if presentation_mode is not None else None
+        plan = build_smart_presentation_plan(
+            lesson,
+            duration_min=duration_min,
+            elapsed_min=elapsed_min,
+            rag_search=corpus_rag_search,
+            profile=profile,
+        )
+    else:
+        plan = build_presentation_plan(lesson)
     plan_path = out_dir / "presentation_plan.json"
     plan_path.write_text(json.dumps(plan.to_dict(), indent=2), encoding="utf-8")
     artifacts["presentation_plan"] = str(plan_path)
@@ -135,7 +164,12 @@ def run_end_to_end(
     if present:
         provider_used, presentation = present_with_provider(
             lesson, provider=meeting_provider, topic=course.title,
-            start_iso=start_iso, duration_min=duration_min, realtime=realtime)
+            start_iso=start_iso, duration_min=duration_min,
+            elapsed_min=elapsed_min, realtime=realtime, smart=smart_present,
+            presentation_mode=presentation_mode,
+            persona=persona,
+            slide_source=slide_source,
+        )
         join_url = presentation.meeting.join_url
         pres_path = out_dir / "presentation_result.json"
         pres_path.write_text(json.dumps(presentation.to_dict(), indent=2), encoding="utf-8")

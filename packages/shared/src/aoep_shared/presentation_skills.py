@@ -63,8 +63,8 @@ _BUILTIN: List[PresentationTechnique] = [
         "chunking", "Chunking", "Break a big idea into small steps.",
         "clarity", "Let's break {point} into a few small, manageable steps.", ("clarity",)),
     PresentationTechnique(
-        "worked_example", "Worked example", "Show a concrete example end to end.",
-        "clarity", "Here's a concrete example of {point}, worked through start to finish.",
+        "worked_example", "Worked example", "Show concrete values worked step by step.",
+        "clarity", "Use the numbers on screen — follow each calculation in order.",
         ("clarity", "retention")),
     PresentationTechnique(
         "real_world_link", "Real-world link", "Connect to a real-world application.",
@@ -96,7 +96,7 @@ _BUILTIN: List[PresentationTechnique] = [
         "closing", "Putting it together: {topic} comes down to {point}.", ("closing",)),
     PresentationTechnique(
         "call_to_action", "Call to action", "End with a concrete next step.",
-        "closing", "Your next step: practice {point} on a small example today.", ("closing",)),
+        "closing", "Your next step: redo the calculation on screen with pencil and paper.", ("closing",)),
     PresentationTechnique(
         "storytelling_arc", "Storytelling arc", "Frame content as a problem-journey-resolution.",
         "engagement", "There was a problem with {topic}; here's the journey to solving {point}.",
@@ -210,11 +210,26 @@ def apply_technique(technique_id: str, *, topic: str = "", point: str = "") -> s
     tech = get_technique(technique_id)
     if tech is None:
         return ""
-    return tech.apply(topic=topic, point=point)
+    return tech.apply(topic=topic, point=sanitize_point(point, topic=topic))
 
 
-# A sensible default delivery arc for a single slide/segment.
-DEFAULT_ARC = ("signpost", "analogy", "worked_example", "check_understanding", "recap")
+# Default delivery arc — no vague "worked_example" opener on every slide.
+DEFAULT_ARC = ("signpost", "chunking", "check_understanding", "recap")
+
+
+def sanitize_point(point: str, *, topic: str = "") -> str:
+    """Avoid nonsense like 'Have you ever wondered Introduction?' in templates."""
+    p = (point or "").strip()
+    low = p.lower()
+    generic = (
+        "introduction", "intro", "welcome", "overview", "objectives", "objective",
+        "summary", "recap", "closing", "conclusion", "getting started", "agenda",
+    )
+    if not p or low in generic or low.startswith("welcome:") or low.startswith("welcome to"):
+        return (topic or "this topic").strip() or "the key idea"
+    if len(p.split()) <= 2 and low in {w.title() for w in generic}:
+        return (topic or p).strip()
+    return p
 
 
 def enrich_narration(
@@ -226,7 +241,10 @@ def enrich_narration(
 ) -> str:
     """Wrap raw narration with presentation-technique phrasing."""
     arc = techniques if techniques is not None else list(DEFAULT_ARC)
-    point = point or (narration.split(".")[0][:80] if narration else "the key idea")
+    point = sanitize_point(
+        point or (narration.split(".")[0][:80] if narration else "the key idea"),
+        topic=topic,
+    )
     opener = apply_technique(arc[0], topic=topic, point=point) if arc else ""
     closer = apply_technique(arc[-1], topic=topic, point=point) if len(arc) > 1 else ""
     body = narration.strip()
@@ -237,7 +255,7 @@ def enrich_narration(
 def build_skill_plan(headings: List[str], *, topic: str = "") -> List[dict]:
     """Assign a rotating set of techniques across a deck for varied delivery."""
     arcs = [
-        ["hook_question", "analogy", "worked_example", "recap"],
+        ["hook_question", "chunking", "check_understanding", "recap"],
         ["hook_story", "chunking", "real_world_link", "check_understanding"],
         ["agenda_signpost", "contrast", "emphasis", "summary_close"],
         ["signpost", "scaffolding", "rhetorical_question", "call_to_action"],

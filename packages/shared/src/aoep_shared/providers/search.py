@@ -49,7 +49,7 @@ class MockSearchProvider(SearchProvider):
         return [
             SearchResult(
                 title=f"Reference for: {text[:60]}",
-                url=f"mock://search/{abs(hash(text)) % 100000}",
+                url=f"https://oer.example/search/{abs(hash(text)) % 100000}",
                 snippet=text,
                 engine=self.engine,
             )

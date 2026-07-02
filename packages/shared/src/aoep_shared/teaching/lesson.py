@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..dialect import dialect_intro, dialect_outro, humanize_narration, normalize_dialect
+from ..dialect import humanize_narration, normalize_dialect
 
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -98,19 +98,43 @@ def _bullets(body: str, *, max_bullets: int = 6) -> List[str]:
 def _auto_intro(title: str, headings: List[str]) -> str:
     preview = ", ".join(h for h in headings[:4] if h)
     tail = "" if len(headings) <= 4 else ", and more"
-    body = f"Welcome! Today we're learning {title}."
+    body = f"Welcome to our course on {title}."
     if preview:
-        body += f" We'll walk through {preview}{tail}."
-    body += " Take your time, and let's get into it."
+        body += f" Today we'll cover {preview}{tail}."
+    body += " Take your time, and let's get started."
     return body
 
 
 def _auto_outro(title: str) -> str:
     return (
-        f"That's a wrap on {title}. Nice work getting through it. "
-        "The best way to make this stick is to try it yourself - so go practice, "
-        "and come back any time you want a refresher."
+        f"You made it through {title}. Nice work getting through it. "
+        "Pick one idea to practice today, and come back any time for a refresher."
     )
+
+
+def _intro_narration(course, headings: List[str], dialect_id: Optional[str], *, language: str) -> str:
+    """Prefer the harvester's opening slide script; fall back to a clean welcome."""
+    for slide in course.slides:
+        if getattr(slide, "category", "") == "introduction" and (slide.narration or slide.body):
+            base = (slide.narration or slide.body).replace("\n", " ").strip()
+            break
+    else:
+        base = _auto_intro(course.title, headings)
+    if dialect_id:
+        return humanize_narration(base, dialect_id, language=language)
+    return base
+
+
+def _outro_narration(course, dialect_id: Optional[str], *, language: str) -> str:
+    for slide in reversed(course.slides):
+        if getattr(slide, "category", "") == "summary" and (slide.narration or slide.body):
+            base = (slide.narration or slide.body).replace("\n", " ").strip()
+            break
+    else:
+        base = _auto_outro(course.title)
+    if dialect_id:
+        return humanize_narration(base, dialect_id, language=language)
+    return base
 
 
 def lesson_from_generated_course(course, *, dialect: Optional[str] = None,
@@ -120,12 +144,12 @@ def lesson_from_generated_course(course, *, dialect: Optional[str] = None,
     headings = [s.title for s in course.slides]
     steps: List[LessonStep] = [
         LessonStep(order=0, kind="intro", title=f"Welcome to {course.title}",
-                   narration=dialect_intro(course.title, headings, dialect_id, language=language),
+                   narration=_intro_narration(course, headings, dialect_id, language=language),
                    on_screen_points=headings[:6])
     ]
     for i, slide in enumerate(course.slides, start=1):
         raw = (slide.narration or slide.body or slide.title).strip()
-        narration = humanize_narration(raw, dialect_id, language=language)
+        narration = humanize_narration(raw, dialect_id, language=language) if dialect_id else raw
         steps.append(LessonStep(
             order=i, kind="segment", title=slide.title, narration=narration,
             on_screen_points=_bullets(slide.body), section_index=i - 1,
@@ -133,7 +157,7 @@ def lesson_from_generated_course(course, *, dialect: Optional[str] = None,
         ))
     steps.append(LessonStep(order=len(steps), kind="outro",
                             title="Closing",
-                            narration=dialect_outro(course.title, dialect_id, language=language)))
+                            narration=_outro_narration(course, dialect_id, language=language)))
     return LessonPlan(title=course.title, subject=course.subject,
                       engine="fallback", steps=steps)
 

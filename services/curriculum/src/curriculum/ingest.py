@@ -183,10 +183,9 @@ def sections_to_deck(
     *,
     fmt: ClassFormat = ClassFormat.LECTURE,
     source: str = "",
-    max_slides: int = 20,
 ) -> Deck:
     slides: List[SlideSpec] = []
-    for section in result.sections[:max_slides]:
+    for section in result.sections:
         body = _condense(section.text)
         if not body:
             continue

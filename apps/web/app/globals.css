@@ -157,6 +157,11 @@ a {
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--panel) 85%, transparent);
   backdrop-filter: blur(8px);
+  /* backdrop-filter makes the nav a stacking context; without positioning + a
+     positive z-index its dropdown (ProfileMenu) gets trapped at z:0 and is
+     painted under later positioned page content (e.g. the Our Story hero). */
+  position: relative;
+  z-index: 100;
 }
 
 .nav .brand {
@@ -815,4 +820,86 @@ textarea {
 
 .tool .tool-tip .examples li {
   margin: 2px 0;
+}
+
+/* --- Our Story page ----------------------------------------------------- */
+/* A solid-enough panel so long-form text stays readable over the animated
+   site wallpaper (the bare .container let the background bleed through). */
+.story {
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 18px;
+  padding: clamp(22px, 4vw, 48px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.story-title {
+  margin: 0 0 12px;
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.1;
+}
+
+.story-lead {
+  margin: 0;
+  font-size: clamp(18px, 2.3vw, 22px);
+  line-height: 1.6;
+  /* Brighter than .muted so the opening line reads as a strong hook. */
+  color: color-mix(in srgb, var(--text) 92%, var(--accent));
+}
+
+.story h2 {
+  color: var(--accent);
+  font-size: clamp(20px, 2.6vw, 26px);
+  margin: 40px 0 12px;
+  padding-top: 22px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.story p {
+  color: var(--text);
+  line-height: 1.78;
+  font-size: 16.5px;
+}
+
+.story .muted {
+  color: var(--muted);
+}
+
+/* Figures: center, breathe, and round. */
+.story-figure {
+  display: flex;
+  justify-content: center;
+  margin: 26px 0;
+}
+
+/* Soft radial halo behind the mascot so the cutout blends into the panel
+   instead of sitting flat on the dark background. */
+.story-mascot {
+  padding: 18px 0 8px;
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 45%,
+    color-mix(in srgb, var(--accent) 26%, transparent),
+    transparent 70%
+  );
+}
+
+.story-build {
+  line-height: 1.85;
+  padding-left: 20px;
+}
+
+.story-build li {
+  margin: 6px 0;
+}
+
+.story-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  font-weight: 600;
 }
