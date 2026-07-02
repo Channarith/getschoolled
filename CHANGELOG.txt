@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-02 - Mobile CI: add direct `@expo/vector-icons` dependency so pnpm
+  typecheck resolves Ionicons imports (fixes PR #204 apps/mobile build).
+
 - 2026-06-30 - Release v0.12.0 (minor): multi-agent online pipeline — OER harvest
   crawl + corpus RAG, smart presenter (648 modes, personas, native slides, rich
   deck), cloned voice profiles (Chatterbox/XTTS/ElevenLabs), mandatory .pptx export,
