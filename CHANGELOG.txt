@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-02 - CI install: drop services/harvester from pip editable loop (no
+  pyproject.toml; tests use conftest sys.path). Keeps python-pptx on [test].
+
 - 2026-07-02 - Version 0.12.1 (patch): CI pytest harvest deps + version policy — routine
   PRs patch-bump (0.12.y); minor/major only via --force-level.
 

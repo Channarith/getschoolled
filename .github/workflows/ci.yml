@@ -19,7 +19,7 @@ jobs:
           python3 -m pip install -e "packages/shared[test,harvest]"
           for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
-            services/billing services/harvester apps/agent-runtime; do
+            services/billing apps/agent-runtime; do
             python3 -m pip install -e "$pkg[test]"
           done
       - name: Run tests
