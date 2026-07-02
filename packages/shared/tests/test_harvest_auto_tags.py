@@ -17,7 +17,9 @@ def test_infer_ml_book_metadata():
     assert meta.subject in ("ai", "data-science", "programming", "general")
     assert meta.tags.access_tier in ("pro", "premium", "enterprise")
     assert meta.tags.price_usd >= 0.0
-    assert meta.tags.career_path in (None, "data-scientist", "software-engineer", "engineer")
+    assert meta.tags.career_path in (
+        None, "data-scientist", "data-analyst", "software-engineer", "engineer",
+    )
     assert meta.rationale
 
 

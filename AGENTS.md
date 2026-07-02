@@ -25,8 +25,9 @@ once per clone/CI runner that performs a local merge, then merge as usual:
 2. **Release version (required on every PR to main):** run
    `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
    `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
-   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default;
-   minor when more than 8 pending changelog entries have accumulated.
+   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default
+   (`python3 scripts/bump_pr_version.py` → 0.12.1, 0.12.2, …). Use
+   `--force-level minor` only for deliberate feature releases (0.13.0).
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must

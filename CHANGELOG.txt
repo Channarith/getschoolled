@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-02 - Version 0.12.1 (patch): CI pytest harvest deps + version policy — routine
+  PRs patch-bump (0.12.y); minor/major only via --force-level.
+
+- 2026-07-02 - CI pytest: add python-pptx to packages/shared[test] so harvest export
+  tests pass when CI installs only the test extra; also install [harvest] in workflows.
+
 - 2026-07-02 - Mobile CI: add direct `@expo/vector-icons` dependency so pnpm
   typecheck resolves Ionicons imports (fixes PR #204 apps/mobile build).
 

@@ -9,9 +9,8 @@ local and cloud deploy modes.
 Responsibilities:
   1. Bump VERSION (semver). Normally run via scripts/bump_pr_version.py in each
      PR before merge. This script (--refresh-only) can also roll the CHANGELOG
-     [unreleased] section when invoked without --refresh-only. When MORE THAN 8
-     features/changes have accumulated, bump the MINOR version (reset PATCH);
-     otherwise bump PATCH.
+     [unreleased] section when invoked without --refresh-only. Default bump is
+     PATCH (0.x.y+1); use --force-level minor or major for larger releases.
   2. Roll the CHANGELOG [unreleased] section into a dated, versioned release
      section and start a fresh [unreleased] section.
   3. Write build-info.txt (version, git sha, UTC build time, components) so the
@@ -41,7 +40,7 @@ MOBILE_VERSION_FILE = REPO_ROOT / "apps" / "mobile" / "src" / "version.ts"
 MOBILE_PACKAGE_JSON = REPO_ROOT / "apps" / "mobile" / "package.json"
 MOBILE_APP_JSON = REPO_ROOT / "apps" / "mobile" / "app.json"
 
-# More than this many unreleased entries triggers a MINOR bump instead of PATCH.
+# Kept for changelog reporting only; does not auto-promote bump level.
 FEATURE_BUMP_THRESHOLD = 8
 
 SEMVER_RE = re.compile(r"^\s*(\d+)\.(\d+)\.(\d+)\s*$")
@@ -102,9 +101,8 @@ def count_feature_entries(unreleased_lines: list[str]) -> int:
 
 
 def bump(version: tuple[int, int, int], feature_count: int) -> tuple[int, int, int]:
+    del feature_count  # informational only; routine releases always patch-bump
     major, minor, patch = version
-    if feature_count > FEATURE_BUMP_THRESHOLD:
-        return major, minor + 1, 0
     return major, minor, patch + 1
 
 

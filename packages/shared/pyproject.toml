@@ -17,6 +17,9 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest==8.2.2",
+    # Harvest export is exercised in CI; keep pptx on the test extra so
+    # `pip install -e packages/shared[test]` works without [harvest].
+    "python-pptx==0.6.23",
 ]
 # Self-hosted face recognition (perception service). Heavy/optional; not pulled
 # in by services that don't need vision.
