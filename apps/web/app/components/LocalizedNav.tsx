@@ -42,9 +42,12 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/" className="brand"
             style={{ display: "inline-flex", alignItems: "center", gap: 8,
                      textDecoration: "none", color: "inherit" }}>
+        {/* Circle-clip the emblem (like the ProfileMenu avatar) so the dark
+            corners of the square artwork blend into the nav instead of showing
+            as a rounded-square tile. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoSrc} alt={t("nav.brand")} height={30}
-             style={{ height: 30, width: "auto", borderRadius: 6 }} />
+        <img src={logoSrc} alt={t("nav.brand")} width={30} height={30}
+             style={{ height: 30, width: 30, borderRadius: "50%", display: "block" }} />
         {t("nav.brand")}
       </Link>
       <Link href="/our-story">{t("nav.ourStory")}</Link>
