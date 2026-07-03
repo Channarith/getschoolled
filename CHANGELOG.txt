@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-03 - Web: site-wide light "warm campus" theme. Flipped the global
+  design tokens (apps/web/app/globals.css) to a cream/plum/gold palette so every
+  token-driven surface (body text, cards, tiles, inputs, rails, job cards,
+  footer, language picker) is light and consistent with the Our Story page; kept
+  the top nav as a dark "island". New default site wallpaper "AI Campus" (warm
+  cream + subtle gold neural-network motif) and made the seasonal/holiday
+  rotation opt-in (apps/web/app/lib/backgrounds.ts, BackgroundProvider.tsx,
+  backgrounds/page.tsx). Added a soft hero->body fade (theme-hero + landing-hero)
+  so dark hero images blend into the cream body with no hard seam. Refreshed the
+  landing/themes screenshots. (v0.12.5)
+
 - 2026-07-02 - Our Story: redesigned the platform "ecosystem" diagram as an
   on-theme HTML/SVG block (warm plum/gold/cream) with an animated AI-teacher
   centerpiece (apps/web/public/salareen-teacher.webp) and every agent/feature

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   BACKGROUNDS,
   CATEGORIES,
+  DEFAULT_BACKGROUND_ID,
   backgroundLayerStyle,
   backgroundMotionClass,
   getBackground,
@@ -19,14 +20,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function BackgroundsPage() {
-  const [auto, setAuto] = useState(true);
-  const [selected, setSelected] = useState<string>("");
+  const [auto, setAuto] = useState(false);
+  const [selected, setSelected] = useState<string>(DEFAULT_BACKGROUND_ID);
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
     const a = window.localStorage.getItem(BG_AUTO_KEY);
-    setAuto(a === null || a === "1");
-    setSelected(window.localStorage.getItem(BG_KEY) || seasonalBackgroundId());
+    // Auto is now opt-in; default (unset) shows the branded AI-education bg.
+    setAuto(a === "1");
+    setSelected(window.localStorage.getItem(BG_KEY) || DEFAULT_BACKGROUND_ID);
   }, []);
 
   function apply(id: string) {
