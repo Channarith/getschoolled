@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-02 - Brand logo refresh: new gold "S" + bodhi-leaf emblem for the web
+  app. Replaced logo-mark.webp (used by the nav brand mark and the ProfileMenu
+  avatar) and regenerated the browser/app icons from the same emblem
+  (favicon.ico, icon.png, logo.webp apple-touch). Circle-clipped the nav brand
+  mark (LocalizedNav) so the artwork's dark corners blend into the nav like the
+  profile avatar instead of showing a rounded-square tile.
+
 - 2026-07-02 - CI install: drop services/harvester from pip editable loop (no
   pyproject.toml; tests use conftest sys.path). Keeps python-pptx on [test].
 
