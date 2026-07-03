@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-02 - Brand logo: transparent background. Re-cut the emblem assets
+  (logo-mark.webp, icon.png, favicon.ico, logo.webp) with an anti-aliased
+  circular alpha mask so the artwork's dark corners are transparent — the
+  favicon/app icons show a clean circle instead of a dark square, and the mark
+  blends on any background.
+
 - 2026-07-02 - Brand logo refresh: new gold "S" + bodhi-leaf emblem for the web
   app. Replaced logo-mark.webp (used by the nav brand mark and the ProfileMenu
   avatar) and regenerated the browser/app icons from the same emblem
