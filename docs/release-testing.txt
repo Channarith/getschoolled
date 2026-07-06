@@ -150,7 +150,9 @@ Run against a deployed/built stack; capture a screenshot/clip per row.
   - Signup/login (200, not 404) + Account/profile
   - Live class: start -> advance -> ask -> Finish -> reward points
   - AI teacher awards points on a good question
-  - Group class: schedule (Zoom/Teams/Meet) -> register -> start
+  - Group class: schedule (Zoom/Teams/Meet/Salareen) -> register -> start
+  - Salareen live room: join grid -> Q&A queue -> call next -> ask Theodore ->
+    finish turn; moderator block/unblock smoke
   - Careers: live jobs + course match + View/Apply
   - Drive Mode audio (web + mobile), correct language/voice
   - Arcade games + Rewards redeem

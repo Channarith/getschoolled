@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Salareen Live Room regression: qa/tests/test_live_room_chat_regression.py
+  golden-path for Q&A queue turn-taking, raise-hand toggle, and ban/block; stress.py
+  smoke scenarios for live-room state, queue/join, and call-next; qa/regression.py and
+  RUNBOOK/release-testing/api-reference updated; qa/tests conftest wires service src
+  paths for cross-service smoke.
+
 - 2026-07-06 - Salareen Live Room Q&A queue: structured turn-taking replaces ad-hoc
   raise-hand. Learners join a speaking queue (optionally with a question preview),
   see their position, and get the floor one at a time. Moderators Call next / End
