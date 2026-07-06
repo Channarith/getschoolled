@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - docs/live-room-testing.txt: laptop + mobile commands for Salareen
+  live-room chat (start services, GUI two-browser test, pytest, curl, simulator,
+  physical device LAN IP, Vultr cloud).
+
 - 2026-07-06 - Salareen Live Room user reports: learners can flag bad actors
   (spam, harassment, inappropriate, disruptive, other) via POST
   /api/live-rooms/{id}/report. Educators with moderator_key see open reports on
