@@ -25,7 +25,8 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
-import CareersScreen from "./src/screens/CareersScreen";
+import GroupClassesScreen from "./src/screens/GroupClassesScreen";
+import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import { getNotificationsFeed } from "./src/api";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
@@ -43,6 +44,8 @@ function AppInner() {
   const [tab, setTab] = useState<TabId>("home");
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
+  const [showGroupClasses, setShowGroupClasses] = useState(false);
+  const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
@@ -194,12 +197,27 @@ function AppInner() {
   };
 
   let screen: React.ReactNode = null;
-  if (tab === "home") {
+  if (liveRoomId) {
+    screen = (
+      <LiveRoomScreen
+        roomId={liveRoomId}
+        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); }}
+      />
+    );
+  } else if (showGroupClasses) {
+    screen = (
+      <GroupClassesScreen
+        onOpenRoom={(id) => { setLiveRoomId(id); setShowGroupClasses(false); }}
+        onBack={() => setShowGroupClasses(false)}
+      />
+    );
+  } else if (tab === "home") {
     screen = (
       <HomeScreen
         onOpenCourse={openCourse}
         onOpenCategory={openCategory}
         onOpenCareers={() => setTab("careers")}
+        onOpenGroupClasses={() => setShowGroupClasses(true)}
       />
     );
   } else if (tab === "drive") {
@@ -252,15 +270,19 @@ function AppInner() {
           manualOpenToken={surveyManualToken}
         />
       </View>
-      <BottomTabs
-        active={tab}
-        onChange={(id) => {
-          if (id === "drive" && tab === "drive") setOpenCourseId(null);
-          void refreshUnreadAndAlerts();
-          setTab(id);
-        }}
-        unreadCount={unreadCount}
-      />
+      {!liveRoomId && !showGroupClasses ? (
+        <BottomTabs
+          active={tab}
+          onChange={(id) => {
+            if (id === "drive" && tab === "drive") setOpenCourseId(null);
+            setShowGroupClasses(false);
+            setLiveRoomId(null);
+            void refreshUnreadAndAlerts();
+            setTab(id);
+          }}
+          unreadCount={unreadCount}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

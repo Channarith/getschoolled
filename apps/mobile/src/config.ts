@@ -59,6 +59,7 @@ function serviceUrl(key: string, port: number, cloudPath: string): string {
 export const CURRICULUM_URL = serviceUrl("curriculumUrl", 8005, "/curriculum");
 export const IDENTITY_URL = serviceUrl("identityUrl", 8008, "/identity");
 export const MEMORY_URL = serviceUrl("memoryUrl", 8004, "/memory");
+export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "");
 
 export const QA_TEST_ACCOUNTS = [
   { label: "QA Pro", email: "qa-pro@salareen.com", password: "QaTest123" },
