@@ -32,6 +32,10 @@ QUEUE_WAITING = "waiting"
 QUEUE_SPEAKING = "speaking"
 QUEUE_DONE = "done"
 
+REPORT_CATEGORIES: tuple = ("spam", "harassment", "inappropriate", "disruptive", "other")
+REPORT_OPEN = "open"
+REPORT_DISMISSED = "dismissed"
+
 
 @dataclass
 class QueueEntry:
@@ -57,6 +61,7 @@ class QueueEntry:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 class LiveRoomError(ValueError):
     """Invalid live-room request (maps to HTTP 400)."""
 
@@ -71,6 +76,39 @@ class NotInRoomError(LiveRoomError):
 
 class BannedError(LiveRoomError):
     """Identity is banned from this room."""
+
+
+@dataclass
+class UserReport:
+    """Learner flag that a participant is behaving badly (moderator reviews)."""
+
+    id: str
+    reporter_participant_id: str
+    reporter_name: str
+    reported_participant_id: str
+    reported_name: str
+    reported_identity: str
+    category: str = "other"
+    reason: str = ""
+    status: str = REPORT_OPEN
+    reported_at: str = ""
+
+    def __post_init__(self) -> None:
+        self.category = (self.category or "other").strip().lower()
+        if self.category not in REPORT_CATEGORIES:
+            raise LiveRoomError(
+                f"report category must be one of {', '.join(REPORT_CATEGORIES)}"
+            )
+        self.reason = (self.reason or "").strip()
+        if not self.reason:
+            raise LiveRoomError("report reason is required")
+        if not self.reported_at:
+            self.reported_at = _ts()
+        if self.status not in (REPORT_OPEN, REPORT_DISMISSED):
+            raise LiveRoomError(f"invalid report status {self.status!r}")
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
@@ -201,6 +239,7 @@ class LiveRoom:
     moderator_key: str = ""
     speaking_queue: List[QueueEntry] = field(default_factory=list)
     floor_participant_id: str = ""
+    reports: List[UserReport] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -277,6 +316,16 @@ class LiveRoom:
     def banned_list(self) -> List[BannedUser]:
         return list(self.banned.values())
 
+    def open_reports(self) -> List[UserReport]:
+        return [r for r in self.reports if r.status == REPORT_OPEN]
+
+    def report_count_for(self, participant_id: str) -> int:
+        return sum(
+            1
+            for r in self.open_reports()
+            if r.reported_participant_id == participant_id
+        )
+
     def to_dict(self) -> dict:
         return {
             "room_id": self.room_id,
@@ -305,9 +354,10 @@ class LiveRoom:
         }
 
     def to_moderator_dict(self) -> dict:
-        """Full room state plus moderator_key (educator/operator only)."""
+        """Full room state plus moderator_key and user reports (educator only)."""
         d = self.to_dict()
         d["moderator_key"] = self.moderator_key
+        d["reports"] = [r.to_dict() for r in self.open_reports()]
         return d
 
     def verify_moderator(self, key: str) -> None:
@@ -676,6 +726,69 @@ class LiveRoomStore:
             return "answered", None
         entry = self.join_queue(room_id, participant_id, question=q)
         return "queued", entry
+
+    def report_participant(
+        self,
+        room_id: str,
+        reporter_participant_id: str,
+        reported_participant_id: str,
+        *,
+        reason: str,
+        category: str = "other",
+    ) -> UserReport:
+        """Learner flags another participant for moderator review."""
+        room = self.require(room_id)
+        reporter = room.get_participant(reporter_participant_id)
+        if reporter.is_host:
+            raise LiveRoomError("the host does not file learner reports")
+        target = room.get_participant(reported_participant_id)
+        if target.is_host:
+            raise LiveRoomError("cannot report the AI host")
+        if reporter_participant_id == reported_participant_id:
+            raise LiveRoomError("cannot report yourself")
+        if room.is_banned(reporter.identity):
+            raise BannedError("you are blocked from this room")
+        for existing in room.reports:
+            if (
+                existing.status == REPORT_OPEN
+                and existing.reporter_participant_id == reporter_participant_id
+                and existing.reported_participant_id == reported_participant_id
+            ):
+                existing.category = (category or "other").strip().lower()
+                existing.reason = (reason or "").strip()
+                existing.reported_at = _ts()
+                self._commit(room)
+                return existing
+        report = UserReport(
+            id=uuid.uuid4().hex[:10],
+            reporter_participant_id=reporter.id,
+            reporter_name=reporter.name,
+            reported_participant_id=target.id,
+            reported_name=target.name,
+            reported_identity=target.identity,
+            category=category,
+            reason=reason,
+        )
+        room.reports.append(report)
+        self._commit(room)
+        return report
+
+    def dismiss_report(
+        self,
+        room_id: str,
+        report_id: str,
+        *,
+        moderator_key: str = "",
+    ) -> UserReport:
+        """Moderator clears a report without banning."""
+        room = self.require(room_id)
+        room.verify_moderator(moderator_key)
+        for report in room.reports:
+            if report.id == report_id and report.status == REPORT_OPEN:
+                report.status = REPORT_DISMISSED
+                self._commit(room)
+                return report
+        raise LiveRoomError("report not found or already reviewed")
 
     def set_mute(
         self,

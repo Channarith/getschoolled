@@ -957,6 +957,18 @@ class LiveRoomUnbanRequest(BaseModel):
     moderator_key: str = ""
 
 
+class LiveRoomReportRequest(BaseModel):
+    reporter_participant_id: str
+    reported_participant_id: str
+    reason: str
+    category: str = "other"
+
+
+class LiveRoomDismissReportRequest(BaseModel):
+    report_id: str
+    moderator_key: str = ""
+
+
 class LiveRoomAskRequest(BaseModel):
     participant_id: str
     question: str
@@ -976,10 +988,13 @@ def _live_room_http_error(exc: Exception) -> HTTPException:
 
 
 @app.get("/api/live-rooms/{room_id}")
-def get_live_room(room_id: str) -> dict:
-    room = _live_rooms().get(room_id)
+def get_live_room(room_id: str, moderator_key: str = "") -> dict:
+    store = _live_rooms()
+    room = store.get(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="unknown live room")
+    if moderator_key and moderator_key == room.moderator_key:
+        return room.to_moderator_dict()
     return room.to_dict()
 
 
@@ -1124,6 +1139,42 @@ def live_room_unban(room_id: str, req: LiveRoomUnbanRequest) -> dict:
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
     return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/report")
+def live_room_report(room_id: str, req: LiveRoomReportRequest) -> dict:
+    """Learner reports another participant for moderator review."""
+    try:
+        report = _live_rooms().report_participant(
+            room_id,
+            req.reporter_participant_id,
+            req.reported_participant_id,
+            reason=req.reason,
+            category=req.category,
+        )
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "report": report.to_dict(),
+        "room": _live_rooms().require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/reports/dismiss")
+def live_room_dismiss_report(room_id: str, req: LiveRoomDismissReportRequest) -> dict:
+    """Moderator dismisses a user report without banning."""
+    try:
+        report = _live_rooms().dismiss_report(
+            room_id,
+            req.report_id,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "report": report.to_dict(),
+        "room": _live_rooms().require(room_id).to_moderator_dict(),
+    }
 
 
 @app.post("/api/live-rooms/{room_id}/advance")

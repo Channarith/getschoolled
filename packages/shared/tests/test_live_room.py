@@ -170,3 +170,32 @@ def test_ban_requires_moderator_key():
     p = store.join("class-mod", "Ada")
     with pytest.raises(LiveRoomError):
         store.ban_participant("class-mod", p.id, moderator_key="wrong-key")
+
+
+def test_report_participant_and_moderator_dismiss():
+    store = LiveRoomStore()
+    room = store.open_room(
+        room_id="class-report",
+        class_id="rep",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Reports",
+        room_size=6,
+    )
+    mod = room.moderator_key
+    a = store.join("class-report", "Ada", identity="ada-r")
+    b = store.join("class-report", "Bob", identity="bob-r")
+    report = store.report_participant(
+        "class-report",
+        a.id,
+        b.id,
+        reason="Spam in chat",
+        category="spam",
+    )
+    assert report.reported_name == "Bob"
+    loaded = store.require("class-report")
+    assert len(loaded.open_reports()) == 1
+    with pytest.raises(LiveRoomError):
+        store.report_participant("class-report", a.id, a.id, reason="nope", category="other")
+    store.dismiss_report("class-report", report.id, moderator_key=mod)
+    assert store.require("class-report").open_reports() == []

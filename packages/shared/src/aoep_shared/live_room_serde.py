@@ -13,6 +13,7 @@ from .live_room import (
     QueueEntry,
     RecordingState,
     SlideSync,
+    UserReport,
 )
 
 
@@ -46,6 +47,7 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
       "moderator_key": room.moderator_key,
       "speaking_queue": [asdict(e) for e in room.speaking_queue],
       "floor_participant_id": room.floor_participant_id,
+      "reports": [asdict(r) for r in room.reports],
   }
 
 
@@ -58,6 +60,7 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
   speaking_queue: List[QueueEntry] = [
       QueueEntry(**e) for e in (data.get("speaking_queue") or [])
   ]
+  reports = [UserReport(**r) for r in (data.get("reports") or [])]
   recording = RecordingState(**(data.get("recording") or {}))
   slide = SlideSync(**(data.get("slide") or {}))
   return LiveRoom(
@@ -77,4 +80,5 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       moderator_key=data.get("moderator_key") or "",
       speaking_queue=speaking_queue,
       floor_participant_id=data.get("floor_participant_id") or "",
+      reports=reports,
   )

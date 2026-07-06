@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Salareen Live Room user reports: learners can flag bad actors
+  (spam, harassment, inappropriate, disruptive, other) via POST
+  /api/live-rooms/{id}/report. Educators with moderator_key see open reports on
+  room poll, dismiss without banning, or block from the report panel. Web and
+  mobile Report buttons on participant tiles; reports persist in Redis with room
+  state on Vultr VKE.
+
 - 2026-07-06 - Vultr VKE live room hosting: Salareen chat sessions now persist in
   Redis (aoep:live:* keys) across orchestrator replicas when REDIS_URL is set,
   matching teaching sessions. GroupClassStore also Redis-backed (aoep:gc:*).

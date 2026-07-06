@@ -5,7 +5,8 @@ import {
 
 import {
   getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext, liveRoomChat,
-  liveRoomFinishTurn, liveRoomLeaveQueue, liveRoomRaiseHand, liveRoomUnban, type LiveRoomState,
+  liveRoomDismissReport, liveRoomFinishTurn, liveRoomLeaveQueue, liveRoomRaiseHand,
+  liveRoomReport, liveRoomUnban, type LiveRoomState,
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -36,7 +37,7 @@ export default function LiveRoomScreen({
 
   const refresh = async () => {
     try {
-      setRoom(await getLiveRoom(roomId));
+      setRoom(await getLiveRoom(roomId, modKey));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -162,6 +163,30 @@ export default function LiveRoomScreen({
                 }}
               />
             ) : null}
+            {p.role !== "host" && p.id !== participantId ? (
+              <PrimaryButton
+                label="Report"
+                variant="ghost"
+                onPress={async () => {
+                  if (!participantId) return;
+                  setBusy(true);
+                  try {
+                    await liveRoomReport(
+                      roomId,
+                      participantId,
+                      p.id,
+                      "Reported from mobile live room",
+                      "other",
+                    );
+                    setError("");
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            ) : null}
           </View>
         ))}
       </ScrollView>
@@ -180,6 +205,34 @@ export default function LiveRoomScreen({
           {myPos > 0 && !hasFloor ? (
             <Text style={styles.meta}>You are #{myPos} in line.</Text>
           ) : null}
+        </GlassPanel>
+      ) : null}
+
+      {modKey && (room?.reports?.length ?? 0) > 0 ? (
+        <GlassPanel style={styles.slide}>
+          <Text style={styles.cardTitle}>User reports</Text>
+          {(room?.reports ?? []).map((rep) => (
+            <View key={rep.id} style={styles.controls}>
+              <Text style={styles.meta}>
+                {rep.reported_name} ({rep.category}) — {rep.reason}
+                {"\n"}from {rep.reporter_name}
+              </Text>
+              <PrimaryButton
+                label="Block"
+                variant="ghost"
+                onPress={async () => {
+                  setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey));
+                }}
+              />
+              <PrimaryButton
+                label="Dismiss"
+                variant="ghost"
+                onPress={async () => {
+                  setRoom(await liveRoomDismissReport(roomId, rep.id, modKey));
+                }}
+              />
+            </View>
+          ))}
         </GlassPanel>
       ) : null}
 

@@ -182,3 +182,43 @@ def test_ban_and_unban_flow():
         json={"name": "Spammer", "identity": "spam-1"},
     )
     assert rejoin.status_code == 200, rejoin.text
+
+
+def test_report_and_moderator_review():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    reporter = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ada", "identity": "reporter-1"},
+    ).json()["participant"]
+    target = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Bob", "identity": "target-1"},
+    ).json()["participant"]
+    reported = client.post(
+        f"/api/live-rooms/{room_id}/report",
+        json={
+            "reporter_participant_id": reporter["id"],
+            "reported_participant_id": target["id"],
+            "reason": "Harassing messages",
+            "category": "harassment",
+        },
+    )
+    assert reported.status_code == 200, reported.text
+
+    mod_view = client.get(
+        f"/api/live-rooms/{room_id}",
+        params={"moderator_key": mod},
+    )
+    assert mod_view.status_code == 200, mod_view.text
+    reports = mod_view.json().get("reports") or []
+    assert len(reports) == 1
+    assert reports[0]["reported_name"] == "Bob"
+
+    dismissed = client.post(
+        f"/api/live-rooms/{room_id}/reports/dismiss",
+        json={"report_id": reports[0]["id"], "moderator_key": mod},
+    )
+    assert dismissed.status_code == 200, dismissed.text
+    assert dismissed.json()["room"].get("reports") == []
