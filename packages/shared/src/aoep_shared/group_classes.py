@@ -18,7 +18,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .group_class_backend import GroupClassBackend
 
 from .live_room import learner_capacity, validate_room_size
 
@@ -169,25 +172,53 @@ class GroupClass:
 
 
 class GroupClassStore:
-    """In-memory registry of scheduled group classes (process-local)."""
+    """Registry of scheduled group classes.
 
-    def __init__(self) -> None:
-        self._classes: Dict[str, GroupClass] = {}
+    In-memory locally; on Vultr VKE (``REDIS_URL`` set) classes are stored in
+    Redis so start/join flows work on any orchestrator replica.
+    """
+
+    def __init__(self, backend: Optional["GroupClassBackend"] = None) -> None:
+        if backend is None:
+            from .group_class_backend import build_group_class_backend
+
+            backend = build_group_class_backend()
+        self._backend = backend
+
+    @property
+    def backend_name(self) -> str:
+        return self._backend.name
+
+    def _commit(self, gc: GroupClass) -> None:
+        self._backend.save(gc)
+
+    def _all_classes(self) -> List[GroupClass]:
+        items: List[GroupClass] = []
+        for class_id in self._backend.list_ids():
+            gc = self._backend.get(class_id)
+            if gc is not None:
+                items.append(gc)
+        return items
 
     def schedule(self, **kwargs) -> GroupClass:
         gc = GroupClass(**kwargs)
-        self._classes[gc.id] = gc
+        self._commit(gc)
         return gc
 
     def add(self, gc: GroupClass) -> GroupClass:
-        self._classes[gc.id] = gc
+        self._commit(gc)
+        return gc
+
+    def save(self, gc: GroupClass) -> GroupClass:
+        """Persist field updates (session_id, live_room_id, etc.)."""
+        self._commit(gc)
         return gc
 
     def get(self, class_id: str) -> Optional[GroupClass]:
-        return self._classes.get(class_id)
+        return self._backend.get(class_id)
 
     def require(self, class_id: str) -> GroupClass:
-        gc = self._classes.get(class_id)
+        gc = self._backend.get(class_id)
         if gc is None:
             raise KeyError(class_id)
         return gc
@@ -206,7 +237,7 @@ class GroupClassStore:
         currently live). ``include_ended`` drops classes already marked ended.
         """
         ref = now or _now()
-        items = list(self._classes.values())
+        items = self._all_classes()
         if not include_ended:
             items = [c for c in items if c.status != STATUS_ENDED]
         if upcoming_only:
@@ -234,6 +265,7 @@ class GroupClassStore:
         if gc.is_full:
             raise ClassFullError("this class is full")
         gc.registrations.append(reg)
+        self._commit(gc)
         return reg
 
     def set_status(self, class_id: str, status: str) -> GroupClass:
@@ -241,6 +273,7 @@ class GroupClassStore:
             raise GroupClassError(f"invalid status {status!r}")
         gc = self.require(class_id)
         gc.status = status
+        self._commit(gc)
         return gc
 
 

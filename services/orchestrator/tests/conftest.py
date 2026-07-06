@@ -24,3 +24,5 @@ os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 # environment can't make the suite talk to a real Redis. Tests that exercise the
 # store factory override this via monkeypatch.
 os.environ.setdefault("SESSION_BACKEND", "memory")
+os.environ.setdefault("LIVE_ROOM_BACKEND", "memory")
+os.environ.setdefault("GROUP_CLASS_BACKEND", "memory")

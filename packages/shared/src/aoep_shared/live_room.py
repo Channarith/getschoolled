@@ -13,7 +13,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .live_room_backend import LiveRoomBackend
 
 ROOM_SIZES: tuple = (4, 6, 9)
 AI_HOST_ID = "theodore-ai"
@@ -313,10 +316,25 @@ class LiveRoom:
 
 
 class LiveRoomStore:
-    """Process-local registry of active Salareen live rooms."""
+    """Registry of active Salareen live rooms.
 
-    def __init__(self) -> None:
-        self._rooms: Dict[str, LiveRoom] = {}
+    Uses an in-memory dict locally; on Vultr VKE (``REDIS_URL`` set) rooms are
+    stored in Redis so every orchestrator replica serves the same chat session.
+    """
+
+    def __init__(self, backend: Optional["LiveRoomBackend"] = None) -> None:
+        if backend is None:
+            from .live_room_backend import build_live_room_backend
+
+            backend = build_live_room_backend()
+        self._backend = backend
+
+    @property
+    def backend_name(self) -> str:
+        return self._backend.name
+
+    def _commit(self, room: LiveRoom) -> None:
+        self._backend.save(room)
 
     def open_room(
         self,
@@ -331,8 +349,9 @@ class LiveRoomStore:
         slide_body: str = "",
         slide_narration: str = "",
     ) -> LiveRoom:
-        if room_id in self._rooms:
-            return self._rooms[room_id]
+        existing = self._backend.get(room_id)
+        if existing is not None:
+            return existing
         room = LiveRoom(
             room_id=room_id,
             class_id=class_id,
@@ -355,14 +374,14 @@ class LiveRoomStore:
             ),
         )
         room.chat.append(welcome)
-        self._rooms[room_id] = room
+        self._commit(room)
         return room
 
     def get(self, room_id: str) -> Optional[LiveRoom]:
-        return self._rooms.get(room_id)
+        return self._backend.get(room_id)
 
     def require(self, room_id: str) -> LiveRoom:
-        room = self._rooms.get(room_id)
+        room = self._backend.get(room_id)
         if room is None:
             raise KeyError(room_id)
         return room
@@ -395,6 +414,7 @@ class LiveRoomStore:
             text=f"{name} joined the class.",
         )
         room.chat.append(join_msg)
+        self._commit(room)
         return participant
 
     def leave(self, room_id: str, participant_id: str) -> None:
@@ -413,6 +433,7 @@ class LiveRoomStore:
                 text=f"{name} left the class.",
             )
         )
+        self._commit(room)
 
     def post_chat(self, room_id: str, participant_id: str, text: str) -> ChatMessage:
         room = self.require(room_id)
@@ -430,6 +451,7 @@ class LiveRoomStore:
             text=text,
         )
         room.chat.append(msg)
+        self._commit(room)
         return msg
 
     def post_host_message(self, room_id: str, text: str) -> ChatMessage:
@@ -442,6 +464,7 @@ class LiveRoomStore:
             text=text,
         )
         room.chat.append(msg)
+        self._commit(room)
         return msg
 
     def _remove_from_queue(self, room_id: str, participant_id: str) -> None:
@@ -526,6 +549,7 @@ class LiveRoomStore:
                 text=f"✋ {p.name} joined the Q&A queue (#{pos}){q_preview}.",
             )
         )
+        self._commit(room)
         return entry
 
     def leave_queue(self, room_id: str, participant_id: str) -> None:
@@ -545,6 +569,7 @@ class LiveRoomStore:
                 text=f"{p.name} left the Q&A queue.",
             )
         )
+        self._commit(room)
 
     def call_next(self, room_id: str, *, moderator_key: str = "") -> Optional[Participant]:
         """Give the floor to the next learner in the Q&A queue."""
@@ -570,6 +595,7 @@ class LiveRoomStore:
                 ),
             )
         )
+        self._commit(room)
         return speaker
 
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
@@ -599,6 +625,7 @@ class LiveRoomStore:
             )
         )
         room._reindex_waiting()
+        self._commit(room)
 
     def toggle_hand(self, room_id: str, participant_id: str, *, question: str = "") -> Participant:
         """Toggle Q&A queue membership (raise hand / leave queue)."""
@@ -628,6 +655,7 @@ class LiveRoomStore:
         if not q:
             raise LiveRoomError("question is required")
         if room.floor_participant_id == participant_id:
+            self._commit(room)
             return "answered", None
         if not room.floor_participant_id and not room.waiting_queue():
             self._grant_floor(room, participant_id)
@@ -644,6 +672,7 @@ class LiveRoomStore:
             elif entry.status == QUEUE_WAITING:
                 entry.status = QUEUE_SPEAKING
                 entry.question = q
+            self._commit(room)
             return "answered", None
         entry = self.join_queue(room_id, participant_id, question=q)
         return "queued", entry
@@ -677,6 +706,7 @@ class LiveRoomStore:
             target.muted = muted
             if not muted:
                 target.muted_by_host = False
+        self._commit(room)
         return target
 
     def ban_participant(
@@ -712,6 +742,7 @@ class LiveRoomStore:
                 text=f"🚫 {name} was blocked from this class.",
             )
         )
+        self._commit(room)
         return entry
 
     def unban(self, room_id: str, identity: str, *, actor_id: str = "", moderator_key: str = "") -> None:
@@ -730,6 +761,7 @@ class LiveRoomStore:
                 text=f"✅ {entry.name} may rejoin the class.",
             )
         )
+        self._commit(room)
 
     def update_slide(
         self,
@@ -742,6 +774,7 @@ class LiveRoomStore:
     ) -> SlideSync:
         room = self.require(room_id)
         room.slide = SlideSync(index=index, title=title, body=body, narration=narration)
+        self._commit(room)
         return room.slide
 
     def start_recording(self, room_id: str) -> RecordingState:
@@ -763,12 +796,14 @@ class LiveRoomStore:
                 text="🔴 Recording started.",
             )
         )
+        self._commit(room)
         return room.recording
 
     def stop_recording(self, room_id: str) -> RecordingState:
         room = self.require(room_id)
         if room.recording.status != RECORDING_ACTIVE:
             room.recording.status = RECORDING_STOPPED
+            self._commit(room)
             return room.recording
         room.recording.status = RECORDING_STOPPED
         room.recording.stopped_at = _ts()
@@ -783,6 +818,7 @@ class LiveRoomStore:
                 text="⏹ Recording stopped and queued for storage.",
             )
         )
+        self._commit(room)
         return room.recording
 
     def end_room(self, room_id: str) -> LiveRoom:
@@ -798,4 +834,5 @@ class LiveRoomStore:
                 text="Class dismissed. Great work today — see you next time!",
             )
         )
+        self._commit(room)
         return room

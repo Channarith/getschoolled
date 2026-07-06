@@ -866,7 +866,7 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
         raise HTTPException(status_code=404, detail=f"unknown lesson {gc.lesson_id}")
 
     gc.session_id = state.session_id
-    store.set_status(gc.id, "live")
+    gc.status = "live"
 
     room = f"class-{gc.id}"
     slide = sessions.current_slide(state.session_id)
@@ -885,6 +885,8 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
             slide_narration=slide.narration,
         )
         moderator_key = live.moderator_key
+
+    store.save(gc)
 
     plan = dict(bridge_plan(gc, livekit_room=room))
     if moderator_key:

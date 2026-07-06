@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Vultr VKE live room hosting: Salareen chat sessions now persist in
+  Redis (aoep:live:* keys) across orchestrator replicas when REDIS_URL is set,
+  matching teaching sessions. GroupClassStore also Redis-backed (aoep:gc:*).
+  LIVE_ROOM_BACKEND=memory / GROUP_CLASS_BACKEND=memory for tests. In-cluster
+  LiveKit deployment (infra/k8s/livekit.yaml) + livekit.salareen.com ingress for
+  WebRTC signaling on Vultr; k8s-vke RUNBOOK updated.
+
 - 2026-07-06 - Salareen Live Room regression: qa/tests/test_live_room_chat_regression.py
   golden-path for Q&A queue turn-taking, raise-hand toggle, and ban/block; stress.py
   smoke scenarios for live-room state, queue/join, and call-next; qa/regression.py and

@@ -18,9 +18,8 @@ metadata:
   namespace: aoep
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: 32m
-    # Session affinity: the orchestrator keeps live class sessions in-memory, so
-    # with multiple replicas a client must stick to the pod that created its
-    # session or /api/sessions/{id}/advance|ask 404s. A cookie pins each client
+    # Session affinity: optional extra safety for teaching-session directors;
+    # live rooms and /api/sessions state live in Redis when REDIS_URL is set. A cookie pins each client
     # to one backend pod. (Durable alternative: a Redis-backed session store.)
     nginx.ingress.kubernetes.io/affinity: "cookie"
     nginx.ingress.kubernetes.io/affinity-mode: "persistent"
