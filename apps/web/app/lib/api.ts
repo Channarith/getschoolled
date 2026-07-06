@@ -1235,6 +1235,17 @@ export type LiveRoomState = {
   slide: { index: number; title: string; body: string; narration: string };
   raised_hands: LiveParticipant[];
   banned?: { identity: string; name: string; reason: string; banned_at: string; banned_by: string }[];
+  speaking_queue?: {
+    id: string;
+    participant_id: string;
+    name: string;
+    question: string;
+    status: string;
+    position: number;
+    enqueued_at: string;
+  }[];
+  floor_participant_id?: string;
+  floor_holder?: LiveParticipant | null;
 };
 
 export type LiveRoomJoin = {
@@ -1280,12 +1291,68 @@ export async function liveRoomChat(roomId: string, participantId: string, text: 
   return r.room;
 }
 
-export async function liveRoomRaiseHand(roomId: string, participantId: string): Promise<LiveRoomState> {
+export async function liveRoomRaiseHand(
+  roomId: string,
+  participantId: string,
+  question = ""
+): Promise<LiveRoomState> {
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/raise-hand`, {
       method: "POST",
       headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomJoinQueue(
+  roomId: string,
+  participantId: string,
+  question = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomLeaveQueue(roomId: string, participantId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ participant_id: participantId }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-next`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomFinishTurn(
+  roomId: string,
+  participantId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/finish-turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
     })
   );
   return r.room;
@@ -1363,15 +1430,14 @@ export async function liveRoomAsk(
   participantId: string,
   question: string,
   language = "en"
-): Promise<LiveRoomState> {
-  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+): Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
+  return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, question, language }),
     })
   );
-  return r.room;
 }
 
 export async function liveRoomRecordStart(roomId: string): Promise<LiveRoomState> {

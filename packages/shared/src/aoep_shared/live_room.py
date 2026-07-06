@@ -25,6 +25,34 @@ RECORDING_IDLE = "idle"
 RECORDING_ACTIVE = "recording"
 RECORDING_STOPPED = "stopped"
 
+QUEUE_WAITING = "waiting"
+QUEUE_SPEAKING = "speaking"
+QUEUE_DONE = "done"
+
+
+@dataclass
+class QueueEntry:
+    """A learner waiting for or holding the floor to ask a question."""
+
+    id: str
+    participant_id: str
+    name: str
+    question: str = ""
+    status: str = QUEUE_WAITING
+    position: int = 1
+    enqueued_at: str = ""
+
+    def __post_init__(self) -> None:
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise LiveRoomError("queue entry name is required")
+        if self.status not in (QUEUE_WAITING, QUEUE_SPEAKING, QUEUE_DONE):
+            raise LiveRoomError(f"invalid queue status {self.status!r}")
+        if not self.enqueued_at:
+            self.enqueued_at = _ts()
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 class LiveRoomError(ValueError):
     """Invalid live-room request (maps to HTTP 400)."""
@@ -168,6 +196,8 @@ class LiveRoom:
     opened_at: str = ""
     banned: Dict[str, BannedUser] = field(default_factory=dict)
     moderator_key: str = ""
+    speaking_queue: List[QueueEntry] = field(default_factory=list)
+    floor_participant_id: str = ""
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -202,7 +232,40 @@ class LiveRoom:
         return p
 
     def raised_hands(self) -> List[Participant]:
-        return [p for p in self.participants.values() if p.hand_raised and not p.is_host]
+        """Learners waiting in the speaking queue (legacy alias for UI badges)."""
+        waiting = {e.participant_id for e in self.waiting_queue()}
+        return [p for p in self.participants.values() if p.id in waiting and not p.is_host]
+
+    def waiting_queue(self) -> List[QueueEntry]:
+        return [e for e in self.speaking_queue if e.status == QUEUE_WAITING]
+
+    def active_queue(self) -> List[QueueEntry]:
+        return [e for e in self.speaking_queue if e.status in (QUEUE_WAITING, QUEUE_SPEAKING)]
+
+    def floor_holder(self) -> Optional[Participant]:
+        if not self.floor_participant_id:
+            return None
+        return self.participants.get(self.floor_participant_id)
+
+    def queue_entry_for(self, participant_id: str) -> Optional[QueueEntry]:
+        for entry in reversed(self.speaking_queue):
+            if entry.participant_id == participant_id and entry.status != QUEUE_DONE:
+                return entry
+        return None
+
+    def queue_position(self, participant_id: str) -> int:
+        entry = self.queue_entry_for(participant_id)
+        if entry is None or entry.status != QUEUE_WAITING:
+            return 0
+        waiting = self.waiting_queue()
+        for i, e in enumerate(waiting, start=1):
+            if e.participant_id == participant_id:
+                return i
+        return 0
+
+    def _reindex_waiting(self) -> None:
+        for i, entry in enumerate(self.waiting_queue(), start=1):
+            entry.position = i
 
     def is_banned(self, identity: str) -> bool:
         ident = (identity or "").strip()
@@ -231,6 +294,11 @@ class LiveRoom:
             "slide": self.slide.to_dict(),
             "raised_hands": [p.to_dict() for p in self.raised_hands()],
             "banned": [b.to_dict() for b in self.banned_list()],
+            "speaking_queue": [e.to_dict() for e in self.active_queue()],
+            "floor_participant_id": self.floor_participant_id,
+            "floor_holder": (
+                self.floor_holder().to_dict() if self.floor_holder() else None
+            ),
         }
 
     def to_moderator_dict(self) -> dict:
@@ -283,7 +351,7 @@ class LiveRoomStore:
             text=(
                 f"Welcome! I'm Theodore, your AI teacher. "
                 f"We have room for up to {learner_capacity(room_size)} learners today. "
-                "Raise your hand when you have a question."
+                "Tap Join Q&A queue when you have a question — I'll call on you in turn."
             ),
         )
         room.chat.append(welcome)
@@ -335,6 +403,7 @@ class LiveRoomStore:
         if p.is_host:
             raise LiveRoomError("the AI host cannot leave")
         name = p.name
+        self._remove_from_queue(room_id, participant_id)
         del room.participants[participant_id]
         room.chat.append(
             ChatMessage(
@@ -352,6 +421,8 @@ class LiveRoomStore:
             raise BannedError("you are blocked from this room")
         if p.muted or p.muted_by_host:
             raise LiveRoomError("you are muted and cannot chat")
+        if room.floor_participant_id and room.floor_participant_id != participant_id:
+            raise LiveRoomError("wait for your turn to speak before chatting live")
         msg = ChatMessage(
             id=uuid.uuid4().hex[:10],
             from_id=p.id,
@@ -373,22 +444,209 @@ class LiveRoomStore:
         room.chat.append(msg)
         return msg
 
-    def toggle_hand(self, room_id: str, participant_id: str) -> Participant:
+    def _remove_from_queue(self, room_id: str, participant_id: str) -> None:
+        room = self.require(room_id)
+        if room.floor_participant_id == participant_id:
+            room.floor_participant_id = ""
+        room.speaking_queue = [
+            e for e in room.speaking_queue
+            if e.participant_id != participant_id or e.status == QUEUE_DONE
+        ]
+        p = room.participants.get(participant_id)
+        if p is not None:
+            p.hand_raised = False
+        room._reindex_waiting()
+
+    def _mute_all_learners(self, room: LiveRoom) -> None:
+        for p in room.participants.values():
+            if not p.is_host:
+                p.muted_by_host = True
+                p.muted = True
+                p.can_publish = False
+
+    def _grant_floor(self, room: LiveRoom, participant_id: str) -> Participant:
+        speaker = room.get_participant(participant_id)
+        if speaker.is_host:
+            raise LiveRoomError("the AI host already has the floor")
+        self._mute_all_learners(room)
+        speaker.muted_by_host = False
+        speaker.muted = False
+        speaker.can_publish = True
+        speaker.hand_raised = False
+        room.floor_participant_id = participant_id
+        for entry in room.speaking_queue:
+            if entry.participant_id == participant_id and entry.status == QUEUE_WAITING:
+                entry.status = QUEUE_SPEAKING
+        return speaker
+
+    def join_queue(
+        self,
+        room_id: str,
+        participant_id: str,
+        *,
+        question: str = "",
+    ) -> QueueEntry:
+        """Join the Q&A line to ask a question when called on."""
+        room = self.require(room_id)
+        p = room.get_participant(participant_id)
+        if p.is_host:
+            raise LiveRoomError("the host does not join the learner queue")
+        if room.is_banned(p.identity):
+            raise BannedError("you are blocked from this room")
+        existing = room.queue_entry_for(participant_id)
+        if existing and existing.status in (QUEUE_WAITING, QUEUE_SPEAKING):
+            if question.strip():
+                existing.question = question.strip()
+            return existing
+        entry = QueueEntry(
+            id=uuid.uuid4().hex[:10],
+            participant_id=participant_id,
+            name=p.name,
+            question=(question or "").strip(),
+            status=QUEUE_WAITING,
+            position=len(room.waiting_queue()) + 1,
+        )
+        room.speaking_queue.append(entry)
+        p.hand_raised = True
+        self._mute_all_learners(room)
+        if room.floor_participant_id:
+            holder = room.participants.get(room.floor_participant_id)
+            if holder:
+                holder.muted_by_host = False
+                holder.muted = False
+                holder.can_publish = True
+        room._reindex_waiting()
+        pos = room.queue_position(participant_id)
+        q_preview = f': "{entry.question}"' if entry.question else ""
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=f"✋ {p.name} joined the Q&A queue (#{pos}){q_preview}.",
+            )
+        )
+        return entry
+
+    def leave_queue(self, room_id: str, participant_id: str) -> None:
+        room = self.require(room_id)
+        p = room.get_participant(participant_id)
+        if p.is_host:
+            raise LiveRoomError("the host is not in the learner queue")
+        if room.floor_participant_id == participant_id:
+            self.finish_turn(room_id, participant_id)
+            return
+        self._remove_from_queue(room_id, participant_id)
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=f"{p.name} left the Q&A queue.",
+            )
+        )
+
+    def call_next(self, room_id: str, *, moderator_key: str = "") -> Optional[Participant]:
+        """Give the floor to the next learner in the Q&A queue."""
+        room = self.require(room_id)
+        if moderator_key:
+            room.verify_moderator(moderator_key)
+        if room.floor_participant_id:
+            raise LiveRoomError("someone is already speaking — end their turn first")
+        waiting = room.waiting_queue()
+        if not waiting:
+            raise LiveRoomError("the Q&A queue is empty")
+        next_entry = waiting[0]
+        speaker = self._grant_floor(room, next_entry.participant_id)
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=(
+                    f"🎤 {speaker.name}, you're up! "
+                    + (f'Your question: "{next_entry.question}". ' if next_entry.question else "")
+                    + "Go ahead — we're listening."
+                ),
+            )
+        )
+        return speaker
+
+    def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
+        """End the current speaker's turn and release the floor."""
+        room = self.require(room_id)
+        if moderator_key:
+            room.verify_moderator(moderator_key)
+        if room.floor_participant_id != participant_id:
+            if moderator_key:
+                raise LiveRoomError("this learner does not have the floor")
+            return
+        p = room.get_participant(participant_id)
+        for entry in room.speaking_queue:
+            if entry.participant_id == participant_id and entry.status == QUEUE_SPEAKING:
+                entry.status = QUEUE_DONE
+        room.floor_participant_id = ""
+        p.muted_by_host = True
+        p.muted = True
+        p.can_publish = False
+        p.hand_raised = False
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=f"✓ {p.name} finished their turn.",
+            )
+        )
+        room._reindex_waiting()
+
+    def toggle_hand(self, room_id: str, participant_id: str, *, question: str = "") -> Participant:
+        """Toggle Q&A queue membership (raise hand / leave queue)."""
         room = self.require(room_id)
         p = room.get_participant(participant_id)
         if p.is_host:
             raise LiveRoomError("the host does not raise a hand")
-        p.hand_raised = not p.hand_raised
-        if p.hand_raised:
-            room.chat.append(
-                ChatMessage(
+        if room.queue_entry_for(participant_id):
+            self.leave_queue(room_id, participant_id)
+        else:
+            self.join_queue(room_id, participant_id, question=question)
+        return room.get_participant(participant_id)
+
+    def ask_when_ready(
+        self,
+        room_id: str,
+        participant_id: str,
+        question: str,
+    ) -> tuple[str, Optional[QueueEntry]]:
+        """Enqueue or answer immediately depending on floor / queue rules.
+
+        Returns ``("answered", None)`` when Theodore responds now, or
+        ``("queued", entry)`` when the learner must wait for their turn.
+        """
+        room = self.require(room_id)
+        q = (question or "").strip()
+        if not q:
+            raise LiveRoomError("question is required")
+        if room.floor_participant_id == participant_id:
+            return "answered", None
+        if not room.floor_participant_id and not room.waiting_queue():
+            self._grant_floor(room, participant_id)
+            entry = room.queue_entry_for(participant_id)
+            if entry is None:
+                entry = QueueEntry(
                     id=uuid.uuid4().hex[:10],
-                    from_id="system",
-                    from_name="Room",
-                    text=f"✋ {p.name} raised their hand.",
+                    participant_id=participant_id,
+                    name=room.get_participant(participant_id).name,
+                    question=q,
+                    status=QUEUE_SPEAKING,
                 )
-            )
-        return p
+                room.speaking_queue.append(entry)
+            elif entry.status == QUEUE_WAITING:
+                entry.status = QUEUE_SPEAKING
+                entry.question = q
+            return "answered", None
+        entry = self.join_queue(room_id, participant_id, question=q)
+        return "queued", entry
 
     def set_mute(
         self,
@@ -444,6 +702,7 @@ class LiveRoomStore:
         )
         room.banned[target.identity] = entry
         name = target.name
+        self._remove_from_queue(room_id, participant_id)
         del room.participants[participant_id]
         room.chat.append(
             ChatMessage(

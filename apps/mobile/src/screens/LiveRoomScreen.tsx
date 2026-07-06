@@ -4,8 +4,8 @@ import {
 } from "react-native";
 
 import {
-  getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomChat, liveRoomRaiseHand,
-  liveRoomUnban, type LiveRoomState,
+  getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext, liveRoomChat,
+  liveRoomFinishTurn, liveRoomLeaveQueue, liveRoomRaiseHand, liveRoomUnban, type LiveRoomState,
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -87,6 +87,13 @@ export default function LiveRoomScreen({
   }, [room, participantId]);
 
   const me = room?.participants.find((p) => p.id === participantId);
+  const hasFloor = room?.floor_participant_id === participantId;
+  const inQueue = Boolean(room?.speaking_queue?.some(
+    (e) => e.participant_id === participantId && (e.status === "waiting" || e.status === "speaking")
+  ));
+  const myPos = room?.speaking_queue?.find(
+    (e) => e.participant_id === participantId && e.status === "waiting"
+  )?.position ?? 0;
 
   if (wasBlocked) {
     return (
@@ -136,10 +143,16 @@ export default function LiveRoomScreen({
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridScroll}>
         {(room?.participants ?? []).map((p) => (
-          <View key={p.id} style={[styles.tile, p.role === "host" && styles.hostTile]}>
-            <Text style={styles.tileEmoji}>{p.role === "host" ? "🎓" : "👤"}</Text>
+          <View key={p.id} style={[
+            styles.tile,
+            p.role === "host" && styles.hostTile,
+            p.id === room?.floor_participant_id && styles.speakingTile,
+          ]}>
+            <Text style={styles.tileEmoji}>
+              {p.role === "host" ? "🎓" : p.id === room?.floor_participant_id ? "🎤" : "👤"}
+            </Text>
             <Text style={styles.tileName} numberOfLines={1}>{p.name}</Text>
-            {p.hand_raised ? <Text>✋</Text> : null}
+            {p.hand_raised && p.id !== room?.floor_participant_id ? <Text>✋</Text> : null}
             {modKey && p.role !== "host" && p.id !== participantId ? (
               <PrimaryButton
                 label="Block"
@@ -152,6 +165,23 @@ export default function LiveRoomScreen({
           </View>
         ))}
       </ScrollView>
+
+      {(room?.speaking_queue?.length ?? 0) > 0 ? (
+        <GlassPanel style={styles.slide}>
+          <Text style={styles.cardTitle}>Q&A queue</Text>
+          {room?.floor_holder ? (
+            <Text style={styles.meta}>🎤 Now: {room.floor_holder.name}</Text>
+          ) : null}
+          {(room?.speaking_queue ?? []).filter((e) => e.status === "waiting").map((e) => (
+            <Text key={e.id} style={styles.meta}>
+              #{e.position} {e.name}{e.question ? ` — ${e.question}` : ""}
+            </Text>
+          ))}
+          {myPos > 0 && !hasFloor ? (
+            <Text style={styles.meta}>You are #{myPos} in line.</Text>
+          ) : null}
+        </GlassPanel>
+      ) : null}
 
       {modKey && (room?.banned?.length ?? 0) > 0 ? (
         <GlassPanel style={styles.slide}>
@@ -219,7 +249,13 @@ export default function LiveRoomScreen({
             if (!question.trim() || !participantId) return;
             setBusy(true);
             try {
-              setRoom(await liveRoomAsk(roomId, participantId, question.trim()));
+              const res = await liveRoomAsk(roomId, participantId, question.trim());
+              setRoom(res.room);
+              if (res.queued) {
+                setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
+              } else {
+                setError("");
+              }
               setQuestion("");
             } catch (e) {
               setError((e as Error).message);
@@ -231,13 +267,47 @@ export default function LiveRoomScreen({
         />
       </View>
       <PrimaryButton
-        label={me?.hand_raised ? "Lower hand" : "Raise hand"}
+        label={
+          hasFloor ? "You're speaking"
+            : inQueue ? `Leave queue (#${myPos})`
+            : "Join Q&A queue"
+        }
         variant="ghost"
         onPress={async () => {
           if (!participantId) return;
-          setRoom(await liveRoomRaiseHand(roomId, participantId));
+          if (inQueue && !hasFloor) {
+            setRoom(await liveRoomLeaveQueue(roomId, participantId));
+          } else {
+            setRoom(await liveRoomRaiseHand(roomId, participantId, question.trim()));
+          }
         }}
       />
+      {hasFloor ? (
+        <PrimaryButton
+          label="Done speaking"
+          onPress={async () => {
+            if (!participantId) return;
+            setRoom(await liveRoomFinishTurn(roomId, participantId, modKey));
+          }}
+        />
+      ) : null}
+      {modKey ? (
+        <View style={styles.controls}>
+          <PrimaryButton
+            label="Call next"
+            onPress={async () => setRoom(await liveRoomCallNext(roomId, modKey))}
+          />
+          {room?.floor_participant_id ? (
+            <PrimaryButton
+              label="End turn"
+              variant="ghost"
+              onPress={async () => setRoom(
+                await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey)
+              )}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -270,6 +340,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   hostTile: { backgroundColor: "rgba(124,58,237,0.5)", width: 100 },
+  speakingTile: { borderWidth: 2, borderColor: "#34d399" },
   tileEmoji: { fontSize: 22 },
   tileName: { color: theme.colors.text, fontSize: 11, marginTop: 4 },
   chatBox: { flex: 1, maxHeight: 180, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 10, padding: 8 },

@@ -13,6 +13,9 @@ import {
   liveRoomChat,
   liveRoomMute,
   liveRoomRaiseHand,
+  liveRoomCallNext,
+  liveRoomFinishTurn,
+  liveRoomLeaveQueue,
   liveRoomRecordStart,
   liveRoomRecordStop,
   type LiveParticipant,
@@ -43,10 +46,12 @@ function ParticipantTile({
   p,
   large,
   localStream,
+  hasFloor,
 }: {
   p: LiveParticipant;
   large?: boolean;
   localStream?: MediaStream | null;
+  hasFloor?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isHost = p.role === "host";
@@ -66,7 +71,11 @@ function ParticipantTile({
         background: isHost
           ? "linear-gradient(145deg, #4c1d95 0%, #7c3aed 55%, #db2777 100%)"
           : "linear-gradient(145deg, #1e1b4b 0%, #312e81 100%)",
-        border: p.hand_raised ? "2px solid #fbbf24" : "1px solid rgba(255,255,255,0.12)",
+        border: hasFloor
+          ? "2px solid #34d399"
+          : p.hand_raised
+            ? "2px solid #fbbf24"
+            : "1px solid rgba(255,255,255,0.12)",
         minHeight: large ? 220 : 110,
         display: "flex",
         flexDirection: "column",
@@ -121,7 +130,8 @@ function ParticipantTile({
           {p.name}
         </span>
         <span style={{ display: "flex", gap: 4 }}>
-          {p.hand_raised && <span title="Hand raised">✋</span>}
+          {hasFloor && <span title="Speaking now">🎤</span>}
+          {p.hand_raised && !hasFloor && <span title="In Q&A queue">✋</span>}
           {(p.muted || p.muted_by_host) && <span title="Muted">🔇</span>}
         </span>
       </div>
@@ -150,6 +160,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return room.participants.find((p) => p.id === id) ?? joinInfo.participant;
   }, [joinInfo, room]);
   const layout = useMemo(() => gridLayout(room?.room_size ?? 6), [room?.room_size]);
+  const myQueuePos = useMemo(() => {
+    if (!me || !room?.speaking_queue) return 0;
+    const entry = room.speaking_queue.find(
+      (e) => e.participant_id === me.id && e.status === "waiting"
+    );
+    return entry?.position ?? 0;
+  }, [me, room?.speaking_queue]);
+  const hasFloor = me?.id === room?.floor_participant_id;
+  const inQueue = Boolean(room?.speaking_queue?.some(
+    (e) => e.participant_id === me?.id && (e.status === "waiting" || e.status === "speaking")
+  ));
 
   const refresh = useCallback(async () => {
     try {
@@ -277,7 +298,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me || !askDraft.trim()) return;
     setBusy(true);
     try {
-      setRoom(await liveRoomAsk(roomId, me.id, askDraft.trim()));
+      const res = await liveRoomAsk(roomId, me.id, askDraft.trim());
+      setRoom(res.room);
+      if (res.queued) {
+        setError(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
+      } else {
+        setError("");
+      }
       setAskDraft("");
     } catch (e) {
       setError(friendlyError(e, "Question failed"));
@@ -290,9 +317,38 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me) return;
     setBusy(true);
     try {
-      setRoom(await liveRoomRaiseHand(roomId, me.id));
+      if (inQueue && !hasFloor) {
+        setRoom(await liveRoomLeaveQueue(roomId, me.id));
+      } else {
+        setRoom(await liveRoomRaiseHand(roomId, me.id, askDraft.trim()));
+      }
     } catch (e) {
-      setError(friendlyError(e, "Could not update hand"));
+      setError(friendlyError(e, "Could not update queue"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function callNext() {
+    if (!moderatorKey) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomCallNext(roomId, moderatorKey));
+      setError("");
+    } catch (e) {
+      setError(friendlyError(e, "Could not call next"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function finishTurn() {
+    setBusy(true);
+    try {
+      const pid = room?.floor_participant_id || me?.id || "";
+      setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Could not end turn"));
     } finally {
       setBusy(false);
     }
@@ -484,6 +540,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 <ParticipantTile
                   p={p}
                   localStream={p.id === me?.id ? localStream : null}
+                  hasFloor={p.id === room?.floor_participant_id}
                 />
                 {moderatorKey && p.id !== me?.id ? (
                   <button
@@ -527,6 +584,42 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             ))}
           </div>
+
+          {(room?.speaking_queue?.length ?? 0) > 0 && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 12,
+                borderRadius: 12,
+                background: "rgba(52,211,153,0.08)",
+                border: "1px solid rgba(52,211,153,0.25)",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#6ee7b7", marginBottom: 8 }}>
+                Q&A queue — take turns
+              </div>
+              {room?.floor_holder ? (
+                <div style={{ fontSize: 13, marginBottom: 8, color: "#a7f3d0" }}>
+                  🎤 Now speaking: <strong>{room.floor_holder.name}</strong>
+                </div>
+              ) : null}
+              <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#d1fae5" }}>
+                {(room?.speaking_queue ?? [])
+                  .filter((e) => e.status === "waiting")
+                  .map((e) => (
+                    <li key={e.id} style={{ marginBottom: 4 }}>
+                      #{e.position} {e.name}
+                      {e.question ? ` — "${e.question}"` : ""}
+                    </li>
+                  ))}
+              </ol>
+              {myQueuePos > 0 && !hasFloor ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#fcd34d" }}>
+                  You are #{myQueuePos} in line.
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {room?.slide && (
             <div
@@ -608,10 +701,31 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button onClick={() => void toggleHand()} disabled={busy} title="Raise hand">
-              {me?.hand_raised ? "✋ Lower hand" : "✋ Raise hand"}
+            <button onClick={() => void toggleHand()} disabled={busy} title="Join or leave Q&A queue">
+              {hasFloor
+                ? "🎤 You're speaking"
+                : inQueue
+                  ? `✋ Leave queue (#${myQueuePos})`
+                  : "✋ Join Q&A queue"}
             </button>
-            <button onClick={() => void toggleMute()} disabled={busy}>
+            {hasFloor ? (
+              <button onClick={() => void finishTurn()} disabled={busy} style={{ background: "#059669", color: "#fff" }}>
+                Done speaking
+              </button>
+            ) : null}
+            {moderatorKey ? (
+              <>
+                <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
+                  Call next
+                </button>
+                {room?.floor_participant_id ? (
+                  <button onClick={() => void finishTurn()} disabled={busy}>
+                    End turn
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+            <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
             <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (host)">

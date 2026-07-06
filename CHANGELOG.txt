@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Salareen Live Room Q&A queue: structured turn-taking replaces ad-hoc
+  raise-hand. Learners join a speaking queue (optionally with a question preview),
+  see their position, and get the floor one at a time. Moderators Call next / End
+  turn; Theodore announces who is up. Ask while someone else is speaking enqueues
+  instead of interrupting. Web and mobile show the queue panel and floor holder.
+
 - 2026-07-06 - Salareen Live Room ban/block: educators who start a class receive a
   moderator_key to block troublesome learners (kick + identity ban), list blocked
   users, and unblock. Banned identities cannot rejoin (HTTP 403). Web live room

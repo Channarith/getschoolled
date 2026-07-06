@@ -63,14 +63,45 @@ def test_raise_hand_mute_and_chat():
         room_size=6,
     )
     learner = store.join("class-1", "Student")
-    store.toggle_hand("class-1", learner.id)
+    store.join_queue("class-1", learner.id, question="Why?")
     assert store.require("class-1").get_participant(learner.id).hand_raised is True
+    assert store.require("class-1").queue_position(learner.id) == 1
     store.set_mute("class-1", learner.id, muted=True, by_host=True, actor_id=AI_HOST_ID)
     with pytest.raises(LiveRoomError):
         store.post_chat("class-1", learner.id, "hello while muted")
     store.set_mute("class-1", learner.id, muted=False)
     msg = store.post_chat("class-1", learner.id, "Now I can speak")
     assert msg.text == "Now I can speak"
+
+
+def test_speaking_queue_turn_taking():
+    store = LiveRoomStore()
+    room = store.open_room(
+        room_id="class-q",
+        class_id="q",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Queue",
+        room_size=6,
+    )
+    mod = room.moderator_key
+    a = store.join("class-q", "Ada")
+    b = store.join("class-q", "Grace")
+    store.join_queue("class-q", a.id, question="First?")
+    store.join_queue("class-q", b.id, question="Second?")
+    assert store.require("class-q").queue_position(b.id) == 2
+    speaker = store.call_next("class-q", moderator_key=mod)
+    assert speaker.id == a.id
+    assert store.require("class-q").floor_participant_id == a.id
+    with pytest.raises(LiveRoomError):
+        store.call_next("class-q", moderator_key=mod)
+    store.finish_turn("class-q", a.id)
+    assert store.require("class-q").floor_participant_id == ""
+    speaker2 = store.call_next("class-q", moderator_key=mod)
+    assert speaker2.id == b.id
+    mode, entry = store.ask_when_ready("class-q", b.id, "What is a fraction?")
+    assert mode == "answered"
+    store.finish_turn("class-q", b.id)
 
 
 def test_recording_lifecycle():

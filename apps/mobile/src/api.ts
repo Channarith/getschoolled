@@ -339,6 +339,12 @@ export type LiveRoomState = {
   slide: { index: number; title: string; body: string; narration: string };
   recording: { status: string };
   banned?: { identity: string; name: string; reason: string }[];
+  speaking_queue?: {
+    id: string; participant_id: string; name: string; question: string;
+    status: string; position: number;
+  }[];
+  floor_participant_id?: string;
+  floor_holder?: { id: string; name: string } | null;
 };
 
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
@@ -377,9 +383,41 @@ export async function liveRoomChat(roomId: string, participantId: string, text: 
   return r.room;
 }
 
-export async function liveRoomRaiseHand(roomId: string, participantId: string): Promise<LiveRoomState> {
+export async function liveRoomRaiseHand(roomId: string, participantId: string, question = ""): Promise<LiveRoomState> {
   const r = await get<{ room: LiveRoomState }>(
     ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/raise-hand`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    });
+  return r.room;
+}
+
+export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-next`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
+export async function liveRoomFinishTurn(
+  roomId: string, participantId: string, moderatorKey = "",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/finish-turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
+export async function liveRoomLeaveQueue(roomId: string, participantId: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/leave`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ participant_id: participantId }),
@@ -387,14 +425,14 @@ export async function liveRoomRaiseHand(roomId: string, participantId: string): 
   return r.room;
 }
 
-export async function liveRoomAsk(roomId: string, participantId: string, question: string): Promise<LiveRoomState> {
-  const r = await get<{ room: LiveRoomState }>(
+export async function liveRoomAsk(roomId: string, participantId: string, question: string):
+  Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
+  return get(
     ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, question }),
     });
-  return r.room;
 }
 
 export async function liveRoomBan(

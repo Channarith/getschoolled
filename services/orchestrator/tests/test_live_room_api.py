@@ -47,7 +47,7 @@ def test_start_salareen_opens_live_room():
     assert body["slide"]["title"]
 
 
-def test_join_chat_raise_hand_flow():
+def test_join_chat_and_queue_flow():
     info = _start_salareen_class(4)
     joined = client.post(
         f"/api/live-rooms/{info['room_id']}/join",
@@ -57,18 +57,20 @@ def test_join_chat_raise_hand_flow():
     pid = joined.json()["participant"]["id"]
     assert joined.json()["media"]["token"]
 
-    chat = client.post(
-        f"/api/live-rooms/{info['room_id']}/chat",
-        json={"participant_id": pid, "text": "Hello Theodore!"},
-    )
-    assert chat.status_code == 200, chat.text
-
     hand = client.post(
-        f"/api/live-rooms/{info['room_id']}/raise-hand",
-        json={"participant_id": pid},
+        f"/api/live-rooms/{info['room_id']}/queue/join",
+        json={"participant_id": pid, "question": "Can you explain?"},
     )
     assert hand.status_code == 200, hand.text
-    assert hand.json()["participant"]["hand_raised"] is True
+    assert hand.json()["entry"]["position"] == 1
+
+    mod = info["started"]["bridge"]["moderator_key"]
+    called = client.post(
+        f"/api/live-rooms/{info['room_id']}/queue/call-next",
+        json={"moderator_key": mod},
+    )
+    assert called.status_code == 200, called.text
+    assert called.json()["speaker"]["id"] == pid
 
 
 def test_join_full_room_returns_409():
@@ -85,6 +87,29 @@ def test_join_full_room_returns_409():
         json={"name": "One too many", "identity": "overflow"},
     )
     assert full.status_code == 409
+
+
+def test_ask_queues_when_someone_else_speaking():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    a = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ada", "identity": "a1"},
+    ).json()["participant"]["id"]
+    b = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Grace", "identity": "b1"},
+    ).json()["participant"]["id"]
+    client.post(f"/api/live-rooms/{room_id}/queue/join", json={"participant_id": a, "question": "Q1"})
+    client.post(f"/api/live-rooms/{room_id}/queue/call-next", json={"moderator_key": mod})
+    queued = client.post(
+        f"/api/live-rooms/{room_id}/ask",
+        json={"participant_id": b, "question": "My turn?"},
+    )
+    assert queued.status_code == 200, queued.text
+    assert queued.json()["queued"] is True
+    assert queued.json()["queue_position"] == 1
 
 
 def test_advance_and_ask_in_room():
@@ -104,6 +129,7 @@ def test_advance_and_ask_in_room():
         json={"participant_id": pid, "question": "What is this lesson about?"},
     )
     assert asked.status_code == 200, asked.text
+    assert asked.json()["queued"] is False
     assert asked.json()["answer"]["text"]
     assert asked.json()["host_message"]["from_name"].startswith("Theodore")
 

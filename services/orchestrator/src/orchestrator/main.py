@@ -929,6 +929,17 @@ class LiveRoomMuteRequest(BaseModel):
 
 class LiveRoomHandRequest(BaseModel):
     participant_id: str
+    question: str = ""
+
+
+class LiveRoomQueueRequest(BaseModel):
+    participant_id: str
+    question: str = ""
+
+
+class LiveRoomTurnRequest(BaseModel):
+    participant_id: str = ""
+    moderator_key: str = ""
 
 
 class LiveRoomBanRequest(BaseModel):
@@ -1012,10 +1023,60 @@ def live_room_chat(room_id: str, req: LiveRoomChatRequest) -> dict:
 @app.post("/api/live-rooms/{room_id}/raise-hand")
 def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
     try:
-        p = _live_rooms().toggle_hand(room_id, req.participant_id)
+        p = _live_rooms().toggle_hand(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {
+        "participant": p.to_dict(),
+        "queue_position": room.queue_position(req.participant_id),
+        "room": room.to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/join")
+def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
+    try:
+        entry = _live_rooms().join_queue(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {"entry": entry.to_dict(), "room": room.to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/leave")
+def live_room_queue_leave(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        _live_rooms().leave_queue(room_id, req.participant_id)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
-    return {"participant": p.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+    return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/call-next")
+def live_room_call_next(room_id: str, req: LiveRoomTurnRequest) -> dict:
+    try:
+        speaker = _live_rooms().call_next(room_id, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "speaker": speaker.to_dict() if speaker else None,
+        "room": _live_rooms().require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/finish-turn")
+def live_room_finish_turn(room_id: str, req: LiveRoomTurnRequest) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        pid = req.participant_id or room.floor_participant_id
+        if not pid:
+            raise LiveRoomError("no one has the floor")
+        store.finish_turn(room_id, pid, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": store.require(room_id).to_dict()}
 
 
 @app.post("/api/live-rooms/{room_id}/mute")
@@ -1111,19 +1172,27 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
         raise _live_room_http_error(exc)
     sessions = get_sessions()
     try:
+        mode, entry = store.ask_when_ready(room_id, req.participant_id, req.question)
+        if mode == "queued":
+            return {
+                "queued": True,
+                "queue_position": entry.position if entry else 0,
+                "entry": entry.to_dict() if entry else None,
+                "room": store.require(room_id).to_dict(),
+            }
         store.post_chat(room_id, req.participant_id, req.question)
         answer = sessions.ask(room.session_id, req.question, language=req.language)
         host_msg = store.post_host_message(
             room_id,
             f"@{learner.name} {answer.text}",
         )
-        if learner.hand_raised:
-            store.toggle_hand(room_id, req.participant_id)
+        store.finish_turn(room_id, req.participant_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="teaching session not found")
     except LiveRoomError as exc:
         raise _live_room_http_error(exc)
     return {
+        "queued": False,
         "answer": answer.model_dump(),
         "host_message": asdict(host_msg),
         "room": store.require(room_id).to_dict(),
