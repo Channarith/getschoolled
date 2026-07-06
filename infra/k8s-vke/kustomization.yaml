@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: aoep
 resources:
   - ../k8s
+  - livekit-ingress-vke.yaml
 patches:
   - path: configmap-vke.yaml
   - path: ingress-vke.yaml

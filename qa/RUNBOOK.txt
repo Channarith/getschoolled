@@ -44,3 +44,6 @@ SELF-TESTS
    concurrency, functional-failure + 5xx detection, SLA evaluation) and
    qa/tests/test_live_room_chat_regression.py (Salareen live room Q&A queue,
    chat turn-taking, ban/block).
+
+LIVE ROOM MANUAL + MOBILE TESTING
+   Step-by-step laptop + mobile commands: docs/live-room-testing.txt

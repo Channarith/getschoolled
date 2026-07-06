@@ -1,0 +1,84 @@
+"""JSON serialization for Salareen live rooms (Redis / shared store)."""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from typing import Any, Dict, List
+
+from .live_room import (
+    BannedUser,
+    ChatMessage,
+    LiveRoom,
+    Participant,
+    QueueEntry,
+    RecordingState,
+    SlideSync,
+    UserReport,
+)
+
+
+def live_room_to_json(room: LiveRoom) -> str:
+  import json
+
+  return json.dumps(live_room_to_dict(room), separators=(",", ":"))
+
+
+def live_room_from_json(raw: str) -> LiveRoom:
+  import json
+
+  return live_room_from_dict(json.loads(raw))
+
+
+def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
+  return {
+      "room_id": room.room_id,
+      "class_id": room.class_id,
+      "session_id": room.session_id,
+      "lesson_id": room.lesson_id,
+      "title": room.title,
+      "room_size": room.room_size,
+      "participants": {k: asdict(v) for k, v in room.participants.items()},
+      "chat": [asdict(m) for m in room.chat],
+      "recording": asdict(room.recording),
+      "slide": asdict(room.slide),
+      "status": room.status,
+      "opened_at": room.opened_at,
+      "banned": {k: asdict(v) for k, v in room.banned.items()},
+      "moderator_key": room.moderator_key,
+      "speaking_queue": [asdict(e) for e in room.speaking_queue],
+      "floor_participant_id": room.floor_participant_id,
+      "reports": [asdict(r) for r in room.reports],
+  }
+
+
+def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
+  participants = {
+      k: Participant(**v) for k, v in (data.get("participants") or {}).items()
+  }
+  chat = [ChatMessage(**m) for m in (data.get("chat") or [])]
+  banned = {k: BannedUser(**v) for k, v in (data.get("banned") or {}).items()}
+  speaking_queue: List[QueueEntry] = [
+      QueueEntry(**e) for e in (data.get("speaking_queue") or [])
+  ]
+  reports = [UserReport(**r) for r in (data.get("reports") or [])]
+  recording = RecordingState(**(data.get("recording") or {}))
+  slide = SlideSync(**(data.get("slide") or {}))
+  return LiveRoom(
+      room_id=data["room_id"],
+      class_id=data["class_id"],
+      session_id=data["session_id"],
+      lesson_id=data["lesson_id"],
+      title=data.get("title") or "Live class",
+      room_size=int(data.get("room_size") or 6),
+      participants=participants,
+      chat=chat,
+      recording=recording,
+      slide=slide,
+      status=data.get("status") or "live",
+      opened_at=data.get("opened_at") or "",
+      banned=banned,
+      moderator_key=data.get("moderator_key") or "",
+      speaking_queue=speaking_queue,
+      floor_participant_id=data.get("floor_participant_id") or "",
+      reports=reports,
+  )

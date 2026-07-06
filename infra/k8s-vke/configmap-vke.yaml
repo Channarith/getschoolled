@@ -13,6 +13,8 @@ data:
   OBJECT_STORE_ENDPOINT: "https://<vultr-region>.vultrobjects.com"
   OBJECT_STORE_BUCKET: "salareen-prod"
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
+  # Live rooms + group classes share Redis across orchestrator replicas (VKE HPA).
+  # LIVE_ROOM_BACKEND=memory forces per-pod rooms (tests only).
   CURRICULUM_DIR: "/app/sample-curriculum"
   # Default admin seeding (identity). In-memory store re-seeds on every restart so
   # admin@salareen.com is usable out of the box; SEED_DEFAULT_ADMIN=0 disables it.

@@ -8,6 +8,8 @@ import {
   leaveLiveRoom,
   liveRoomBan,
   liveRoomUnban,
+  liveRoomReport,
+  liveRoomDismissReport,
   liveRoomAdvance,
   liveRoomAsk,
   liveRoomChat,
@@ -174,11 +176,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   const refresh = useCallback(async () => {
     try {
-      setRoom(await getLiveRoom(roomId));
+      const mod =
+        moderatorKey ||
+        sessionStorage.getItem(`${MODERATOR_STORAGE_KEY}:${roomId}`) ||
+        "";
+      setRoom(await getLiveRoom(roomId, mod));
     } catch (e) {
       setError(friendlyError(e, "Offline"));
     }
-  }, [roomId]);
+  }, [roomId, moderatorKey]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(`${ROOM_STORAGE_KEY}:${roomId}`);
@@ -418,6 +424,39 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
+  async function reportLearner(participantId: string, name: string) {
+    if (!me?.id) return;
+    const reason =
+      window.prompt(`Report ${name} — what happened? (required)`)?.trim() ?? "";
+    if (!reason) return;
+    const category =
+      window.prompt(
+        "Category: spam, harassment, inappropriate, disruptive, or other",
+        "other"
+      )?.trim().toLowerCase() || "other";
+    setBusy(true);
+    try {
+      await liveRoomReport(roomId, me.id, participantId, reason, category);
+      window.alert("Report submitted. A moderator will review it.");
+    } catch (e) {
+      setError(friendlyError(e, "Report failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dismissReport(reportId: string) {
+    if (!moderatorKey) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomDismissReport(roomId, reportId, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Dismiss failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (wasRemoved) {
     return (
       <main className="container" style={{ maxWidth: 480 }}>
@@ -562,6 +601,28 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     }}
                   >
                     Block
+                  </button>
+                ) : null}
+                {p.role !== "host" && p.id !== me?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => void reportLearner(p.id, p.name)}
+                    disabled={busy}
+                    title={`Report ${p.name}`}
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      left: 6,
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "rgba(245,158,11,0.9)",
+                      color: "#1c1917",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Report
                   </button>
                 ) : null}
               </div>
@@ -738,6 +799,52 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               Leave
             </button>
           </div>
+
+          {moderatorKey && (room?.reports?.length ?? 0) > 0 ? (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 10,
+                borderRadius: 10,
+                background: "rgba(245,158,11,0.12)",
+                border: "1px solid rgba(251,191,36,0.35)",
+                fontSize: 12,
+              }}
+            >
+              <strong style={{ color: "#fcd34d" }}>User reports</strong>
+              {(room?.reports ?? []).map((rep) => (
+                <div
+                  key={rep.id}
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 8,
+                    gap: 8,
+                  }}
+                >
+                  <span>
+                    <strong>{rep.reported_name}</strong> ({rep.category}) — {rep.reason}
+                    <br />
+                    <span style={{ opacity: 0.75 }}>from {rep.reporter_name}</span>
+                  </span>
+                  <span style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => void banLearner(rep.reported_participant_id, rep.reported_name)}
+                      disabled={busy}
+                    >
+                      Block
+                    </button>
+                    <button type="button" onClick={() => void dismissReport(rep.id)} disabled={busy}>
+                      Dismiss
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {moderatorKey && (room?.banned?.length ?? 0) > 0 ? (
             <div

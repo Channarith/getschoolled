@@ -15,7 +15,10 @@ What the VKE overlay changes
       www.salareen.com
       api.salareen.com
   - Sets Object Storage placeholders to Vultr Object Storage.
-  - Uses the in-cluster Redis service DNS.
+  - Uses the in-cluster Redis service DNS for teaching sessions, identity,
+    and Salareen live-room chat (shared across orchestrator replicas).
+  - Deploys LiveKit in-cluster (infra/k8s/livekit.yaml) with ingress at
+    livekit.salareen.com for WebRTC signaling (wss://).
   - Changes the LLM model PVC from ReadOnlyMany to ReadWriteOnce because Vultr
     block volumes are single-node attached.
   - Adds cert-manager ingress annotation for letsencrypt-prod.
@@ -155,6 +158,23 @@ Example:
 Repeat for:
   orchestrator, speech, perception, memory, curriculum, billing, integrations,
   identity, web, harvester.
+
+Salareen live rooms on VKE
+--------------------------
+Orchestrator runs 3+ replicas (HPA). Salareen live-room chat, Q&A queues, and
+moderation are stored in Redis when REDIS_URL is set (see configmap-vke.yaml).
+No ingress stickiness is required for /api/live-rooms/* — any pod can serve any
+room. Teaching sessions (/api/sessions) use the same Redis store.
+
+LiveKit (WebRTC media) ships in-cluster:
+  - Deployment: livekit (signal :7880, rtc-tcp :7881)
+  - Public URL: wss://livekit.salareen.com (ingress livekit-ingress-vke.yaml)
+  - DNS: A/CNAME livekit.salareen.com -> the same Vultr LoadBalancer as salareen.com
+  - LIVEKIT_API_KEY / LIVEKIT_API_SECRET in aoep-secrets must match the keys in
+    livekit-config ConfigMap (default devkey/devsecret — rotate both together).
+
+For larger concurrent rooms, consider a dedicated UDP LoadBalancer or hostNetwork
+for LiveKit RTC ports; TCP fallback on 7881 works through ingress for small demos.
 
 Render manifests
 ----------------

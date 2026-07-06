@@ -138,6 +138,9 @@ Public unless noted. The teaching loop the web app drives.
   POST /api/live-rooms/{id}/mute {participant_id,muted,by_host?,moderator_key?}
   POST /api/live-rooms/{id}/ban {participant_id,moderator_key,reason?}
   POST /api/live-rooms/{id}/unban {identity,moderator_key}
+  POST /api/live-rooms/{id}/report {reporter_participant_id,reported_participant_id,reason,category?}
+  POST /api/live-rooms/{id}/reports/dismiss {report_id,moderator_key}
+  GET  /api/live-rooms/{id}?moderator_key=…  (includes open reports for educators)
   POST /api/live-rooms/{id}/ask {participant_id,question,language?}
   POST /api/live-rooms/{id}/advance              AI host next slide (broadcast)
   POST /api/live-rooms/{id}/record/start

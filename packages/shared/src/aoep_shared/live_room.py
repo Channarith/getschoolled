@@ -13,7 +13,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .live_room_backend import LiveRoomBackend
 
 ROOM_SIZES: tuple = (4, 6, 9)
 AI_HOST_ID = "theodore-ai"
@@ -28,6 +31,10 @@ RECORDING_STOPPED = "stopped"
 QUEUE_WAITING = "waiting"
 QUEUE_SPEAKING = "speaking"
 QUEUE_DONE = "done"
+
+REPORT_CATEGORIES: tuple = ("spam", "harassment", "inappropriate", "disruptive", "other")
+REPORT_OPEN = "open"
+REPORT_DISMISSED = "dismissed"
 
 
 @dataclass
@@ -54,6 +61,7 @@ class QueueEntry:
     def to_dict(self) -> dict:
         return asdict(self)
 
+
 class LiveRoomError(ValueError):
     """Invalid live-room request (maps to HTTP 400)."""
 
@@ -68,6 +76,39 @@ class NotInRoomError(LiveRoomError):
 
 class BannedError(LiveRoomError):
     """Identity is banned from this room."""
+
+
+@dataclass
+class UserReport:
+    """Learner flag that a participant is behaving badly (moderator reviews)."""
+
+    id: str
+    reporter_participant_id: str
+    reporter_name: str
+    reported_participant_id: str
+    reported_name: str
+    reported_identity: str
+    category: str = "other"
+    reason: str = ""
+    status: str = REPORT_OPEN
+    reported_at: str = ""
+
+    def __post_init__(self) -> None:
+        self.category = (self.category or "other").strip().lower()
+        if self.category not in REPORT_CATEGORIES:
+            raise LiveRoomError(
+                f"report category must be one of {', '.join(REPORT_CATEGORIES)}"
+            )
+        self.reason = (self.reason or "").strip()
+        if not self.reason:
+            raise LiveRoomError("report reason is required")
+        if not self.reported_at:
+            self.reported_at = _ts()
+        if self.status not in (REPORT_OPEN, REPORT_DISMISSED):
+            raise LiveRoomError(f"invalid report status {self.status!r}")
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
@@ -198,6 +239,7 @@ class LiveRoom:
     moderator_key: str = ""
     speaking_queue: List[QueueEntry] = field(default_factory=list)
     floor_participant_id: str = ""
+    reports: List[UserReport] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -274,6 +316,16 @@ class LiveRoom:
     def banned_list(self) -> List[BannedUser]:
         return list(self.banned.values())
 
+    def open_reports(self) -> List[UserReport]:
+        return [r for r in self.reports if r.status == REPORT_OPEN]
+
+    def report_count_for(self, participant_id: str) -> int:
+        return sum(
+            1
+            for r in self.open_reports()
+            if r.reported_participant_id == participant_id
+        )
+
     def to_dict(self) -> dict:
         return {
             "room_id": self.room_id,
@@ -302,9 +354,10 @@ class LiveRoom:
         }
 
     def to_moderator_dict(self) -> dict:
-        """Full room state plus moderator_key (educator/operator only)."""
+        """Full room state plus moderator_key and user reports (educator only)."""
         d = self.to_dict()
         d["moderator_key"] = self.moderator_key
+        d["reports"] = [r.to_dict() for r in self.open_reports()]
         return d
 
     def verify_moderator(self, key: str) -> None:
@@ -313,10 +366,25 @@ class LiveRoom:
 
 
 class LiveRoomStore:
-    """Process-local registry of active Salareen live rooms."""
+    """Registry of active Salareen live rooms.
 
-    def __init__(self) -> None:
-        self._rooms: Dict[str, LiveRoom] = {}
+    Uses an in-memory dict locally; on Vultr VKE (``REDIS_URL`` set) rooms are
+    stored in Redis so every orchestrator replica serves the same chat session.
+    """
+
+    def __init__(self, backend: Optional["LiveRoomBackend"] = None) -> None:
+        if backend is None:
+            from .live_room_backend import build_live_room_backend
+
+            backend = build_live_room_backend()
+        self._backend = backend
+
+    @property
+    def backend_name(self) -> str:
+        return self._backend.name
+
+    def _commit(self, room: LiveRoom) -> None:
+        self._backend.save(room)
 
     def open_room(
         self,
@@ -331,8 +399,9 @@ class LiveRoomStore:
         slide_body: str = "",
         slide_narration: str = "",
     ) -> LiveRoom:
-        if room_id in self._rooms:
-            return self._rooms[room_id]
+        existing = self._backend.get(room_id)
+        if existing is not None:
+            return existing
         room = LiveRoom(
             room_id=room_id,
             class_id=class_id,
@@ -355,14 +424,14 @@ class LiveRoomStore:
             ),
         )
         room.chat.append(welcome)
-        self._rooms[room_id] = room
+        self._commit(room)
         return room
 
     def get(self, room_id: str) -> Optional[LiveRoom]:
-        return self._rooms.get(room_id)
+        return self._backend.get(room_id)
 
     def require(self, room_id: str) -> LiveRoom:
-        room = self._rooms.get(room_id)
+        room = self._backend.get(room_id)
         if room is None:
             raise KeyError(room_id)
         return room
@@ -395,6 +464,7 @@ class LiveRoomStore:
             text=f"{name} joined the class.",
         )
         room.chat.append(join_msg)
+        self._commit(room)
         return participant
 
     def leave(self, room_id: str, participant_id: str) -> None:
@@ -413,6 +483,7 @@ class LiveRoomStore:
                 text=f"{name} left the class.",
             )
         )
+        self._commit(room)
 
     def post_chat(self, room_id: str, participant_id: str, text: str) -> ChatMessage:
         room = self.require(room_id)
@@ -430,6 +501,7 @@ class LiveRoomStore:
             text=text,
         )
         room.chat.append(msg)
+        self._commit(room)
         return msg
 
     def post_host_message(self, room_id: str, text: str) -> ChatMessage:
@@ -442,6 +514,7 @@ class LiveRoomStore:
             text=text,
         )
         room.chat.append(msg)
+        self._commit(room)
         return msg
 
     def _remove_from_queue(self, room_id: str, participant_id: str) -> None:
@@ -526,6 +599,7 @@ class LiveRoomStore:
                 text=f"✋ {p.name} joined the Q&A queue (#{pos}){q_preview}.",
             )
         )
+        self._commit(room)
         return entry
 
     def leave_queue(self, room_id: str, participant_id: str) -> None:
@@ -545,6 +619,7 @@ class LiveRoomStore:
                 text=f"{p.name} left the Q&A queue.",
             )
         )
+        self._commit(room)
 
     def call_next(self, room_id: str, *, moderator_key: str = "") -> Optional[Participant]:
         """Give the floor to the next learner in the Q&A queue."""
@@ -570,6 +645,7 @@ class LiveRoomStore:
                 ),
             )
         )
+        self._commit(room)
         return speaker
 
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
@@ -599,6 +675,7 @@ class LiveRoomStore:
             )
         )
         room._reindex_waiting()
+        self._commit(room)
 
     def toggle_hand(self, room_id: str, participant_id: str, *, question: str = "") -> Participant:
         """Toggle Q&A queue membership (raise hand / leave queue)."""
@@ -628,6 +705,7 @@ class LiveRoomStore:
         if not q:
             raise LiveRoomError("question is required")
         if room.floor_participant_id == participant_id:
+            self._commit(room)
             return "answered", None
         if not room.floor_participant_id and not room.waiting_queue():
             self._grant_floor(room, participant_id)
@@ -644,9 +722,73 @@ class LiveRoomStore:
             elif entry.status == QUEUE_WAITING:
                 entry.status = QUEUE_SPEAKING
                 entry.question = q
+            self._commit(room)
             return "answered", None
         entry = self.join_queue(room_id, participant_id, question=q)
         return "queued", entry
+
+    def report_participant(
+        self,
+        room_id: str,
+        reporter_participant_id: str,
+        reported_participant_id: str,
+        *,
+        reason: str,
+        category: str = "other",
+    ) -> UserReport:
+        """Learner flags another participant for moderator review."""
+        room = self.require(room_id)
+        reporter = room.get_participant(reporter_participant_id)
+        if reporter.is_host:
+            raise LiveRoomError("the host does not file learner reports")
+        target = room.get_participant(reported_participant_id)
+        if target.is_host:
+            raise LiveRoomError("cannot report the AI host")
+        if reporter_participant_id == reported_participant_id:
+            raise LiveRoomError("cannot report yourself")
+        if room.is_banned(reporter.identity):
+            raise BannedError("you are blocked from this room")
+        for existing in room.reports:
+            if (
+                existing.status == REPORT_OPEN
+                and existing.reporter_participant_id == reporter_participant_id
+                and existing.reported_participant_id == reported_participant_id
+            ):
+                existing.category = (category or "other").strip().lower()
+                existing.reason = (reason or "").strip()
+                existing.reported_at = _ts()
+                self._commit(room)
+                return existing
+        report = UserReport(
+            id=uuid.uuid4().hex[:10],
+            reporter_participant_id=reporter.id,
+            reporter_name=reporter.name,
+            reported_participant_id=target.id,
+            reported_name=target.name,
+            reported_identity=target.identity,
+            category=category,
+            reason=reason,
+        )
+        room.reports.append(report)
+        self._commit(room)
+        return report
+
+    def dismiss_report(
+        self,
+        room_id: str,
+        report_id: str,
+        *,
+        moderator_key: str = "",
+    ) -> UserReport:
+        """Moderator clears a report without banning."""
+        room = self.require(room_id)
+        room.verify_moderator(moderator_key)
+        for report in room.reports:
+            if report.id == report_id and report.status == REPORT_OPEN:
+                report.status = REPORT_DISMISSED
+                self._commit(room)
+                return report
+        raise LiveRoomError("report not found or already reviewed")
 
     def set_mute(
         self,
@@ -677,6 +819,7 @@ class LiveRoomStore:
             target.muted = muted
             if not muted:
                 target.muted_by_host = False
+        self._commit(room)
         return target
 
     def ban_participant(
@@ -712,6 +855,7 @@ class LiveRoomStore:
                 text=f"🚫 {name} was blocked from this class.",
             )
         )
+        self._commit(room)
         return entry
 
     def unban(self, room_id: str, identity: str, *, actor_id: str = "", moderator_key: str = "") -> None:
@@ -730,6 +874,7 @@ class LiveRoomStore:
                 text=f"✅ {entry.name} may rejoin the class.",
             )
         )
+        self._commit(room)
 
     def update_slide(
         self,
@@ -742,6 +887,7 @@ class LiveRoomStore:
     ) -> SlideSync:
         room = self.require(room_id)
         room.slide = SlideSync(index=index, title=title, body=body, narration=narration)
+        self._commit(room)
         return room.slide
 
     def start_recording(self, room_id: str) -> RecordingState:
@@ -763,12 +909,14 @@ class LiveRoomStore:
                 text="🔴 Recording started.",
             )
         )
+        self._commit(room)
         return room.recording
 
     def stop_recording(self, room_id: str) -> RecordingState:
         room = self.require(room_id)
         if room.recording.status != RECORDING_ACTIVE:
             room.recording.status = RECORDING_STOPPED
+            self._commit(room)
             return room.recording
         room.recording.status = RECORDING_STOPPED
         room.recording.stopped_at = _ts()
@@ -783,6 +931,7 @@ class LiveRoomStore:
                 text="⏹ Recording stopped and queued for storage.",
             )
         )
+        self._commit(room)
         return room.recording
 
     def end_room(self, room_id: str) -> LiveRoom:
@@ -798,4 +947,5 @@ class LiveRoomStore:
                 text="Class dismissed. Great work today — see you next time!",
             )
         )
+        self._commit(room)
         return room

@@ -37,3 +37,5 @@ if _agent_src.is_dir() and str(_agent_src) not in sys.path:
 os.environ.setdefault("RATE_LIMIT_DISABLED", "1")
 os.environ.setdefault("INTERNAL_AUTH_DISABLED", "1")
 os.environ.setdefault("SESSION_BACKEND", "memory")
+os.environ.setdefault("LIVE_ROOM_BACKEND", "memory")
+os.environ.setdefault("GROUP_CLASS_BACKEND", "memory")

@@ -152,7 +152,8 @@ Run against a deployed/built stack; capture a screenshot/clip per row.
   - AI teacher awards points on a good question
   - Group class: schedule (Zoom/Teams/Meet/Salareen) -> register -> start
   - Salareen live room: join grid -> Q&A queue -> call next -> ask Theodore ->
-    finish turn; moderator block/unblock smoke
+    finish turn; learner Report bad user; moderator dismiss/block smoke
+  - Full local commands: docs/live-room-testing.txt
   - Careers: live jobs + course match + View/Apply
   - Drive Mode audio (web + mobile), correct language/voice
   - Arcade games + Rewards redeem

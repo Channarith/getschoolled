@@ -1,0 +1,255 @@
+SALAREEN LIVE ROOM — LOCAL TESTING GUIDE
+========================================
+Plain text (repo convention). How to run and exercise live-room chat, Q&A
+turn-taking, user reports, and moderator ban/block on your laptop and on mobile.
+
+WHAT YOU ARE TESTING
+--------------------
+  - Group class platform "Salareen" (built-in grid room, not Zoom/Teams)
+  - HTTP chat + Q&A speaking queue (Theodore AI host answers via /ask)
+  - Learner "Report" on bad actors; educator "Block" / "Dismiss report"
+  - Routes: /group-classes (schedule) -> /live-room/{roomId} (grid + chat)
+
+BACKEND NEEDS (minimum)
+-----------------------
+  Only the orchestrator is required for live-room chat (port 8000).
+  Identity / memory / Redis are optional for this flow (in-memory room state
+  on a single laptop process is fine).
+
+============================================================================
+A. ONE-TIME SETUP (repo root)
+============================================================================
+
+  cd /path/to/getschoolled
+  make install                 # Python venv + editable packages
+  cd apps/web && pnpm install  # Next.js deps
+
+============================================================================
+B. LAPTOP — START SERVICES
+============================================================================
+
+Option 1 — orchestrator + web only (fastest for live-room work)
+---------------------------------------------------------------
+  Terminal 1 (orchestrator API):
+    cd /path/to/getschoolled
+    . .venv/bin/activate
+    make run-orchestrator
+    # listens on http://localhost:8000
+
+  Terminal 2 (web UI):
+    cd /path/to/getschoolled/apps/web
+    pnpm run dev
+    # listens on http://localhost:3000
+
+  Sanity check:
+    curl -s http://localhost:8000/health
+    curl -s http://localhost:8000/api/lessons | head -c 200
+
+Option 2 — full local stack (all backends + web)
+------------------------------------------------
+    cd /path/to/getschoolled
+    make dev-all
+    # orchestrator :8000, web :3000, logs under ./logs/
+    make dev-status   # see what is up
+
+Option 3 — Docker Compose (includes Redis + LiveKit; needs Docker)
+------------------------------------------------------------------
+    cd /path/to/getschoolled
+    docker compose -f infra/compose/docker-compose.yml up orchestrator web redis
+    # web still http://localhost:3000, orchestrator http://localhost:8000
+
+============================================================================
+C. LAPTOP — MANUAL GUI TEST (two browsers)
+============================================================================
+
+Educator / moderator (browser A)
+--------------------------------
+  1. Open http://localhost:3000/group-classes
+  2. Schedule a class:
+       Platform: Salareen
+       Room size: 4, 6, or 9
+       Pick any lesson + future start time
+  3. Click "Start & join" on that class.
+       - Opens /live-room/class-{id}
+       - sessionStorage stores moderator_key (educator controls)
+  4. Enter your display name and Join.
+  5. As moderator you can:
+       - Call next / End turn (Q&A queue)
+       - Block / Unblock learners
+       - Review User reports panel (after a learner reports someone)
+       - Dismiss report or Block from the report row
+
+Learner (browser B — incognito or other browser)
+------------------------------------------------
+  1. Open http://localhost:3000/group-classes
+  2. Find the same class -> Join (or copy the live-room URL from browser A).
+  3. Join with a different name.
+  4. Exercise:
+       - Join Q&A queue -> wait for moderator Call next
+       - Chat / Ask Theodore while you have the floor
+       - Report another learner: amber "Report" on their tile
+       - Confirm you cannot chat while someone else has the floor
+
+Quick URLs
+----------
+  Group classes UI:  http://localhost:3000/group-classes
+  Live room direct:  http://localhost:3000/live-room/class-{classId}
+  API room state:    http://localhost:8000/api/live-rooms/class-{classId}
+
+============================================================================
+D. LAPTOP — AUTOMATED TESTS (no browser)
+============================================================================
+
+From repo root with venv active:
+
+  # Golden-path regression (schedule -> queue -> ask -> ban)
+  . .venv/bin/activate
+  PYTHONPATH=services/orchestrator/src python3 -m pytest \
+    qa/tests/test_live_room_chat_regression.py -v
+
+  # Orchestrator HTTP API suite (join, queue, report, ban, …)
+  python3 -m pytest services/orchestrator/tests/test_live_room_api.py -v
+
+  # Shared library unit tests
+  python3 -m pytest packages/shared/tests/test_live_room.py -v
+
+  # All live-room-related tests together
+  python3 -m pytest \
+    packages/shared/tests/test_live_room.py \
+    packages/shared/tests/test_live_room_redis.py \
+    services/orchestrator/tests/test_live_room_api.py \
+    qa/tests/test_live_room_chat_regression.py -q
+
+  # Full backend gate (includes qa/tests)
+  make test
+
+  # Stress smoke (orchestrator must be running on :8000)
+  python3 qa/stress.py --smoke --orchestrator-url http://localhost:8000
+
+============================================================================
+E. LAPTOP — CURL SMOKE (API only)
+============================================================================
+
+  ORCH=http://localhost:8000
+  LESSON=$(curl -s $ORCH/api/lessons | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['lesson_id'])")
+  START=$(date -u -d '+15 minutes' +%Y-%m-%dT%H:%M:%S+00:00 2>/dev/null || date -u -v+15M +%Y-%m-%dT%H:%M:%S+00:00)
+
+  CID=$(curl -s -X POST $ORCH/api/group-classes -H 'content-type: application/json' \
+    -d "{\"title\":\"curl-live\",\"lesson_id\":\"$LESSON\",\"platform\":\"salareen\",\"room_size\":6,\"capacity\":5,\"start_time\":\"$START\"}" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+  BRIDGE=$(curl -s -X POST $ORCH/api/group-classes/$CID/start)
+  ROOM=$(echo "$BRIDGE" | python3 -c "import sys,json; print(json.load(sys.stdin)['bridge']['livekit_room'])")
+  MOD=$(echo "$BRIDGE" | python3 -c "import sys,json; print(json.load(sys.stdin)['bridge']['moderator_key'])")
+
+  A=$(curl -s -X POST $ORCH/api/live-rooms/$ROOM/join -H 'content-type: application/json' \
+    -d '{"name":"Ada","identity":"curl-ada"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['participant']['id'])")
+  B=$(curl -s -X POST $ORCH/api/live-rooms/$ROOM/join -H 'content-type: application/json' \
+    -d '{"name":"Bob","identity":"curl-bob"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['participant']['id'])")
+
+  curl -s -X POST $ORCH/api/live-rooms/$ROOM/report -H 'content-type: application/json' \
+    -d "{\"reporter_participant_id\":\"$A\",\"reported_participant_id\":\"$B\",\"reason\":\"spam test\",\"category\":\"spam\"}"
+
+  curl -s "$ORCH/api/live-rooms/$ROOM?moderator_key=$MOD" | python3 -m json.tool | head -40
+
+============================================================================
+F. MOBILE — LOCAL DEV (simulator / emulator)
+============================================================================
+
+Prerequisites on your Mac (see apps/mobile/RUN.txt for full detail):
+  - Xcode + iOS Simulator, OR Android Studio + AVD
+  - pnpm in apps/mobile
+
+1) Start orchestrator on the host (same machine as simulator):
+     cd /path/to/getschoolled
+     make run-orchestrator
+
+2) Point the app at local backends (IMPORTANT — default is cloud/salareen.com):
+     cd apps/mobile
+     MOBILE_DEPLOY_MODE=local pnpm run ios:debug
+     # Android emulator:
+     MOBILE_DEPLOY_MODE=local pnpm run android:debug
+
+   URL resolution (apps/mobile/src/config.ts):
+     - iOS Simulator:  http://localhost:8000
+     - Android emu:    http://10.0.2.2:8000
+
+3) In the app:
+     - Open Group Classes tab
+     - Schedule / start a Salareen class (same flow as web)
+     - Live Room screen: join, chat, Q&A queue, Report, Block (if moderator)
+
+4) Verify backend reachability:
+     cd apps/mobile && bash scripts/mobile-check-backends.sh
+
+============================================================================
+G. MOBILE — PHYSICAL DEVICE (phone on same Wi‑Fi)
+============================================================================
+
+localhost does NOT work on a real phone. Use your laptop's LAN IP:
+
+  1. Find IP:  ipconfig getifaddr en0   (macOS Wi‑Fi)  or  hostname -I
+  2. Start orchestrator bound to all interfaces (default run script uses 0.0.0.0).
+  3. Edit apps/mobile/app.json -> expo.extra (or use env at build time):
+       "deployMode": "local",
+       "orchestratorUrl": "http://192.168.1.42:8000",
+       "curriculumUrl": "http://192.168.1.42:8005",
+       "identityUrl": "http://192.168.1.42:8008",
+       "memoryUrl": "http://192.168.1.42:8004"
+     Replace 192.168.1.42 with your machine IP.
+  4. Rebuild the dev client:
+       cd apps/mobile
+       MOBILE_DEPLOY_MODE=local pnpm run ios:debug
+  5. Allow firewall access to ports 8000 (and 8081 Metro) on the laptop.
+
+============================================================================
+H. MOBILE / WEB — TEST AGAINST VULTR (staging/production)
+============================================================================
+
+  Web:  https://www.salareen.com/group-classes  (or your VKE host)
+
+  Mobile (default app.json deployMode=cloud):
+     cd apps/mobile
+     pnpm run ios:debug
+     # hits https://www.salareen.com for orchestrator paths
+
+  Override cloud host:
+     MOBILE_CLOUD_BASE_URL=https://www.salareen.com MOBILE_DEPLOY_MODE=cloud \
+       pnpm run ios:debug
+
+============================================================================
+I. FEATURE CHECKLIST (manual sign-off)
+============================================================================
+
+  [ ] Schedule Salareen class (room size 4 / 6 / 9)
+  [ ] Educator Start & join -> moderator controls visible
+  [ ] Two+ learners join grid
+  [ ] Q&A queue: join -> Call next -> Ask Theodore -> floor releases
+  [ ] Chat blocked while another learner has the floor
+  [ ] Learner Report -> moderator sees User reports panel
+  [ ] Moderator Dismiss report OR Block user
+  [ ] Blocked user gets 403 on rejoin
+  [ ] Automated: qa/tests/test_live_room_chat_regression.py passes
+
+============================================================================
+J. TROUBLESHOOTING
+============================================================================
+
+  Web shows "Offline" / API errors
+    - orchestrator not running on :8000
+    - NEXT_PUBLIC_ORCHESTRATOR_URL should be http://localhost:8000 (config/local.env)
+
+  Mobile cannot reach API
+    - Forgot MOBILE_DEPLOY_MODE=local (still pointing at salareen.com)
+    - Android: must use 10.0.2.2, not localhost
+    - Physical device: need LAN IP in app.json extra.orchestratorUrl
+
+  Room state differs between tabs (only if running multiple orchestrator replicas
+  without Redis). On a laptop single process, state is shared in memory.
+
+  pytest import errors for qa/tests
+    - Run from repo root with venv active; qa/tests/conftest.py sets paths.
+
+  More mobile detail: apps/mobile/RUN.txt
+  Release smoke matrix: docs/release-testing.txt (section 5)
+  API reference: docs/api-reference.txt (/api/live-rooms/*)

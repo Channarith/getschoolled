@@ -345,6 +345,14 @@ export type LiveRoomState = {
   }[];
   floor_participant_id?: string;
   floor_holder?: { id: string; name: string } | null;
+  reports?: {
+    id: string;
+    reporter_name: string;
+    reported_participant_id: string;
+    reported_name: string;
+    category: string;
+    reason: string;
+  }[];
 };
 
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
@@ -360,8 +368,11 @@ export async function startGroupClass(classId: string): Promise<{ class: GroupCl
   });
 }
 
-export async function getLiveRoom(roomId: string): Promise<LiveRoomState> {
-  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}`);
+export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const q = moderatorKey
+    ? `?moderator_key=${encodeURIComponent(moderatorKey)}`
+    : "";
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}${q}`);
 }
 
 export async function joinLiveRoom(roomId: string, name: string, identity = ""):
@@ -461,5 +472,43 @@ export async function liveRoomUnban(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ identity, moderator_key: moderatorKey }),
     });
+  return r.room;
+}
+
+export async function liveRoomReport(
+  roomId: string,
+  reporterParticipantId: string,
+  reportedParticipantId: string,
+  reason: string,
+  category = "other",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        reporter_participant_id: reporterParticipantId,
+        reported_participant_id: reportedParticipantId,
+        reason,
+        category,
+      }),
+    });
+  return r.room;
+}
+
+export async function liveRoomDismissReport(
+  roomId: string,
+  reportId: string,
+  moderatorKey: string,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL,
+    `/api/live-rooms/${encodeURIComponent(roomId)}/reports/dismiss`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ report_id: reportId, moderator_key: moderatorKey }),
+    },
+  );
   return r.room;
 }

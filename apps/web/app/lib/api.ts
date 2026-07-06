@@ -1246,6 +1246,18 @@ export type LiveRoomState = {
   }[];
   floor_participant_id?: string;
   floor_holder?: LiveParticipant | null;
+  reports?: {
+    id: string;
+    reporter_participant_id: string;
+    reporter_name: string;
+    reported_participant_id: string;
+    reported_name: string;
+    reported_identity: string;
+    category: string;
+    reason: string;
+    status: string;
+    reported_at: string;
+  }[];
 };
 
 export type LiveRoomJoin = {
@@ -1254,9 +1266,14 @@ export type LiveRoomJoin = {
   media: { room: string; identity: string; token: string; url: string };
 };
 
-export async function getLiveRoom(roomId: string): Promise<LiveRoomState> {
+export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const q = moderatorKey
+    ? `?moderator_key=${encodeURIComponent(moderatorKey)}`
+    : "";
   return jsonOrThrow(
-    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}`, { cache: "no-store" })
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}${q}`, {
+      cache: "no-store",
+    })
   );
 }
 
@@ -1411,6 +1428,46 @@ export async function liveRoomUnban(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ identity, moderator_key: moderatorKey }),
     })
+  );
+  return r.room;
+}
+
+export async function liveRoomReport(
+  roomId: string,
+  reporterParticipantId: string,
+  reportedParticipantId: string,
+  reason: string,
+  category = "other"
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        reporter_participant_id: reporterParticipantId,
+        reported_participant_id: reportedParticipantId,
+        reason,
+        category,
+      }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomDismissReport(
+  roomId: string,
+  reportId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/reports/dismiss`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ report_id: reportId, moderator_key: moderatorKey }),
+      }
+    )
   );
   return r.room;
 }
