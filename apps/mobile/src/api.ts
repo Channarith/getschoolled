@@ -338,6 +338,7 @@ export type LiveRoomState = {
   chat: { id: string; from_name: string; text: string }[];
   slide: { index: number; title: string; body: string; narration: string };
   recording: { status: string };
+  banned?: { identity: string; name: string; reason: string }[];
 };
 
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
@@ -346,7 +347,7 @@ export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]
   return r.classes;
 }
 
-export async function startGroupClass(classId: string): Promise<{ class: GroupClassRow; bridge: { livekit_room: string; live_room_id?: string } }> {
+export async function startGroupClass(classId: string): Promise<{ class: GroupClassRow; bridge: { livekit_room: string; live_room_id?: string; moderator_key?: string } }> {
   return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/start`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -392,6 +393,35 @@ export async function liveRoomAsk(roomId: string, participantId: string, questio
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ participant_id: participantId, question }),
+    });
+  return r.room;
+}
+
+export async function liveRoomBan(
+  roomId: string,
+  participantId: string,
+  moderatorKey: string,
+  reason = "",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/ban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey, reason }),
+    });
+  return r.room;
+}
+
+export async function liveRoomUnban(
+  roomId: string,
+  identity: string,
+  moderatorKey: string,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/unban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity, moderator_key: moderatorKey }),
     });
   return r.room;
 }

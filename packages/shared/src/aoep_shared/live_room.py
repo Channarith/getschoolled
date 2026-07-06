@@ -38,6 +38,30 @@ class NotInRoomError(LiveRoomError):
     """Participant is not in this room."""
 
 
+class BannedError(LiveRoomError):
+    """Identity is banned from this room."""
+
+
+@dataclass
+class BannedUser:
+    identity: str
+    name: str
+    reason: str = ""
+    banned_at: str = ""
+    banned_by: str = AI_HOST_NAME
+
+    def __post_init__(self) -> None:
+        self.identity = (self.identity or "").strip()
+        self.name = (self.name or "").strip() or self.identity
+        self.reason = (self.reason or "").strip()
+        if not self.identity:
+            raise LiveRoomError("banned identity is required")
+        if not self.banned_at:
+            self.banned_at = _ts()
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -142,12 +166,16 @@ class LiveRoom:
     slide: SlideSync = field(default_factory=SlideSync)
     status: str = "live"
     opened_at: str = ""
+    banned: Dict[str, BannedUser] = field(default_factory=dict)
+    moderator_key: str = ""
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
         self.title = (self.title or "").strip() or "Live class"
         if not self.opened_at:
             self.opened_at = _ts()
+        if not self.moderator_key:
+            self.moderator_key = uuid.uuid4().hex[:16]
 
     @property
     def learner_count(self) -> int:
@@ -176,6 +204,13 @@ class LiveRoom:
     def raised_hands(self) -> List[Participant]:
         return [p for p in self.participants.values() if p.hand_raised and not p.is_host]
 
+    def is_banned(self, identity: str) -> bool:
+        ident = (identity or "").strip()
+        return bool(ident and ident in self.banned)
+
+    def banned_list(self) -> List[BannedUser]:
+        return list(self.banned.values())
+
     def to_dict(self) -> dict:
         return {
             "room_id": self.room_id,
@@ -195,7 +230,18 @@ class LiveRoom:
             "recording": self.recording.to_dict(),
             "slide": self.slide.to_dict(),
             "raised_hands": [p.to_dict() for p in self.raised_hands()],
+            "banned": [b.to_dict() for b in self.banned_list()],
         }
+
+    def to_moderator_dict(self) -> dict:
+        """Full room state plus moderator_key (educator/operator only)."""
+        d = self.to_dict()
+        d["moderator_key"] = self.moderator_key
+        return d
+
+    def verify_moderator(self, key: str) -> None:
+        if not key or key != self.moderator_key:
+            raise LiveRoomError("invalid moderator key")
 
 
 class LiveRoomStore:
@@ -258,6 +304,10 @@ class LiveRoomStore:
         if room.status != "live":
             raise LiveRoomError("this room is not live")
         ident = (identity or "").strip() or f"learner-{uuid.uuid4().hex[:8]}"
+        if room.is_banned(ident):
+            banned = room.banned[ident]
+            detail = banned.reason or "You have been removed from this class."
+            raise BannedError(detail)
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
                 return p
@@ -298,6 +348,8 @@ class LiveRoomStore:
     def post_chat(self, room_id: str, participant_id: str, text: str) -> ChatMessage:
         room = self.require(room_id)
         p = room.get_participant(participant_id)
+        if room.is_banned(p.identity):
+            raise BannedError("you are blocked from this room")
         if p.muted or p.muted_by_host:
             raise LiveRoomError("you are muted and cannot chat")
         msg = ChatMessage(
@@ -346,15 +398,19 @@ class LiveRoomStore:
         muted: bool,
         by_host: bool = False,
         actor_id: str = "",
+        moderator_key: str = "",
     ) -> Participant:
         room = self.require(room_id)
         target = room.get_participant(participant_id)
         if target.is_host:
             raise LiveRoomError("cannot mute the AI host")
         if by_host:
-            actor = room.get_participant(actor_id) if actor_id else room.host()
-            if not actor.is_host:
-                raise LiveRoomError("only the host can mute learners")
+            if moderator_key:
+                room.verify_moderator(moderator_key)
+            else:
+                actor = room.get_participant(actor_id) if actor_id else room.host()
+                if not actor.is_host:
+                    raise LiveRoomError("only the host can mute learners")
             target.muted_by_host = muted
             target.muted = muted or target.muted
         else:
@@ -364,6 +420,57 @@ class LiveRoomStore:
             if not muted:
                 target.muted_by_host = False
         return target
+
+    def ban_participant(
+        self,
+        room_id: str,
+        participant_id: str,
+        *,
+        actor_id: str = "",
+        reason: str = "",
+        moderator_key: str = "",
+    ) -> BannedUser:
+        """Remove a learner and block their identity from rejoining (moderator only)."""
+        room = self.require(room_id)
+        room.verify_moderator(moderator_key)
+        target = room.get_participant(participant_id)
+        if target.is_host:
+            raise LiveRoomError("cannot ban the AI host")
+        entry = BannedUser(
+            identity=target.identity,
+            name=target.name,
+            reason=reason or "Removed for disruptive behavior.",
+            banned_by=AI_HOST_NAME,
+        )
+        room.banned[target.identity] = entry
+        name = target.name
+        del room.participants[participant_id]
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=f"🚫 {name} was blocked from this class.",
+            )
+        )
+        return entry
+
+    def unban(self, room_id: str, identity: str, *, actor_id: str = "", moderator_key: str = "") -> None:
+        """Lift a ban so the learner can join again (moderator only)."""
+        room = self.require(room_id)
+        room.verify_moderator(moderator_key)
+        ident = (identity or "").strip()
+        if ident not in room.banned:
+            raise LiveRoomError("this identity is not banned")
+        entry = room.banned.pop(ident)
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=f"✅ {entry.name} may rejoin the class.",
+            )
+        )
 
     def update_slide(
         self,

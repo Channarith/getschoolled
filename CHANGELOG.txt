@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Salareen Live Room ban/block: educators who start a class receive a
+  moderator_key to block troublesome learners (kick + identity ban), list blocked
+  users, and unblock. Banned identities cannot rejoin (HTTP 403). Web live room
+  shows Block/Unblock controls; mobile passes moderator key from Start & join.
+
 - 2026-07-06 - Salareen Live Room (golden Group Classes feature): built-in 4th
   platform alongside Zoom, Teams, and Google Meet — Bigo/Mico-style multi-user
   grid on web and mobile. New aoep_shared.live_room with configurable room size

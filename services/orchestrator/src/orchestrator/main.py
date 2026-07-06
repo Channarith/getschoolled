@@ -735,6 +735,7 @@ from aoep_shared.group_classes import (  # noqa: E402
 )
 from aoep_shared.live_room import (  # noqa: E402
     AI_HOST_ID,
+    BannedError,
     LiveRoomError,
     LiveRoomStore,
     RoomFullError,
@@ -869,9 +870,10 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
 
     room = f"class-{gc.id}"
     slide = sessions.current_slide(state.session_id)
+    moderator_key = ""
     if gc.platform == "salareen":
         gc.live_room_id = room
-        _live_rooms().open_room(
+        live = _live_rooms().open_room(
             room_id=room,
             class_id=gc.id,
             session_id=state.session_id,
@@ -882,8 +884,11 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
             slide_body=slide.body,
             slide_narration=slide.narration,
         )
+        moderator_key = live.moderator_key
 
     plan = dict(bridge_plan(gc, livekit_room=room))
+    if moderator_key:
+        plan["moderator_key"] = moderator_key
     media = app.state.factory.media()
     token = media.issue_token(room=room, identity="aoep-teacher")
     plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
@@ -919,10 +924,24 @@ class LiveRoomMuteRequest(BaseModel):
     muted: bool
     by_host: bool = False
     actor_id: str = ""
+    moderator_key: str = ""
 
 
 class LiveRoomHandRequest(BaseModel):
     participant_id: str
+
+
+class LiveRoomBanRequest(BaseModel):
+    participant_id: str
+    reason: str = ""
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomUnbanRequest(BaseModel):
+    identity: str
+    actor_id: str = ""
+    moderator_key: str = ""
 
 
 class LiveRoomAskRequest(BaseModel):
@@ -936,6 +955,8 @@ def _live_room_http_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=404, detail="unknown live room")
     if isinstance(exc, RoomFullError):
         return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, BannedError):
+        return HTTPException(status_code=403, detail=str(exc))
     if isinstance(exc, LiveRoomError):
         return HTTPException(status_code=400, detail=str(exc))
     raise exc
@@ -1006,10 +1027,40 @@ def live_room_mute(room_id: str, req: LiveRoomMuteRequest) -> dict:
             muted=req.muted,
             by_host=req.by_host,
             actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
         )
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
     return {"participant": p.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/ban")
+def live_room_ban(room_id: str, req: LiveRoomBanRequest) -> dict:
+    try:
+        banned = _live_rooms().ban_participant(
+            room_id,
+            req.participant_id,
+            actor_id=req.actor_id or AI_HOST_ID,
+            reason=req.reason,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"banned": banned.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/unban")
+def live_room_unban(room_id: str, req: LiveRoomUnbanRequest) -> dict:
+    try:
+        _live_rooms().unban(
+            room_id,
+            req.identity,
+            actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": _live_rooms().require(room_id).to_dict()}
 
 
 @app.post("/api/live-rooms/{room_id}/advance")

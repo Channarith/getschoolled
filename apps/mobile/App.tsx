@@ -46,6 +46,7 @@ function AppInner() {
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [showGroupClasses, setShowGroupClasses] = useState(false);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
+  const [liveModeratorKey, setLiveModeratorKey] = useState("");
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
@@ -201,13 +202,18 @@ function AppInner() {
     screen = (
       <LiveRoomScreen
         roomId={liveRoomId}
-        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); }}
+        moderatorKey={liveModeratorKey}
+        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setLiveModeratorKey(""); }}
       />
     );
   } else if (showGroupClasses) {
     screen = (
       <GroupClassesScreen
-        onOpenRoom={(id) => { setLiveRoomId(id); setShowGroupClasses(false); }}
+        onOpenRoom={(id, modKey) => {
+          setLiveRoomId(id);
+          setLiveModeratorKey(modKey || "");
+          setShowGroupClasses(false);
+        }}
         onBack={() => setShowGroupClasses(false)}
       />
     );

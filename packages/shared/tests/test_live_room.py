@@ -6,6 +6,7 @@ import pytest
 
 from aoep_shared.live_room import (
     AI_HOST_ID,
+    BannedError,
     LiveRoomError,
     LiveRoomStore,
     RoomFullError,
@@ -102,3 +103,39 @@ def test_end_room_dismisses():
     ended = store.end_room("class-end")
     assert ended.status == "ended"
     assert any("dismissed" in m.text.lower() for m in ended.chat)
+
+
+def test_ban_blocks_rejoin_and_unban_restores():
+    store = LiveRoomStore()
+    room = store.open_room(
+        room_id="class-ban",
+        class_id="ban",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Ban test",
+        room_size=6,
+    )
+    mod = room.moderator_key
+    trouble = store.join("class-ban", "Trouble", identity="trouble-1")
+    store.ban_participant("class-ban", trouble.id, moderator_key=mod, reason="Spam")
+    assert room.is_banned("trouble-1")
+    with pytest.raises(BannedError):
+        store.join("class-ban", "Trouble again", identity="trouble-1")
+    store.unban("class-ban", "trouble-1", moderator_key=mod)
+    again = store.join("class-ban", "Trouble again", identity="trouble-1")
+    assert again.name == "Trouble again"
+
+
+def test_ban_requires_moderator_key():
+    store = LiveRoomStore()
+    store.open_room(
+        room_id="class-mod",
+        class_id="mod",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Mod",
+        room_size=6,
+    )
+    p = store.join("class-mod", "Ada")
+    with pytest.raises(LiveRoomError):
+        store.ban_participant("class-mod", p.id, moderator_key="wrong-key")

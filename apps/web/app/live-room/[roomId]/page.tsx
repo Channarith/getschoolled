@@ -6,6 +6,8 @@ import {
   getLiveRoom,
   joinLiveRoom,
   leaveLiveRoom,
+  liveRoomBan,
+  liveRoomUnban,
   liveRoomAdvance,
   liveRoomAsk,
   liveRoomChat,
@@ -20,6 +22,7 @@ import {
 import { friendlyError } from "../../lib/errors";
 
 const ROOM_STORAGE_KEY = "salareen-live-participant";
+const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
 
 function gridLayout(roomSize: number): { cols: number; rows: number } {
   if (roomSize <= 4) return { cols: 2, rows: 2 };
@@ -136,6 +139,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [chatDraft, setChatDraft] = useState("");
   const [askDraft, setAskDraft] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [moderatorKey, setModeratorKey] = useState("");
+  const [wasRemoved, setWasRemoved] = useState(false);
+  const leftVoluntarily = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const me = useMemo(() => {
@@ -163,8 +169,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         /* ignore */
       }
     }
+    const mod = sessionStorage.getItem(`${MODERATOR_STORAGE_KEY}:${roomId}`);
+    if (mod) setModeratorKey(mod);
     void refresh();
   }, [roomId, refresh]);
+
+  useEffect(() => {
+    if (!joinInfo || !room || leftVoluntarily.current) return;
+    const stillHere = room.participants.some((p) => p.id === joinInfo.participant.id);
+    if (!stillHere) {
+      setWasRemoved(true);
+      sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
+      localStream?.getTracks().forEach((t) => t.stop());
+    }
+  }, [room, joinInfo, roomId, localStream]);
 
   useEffect(() => {
     if (!joinInfo) return;
@@ -216,7 +234,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       );
       await enableCamera();
     } catch (e) {
-      setError(friendlyError(e, "Could not join room"));
+      const msg = friendlyError(e, "Could not join room");
+      if (msg.toLowerCase().includes("block") || msg.toLowerCase().includes("removed") || msg.includes("403")) {
+        setWasRemoved(true);
+      }
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -224,6 +246,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   async function handleLeave() {
     if (!me) return;
+    leftVoluntarily.current = true;
     setBusy(true);
     try {
       await leaveLiveRoom(roomId, me.id);
@@ -311,6 +334,44 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     } finally {
       setBusy(false);
     }
+  }
+
+  async function banLearner(participantId: string, name: string) {
+    if (!moderatorKey) return;
+    const reason = window.prompt(`Block ${name}? Optional reason:`) ?? "";
+    if (reason === null) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomBan(roomId, participantId, reason, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Ban failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unbanLearner(identity: string) {
+    if (!moderatorKey) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomUnban(roomId, identity, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Unban failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (wasRemoved) {
+    return (
+      <main className="container" style={{ maxWidth: 480 }}>
+        <h1>Removed from class</h1>
+        <p className="muted">
+          You were blocked from this live room and cannot rejoin until a moderator lifts the ban.
+        </p>
+        <button onClick={() => { window.location.href = "/group-classes"; }}>Back to Group Classes</button>
+      </main>
+    );
   }
 
   if (!joinInfo) {
@@ -419,11 +480,34 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             )}
             {learners.map((p) => (
-              <ParticipantTile
-                key={p.id}
-                p={p}
-                localStream={p.id === me?.id ? localStream : null}
-              />
+              <div key={p.id} style={{ position: "relative" }}>
+                <ParticipantTile
+                  p={p}
+                  localStream={p.id === me?.id ? localStream : null}
+                />
+                {moderatorKey && p.id !== me?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => void banLearner(p.id, p.name)}
+                    disabled={busy}
+                    title={`Block ${p.name}`}
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "rgba(220,38,38,0.9)",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Block
+                  </button>
+                ) : null}
+              </div>
             ))}
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
@@ -540,6 +624,29 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               Leave
             </button>
           </div>
+
+          {moderatorKey && (room?.banned?.length ?? 0) > 0 ? (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 10,
+                borderRadius: 10,
+                background: "rgba(220,38,38,0.12)",
+                border: "1px solid rgba(248,113,113,0.35)",
+                fontSize: 12,
+              }}
+            >
+              <strong style={{ color: "#fca5a5" }}>Blocked users</strong>
+              {(room?.banned ?? []).map((b) => (
+                <div key={b.identity} style={{ display: "flex", justifyContent: "space-between", marginTop: 6, gap: 8 }}>
+                  <span>{b.name} — {b.reason}</span>
+                  <button type="button" onClick={() => void unbanLearner(b.identity)} disabled={busy}>
+                    Unblock
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </aside>
       </div>
     </main>

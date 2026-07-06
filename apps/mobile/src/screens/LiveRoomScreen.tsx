@@ -4,21 +4,24 @@ import {
 } from "react-native";
 
 import {
-  getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomChat, liveRoomRaiseHand,
-  type LiveRoomState,
+  getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomChat, liveRoomRaiseHand,
+  liveRoomUnban, type LiveRoomState,
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { theme } from "../theme";
 
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
+const MOD_STORAGE: Record<string, string> = {};
 
 export default function LiveRoomScreen({
   roomId,
   onBack,
+  moderatorKey = "",
 }: {
   roomId: string;
   onBack: () => void;
+  moderatorKey?: string;
 }) {
   const [name, setName] = useState("");
   const [participantId, setParticipantId] = useState("");
@@ -28,6 +31,8 @@ export default function LiveRoomScreen({
   const [chat, setChat] = useState("");
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
+  const [wasBlocked, setWasBlocked] = useState(false);
+  const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
 
   const refresh = async () => {
     try {
@@ -36,6 +41,10 @@ export default function LiveRoomScreen({
       setError((e as Error).message);
     }
   };
+
+  useEffect(() => {
+    if (moderatorKey) MOD_STORAGE[roomId] = moderatorKey;
+  }, [moderatorKey, roomId]);
 
   useEffect(() => {
     void refresh().finally(() => setLoading(false));
@@ -61,13 +70,33 @@ export default function LiveRoomScreen({
       STORAGE[roomId] = { participantId: joined.participant.id, identity: joined.participant.identity };
       setRoom(joined.room);
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      if (msg.toLowerCase().includes("block") || msg.toLowerCase().includes("removed")) {
+        setWasBlocked(true);
+      }
+      setError(msg);
     } finally {
       setBusy(false);
     }
   }
 
+  useEffect(() => {
+    if (!participantId || !room) return;
+    const stillHere = room.participants.some((p) => p.id === participantId);
+    if (!stillHere) setWasBlocked(true);
+  }, [room, participantId]);
+
   const me = room?.participants.find((p) => p.id === participantId);
+
+  if (wasBlocked) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.title}>Removed from class</Text>
+        <Text style={styles.meta}>You were blocked from this live room.</Text>
+        <PrimaryButton label="Back" onPress={onBack} />
+      </View>
+    );
+  }
 
   if (!participantId) {
     return (
@@ -111,9 +140,36 @@ export default function LiveRoomScreen({
             <Text style={styles.tileEmoji}>{p.role === "host" ? "🎓" : "👤"}</Text>
             <Text style={styles.tileName} numberOfLines={1}>{p.name}</Text>
             {p.hand_raised ? <Text>✋</Text> : null}
+            {modKey && p.role !== "host" && p.id !== participantId ? (
+              <PrimaryButton
+                label="Block"
+                variant="ghost"
+                onPress={async () => {
+                  setRoom(await liveRoomBan(roomId, p.id, modKey));
+                }}
+              />
+            ) : null}
           </View>
         ))}
       </ScrollView>
+
+      {modKey && (room?.banned?.length ?? 0) > 0 ? (
+        <GlassPanel style={styles.slide}>
+          <Text style={styles.cardTitle}>Blocked</Text>
+          {(room?.banned ?? []).map((b) => (
+            <View key={b.identity} style={styles.controls}>
+              <Text style={styles.meta}>{b.name}</Text>
+              <PrimaryButton
+                label="Unblock"
+                variant="ghost"
+                onPress={async () => {
+                  setRoom(await liveRoomUnban(roomId, b.identity, modKey));
+                }}
+              />
+            </View>
+          ))}
+        </GlassPanel>
+      ) : null}
 
       <ScrollView style={styles.chatBox}>
         {(room?.chat ?? []).map((m) => (

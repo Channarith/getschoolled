@@ -166,6 +166,10 @@ export default function GroupClassesPage() {
     try {
       const res = await startGroupClass(gc.id);
       setStarted(res);
+      const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
+      if (res.bridge.moderator_key) {
+        sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
+      }
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));
@@ -362,6 +366,9 @@ export default function GroupClassesPage() {
               <button
                 onClick={() => {
                   const roomId = started.bridge.live_room_id || started.bridge.livekit?.room || `class-${started.class.id}`;
+                  if (started.bridge.moderator_key) {
+                    sessionStorage.setItem(`salareen-live-moderator:${roomId}`, started.bridge.moderator_key);
+                  }
                   window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
                 }}
                 style={{ background: "#111", color: "#fff" }}

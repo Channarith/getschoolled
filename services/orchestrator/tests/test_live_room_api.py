@@ -117,3 +117,42 @@ def test_recording_endpoints():
     stop = client.post(f"/api/live-rooms/{room_id}/record/stop")
     assert stop.status_code == 200, stop.text
     assert stop.json()["recording"]["status"] == "stopped"
+
+
+def test_ban_and_unban_flow():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    assert mod
+
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Spammer", "identity": "spam-1"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+
+    banned = client.post(
+        f"/api/live-rooms/{room_id}/ban",
+        json={"participant_id": pid, "moderator_key": mod, "reason": "Spam"},
+    )
+    assert banned.status_code == 200, banned.text
+    assert banned.json()["banned"]["identity"] == "spam-1"
+
+    blocked = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Spammer", "identity": "spam-1"},
+    )
+    assert blocked.status_code == 403
+
+    unbanned = client.post(
+        f"/api/live-rooms/{room_id}/unban",
+        json={"identity": "spam-1", "moderator_key": mod},
+    )
+    assert unbanned.status_code == 200, unbanned.text
+
+    rejoin = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Spammer", "identity": "spam-1"},
+    )
+    assert rejoin.status_code == 200, rejoin.text

@@ -18,7 +18,7 @@ export default function GroupClassesScreen({
   onOpenRoom,
   onBack,
 }: {
-  onOpenRoom: (roomId: string) => void;
+  onOpenRoom: (roomId: string, moderatorKey?: string) => void;
   onBack: () => void;
 }) {
   const [rows, setRows] = useState<GroupClassRow[]>([]);
@@ -52,7 +52,7 @@ export default function GroupClassesScreen({
     try {
       const started = await startGroupClass(gc.id);
       const roomId = started.bridge.live_room_id || started.bridge.livekit_room || `class-${gc.id}`;
-      onOpenRoom(roomId);
+      onOpenRoom(roomId, started.bridge.moderator_key);
       await load();
     } catch (e) {
       setError((e as Error).message);
