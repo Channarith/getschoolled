@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -33,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <DisclaimerGate />
             <OnboardingSurveyGate />
             <LocalizedNav appVersion={APP_VERSION} />
-            {children}
+            <div className="site-main">{children}</div>
             <SiteFooter />
           </FlagsProvider>
         </LocaleProvider>
