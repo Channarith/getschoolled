@@ -33,7 +33,7 @@ TEST_GLOBS = [
     "packages/shared/tests", "services/curriculum/tests", "services/orchestrator/tests",
     "services/memory/tests", "services/speech/tests", "services/perception/tests",
     "services/billing/tests", "services/integrations/tests", "services/harvester/tests",
-    "apps/agent-runtime/tests", "training/tests", "scripts/tests",
+    "apps/agent-runtime/tests", "training/tests", "scripts/tests", "qa/tests",
 ]
 
 

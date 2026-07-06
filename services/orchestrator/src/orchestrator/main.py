@@ -8,6 +8,7 @@ local LiveKit container or a cloud cluster.
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 
 from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
 from aoep_shared.assessment import (
@@ -732,8 +733,16 @@ from aoep_shared.group_classes import (  # noqa: E402
     GroupClassStore,
     bridge_plan,
 )
+from aoep_shared.live_room import (  # noqa: E402
+    AI_HOST_ID,
+    BannedError,
+    LiveRoomError,
+    LiveRoomStore,
+    RoomFullError,
+)
 
 app.state.group_classes = GroupClassStore()
+app.state.live_rooms = LiveRoomStore()
 
 
 def _seed_group_classes() -> None:
@@ -758,6 +767,10 @@ def _group_store() -> GroupClassStore:
     return app.state.group_classes
 
 
+def _live_rooms() -> LiveRoomStore:
+    return app.state.live_rooms
+
+
 class ScheduleGroupClassRequest(BaseModel):
     title: str
     lesson_id: str
@@ -767,6 +780,7 @@ class ScheduleGroupClassRequest(BaseModel):
     duration_min: int = 60
     host: str = "Salareen AI"
     capacity: int = 100
+    room_size: int = 6
     language: str = "en"
     description: str = ""
 
@@ -855,7 +869,26 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
     store.set_status(gc.id, "live")
 
     room = f"class-{gc.id}"
+    slide = sessions.current_slide(state.session_id)
+    moderator_key = ""
+    if gc.platform == "salareen":
+        gc.live_room_id = room
+        live = _live_rooms().open_room(
+            room_id=room,
+            class_id=gc.id,
+            session_id=state.session_id,
+            lesson_id=gc.lesson_id,
+            title=gc.title,
+            room_size=gc.room_size,
+            slide_title=slide.title,
+            slide_body=slide.body,
+            slide_narration=slide.narration,
+        )
+        moderator_key = live.moderator_key
+
     plan = dict(bridge_plan(gc, livekit_room=room))
+    if moderator_key:
+        plan["moderator_key"] = moderator_key
     media = app.state.factory.media()
     token = media.issue_token(room=room, identity="aoep-teacher")
     plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
@@ -869,6 +902,332 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
         ).model_dump(),
         "bridge": plan,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Salareen Live Room (built-in multi-user grid for group classes)
+# --------------------------------------------------------------------------- #
+
+
+class LiveRoomJoinRequest(BaseModel):
+    name: str
+    identity: str = ""
+
+
+class LiveRoomChatRequest(BaseModel):
+    participant_id: str
+    text: str
+
+
+class LiveRoomMuteRequest(BaseModel):
+    participant_id: str
+    muted: bool
+    by_host: bool = False
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomHandRequest(BaseModel):
+    participant_id: str
+    question: str = ""
+
+
+class LiveRoomQueueRequest(BaseModel):
+    participant_id: str
+    question: str = ""
+
+
+class LiveRoomTurnRequest(BaseModel):
+    participant_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomBanRequest(BaseModel):
+    participant_id: str
+    reason: str = ""
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomUnbanRequest(BaseModel):
+    identity: str
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomAskRequest(BaseModel):
+    participant_id: str
+    question: str
+    language: str = "en"
+
+
+def _live_room_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, KeyError):
+        return HTTPException(status_code=404, detail="unknown live room")
+    if isinstance(exc, RoomFullError):
+        return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, BannedError):
+        return HTTPException(status_code=403, detail=str(exc))
+    if isinstance(exc, LiveRoomError):
+        return HTTPException(status_code=400, detail=str(exc))
+    raise exc
+
+
+@app.get("/api/live-rooms/{room_id}")
+def get_live_room(room_id: str) -> dict:
+    room = _live_rooms().get(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return room.to_dict()
+
+
+@app.post("/api/live-rooms/{room_id}/join")
+def join_live_room(room_id: str, req: LiveRoomJoinRequest) -> dict:
+    store = _live_rooms()
+    try:
+        participant = store.join(room_id, req.name, identity=req.identity)
+    except (KeyError, LiveRoomError, RoomFullError) as exc:
+        raise _live_room_http_error(exc)
+    media = app.state.factory.media()
+    token = media.issue_token(room=room_id, identity=participant.identity)
+    return {
+        "participant": participant.to_dict(),
+        "room": store.require(room_id).to_dict(),
+        "media": {
+            "room": token.room,
+            "identity": token.identity,
+            "token": token.token,
+            "url": token.url,
+        },
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/leave")
+def leave_live_room(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        _live_rooms().leave(room_id, req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return _live_rooms().require(room_id).to_dict()
+
+
+@app.post("/api/live-rooms/{room_id}/chat")
+def live_room_chat(room_id: str, req: LiveRoomChatRequest) -> dict:
+    try:
+        msg = _live_rooms().post_chat(room_id, req.participant_id, req.text)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"message": asdict(msg), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/raise-hand")
+def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        p = _live_rooms().toggle_hand(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {
+        "participant": p.to_dict(),
+        "queue_position": room.queue_position(req.participant_id),
+        "room": room.to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/join")
+def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
+    try:
+        entry = _live_rooms().join_queue(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {"entry": entry.to_dict(), "room": room.to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/leave")
+def live_room_queue_leave(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        _live_rooms().leave_queue(room_id, req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/call-next")
+def live_room_call_next(room_id: str, req: LiveRoomTurnRequest) -> dict:
+    try:
+        speaker = _live_rooms().call_next(room_id, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "speaker": speaker.to_dict() if speaker else None,
+        "room": _live_rooms().require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/finish-turn")
+def live_room_finish_turn(room_id: str, req: LiveRoomTurnRequest) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        pid = req.participant_id or room.floor_participant_id
+        if not pid:
+            raise LiveRoomError("no one has the floor")
+        store.finish_turn(room_id, pid, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": store.require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/mute")
+def live_room_mute(room_id: str, req: LiveRoomMuteRequest) -> dict:
+    try:
+        p = _live_rooms().set_mute(
+            room_id,
+            req.participant_id,
+            muted=req.muted,
+            by_host=req.by_host,
+            actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"participant": p.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/ban")
+def live_room_ban(room_id: str, req: LiveRoomBanRequest) -> dict:
+    try:
+        banned = _live_rooms().ban_participant(
+            room_id,
+            req.participant_id,
+            actor_id=req.actor_id or AI_HOST_ID,
+            reason=req.reason,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"banned": banned.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/unban")
+def live_room_unban(room_id: str, req: LiveRoomUnbanRequest) -> dict:
+    try:
+        _live_rooms().unban(
+            room_id,
+            req.identity,
+            actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/advance")
+def live_room_advance(room_id: str) -> dict:
+    """AI host advances the lesson slide for all participants."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    sessions = get_sessions()
+    try:
+        slide = sessions.advance(room.session_id)
+        lesson = sessions.lesson_for(room.session_id)
+        session = sessions.get_session(room.session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="teaching session not found")
+    narration = " ".join((slide.narration or slide.body or slide.title).split())[:500]
+    store.update_slide(
+        room_id,
+        index=session.current_slide,
+        title=slide.title,
+        body=slide.body,
+        narration=slide.narration,
+    )
+    if narration:
+        store.post_host_message(
+            room_id,
+            f"📖 {slide.title} — {narration}",
+        )
+    return {
+        "slide": store.require(room_id).slide.to_dict(),
+        "room": store.require(room_id).to_dict(),
+        "lesson_title": lesson.title,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/ask")
+def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
+    """Learner asks a question; Theodore answers in the room chat."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        learner = room.get_participant(req.participant_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    sessions = get_sessions()
+    try:
+        mode, entry = store.ask_when_ready(room_id, req.participant_id, req.question)
+        if mode == "queued":
+            return {
+                "queued": True,
+                "queue_position": entry.position if entry else 0,
+                "entry": entry.to_dict() if entry else None,
+                "room": store.require(room_id).to_dict(),
+            }
+        store.post_chat(room_id, req.participant_id, req.question)
+        answer = sessions.ask(room.session_id, req.question, language=req.language)
+        host_msg = store.post_host_message(
+            room_id,
+            f"@{learner.name} {answer.text}",
+        )
+        store.finish_turn(room_id, req.participant_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="teaching session not found")
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "queued": False,
+        "answer": answer.model_dump(),
+        "host_message": asdict(host_msg),
+        "room": store.require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/record/start")
+def live_room_record_start(room_id: str) -> dict:
+    try:
+        rec = _live_rooms().start_recording(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return {"recording": rec.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/record/stop")
+def live_room_record_stop(room_id: str) -> dict:
+    try:
+        rec = _live_rooms().stop_recording(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return {"recording": rec.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/end")
+def live_room_end(room_id: str) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.end_room(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    gc = _group_store().get(room.class_id)
+    if gc is not None:
+        _group_store().set_status(gc.id, "ended")
+    return room.to_dict()
 
 
 # --------------------------------------------------------------------------- #

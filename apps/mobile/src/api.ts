@@ -1,10 +1,10 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, IDENTITY_URL, MEMORY_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL } from "./config";
 import { getToken } from "./storage";
 
-export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL };
+export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL };
 
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;
@@ -308,4 +308,158 @@ export async function getFlag(key: string): Promise<unknown> {
 export async function resolveMascot(locale: string): Promise<MascotResolve> {
   const qs = new URLSearchParams({ locale });
   return get(MEMORY_URL, `/mascots/resolve?${qs.toString()}`);
+}
+
+// --- Group classes + Salareen live room --- //
+export type GroupClassRow = {
+  id: string;
+  title: string;
+  platform: string;
+  start_time: string;
+  duration_min: number;
+  status: string;
+  seats_left: number;
+  capacity: number;
+  room_size?: number;
+  live_room_id?: string;
+  needs_bridge: boolean;
+  meeting_url?: string;
+};
+
+export type LiveRoomState = {
+  room_id: string;
+  title: string;
+  room_size: number;
+  learner_count: number;
+  seats_left: number;
+  status: string;
+  host: { id: string; name: string; role: string };
+  participants: { id: string; name: string; role: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean }[];
+  chat: { id: string; from_name: string; text: string }[];
+  slide: { index: number; title: string; body: string; narration: string };
+  recording: { status: string };
+  banned?: { identity: string; name: string; reason: string }[];
+  speaking_queue?: {
+    id: string; participant_id: string; name: string; question: string;
+    status: string; position: number;
+  }[];
+  floor_participant_id?: string;
+  floor_holder?: { id: string; name: string } | null;
+};
+
+export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
+  const r = await get<{ classes: GroupClassRow[] }>(
+    ORCHESTRATOR_URL, `/api/group-classes?upcoming=${upcoming}`);
+  return r.classes;
+}
+
+export async function startGroupClass(classId: string): Promise<{ class: GroupClassRow; bridge: { livekit_room: string; live_room_id?: string; moderator_key?: string } }> {
+  return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/start`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+}
+
+export async function getLiveRoom(roomId: string): Promise<LiveRoomState> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}`);
+}
+
+export async function joinLiveRoom(roomId: string, name: string, identity = ""):
+  Promise<{ participant: { id: string; name: string; identity: string }; room: LiveRoomState }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, identity }),
+  });
+}
+
+export async function liveRoomChat(roomId: string, participantId: string, text: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, text }),
+    });
+  return r.room;
+}
+
+export async function liveRoomRaiseHand(roomId: string, participantId: string, question = ""): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/raise-hand`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    });
+  return r.room;
+}
+
+export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-next`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
+export async function liveRoomFinishTurn(
+  roomId: string, participantId: string, moderatorKey = "",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/finish-turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
+export async function liveRoomLeaveQueue(roomId: string, participantId: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/queue/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    });
+  return r.room;
+}
+
+export async function liveRoomAsk(roomId: string, participantId: string, question: string):
+  Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
+  return get(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    });
+}
+
+export async function liveRoomBan(
+  roomId: string,
+  participantId: string,
+  moderatorKey: string,
+  reason = "",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/ban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey, reason }),
+    });
+  return r.room;
+}
+
+export async function liveRoomUnban(
+  roomId: string,
+  identity: string,
+  moderatorKey: string,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/unban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity, moderator_key: moderatorKey }),
+    });
+  return r.room;
 }

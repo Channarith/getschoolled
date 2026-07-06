@@ -31,11 +31,12 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory, onOpenCareers,
+  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
   onOpenCareers: () => void;
+  onOpenGroupClasses?: () => void;
 }) {
   const { t, locale } = useT();
   const [loading, setLoading] = useState(true);
@@ -157,6 +158,9 @@ export default function HomeScreen({
           </Text>
           <View style={styles.heroActions}>
             <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
+            {onOpenGroupClasses ? (
+              <PrimaryButton label="Group Classes" onPress={onOpenGroupClasses} variant="brand" />
+            ) : null}
           </View>
           <Text style={styles.careersSub}>{t("home.careersSub")}</Text>
         </View>

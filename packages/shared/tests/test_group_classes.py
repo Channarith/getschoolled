@@ -32,6 +32,8 @@ def test_schedule_normalizes_and_defaults():
     )
     assert gc.title == "Photosynthesis 101"
     assert gc.platform == "salareen"
+    assert gc.room_size == 6
+    assert gc.capacity == 5
     assert gc.status == "scheduled"
     assert gc.seats_left == gc.capacity
     assert gc.needs_bridge is False
@@ -127,11 +129,27 @@ def test_to_dict_includes_derived_fields():
     assert d["id"] == gc.id
 
 
+def test_salareen_room_size_caps_capacity():
+    store = GroupClassStore()
+    gc = store.schedule(
+        title="Grid class",
+        lesson_id="a",
+        start_time=_iso(10),
+        platform="salareen",
+        room_size=9,
+        capacity=200,
+    )
+    assert gc.room_size == 9
+    assert gc.capacity == 8
+
+
 def test_bridge_plan_salareen_vs_external():
     salareen = GroupClass(title="t", lesson_id="a", start_time=_iso(10))
     plan = bridge_plan(salareen)
     assert plan["needs_bridge"] is False
     assert plan["livekit_room"].startswith("class-")
+    assert plan["room_size"] == 6
+    assert "/live-room/" in plan["join_path"]
 
     zoom = GroupClass(
         title="t",

@@ -2,6 +2,32 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Salareen Live Room regression: qa/tests/test_live_room_chat_regression.py
+  golden-path for Q&A queue turn-taking, raise-hand toggle, and ban/block; stress.py
+  smoke scenarios for live-room state, queue/join, and call-next; qa/regression.py and
+  RUNBOOK/release-testing/api-reference updated; qa/tests conftest wires service src
+  paths for cross-service smoke.
+
+- 2026-07-06 - Salareen Live Room Q&A queue: structured turn-taking replaces ad-hoc
+  raise-hand. Learners join a speaking queue (optionally with a question preview),
+  see their position, and get the floor one at a time. Moderators Call next / End
+  turn; Theodore announces who is up. Ask while someone else is speaking enqueues
+  instead of interrupting. Web and mobile show the queue panel and floor holder.
+
+- 2026-07-06 - Salareen Live Room ban/block: educators who start a class receive a
+  moderator_key to block troublesome learners (kick + identity ban), list blocked
+  users, and unblock. Banned identities cannot rejoin (HTTP 403). Web live room
+  shows Block/Unblock controls; mobile passes moderator key from Start & join.
+
+- 2026-07-06 - Salareen Live Room (golden Group Classes feature): built-in 4th
+  platform alongside Zoom, Teams, and Google Meet — Bigo/Mico-style multi-user
+  grid on web and mobile. New aoep_shared.live_room with configurable room size
+  (4, 6, or 9 seats including AI host Theodore), raise-hand, mute, in-room chat,
+  slide sync, session recording hooks, and AI Q&A via teaching session. Orchestrator
+  /api/live-rooms/* endpoints; group-classes scheduling adds room_size for
+  salareen; web /live-room/[roomId] UI with participant grid; mobile Group Classes
+  + Live Room screens; join flow fixed from group-classes page.
+
 - 2026-07-02 - Brand logo refresh: new gold "S" + bodhi-leaf emblem for the web
   app. Replaced logo-mark.webp (used by the nav brand mark and the ProfileMenu
   avatar) and regenerated the browser/app icons from the same emblem

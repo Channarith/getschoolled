@@ -20,6 +20,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Mapping, Optional
 
+from .live_room import learner_capacity, validate_room_size
+
 # Platforms a class can run on. The three external ones map onto
 # aoep_shared.bridges.BridgePlatform; "salareen" is the built-in LiveKit room
 # (no external bridge needed — learners join the web/app live class directly).
@@ -86,6 +88,7 @@ class GroupClass:
     duration_min: int = 60
     host: str = "Salareen AI"
     capacity: int = 100
+    room_size: int = 6  # Salareen grid: 4, 6, or 9 total seats including AI host
     language: str = "en"
     description: str = ""
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -93,6 +96,7 @@ class GroupClass:
     registrations: List[Registration] = field(default_factory=list)
     session_id: str = ""           # set when the class goes live
     bridge_session_id: str = ""    # set when the meeting bridge is connected
+    live_room_id: str = ""         # Salareen room id (class-{id}) when live
 
     def __post_init__(self) -> None:
         self.title = (self.title or "").strip()
@@ -116,9 +120,22 @@ class GroupClass:
         self.duration_min = int(self.duration_min)
         if self.duration_min <= 0:
             raise GroupClassError("duration_min must be positive")
+        self.room_size = int(self.room_size)
+        if self.platform == "salareen":
+            self.room_size = validate_room_size(self.room_size)
+            max_learners = learner_capacity(self.room_size)
+            if self.capacity > max_learners:
+                self.capacity = max_learners
+        else:
+            self.room_size = 6
         self.capacity = int(self.capacity)
         if self.capacity <= 0:
             raise GroupClassError("capacity must be positive")
+        if self.platform == "salareen" and self.capacity > learner_capacity(self.room_size):
+            raise GroupClassError(
+                f"salareen capacity cannot exceed {learner_capacity(self.room_size)} "
+                f"for a {self.room_size}-seat room"
+            )
         if self.status not in _STATUSES:
             raise GroupClassError(f"invalid status {self.status!r}")
 
@@ -143,6 +160,11 @@ class GroupClass:
         d["seats_left"] = self.seats_left
         d["registered"] = len(self.registrations)
         d["needs_bridge"] = self.needs_bridge
+        d["room_size"] = self.room_size
+        d["learner_capacity"] = (
+            learner_capacity(self.room_size) if self.platform == "salareen" else self.capacity
+        )
+        d["live_room_id"] = self.live_room_id
         return d
 
 
@@ -236,8 +258,14 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
             "needs_bridge": False,
             "platform": gc.platform,
             "livekit_room": room,
+            "live_room_id": gc.live_room_id or room,
+            "room_size": gc.room_size,
+            "join_path": f"/live-room/{gc.live_room_id or room}",
             "join_url": gc.meeting_url or "",
-            "note": "Built-in Salareen room — learners join the live class directly.",
+            "note": (
+                "Built-in Salareen live room — join the multi-user grid "
+                f"({gc.room_size} seats, AI host Theodore)."
+            ),
         }
     return {
         "needs_bridge": True,

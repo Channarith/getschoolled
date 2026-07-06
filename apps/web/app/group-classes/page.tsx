@@ -69,7 +69,8 @@ export default function GroupClassesPage() {
   const [meetingUrl, setMeetingUrl] = useState("");
   const [startTime, setStartTime] = useState(defaultStart());
   const [duration, setDuration] = useState(60);
-  const [capacity, setCapacity] = useState(100);
+  const [capacity, setCapacity] = useState(5);
+  const [roomSize, setRoomSize] = useState(6);
 
   const offline = t("error.offline");
 
@@ -113,7 +114,8 @@ export default function GroupClassesPage() {
         meeting_url: meetingUrl.trim(),
         start_time: new Date(startTime).toISOString(),
         duration_min: duration,
-        capacity,
+        capacity: platform === "salareen" ? roomSize - 1 : capacity,
+        room_size: platform === "salareen" ? roomSize : undefined,
         language: lesson?.language ?? "en",
       });
       setTitle("");
@@ -151,9 +153,10 @@ export default function GroupClassesPage() {
     if (!requireAccount()) return;
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
-    } else {
-      window.location.href = "/class";
+      return;
     }
+    const roomId = gc.live_room_id || `class-${gc.id}`;
+    window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
   }
 
   async function onStart(gc: GroupClass) {
@@ -163,6 +166,10 @@ export default function GroupClassesPage() {
     try {
       const res = await startGroupClass(gc.id);
       setStarted(res);
+      const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
+      if (res.bridge.moderator_key) {
+        sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
+      }
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));
@@ -221,6 +228,24 @@ export default function GroupClassesPage() {
                 ))}
               </select>
             </label>
+            {platform === "salareen" && (
+              <label>
+                <div className="muted">Room size (including AI host)</div>
+                <select
+                  style={{ width: "100%" }}
+                  value={roomSize}
+                  onChange={(e) => {
+                    const size = Number(e.target.value);
+                    setRoomSize(size);
+                    setCapacity(size - 1);
+                  }}
+                >
+                  <option value={4}>4 seats (3 learners + Theodore)</option>
+                  <option value={6}>6 seats (5 learners + Theodore)</option>
+                  <option value={9}>9 seats (8 learners + Theodore)</option>
+                </select>
+              </label>
+            )}
             {platform !== "salareen" && (
               <label>
                 <div className="muted">{t("group.fMeetingUrl")}</div>
@@ -240,12 +265,19 @@ export default function GroupClassesPage() {
                 <input type="number" min={5} step={5} style={{ width: "100%" }} value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))} />
               </label>
-              <label style={{ width: 110 }}>
-                <div className="muted">{t("group.fCapacity")}</div>
-                <input type="number" min={1} style={{ width: "100%" }} value={capacity}
-                  onChange={(e) => setCapacity(Number(e.target.value))} />
-              </label>
+              {platform !== "salareen" && (
+                <label style={{ width: 110 }}>
+                  <div className="muted">{t("group.fCapacity")}</div>
+                  <input type="number" min={1} style={{ width: "100%" }} value={capacity}
+                    onChange={(e) => setCapacity(Number(e.target.value))} />
+                </label>
+              )}
             </div>
+            {platform === "salareen" && (
+              <div className="muted" style={{ fontSize: 13 }}>
+                Salareen live room: Theodore hosts; learners join the multi-user grid.
+              </div>
+            )}
             <div className="row">
               <button onClick={onSchedule} disabled={busy || !lessonId}
                 style={{ background: "#111", color: "#fff" }}>
@@ -284,6 +316,7 @@ export default function GroupClassesPage() {
                   <div className="muted">{fmtTime(gc.start_time)} · {gc.duration_min} min · {gc.host}</div>
                   <div className="muted">
                     {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
+                    {gc.platform === "salareen" && gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -330,8 +363,16 @@ export default function GroupClassesPage() {
                   {t("group.openMeeting")}
                 </button>
               )}
-              <button onClick={() => (window.location.href = "/class")}
-                style={{ background: "#111", color: "#fff" }}>
+              <button
+                onClick={() => {
+                  const roomId = started.bridge.live_room_id || started.bridge.livekit?.room || `class-${started.class.id}`;
+                  if (started.bridge.moderator_key) {
+                    sessionStorage.setItem(`salareen-live-moderator:${roomId}`, started.bridge.moderator_key);
+                  }
+                  window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
+                }}
+                style={{ background: "#111", color: "#fff" }}
+              >
                 {t("group.openClass")}
               </button>
               <button onClick={() => setStarted(null)}>{t("group.close")}</button>

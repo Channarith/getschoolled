@@ -178,18 +178,52 @@ def common_scenarios() -> List[Scenario]:
 def orchestrator_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
     """Build orchestrator scenarios; set up a session for the ask path."""
     context: dict = {}
+    base = base_url.rstrip("/")
     # Setup: pick a lesson and start a session (so the ask scenario is realistic).
-    lessons = http_request("GET", base_url.rstrip("/") + "/api/lessons").json()
+    lessons = http_request("GET", base + "/api/lessons").json()
     if isinstance(lessons, list) and lessons:
         lid = lessons[0]["lesson_id"]
-        sess = http_request("POST", base_url.rstrip("/") + "/api/sessions",
+        sess = http_request("POST", base + "/api/sessions",
                             body={"lesson_id": lid, "class_type": "group"}).json()
         context["session_id"] = (sess.get("session") or {}).get("session_id")
+
+        # Salareen live room: schedule + go live for chat/Q&A queue smoke.
+        from datetime import datetime, timedelta, timezone
+
+        start_iso = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        scheduled = http_request(
+            "POST",
+            base + "/api/group-classes",
+            body={
+                "title": "stress-live-room",
+                "lesson_id": lid,
+                "platform": "salareen",
+                "room_size": 6,
+                "capacity": 5,
+                "start_time": start_iso,
+            },
+        ).json()
+        class_id = scheduled.get("id")
+        if class_id:
+            started = http_request(
+                "POST", base + f"/api/group-classes/{class_id}/start"
+            ).json()
+            bridge = started.get("bridge") or {}
+            context["live_room_id"] = bridge.get("livekit_room") or ""
+            context["live_moderator_key"] = bridge.get("moderator_key") or ""
+            if context["live_room_id"]:
+                joined = http_request(
+                    "POST",
+                    base + f"/api/live-rooms/{context['live_room_id']}/join",
+                    body={"name": "Stress", "identity": "stress-live-learner"},
+                ).json()
+                context["live_participant_id"] = (joined.get("participant") or {}).get("id", "")
 
     scenarios = [
         *common_scenarios(),
         Scenario("disclosure", "GET", "/api/disclosure", check=lambda j: j.get("is_ai") is True),
         Scenario("lessons", "GET", "/api/lessons", check=lambda j: isinstance(j, list)),
+        Scenario("group_classes", "GET", "/api/group-classes", check=lambda j: "classes" in j),
         Scenario("embody", "POST", "/api/embody", body={"text": "Welcome", "gesture": "wave"},
                  check=lambda j: len(j.get("actions", [])) >= 1),
     ]
@@ -199,6 +233,34 @@ def orchestrator_scenarios(base_url: str) -> tuple[List[Scenario], dict]:
             body={"text": "What is a fraction?", "language": "en"},
             check=lambda j: bool(j.get("text")),
         ))
+    if context.get("live_room_id"):
+        rid = context["live_room_id"]
+        pid = context.get("live_participant_id", "")
+        scenarios.extend([
+            Scenario(
+                "live_room_state",
+                "GET",
+                f"/api/live-rooms/{rid}",
+                check=lambda j: j.get("host", {}).get("name", "").startswith("Theodore"),
+            ),
+            Scenario(
+                "live_room_queue_join",
+                "POST",
+                f"/api/live-rooms/{rid}/queue/join",
+                body_fn=lambda ctx: {
+                    "participant_id": ctx.get("live_participant_id", pid),
+                    "question": "Stress-test question?",
+                },
+                check=lambda j: "room" in j and bool(j["room"].get("speaking_queue")),
+            ),
+            Scenario(
+                "live_room_call_next",
+                "POST",
+                f"/api/live-rooms/{rid}/queue/call-next",
+                body_fn=lambda ctx: {"moderator_key": ctx.get("live_moderator_key", "")},
+                check=lambda j: bool((j.get("speaker") or {}).get("id")),
+            ),
+        ])
     return scenarios, context
 
 
