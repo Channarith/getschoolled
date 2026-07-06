@@ -179,9 +179,9 @@ export default function GroupClassesPage() {
   }
 
   return (
-    <main className="container">
+    <main className="container page-one group-page">
       <h1>{t("group.title")}</h1>
-      <p className="muted" style={{ maxWidth: 720 }}>
+      <p className="muted" style={{ margin: "0 0 16px", lineHeight: 1.5 }}>
         {t("group.intro")}
       </p>
 
@@ -201,9 +201,9 @@ export default function GroupClassesPage() {
       </div>
 
       {showForm && (
-        <div className="card">
+        <div className="card group-schedule-panel">
           <h3 style={{ marginTop: 0 }}>{t("group.scheduleCta")}</h3>
-          <div style={{ display: "grid", gap: 10, maxWidth: 560 }}>
+          <div style={{ display: "grid", gap: 10 }}>
             <label>
               <div className="muted">{t("group.fTitle")}</div>
               <input style={{ width: "100%" }} value={title}
@@ -288,50 +288,50 @@ export default function GroupClassesPage() {
         </div>
       )}
 
-      <h3>{t("group.upcoming")}</h3>
+      <h3 style={{ marginTop: 20 }}>{t("group.upcoming")}</h3>
       {classes.length === 0 && (
         <div className="card"><div className="muted">{t("group.empty")}</div></div>
       )}
 
-      <div style={{ display: "grid", gap: 12 }}>
+      <div className="group-class-list">
         {classes.map((gc) => {
           const badge = PLATFORM_BADGE[gc.platform] ?? PLATFORM_BADGE.salareen;
           return (
-            <div key={gc.id} className="card">
-              <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <div key={gc.id} className="card group-class-card">
+              <div className="group-class-meta">
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
+                    background: badge.bg, color: badge.fg, fontWeight: 600 }}>
+                    {badge.label}
+                  </span>
+                  {gc.status === "live" && (
                     <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
-                      background: badge.bg, color: badge.fg, fontWeight: 600 }}>
-                      {badge.label}
+                      background: "#fee2e2", color: "#b91c1c", fontWeight: 600 }}>
+                      ● {t("group.live")}
                     </span>
-                    {gc.status === "live" && (
-                      <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
-                        background: "#fee2e2", color: "#b91c1c", fontWeight: 600 }}>
-                        ● {t("group.live")}
-                      </span>
-                    )}
-                  </div>
-                  <h3 style={{ margin: "8px 0 2px" }}>{gc.title}</h3>
-                  <div className="muted">{fmtTime(gc.start_time)} · {gc.duration_min} min · {gc.host}</div>
-                  <div className="muted">
-                    {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
-                    {gc.platform === "salareen" && gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
-                  </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
-                    {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
-                  </button>
-                  <button onClick={() => onJoin(gc)} disabled={busy}>
-                    {t("group.join")}
-                  </button>
-                  <button onClick={() => onStart(gc)} disabled={busy}
-                    title={t("group.startHint")}
-                    style={{ background: "#0ea5e9", color: "#fff" }}>
-                    {t("group.start")}
-                  </button>
+                <h3>{gc.title}</h3>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {fmtTime(gc.start_time)} · {gc.duration_min} min · {gc.host}
                 </div>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
+                  {gc.platform === "salareen" && gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
+                </div>
+              </div>
+              <div className="group-class-actions">
+                <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
+                  {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
+                </button>
+                <button onClick={() => onJoin(gc)} disabled={busy}>
+                  {t("group.join")}
+                </button>
+                <button onClick={() => onStart(gc)} disabled={busy}
+                  title={t("group.startHint")}
+                  style={{ background: "#0ea5e9", color: "#fff" }}>
+                  {t("group.start")}
+                </button>
               </div>
             </div>
           );

@@ -17,11 +17,15 @@ html {
   margin: 0;
   padding: 0;
   background: var(--bg);
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  max-width: 100%;
   /* Transparent so the full-bleed wallpaper (.site-bg, already scrimmed for
      readability) shows through the WHOLE page - not just below the content.
      This removes the "two backdrops" (solid navy block over the wallpaper). */
@@ -149,25 +153,237 @@ a {
   padding: 32px 24px 64px;
 }
 
+/* Single-column page shell — mobile-first, compact on all viewports. */
+.page-one {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 56px;
+  width: 100%;
+}
+
+.site-main {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Full-bleed top bar (background spans entire viewport width). */
+.site-header {
+  width: 100%;
+  max-width: 100vw;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
 .nav {
   display: flex;
-  gap: 18px;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
-  backdrop-filter: blur(8px);
-  /* backdrop-filter makes the nav a stacking context; without positioning + a
-     positive z-index its dropdown (ProfileMenu) gets trapped at z:0 and is
-     painted under later positioned page content (e.g. the Our Story hero). */
+  flex-direction: column;
+  gap: 0;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0;
   position: relative;
   z-index: 100;
 }
 
+.nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 52px;
+}
+
 .nav .brand {
   font-weight: 700;
-  margin-right: auto;
+  flex-shrink: 0;
 }
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.nav-ai-badge {
+  display: none;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.nav-toggle {
+  display: none;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  min-width: 40px;
+}
+
+.nav-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding: 0 16px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.nav-menu a {
+  text-decoration: none;
+  color: var(--accent);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.nav .version {
+  opacity: 0.7;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (min-width: 901px) {
+  .nav-ai-badge {
+    display: inline-block;
+  }
+
+  .nav-menu {
+    border-top: none;
+    padding-top: 0;
+    padding-bottom: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-menu {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 8px 12px 12px;
+    max-height: min(70vh, 480px);
+    overflow-y: auto;
+  }
+
+  .nav-menu.open {
+    display: flex;
+  }
+
+  .nav-menu a {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--panel-2) 40%, transparent);
+  }
+
+  .container {
+    padding: 20px 16px 48px;
+  }
+}
+
+/* Group classes — compact single-page cards */
+.group-page h1 {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  margin: 0 0 8px;
+}
+
+.group-class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group-class-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.group-class-card .card {
+  margin: 0;
+  padding: 16px;
+}
+
+.group-class-meta h3 {
+  margin: 8px 0 4px;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.group-class-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.group-class-actions button {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.group-class-actions button:last-child {
+  flex: 1 1 100%;
+}
+
+@media (min-width: 560px) {
+  .group-class-card {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .group-class-actions {
+    flex-direction: column;
+    min-width: 148px;
+    max-width: 168px;
+  }
+
+  .group-class-actions button {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
+.group-schedule-panel .row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.group-schedule-panel .row label {
+  width: 100% !important;
+}
+
+@media (min-width: 560px) {
+  .group-schedule-panel .row {
+    flex-direction: row;
+  }
+}
+
+/* Legacy .nav rules removed — see .site-header / .nav above */
 
 .card {
   /* Semi-transparent so the wallpaper shows through (no solid navy block). */
