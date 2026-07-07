@@ -2,12 +2,17 @@
   "cli": { "version": ">= 7.0.0", "appVersionSource": "remote" },
   "build": {
     "base": {
+      "node": "22.20.0",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "env": {
-        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1"
-      }
+        "EAS_BUILD_DISABLE_EXPO_DOCTOR_STEP": "1",
+        "NODE_OPTIONS": "--max-old-space-size=8192",
+        "METRO_NODE_OPTIONS": "--max-old-space-size=8192",
+        "CI": "true"
+      },
+      "prebuildCommand": "npx expo prebuild --no-install && (test -d ios && bash scripts/mobile-ios-pod-refresh.sh || true)"
     },
     "development": {
       "extends": "base",

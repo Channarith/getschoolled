@@ -2,9 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-07 - EAS mobile builds: workflow_dispatch on Create Production Builds
-  (.eas/workflows) plus GitHub Actions eas-mobile-build.yml (EXPO_TOKEN secret)
-  to queue iOS + Android production builds for aiclassroom from CI or Expo UI.
+- 2026-07-06 - EAS iOS archive bundle fix: Metro heap + cache + pnpm resolution for
+  export:embed. eas.json sets NODE_OPTIONS/METRO_NODE_OPTIONS; eas-build-post-install
+  materializes Metro-local deps and clears metro-cache; prebuildCommand refreshes
+  CocoaPods after expo prebuild; config plugin writes ios/.xcode.env.updates for
+  Xcode archive bundling; iOS deploymentTarget 13.4 via expo-build-properties.
+
+- 2026-07-06 - EAS iOS/Android build fix: pin Node 22.20.0 in apps/mobile/eas.json
+  base profile. EAS default image shipped Node 20.19.4, but the repo pins
+  pnpm@11.8.0 which requires Node >= 22.13 (uses node:sqlite builtin), so
+  "pnpm install" crashed with ERR_UNKNOWN_BUILTIN_MODULE node:sqlite. Pinning
+  Node 22 makes the build machine runtime match the pinned package manager.
 
 - 2026-07-06 - Web + mobile compact one-page Group Classes: full-width sticky nav
   header (site-header) fixes cut-off blue banner on mobile; hamburger menu for

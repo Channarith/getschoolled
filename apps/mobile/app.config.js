@@ -23,6 +23,9 @@ module.exports = ({ config }) => {
     plugins.push([
       "expo-build-properties",
       {
+        ios: {
+          deploymentTarget: "13.4",
+        },
         android: {
           // Local Vultr HTTP + Android emulator dev client (not valid in app.json schema).
           usesCleartextTraffic: true,
@@ -30,6 +33,8 @@ module.exports = ({ config }) => {
       },
     ]);
   }
+
+  plugins.push("./plugins/with-xcode-env-updates.js");
 
   return {
     ...config,
