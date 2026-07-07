@@ -20,6 +20,7 @@ import {
   getMyList, getReadIds, getSettings, listContinue, loadAuthToken,
 } from "./src/storage";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
+import CareersScreen from "./src/screens/CareersScreen";
 import DriveModeScreen from "./src/screens/DriveModeScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
