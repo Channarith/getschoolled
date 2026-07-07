@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Mobile standalone release builds (no localhost/Metro): the red
+  "Unable to load script / index.android.bundle" screen came from installing a
+  DEBUG dev build that expects Metro on localhost:8081. New scripts build a
+  standalone binary with the JS bundle embedded and the backend pinned to the
+  cloud/Vultr host: native:build:android:release (assembleRelease APK via
+  scripts/mobile-build-release-android.sh, MOBILE_DEPLOY_MODE=cloud) and
+  native:build:ios:release. API host was already cloud by default (config.ts
+  uses https://www.salareen.com in cloud mode and ignores the localhost extras).
+
 - 2026-07-06 - EAS iOS prebuildCommand regression fix: remove the custom
   prebuildCommand from eas.json. EAS appends "--platform <p>" to prebuildCommand
   and expects a single expo-prebuild invocation, so the compound "&& (...)" shell
