@@ -11,8 +11,7 @@
         "NODE_OPTIONS": "--max-old-space-size=8192",
         "METRO_NODE_OPTIONS": "--max-old-space-size=8192",
         "CI": "true"
-      },
-      "prebuildCommand": "npx expo prebuild --no-install && (test -d ios && bash scripts/mobile-ios-pod-refresh.sh || true)"
+      }
     },
     "development": {
       "extends": "base",
