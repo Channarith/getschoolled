@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Mobile cloud API failover: primary backend stays
+  https://www.salareen.com; on network error or 502/503/504 the API client
+  retries the Vultr cluster at http://45.63.91.80 with the same service paths
+  (/identity, /curriculum, /memory, orchestrator). Configurable via
+  expo.extra.cloudFailoverBaseUrl / MOBILE_CLOUD_FAILOVER_BASE_URL.
+  mobile-check-backends.sh probes failover when primary is down.
+
 - 2026-07-06 - Mobile standalone release builds (no localhost/Metro): the red
   "Unable to load script / index.android.bundle" screen came from installing a
   DEBUG dev build that expects Metro on localhost:8081. New scripts build a
