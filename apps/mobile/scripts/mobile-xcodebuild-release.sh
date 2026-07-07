@@ -13,6 +13,10 @@
 # Usage (from apps/mobile):
 #   bash scripts/mobile-xcodebuild-release.sh
 #   DEVELOPMENT_TEAM=ABCDE12345 bash scripts/mobile-xcodebuild-release.sh
+#
+# One-time: log into Xcode with your Apple ID (Xcode → Settings → Accounts).
+# If archive fails with "No profiles found", open ios/*.xcworkspace → Salareen target
+# → Signing & Capabilities → enable "Automatically manage signing" and pick Team.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -55,6 +59,36 @@ SCHEME="${XCODE_SCHEME:-Salareen}"
 ARCHIVE_PATH="${ARCHIVE_PATH:-$ROOT/ios/build/Salareen.xcarchive}"
 mkdir -p "$(dirname "$ARCHIVE_PATH")"
 
+# Resolve Apple Developer team (required for device/archive signing).
+if [[ -z "${DEVELOPMENT_TEAM:-}" ]]; then
+  DEVELOPMENT_TEAM="$(
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+      -workspace "$WS" \
+      -scheme "$SCHEME" \
+      -configuration Release \
+      -showBuildSettings 2>/dev/null \
+      | awk -F' = ' '/^[[:space:]]*DEVELOPMENT_TEAM = / { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2; exit }'
+  )"
+fi
+DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM// /}"
+
+if [[ -z "$DEVELOPMENT_TEAM" ]]; then
+  echo "ERROR: No DEVELOPMENT_TEAM for com.aiclassroom.app." >&2
+  echo "" >&2
+  echo "  Fix (pick one):" >&2
+  echo "    1. Open ios/*.xcworkspace in Xcode → Salareen target → Signing & Capabilities" >&2
+  echo "       → check 'Automatically manage signing' → select your Team → close Xcode" >&2
+  echo "    2. Re-run with your 10-character team id:" >&2
+  echo "       DEVELOPMENT_TEAM=ABCDE12345 pnpm run xcode:release" >&2
+  echo "" >&2
+  echo "  Team id: developer.apple.com/account → Membership details" >&2
+  echo "  Xcode must be signed in: Xcode → Settings → Accounts (Apple ID)" >&2
+  exit 1
+fi
+
+ALLOW_PROVISIONING="${ALLOW_PROVISIONING_UPDATES:-1}"
+CODE_SIGN_STYLE="${CODE_SIGN_STYLE:-Automatic}"
+
 XCODE_ARGS=(
   -workspace "$WS"
   -scheme "$SCHEME"
@@ -62,16 +96,19 @@ XCODE_ARGS=(
   -destination "generic/platform=iOS"
   -archivePath "$ARCHIVE_PATH"
   archive
+  DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
+  CODE_SIGN_STYLE="$CODE_SIGN_STYLE"
 )
 
-if [[ -n "${DEVELOPMENT_TEAM:-}" ]]; then
-  XCODE_ARGS+=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM")
-  XCODE_ARGS+=(CODE_SIGN_STYLE=Automatic)
+if [[ "$ALLOW_PROVISIONING" == "1" ]]; then
+  XCODE_ARGS+=(-allowProvisioningUpdates)
 fi
 
 echo "==> xcodebuild release archive (physical device, no EAS)"
 echo "    workspace: $WS"
 echo "    scheme:    $SCHEME"
+echo "    team:      $DEVELOPMENT_TEAM"
+echo "    signing:   $CODE_SIGN_STYLE (allowProvisioningUpdates=$ALLOW_PROVISIONING)"
 echo "    archive:   $ARCHIVE_PATH"
 echo ""
 echo "    After archive succeeds:"

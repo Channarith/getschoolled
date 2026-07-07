@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS xcode:release signing: pass -allowProvisioningUpdates and
+  DEVELOPMENT_TEAM/CODE_SIGN_STYLE=Automatic; clearer errors when no provisioning
+  profile exists for com.aiclassroom.app.
+
 - 2026-07-07 - Mobile iOS local release: direct expo-asset dependency (fixes EAS/local
   export:embed bundle step); mobile-xcodebuild-release.sh + pnpm run xcode:release
   for Mac .xcarchive without EAS (Organizer → Distribute App).

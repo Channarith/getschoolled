@@ -376,12 +376,15 @@ NATIVE BINARIES (.apk / .aab / .ipa)
   LOCAL iOS RELEASE (no EAS — Mac + Xcode + Apple Developer account):
     cd apps/mobile
     bash scripts/mobile-install.sh
+    # One-time signing setup:
+    #   Xcode → Settings → Accounts → sign in with Apple ID
+    #   open ios/Salareen.xcworkspace → Salareen target → Signing & Capabilities
+    #   → Automatically manage signing ON → select Team
     pnpm run xcode:release              # Release .xcarchive for physical devices
+    # Or pass team id explicitly:
+    #   DEVELOPMENT_TEAM=ABCDE12345 pnpm run xcode:release
+    # Script passes -allowProvisioningUpdates so Xcode can create profiles.
     # Then: Xcode → Window → Organizer → Distribute App
-    #   Ad Hoc = IPA for registered test iPhones (UDIDs in Apple Developer)
-    #   App Store = upload to TestFlight / App Store Connect
-    # Optional: DEVELOPMENT_TEAM=YOUR_TEAM_ID pnpm run xcode:release
-    # Requires expo-asset in package.json (direct dep) for the JS bundle step.
 
   EAS iOS failure "expo-asset cannot be found": run  pnpm install  after
   pulling; expo-asset must be a direct dependency (not only transitive via expo).
