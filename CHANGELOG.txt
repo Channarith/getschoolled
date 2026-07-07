@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Audio courses: restore es/zh localized spoken bodies via a hybrid
+  selector - curated localized fact sets are used verbatim when present, else the
+  rich English narration pack; still zero intro/recap wrappers, padding, or
+  repetition. Fixed catalog_i18n / training_content_i18n / khmer tests that
+  asserted the removed wrapper headings.
+
 - 2026-07-07 - Drive-mode audio catalog: all 225 classes now emit only authored
   segments — removed generic intro/recap wrappers on knowledge lessons, removed
   language repeat-after-me and recap segments, and dropped the old fallback

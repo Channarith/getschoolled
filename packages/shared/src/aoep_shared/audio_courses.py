@@ -27,11 +27,12 @@ from pydantic import BaseModel, Field
 from . import catalog_i18n
 from .catalog_i18n import (
     DEFAULT_LOCALE, normalize_locale,
-    localize_category, localize_lesson_type,
+    localize_category, localize_heading, localize_lesson_type,
     localize_level, narration,
 )
 from .training_content_i18n import (
-    audio_title_suffix, localize_course_title, normalize_training_locale,
+    audio_title_suffix, localize_course_title, localize_facts,
+    normalize_training_locale,
 )
 from .audio_topic_data import TOPIC_SECTIONS
 from .language_learning import LANGUAGE_META, phrases_for
@@ -303,18 +304,34 @@ def _knowledge_course(
 ) -> AudioCourse:
     """Build a knowledge audio lesson.
 
-    ``locale`` localizes headings and category labels for the UI.
-    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS.
+    ``locale`` localizes category labels for the UI. ``training_locale``
+    (en/es/zh) selects the spoken body: when a curated localized fact set
+    exists for the topic it is used verbatim (authentic, non-English);
+    otherwise the rich English narration pack is used. Either way the lesson
+    contains only substantive authored segments - no intro/recap wrappers,
+    no padding, and no repeated narration.
     """
     tloc = normalize_training_locale(training_locale)
     display_title = localize_course_title(title, tloc)
     cat_local = localize_category(category, locale)
-    sections = TOPIC_SECTIONS[title]
-    segs = [
-        AudioSegment(heading=heading, text=body)
-        for heading, body in sections
-    ]
+    key_idea_label = localize_heading("Key idea", locale)
+    points = None
     body_loc = "en"
+    if tloc != "en":
+        localized, loc = localize_facts(title, tloc)
+        if loc != "en" and localized:
+            points, body_loc = localized, loc
+    if points:
+        segs = [
+            AudioSegment(heading=f"{key_idea_label} {i}", text=p)
+            for i, p in enumerate(points, start=1)
+        ]
+    else:
+        segs = [
+            AudioSegment(heading=heading, text=body)
+            for heading, body in TOPIC_SECTIONS[title]
+        ]
+        body_loc = "en"
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
         id=f"audio-{slug}",
