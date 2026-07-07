@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS physical device: mobile-run-ios.sh --physical / pnpm run ios:device
+  (fixes duplicate --device when ios:debug -- --device targeted simulator + flag).
+
 - 2026-07-07 - EAS workflow: trigger Create Production Builds on push to main
   (apps/mobile/**) so Expo GitHub app can queue iOS+Android without local eas CLI.
 
