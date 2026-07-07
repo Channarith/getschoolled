@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,9 +32,10 @@ from typing import List, Optional
 ROOT = Path(__file__).resolve().parents[1]
 TEST_GLOBS = [
     "packages/shared/tests", "services/curriculum/tests", "services/orchestrator/tests",
-    "services/memory/tests", "services/speech/tests", "services/perception/tests",
-    "services/billing/tests", "services/integrations/tests", "services/harvester/tests",
-    "apps/agent-runtime/tests", "training/tests", "scripts/tests", "qa/tests",
+    "services/identity/tests", "services/memory/tests", "services/speech/tests",
+    "services/perception/tests", "services/billing/tests", "services/integrations/tests",
+    "services/harvester/tests", "apps/agent-runtime/tests", "training/tests",
+    "scripts/tests", "qa/tests",
 ]
 
 
@@ -80,6 +82,9 @@ def step_web() -> dict:
 
 
 def step_stress() -> dict:
+    # Internal-only scenarios need the same dev token the local stacks run
+    # with (scripts/dev_up.sh, infra/compose/docker-compose.e2e.yml).
+    os.environ.setdefault("INTERNAL_TOKEN", "dev-internal-token")
     res = _run([sys.executable, str(ROOT / "qa" / "stress.py"), "--smoke"])
     res["name"] = "api-stress-smoke"
     res["required"] = False    # only fails if a reachable service breaches SLA

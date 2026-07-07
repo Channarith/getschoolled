@@ -479,7 +479,7 @@ const SHARED: Record<string, string> = {
   "corporate.courses": "{n} course",
   "corporate.coursesPlural": "{n} courses",
   "corporate.startProgram": "Start program",
-  "corporate.assignTeam": "Assign to team",
+  "corporate.assignTeam": "Talk to us about team seats",
   "rewards.title": "Rewards",
   "rewards.intro": "Earn points every time you pass a course (more for harder levels, higher scores, and hands-on labs). Redeem them for class discounts or enter raffles for prizes. See the",
   "rewards.rulesLink": "Rewards & Sweepstakes rules",

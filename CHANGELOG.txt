@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Corporate-demo E2E validation (v0.12.18): Playwright web E2E
+  suite introduced (apps/web/e2e, 19 tests over the corporate funnel: catalog,
+  locked player, completion/rewards, careers matcher, i18n/responsive) plus a
+  one-command GO/NO-GO gate (make demo-check) and strategy doc
+  (docs/vv-corporate-demo-validation.md). Demo blockers fixed: default
+  corporate program tracks now seed at startup (SEED_CORPORATE_PROGRAMS),
+  program cards deep-link to /corporate/learn, and the "Assign to team"
+  dead-end is a sales-contact CTA. Platform fixes surfaced by this effort:
+  qa/regression.py now runs services/identity/tests; native dev stack no
+  longer loads zero lessons (CURRICULUM_DIR container-path fallback);
+  CORS headers now present on rate-limited 429s (middleware ordering);
+  local stacks carry a dev INTERNAL_TOKEN so internal-only endpoints and
+  the three internal stress scenarios work; dev_down.sh sweeps orphaned
+  service processes by port.
+
 - 2026-07-06 - EAS iOS archive bundle root cause fix: metro.config.js no longer
   require()s metro-config/src/defaults/exclusionList. metro-config is a transitive
   (phantom) dependency; under pnpm's isolated node_modules on EAS that require

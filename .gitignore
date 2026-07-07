@@ -78,3 +78,8 @@ coverage/
 /local/
 /CLAUDE.md
 .gstack/
+
+# ---- Playwright E2E artifacts ----
+apps/web/e2e/.auth/
+apps/web/playwright-report/
+apps/web/test-results/
