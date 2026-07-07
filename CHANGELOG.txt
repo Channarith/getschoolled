@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS TestFlight: add NSPhotoLibraryUsageDescription and
+  NSPhotoLibraryAddUsageDescription to app.json infoPlist (Apple 90683).
+
 - 2026-07-07 - iOS physical device: mobile-run-ios.sh --physical / pnpm run ios:device
   (fixes duplicate --device when ios:debug -- --device targeted simulator + flag).
 
