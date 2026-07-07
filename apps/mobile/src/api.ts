@@ -94,6 +94,16 @@ export type JobMatch = {
   covered: string[]; missing: string[]; coverage_pct: number; recommended_path: string[];
 };
 
+export type TeachingAnswer = {
+  text: string;
+  citations?: string[];
+  grounded?: boolean;
+};
+
+export type TeachingSessionView = {
+  session: { session_id: string; lesson_id: string };
+};
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -185,6 +195,67 @@ export async function checkServiceReachable(base: string, timeoutMs = 5000): Pro
     }
   }
   return false;
+}
+
+/** Start a solo teaching session for course-grounded Drive Mode Q&A. */
+export async function startTeachingSession(
+  lessonId: string,
+  studentId?: string,
+): Promise<TeachingSessionView> {
+  return get(ORCHESTRATOR_URL, "/api/sessions", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      lesson_id: lessonId,
+      class_type: "solo",
+      student_id: studentId ?? null,
+    }),
+  });
+}
+
+/** Ask a question against an active teaching session (RAG + LLM when configured). */
+export async function askTeachingSession(
+  sessionId: string,
+  text: string,
+  language = "en",
+): Promise<TeachingAnswer> {
+  return get(ORCHESTRATOR_URL, `/api/sessions/${encodeURIComponent(sessionId)}/ask`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ text, language }),
+  });
+}
+
+const teachingSessionCache: Record<string, string> = {};
+
+/**
+ * Course-aware Q&A for Drive Mode. Tries orchestrator RAG/LLM first; returns
+ * empty string when the lesson is unknown so the caller can use local fallback.
+ */
+export async function askCourseQuestion(
+  courseId: string,
+  question: string,
+  seg: number,
+  language = "en",
+): Promise<string> {
+  let sessionId = teachingSessionCache[courseId];
+  if (!sessionId) {
+    try {
+      const view = await startTeachingSession(courseId);
+      sessionId = view.session.session_id;
+      teachingSessionCache[courseId] = sessionId;
+    } catch {
+      return "";
+    }
+  }
+  const segHint = `[Student is on segment ${seg + 1} of the audio course.] `;
+  try {
+    const answer = await askTeachingSession(sessionId, segHint + question, language);
+    return answer.text?.trim() || "";
+  } catch {
+    delete teachingSessionCache[courseId];
+    return "";
+  }
 }
 
 export function listAudioCourses(

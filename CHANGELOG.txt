@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - Mobile Drive Mode hands-free voice overhaul: continuous listening
+  (no tap required) pauses course audio on speech, answers from orchestrator
+  RAG/LLM when available (askCourseQuestion) with local segment fallback
+  (including "what is lesson 12 about?"), then resumes after 25 seconds. Removed
+  external Google voice shortcut (could not receive course context). Drive browse
+  layout: single scrollable list so filter chips are not clipped. Group Classes:
+  sign-in CTA, "Join live chat room" for Salareen, open external meeting links
+  for Zoom/Teams/Meet.
+
 - 2026-07-06 - EAS iOS archive bundle root cause fix: metro.config.js no longer
   require()s metro-config/src/defaults/exclusionList. metro-config is a transitive
   (phantom) dependency; under pnpm's isolated node_modules on EAS that require

@@ -1,12 +1,14 @@
 import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, listStudents, type AudioCourse } from "../api";
+import {
+  askCourseQuestion, getAudioCourse, listStudents, type AudioCourse,
+} from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -19,12 +21,14 @@ import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
 import { normalizeTrainingLocale, type TrainingLocale } from "../trainingLocale";
 import {
-  getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
+  getVoiceEngineDetails, hasWakeWord,
   startVoiceListening, stopVoiceListening, stripWakeWords,
   type VoiceEngineLabel,
 } from "../voiceAssistant";
 import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
+
+const RESUME_DELAY_MS = 25000;
 
 export default function DriveModeScreen({
   courseId, isDriving = false, onBack,
@@ -48,7 +52,9 @@ export default function DriveModeScreen({
   const segRef = useRef(0);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const expectWakeRef = useRef(true);
+  const expectWakeRef = useRef(false);
+  const handsFreeRef = useRef(true);
+  const answeringRef = useRef(false);
 
   useEffect(() => {
     void getVoiceEngineDetails()
@@ -77,11 +83,18 @@ export default function DriveModeScreen({
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
+      handsFreeRef.current = false;
       Speech.stop();
       stopVoiceRecognition();
       clearResumeTimer();
     };
   }, [courseId, locale]);
+
+  useEffect(() => {
+    if (!course || !handsFreeRef.current) return;
+    void startHandsFreeListening();
+    return () => stopVoiceRecognition();
+  }, [course?.id, locale]);
 
   function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
     clearResumeTimer();
@@ -126,9 +139,12 @@ export default function DriveModeScreen({
   function resumeCourse(delayMs = 0) {
     if (!course) return;
     clearResumeTimer();
+    stopVoiceRecognition();
     const resume = () => {
+      answeringRef.current = false;
       setAssistantOpen(false);
       playFrom(course, seg);
+      void startHandsFreeListening();
     };
     if (delayMs > 0) {
       setAssistantStatus(`Resuming in ${Math.round(delayMs / 1000)} seconds. Say or tap Pause to stay paused.`);
@@ -143,7 +159,48 @@ export default function DriveModeScreen({
     setListening(false);
   }
 
-  async function startVoiceRecognition(expectWakeWord = true) {
+  function scheduleHandsFreeRestart() {
+    if (!handsFreeRef.current || answeringRef.current) return;
+    setTimeout(() => {
+      if (handsFreeRef.current && !assistantOpen && !answeringRef.current) {
+        void startHandsFreeListening();
+      }
+    }, 400);
+  }
+
+  async function startHandsFreeListening() {
+    if (!handsFreeRef.current || answeringRef.current) return;
+    expectWakeRef.current = false;
+    const started = await startVoiceListening({
+      locale,
+      continuous: true,
+      onSpeechStart: () => {
+        if (playing && !assistantOpen) {
+          pauseForAssistant(t("drive.listeningHandsFree", { engine: voiceEngine }));
+        }
+      },
+      onResult: (text) => {
+        setListening(false);
+        setAssistantTranscript(text);
+        void handleSpokenInput(text, false);
+      },
+      onError: (code) => {
+        setListening(false);
+        if (code === "permission_denied") {
+          setAssistantStatus(t("drive.voicePermissionDenied", { engine: voiceEngine }));
+        } else if (code !== "aborted" && code !== "no-speech") {
+          scheduleHandsFreeRestart();
+        }
+      },
+      onEnd: () => {
+        setListening(false);
+        scheduleHandsFreeRestart();
+      },
+    });
+    if (started) setListening(true);
+  }
+
+  async function startVoiceRecognition(expectWakeWord = false) {
     expectWakeRef.current = expectWakeWord;
     pauseForAssistant(expectWakeWord
       ? t("drive.listeningWake", { engine: voiceEngine })
@@ -151,6 +208,10 @@ export default function DriveModeScreen({
 
     const started = await startVoiceListening({
       locale,
+      continuous: false,
+      onSpeechStart: () => {
+        if (playing) pauseForAssistant(t("drive.listeningQuestion"));
+      },
       onResult: (text) => {
         setListening(false);
         setAssistantTranscript(text);
@@ -196,39 +257,63 @@ export default function DriveModeScreen({
     if (!course) return;
     const command = input.trim();
     if (!command) return;
+    void runAssistantQuestion(command);
+  }
+
+  async function runAssistantQuestion(command: string) {
+    if (!course) return;
     clearResumeTimer();
+    stopVoiceRecognition();
+    answeringRef.current = true;
     setAssistantTranscript(command);
     const lower = command.toLowerCase();
     if (/\b(pause|stop|hold)\b/.test(lower)) {
       Speech.stop();
       setPlaying(false);
-      setAssistantAnswer("Paused. Say or tap Resume when you want to continue.");
+      setAssistantAnswer("Paused. Say resume or wait — I will keep listening.");
       setAssistantStatus("Paused for you.");
+      answeringRef.current = false;
+      void startHandsFreeListening();
       return;
     }
     if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
       setAssistantAnswer("Resuming the lesson.");
+      answeringRef.current = false;
       resumeCourse(1000);
       return;
     }
     if (/\b(next|skip ahead)\b/.test(lower)) {
       setAssistantAnswer("Skipping to the next segment.");
+      answeringRef.current = false;
       playFrom(course, Math.min(seg + 1, course.segments.length - 1));
       return;
     }
     if (/\b(previous|back|repeat)\b/.test(lower)) {
       setAssistantAnswer("Going back so you can hear that part again.");
+      answeringRef.current = false;
       playFrom(course, Math.max(0, seg - 1));
       return;
     }
-    const answer = answerFromCourse(course, seg, command);
-    setAssistantAnswer(answer);
-    setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
+
+    setAssistantStatus(t("drive.searchingCourse"));
     Speech.stop();
-    speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
+    setPlaying(false);
+    let answer = "";
+    try {
+      answer = await askCourseQuestion(course.id, command, seg, trainingLang);
+    } catch { /* offline */ }
+    if (!answer) {
+      answer = answerFromCourse(course, seg, command);
+    }
+    setAssistantAnswer(answer);
+    setAssistantStatus(t("drive.answeringResume", { seconds: RESUME_DELAY_MS / 1000 }));
+    speakNatural(answer, {
       locale: trainingLang,
       voiceStyle: voiceStyleRef.current,
-      onDone: () => resumeCourse(6500),
+      onDone: () => {
+        answeringRef.current = false;
+        resumeCourse(RESUME_DELAY_MS);
+      },
     });
   }
 
@@ -265,7 +350,12 @@ export default function DriveModeScreen({
   const [c1, c2] = categoryGradient(course.category);
 
   return (
-    <View style={styles.c}>
+    <ScrollView
+      style={styles.c}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.topRow}>
         <AnimatedPressable onPress={() => { Speech.stop(); onBack(); }}>
           <View style={styles.backRow}>
@@ -346,16 +436,27 @@ export default function DriveModeScreen({
       </GlassPanel>
 
       <GlassPanel style={styles.assistantBar}>
-        <Text style={styles.assistantWake}>
-          {t("drive.assistantWake", { engine: voiceEngine })}
-        </Text>
+        <View style={styles.listeningRow}>
+          <Ionicons
+            name={listening ? "radio" : "mic-off"}
+            size={18}
+            color={listening ? theme.colors.success : theme.colors.muted}
+          />
+          <Text style={styles.assistantWake}>
+            {listening
+              ? t("drive.handsFreeOn", { engine: voiceEngine })
+              : t("drive.handsFreeOff", { engine: voiceEngine })}
+          </Text>
+        </View>
         <Text style={styles.assistantEngine}>{t("drive.assistantEngineHint")}</Text>
+        <Text style={styles.assistantHint}>{t("drive.handsFreeHint")}</Text>
         <View style={styles.assistantActions}>
-          <AnimatedPressable style={styles.assistantBtn} onPress={() => void startVoiceRecognition(true)}>
+          <AnimatedPressable
+            style={styles.assistantBtn}
+            onPress={() => void startVoiceRecognition(false)}
+          >
             <Ionicons name="mic" size={16} color="#001022" />
-            <Text style={styles.assistantBtnText}>
-              {listening ? t("drive.listening") : t("drive.ask")}
-            </Text>
+            <Text style={styles.assistantBtnText}>{t("drive.askNow")}</Text>
           </AnimatedPressable>
           <AnimatedPressable
             style={[styles.assistantBtn, styles.assistantBtnGhost]}
@@ -363,14 +464,6 @@ export default function DriveModeScreen({
           >
             <Text style={styles.assistantBtnGhostText}>{t("drive.pauseAsk")}</Text>
           </AnimatedPressable>
-          {voiceEngine === "Google" ? (
-            <AnimatedPressable
-              style={[styles.assistantBtn, styles.assistantBtnGhost]}
-              onPress={() => void openPlatformVoiceAssistant()}
-            >
-              <Text style={styles.assistantBtnGhostText}>{t("drive.openGoogle")}</Text>
-            </AnimatedPressable>
-          ) : null}
         </View>
       </GlassPanel>
       <Text style={styles.hint}>{t("drive.hint")}</Text>
@@ -414,12 +507,24 @@ export default function DriveModeScreen({
           </GlassPanel>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 function answerFromCourse(course: AudioCourse, seg: number, question: string): string {
-  const words = question.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  const lower = question.toLowerCase();
+  const lessonMatch = lower.match(/\b(lesson|segment|chapter|part)\s*#?\s*(\d+)\b/);
+  if (lessonMatch) {
+    const idx = parseInt(lessonMatch[2], 10) - 1;
+    if (idx >= 0 && idx < course.segments.length) {
+      const s = course.segments[idx];
+      const body = (s.text || "").replace(/\s+/g, " ").trim();
+      const snippet = body.length > 420 ? `${body.slice(0, 420)}...` : body;
+      return `Lesson ${idx + 1} is "${s.heading}". ${snippet}`;
+    }
+    return `This course has ${course.segments.length} segments. Lesson ${lessonMatch[2]} is not in range.`;
+  }
+  const words = lower.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
   const candidates = course.segments.map((s, i) => ({
     segment: s,
     score: scoreSegment(s.text, words) + (i === seg ? 2 : 0),
@@ -437,7 +542,8 @@ function scoreSegment(text: string, words: string[]): number {
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, backgroundColor: "transparent", padding: theme.spacing.screenX, paddingTop: 56 },
+  c: { flex: 1, backgroundColor: "transparent" },
+  scrollContent: { padding: theme.spacing.screenX, paddingTop: 56, paddingBottom: 32 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   back: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
@@ -491,9 +597,13 @@ const styles = StyleSheet.create({
   play: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
   pause: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },
   assistantBar: { marginTop: 8 },
-  assistantWake: { color: theme.colors.text, fontSize: 14, fontWeight: "800", textAlign: "center" },
+  listeningRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  assistantWake: { color: theme.colors.text, fontSize: 14, fontWeight: "800", textAlign: "center", flexShrink: 1 },
   assistantEngine: {
     color: theme.colors.muted, fontSize: 11, textAlign: "center", marginTop: 4, lineHeight: 15,
+  },
+  assistantHint: {
+    color: theme.colors.accent, fontSize: 11, textAlign: "center", marginTop: 6, lineHeight: 15,
   },
   assistantActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" },
   assistantBtn: {

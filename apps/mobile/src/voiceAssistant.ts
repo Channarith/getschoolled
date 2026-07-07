@@ -3,8 +3,8 @@
 //   Android: SpeechRecognizer (Google on most devices)
 //   Web: Web Speech API fallback
 //
-// Third-party apps cannot register a global "Hey Sala" wake word like Hey Siri;
-// tap Ask/Mic to speak, optionally prefixed with "Hey Sala" or "Salareen".
+// Hands-free Drive Mode runs continuous listening (like Hey Google / Hey Siri):
+// speech pauses course audio, answers from course material, then resumes.
 
 import { Linking, Platform } from "react-native";
 
@@ -164,6 +164,10 @@ export function stopVoiceListening(): void {
 
 export type StartListeningOpts = {
   locale: string;
+  /** Keep the mic open and restart after each utterance (Drive Mode hands-free). */
+  continuous?: boolean;
+  /** Fire when the OS detects speech — use to pause course audio immediately. */
+  onSpeechStart?: () => void;
   onResult: (transcript: string) => void;
   onError: (code: string) => void;
   onEnd: () => void;
@@ -184,8 +188,9 @@ function startWebListening(opts: StartListeningOpts): boolean {
   const recognition = new Ctor();
   recognition.lang = localeToBcp47(opts.locale);
   recognition.interimResults = false;
-  recognition.continuous = false;
+  recognition.continuous = Boolean(opts.continuous);
   recognition.onresult = (event) => {
+    opts.onSpeechStart?.();
     const results = event.results as ArrayLike<{ [j: number]: { transcript?: string } }>;
     const text = Array.from({ length: results.length }, (_, i) => results[i]?.[0]?.transcript ?? "")
       .join(" ")
@@ -213,6 +218,9 @@ function startNativeListening(opts: StartListeningOpts): boolean {
   if (!speech || !mod) return false;
 
   activeListeners.push(
+    speech.addSpeechRecognitionListener("start", () => {
+      opts.onSpeechStart?.();
+    }),
     speech.addSpeechRecognitionListener("result", (event) => {
       const results = event.results as Array<{ transcript?: string }> | undefined;
       const transcript = results?.[0]?.transcript?.trim() ?? "";
@@ -231,11 +239,11 @@ function startNativeListening(opts: StartListeningOpts): boolean {
     mod.start({
       lang: localeToBcp47(opts.locale),
       interimResults: false,
-      continuous: false,
+      continuous: Boolean(opts.continuous),
       contextualStrings: CONTEXTUAL_PHRASES,
       iosTaskHint: "dictation",
       androidIntentOptions: {
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 8000,
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 12000,
       },
     });
     return true;

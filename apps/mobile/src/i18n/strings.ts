@@ -35,6 +35,9 @@ export type StringKey =
   | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
   | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
   | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
+  | "drive.handsFreeOn" | "drive.handsFreeOff" | "drive.handsFreeHint"
+  | "drive.askNow" | "drive.listeningHandsFree" | "drive.searchingCourse"
+  | "drive.answeringResume"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -145,8 +148,15 @@ const EN: Record<StringKey, string> = {
   "drive.back": "← Back",
   "drive.hint": "Keep your eyes on the road — this plays hands-free.",
   "drive.drivingBadge": "Driving detected",
-  "drive.assistantWake": "Tap Ask, then say “Hey Sala” ({engine})",
-  "drive.assistantEngineHint": "Uses your phone’s speech engine (Siri on iPhone, Google on Android) in your app language.",
+  "drive.assistantWake": "Say “Hey Sala” or just ask — listening hands-free ({engine})",
+  "drive.assistantEngineHint": "Course audio pauses when you speak. Answers use this course’s training material, then resume in 25 seconds.",
+  "drive.handsFreeOn": "Listening hands-free ({engine})",
+  "drive.handsFreeOff": "Voice paused — tap Ask now ({engine})",
+  "drive.handsFreeHint": "Say Hey Sala, pause, resume, next, or ask about any lesson (e.g. “what is lesson 12 about?”).",
+  "drive.askNow": "Ask now",
+  "drive.listeningHandsFree": "Heard you — pausing course audio…",
+  "drive.searchingCourse": "Searching course training material…",
+  "drive.answeringResume": "Answering from course data. Resuming in {seconds}s unless you say pause.",
   "drive.ask": "Ask",
   "drive.listening": "Listening…",
   "drive.pauseAsk": "Pause + Ask",

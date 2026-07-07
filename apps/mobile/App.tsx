@@ -216,6 +216,7 @@ function AppInner() {
           setShowGroupClasses(false);
         }}
         onBack={() => setShowGroupClasses(false)}
+        onSignIn={() => { setShowGroupClasses(false); setTab("settings"); }}
       />
     );
   } else if (tab === "home") {
