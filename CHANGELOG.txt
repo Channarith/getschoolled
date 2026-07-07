@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - EAS iOS archive bundle root cause fix: metro.config.js no longer
+  require()s metro-config/src/defaults/exclusionList. metro-config is a transitive
+  (phantom) dependency; under pnpm's isolated node_modules on EAS that require
+  throws MODULE_NOT_FOUND, failing `expo export:embed` in the Xcode "Bundle React
+  Native code and images" phase (worked locally only because local node_modules is
+  a flat tree). blockList is now built as a single RegExp from Expo's default
+  config plus our project patterns — no undeclared imports.
+
 - 2026-07-06 - Mobile cloud API failover: primary backend stays
   https://www.salareen.com; on network error or 502/503/504 the API client
   retries the Vultr cluster at http://45.63.91.80 with the same service paths
