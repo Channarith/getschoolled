@@ -1,6 +1,6 @@
 {
   "name": "@eduplatform/web",
-  "version": "0.12.11",
+  "version": "0.13.0",
   "private": true,
   "license": "LicenseRef-AOEP-Proprietary",
   "scripts": {
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "livekit-client": "2.5.3",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1"

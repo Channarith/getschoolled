@@ -1,0 +1,250 @@
+SALAREEN MOBILE — NATIVE BUILD INSTRUCTIONS
+==========================================
+Version 0.12.11 | Updated June 2026
+Plain text per project convention.
+
+This guide covers:
+  A. Building a native iOS app locally (Xcode)
+  B. Building a native Android app locally (Android Studio)
+  C. Where build artifacts are saved
+  D. EAS (Expo Application Services) cloud builds — recommended for CI
+  E. LiveKit native module requirements (added in v0.12.x)
+
+All commands run from: apps/mobile/
+
+
+==========================================================
+A. NATIVE iOS BUILD (LOCAL, XCODE)
+==========================================================
+
+Prerequisites:
+  - macOS only (Xcode does not run on Linux or Windows)
+  - Xcode 15+ installed from the Mac App Store
+  - Xcode Command Line Tools: xcode-select --install
+  - CocoaPods: sudo gem install cocoapods   (or: brew install cocoapods)
+  - Node.js 18+ and pnpm/npm installed
+  - An Apple Developer account (free = simulators only; paid = device/App Store)
+
+Step 1 — Install JS dependencies:
+  cd apps/mobile
+  npm install
+
+Step 2 — Generate the native iOS project (Expo prebuild):
+  npx expo prebuild --platform ios --clean
+
+  This creates the apps/mobile/ios/ directory with:
+    ios/aiclassroom.xcworkspace   <- open this in Xcode, NOT .xcodeproj
+    ios/Podfile                   <- CocoaPods manifest
+
+  NOTE: --clean removes any existing ios/ folder and regenerates fresh.
+  Run this after adding/removing Expo plugins (e.g. @livekit/react-native-webrtc).
+
+Step 3 — Install native CocoaPods dependencies:
+  cd ios && pod install && cd ..
+
+  This installs the LiveKit WebRTC framework, expo-av, and all other
+  native dependencies declared in the Podfile.
+
+  If pod install fails with "Unable to find a specification for 'livekit-client-sdk-swift'":
+    pod repo update
+    pod install
+
+Step 4 — Open in Xcode:
+  open ios/aiclassroom.xcworkspace
+
+  In Xcode:
+    a. Select the "aiclassroom" target (not "Pods")
+    b. Choose your signing team in Signing & Capabilities
+    c. Select a simulator or connected device from the top toolbar
+
+Step 5a — Run on Simulator (no Developer account required):
+  Select e.g. "iPhone 15 Pro" simulator, press ▶ (or Cmd+R).
+  The app builds and launches in the iOS Simulator.
+
+  NOTE: The iOS Simulator does NOT have camera or real microphone access.
+  LiveKit rooms will work for audio only on simulator (using the Mac's mic).
+
+Step 5b — Run on physical device (paid Apple Developer account required):
+  Connect your iPhone via USB.
+  Select it from the device picker in Xcode.
+  Press ▶. Xcode signs the app with your dev cert and installs it.
+
+  First time: on the iPhone, go to Settings > General > VPN & Device Management
+  and trust the developer certificate.
+
+Step 6 — Archive for TestFlight / App Store:
+  Product > Archive (in Xcode menu bar).
+  When complete, Xcode Organizer opens.
+  Click "Distribute App" > App Store Connect > Upload.
+
+ARTIFACT LOCATION (iOS):
+  Simulator builds:    temporary; launch directly from Xcode
+  Device builds:       installed directly to device via Xcode
+  Archive (.xcarchive): ~/Library/Developer/Xcode/Archives/<date>/
+  IPA (after export):  ~/Desktop/<appname>.ipa (or wherever you export)
+
+
+==========================================================
+B. NATIVE ANDROID BUILD (LOCAL, ANDROID STUDIO)
+==========================================================
+
+Prerequisites:
+  - Any OS: macOS, Linux, or Windows
+  - Android Studio installed (Hedgehog 2023.1.1 or later)
+  - Android SDK 34 installed via Android Studio SDK Manager
+  - Java 17 (bundled with Android Studio)
+
+Step 1 — Install JS dependencies:
+  cd apps/mobile
+  npm install
+
+Step 2 — Generate the native Android project:
+  npx expo prebuild --platform android --clean
+
+  This creates apps/mobile/android/ with:
+    android/app/src/
+    android/build.gradle
+    android/app/build.gradle
+    android/gradlew (build script)
+
+Step 3 — Open in Android Studio:
+  Open Android Studio.
+  File > Open > select apps/mobile/android/
+  Wait for Gradle sync to complete (downloads dependencies).
+
+Step 4 — Build and run:
+  Run > Run 'app' (or Shift+F10).
+  Select an AVD (Android Virtual Device) or connected phone.
+
+Step 5 — Build a release APK:
+  In Android Studio: Build > Generate Signed Bundle/APK
+    Select APK or AAB (AAB required for Google Play).
+    Create or use an existing keystore.
+    Build type: release.
+
+  OR via command line (from apps/mobile/android/):
+    ./gradlew assembleRelease      # builds APK
+    ./gradlew bundleRelease        # builds AAB for Play Store
+
+ARTIFACT LOCATIONS (Android):
+
+  Debug APK:
+    apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+  Release APK (unsigned — DO NOT publish):
+    apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+  Release APK (signed — via Android Studio):
+    apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+
+  Release AAB (for Google Play):
+    apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+
+  APK via Expo prebuild + direct gradle:
+    npx expo prebuild --platform android --clean
+    cd android && ./gradlew assembleRelease
+    # APK is at: android/app/build/outputs/apk/release/app-release.apk
+
+  The android/ directory is GITIGNORED.
+  Run prebuild + gradle each time you want a fresh APK.
+
+
+==========================================================
+C. EAS CLOUD BUILD (RECOMMENDED FOR CI AND DISTRIBUTION)
+==========================================================
+
+EAS Build runs on Expo's cloud infrastructure — no Xcode or Android Studio
+needed locally. Outputs IPA (iOS) or APK/AAB (Android) directly.
+
+Setup (one-time):
+  npm install -g eas-cli
+  eas login           # your Expo account
+  eas build:configure # creates eas.json (already present in this repo)
+
+Build iOS (simulator):
+  eas build --platform ios --profile preview
+
+Build iOS (device / TestFlight):
+  eas build --platform ios --profile production
+
+Build Android (APK):
+  eas build --platform android --profile preview
+
+Build Android (AAB for Play Store):
+  eas build --platform android --profile production
+
+Download the artifact:
+  eas build:list             # lists recent builds with IDs
+  eas build:view <build-id>  # shows download URL
+
+EAS artifacts are accessible at:
+  https://expo.dev/accounts/<username>/projects/aiclassroom/builds
+
+
+==========================================================
+D. LIVEKIT NATIVE MODULE REQUIREMENTS
+==========================================================
+
+The Live Room feature (added v0.12.x) uses @livekit/react-native and
+@livekit/react-native-webrtc. These are native modules — they CANNOT
+run in Expo Go. A custom dev client or native build is required.
+
+Custom development client (fastest iteration without full native build):
+  npx expo install expo-dev-client
+  eas build --platform ios --profile development
+  # Then: npx expo start --dev-client
+
+Android: LiveKit requires Android API 24+. The app targets API 34.
+iOS: LiveKit requires iOS 13.0+. The app targets iOS 13.0.
+
+Required permissions already added to app.json (v0.12.x):
+  iOS: NSCameraUsageDescription, NSMicrophoneUsageDescription (both updated)
+  Android: CAMERA, RECORD_AUDIO (both present)
+
+
+==========================================================
+E. QUICK REFERENCE — WHERE ARE MY BUILD FILES?
+==========================================================
+
+iOS (Xcode archive):
+  ~/Library/Developer/Xcode/Archives/<YYYY-MM-DD>/aiclassroom <date>.xcarchive
+  Exported IPA: wherever you chose in the Xcode export dialog
+
+Android (Gradle output):
+  APK debug:    apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+  APK release:  apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+  AAB release:  apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+
+EAS cloud builds:
+  Download from: https://expo.dev/accounts/<username>/projects/aiclassroom/builds
+
+Expo Go (development only, NO LiveKit):
+  npx expo start   then scan QR code
+
+
+==========================================================
+F. COMMON ISSUES
+==========================================================
+
+"Missing react-native-webrtc":
+  Make sure @livekit/react-native-webrtc is in package.json.
+  Run npx expo prebuild --clean to regenerate native projects.
+  Run pod install (iOS) or Gradle sync (Android) again.
+
+"Build failed: No signing certificate":
+  iOS requires an Apple Developer account for device builds.
+  For simulator-only, select "Sign to Run Locally" in Xcode.
+
+"Gradle daemon failed":
+  cd android && ./gradlew --stop && ./gradlew clean && ./gradlew assembleRelease
+
+"Pod install fails":
+  cd ios && pod deintegrate && pod install
+
+"LiveKit room connects but no audio/video on Android":
+  Grant CAMERA and RECORD_AUDIO permissions at runtime (the app prompts).
+  Check that INTERNET permission is in AndroidManifest.xml (added by plugin).
+
+"Cannot find module livekit-client on web":
+  cd apps/web && pnpm add livekit-client
+  (Already done in v0.12.x — check apps/web/package.json)

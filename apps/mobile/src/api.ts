@@ -375,8 +375,15 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}${q}`);
 }
 
-export async function joinLiveRoom(roomId: string, name: string, identity = ""):
-  Promise<{ participant: { id: string; name: string; identity: string }; room: LiveRoomState }> {
+export async function joinLiveRoom(
+  roomId: string,
+  name: string,
+  identity = ""
+): Promise<{
+  participant: { id: string; name: string; identity: string };
+  room: LiveRoomState;
+  media: { room: string; identity: string; token: string; url: string };
+}> {
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -510,5 +517,44 @@ export async function liveRoomDismissReport(
       body: JSON.stringify({ report_id: reportId, moderator_key: moderatorKey }),
     },
   );
+  return r.room;
+}
+
+export async function liveRoomMute(
+  roomId: string,
+  participantId: string,
+  muted: boolean,
+  moderatorKey = "",
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/mute`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, muted, moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
+export async function liveRoomRecordStart(roomId: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/record/start`, {
+      method: "POST",
+    });
+  return r.room;
+}
+
+export async function liveRoomRecordStop(roomId: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/record/stop`, {
+      method: "POST",
+    });
+  return r.room;
+}
+
+export async function liveRoomAdvance(roomId: string): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/advance`, {
+      method: "POST",
+    });
   return r.room;
 }
