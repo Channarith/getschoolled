@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Drive-mode audio catalog: all 225 classes now emit only authored
+  segments — removed generic intro/recap wrappers on knowledge lessons, removed
+  language repeat-after-me and recap segments, and dropped the old fallback
+  template path (know_why/know_core/know_deeper). Every knowledge class maps
+  1:1 to audio_topic_data.TOPIC_SECTIONS with zero filler narration.
+
+- 2026-07-07 - Drive-mode audio courses: remove all generated padding, recall,
+  quiz, and reinforcement segments. Course duration now reflects only authentic
+  authored narration from phrase/course data; synthetic segment count is zero.
+
+- 2026-07-07 - Drive-mode audio courses: wire 176-topic substantive narration pack
+  (audio_topic_data.TOPIC_SECTIONS) into knowledge lessons; remove verbatim
+  20-minute filler loop (e.g. What Is Blockchain drops from 93 to ~13 segments
+  with Satoshi, hash chains, proof of work, Ethereum, DeFi, energy, CBDCs).
+
 - 2026-07-07 - iOS xcode:release signing: pass -allowProvisioningUpdates and
   DEVELOPMENT_TEAM/CODE_SIGN_STYLE=Automatic; clearer errors when no provisioning
   profile exists for com.aiclassroom.app.
