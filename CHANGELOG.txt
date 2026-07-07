@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - EAS iOS prebuildCommand regression fix: remove the custom
+  prebuildCommand from eas.json. EAS appends "--platform <p>" to prebuildCommand
+  and expects a single expo-prebuild invocation, so the compound "&& (...)" shell
+  form broke ("unknown or unexpected option: -d"). EAS runs pod install after
+  prebuild automatically, and the pod/patch steps also run in eas-build-post-install.
+
 - 2026-07-06 - EAS iOS config-plugin regression fix: remove the standalone
   ./plugins/with-xcode-env-updates.js. On the EAS worker a standalone plugin file
   cannot resolve @expo/config-plugins under pnpm, so `expo config` failed before
