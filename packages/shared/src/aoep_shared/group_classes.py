@@ -386,9 +386,14 @@ def ensure_standard_daily_classes(
     now_local = _now().astimezone(tz)
     created = 0
     slot_hours = (12, 17)
+    salareen_hours = (10, 15)
     titles = {
         12: "Standard Group Class — Midday",
         17: "Standard Group Class — Evening",
+    }
+    salareen_titles = {
+        10: "Salareen Live Class — Morning",
+        15: "Salareen Live Class — Afternoon",
     }
     for day_offset in range(days_ahead):
         day = (now_local + timedelta(days=day_offset)).date()
@@ -418,5 +423,32 @@ def ensure_standard_daily_classes(
                 description="Daily standard group class on Google Meet. Book to receive a calendar invite.",
             )
             gc.meeting_url = google_meet_url(gc.id)
+            created += 1
+        for hour in salareen_hours:
+            start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
+            if start_local <= now_local:
+                continue
+            start_iso = start_local.astimezone(timezone.utc).isoformat()
+            lesson_id = lessons[(day_offset * len(salareen_hours) + salareen_hours.index(hour)) % len(lessons)]
+            title = salareen_titles[hour]
+            existing = [
+                c for c in store.list(upcoming_only=False)
+                if c.platform == "salareen" and c.start_time == start_iso and c.lesson_id == lesson_id
+            ]
+            if existing:
+                continue
+            store.schedule(
+                title=title,
+                lesson_id=lesson_id,
+                platform="salareen",
+                meeting_url="",
+                start_time=start_iso,
+                duration_min=60,
+                host="Theodore (AI)",
+                capacity=5,
+                room_size=6,
+                language="en",
+                description="In-app Salareen live room with Theodore. Tap Start to go live, then Join.",
+            )
             created += 1
     return created

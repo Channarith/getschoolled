@@ -63,6 +63,20 @@ function DrivePageInner() {
   const recognitionRef = useRef<any>(null);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
+  // Live mirrors so callbacks/effects read current values without re-subscribing.
+  const courseRef = useRef<AudioCourse | null>(null);
+  const segRef = useRef(0);
+  const playingRef = useRef(false);
+  const trainingLangRef = useRef<TrainingLocale>("en");
+  // Monotonic playback token. Any control that cancels speech bumps it so a
+  // cancelled utterance's onend/onerror can't advance the queue (which made
+  // Stop/skip appear to "keep playing"). Only the still-current generation
+  // may auto-advance to the next segment.
+  const playGenRef = useRef(0);
+  courseRef.current = course;
+  segRef.current = seg;
+  playingRef.current = playing;
+  trainingLangRef.current = trainingLang;
 
   async function refreshVoiceStyle() {
     setNarrationPref(getNarrationVoicePref());
@@ -94,45 +108,81 @@ function DrivePageInner() {
   }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Re-fetch the selected course when its id (or locale/lang) changes. We depend
-  // on the id rather than the full `course` object on purpose: this effect calls
-  // setCourse(), so depending on `course` would cause an infinite refetch loop.
+  // Silently refresh the selected course text when the UI locale (or the
+  // selected course id) changes. Spoken-language switches are handled by
+  // `switchTrainingLang` below (which also cancels/replays audio), so this
+  // effect intentionally does NOT depend on `trainingLang`. We depend on the
+  // id rather than the full `course` object because this effect calls
+  // setCourse() (depending on `course` would loop).
   const selectedCourseId = course?.id;
   useEffect(() => {
     if (!selectedCourseId || !loggedIn) return;
-    getAudioCourse(selectedCourseId, locale, trainingLang)
-      .then((c) => setCourse(c))
+    let cancelled = false;
+    getAudioCourse(selectedCourseId, locale, trainingLangRef.current)
+      .then((c) => { if (!cancelled) setCourse(c); })
       .catch(() => {});
-  }, [locale, trainingLang, selectedCourseId, loggedIn]);
+    return () => { cancelled = true; };
+  }, [locale, selectedCourseId, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
       const style = voiceStyleRef.current;
       const base = prosodyForStyle(style).rate;
+      // Narrate in the language of the actual text (body_locale), which may
+      // differ from the requested training locale when it falls back to English.
+      const speakLocale = courseRef.current?.body_locale || trainingLangRef.current;
       speakNaturally(text, {
-        locale: trainingLang,
+        locale: speakLocale,
         voiceStyle: style,
         rate: base * rate,
         onend: onEnd,
       });
     } catch { onEnd?.(); }
-  }, [rate, trainingLang]);
+  }, [rate]);
 
   const playSeg = useCallback((c: AudioCourse, i: number) => {
+    const gen = ++playGenRef.current;   // new playback generation
     window.speechSynthesis.cancel();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
-    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => playSeg(c, i + 1));
+    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
+      if (playGenRef.current === gen) playSeg(c, i + 1);
+    });
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
+    const gen = ++playGenRef.current;
     window.speechSynthesis.cancel();
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
-    speak(`${s.heading}. ${s.text}`, () => playSeg(course, seg + 1));
+    speak(`${s.heading}. ${s.text}`, () => {
+      if (playGenRef.current === gen) playSeg(course, seg + 1);
+    });
   }, [course, seg, speak, playSeg]);
+
+  // Pause -> switch spoken language -> resume at the same point in the new
+  // language. Refetches the open course so segment bodies come back localized,
+  // then replays the current segment (or stays paused) in the new voice.
+  const switchTrainingLang = useCallback((loc: TrainingLocale) => {
+    setTrainingLocale(loc);
+    setTrainingLang(loc);
+    const current = courseRef.current;
+    if (!current) return;
+    const wasPlaying = playingRef.current;
+    const at = segRef.current;
+    playGenRef.current++;               // invalidate the utterance we're cancelling
+    window.speechSynthesis.cancel();
+    void getAudioCourse(current.id, locale, loc)
+      .then((c) => {
+        setCourse(c);
+        setSeg(at);
+        if (wasPlaying) playSeg(c, at);
+        else setPlaying(false);
+      })
+      .catch(() => {});
+  }, [locale, playSeg]);
 
   const prevRateRef = useRef(rate);
   const prevNarrationPrefRef = useRef(narrationPref);
@@ -173,11 +223,14 @@ function DrivePageInner() {
     }
   }
 
-  function pause() { window.speechSynthesis.pause(); setPlaying(false); }
-  function resume() { window.speechSynthesis.resume(); setPlaying(true); }
+  // Cancel (not just pause) so a language switch while paused can't resume a
+  // stale utterance; Resume replays the current segment in the current voice.
+  function pause() { playGenRef.current++; window.speechSynthesis.cancel(); setPlaying(false); }
+  function resume() { replayCurrentSegment(); }
   function stop() {
     clearResumeTimer();
     stopVoiceRecognition();
+    playGenRef.current++;               // stop for good: no auto-advance
     window.speechSynthesis.cancel();
     setPlaying(false);
     setCourse(null);
@@ -186,6 +239,7 @@ function DrivePageInner() {
 
   function pauseForAssistant(status = t("drive.listenStatus")) {
     clearResumeTimer();
+    playGenRef.current++;
     window.speechSynthesis.cancel();
     setPlaying(false);
     setAssistantOpen(true);
@@ -272,6 +326,7 @@ function DrivePageInner() {
       setAssistantAnswer(t("drive.pausedAnswer"));
       setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
+      playGenRef.current++;
       window.speechSynthesis.cancel();
       return;
     }
@@ -293,6 +348,7 @@ function DrivePageInner() {
     const answer = answerFromCourse(course, seg, command, t);
     setAssistantAnswer(answer);
     setAssistantStatus(t("drive.answeringStatus"));
+    playGenRef.current++;
     window.speechSynthesis.cancel();
     speak(t("drive.resumePrompt", { answer }), () => {
       resumeAfterAssistant(6500);
@@ -374,17 +430,7 @@ function DrivePageInner() {
                 <button
                   key={loc}
                   type="button"
-                  onClick={() => {
-                    setTrainingLocale(loc);
-                    setTrainingLang(loc);
-                    if (course) {
-                      window.speechSynthesis.cancel();
-                      void getAudioCourse(course.id, locale, loc).then((c) => {
-                        setCourse(c);
-                        playSeg(c, seg);
-                      });
-                    }
-                  }}
+                  onClick={() => switchTrainingLang(loc)}
                   style={{
                     padding: "6px 10px",
                     borderRadius: 999,
@@ -477,7 +523,7 @@ function DrivePageInner() {
               <button
                 key={loc}
                 type="button"
-                onClick={() => { setTrainingLocale(loc); setTrainingLang(loc); }}
+                onClick={() => switchTrainingLang(loc)}
                 style={{
                   padding: "6px 10px",
                   borderRadius: 999,

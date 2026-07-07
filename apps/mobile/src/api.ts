@@ -15,6 +15,9 @@ export type AudioCourse = {
   id: string; title: string; category: string; subject: string; level: string;
   duration_min: number; tags: string[]; drive_safe: boolean;
   segments: AudioSegment[]; locale?: string;
+  // Actual language of the spoken body text (may differ from the requested
+  // training locale when it falls back to English). Use this for TTS voice.
+  body_locale?: string; training_locale?: string;
 };
 
 export type CategoryRow = {
@@ -135,13 +138,18 @@ async function get<T>(base: string, path: string, init?: RequestInit): Promise<T
   const fallback = failoverUrlFor(base);
   const bases = fallback ? [base, fallback] : [base];
   let lastErr: unknown;
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    ...((init?.headers as Record<string, string> | undefined) || {}),
+  };
+  const merged: RequestInit = { ...init, headers };
 
   for (let i = 0; i < bases.length; i++) {
     const tryBase = bases[i];
     try {
       let res: Response;
       try {
-        res = await fetch(`${tryBase}${path}`, init);
+        res = await fetch(`${tryBase}${path}`, merged);
       } catch (err) {
         lastErr = err;
         if (i < bases.length - 1 && isNetworkError(err)) {
@@ -352,6 +360,13 @@ export async function resolveMascot(locale: string): Promise<MascotResolve> {
 }
 
 // --- Group classes + Salareen live room --- //
+export type LessonRow = {
+  lesson_id: string;
+  title: string;
+  language?: string;
+  audience?: string;
+};
+
 export type GroupClassRow = {
   id: string;
   title: string;
@@ -365,6 +380,36 @@ export type GroupClassRow = {
   live_room_id?: string;
   needs_bridge: boolean;
   meeting_url?: string;
+  host?: string;
+  lesson_id?: string;
+  registered?: number;
+};
+
+export type GroupClassStart = {
+  class: GroupClassRow;
+  bridge: {
+    needs_bridge: boolean;
+    platform: string;
+    livekit_room: string;
+    live_room_id?: string;
+    moderator_key?: string;
+    note?: string;
+    connect_endpoint?: string;
+    livekit?: { room: string; token: string; url: string };
+  };
+  session?: { slide?: { title: string } };
+};
+
+export type ScheduleGroupClassInput = {
+  title: string;
+  lesson_id: string;
+  start_time: string;
+  platform?: string;
+  meeting_url?: string;
+  duration_min?: number;
+  capacity?: number;
+  room_size?: number;
+  language?: string;
 };
 
 export type LiveRoomState = {
@@ -402,17 +447,148 @@ export type LiveGiftCatalogItem = { id: string; name: string; emoji: string; cos
 
 export type LiveKitMedia = { room: string; identity: string; token: string; url: string };
 
+export async function listLessons(): Promise<LessonRow[]> {
+  return get<LessonRow[]>(ORCHESTRATOR_URL, "/api/lessons");
+}
+
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
   const r = await get<{ classes: GroupClassRow[] }>(
     ORCHESTRATOR_URL, `/api/group-classes?upcoming=${upcoming}`);
   return r.classes;
 }
 
-export async function startGroupClass(classId: string): Promise<{ class: GroupClassRow; bridge: { livekit_room: string; live_room_id?: string; moderator_key?: string } }> {
+export async function scheduleGroupClass(input: ScheduleGroupClassInput): Promise<GroupClassRow> {
+  return get(ORCHESTRATOR_URL, "/api/group-classes", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function registerGroupClass(
+  classId: string, name: string, email = "",
+): Promise<GroupClassRow> {
+  return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, email }),
+  });
+}
+
+export async function startGroupClass(classId: string): Promise<GroupClassStart> {
   return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/start`, {
     method: "POST",
     headers: { "content-type": "application/json" },
   });
+}
+
+// --- Arcade / learning games (identity service) --- //
+export type GameTypeInfo = { id: string; name: string; desc: string };
+export type AgeGroupInfo = { id: string; name: string; range: string };
+export type SubjectInfo = { id: string; name: string };
+export type GamesCatalog = {
+  subjects: string[];
+  subjects_localized?: SubjectInfo[];
+  game_types: GameTypeInfo[];
+  age_groups: AgeGroupInfo[];
+};
+export type GameItem = {
+  id: string; prompt: string; options: string[];
+  kind?: string; meta?: Record<string, unknown>;
+};
+export type GameTerm = { id: string; term: string };
+export type GameOption = { id: string; text: string };
+export type GameRound = {
+  game_id: string; subject: string; game_type: string; time_limit_s: number;
+  items?: GameItem[]; terms?: GameTerm[]; options?: GameOption[];
+};
+export type GameItemResult = {
+  id: string; correct: boolean; answer_index?: number; explain: string;
+};
+export type GameScore = {
+  game_id: string; subject: string; game_type: string; correct: number; total: number;
+  accuracy: number; base_points: number; speed_bonus: number; accuracy_bonus: number;
+  points: number; results: GameItemResult[];
+};
+export type GameSubmit = {
+  result: GameScore; points_earned: number; balance: number;
+  rank: number | null; subject_rank: number | null;
+};
+
+export function getGamesCatalog(locale = "en"): Promise<GamesCatalog> {
+  const q = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+  return get<GamesCatalog>(IDENTITY_URL, `/games${q}`);
+}
+
+export function newGame(
+  subject: string, gameType: string, ageGroup = "teen", n = 5,
+): Promise<GameRound> {
+  return get<GameRound>(IDENTITY_URL, "/games/new", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ subject, game_type: gameType, age_group: ageGroup, n }),
+  });
+}
+
+export function submitGame(
+  gameId: string, answers: Record<string, number | string>, elapsedS?: number,
+): Promise<GameSubmit> {
+  return get<GameSubmit>(IDENTITY_URL, "/games/submit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ game_id: gameId, answers, elapsed_s: elapsedS ?? null }),
+  });
+}
+
+// --- Lesson teaching sessions (orchestrator) --- //
+export type LessonSlide = {
+  index: number; title: string; body: string; narration: string;
+};
+export type LessonDetail = {
+  lesson_id: string; title: string; language?: string; summary?: string;
+  slides: LessonSlide[];
+};
+export type LessonSessionState = {
+  session_id: string; class_type: string; lesson_id: string; current_slide: number;
+};
+export type LessonSessionView = {
+  session: LessonSessionState;
+  lesson: LessonDetail;
+  slide: LessonSlide;
+};
+export type LessonAnswer = {
+  text: string; citations: string[]; language: string;
+  grounded: boolean; hallucination_risk: number;
+};
+
+export function startLessonSession(
+  lessonId: string, studentId?: string,
+): Promise<LessonSessionView> {
+  return get<LessonSessionView>(ORCHESTRATOR_URL, "/api/sessions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      lesson_id: lessonId, class_type: "group", student_id: studentId ?? null,
+    }),
+  });
+}
+
+export function advanceLessonSession(sessionId: string): Promise<LessonSlide> {
+  return get<LessonSlide>(
+    ORCHESTRATOR_URL, `/api/sessions/${encodeURIComponent(sessionId)}/advance`, {
+      method: "POST",
+    });
+}
+
+export function askLessonSession(
+  sessionId: string, text: string, language = "en",
+): Promise<LessonAnswer> {
+  return get<LessonAnswer>(
+    ORCHESTRATOR_URL, `/api/sessions/${encodeURIComponent(sessionId)}/ask`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, language }),
+    });
 }
 
 export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {

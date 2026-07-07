@@ -175,6 +175,14 @@ export default function ClassRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked, loggedIn, view, busy, finish]);
 
+  // When the language switches mid-class, cancel any in-flight narration so it
+  // doesn't keep talking in the previous language; the next spoken line (slide
+  // advance or answer) is then narrated with the newly-selected voice.
+  useEffect(() => {
+    stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
+
   function stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
     speechRef.current = null;

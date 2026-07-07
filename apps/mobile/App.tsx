@@ -7,6 +7,7 @@ import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
 import { LocaleProvider, useT } from "./src/i18n";
+import { IntroSplashProvider } from "./src/introSplash";
 import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
 import {
   ensurePermissions, fireDrivingDetectedAlert, installNotificationHandler,
@@ -17,8 +18,10 @@ import {
   subscribeDrivingStatus, type DrivingPhase, type DrivingStatus,
 } from "./src/drivingDetection";
 import {
-  getMyList, getReadIds, getSettings, listContinue, loadAuthToken,
+  getMyList, getReadIds, getSettings, listContinue,
 } from "./src/storage";
+import AuthScreen, { AuthLoadingScreen } from "./src/screens/AuthScreen";
+import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
 import CareersScreen from "./src/screens/CareersScreen";
 import DriveModeScreen from "./src/screens/DriveModeScreen";
@@ -28,6 +31,8 @@ import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
+import GameScreen from "./src/screens/GameScreen";
+import LessonScreen from "./src/screens/LessonScreen";
 import { getNotificationsFeed } from "./src/api";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
@@ -35,12 +40,18 @@ import type { TabId } from "./src/types";
 export default function App() {
   return (
     <LocaleProvider>
-      <AppInner />
+      <IntroSplashProvider>
+        <AuthProvider>
+          <AppInner />
+        </AuthProvider>
+      </IntroSplashProvider>
     </LocaleProvider>
   );
 }
 
 function AppInner() {
+  const { status: authStatus } = useAuth();
+  const prevAuthStatusRef = useRef(authStatus);
   const { t, locale, isRTL } = useT();
   const [tab, setTab] = useState<TabId>("home");
   const [browseCategory, setBrowseCategory] = useState<string>("");
@@ -48,11 +59,23 @@ function AppInner() {
   const [showGroupClasses, setShowGroupClasses] = useState(false);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
   const [liveModeratorKey, setLiveModeratorKey] = useState("");
+  const [gameSubject, setGameSubject] = useState<string | null>(null);
+  const [activeLesson, setActiveLesson] = useState<
+    { id: string; title: string; preview?: string } | null
+  >(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
   const [surveyManualToken, setSurveyManualToken] = useState(0);
   const [authEpoch, setAuthEpoch] = useState(0);
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
+  const authenticated = authStatus === "authenticated";
+
+  useEffect(() => {
+    if (prevAuthStatusRef.current !== "authenticated" && authStatus === "authenticated") {
+      setAuthEpoch((n) => n + 1);
+    }
+    prevAuthStatusRef.current = authStatus;
+  }, [authStatus]);
 
   const subRef = useRef<Notifications.Subscription | null>(null);
   const respRef = useRef<Notifications.Subscription | null>(null);
@@ -66,9 +89,10 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, fade]);
+  }, [tab, showGroupClasses, liveRoomId, gameSubject, activeLesson, fade]);
 
   useEffect(() => {
+    if (!authenticated) return;
     void bootstrap();
     void syncDrivingDetection();
     return () => {
@@ -77,9 +101,12 @@ function AppInner() {
       void stopDrivingDetection();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authenticated]);
 
-  useEffect(() => subscribeDrivingStatus(setDrivingStatus), []);
+  useEffect(() => {
+    if (!authenticated) return;
+    return subscribeDrivingStatus(setDrivingStatus);
+  }, [authenticated]);
 
   async function syncDrivingDetection() {
     const settings = await getSettings();
@@ -87,6 +114,7 @@ function AppInner() {
   }
 
   useEffect(() => {
+    if (!authenticated) return;
     const prev = prevDrivingPhaseRef.current;
     prevDrivingPhaseRef.current = drivingStatus.phase;
     if (drivingStatus.phase !== "driving" || prev === "driving") return;
@@ -125,11 +153,10 @@ function AppInner() {
         }
       }
     })();
-  }, [drivingStatus.phase, t]);
+  }, [drivingStatus.phase, t, authenticated]);
 
   async function bootstrap() {
     installNotificationHandler();
-    await loadAuthToken();
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
@@ -198,8 +225,25 @@ function AppInner() {
     setBrowseCategory(category); setOpenCourseId(null); setTab("drive");
   };
 
+  const openGame = (subject: string) => setGameSubject(subject);
+  const openLesson = (id: string, title: string, preview?: string) =>
+    setActiveLesson({ id, title, preview });
+
   let screen: React.ReactNode = null;
-  if (liveRoomId) {
+  if (gameSubject) {
+    screen = (
+      <GameScreen subject={gameSubject} onBack={() => setGameSubject(null)} />
+    );
+  } else if (activeLesson) {
+    screen = (
+      <LessonScreen
+        lessonId={activeLesson.id}
+        title={activeLesson.title}
+        preview={activeLesson.preview}
+        onBack={() => setActiveLesson(null)}
+      />
+    );
+  } else if (liveRoomId) {
     screen = (
       <LiveRoomScreen
         roomId={liveRoomId}
@@ -236,7 +280,14 @@ function AppInner() {
           onBack={() => setOpenCourseId(null)}
         />
       )
-      : <AudioCoursesScreen onOpen={openCourse} initialCategory={browseCategory} />;
+      : (
+        <AudioCoursesScreen
+          onOpen={openCourse}
+          onOpenGame={openGame}
+          onOpenLesson={openLesson}
+          initialCategory={browseCategory}
+        />
+      );
   } else if (tab === "mylist") {
     screen = <MyListScreen onOpenCourse={openCourse} />;
   } else if (tab === "careers") {
@@ -263,6 +314,27 @@ function AppInner() {
   // I18nManager.forceRTL would require a relaunch, which is annoying for
   // demos - we keep the in-app layout pragmatic and let native users restart.
   void I18nManager;
+
+  if (authStatus === "loading") {
+    return (
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="light" />
+        <AmbientBackground />
+        <AuthLoadingScreen />
+      </SafeAreaView>
+    );
+  }
+
+  if (authStatus === "unauthenticated") {
+    return (
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="light" />
+        <AmbientBackground />
+        <AuthScreen />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
@@ -277,13 +349,15 @@ function AppInner() {
           manualOpenToken={surveyManualToken}
         />
       </View>
-      {!liveRoomId && !showGroupClasses ? (
+      {!liveRoomId && !showGroupClasses && !gameSubject && !activeLesson ? (
         <BottomTabs
           active={tab}
           onChange={(id) => {
             if (id === "drive" && tab === "drive") setOpenCourseId(null);
             setShowGroupClasses(false);
             setLiveRoomId(null);
+            setGameSubject(null);
+            setActiveLesson(null);
             void refreshUnreadAndAlerts();
             setTab(id);
           }}

@@ -35,6 +35,7 @@ export type StringKey =
   | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
   | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
   | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
+  | "drive.trainingLang"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -76,9 +77,15 @@ export type StringKey =
   | "settings.drivePerms" | "settings.drivePermsDesc"
   | "settings.drivePermsDeniedTitle" | "settings.drivePermsDeniedBody"
   | "settings.driveNotDriving"
+  | "settings.sectionIntro" | "settings.introSplash" | "settings.introSplashDesc"
+  | "settings.playFullIntro" | "settings.playFullIntroDesc"
+  // Intro splash
+  | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
   | "auth.email" | "auth.password" | "auth.displayName"
   | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
+  | "auth.welcomeTitle" | "auth.welcomeSubtitle" | "auth.checkingSession"
+  | "auth.checkingBackend"
   | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
   | "auth.backendDownCloud" | "auth.backendUp"
   // Alert banner
@@ -88,8 +95,23 @@ export type StringKey =
   // Streak hero
   | "streak.label"
   // Careers
-  | "home.careers" | "home.careersSub"
+  | "home.careers" | "home.careersSub" | "home.groupClasses"
   | "careers.back" | "careers.title" | "careers.sub"
+  // Group classes
+  | "group.title" | "group.intro" | "group.back" | "group.empty"
+  | "group.seatsLeft" | "group.register" | "group.full" | "group.join" | "group.start"
+  | "group.live" | "group.startedTitle" | "group.openMeeting" | "group.openClass"
+  | "group.close" | "group.cancel" | "group.registerTitle" | "group.registerName"
+  | "group.registerEmail" | "group.registerNameRequired" | "group.registerSuccess"
+  | "group.cannotOpenMeeting" | "group.joinUnavailable"
+  // Arcade / games
+  | "game.back" | "game.chooseMode" | "game.ageGroup" | "game.play"
+  | "game.submit" | "game.matchHint" | "game.accuracy" | "game.balance"
+  | "game.rank" | "game.playAgain" | "game.sessionExpired" | "game.signInSave"
+  // Lesson / visual course player
+  | "lesson.back" | "lesson.slide" | "lesson.narrate" | "lesson.stopNarration"
+  | "lesson.next" | "lesson.complete" | "lesson.askTitle" | "lesson.askPlaceholder"
+  | "lesson.ask" | "lesson.sources" | "lesson.noSession"
   | "careers.searchRole" | "careers.searchLocation"
   | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty";
 
@@ -110,6 +132,7 @@ const EN: Record<StringKey, string> = {
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
   "home.careers": "💼 Careers",
   "home.careersSub": "Match live jobs to Salareen courses",
+  "home.groupClasses": "👥 Group Classes",
 
   "careers.back": "← Back",
   "careers.title": "Careers",
@@ -120,6 +143,54 @@ const EN: Record<StringKey, string> = {
   "careers.apply": "View / Apply ↗",
   "careers.tapMatch": "Tap for course match →",
   "careers.empty": "No openings match your search.",
+
+  "group.title": "Group Classes",
+  "group.intro": "Live multi-learner sessions where Theodore presents coursework — in the Salareen room or on Zoom, Teams, or Meet.",
+  "group.back": "← Back",
+  "group.empty": "No upcoming classes yet.",
+  "group.seatsLeft": "Seats left",
+  "group.register": "Register",
+  "group.full": "Full",
+  "group.join": "Join",
+  "group.start": "Start (AI presents)",
+  "group.live": "LIVE",
+  "group.startedTitle": "Class is live",
+  "group.openMeeting": "Open meeting",
+  "group.openClass": "Open Salareen room",
+  "group.close": "Close",
+  "group.cancel": "Cancel",
+  "group.registerTitle": "Register for class",
+  "group.registerName": "Your name",
+  "group.registerEmail": "Email (optional)",
+  "group.registerNameRequired": "Please enter your name.",
+  "group.registerSuccess": "You're registered for this class.",
+  "group.cannotOpenMeeting": "Cannot open the meeting link on this device.",
+  "group.joinUnavailable": "This class is not joinable yet. Tap Start to go live first.",
+
+  "game.back": "← Back",
+  "game.chooseMode": "Choose a game mode",
+  "game.ageGroup": "Age group",
+  "game.play": "Play",
+  "game.submit": "Submit answers",
+  "game.matchHint": "Tap a term, then its match.",
+  "game.accuracy": "Accuracy",
+  "game.balance": "Balance",
+  "game.rank": "Global rank",
+  "game.playAgain": "Play again",
+  "game.sessionExpired": "That round expired — start a new one.",
+  "game.signInSave": "Sign in to save scores to the leaderboard.",
+
+  "lesson.back": "← Back",
+  "lesson.slide": "Slide",
+  "lesson.narrate": "▶ Narrate",
+  "lesson.stopNarration": "■ Stop",
+  "lesson.next": "Next →",
+  "lesson.complete": "Class complete ✓",
+  "lesson.askTitle": "Ask the tutor",
+  "lesson.askPlaceholder": "Ask a question about this class…",
+  "lesson.ask": "Ask",
+  "lesson.sources": "Sources",
+  "lesson.noSession": "A live session isn't available for this item right now.",
 
   "rail.continue": "Continue listening",
   "rail.continueSub": "Pick up where you left off.",
@@ -151,6 +222,7 @@ const EN: Record<StringKey, string> = {
   "drive.listening": "Listening…",
   "drive.pauseAsk": "Pause + Ask",
   "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
+  "drive.trainingLang": "Lesson language",
   "drive.openGoogle": "Google voice",
   "drive.assistantTitle": "Sala Drive Assistant",
   "drive.mic": "Mic",
@@ -229,7 +301,7 @@ const EN: Record<StringKey, string> = {
   "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
   "settings.narrationAuto": "Auto (profile)",
   "settings.sectionTrainingLang": "LESSON LANGUAGE",
-  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode (English, Spanish, or Chinese).",
+  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",
@@ -251,6 +323,16 @@ const EN: Record<StringKey, string> = {
   "settings.drivePermsDeniedBody": "Enable location and motion access for Salareen in your phone Settings to use driving detection.",
   "settings.driveNotDriving": "I'm not driving",
 
+  "settings.sectionIntro": "INTRO",
+  "settings.introSplash": "Launch intro splash",
+  "settings.introSplashDesc": "Animated Salareen jingle on first app open (1:32–1:39). Turn off to skip.",
+  "settings.playFullIntro": "Play full theme",
+  "settings.playFullIntroDesc": "Replay the full Salareen song with the animated splash.",
+
+  "intro.tagline": "Thousands of classes. One AI campus.",
+  "intro.fullTagline": "សាលារៀន — your learning home.",
+  "intro.skip": "Tap to skip",
+
   "driving.bannerTitle": "Driving detected",
   "driving.bannerBody": "Hands-free Drive Mode is ready — tap to continue your class.",
 
@@ -261,6 +343,10 @@ const EN: Record<StringKey, string> = {
   "auth.signUp": "Create account",
   "auth.createAccount": "New here? Create an account",
   "auth.haveAccount": "Already have an account? Sign in",
+  "auth.welcomeTitle": "Sign in to continue",
+  "auth.welcomeSubtitle": "Sign in once to access classes, Drive Mode, careers, and your learning profile. Your session is saved on this device.",
+  "auth.checkingSession": "Checking your session…",
+  "auth.checkingBackend": "Checking connection…",
   "auth.qaHint": "QA test accounts (dev)",
   "auth.useQa": "Use {label}",
   "auth.backendDown": "Identity service unreachable at {url}.",

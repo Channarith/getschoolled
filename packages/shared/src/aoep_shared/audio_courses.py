@@ -32,7 +32,7 @@ from .catalog_i18n import (
 )
 from .training_content_i18n import (
     audio_title_suffix, localize_course_title, localize_facts,
-    normalize_training_locale,
+    normalize_training_locale, translate_body,
 )
 from .audio_topic_data import TOPIC_SECTIONS
 from .language_learning import LANGUAGE_META, phrases_for
@@ -346,7 +346,7 @@ def _knowledge_course(
     )
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=64)
 def build_catalog(locale: str = DEFAULT_LOCALE, training_locale: Optional[str] = None) -> List[AudioCourse]:
     """Build the full audio catalog in the requested locale.
 
@@ -432,11 +432,53 @@ def list_courses(*, category: Optional[str] = None, q: Optional[str] = None,
     }
 
 
+# On-demand translations of a full course into an uncurated training locale.
+# Keyed by (course_id, training_locale); populated only when a body translator
+# is registered (see training_content_i18n.set_body_translator).
+_TRANSLATED_COURSES: Dict[tuple, AudioCourse] = {}
+
+
+def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
+    """Return ``course`` spoken in ``tloc`` when a translator can provide it.
+
+    When the course body already matches ``tloc`` (curated content), or the
+    target is English, or no translator is available, the course is returned
+    unchanged with its honest ``body_locale`` so the client narrates with a
+    voice that matches the text. Language "listen & repeat" courses are never
+    translated - their content is intentionally in the target language already.
+    """
+    if tloc == "en" or course.body_locale == tloc or course.id.startswith("lang-"):
+        return course
+    key = (course.id, tloc)
+    cached = _TRANSLATED_COURSES.get(key)
+    if cached is not None:
+        return cached
+    source = course.body_locale or "en"
+    new_segments: List[AudioSegment] = []
+    translated_any = False
+    for seg in course.segments:
+        text = translate_body(seg.text, tloc, source=source)
+        if text:
+            new_segments.append(AudioSegment(heading=seg.heading, text=text, kind=seg.kind))
+            translated_any = True
+        else:
+            new_segments.append(seg)
+    if not translated_any:
+        # No translator (offline) -> keep the English body + body_locale so the
+        # client speaks English text with an English voice (coherent fallback).
+        return course
+    localized = course.model_copy(deep=True)
+    localized.segments = new_segments
+    localized.body_locale = tloc
+    _TRANSLATED_COURSES[key] = localized
+    return localized
+
+
 def get_course(course_id: str, locale: str = DEFAULT_LOCALE,
                training_locale: Optional[str] = None) -> Optional[AudioCourse]:
     locale = normalize_locale(locale)
     tloc = normalize_training_locale(training_locale or locale)
     for c in build_catalog(locale, tloc):
         if c.id == course_id:
-            return c
+            return _maybe_translate(c, tloc)
     return None

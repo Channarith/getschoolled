@@ -1,34 +1,113 @@
-"""Training narration content in English, Spanish, and Chinese.
+"""Training narration content for spoken lesson bodies.
 
 Drive Mode and audio courses use this module for *spoken* lesson bodies
 (key facts and generic segments). UI chrome (categories, levels) still
 comes from :mod:`catalog_i18n`; this layer covers the training text that
 TTS reads aloud.
 
-Supported training locales (v1): ``en``, ``es``, ``zh``.
+Training locales now span the full platform set (see
+:data:`aoep_shared.languages.SUPPORTED_LANGUAGES`). A locale is served with
+authentic, human-authored content when a curated fact set exists (English,
+Spanish, Chinese today) and otherwise via a pluggable body translator
+(register one with :func:`set_body_translator`, e.g. NLLB-200 behind the
+SpeechProvider). When no curated content and no translator are available the
+body gracefully falls back to English text with ``body_locale == "en"`` so the
+client always narrates with a voice that matches the actual text language.
 """
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
-TRAINING_LOCALES: tuple[str, ...] = ("en", "es", "zh")
+from .languages import SUPPORTED_LANGUAGES
+
+# Every platform-supported language can be requested as a training (spoken)
+# locale. Delivery is authentic where curated content or a translator exists,
+# English-fallback otherwise (see module docstring).
+TRAINING_LOCALES: tuple[str, ...] = tuple(SUPPORTED_LANGUAGES)
 DEFAULT_TRAINING_LOCALE = "en"
+
+# Locales with fully-curated, hand-authored spoken content in this module.
+CURATED_TRAINING_LOCALES: tuple[str, ...] = ("en", "es", "zh")
+
+# Localized "(audio)" title suffix; unlisted locales use the neutral default.
+_AUDIO_SUFFIX: Dict[str, str] = {
+    "en": "(audio)", "es": "(audio)", "zh": "（音频）", "ja": "（音声）",
+    "ko": "(오디오)", "ar": "(صوت)", "ru": "(аудио)", "el": "(ήχος)",
+}
 
 
 def normalize_training_locale(locale: Optional[str]) -> str:
-    """Map UI or user choice to a supported training locale (en/es/zh)."""
+    """Map UI or user choice to a supported training locale.
+
+    Any of the platform-supported languages is accepted; anything else
+    collapses to English.
+    """
     if not locale:
         return DEFAULT_TRAINING_LOCALE
     base = locale.lower().split("-")[0].split("_")[0]
-    if base in ("es", "zh"):
+    if base in SUPPORTED_LANGUAGES:
         return base
     return DEFAULT_TRAINING_LOCALE
 
 
 def audio_title_suffix(locale: str) -> str:
     loc = normalize_training_locale(locale)
-    return {"en": "(audio)", "es": "(audio)", "zh": "（音频）"}[loc]
+    return _AUDIO_SUFFIX.get(loc, "(audio)")
+
+
+# --------------------------------------------------------------------------- #
+# Pluggable body translator.
+#
+# Curated content covers a few locales with authentic text. To speak the full
+# catalog in every supported language, a deployment can register a translator
+# (source English -> target locale), e.g. one backed by NLLB-200 via the
+# SpeechProvider. It is optional: offline / when unset, bodies fall back to
+# English and ``body_locale`` reports ``en`` so the voice matches the text.
+# --------------------------------------------------------------------------- #
+BodyTranslator = Callable[[str, str, str], Optional[str]]  # (text, source, target)
+
+_body_translator: Optional[BodyTranslator] = None
+_translator_disabled = False
+
+
+def set_body_translator(fn: Optional[BodyTranslator]) -> None:
+    """Register (or clear) the spoken-body translator used for uncurated locales."""
+    global _body_translator, _translator_disabled
+    _body_translator = fn
+    _translator_disabled = False
+
+
+def has_body_translator() -> bool:
+    return _body_translator is not None and not _translator_disabled
+
+
+def translate_body(text: str, target: str, *, source: str = "en") -> Optional[str]:
+    """Translate one spoken-body string; ``None`` when unavailable.
+
+    Never raises: a translator that is missing, disabled, or fails (including
+    ``NotImplementedError`` when no MT model is loaded) simply yields ``None``
+    so callers fall back to the English body. The first hard failure disables
+    further attempts to avoid hammering an unavailable backend.
+    """
+    global _translator_disabled
+    target = normalize_training_locale(target)
+    if (
+        not text
+        or not text.strip()
+        or target == source
+        or _translator_disabled
+        or _body_translator is None
+    ):
+        return None
+    try:
+        out = _body_translator(text, source, target)
+    except NotImplementedError:
+        _translator_disabled = True
+        return None
+    except Exception:
+        return None
+    return out or None
 
 
 # English canonical title -> {es, zh}
