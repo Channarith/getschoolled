@@ -6,13 +6,21 @@ alwaysApply: false
 
 # Mobile EAS build rules
 
-## Config plugins must resolve at `expo config` time
+## Config plugins must load AND run at `expo config` time
 
-EAS runs `expo config` **before** `eas-build-pre-install` / `eas-build-post-install`. Any local plugin under `apps/mobile/plugins/*.js` that `require()`s a package must have that package as a **direct** dependency in `apps/mobile/package.json` (not only transitive via `expo`).
+EAS runs `expo config --json --full --type public` during the build to compute the
+runtime version. Local plugins under `apps/mobile/plugins/*.js` must both (a) resolve
+their `require()`s and (b) call only APIs that actually exist — a wrong API throws
+`X is not a function` here, not at prebuild.
 
-- Pin `@expo/config-plugins` to the version bundled with the Expo SDK (SDK 51 → `8.0.11`).
-- Wrap plugin top-level `require()` in try/catch and export a no-op `(config) => config` on failure so config read never hard-crashes.
-- After adding/changing plugins or deps, run `node scripts/verify-expo-config-plugins.js` (also runs in `eas-build-post-install.sh`).
+- Pin `@expo/config-plugins` as a **direct** dep at the SDK-bundled version (SDK 51 → `8.0.11`). Never rely on it being transitive via `expo`.
+- Wrap plugin top-level `require()` in try/catch and export a no-op `(config) => config` on failure.
+- **Correct v8 API (do not guess):**
+  - Android permissions → `AndroidConfig.Permissions.withPermissions(config, string[])`. There is **no** top-level `withPermissions`, and it does **not** take `{ ios, android }`.
+  - iOS Info.plist keys / `UIBackgroundModes` → `withInfoPlist(config, cb)`.
+  - iOS Podfile edits → `withPodfile(config, cb)` + `mergeContents` from `@expo/config-plugins/build/utils/generateCode`.
+- After ANY plugin/dep change, run `node scripts/verify-expo-config-plugins.js`. It reproduces the EAS `expo config` command and fails on both MODULE_NOT_FOUND and "not a function". It also runs in `eas-build-post-install.sh`.
+- A plugin that only calls `withInfoPlist`/`withPodfile` (mod registration) won't exercise its callback during `expo config` — but the registration call itself must be a real function, which the smoke test catches.
 
 ## pnpm layout for Metro + EAS
 

@@ -1,8 +1,18 @@
 #!/usr/bin/env node
 /**
- * Fail fast when local Expo config plugins cannot resolve @expo/config-plugins.
- * EAS runs `expo config` before prebuild; missing direct dep causes MODULE_NOT_FOUND.
+ * Fail fast when local Expo config plugins are broken.
+ *
+ * EAS runs `expo config` BEFORE prebuild (to compute the EAS Update runtime
+ * version). Two recurring failure modes:
+ *   1. A local plugin `require()`s a package that isn't a DIRECT dep
+ *      (MODULE_NOT_FOUND on `@expo/config-plugins`).
+ *   2. A plugin loads but calls a non-existent API when invoked
+ *      (e.g. `withPermissions is not a function` — not a top-level export in v8).
+ *
+ * This script reproduces the exact `expo config` invocation so both are caught
+ * during the install hook instead of mid-build.
  */
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -23,22 +33,38 @@ try {
   );
 }
 
-if (!fs.existsSync(pluginsDir)) {
-  console.log("OK verify-expo-config-plugins (no plugins dir)");
-  process.exit(0);
+if (fs.existsSync(pluginsDir)) {
+  for (const name of fs.readdirSync(pluginsDir)) {
+    if (!name.endsWith(".js")) continue;
+    try {
+      const plugin = require(path.join(pluginsDir, name));
+      if (typeof plugin !== "function") {
+        fail(`${name} must export a function(config) => config`);
+      }
+    } catch (err) {
+      fail(`${name} failed to load: ${err && err.message ? err.message : err}`);
+    }
+  }
 }
 
-for (const name of fs.readdirSync(pluginsDir)) {
-  if (!name.endsWith(".js")) continue;
-  const pluginPath = path.join(pluginsDir, name);
+// Definitive smoke test: run the same command EAS uses for runtime version.
+const expoCli = path.join(ROOT, "node_modules", "expo", "bin", "cli");
+if (fs.existsSync(expoCli)) {
   try {
-    const plugin = require(pluginPath);
-    if (typeof plugin !== "function") {
-      fail(`${name} must export a function(config) => config`);
-    }
+    execFileSync("node", [expoCli, "config", "--json", "--full", "--type", "public"], {
+      cwd: ROOT,
+      stdio: ["ignore", "ignore", "pipe"],
+      env: { ...process.env, EXPO_NO_TELEMETRY: "1" },
+    });
   } catch (err) {
-    fail(`${name} failed to load: ${err && err.message ? err.message : err}`);
+    const stderr = err && err.stderr ? err.stderr.toString() : "";
+    fail(
+      "`expo config` failed — a config plugin is broken (this is what EAS hits "
+        + `before prebuild):\n${stderr.trim() || (err && err.message) || err}`,
+    );
   }
+} else {
+  console.warn("WARN verify-expo-config-plugins: expo cli not found, skipped `expo config` smoke test");
 }
 
 console.log("OK verify-expo-config-plugins");

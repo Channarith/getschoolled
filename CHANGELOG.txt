@@ -7,6 +7,11 @@ Format: newest first. No markdown per project convention.
   banner on mobile home (tier-gated, Google test IDs in dev); mobile typecheck CI
   job; EAS fix — pin @expo/config-plugins as direct dep + hardened local plugins
   (stops recurring expo config MODULE_NOT_FOUND on cloud builds).
+- 2026-07-07 - EAS fix (v0.13.3): withLiveKit plugin used non-existent
+  withPermissions({ios,android}) API — rewrote to AndroidConfig.Permissions.
+  withPermissions + withInfoPlist (config-plugins v8). verify-expo-config-plugins
+  now runs the real `expo config` command to catch "not a function" plugin errors
+  during install. Verified: expo config --json --full --type public exits 0.
 
 - 2026-07-07 - Mobile platform fixes (v0.13.2): sign-in gate before app features;
   Group Classes Register/Join/Start for all platforms; in-app GameScreen and
