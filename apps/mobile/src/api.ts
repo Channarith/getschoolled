@@ -1,7 +1,7 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL } from "./config";
 import { getToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL };
@@ -116,34 +116,75 @@ function networkError(base: string, err: unknown): Error {
   if (/network request failed|failed to connect|ECONNREFUSED|timed out|aborted/i.test(msg)) {
     const hint = DEPLOY_MODE === "local"
       ? "Start backends on your Mac (make run-identity :8008, curriculum :8005)."
-      : "Check network/VPN and that www.salareen.com is reachable.";
+      : "Check network/VPN; primary is www.salareen.com with Vultr IP failover.";
     return new Error(`Cannot reach backend at ${base}. ${hint} (${msg})`);
   }
   return err instanceof Error ? err : new Error(msg);
 }
 
+function isNetworkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /network request failed|failed to connect|ECONNREFUSED|timed out|aborted/i.test(msg);
+}
+
+function shouldFailoverOnStatus(status: number): boolean {
+  return status === 408 || status === 502 || status === 503 || status === 504;
+}
+
 async function get<T>(base: string, path: string, init?: RequestInit): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, init);
-  } catch (err) {
-    throw networkError(base, err);
+  const fallback = failoverUrlFor(base);
+  const bases = fallback ? [base, fallback] : [base];
+  let lastErr: unknown;
+
+  for (let i = 0; i < bases.length; i++) {
+    const tryBase = bases[i];
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`${tryBase}${path}`, init);
+      } catch (err) {
+        lastErr = err;
+        if (i < bases.length - 1 && isNetworkError(err)) {
+          continue;
+        }
+        throw networkError(base, err);
+      }
+      if (i < bases.length - 1 && shouldFailoverOnStatus(res.status)) {
+        lastErr = new Error(`${res.status} ${res.statusText}`);
+        continue;
+      }
+      return jsonOrThrow<T>(res);
+    } catch (err) {
+      lastErr = err;
+      if (i < bases.length - 1 && isNetworkError(err)) {
+        continue;
+      }
+      throw err instanceof Error && !isNetworkError(err) ? err : networkError(base, lastErr);
+    }
   }
-  return jsonOrThrow<T>(res);
+  throw networkError(base, lastErr);
 }
 
 /** True when the service responds over HTTP (401 without a token is OK). */
 export async function checkServiceReachable(base: string, timeoutMs = 5000): Promise<boolean> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${base}/auth/me`, { method: "GET", signal: ctrl.signal });
-    return res.status >= 200 && res.status < 600;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
+  const fallback = failoverUrlFor(base);
+  const bases = fallback ? [base, fallback] : [base];
+
+  for (const tryBase of bases) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${tryBase}/auth/me`, { method: "GET", signal: ctrl.signal });
+      if (res.status >= 200 && res.status < 600) {
+        return true;
+      }
+    } catch {
+      // try failover base
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return false;
 }
 
 export function listAudioCourses(

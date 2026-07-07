@@ -5,6 +5,7 @@
  * MOBILE_CLOUD_BASE_URL=https://www.salareen.com
  */
 const CLOUD_DEFAULT = "https://www.salareen.com";
+const CLOUD_FAILOVER_DEFAULT = "http://45.63.91.80";
 
 module.exports = ({ config }) => {
   const extra = config.extra || {};
@@ -12,6 +13,11 @@ module.exports = ({ config }) => {
     process.env.MOBILE_CLOUD_BASE_URL
     || extra.cloudBaseUrl
     || CLOUD_DEFAULT
+  ).replace(/\/$/, "");
+  const cloudFailoverBaseUrl = (
+    process.env.MOBILE_CLOUD_FAILOVER_BASE_URL
+    || extra.cloudFailoverBaseUrl
+    || CLOUD_FAILOVER_DEFAULT
   ).replace(/\/$/, "");
   const deployMode = process.env.MOBILE_DEPLOY_MODE || extra.deployMode || "cloud";
 
@@ -41,6 +47,7 @@ module.exports = ({ config }) => {
       ...extra,
       deployMode,
       cloudBaseUrl,
+      cloudFailoverBaseUrl,
     },
   };
 };

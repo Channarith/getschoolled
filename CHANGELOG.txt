@@ -2,6 +2,30 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - EAS iOS archive bundle root cause fix: metro.config.js no longer
+  require()s metro-config/src/defaults/exclusionList. metro-config is a transitive
+  (phantom) dependency; under pnpm's isolated node_modules on EAS that require
+  throws MODULE_NOT_FOUND, failing `expo export:embed` in the Xcode "Bundle React
+  Native code and images" phase (worked locally only because local node_modules is
+  a flat tree). blockList is now built as a single RegExp from Expo's default
+  config plus our project patterns — no undeclared imports.
+
+- 2026-07-06 - Mobile cloud API failover: primary backend stays
+  https://www.salareen.com; on network error or 502/503/504 the API client
+  retries the Vultr cluster at http://45.63.91.80 with the same service paths
+  (/identity, /curriculum, /memory, orchestrator). Configurable via
+  expo.extra.cloudFailoverBaseUrl / MOBILE_CLOUD_FAILOVER_BASE_URL.
+  mobile-check-backends.sh probes failover when primary is down.
+
+- 2026-07-06 - Mobile standalone release builds (no localhost/Metro): the red
+  "Unable to load script / index.android.bundle" screen came from installing a
+  DEBUG dev build that expects Metro on localhost:8081. New scripts build a
+  standalone binary with the JS bundle embedded and the backend pinned to the
+  cloud/Vultr host: native:build:android:release (assembleRelease APK via
+  scripts/mobile-build-release-android.sh, MOBILE_DEPLOY_MODE=cloud) and
+  native:build:ios:release. API host was already cloud by default (config.ts
+  uses https://www.salareen.com in cloud mode and ignores the localhost extras).
+
 - 2026-07-06 - EAS iOS prebuildCommand regression fix: remove the custom
   prebuildCommand from eas.json. EAS appends "--platform <p>" to prebuildCommand
   and expects a single expo-prebuild invocation, so the compound "&& (...)" shell

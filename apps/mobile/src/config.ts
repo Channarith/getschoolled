@@ -1,7 +1,7 @@
 // Resolve backend URLs for simulator, physical device, and deployed cluster.
 //
-// deployMode=cloud (default): same HTTPS origin + path prefixes as www.salareen.com
-//   (https://www.salareen.com/identity, /curriculum, /memory).
+// deployMode=cloud (default): primary https://www.salareen.com + path prefixes;
+//   on network/5xx failure retries the Vultr failover (http://45.63.91.80 + same paths).
 // deployMode=local: iOS Simulator uses localhost; Android emulator uses 10.0.2.2.
 // Override via MOBILE_DEPLOY_MODE / MOBILE_CLOUD_BASE_URL (see app.config.js).
 
@@ -18,6 +18,24 @@ export const DEPLOY_MODE: DeployMode =
 export const CLOUD_BASE_URL = (
   extra.cloudBaseUrl || "https://www.salareen.com"
 ).replace(/\/$/, "");
+
+/** Direct Vultr cluster IP — used when www.salareen.com is unreachable. */
+export const CLOUD_FAILOVER_BASE_URL = (
+  extra.cloudFailoverBaseUrl || "http://45.63.91.80"
+).replace(/\/$/, "");
+
+/** Map a primary cloud service URL to its Vultr failover twin (cloud mode only). */
+export function failoverUrlFor(primaryBase: string): string | null {
+  if (DEPLOY_MODE !== "cloud") {
+    return null;
+  }
+  const base = primaryBase.replace(/\/$/, "");
+  const primary = CLOUD_BASE_URL;
+  if (!base.startsWith(primary)) {
+    return null;
+  }
+  return `${CLOUD_FAILOVER_BASE_URL}${base.slice(primary.length)}`;
+}
 
 function hostFallback(port: number): string {
   const h = Platform.OS === "android" ? "10.0.2.2" : "localhost";

@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.12.14",
+  "version": "0.12.17",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -49,6 +49,8 @@
     "prebuild": "bash scripts/mobile-expo.sh prebuild --no-install --platform all",
     "native:prebuild:android": "expo prebuild --platform android --no-install --clean && node scripts/patch-gradle-wrapper.js",
     "native:build:android": "npm run native:prebuild:android && cd android && ./gradlew assembleDebug",
+    "native:build:android:release": "bash scripts/mobile-build-release-android.sh",
+    "native:build:ios:release": "MOBILE_DEPLOY_MODE=cloud bash scripts/mobile-run-ios.sh --configuration Release",
     "eas:build:android": "eas build -p android --profile production --non-interactive",
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
