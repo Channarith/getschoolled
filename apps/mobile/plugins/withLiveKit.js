@@ -1,8 +1,19 @@
-const {
-  withAppBuildGradle,
-  withInfoPlist,
-  withPermissions,
-} = require("@expo/config-plugins");
+// `@expo/config-plugins` is a transitive dep of `expo` and pinned directly in
+// package.json so it resolves from apps/mobile/node_modules on EAS. Fall back to
+// a no-op if it is somehow unresolvable so `expo config` never hard-fails.
+let withAppBuildGradle;
+let withInfoPlist;
+let withPermissions;
+try {
+  ({ withAppBuildGradle, withInfoPlist, withPermissions } = require("@expo/config-plugins"));
+} catch (err) {
+  console.warn(
+    "[withLiveKit] @expo/config-plugins unavailable; skipping plugin:",
+    err && err.message ? err.message : err,
+  );
+  module.exports = (config) => config;
+  return;
+}
 
 function withLiveKit(config) {
   config = withPermissions(config, {

@@ -1,11 +1,25 @@
 /**
  * Expo prebuild plugin: keep iOS Podfile post_install workaround for
  * expo-configure-project.sh "Operation not permitted" (macOS provenance xattr).
+ *
+ * `@expo/config-plugins` is a transitive dep of `expo`; we also pin it directly
+ * in package.json so it resolves from apps/mobile/node_modules on EAS. If it is
+ * still unresolvable (e.g. `expo config` runs before install completes), fall
+ * back to a no-op so reading the app config never hard-fails the build.
  */
-const { withPodfile } = require("@expo/config-plugins");
-const {
-  mergeContents,
-} = require("@expo/config-plugins/build/utils/generateCode");
+let withPodfile;
+let mergeContents;
+try {
+  ({ withPodfile } = require("@expo/config-plugins"));
+  ({ mergeContents } = require("@expo/config-plugins/build/utils/generateCode"));
+} catch (err) {
+  console.warn(
+    "[withIosExpoConfigureFix] @expo/config-plugins unavailable; skipping plugin:",
+    err && err.message ? err.message : err,
+  );
+  module.exports = (config) => config;
+  return;
+}
 
 const TAG = "salareen-expo-configure-provenance-fix";
 
