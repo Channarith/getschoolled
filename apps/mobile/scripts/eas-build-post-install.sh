@@ -21,6 +21,11 @@ node scripts/mobile-patch-native.js
 node scripts/ensure-metro-local-deps.js
 node scripts/verify-eas-metro-resolve.js
 
+# Pod install ran before this hook; re-run if Pods still reference .pnpm react-native.
+if [[ -d ios ]]; then
+  FORCE_POD_INSTALL="${FORCE_POD_INSTALL:-1}" bash scripts/mobile-ios-pod-refresh.sh || true
+fi
+
 echo "==> clear Metro cache"
 rm -rf "${TMPDIR:-/tmp}/metro-cache" node_modules/.cache/metro .expo/metro 2>/dev/null || true
 

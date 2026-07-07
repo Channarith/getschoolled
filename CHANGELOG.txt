@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS iOS Xcode 26: patch-react-native-jsinspector-ios.js adds include
+  guards on jsinspector-modern headers (fixes UniqueMonostate / ExecutionContext
+  redefinition when Pods + pnpm paths both appear); eas-build-post-install re-runs
+  pod install after patches.
+
 - 2026-07-07 - EAS eas.json: remove invalid installCommand (not in schema); hoisted
   pnpm via apps/mobile/.npmrc + eas-build-pre-install / eas-build-post-install hooks.
 
