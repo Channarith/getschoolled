@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS build: pre-generate React-Codegen artifacts (rnsvg
+  ComponentDescriptors.cpp) before xcodebuild. RN 0.74 lists codegen outputs as
+  compile inputs but only creates them in a before_compile script phase; clean
+  ios/build (release prebuild) caused "Build input file cannot be found".
+  ensure-ios-codegen.sh runs from mobile-ios-pod-refresh.sh whenever artifacts
+  are missing.
+
 - 2026-07-07 - iOS Xcode build: fix "[Expo] Configure project" failing with
   "Operation not permitted" on expo-configure-project.sh (macOS provenance xattr
   on Pods scripts). Podfile post_install + patch-ios-expo-configure-project.js
