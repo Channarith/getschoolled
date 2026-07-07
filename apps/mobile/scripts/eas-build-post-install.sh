@@ -19,6 +19,7 @@ fi
 
 node scripts/mobile-patch-native.js
 node scripts/ensure-metro-local-deps.js
+node scripts/verify-expo-config-plugins.js
 node scripts/verify-eas-metro-resolve.js
 
 # Pod install ran before this hook; re-run if Pods still reference .pnpm react-native.

@@ -617,6 +617,36 @@ class AccountStore:
     def points_balance(self, account_id: str) -> int:
         return self._by_id[account_id].points.balance
 
+    def spend_points(
+        self,
+        account_id: str,
+        cost: int,
+        *,
+        reason: str,
+        ref: str = "",
+    ) -> int:
+        """Deduct reward points. Returns new balance."""
+        acct = self._by_id[account_id]
+        acct.points.spend(cost, reason=reason, ref=ref)
+        self._persist()
+        return acct.points.balance
+
+    def earn_points(
+        self,
+        account_id: str,
+        amount: int,
+        *,
+        reason: str,
+        ref: str = "",
+    ) -> int:
+        """Credit reward points (internal or gameplay). Returns new balance."""
+        if amount <= 0:
+            return self.points_balance(account_id)
+        acct = self._by_id[account_id]
+        acct.points.earn(amount, reason=reason, ref=ref)
+        self._persist()
+        return acct.points.balance
+
     def award_grant(self, account_id: str, points: int, *, reason: str,
                     ref: str = "", nonce: Optional[str] = None) -> tuple[int, int]:
         """Credit an AI-agent reward voucher to an account. Returns

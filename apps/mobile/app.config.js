@@ -49,6 +49,16 @@ module.exports = ({ config }) => {
   if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "./plugins/withLiveKit.js")) {
     plugins.push("./plugins/withLiveKit.js");
   }
+  const admobAndroidAppId =
+    process.env.ADMOB_ANDROID_APP_ID || "ca-app-pub-3940256099942544~3347511713";
+  const admobIosAppId =
+    process.env.ADMOB_IOS_APP_ID || "ca-app-pub-3940256099942544~1458002511";
+  if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "react-native-google-mobile-ads")) {
+    plugins.push([
+      "react-native-google-mobile-ads",
+      { androidAppId: admobAndroidAppId, iosAppId: admobIosAppId },
+    ]);
+  }
 
   return {
     ...config,
@@ -58,6 +68,10 @@ module.exports = ({ config }) => {
       deployMode,
       cloudBaseUrl,
       cloudFailoverBaseUrl,
+      admobBannerAndroid:
+        process.env.ADMOB_BANNER_ANDROID || "ca-app-pub-3940256099942544/6300978111",
+      admobBannerIos:
+        process.env.ADMOB_BANNER_IOS || "ca-app-pub-3940256099942544/2934735716",
     },
   };
 };

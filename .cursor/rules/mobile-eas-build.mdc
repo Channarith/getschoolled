@@ -1,0 +1,35 @@
+---
+description: EAS / Expo mobile build constraints — avoid recurring cloud build failures
+globs: apps/mobile/**/*
+alwaysApply: false
+---
+
+# Mobile EAS build rules
+
+## Config plugins must resolve at `expo config` time
+
+EAS runs `expo config` **before** `eas-build-pre-install` / `eas-build-post-install`. Any local plugin under `apps/mobile/plugins/*.js` that `require()`s a package must have that package as a **direct** dependency in `apps/mobile/package.json` (not only transitive via `expo`).
+
+- Pin `@expo/config-plugins` to the version bundled with the Expo SDK (SDK 51 → `8.0.11`).
+- Wrap plugin top-level `require()` in try/catch and export a no-op `(config) => config` on failure so config read never hard-crashes.
+- After adding/changing plugins or deps, run `node scripts/verify-expo-config-plugins.js` (also runs in `eas-build-post-install.sh`).
+
+## pnpm layout for Metro + EAS
+
+- Keep `apps/mobile/.npmrc`: `node-linker=hoisted`, `package-import-method=copy`, `optimistic-repeat-install=false`.
+- `eas-build-pre-install.sh` must export the same flags for workers that ignore `.npmrc`.
+- Do **not** add custom `installCommand` in `eas.json` unless EAS docs require it (removed in v0.12.14 — broke workers).
+- Update `apps/mobile/pnpm-lock.yaml` whenever `package.json` deps change (`pnpm install --lockfile-only` from `apps/mobile` with `--ignore-workspace` if home dir has a pnpm workspace).
+
+## Native modules and plugins
+
+- New native modules (LiveKit, AdMob, etc.) need: `expo` config plugin entry in `app.config.js`, lockfile update, and a **fresh EAS native build** (not OTA-only).
+- Prefer official package config plugins (`react-native-google-mobile-ads`, `expo-build-properties`) over hand-rolled Podfile edits when possible.
+- iOS `UIBackgroundModes` in `app.json` — no duplicate entries (merge in plugin, don't repeat in static JSON).
+
+## Pre-merge checklist (mobile / EAS)
+
+1. `cd apps/mobile && pnpm install && node scripts/verify-expo-config-plugins.js`
+2. `bash scripts/mobile-typecheck.sh`
+3. Confirm `pnpm-lock.yaml` includes any new direct dependency
+4. Bump `VERSION` + mobile `app.json` / `version.ts` via `python3 scripts/bump_pr_version.py`

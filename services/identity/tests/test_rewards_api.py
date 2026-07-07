@@ -120,3 +120,43 @@ def test_redeem_unknown_prize_404():
     h = _auth(_new_user("rw5@example.com"))
     r = client.post("/rewards/redeem", headers=h, json={"prize_id": "nope"})
     assert r.status_code == 404
+
+
+def test_rewards_spend_and_insufficient():
+    h = _auth(_new_user("spend@example.com"))
+    client.post("/enrollments", headers=h, json={"course_id": "c-spend", "title": "Spend"})
+    client.post(
+        "/enrollments/c-spend/status",
+        headers=h,
+        json={"status": "passed", "score": 1.0, "level": "advanced", "hands_on": True},
+    )
+    bal = client.get("/rewards", headers=h).json()["balance"]
+    assert bal >= 50
+    out = client.post(
+        "/rewards/spend",
+        headers=h,
+        json={"amount": 10, "reason": "live_gift:rose", "ref": "room-1"},
+    ).json()
+    assert out["spent"] == 10
+    assert out["balance"] == bal - 10
+
+    broke = client.post(
+        "/rewards/spend",
+        headers=h,
+        json={"amount": bal + 1000, "reason": "too_much"},
+    )
+    assert broke.status_code == 400
+
+
+def test_internal_rewards_earn(monkeypatch):
+    monkeypatch.setenv("INTERNAL_AUTH_DISABLED", "1")
+    h = _auth(_new_user("earn@example.com"))
+    bal0 = client.get("/rewards", headers=h).json()["balance"]
+    r = client.post(
+        "/internal/rewards/earn",
+        json={"account_id": client.get("/auth/me", headers=h).json()["id"],
+              "amount": 25, "reason": "live_gift_received:rose", "ref": "room-1"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["earned"] == 25
+    assert client.get("/rewards", headers=h).json()["balance"] == bal0 + 25

@@ -20,7 +20,7 @@ from aoep_shared.assessment import (
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import BackgroundTasks, Depends, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, Depends, Header, HTTPException, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
@@ -1031,10 +1031,19 @@ def join_live_room(
     room_id: str,
     req: LiveRoomJoinRequest,
     background: BackgroundTasks,
+    authorization: str = Header(default=""),
 ) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
     store = _live_rooms()
+    account_id = account_from_authorization(authorization) or ""
     try:
-        participant = store.join(room_id, req.name, identity=req.identity)
+        participant = store.join(
+            room_id,
+            req.name,
+            identity=req.identity,
+            account_id=account_id,
+        )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
     media = app.state.factory.media()
@@ -1062,7 +1071,7 @@ def join_live_room(
             "token": token.token,
             "url": token.url,
         },
-        "gift_balance": store.gift_balance(participant.identity),
+        "gift_balance": store.gift_balance_for(participant, authorization),
         "host_follower_count": store.host_follower_count(room_id),
         "following_host": store.is_following_host(room_id, participant.identity),
     }
@@ -1382,12 +1391,24 @@ def live_room_gift_catalog() -> dict:
 
 
 @app.get("/api/live-rooms/{room_id}/gift-balance")
-def live_room_gift_balance(room_id: str, identity: str = "") -> dict:
+def live_room_gift_balance(
+    room_id: str,
+    identity: str = "",
+    participant_id: str = "",
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
     try:
-        _live_rooms().require(room_id)
+        room = store.require(room_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
-    return {"balance": _live_rooms().gift_balance(identity)}
+    if participant_id:
+        try:
+            participant = room.get_participant(participant_id)
+            return {"balance": store.gift_balance_for(participant, authorization)}
+        except LiveRoomError:
+            pass
+    return {"balance": store.gift_balance(identity)}
 
 
 @app.post("/api/live-rooms/{room_id}/gifts/send")
@@ -1395,6 +1416,7 @@ def live_room_send_gift(
     room_id: str,
     req: LiveRoomGiftRequest,
     background: BackgroundTasks,
+    authorization: str = Header(default=""),
 ) -> dict:
     store = _live_rooms()
     try:
@@ -1403,6 +1425,7 @@ def live_room_send_gift(
             req.participant_id,
             gift_id=req.gift_id,
             recipient_participant_id=req.recipient_participant_id,
+            authorization=authorization,
         )
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)

@@ -1,5 +1,6 @@
 "use client";
 
+import Script from "next/script";
 import { useEffect, useState } from "react";
 import { getAdSlot, type AdSlotPayload } from "../lib/api";
 import { useFlag } from "../lib/flags";
@@ -9,6 +10,51 @@ type Props = {
   tier: string;
   className?: string;
 };
+
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
+function AdSenseUnit({ slot, slotId, className }: {
+  slot: AdSlotPayload;
+  slotId: string;
+  className?: string;
+}) {
+  useEffect(() => {
+    if (!slot.client_id) return;
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {
+      /* ad blockers / SSR */
+    }
+  }, [slot.client_id, slot.data_ad_slot]);
+
+  return (
+    <aside className={className} style={{ margin: "1rem 0", minHeight: slot.height || 90 }}>
+      <ins
+        className="adsbygoogle"
+        style={{ display: "block" }}
+        data-ad-client={slot.client_id}
+        data-ad-slot={slot.data_ad_slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+      {slot.script_url ? (
+        <Script
+          id={`adsense-${slotId}`}
+          strategy="afterInteractive"
+          src={slot.script_url}
+          crossOrigin="anonymous"
+        />
+      ) : null}
+      <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+        Ad — set ADSENSE_CLIENT in cloud env (use Google test publisher for staging)
+      </p>
+    </aside>
+  );
+}
 
 /** Display ad slot for standard (non-VIP) members; VIP tiers see nothing.
  * Globally gated by the monetization.video_ads feature flag. */
@@ -52,24 +98,7 @@ export default function AdSlot({ slotId, tier, className }: Props) {
   }
 
   if (slot.network === "google_adsense" && slot.client_id) {
-    return (
-      <aside className={className} style={{ margin: "1rem 0", minHeight: slot.height || 90 }}>
-        <ins
-          className="adsbygoogle"
-          style={{ display: "block" }}
-          data-ad-client={slot.client_id}
-          data-ad-slot={slot.data_ad_slot}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
-        <script
-          async
-          src={slot.script_url}
-          crossOrigin="anonymous"
-        />
-        <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>Ad — configure ADSENSE_CLIENT in cloud env</p>
-      </aside>
-    );
+    return <AdSenseUnit slot={slot} slotId={slotId} className={className} />;
   }
 
   return (
