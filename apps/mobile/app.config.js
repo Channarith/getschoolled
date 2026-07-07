@@ -46,6 +46,9 @@ module.exports = ({ config }) => {
   if (!hasExpoConfigureFix) {
     plugins.push("./plugins/withIosExpoConfigureFix.js");
   }
+  if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "./plugins/withLiveKit.js")) {
+    plugins.push("./plugins/withLiveKit.js");
+  }
 
   return {
     ...config,
