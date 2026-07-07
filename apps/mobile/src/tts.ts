@@ -11,10 +11,15 @@ import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
 
+// BCP-47 tag for every platform-supported language, so TTS uses a
+// right-accent voice for the spoken (training) locale.
 const LOCALE_TO_BCP47: Record<string, string> = {
   en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT",
-  pt: "pt-BR", ru: "ru-RU", ar: "ar-SA", hi: "hi-IN", zh: "zh-CN",
-  ja: "ja-JP", ko: "ko-KR", vi: "vi-VN", km: "km-KH",
+  pt: "pt-BR", nl: "nl-NL", pl: "pl-PL", ru: "ru-RU", uk: "uk-UA",
+  tr: "tr-TR", ar: "ar-SA", he: "he-IL", hi: "hi-IN", bn: "bn-BD",
+  ur: "ur-PK", fa: "fa-IR", zh: "zh-CN", ja: "ja-JP", ko: "ko-KR",
+  vi: "vi-VN", th: "th-TH", id: "id-ID", sw: "sw-KE", el: "el-GR",
+  cs: "cs-CZ", km: "km-KH",
 };
 
 export function localeToBcp47(locale: string): string {

@@ -45,6 +45,10 @@ export type Settings = {
   narrationVoicePref: NarrationVoicePref;
   /** Spoken lesson language for Drive Mode (en / es / zh). */
   trainingLocale: TrainingLocale;
+  /** Play animated Salareen jingle on first app launch. */
+  introSplashEnabled: boolean;
+  /** Set after the first-launch intro has been shown (or skipped). */
+  introSplashSeen: boolean;
 };
 
 export type { TrainingLocale };
@@ -63,6 +67,8 @@ export const DEFAULT_SETTINGS: Settings = {
   driveDrivingAlerts: true,
   narrationVoicePref: "auto",
   trainingLocale: "en",
+  introSplashEnabled: true,
+  introSplashSeen: false,
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {

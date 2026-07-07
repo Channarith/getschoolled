@@ -583,8 +583,9 @@ def audio_courses(category: str | None = None, q: str | None = None,
     """Audio-only, drive-safe classes for hands-free learning.
 
     ``locale`` localizes category/level labels and segment headings.
-    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS;
-    defaults from ``locale`` when omitted.
+    ``training_locale`` (any supported language) selects the spoken lesson
+    body for TTS: authentic curated text where available, otherwise a
+    translated or English-fallback body. Defaults from ``locale`` when omitted.
     """
     from aoep_shared.audio_courses import list_courses
 

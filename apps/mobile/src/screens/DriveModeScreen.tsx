@@ -1,7 +1,7 @@
 import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,13 +11,16 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import {
-  bumpStreak, clearProgress, getMyList, getSettings,
+  bumpStreak, clearProgress, getMyList, getSettings, setSettings,
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
 import { speakNatural, warmVoices } from "../tts";
-import { normalizeTrainingLocale, type TrainingLocale } from "../trainingLocale";
+import {
+  normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
+  type TrainingLocale,
+} from "../trainingLocale";
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
@@ -49,6 +52,15 @@ export default function DriveModeScreen({
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
+  // Monotonic playback token: any stop/pause/back bumps it so a stopped
+  // utterance's onDone can't re-speak the next segment (which made audio keep
+  // playing after Stop / leaving the screen).
+  const playGenRef = useRef(0);
+
+  function stopSpeech() {
+    playGenRef.current++;
+    Speech.stop();
+  }
 
   useEffect(() => {
     void getVoiceEngineDetails()
@@ -77,7 +89,7 @@ export default function DriveModeScreen({
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
-      Speech.stop();
+      stopSpeech();
       stopVoiceRecognition();
       clearResumeTimer();
     };
@@ -86,6 +98,7 @@ export default function DriveModeScreen({
   function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
     clearResumeTimer();
     setAssistantOpen(false);
+    const gen = ++playGenRef.current;   // new playback generation
     Speech.stop();
     if (i >= c.segments.length) {
       setPlaying(false);
@@ -98,12 +111,40 @@ export default function DriveModeScreen({
       segment: i, total: c.segments.length,
     });
     const s = c.segments[i];
+    // Narrate in the language of the actual text (body_locale), which may
+    // differ from the requested training locale when it falls back to English.
+    const speakLocale = c.body_locale || tloc;
     speakNatural(`${s.heading}. ${s.text}`, {
-      locale: tloc,
+      locale: speakLocale,
       voiceStyle: voiceStyleRef.current,
       rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
-      onDone: () => { if (segRef.current === i) playFrom(c, i + 1, tloc); },
+      onDone: () => {
+        if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
+      },
     });
+  }
+
+  // Pause -> switch spoken language -> resume at the same point in the new
+  // language. Refetches the course so segment bodies come back localized.
+  function switchLanguage(loc: TrainingLocale) {
+    if (loc === trainingLang) return;
+    const wasPlaying = playing;
+    const atSeg = segRef.current >= 0 ? segRef.current : seg;
+    setTrainingLang(loc);
+    void setSettings({ trainingLocale: loc });
+    stopSpeech();
+    setPlaying(false);
+    getAudioCourse(courseId, locale, loc)
+      .then((c) => {
+        setCourse(c);
+        if (wasPlaying) {
+          playFrom(c, atSeg, loc);
+        } else {
+          segRef.current = atSeg;
+          setSeg(atSeg);
+        }
+      })
+      .catch(() => {});
   }
 
   function clearResumeTimer() {
@@ -116,7 +157,7 @@ export default function DriveModeScreen({
   function pauseForAssistant(status = "Listening. Say Hey Sala or Salareen, then ask your question.") {
     clearResumeTimer();
     segRef.current = -1;
-    Speech.stop();
+    stopSpeech();
     setPlaying(false);
     setAssistantOpen(true);
     setAssistantStatus(status);
@@ -200,7 +241,7 @@ export default function DriveModeScreen({
     setAssistantTranscript(command);
     const lower = command.toLowerCase();
     if (/\b(pause|stop|hold)\b/.test(lower)) {
-      Speech.stop();
+      stopSpeech();
       setPlaying(false);
       setAssistantAnswer("Paused. Say or tap Resume when you want to continue.");
       setAssistantStatus("Paused for you.");
@@ -224,9 +265,9 @@ export default function DriveModeScreen({
     const answer = answerFromCourse(course, seg, command);
     setAssistantAnswer(answer);
     setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
-    Speech.stop();
+    stopSpeech();
     speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
-      locale: trainingLang,
+      locale: course.body_locale || trainingLang,
       voiceStyle: voiceStyleRef.current,
       onDone: () => resumeCourse(6500),
     });
@@ -267,7 +308,7 @@ export default function DriveModeScreen({
   return (
     <View style={styles.c}>
       <View style={styles.topRow}>
-        <AnimatedPressable onPress={() => { Speech.stop(); onBack(); }}>
+        <AnimatedPressable onPress={() => { stopSpeech(); onBack(); }}>
           <View style={styles.backRow}>
             <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             <Text style={styles.back}>{t("drive.back")}</Text>
@@ -323,6 +364,25 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           ))}
         </View>
+
+        <Text style={styles.langLabel}>{t("drive.trainingLang")}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.langRow}
+        >
+          {TRAINING_LOCALES.map((loc) => (
+            <AnimatedPressable
+              key={loc}
+              onPress={() => switchLanguage(loc)}
+              style={[styles.langChip, trainingLang === loc && styles.langChipOn]}
+            >
+              <Text style={[styles.langChipText, trainingLang === loc && styles.langChipTextOn]}>
+                {TRAINING_LOCALE_LABELS[loc]}
+              </Text>
+            </AnimatedPressable>
+          ))}
+        </ScrollView>
         <View style={styles.row}>
           <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
             <Ionicons name="play-skip-back" size={28} color="#fff" />
@@ -330,7 +390,7 @@ export default function DriveModeScreen({
           {playing ? (
             <AnimatedPressable
               style={[styles.btn, styles.pause]}
-              onPress={() => { Speech.stop(); setPlaying(false); }}
+              onPress={() => { stopSpeech(); setPlaying(false); }}
             >
               <Ionicons name="pause" size={32} color="#fff" />
             </AnimatedPressable>
@@ -480,6 +540,19 @@ const styles = StyleSheet.create({
   speedChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
   speedChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
   speedChipTextOn: { color: "#fff" },
+  langLabel: { color: theme.colors.muted, marginBottom: 8, ...theme.typography.caption },
+  langRow: { flexDirection: "row", gap: 8, paddingBottom: 4, marginBottom: 4 },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  langChipOn: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  langChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
+  langChipTextOn: { color: "#fff" },
   progressBar: { height: 6, backgroundColor: theme.colors.netflix },
   row: { flexDirection: "row", justifyContent: "center", gap: 18 },
   btn: {

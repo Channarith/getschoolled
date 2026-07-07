@@ -159,7 +159,7 @@ export default function HomeScreen({
           <View style={styles.heroActions}>
             <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
             {onOpenGroupClasses ? (
-              <PrimaryButton label="Group Classes" onPress={onOpenGroupClasses} variant="brand" />
+              <PrimaryButton label={t("home.groupClasses")} onPress={onOpenGroupClasses} variant="brand" />
             ) : null}
           </View>
           <Text style={styles.careersSub}>{t("home.careersSub")}</Text>

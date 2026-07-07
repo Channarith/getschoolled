@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Mobile platform fixes (v0.13.2): sign-in gate before app features;
+  Group Classes Register/Join/Start for all platforms; in-app GameScreen and
+  LessonScreen (no web-app popup); Drive Mode stop-button + 27-language training
+  audio; intro splash with Salareen jingle (1:32–1:39) and settings replay.
+  Merged atop cloud-agent live social streaming (PR #219 / v0.13.0).
+
 - 2026-07-07 - Live social streaming for Group Classes (Salareen live rooms):
   LiveKit multi-guest video/audio on web and mobile (emoji fallback offline);
   virtual gifts with points economy; floating tap reactions; real-time WebSocket
@@ -9,6 +15,58 @@ Format: newest first. No markdown per project convention.
   fallback; viewer count, follow host, join/leave toasts. Backend: extended
   aoep_shared live room model, gift catalog, follow store, WS hub; orchestrator
   REST + /api/live-rooms/{id}/ws. Version 0.13.0.
+- 2026-07-07 - Mobile intro splash: first-launch animated Salareen splash with
+  jingle clip (1:32–1:39 from bundled theme). Settings toggle to disable launch
+  intro; Settings button replays full song + animation. Tap anywhere to skip.
+
+- 2026-07-07 - Mobile visual courses + games now play in-app (was a dead-end
+  popup). New GameScreen plays the arcade (quiz/speed/match, timed rounds, score
+  + leaderboard submit) via identity /games. New LessonScreen delivers live_class
+  / visual courses through the orchestrator teaching session (slide viewer,
+  Next/advance, narration via expo-speech, ask-the-tutor Q&A) with a graceful
+  in-app reader fallback when no live session exists. AudioCoursesScreen routes
+  taps by format (audio→Drive, game→arcade, everything else→lesson player) so no
+  format shows the old "opens in the Salareen web app" alert. Added mobile API
+  clients: getGamesCatalog/newGame/submitGame and startLessonSession/
+  advanceLessonSession/askLessonSession.
+
+- 2026-07-07 - Mobile Group Classes: fix taps doing nothing — seeded Meet
+  classes had no actionable buttons (Salareen-only join). Full Register / Join /
+  Start flows for all platforms (Salareen in-app room, Meet/Zoom/Teams via
+  Linking.openURL). Start modal opens the live room or external meeting. API
+  client now sends auth headers on all requests; added registerGroupClass and
+  listLessons. Backend seeds daily Salareen live classes (10am + 3pm ET) in
+  addition to Google Meet slots.
+
+- 2026-07-07 - Mobile (iOS + Android): sign-in required before any app features,
+  matching the web app. New AuthScreen on first launch; saved JWT in AsyncStorage
+  is validated via GET /auth/me on startup so returning users auto-enter without
+  re-entering credentials. Settings keeps account info + sign-out only; tabs and
+  classes are hidden until authenticated.
+
+- 2026-07-07 - Drive Mode: Stop/Back now silences audio immediately (mobile +
+  web). Root cause: a cancelled utterance's onend/onerror (web) or onDone
+  (mobile) still fired the "advance to next segment" callback, so cancelling
+  restarted playback - the screen closed but narration kept going. Added a
+  monotonic playback-generation token that every stop/pause/back/skip/language
+  switch bumps; only the still-current generation may auto-advance. Also fixes
+  a double-advance on manual skip.
+
+- 2026-07-07 - Drive Mode audio language now transitions live (mobile + web).
+  Switching the spoken (training) language pauses narration, refetches the
+  course localized, and resumes at the same segment in the new language.
+  Mobile gains an in-player language selector (was Settings-only); web unifies
+  the browse + now-playing toggles and fixes paused-then-switch resume (Resume
+  replays the current segment so it can't resume a stale utterance). Both
+  clients now narrate using the course's returned body_locale so the TTS voice
+  always matches the actual text language. Web ClassRoom stops in-flight
+  narration on a language switch so it no longer keeps talking in the old voice.
+- 2026-07-07 - Training/audio courses can now be requested in all 27 supported
+  languages (was en/es/zh). Backend normalize_training_locale accepts every
+  SUPPORTED_LANGUAGES code; audio_courses adds a pluggable body translator hook
+  (set_body_translator, e.g. NLLB-200 via SpeechProvider) with on-demand,
+  cached per-course translation and a graceful English-body fallback (offline).
+  Client TrainingLocale lists + BCP-47 voice maps expanded to all 27 languages.
 
 - 2026-07-07 - iOS build: pre-generate React-Codegen artifacts (rnsvg
   ComponentDescriptors.cpp) before xcodebuild. RN 0.74 lists codegen outputs as

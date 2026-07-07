@@ -16,8 +16,37 @@ def test_normalize_training_locale():
     assert normalize_training_locale("en") == "en"
     assert normalize_training_locale("es-MX") == "es"
     assert normalize_training_locale("zh-CN") == "zh"
-    assert normalize_training_locale("fr") == "en"
+    # Every platform-supported language is now accepted as a training locale.
+    assert normalize_training_locale("fr") == "fr"
+    assert normalize_training_locale("ja-JP") == "ja"
+    # Unsupported codes still collapse to English.
+    assert normalize_training_locale("xx") == "en"
     assert normalize_training_locale(None) == "en"
+
+
+def test_uncurated_locale_falls_back_to_english_body():
+    # No curated content and no translator registered (offline default) ->
+    # English body, with body_locale reported honestly as "en" so the client
+    # narrates with an English voice that matches the text.
+    course = get_course("audio-what-is-blockchain", "en", training_locale="fr")
+    assert course is not None
+    assert course.body_locale == "en"
+
+
+def test_body_translator_localizes_uncurated_locale():
+    from aoep_shared.training_content_i18n import set_body_translator
+
+    def fake_translate(text, source, target):
+        return f"[{target}] {text}"
+
+    set_body_translator(fake_translate)
+    try:
+        course = get_course("audio-what-is-blockchain", "en", training_locale="fr")
+        assert course is not None
+        assert course.body_locale == "fr"
+        assert all(s.text.startswith("[fr] ") for s in course.segments)
+    finally:
+        set_body_translator(None)
 
 
 def test_localize_course_title():
