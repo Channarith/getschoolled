@@ -201,6 +201,23 @@ up:
 down:
 	docker compose -f $(COMPOSE) down
 
+# Deterministic demo/E2E stack: offline sample jobs board, seeded corporate
+# programs + QA accounts, test endpoints on. Only the services the corporate
+# demo touches (skips perception/harvester/agent-runtime/edge).
+COMPOSE_E2E := infra/compose/docker-compose.e2e.yml
+E2E_SERVICES := postgres redis orchestrator memory speech curriculum billing identity integrations web
+
+up-e2e:
+	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) up -d --build $(E2E_SERVICES)
+
+down-e2e:
+	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) down
+
+# Corporate-demo readiness gate: targeted tests + stack probes + Playwright
+# E2E + stress smoke, ending in a GO / NO-GO verdict. Run against `make up-e2e`.
+demo-check:
+	$(VENV_PY) scripts/demo_check.py
+
 # Multi-replica + nginx-LB local stack. See infra/compose/scale.yml +
 # infra/compose/nginx-edge.conf. Hit http://localhost:18500 for the
 # load-balanced curriculum service, :18000 for orchestrator.

@@ -139,7 +139,11 @@ export default function CorporatePage() {
         </div>
       )}
 
-      {programs?.map((p) => (
+      {programs?.map((p) => {
+        const lessonById: Record<string, Lesson> = {};
+        for (const l of corpLessons) lessonById[l.lesson_id] = l;
+        const firstLesson = p.course_ids.map((cid) => lessonById[cid]).find(Boolean);
+        return (
         <div className="card" key={p.program_id}>
           <div className="row" style={{ justifyContent: "space-between" }}>
             <h3 style={{ margin: 0 }}>{p.title}</h3>
@@ -155,10 +159,12 @@ export default function CorporatePage() {
           <ul style={{ marginTop: 6 }}>
             {p.course_ids.map((cid) => (
               <li key={cid}>
-                {courses[cid]
-                  ? <Link href={`/watch?course=${cid}`}>{courses[cid].title}</Link>
-                  : <span className="muted">{cid}</span>}
-                {courses[cid] && (
+                {lessonById[cid]
+                  ? <Link href={`/corporate/learn?lesson=${encodeURIComponent(cid)}`}>{lessonById[cid].title}</Link>
+                  : courses[cid]
+                    ? <Link href={`/watch?course=${cid}`}>{courses[cid].title}</Link>
+                    : <span className="muted">{cid}</span>}
+                {!lessonById[cid] && courses[cid] && (
                   <span className="muted" style={{ fontSize: 12 }}>
                     {" "}· {courses[cid].level} · {courses[cid].duration_min} min
                   </span>
@@ -167,15 +173,18 @@ export default function CorporatePage() {
             ))}
           </ul>
           <div className="row" style={{ marginTop: 8 }}>
-            <Link href="/class"><button>{t("corporate.startProgram")}</button></Link>
-            <Link href="/account">
+            <Link href={firstLesson ? `/corporate/learn?lesson=${encodeURIComponent(firstLesson.lesson_id)}` : "/class"}>
+              <button>{t("corporate.startProgram")}</button>
+            </Link>
+            <a href="mailto:sales@salareen.com?subject=Team%20seats%20for%20corporate%20training">
               <button style={{ background: "transparent", border: "1px solid var(--border)" }}>
                 {t("corporate.assignTeam")}
               </button>
-            </Link>
+            </a>
           </div>
         </div>
-      ))}
+        );
+      })}
     </main>
   );
 }

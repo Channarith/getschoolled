@@ -41,22 +41,7 @@ def create_service(
     # Best-effort external exporters (Sentry/OTLP) when configured + installed.
     init_external_exporters(name)
 
-    # The browser web app calls services cross-origin during local dev. Allow
-    # configured origins (comma-separated CORS_ORIGINS); default to "*" for the
-    # local stack. Phase10 hardening tightens this for cloud.
     import os
-
-    from fastapi.middleware.cors import CORSMiddleware
-
-    origins_raw = os.environ.get("CORS_ORIGINS", "*")
-    origins = [o.strip() for o in origins_raw.split(",") if o.strip()]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     import time as _time
     import uuid as _uuid
@@ -148,6 +133,26 @@ def create_service(
         response.headers["X-Request-ID"] = rid
         response.headers["Server-Timing"] = f"app;dur={ms:.1f}"
         return response
+
+    # The browser web app calls services cross-origin during local dev. Allow
+    # configured origins (comma-separated CORS_ORIGINS); default to "*" for the
+    # local stack. Phase10 hardening tightens this for cloud.
+    #
+    # Added LAST so CORS is the OUTERMOST middleware (add_middleware prepends):
+    # short-circuit responses from inner middleware — rate-limit 429s in
+    # particular — must still carry Access-Control-Allow-Origin, or browsers
+    # surface them as opaque CORS failures instead of handleable errors.
+    from fastapi.middleware.cors import CORSMiddleware
+
+    origins_raw = os.environ.get("CORS_ORIGINS", "*")
+    origins = [o.strip() for o in origins_raw.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health", response_model=HealthStatus)
     def health() -> HealthStatus:  # pragma: no cover - exercised via TestClient

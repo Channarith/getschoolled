@@ -78,6 +78,14 @@ app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
+
+# Populate the /corporate funnel out of the box (mirrors the audio catalog
+# bridge's empty-store fallback; disable with SEED_CORPORATE_PROGRAMS=0).
+from .corporate_programs import seed_default_programs, seeding_enabled  # noqa: E402
+
+if seeding_enabled():
+    seed_default_programs(app.state.catalog)
+
 app.state.corrections = {}  # id -> Correction (review queue)
 
 # Course scoring admin: editable config + manual overrides + telemetry (Phase: scoring tuning).
