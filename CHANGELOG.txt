@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Mobile iOS: add direct expo-asset dependency (fixes EAS/local Release
+  bundle step); mobile-xcodebuild-release.sh + pnpm run xcode:release for Mac
+  .xcarchive without EAS (Organizer → Distribute App for Ad Hoc / TestFlight).
+
 - 2026-07-07 - EAS mobile builds: workflow_dispatch on Create Production Builds
   (.eas/workflows) plus GitHub Actions eas-mobile-build.yml (EXPO_TOKEN secret)
   to queue iOS + Android production builds for aiclassroom from CI or Expo UI.
