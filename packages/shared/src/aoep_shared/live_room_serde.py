@@ -56,9 +56,11 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
 
 
 def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
-  participants = {
-      k: Participant(**v) for k, v in (data.get("participants") or {}).items()
-  }
+  participants = {}
+  for k, raw in (data.get("participants") or {}).items():
+      row = dict(raw)
+      row.setdefault("account_id", "")
+      participants[k] = Participant(**row)
   chat = [ChatMessage(**m) for m in (data.get("chat") or [])]
   banned = {k: BannedUser(**v) for k, v in (data.get("banned") or {}).items()}
   speaking_queue: List[QueueEntry] = [

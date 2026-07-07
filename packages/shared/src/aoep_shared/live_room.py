@@ -184,6 +184,7 @@ class Participant:
     name: str
     role: str = LEARNER_ROLE
     identity: str = ""
+    account_id: str = ""
     muted: bool = False
     muted_by_host: bool = False
     hand_raised: bool = False
@@ -469,17 +470,28 @@ class LiveRoomStore:
             raise KeyError(room_id)
         return room
 
-    def join(self, room_id: str, name: str, *, identity: str = "") -> Participant:
+    def join(
+        self,
+        room_id: str,
+        name: str,
+        *,
+        identity: str = "",
+        account_id: str = "",
+    ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
             raise LiveRoomError("this room is not live")
         ident = (identity or "").strip() or f"learner-{uuid.uuid4().hex[:8]}"
+        acct = (account_id or "").strip()
         if room.is_banned(ident):
             banned = room.banned[ident]
             detail = banned.reason or "You have been removed from this class."
             raise BannedError(detail)
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
+                if acct:
+                    p.account_id = acct
+                    self._commit(room)
                 return p
         if room.is_full:
             raise RoomFullError("this live room is full")
@@ -488,6 +500,7 @@ class LiveRoomStore:
             name=name,
             role=LEARNER_ROLE,
             identity=ident,
+            account_id=acct,
         )
         room.participants[participant.id] = participant
         room.viewer_count = room.learner_count
@@ -975,6 +988,20 @@ class LiveRoomStore:
     def gift_balance(self, identity: str) -> int:
         return self._gift_ledger.balance(identity)
 
+    def gift_balance_for(
+        self,
+        participant: Participant,
+        authorization: str = "",
+    ) -> int:
+        """Balance for gifts: identity rewards when linked, else sandbox ledger."""
+        if participant.account_id and (authorization or "").strip():
+            from .live_room_rewards import rewards_balance_from_auth
+
+            bal = rewards_balance_from_auth(authorization)
+            if bal is not None:
+                return bal
+        return self._gift_ledger.balance(participant.identity)
+
     def send_gift(
         self,
         room_id: str,
@@ -982,6 +1009,7 @@ class LiveRoomStore:
         *,
         gift_id: str,
         recipient_participant_id: str = "",
+        authorization: str = "",
     ) -> tuple[GiftEvent, int]:
         """Send a virtual gift; deduct sender points and credit recipient/host."""
         room = self.require(room_id)
@@ -993,20 +1021,52 @@ class LiveRoomStore:
             raise LiveRoomError("unknown gift")
         recipient_id = recipient_participant_id or AI_HOST_ID
         recipient = room.get_participant(recipient_id)
+        credit_amount = max(1, item.cost_points // 2)
+        auth = (authorization or "").strip()
+        use_identity = bool(sender.account_id and auth)
+        from .live_room_rewards import (
+            LiveRoomRewardsError,
+            earn_rewards_internal,
+            spend_rewards_via_auth,
+        )
+
         try:
-            new_balance = self._gift_ledger.spend(
-                sender.identity,
-                item.cost_points,
-                reason=f"live_gift:{item.id}",
-                ref=room_id,
-            )
-            credit_amount = max(1, item.cost_points // 2)
-            self._gift_ledger.credit(
-                recipient.identity,
-                credit_amount,
-                reason=f"live_gift_received:{item.id}",
-                ref=room_id,
-            )
+            if use_identity:
+                new_balance = spend_rewards_via_auth(
+                    auth,
+                    item.cost_points,
+                    reason=f"live_gift:{item.id}",
+                    ref=room_id,
+                )
+                if recipient.account_id:
+                    earn_rewards_internal(
+                        recipient.account_id,
+                        credit_amount,
+                        reason=f"live_gift_received:{item.id}",
+                        ref=room_id,
+                    )
+                else:
+                    self._gift_ledger.credit(
+                        recipient.identity,
+                        credit_amount,
+                        reason=f"live_gift_received:{item.id}",
+                        ref=room_id,
+                    )
+            else:
+                new_balance = self._gift_ledger.spend(
+                    sender.identity,
+                    item.cost_points,
+                    reason=f"live_gift:{item.id}",
+                    ref=room_id,
+                )
+                self._gift_ledger.credit(
+                    recipient.identity,
+                    credit_amount,
+                    reason=f"live_gift_received:{item.id}",
+                    ref=room_id,
+                )
+        except LiveRoomRewardsError as exc:
+            raise LiveRoomError(str(exc)) from exc
         except LiveRoomSocialError as exc:
             raise LiveRoomError(str(exc)) from exc
         event = GiftEvent(

@@ -1306,7 +1306,7 @@ export async function joinLiveRoom(roomId: string, name: string, identity = ""):
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name, identity }),
     })
   );
@@ -1557,7 +1557,7 @@ export async function liveRoomSendGift(
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/gifts/send`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         participant_id: participantId,
         gift_id: giftId,

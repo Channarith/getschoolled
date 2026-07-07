@@ -18,6 +18,8 @@ import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
 import MascotSvg from "../components/MascotSvg";
+import AdBanner from "../components/AdBanner";
+import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
 import { theme, wallpapers } from "../theme";
 
@@ -39,6 +41,7 @@ export default function HomeScreen({
   onOpenGroupClasses?: () => void;
 }) {
   const { t, locale } = useT();
+  const { account } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -288,6 +291,8 @@ export default function HomeScreen({
             onPress={() => onOpenCategory(c.category_id || c.category)} />
         )}
       />
+
+      <AdBanner tier={account?.tier} />
     </ScrollView>
   );
 }
