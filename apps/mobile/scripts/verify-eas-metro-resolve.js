@@ -38,7 +38,7 @@ function main() {
   }
   console.error("");
   console.error("  Fix: add missing packages as direct dependencies in apps/mobile/package.json");
-  console.error("  and ensure eas.json installCommand uses hoisted pnpm (node-linker=hoisted).");
+  console.error("  and ensure apps/mobile/.npmrc sets node-linker=hoisted (see eas-build-post-install.sh).");
   process.exit(1);
 }
 

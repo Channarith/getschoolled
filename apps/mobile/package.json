@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.12.21",
+  "version": "0.12.22",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -57,6 +57,7 @@
     "eas:build:ios": "eas build -p ios --profile production --non-interactive",
     "eas:build:preview:android": "eas build -p android --profile preview --non-interactive",
     "eas:build:preview:ios": "eas build -p ios --profile preview --non-interactive",
+    "eas-build-pre-install": "bash scripts/eas-build-pre-install.sh",
     "postinstall": "node scripts/mobile-patch-native.js",
     "eas-build-post-install": "bash scripts/eas-build-post-install.sh"
   },

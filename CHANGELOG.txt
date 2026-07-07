@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS eas.json: remove invalid installCommand (not in schema); hoisted
+  pnpm via apps/mobile/.npmrc + eas-build-pre-install / eas-build-post-install hooks.
+
 - 2026-07-07 - EAS iOS export:embed fix: direct @react-native/assets-registry dependency,
   hoisted pnpm installCommand in eas.json, verify-eas-metro-resolve.js gate in
   eas-build-post-install, metro extraNodeModules pin (fixes MODULE_NOT_FOUND on
