@@ -373,6 +373,19 @@ NATIVE BINARIES (.apk / .aab / .ipa)
     ios.bundleIdentifier: com.aiclassroom.app
     android.package:      com.aiclassroom.app
 
+  LOCAL iOS RELEASE (no EAS — Mac + Xcode + Apple Developer account):
+    cd apps/mobile
+    bash scripts/mobile-install.sh
+    pnpm run xcode:release              # Release .xcarchive for physical devices
+    # Then: Xcode → Window → Organizer → Distribute App
+    #   Ad Hoc = IPA for registered test iPhones (UDIDs in Apple Developer)
+    #   App Store = upload to TestFlight / App Store Connect
+    # Optional: DEVELOPMENT_TEAM=YOUR_TEAM_ID pnpm run xcode:release
+    # Requires expo-asset in package.json (direct dep) for the JS bundle step.
+
+  EAS iOS failure "expo-asset cannot be found": run  pnpm install  after
+  pulling; expo-asset must be a direct dependency (not only transitive via expo).
+
 NATIVE PROJECT FILES (offline / custom CI)
   pnpm run prebuild       # writes apps/mobile/{android,ios}/ (gitignored)
   # Run this if you need Gradle / Xcode projects to build locally without EAS.
