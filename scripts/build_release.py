@@ -243,8 +243,23 @@ def write_mobile_version(new_version: str) -> None:
         import json
 
         data = json.loads(MOBILE_APP_JSON.read_text(encoding="utf-8"))
-        if "expo" in data:
-            data["expo"]["version"] = new_version
+        expo = data.get("expo")
+        if expo is not None:
+            expo["version"] = new_version
+            # Keep native build identifiers in lock-step with the marketing
+            # version so every store upload carries fresh, unique build
+            # metadata (Apple rejects duplicate CFBundleVersion for a given
+            # CFBundleShortVersionString; Google needs an increasing
+            # versionCode). iOS accepts a dotted string; Android needs an int.
+            parts = new_version.split(".")
+            try:
+                major, minor, patch = (int(parts[0]), int(parts[1]), int(parts[2]))
+            except (ValueError, IndexError):
+                major = minor = patch = 0
+            expo.setdefault("ios", {})["buildNumber"] = new_version
+            expo.setdefault("android", {})["versionCode"] = (
+                major * 10000 + minor * 100 + patch
+            )
             MOBILE_APP_JSON.write_text(
                 json.dumps(data, indent=2) + "\n",
                 encoding="utf-8",

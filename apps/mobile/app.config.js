@@ -39,6 +39,13 @@ module.exports = ({ config }) => {
       },
     ]);
   }
+  const hasExpoConfigureFix = plugins.some(
+    (entry) =>
+      (Array.isArray(entry) ? entry[0] : entry) === "./plugins/withIosExpoConfigureFix.js",
+  );
+  if (!hasExpoConfigureFix) {
+    plugins.push("./plugins/withIosExpoConfigureFix.js");
+  }
 
   return {
     ...config,
