@@ -3,6 +3,7 @@
   "build": {
     "base": {
       "node": "22.20.0",
+      "installCommand": "pnpm install --config.node-linker=hoisted --config.package-import-method=copy --config.optimistic-repeat-install=false",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       },

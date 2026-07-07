@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS iOS export:embed fix: direct @react-native/assets-registry dependency,
+  hoisted pnpm installCommand in eas.json, verify-eas-metro-resolve.js gate in
+  eas-build-post-install, metro extraNodeModules pin (fixes MODULE_NOT_FOUND on
+  assets-registry/registry.js during Xcode bundle phase).
+
 - 2026-07-07 - iOS xcode:release signing: pass -allowProvisioningUpdates and
   DEVELOPMENT_TEAM/CODE_SIGN_STYLE=Automatic; clearer errors when no provisioning
   profile exists for com.aiclassroom.app.

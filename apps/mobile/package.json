@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.12.20",
+  "version": "0.12.21",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -65,6 +65,7 @@
     "@expo/metro-runtime": "~3.2.3",
     "@expo/vector-icons": "^14.0.0",
     "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native/assets-registry": "0.74.87",
     "expo": "~51.0.39",
     "expo-asset": "~10.0.10",
     "expo-av": "~14.0.7",
