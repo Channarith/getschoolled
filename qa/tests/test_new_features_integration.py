@@ -68,8 +68,9 @@ def test_deep_lesson_and_director_adaptation_smoke():
 
 def test_drive_mode_and_marathon_games_smoke():
     sample = build_catalog()[0]
-    assert sample.duration_min >= 20
-    assert any(s.kind in ("quiz", "reinforcement", "narration") for s in sample.segments)
+    # Honest duration from authentic content only (no 20-minute padding).
+    assert sample.duration_min >= 1
+    assert all(s.kind == "narration" for s in sample.segments)
 
     rnd = make_round("biology", GameType.MARATHON, seed=42)
     answers = {m.id: m.answer_index for m in rnd.mcqs}
