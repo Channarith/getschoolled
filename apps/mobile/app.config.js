@@ -34,8 +34,6 @@ module.exports = ({ config }) => {
     ]);
   }
 
-  plugins.push("./plugins/with-xcode-env-updates.js");
-
   return {
     ...config,
     plugins,
