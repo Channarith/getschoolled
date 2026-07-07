@@ -17,6 +17,17 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .live_room_backend import LiveRoomBackend
+    from .live_room_social import HostFollowStore, LiveRoomGiftLedger
+
+from .live_room_social import (
+    GIFT_CATALOG,
+    GIFT_FEED_SIZE,
+    REACTION_BUFFER_SIZE,
+    GiftEvent,
+    LiveRoomSocialError,
+    ReactionEvent,
+    gift_by_id,
+)
 
 ROOM_SIZES: tuple = (4, 6, 9)
 AI_HOST_ID = "theodore-ai"
@@ -240,6 +251,9 @@ class LiveRoom:
     speaking_queue: List[QueueEntry] = field(default_factory=list)
     floor_participant_id: str = ""
     reports: List[UserReport] = field(default_factory=list)
+    gift_feed: List[GiftEvent] = field(default_factory=list)
+    reactions: List[ReactionEvent] = field(default_factory=list)
+    viewer_count: int = 0
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -351,6 +365,9 @@ class LiveRoom:
             "floor_holder": (
                 self.floor_holder().to_dict() if self.floor_holder() else None
             ),
+            "gift_feed": [g.to_dict() for g in self.gift_feed[-GIFT_FEED_SIZE:]],
+            "reactions": [r.to_dict() for r in self.reactions[-REACTION_BUFFER_SIZE:]],
+            "viewer_count": self.viewer_count or self.learner_count,
         }
 
     def to_moderator_dict(self) -> dict:
@@ -372,12 +389,28 @@ class LiveRoomStore:
     stored in Redis so every orchestrator replica serves the same chat session.
     """
 
-    def __init__(self, backend: Optional["LiveRoomBackend"] = None) -> None:
+    def __init__(
+        self,
+        backend: Optional["LiveRoomBackend"] = None,
+        *,
+        gift_ledger: Optional["LiveRoomGiftLedger"] = None,
+        follow_store: Optional["HostFollowStore"] = None,
+    ) -> None:
         if backend is None:
             from .live_room_backend import build_live_room_backend
 
             backend = build_live_room_backend()
         self._backend = backend
+        if gift_ledger is None:
+            from .live_room_social import LiveRoomGiftLedger
+
+            gift_ledger = LiveRoomGiftLedger()
+        if follow_store is None:
+            from .live_room_social import HostFollowStore
+
+            follow_store = HostFollowStore()
+        self._gift_ledger = gift_ledger
+        self._follow_store = follow_store
 
     @property
     def backend_name(self) -> str:
@@ -457,6 +490,7 @@ class LiveRoomStore:
             identity=ident,
         )
         room.participants[participant.id] = participant
+        room.viewer_count = room.learner_count
         join_msg = ChatMessage(
             id=uuid.uuid4().hex[:10],
             from_id="system",
@@ -475,6 +509,7 @@ class LiveRoomStore:
         name = p.name
         self._remove_from_queue(room_id, participant_id)
         del room.participants[participant_id]
+        room.viewer_count = room.learner_count
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
@@ -933,6 +968,132 @@ class LiveRoomStore:
         )
         self._commit(room)
         return room.recording
+
+    def gift_catalog(self) -> List[dict]:
+        return [g.to_dict() for g in GIFT_CATALOG]
+
+    def gift_balance(self, identity: str) -> int:
+        return self._gift_ledger.balance(identity)
+
+    def send_gift(
+        self,
+        room_id: str,
+        sender_participant_id: str,
+        *,
+        gift_id: str,
+        recipient_participant_id: str = "",
+    ) -> tuple[GiftEvent, int]:
+        """Send a virtual gift; deduct sender points and credit recipient/host."""
+        room = self.require(room_id)
+        sender = room.get_participant(sender_participant_id)
+        if room.is_banned(sender.identity):
+            raise BannedError("you are blocked from this room")
+        item = gift_by_id(gift_id)
+        if item is None:
+            raise LiveRoomError("unknown gift")
+        recipient_id = recipient_participant_id or AI_HOST_ID
+        recipient = room.get_participant(recipient_id)
+        try:
+            new_balance = self._gift_ledger.spend(
+                sender.identity,
+                item.cost_points,
+                reason=f"live_gift:{item.id}",
+                ref=room_id,
+            )
+            credit_amount = max(1, item.cost_points // 2)
+            self._gift_ledger.credit(
+                recipient.identity,
+                credit_amount,
+                reason=f"live_gift_received:{item.id}",
+                ref=room_id,
+            )
+        except LiveRoomSocialError as exc:
+            raise LiveRoomError(str(exc)) from exc
+        event = GiftEvent(
+            id=uuid.uuid4().hex[:10],
+            gift_id=item.id,
+            gift_name=item.name,
+            emoji=item.emoji,
+            cost_points=item.cost_points,
+            sender_participant_id=sender.id,
+            sender_name=sender.name,
+            sender_identity=sender.identity,
+            recipient_participant_id=recipient.id,
+            recipient_name=recipient.name,
+        )
+        room.gift_feed.append(event)
+        if len(room.gift_feed) > GIFT_FEED_SIZE:
+            room.gift_feed = room.gift_feed[-GIFT_FEED_SIZE:]
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id="system",
+                from_name="Room",
+                text=(
+                    f"{item.emoji} {sender.name} sent {item.name} "
+                    f"to {recipient.name} ({item.cost_points} pts)"
+                ),
+            )
+        )
+        self._commit(room)
+        return event, new_balance
+
+    def send_reaction(
+        self,
+        room_id: str,
+        participant_id: str,
+        *,
+        emoji: str,
+    ) -> ReactionEvent:
+        room = self.require(room_id)
+        p = room.get_participant(participant_id)
+        if room.is_banned(p.identity):
+            raise BannedError("you are blocked from this room")
+        try:
+            event = ReactionEvent(
+                id=uuid.uuid4().hex[:10],
+                emoji=emoji,
+                participant_id=p.id,
+                participant_name=p.name,
+            )
+        except LiveRoomSocialError as exc:
+            raise LiveRoomError(str(exc)) from exc
+        room.reactions.append(event)
+        if len(room.reactions) > REACTION_BUFFER_SIZE:
+            room.reactions = room.reactions[-REACTION_BUFFER_SIZE:]
+        self._commit(room)
+        return event
+
+    def follow_host(
+        self,
+        room_id: str,
+        follower_identity: str,
+        *,
+        unfollow: bool = False,
+    ) -> tuple[bool, int]:
+        room = self.require(room_id)
+        host = room.host()
+        try:
+            if unfollow:
+                self._follow_store.unfollow(room_id, host.id, follower_identity)
+            else:
+                self._follow_store.follow(room_id, host.id, follower_identity)
+        except LiveRoomSocialError as exc:
+            raise LiveRoomError(str(exc)) from exc
+        count = self._follow_store.follower_count(room_id, host.id)
+        return self._follow_store.is_following(
+            room_id, host.id, follower_identity
+        ), count
+
+    def host_follower_count(self, room_id: str) -> int:
+        room = self.require(room_id)
+        return self._follow_store.follower_count(room_id, room.host().id)
+
+    def is_following_host(self, room_id: str, follower_identity: str) -> bool:
+        room = self.require(room_id)
+        return self._follow_store.is_following(
+            room_id, room.host().id, follower_identity
+        )
 
     def end_room(self, room_id: str) -> LiveRoom:
         room = self.require(room_id)

@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import {
-  getLiveRoom, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext, liveRoomChat,
-  liveRoomDismissReport, liveRoomFinishTurn, liveRoomLeaveQueue, liveRoomRaiseHand,
-  liveRoomReport, liveRoomUnban, type LiveRoomState,
+  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
+  liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
+  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomUnban,
+  type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
+import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
+import { useLiveRoomSocket } from "../liveRoomWs";
 import { theme } from "../theme";
 
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
 const MOD_STORAGE: Record<string, string> = {};
+const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
 export default function LiveRoomScreen({
   roomId,
@@ -26,6 +30,8 @@ export default function LiveRoomScreen({
 }) {
   const [name, setName] = useState("");
   const [participantId, setParticipantId] = useState("");
+  const [identity, setIdentity] = useState("");
+  const [media, setMedia] = useState<LiveKitMedia | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,7 +39,13 @@ export default function LiveRoomScreen({
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [wasBlocked, setWasBlocked] = useState(false);
+  const [giftBalance, setGiftBalance] = useState(0);
+  const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
+  const [showGifts, setShowGifts] = useState(false);
+  const [followingHost, setFollowingHost] = useState(false);
   const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
+
+  const socket = useLiveRoomSocket(roomId, Boolean(participantId), setRoom);
 
   const refresh = async () => {
     try {
@@ -49,13 +61,16 @@ export default function LiveRoomScreen({
 
   useEffect(() => {
     void refresh().finally(() => setLoading(false));
+    void getLiveGiftCatalog()
+      .then((c) => setGiftCatalog(c.gifts))
+      .catch(() => setGiftCatalog([]));
   }, [roomId]);
 
   useEffect(() => {
-    if (!participantId) return;
+    if (!participantId || socket.connected) return;
     const t = setInterval(() => void refresh(), 3000);
     return () => clearInterval(t);
-  }, [participantId, roomId]);
+  }, [participantId, roomId, socket.connected]);
 
   async function handleJoin() {
     if (!name.trim()) {
@@ -68,6 +83,11 @@ export default function LiveRoomScreen({
       const ident = STORAGE[roomId]?.identity || `mobile-${name.trim().toLowerCase()}`;
       const joined = await joinLiveRoom(roomId, name.trim(), ident);
       setParticipantId(joined.participant.id);
+      setIdentity(joined.participant.identity);
+      setMedia(joined.media ?? null);
+      setGiftBalance(joined.gift_balance ?? 500);
+      setFollowingHost(Boolean(joined.following_host));
+      socket.setFollowerCount(joined.host_follower_count ?? 0);
       STORAGE[roomId] = { participantId: joined.participant.id, identity: joined.participant.identity };
       setRoom(joined.room);
     } catch (e) {
@@ -130,10 +150,50 @@ export default function LiveRoomScreen({
 
   return (
     <View style={styles.wrap}>
+      {socket.presenceToast ? (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>
+            {socket.presenceToast.kind === "join" ? "👋" : "👋"}{" "}
+            {socket.presenceToast.name} {socket.presenceToast.kind === "join" ? "joined" : "left"}
+          </Text>
+        </View>
+      ) : null}
+      {socket.giftBanner ? (
+        <View style={styles.giftBanner}>
+          <Text style={styles.toastText}>{socket.giftBanner}</Text>
+        </View>
+      ) : null}
+      <View style={styles.overlay} pointerEvents="none">
+        {socket.floatingReactions.map((r) => (
+          <Text key={r.id} style={[styles.floatingReaction, { left: `${r.left}%` }]}>
+            {r.emoji}
+          </Text>
+        ))}
+      </View>
+
       <View style={styles.header}>
         <PrimaryButton label="← Leave" onPress={onBack} variant="ghost" />
         <Text style={styles.title} numberOfLines={1}>{room?.title ?? "Live class"}</Text>
       </View>
+      <Text style={styles.meta}>
+        👁 {socket.viewerCount || room?.viewer_count || room?.participants.length || 0}
+        {" · "}
+        ❤️ {socket.followerCount} followers
+        {socket.connected ? " · live" : " · polling"}
+      </Text>
+      <PrimaryButton
+        label={followingHost ? "Following host" : "Follow host"}
+        variant="ghost"
+        onPress={async () => {
+          try {
+            const r = await liveRoomFollowHost(roomId, identity, followingHost);
+            setFollowingHost(r.following);
+            socket.setFollowerCount(r.follower_count);
+          } catch (e) {
+            setError((e as Error).message);
+          }
+        }}
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <GlassPanel style={styles.slide}>
@@ -143,53 +203,112 @@ export default function LiveRoomScreen({
       </GlassPanel>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridScroll}>
-        {(room?.participants ?? []).map((p) => (
-          <View key={p.id} style={[
-            styles.tile,
-            p.role === "host" && styles.hostTile,
-            p.id === room?.floor_participant_id && styles.speakingTile,
-          ]}>
-            <Text style={styles.tileEmoji}>
-              {p.role === "host" ? "🎓" : p.id === room?.floor_participant_id ? "🎤" : "👤"}
-            </Text>
-            <Text style={styles.tileName} numberOfLines={1}>{p.name}</Text>
-            {p.hand_raised && p.id !== room?.floor_participant_id ? <Text>✋</Text> : null}
-            {modKey && p.role !== "host" && p.id !== participantId ? (
-              <PrimaryButton
-                label="Block"
-                variant="ghost"
-                onPress={async () => {
-                  setRoom(await liveRoomBan(roomId, p.id, modKey));
-                }}
+        {(room?.participants ?? []).map((p) => {
+          const isMe = p.id === participantId;
+          const emoji = p.role === "host" ? "🎓" : p.id === room?.floor_participant_id ? "🎤" : "👤";
+          if (isMe && hasFloor && media) {
+            return (
+              <LiveKitParticipantTile
+                key={p.id}
+                media={media}
+                canPublish={hasFloor}
+                participantName={p.name}
+                fallbackEmoji={emoji}
+                large={p.role === "host"}
               />
-            ) : null}
-            {p.role !== "host" && p.id !== participantId ? (
-              <PrimaryButton
-                label="Report"
-                variant="ghost"
-                onPress={async () => {
-                  if (!participantId) return;
-                  setBusy(true);
-                  try {
-                    await liveRoomReport(
-                      roomId,
-                      participantId,
-                      p.id,
-                      "Reported from mobile live room",
-                      "other",
-                    );
-                    setError("");
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              />
-            ) : null}
-          </View>
-        ))}
+            );
+          }
+          return (
+            <View key={p.id} style={[
+              styles.tile,
+              p.role === "host" && styles.hostTile,
+              p.id === room?.floor_participant_id && styles.speakingTile,
+            ]}>
+              <Text style={styles.tileEmoji}>{emoji}</Text>
+              <Text style={styles.tileName} numberOfLines={1}>{p.name}</Text>
+              {p.hand_raised && p.id !== room?.floor_participant_id ? <Text>✋</Text> : null}
+              {modKey && p.role !== "host" && p.id !== participantId ? (
+                <PrimaryButton
+                  label="Block"
+                  variant="ghost"
+                  onPress={async () => setRoom(await liveRoomBan(roomId, p.id, modKey))}
+                />
+              ) : null}
+              {p.role !== "host" && p.id !== participantId ? (
+                <PrimaryButton
+                  label="Report"
+                  variant="ghost"
+                  onPress={async () => {
+                    if (!participantId) return;
+                    setBusy(true);
+                    try {
+                      await liveRoomReport(roomId, participantId, p.id, "Reported from mobile", "other");
+                      setError("");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+              ) : null}
+            </View>
+          );
+        })}
       </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reactionRow}>
+        {REACTIONS.map((emoji) => (
+          <Pressable
+            key={emoji}
+            style={styles.reactionBtn}
+            onPress={async () => {
+              socket.pushReaction(emoji);
+              try {
+                setRoom(await liveRoomReaction(roomId, participantId, emoji));
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
+          >
+            <Text style={styles.reactionEmoji}>{emoji}</Text>
+          </Pressable>
+        ))}
+        <PrimaryButton
+          label={`🎁 Gifts (${giftBalance})`}
+          variant="ghost"
+          onPress={() => setShowGifts((v) => !v)}
+        />
+      </ScrollView>
+
+      {showGifts ? (
+        <View style={styles.giftGrid}>
+          {giftCatalog.map((g) => (
+            <Pressable
+              key={g.id}
+              style={styles.giftItem}
+              disabled={busy || giftBalance < g.cost_points}
+              onPress={async () => {
+                setBusy(true);
+                try {
+                  const res = await liveRoomSendGift(roomId, participantId, g.id);
+                  setRoom(res.room);
+                  setGiftBalance(res.sender_balance);
+                  setShowGifts(false);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Text style={styles.giftEmoji}>{g.emoji}</Text>
+              <Text style={styles.meta}>{g.name}</Text>
+              <Text style={styles.meta}>{g.cost_points} pts</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       {(room?.speaking_queue?.length ?? 0) > 0 ? (
         <GlassPanel style={styles.slide}>
@@ -220,16 +339,12 @@ export default function LiveRoomScreen({
               <PrimaryButton
                 label="Block"
                 variant="ghost"
-                onPress={async () => {
-                  setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey));
-                }}
+                onPress={async () => setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey))}
               />
               <PrimaryButton
                 label="Dismiss"
                 variant="ghost"
-                onPress={async () => {
-                  setRoom(await liveRoomDismissReport(roomId, rep.id, modKey));
-                }}
+                onPress={async () => setRoom(await liveRoomDismissReport(roomId, rep.id, modKey))}
               />
             </View>
           ))}
@@ -245,9 +360,7 @@ export default function LiveRoomScreen({
               <PrimaryButton
                 label="Unblock"
                 variant="ghost"
-                onPress={async () => {
-                  setRoom(await liveRoomUnban(roomId, b.identity, modKey));
-                }}
+                onPress={async () => setRoom(await liveRoomUnban(roomId, b.identity, modKey))}
               />
             </View>
           ))}
@@ -381,7 +494,7 @@ const styles = StyleSheet.create({
   },
   slide: { gap: 6 },
   cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
-  gridScroll: { maxHeight: 100 },
+  gridScroll: { maxHeight: 190 },
   tile: {
     width: 88,
     height: 88,
@@ -396,9 +509,54 @@ const styles = StyleSheet.create({
   speakingTile: { borderWidth: 2, borderColor: "#34d399" },
   tileEmoji: { fontSize: 22 },
   tileName: { color: theme.colors.text, fontSize: 11, marginTop: 4 },
-  chatBox: { flex: 1, maxHeight: 180, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 10, padding: 8 },
+  reactionRow: { maxHeight: 44 },
+  reactionBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  reactionEmoji: { fontSize: 20 },
+  giftGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  giftItem: {
+    width: "30%",
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    alignItems: "center",
+  },
+  giftEmoji: { fontSize: 24 },
+  chatBox: { flex: 1, maxHeight: 160, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 10, padding: 8 },
   chatLine: { color: theme.colors.text, fontSize: 13, marginBottom: 6 },
   chatName: { color: "#c4b5fd", fontWeight: "600" },
   controls: { flexDirection: "row", gap: 8, alignItems: "center" },
   error: { color: "#f87171" },
+  toast: {
+    position: "absolute",
+    top: 8,
+    alignSelf: "center",
+    zIndex: 20,
+    backgroundColor: "rgba(15,7,32,0.92)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  giftBanner: {
+    position: "absolute",
+    top: 48,
+    alignSelf: "center",
+    zIndex: 20,
+    backgroundColor: "rgba(219,39,119,0.85)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  toastText: { color: "#fff", fontSize: 13 },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 15 },
+  floatingReaction: {
+    position: "absolute",
+    bottom: 120,
+    fontSize: 28,
+  },
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getLiveRoom,
+  getLiveGiftCatalog,
   joinLiveRoom,
   leaveLiveRoom,
   liveRoomBan,
@@ -20,11 +21,19 @@ import {
   liveRoomLeaveQueue,
   liveRoomRecordStart,
   liveRoomRecordStop,
+  liveRoomReaction,
+  liveRoomSendGift,
+  liveRoomFollowHost,
+  type LiveGiftCatalogItem,
   type LiveParticipant,
   type LiveRoomJoin,
   type LiveRoomState,
 } from "../../lib/api";
 import { friendlyError } from "../../lib/errors";
+import { LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
+import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
+
+const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
 const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
@@ -48,11 +57,13 @@ function ParticipantTile({
   p,
   large,
   localStream,
+  liveKitTrack,
   hasFloor,
 }: {
   p: LiveParticipant;
   large?: boolean;
   localStream?: MediaStream | null;
+  liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -60,9 +71,15 @@ function ParticipantTile({
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !localStream) return;
-    el.srcObject = localStream;
-  }, [localStream]);
+    if (!el) return;
+    if (liveKitTrack) {
+      el.srcObject = new MediaStream([liveKitTrack]);
+      return;
+    }
+    if (localStream) el.srcObject = localStream;
+  }, [localStream, liveKitTrack]);
+
+  const hasVideo = Boolean(liveKitTrack || localStream);
 
   return (
     <div
@@ -84,7 +101,7 @@ function ParticipantTile({
         justifyContent: "flex-end",
       }}
     >
-      {localStream ? (
+      {hasVideo ? (
         <video
           ref={videoRef}
           autoPlay
@@ -153,14 +170,44 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [moderatorKey, setModeratorKey] = useState("");
   const [wasRemoved, setWasRemoved] = useState(false);
+  const [giftBalance, setGiftBalance] = useState(0);
+  const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
+  const [showGifts, setShowGifts] = useState(false);
+  const [followingHost, setFollowingHost] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
   const leftVoluntarily = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const viewerSetterRef = useRef<(n: number) => void>(() => {});
+
+  const applyRoom = useCallback((next: LiveRoomState) => {
+    setRoom(next);
+    if (typeof next.viewer_count === "number") {
+      viewerSetterRef.current(next.viewer_count);
+    }
+  }, []);
+
+  const socket = useLiveRoomSocket(roomId, Boolean(joinInfo), applyRoom);
+  viewerSetterRef.current = socket.setViewerCount;
 
   const me = useMemo(() => {
     const id = joinInfo?.participant.id;
     if (!id || !room) return joinInfo?.participant ?? null;
     return room.participants.find((p) => p.id === id) ?? joinInfo.participant;
   }, [joinInfo, room]);
+  const hasFloor = me?.id === room?.floor_participant_id;
+
+  const { tiles: liveKitTiles, livekitAvailable } = useLiveKitRoom(
+    joinInfo?.media,
+    room?.participants ?? joinInfo?.room.participants ?? [],
+    Boolean(hasFloor && me?.can_publish),
+  );
+
+  const trackFor = useCallback(
+    (participantId: string) =>
+      liveKitTiles.find((t) => t.participantId === participantId)?.track ?? null,
+    [liveKitTiles],
+  );
+
   const layout = useMemo(() => gridLayout(room?.room_size ?? 6), [room?.room_size]);
   const myQueuePos = useMemo(() => {
     if (!me || !room?.speaking_queue) return 0;
@@ -169,7 +216,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     );
     return entry?.position ?? 0;
   }, [me, room?.speaking_queue]);
-  const hasFloor = me?.id === room?.floor_participant_id;
   const inQueue = Boolean(room?.speaking_queue?.some(
     (e) => e.participant_id === me?.id && (e.status === "waiting" || e.status === "speaking")
   ));
@@ -212,10 +258,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [room, joinInfo, roomId, localStream]);
 
   useEffect(() => {
-    if (!joinInfo) return;
-    const timer = setInterval(() => void refresh(), 2500);
+    if (!joinInfo || socket.connected) return;
+    const timer = setInterval(() => void refresh(), 3000);
     return () => clearInterval(timer);
-  }, [joinInfo, refresh]);
+  }, [joinInfo, refresh, socket.connected]);
+
+  useEffect(() => {
+    void getLiveGiftCatalog()
+      .then((c) => setGiftCatalog(c.gifts))
+      .catch(() => setGiftCatalog([]));
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -251,6 +303,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const info = await joinLiveRoom(roomId, name, identity || `web-${name.toLowerCase().replace(/\s+/g, "-")}`);
       setJoinInfo(info);
       setRoom(info.room);
+      setGiftBalance(info.gift_balance ?? 500);
+      setFollowingHost(Boolean(info.following_host));
+      setFollowerCount(info.host_follower_count ?? 0);
       sessionStorage.setItem(
         `${ROOM_STORAGE_KEY}:${roomId}`,
         JSON.stringify({
@@ -535,15 +590,131 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <div style={{ fontSize: 12, color: "#c4b5fd" }}>Salareen Live · {roomId}</div>
           <h2 style={{ margin: "4px 0 0", fontSize: 20 }}>{room?.title ?? "Live class"}</h2>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
           {room?.recording.status === "recording" && (
             <span style={{ color: "#fca5a5", fontWeight: 600 }}>● REC</span>
           )}
           <span className="muted" style={{ color: "#ddd6fe" }}>
-            👥 {room?.learner_count ?? 0} learners
+            👁 {socket.viewerCount || room?.viewer_count || room?.learner_count || 0}
           </span>
+          <span className="muted" style={{ color: "#ddd6fe" }}>
+            ❤️ {socket.followerCount || followerCount} followers
+          </span>
+          {socket.connected ? (
+            <span style={{ color: "#34d399", fontSize: 11 }}>● live</span>
+          ) : (
+            <span style={{ color: "#fcd34d", fontSize: 11 }}>polling</span>
+          )}
+          {me ? (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const r = await liveRoomFollowHost(
+                    roomId,
+                    me.identity,
+                    followingHost,
+                  );
+                  setFollowingHost(r.following);
+                  setFollowerCount(r.follower_count);
+                  socket.setFollowerCount(r.follower_count);
+                } catch (e) {
+                  setError(friendlyError(e, "Follow failed"));
+                }
+              }}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: followingHost ? "rgba(236,72,153,0.35)" : "transparent",
+                color: "#fce7f3",
+                cursor: "pointer",
+              }}
+            >
+              {followingHost ? "Following host" : "Follow host"}
+            </button>
+          ) : null}
         </div>
       </header>
+
+      {socket.presenceToast ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 72,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(15,7,32,0.92)",
+            border: "1px solid rgba(167,139,250,0.4)",
+            borderRadius: 999,
+            padding: "8px 16px",
+            fontSize: 13,
+            zIndex: 50,
+          }}
+        >
+          {socket.presenceToast.kind === "join" ? "👋" : "👋"} {socket.presenceToast.name}{" "}
+          {socket.presenceToast.kind === "join" ? "joined" : "left"}
+        </div>
+      ) : null}
+
+      {socket.giftOverlay ? (
+        <div
+          style={{
+            position: "fixed",
+            top: "40%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            fontSize: 64,
+            zIndex: 60,
+            textAlign: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div>{socket.giftOverlay.emoji}</div>
+          <div style={{ fontSize: 14, marginTop: 8, color: "#fce7f3" }}>
+            {socket.giftOverlay.label}
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          pointerEvents: "none",
+          overflow: "hidden",
+          zIndex: 40,
+        }}
+      >
+        {socket.floatingReactions.map((r) => (
+          <span
+            key={r.id}
+            style={{
+              position: "absolute",
+              left: `${r.x}%`,
+              bottom: 80,
+              fontSize: 28,
+              animation: "live-float-up 2.2s ease-out forwards",
+            }}
+          >
+            {r.emoji}
+          </span>
+        ))}
+      </div>
+
+      <style jsx global>{`
+        @keyframes live-float-up {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-180px) scale(1.2);
+          }
+        }
+      `}</style>
 
       {error && (
         <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", borderRadius: 8, padding: 8, marginBottom: 10 }}>
@@ -571,14 +742,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             {host && (
               <div style={{ gridRow: `span ${layout.rows}`, minHeight: 220 }}>
-                <ParticipantTile p={host} large />
+                <ParticipantTile
+                  p={host}
+                  large
+                  liveKitTrack={trackFor(host.id)}
+                />
               </div>
             )}
             {learners.map((p) => (
               <div key={p.id} style={{ position: "relative" }}>
                 <ParticipantTile
                   p={p}
-                  localStream={p.id === me?.id ? localStream : null}
+                  localStream={!livekitAvailable && p.id === me?.id ? localStream : null}
+                  liveKitTrack={trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                 />
                 {moderatorKey && p.id !== me?.id ? (
@@ -732,6 +908,100 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             ))}
             <div ref={chatEndRef} />
           </div>
+
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                disabled={busy || !me}
+                onClick={async () => {
+                  if (!me) return;
+                  socket.pushReaction(emoji);
+                  try {
+                    applyRoom(await liveRoomReaction(roomId, me.id, emoji));
+                  } catch (e) {
+                    setError(friendlyError(e, "Reaction failed"));
+                  }
+                }}
+                style={{
+                  fontSize: 18,
+                  padding: "4px 8px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.06)",
+                  cursor: "pointer",
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!me}
+              onClick={() => setShowGifts((v) => !v)}
+              style={{
+                marginLeft: "auto",
+                fontSize: 12,
+                padding: "6px 12px",
+                borderRadius: 8,
+                background: "#db2777",
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              🎁 Gifts ({giftBalance} pts)
+            </button>
+          </div>
+
+          {showGifts ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 6,
+                padding: 8,
+                background: "rgba(0,0,0,0.35)",
+                borderRadius: 10,
+              }}
+            >
+              {giftCatalog.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  disabled={busy || !me || giftBalance < g.cost_points}
+                  onClick={async () => {
+                    if (!me) return;
+                    setBusy(true);
+                    try {
+                      const res = await liveRoomSendGift(roomId, me.id, g.id);
+                      applyRoom(res.room);
+                      setGiftBalance(res.sender_balance);
+                      setShowGifts(false);
+                    } catch (e) {
+                      setError(friendlyError(e, "Gift failed"));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "#fce7f3",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  <div style={{ fontSize: 22 }}>{g.emoji}</div>
+                  {g.name}
+                  <div>{g.cost_points} pts</div>
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div style={{ display: "flex", gap: 6 }}>
             <input

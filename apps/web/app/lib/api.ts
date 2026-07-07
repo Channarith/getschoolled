@@ -1258,12 +1258,34 @@ export type LiveRoomState = {
     status: string;
     reported_at: string;
   }[];
+  gift_feed?: {
+    id: string;
+    gift_id: string;
+    gift_name: string;
+    emoji: string;
+    cost_points: number;
+    sender_name: string;
+    recipient_name: string;
+    sent_at: string;
+  }[];
+  reactions?: { id: string; emoji: string; participant_name: string; sent_at: string }[];
+  viewer_count?: number;
+};
+
+export type LiveGiftCatalogItem = {
+  id: string;
+  name: string;
+  emoji: string;
+  cost_points: number;
 };
 
 export type LiveRoomJoin = {
   participant: LiveParticipant;
   room: LiveRoomState;
   media: { room: string; identity: string; token: string; url: string };
+  gift_balance?: number;
+  host_follower_count?: number;
+  following_host?: boolean;
 };
 
 export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
@@ -1515,6 +1537,79 @@ export async function liveRoomRecordStop(roomId: string): Promise<LiveRoomState>
     })
   );
   return r.room;
+}
+
+export async function getLiveGiftCatalog(): Promise<{ gifts: LiveGiftCatalogItem[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/gifts/catalog`, { cache: "no-store" })
+  );
+}
+
+export async function liveRoomSendGift(
+  roomId: string,
+  participantId: string,
+  giftId: string,
+  recipientParticipantId = "",
+): Promise<{ room: LiveRoomState; gift: LiveRoomState["gift_feed"] extends (infer T)[] | undefined ? T : never; sender_balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/gifts/send`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        gift_id: giftId,
+        recipient_participant_id: recipientParticipantId,
+      }),
+    })
+  );
+}
+
+export async function liveRoomReaction(
+  roomId: string,
+  participantId: string,
+  emoji: string,
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/reactions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, emoji }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomFollowHost(
+  roomId: string,
+  identity: string,
+  unfollow = false,
+): Promise<{ following: boolean; follower_count: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/follow`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity, unfollow }),
+    })
+  );
+}
+
+export async function liveRoomFollowStatus(
+  roomId: string,
+  identity: string,
+): Promise<{ following: boolean; follower_count: number }> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/follow?identity=${encodeURIComponent(identity)}`,
+      { cache: "no-store" },
+    )
+  );
+}
+
+export function liveRoomWsUrl(roomId: string): string {
+  const base = ORCHESTRATOR_URL.replace(/\/$/, "");
+  const proto = base.startsWith("https") ? "wss" : "ws";
+  const host = base.replace(/^https?:\/\//, "");
+  return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
 }
 
 export async function advance(sessionId: string): Promise<Slide> {

@@ -15,6 +15,7 @@ from .live_room import (
     SlideSync,
     UserReport,
 )
+from .live_room_social import GiftEvent, ReactionEvent
 
 
 def live_room_to_json(room: LiveRoom) -> str:
@@ -48,6 +49,9 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
       "speaking_queue": [asdict(e) for e in room.speaking_queue],
       "floor_participant_id": room.floor_participant_id,
       "reports": [asdict(r) for r in room.reports],
+      "gift_feed": [asdict(g) for g in room.gift_feed],
+      "reactions": [asdict(r) for r in room.reactions],
+      "viewer_count": room.viewer_count,
   }
 
 
@@ -61,6 +65,8 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       QueueEntry(**e) for e in (data.get("speaking_queue") or [])
   ]
   reports = [UserReport(**r) for r in (data.get("reports") or [])]
+  gift_feed = [GiftEvent(**g) for g in (data.get("gift_feed") or [])]
+  reactions = [ReactionEvent(**r) for r in (data.get("reactions") or [])]
   recording = RecordingState(**(data.get("recording") or {}))
   slide = SlideSync(**(data.get("slide") or {}))
   return LiveRoom(
@@ -81,4 +87,7 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       speaking_queue=speaking_queue,
       floor_participant_id=data.get("floor_participant_id") or "",
       reports=reports,
+      gift_feed=gift_feed,
+      reactions=reactions,
+      viewer_count=int(data.get("viewer_count") or 0),
   )

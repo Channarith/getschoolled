@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Live social streaming for Group Classes (Salareen live rooms):
+  LiveKit multi-guest video/audio on web and mobile (emoji fallback offline);
+  virtual gifts with points economy; floating tap reactions; real-time WebSocket
+  broadcast (chat, gifts, reactions, presence, queue/slide) with 3s polling
+  fallback; viewer count, follow host, join/leave toasts. Backend: extended
+  aoep_shared live room model, gift catalog, follow store, WS hub; orchestrator
+  REST + /api/live-rooms/{id}/ws. Version 0.13.0.
+
 - 2026-07-07 - iOS build: pre-generate React-Codegen artifacts (rnsvg
   ComponentDescriptors.cpp) before xcodebuild. RN 0.74 lists codegen outputs as
   compile inputs but only creates them in a before_compile script phase; clean

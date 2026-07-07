@@ -394,7 +394,13 @@ export type LiveRoomState = {
     category: string;
     reason: string;
   }[];
+  gift_feed?: { id: string; emoji: string; sender_name: string; gift_name: string; cost_points: number }[];
+  viewer_count?: number;
 };
+
+export type LiveGiftCatalogItem = { id: string; name: string; emoji: string; cost_points: number };
+
+export type LiveKitMedia = { room: string; identity: string; token: string; url: string };
 
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {
   const r = await get<{ classes: GroupClassRow[] }>(
@@ -417,7 +423,14 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
 }
 
 export async function joinLiveRoom(roomId: string, name: string, identity = ""):
-  Promise<{ participant: { id: string; name: string; identity: string }; room: LiveRoomState }> {
+  Promise<{
+    participant: { id: string; name: string; identity: string };
+    room: LiveRoomState;
+    media?: LiveKitMedia;
+    gift_balance?: number;
+    host_follower_count?: number;
+    following_host?: boolean;
+  }> {
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -552,4 +565,46 @@ export async function liveRoomDismissReport(
     },
   );
   return r.room;
+}
+
+export async function getLiveGiftCatalog(): Promise<{ gifts: LiveGiftCatalogItem[] }> {
+  return get(ORCHESTRATOR_URL, "/api/live-rooms/gifts/catalog");
+}
+
+export async function liveRoomSendGift(
+  roomId: string,
+  participantId: string,
+  giftId: string,
+): Promise<{ room: LiveRoomState; sender_balance: number }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/gifts/send`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ participant_id: participantId, gift_id: giftId }),
+  });
+}
+
+export async function liveRoomReaction(
+  roomId: string,
+  participantId: string,
+  emoji: string,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/reactions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, emoji }),
+    });
+  return r.room;
+}
+
+export async function liveRoomFollowHost(
+  roomId: string,
+  identity: string,
+  unfollow = false,
+): Promise<{ following: boolean; follower_count: number }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/follow`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identity, unfollow }),
+  });
 }
