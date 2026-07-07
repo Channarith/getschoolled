@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-06 - EAS iOS/Android build fix: pin Node 22.20.0 in apps/mobile/eas.json
+  base profile. EAS default image shipped Node 20.19.4, but the repo pins
+  pnpm@11.8.0 which requires Node >= 22.13 (uses node:sqlite builtin), so
+  "pnpm install" crashed with ERR_UNKNOWN_BUILTIN_MODULE node:sqlite. Pinning
+  Node 22 makes the build machine runtime match the pinned package manager.
+
 - 2026-07-06 - Web + mobile compact one-page Group Classes: full-width sticky nav
   header (site-header) fixes cut-off blue banner on mobile; hamburger menu for
   nav links under 900px; page-one single-column layout (max 640px) with stacked

@@ -2,6 +2,7 @@
   "cli": { "version": ">= 7.0.0", "appVersionSource": "remote" },
   "build": {
     "base": {
+      "node": "22.20.0",
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
       },
