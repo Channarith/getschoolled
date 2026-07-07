@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS workflow: trigger Create Production Builds on push to main
+  (apps/mobile/**) so Expo GitHub app can queue iOS+Android without local eas CLI.
+
 - 2026-07-07 - EAS iOS Xcode 26: patch-react-native-jsinspector-ios.js adds include
   guards on jsinspector-modern headers (fixes UniqueMonostate / ExecutionContext
   redefinition when Pods + pnpm paths both appear); eas-build-post-install re-runs
