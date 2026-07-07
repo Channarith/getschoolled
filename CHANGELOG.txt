@@ -16,6 +16,27 @@ Format: newest first. No markdown per project convention.
   (audio_topic_data.TOPIC_SECTIONS) into knowledge lessons; remove verbatim
   20-minute filler loop (e.g. What Is Blockchain drops from 93 to ~13 segments
   with Satoshi, hash chains, proof of work, Ethereum, DeFi, energy, CBDCs).
+- 2026-07-07 - iOS TestFlight: add NSPhotoLibraryUsageDescription and
+  NSPhotoLibraryAddUsageDescription to app.json infoPlist (Apple 90683).
+
+- 2026-07-07 - iOS physical device: mobile-run-ios.sh --physical / pnpm run ios:device
+  (fixes duplicate --device when ios:debug -- --device targeted simulator + flag).
+
+- 2026-07-07 - EAS workflow: trigger Create Production Builds on push to main
+  (apps/mobile/**) so Expo GitHub app can queue iOS+Android without local eas CLI.
+
+- 2026-07-07 - EAS iOS Xcode 26: patch-react-native-jsinspector-ios.js adds include
+  guards on jsinspector-modern headers (fixes UniqueMonostate / ExecutionContext
+  redefinition when Pods + pnpm paths both appear); eas-build-post-install re-runs
+  pod install after patches.
+
+- 2026-07-07 - EAS eas.json: remove invalid installCommand (not in schema); hoisted
+  pnpm via apps/mobile/.npmrc + eas-build-pre-install / eas-build-post-install hooks.
+
+- 2026-07-07 - EAS iOS export:embed fix: direct @react-native/assets-registry dependency,
+  hoisted pnpm installCommand in eas.json, verify-eas-metro-resolve.js gate in
+  eas-build-post-install, metro extraNodeModules pin (fixes MODULE_NOT_FOUND on
+  assets-registry/registry.js during Xcode bundle phase).
 
 - 2026-07-07 - iOS xcode:release signing: pass -allowProvisioningUpdates and
   DEVELOPMENT_TEAM/CODE_SIGN_STYLE=Automatic; clearer errors when no provisioning

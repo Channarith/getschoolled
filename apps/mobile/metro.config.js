@@ -44,20 +44,30 @@ config.resolver.blockList = new RegExp(
 
 config.watchFolders = [path.resolve(__dirname)];
 
-// Belt-and-suspenders: pin @babel/runtime even if node_modules still symlinks to ~/pnpm.
-try {
-  const babelRuntimeRoot = path.dirname(
-    require.resolve("@babel/runtime/package.json", { paths: [__dirname] }),
-  );
-  config.resolver.extraNodeModules = {
-    ...(config.resolver.extraNodeModules || {}),
-    "@babel/runtime": babelRuntimeRoot,
-  };
-  if (!babelRuntimeRoot.startsWith(path.resolve(__dirname))) {
-    config.watchFolders = [...config.watchFolders, babelRuntimeRoot];
+// Belt-and-suspenders: pin packages Metro/export:embed must resolve under pnpm on EAS.
+function pinPackage(config, name) {
+  try {
+    const pkgRoot = path.dirname(
+      require.resolve(`${name}/package.json`, { paths: [__dirname] }),
+    );
+    config.resolver.extraNodeModules = {
+      ...(config.resolver.extraNodeModules || {}),
+      [name]: pkgRoot,
+    };
+    if (!pkgRoot.startsWith(path.resolve(__dirname))) {
+      config.watchFolders = [...(config.watchFolders || []), pkgRoot];
+    }
+  } catch {
+    // ensure-metro-local-deps / direct deps should provide a local tree before Metro starts.
   }
-} catch {
-  // mobile-deps_ensure_babel_runtime copies a local tree before Metro starts.
+}
+
+for (const pkg of [
+  "@babel/runtime",
+  "expo-asset",
+  "@react-native/assets-registry",
+]) {
+  pinPackage(config, pkg);
 }
 
 // Broken Watchman (common on Mac) yields incomplete file maps → Metro 500 on

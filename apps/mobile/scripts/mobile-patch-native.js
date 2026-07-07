@@ -12,6 +12,7 @@ const PATCHES = [
   { script: "patch-expo-localization-ios.js", required: false },
   { script: "patch-expo-device-ios.js", required: true },
   { script: "patch-react-native-runtimescheduler-ios.js", required: false },
+  { script: "patch-react-native-jsinspector-ios.js", required: true },
 ];
 
 function runPatch(script) {
