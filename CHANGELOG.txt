@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS mobile builds: workflow_dispatch on Create Production Builds
+  (.eas/workflows) plus GitHub Actions eas-mobile-build.yml (EXPO_TOKEN secret)
+  to queue iOS + Android production builds for aiclassroom from CI or Expo UI.
+
 - 2026-07-06 - Web + mobile compact one-page Group Classes: full-width sticky nav
   header (site-header) fixes cut-off blue banner on mobile; hamburger menu for
   nav links under 900px; page-one single-column layout (max 640px) with stacked

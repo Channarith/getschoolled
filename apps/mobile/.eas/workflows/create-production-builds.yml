@@ -1,5 +1,8 @@
 name: Create Production Builds
 
+on:
+  workflow_dispatch:
+
 jobs:
   build_android:
     type: build
