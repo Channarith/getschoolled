@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Audio courses: fix remaining service/qa tests that asserted the
+  removed intro wrapper heading and 20-minute padding (curriculum
+  test_audio_courses_api / test_audio_i18n_api, qa test_new_features_integration)
+  so the whole python CI job is green with the authentic-content catalog.
+
 - 2026-07-07 - Audio courses: restore es/zh localized spoken bodies via a hybrid
   selector - curated localized fact sets are used verbatim when present, else the
   rich English narration pack; still zero intro/recap wrappers, padding, or

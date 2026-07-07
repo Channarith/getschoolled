@@ -32,7 +32,9 @@ def test_get_course_has_narration_segments():
     body = client.get("/audio/courses/lang-es-phrases").json()
     assert body["format"] == "audio" and body["visual_required"] is False
     assert len(body["segments"]) >= 3
-    assert body["segments"][0]["heading"] == "Introduction"
+    # Authentic content only: segments are real phrases (no intro wrapper).
+    joined = " ".join(s["text"] for s in body["segments"])
+    assert "Hola" in joined
 
 
 def test_unknown_audio_course_404():
