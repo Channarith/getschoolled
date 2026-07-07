@@ -37,12 +37,42 @@ if ! mobile_deps_has_expo; then
   exit 1
 fi
 
-if [[ ! -d ios ]]; then
-  echo "==> ios/ missing — running expo prebuild (one-time)"
-  bash scripts/mobile-expo.sh prebuild --platform ios --no-install
+# Always regenerate the native iOS project from app.json so Info.plist
+# (privacy usage strings, version, build number) can never drift from the
+# Expo config. Set KEEP_IOS=1 to skip (fast rebuild during local iteration).
+# A stale native project is exactly how App Store validation 90683 (missing
+# NSPhotoLibraryUsageDescription) slips through: the archive is built from an
+# out-of-date Info.plist that predates the app.json fix.
+if [[ "${KEEP_IOS:-0}" == "1" && -d ios ]]; then
+  echo "==> KEEP_IOS=1 — reusing existing ios/ (Info.plist NOT regenerated)"
+else
+  echo "==> Regenerating native ios/ from app.json (expo prebuild --clean)"
+  bash scripts/mobile-expo.sh prebuild --platform ios --no-install --clean
+fi
+
+# Fresh build: drop any previous archive/artifacts so we never ship a cached,
+# stale binary (per release policy: always a fresh build, versioned output).
+if [[ -d ios/build ]]; then
+  echo "==> Removing stale ios/build artifacts for a clean archive"
+  rm -rf ios/build
 fi
 
 bash scripts/mobile-ios-pod-refresh.sh
+
+# Guard: the archive MUST carry the photo-library purpose strings, or Apple
+# rejects the upload with error 90683. Fail early with a clear message rather
+# than after a long archive + upload round-trip.
+PLIST="ios/Salareen/Info.plist"
+if [[ -f "$PLIST" ]]; then
+  for key in NSPhotoLibraryUsageDescription NSPhotoLibraryAddUsageDescription; do
+    if ! /usr/libexec/PlistBuddy -c "Print :$key" "$PLIST" >/dev/null 2>&1; then
+      echo "ERROR: $key missing from $PLIST after prebuild." >&2
+      echo "       Check apps/mobile/app.json expo.ios.infoPlist." >&2
+      exit 1
+    fi
+  done
+  echo "==> Verified NSPhotoLibrary purpose strings present in Info.plist"
+fi
 
 if [[ ! -d node_modules/expo-asset ]]; then
   echo "ERROR: expo-asset missing — run: pnpm install" >&2

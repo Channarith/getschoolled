@@ -33,3 +33,6 @@ if [[ "$needs_pod" == "1" ]] || [[ "${FORCE_POD_INSTALL:-0}" == "1" ]]; then
 else
   echo "==> Pods OK (local react-native paths)"
 fi
+
+# Always re-apply Xcode project patches (expo-configure provenance workaround).
+node scripts/patch-ios-expo-configure-project.js

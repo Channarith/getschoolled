@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS Xcode build: fix "[Expo] Configure project" failing with
+  "Operation not permitted" on expo-configure-project.sh (macOS provenance xattr
+  on Pods scripts). Podfile post_install + patch-ios-expo-configure-project.js
+  + withIosExpoConfigureFix prebuild plugin now pipe script contents through
+  bash -c, disable user script sandboxing on Pod targets, and mobile-ios-pod-refresh.sh
+  always reapplies the patch after pod install.
+
+- 2026-07-07 - iOS App Store 90683 fix (root cause: stale archive). The rejected
+  upload was an old v0.12.11 xcarchive built before the NSPhotoLibrary* keys were
+  added, so its Info.plist lacked them. mobile-xcodebuild-release.sh now ALWAYS
+  regenerates ios/ from app.json (expo prebuild --clean), wipes ios/build for a
+  fresh archive, and asserts both NSPhotoLibrary purpose strings are present
+  before archiving (KEEP_IOS=1 opts out). bump/build now also sync
+  ios.buildNumber + android.versionCode from VERSION so every store upload has
+  fresh, unique build metadata. Removed the stale ios/build archive.
+
 - 2026-07-07 - Audio courses: fix remaining service/qa tests that asserted the
   removed intro wrapper heading and 20-minute padding (curriculum
   test_audio_courses_api / test_audio_i18n_api, qa test_new_features_integration)
