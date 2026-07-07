@@ -76,8 +76,10 @@ def test_language_course_is_localized(locale, expected_cat, expected_level):
     es_phrases = next(c for c in courses if c.id == "lang-es-phrases")
     assert es_phrases.category == expected_cat
     assert es_phrases.level == expected_level
-    assert es_phrases.segments[0].heading == catalog_i18n.localize_heading(
-        "Introduction", locale)
+    # Authentic content only: the first segment is a real phrase (no intro
+    # wrapper). The spoken body still uses the locale-appropriate template.
+    assert es_phrases.segments
+    assert "Hola" in " ".join(s.text for s in es_phrases.segments)
 
 
 def test_language_course_title_uses_locale_language_name():
@@ -89,28 +91,25 @@ def test_language_course_title_uses_locale_language_name():
     assert "フランス語" in fr_course_ja.title
 
 
-def test_knowledge_course_keeps_title_but_localizes_headings():
+def test_knowledge_course_keeps_title_but_localizes_category():
     course = next(c for c in build_catalog("es") if c.id == "audio-ancient-egypt")
     # Title stays English when no translation entry exists.
     assert "Ancient Egypt" in course.title
-    # Category + headings + narration template are localized.
+    # Category label is still localized for the browsing UI.
     assert course.category == "Historia"
-    assert course.segments[0].heading == "Introducción"
-    assert "Bienvenido" in course.segments[0].text
+    # Authentic content only: the first segment is a substantive authored
+    # section (English narration pack), not a generic localized intro.
+    assert course.segments[0].heading == "The Nile's Annual Rhythm"
+    assert course.body_locale == "en"
 
 
 def test_knowledge_course_translated_title_with_training_locale():
     course = get_course("audio-budgeting-basics", locale="en", training_locale="zh")
     assert course is not None
+    # Title localizes via COURSE_TITLES, and this topic has a curated Chinese
+    # fact set, so the spoken body stays authentic Chinese (no English filler).
     assert "预算基础" in course.title
     assert course.body_locale == "zh"
-
-
-def test_recap_text_is_localized():
-    course = next(c for c in build_catalog("fr") if c.id == "lang-es-phrases")
-    recap_seg = next(s for s in course.segments if s.heading == "Récapitulatif")
-    assert "Bravo" in recap_seg.text or "réviser" in recap_seg.text.lower() \
-        or "Revoyons" in recap_seg.text
 
 
 def test_list_courses_respects_locale():
@@ -144,7 +143,9 @@ def test_get_course_with_locale():
     assert c_en is not None and c_es is not None
     assert c_en.category == "Personal Finance"
     assert c_es.category == "Finanzas personales"
-    assert c_es.segments[0].heading == "Introducción"
+    # Budgeting has a curated Spanish fact set, so segments use localized
+    # "Idea clave N" headings (authentic Spanish body, no intro wrapper).
+    assert c_es.segments[0].heading == "Idea clave 1"
 
 
 def test_unknown_locale_falls_back_to_english_cleanly():
