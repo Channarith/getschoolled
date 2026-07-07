@@ -36,3 +36,6 @@ fi
 
 # Always re-apply Xcode project patches (expo-configure provenance workaround).
 node scripts/patch-ios-expo-configure-project.js
+
+# React-Codegen .cpp inputs must exist before xcodebuild (clean ios/build wipes them).
+bash scripts/ensure-ios-codegen.sh
