@@ -222,3 +222,72 @@ def test_report_and_moderator_review():
     )
     assert dismissed.status_code == 200, dismissed.text
     assert dismissed.json()["room"].get("reports") == []
+
+
+def test_gift_catalog_and_send():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Gifter", "identity": "gift-1"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+    assert joined.json()["gift_balance"] >= 10
+
+    catalog = client.get("/api/live-rooms/gifts/catalog")
+    assert catalog.status_code == 200
+    gifts = catalog.json()["gifts"]
+    assert any(g["id"] == "rose" for g in gifts)
+
+    sent = client.post(
+        f"/api/live-rooms/{room_id}/gifts/send",
+        json={"participant_id": pid, "gift_id": "rose"},
+    )
+    assert sent.status_code == 200, sent.text
+    body = sent.json()
+    assert body["gift"]["emoji"] == "🌹"
+    assert body["sender_balance"] == joined.json()["gift_balance"] - 10
+    assert any("🌹" in m["text"] for m in body["room"]["chat"])
+
+
+def test_reaction_endpoint():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Fan", "identity": "fan-1"},
+    ).json()["participant"]["id"]
+    reacted = client.post(
+        f"/api/live-rooms/{room_id}/reactions",
+        json={"participant_id": pid, "emoji": "❤️"},
+    )
+    assert reacted.status_code == 200, reacted.text
+    assert reacted.json()["reaction"]["emoji"] == "❤️"
+
+
+def test_follow_host_endpoint():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    follow = client.post(
+        f"/api/live-rooms/{room_id}/follow",
+        json={"identity": "follower-1"},
+    )
+    assert follow.status_code == 200, follow.text
+    assert follow.json()["following"] is True
+    assert follow.json()["follower_count"] == 1
+    status = client.get(
+        f"/api/live-rooms/{room_id}/follow",
+        params={"identity": "follower-1"},
+    )
+    assert status.status_code == 200
+    assert status.json()["following"] is True
+
+
+def test_live_room_websocket_snapshot():
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    with client.websocket_connect(f"/api/live-rooms/{room_id}/ws") as ws:
+        msg = ws.receive_json()
+        assert msg["type"] == "room"
+        assert msg["payload"]["room"]["room_id"] == room_id
