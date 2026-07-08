@@ -71,12 +71,12 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ matrix.name }}:latest
             ${{ env.REGISTRY }}/${{ matrix.name }}:${{ steps.tag.outputs.tag }}
 
   roll:
     needs: [setup-matrix, build-push]
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v4
@@ -98,3 +98,19 @@ jobs:
             kubectl -n aoep rollout status "deployment/$svc" --timeout=300s
           done
           echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"
+
+      - name: SHA-match smoke
+        env:
+          TAG: ${{ github.event.inputs.tag || github.sha }}
+          NS: aoep
+        run: bash scripts/post_deploy_smoke.sh
+
+      - name: Auto-rollback on smoke failure
+        if: failure()
+        env:
+          SVCS: ${{ needs.setup-matrix.outputs.services }}
+        run: |
+          echo "SHA-match failed — rolling back deployed services"
+          for svc in $SVCS; do
+            kubectl -n aoep rollout undo "deployment/$svc" || echo "rollback $svc skipped"
+          done
