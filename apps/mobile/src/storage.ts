@@ -14,6 +14,7 @@ const KEYS = {
   streak: "@aic/streak.v1",         // { days: number, lastDayISO: string }
   interests: "@aic/interests.v1",   // string[] (categories the user has opened)
   authToken: "@aic/auth-token.v1",  // identity JWT
+  potionBest: "@aic/potionlab-best.v1", // number (Potion Lab arcade high score)
 } as const;
 
 /** In-memory auth cache (AsyncStorage is async; API client reads sync). */
@@ -177,6 +178,16 @@ export async function recordInterest(category: string): Promise<void> {
   const set = new Set(await getInterests());
   set.add(category.toLowerCase());
   await writeJSON(KEYS.interests, Array.from(set).slice(-12));
+}
+
+export async function getPotionBest(): Promise<number> {
+  return readJSON<number>(KEYS.potionBest, 0);
+}
+export async function setPotionBest(score: number): Promise<number> {
+  const cur = await getPotionBest();
+  const next = Math.max(cur, Math.floor(score));
+  if (next !== cur) await writeJSON(KEYS.potionBest, next);
+  return next;
 }
 
 export function getToken(): string | null {

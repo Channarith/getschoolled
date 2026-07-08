@@ -13,6 +13,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useT } from "../i18n";
+import PotionLab, { type PotionAgeKey } from "./PotionLab";
 import { theme } from "../theme";
 
 type Props = {
@@ -44,6 +45,7 @@ export default function GameScreen({ subject, onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(0);
+  const [potionActive, setPotionActive] = useState(false);
   const startedAt = useRef(0);
 
   useEffect(() => {
@@ -102,6 +104,13 @@ export default function GameScreen({ subject, onBack }: Props) {
   }, [round, timeLeft, finish]);
 
   async function play() {
+    // Potion Lab is a real-time arcade game (its own view); launch it with the
+    // chosen age group so difficulty scales (kids = slow/simple, adults = fast/complex).
+    if (subject === "chemistry" && gameType === "potion") {
+      setError(""); setResult(null);
+      setPotionActive(true);
+      return;
+    }
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     setLoading(true);
     try {
@@ -129,6 +138,10 @@ export default function GameScreen({ subject, onBack }: Props) {
   const emoji = SUBJECT_EMOJI[subject] ?? "📘";
   const timed = round && (round.game_type === "speed" || round.game_type === "marathon");
 
+  if (potionActive) {
+    return <PotionLab age={ageGroup as PotionAgeKey} onBack={() => setPotionActive(false)} />;
+  }
+
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
@@ -155,7 +168,20 @@ export default function GameScreen({ subject, onBack }: Props) {
                   </Text>
                 </AnimatedPressable>
               ))}
+              {subject === "chemistry" && (
+                <AnimatedPressable
+                  onPress={() => setGameType("potion")}
+                  style={[styles.chip, styles.chipPotion, gameType === "potion" && styles.chipPotionOn]}
+                >
+                  <Text style={[styles.chipText, gameType === "potion" && styles.chipTextOn]}>
+                    {t("game.potionLab")}
+                  </Text>
+                </AnimatedPressable>
+              )}
             </View>
+            {subject === "chemistry" && gameType === "potion" && (
+              <Text style={styles.label}>{t("game.potionTip")}</Text>
+            )}
             <Text style={styles.label}>{t("game.ageGroup")}</Text>
             <View style={styles.chipRow}>
               {ageGroups.map((a) => (
@@ -329,6 +355,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8,
   },
   chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
+  chipPotion: { borderColor: "#a78bfa" },
+  chipPotionOn: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
   chipText: { color: "#f8fafc", fontWeight: "700", fontSize: 13 },
   chipTextOn: { color: "#fff", fontWeight: "800" },
   roundHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

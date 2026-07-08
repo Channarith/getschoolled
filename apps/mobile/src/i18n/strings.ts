@@ -108,6 +108,7 @@ export type StringKey =
   | "game.back" | "game.chooseMode" | "game.ageGroup" | "game.play"
   | "game.submit" | "game.matchHint" | "game.accuracy" | "game.balance"
   | "game.rank" | "game.playAgain" | "game.sessionExpired" | "game.signInSave"
+  | "game.potionLab" | "game.potionTip"
   // Lesson / visual course player
   | "lesson.back" | "lesson.slide" | "lesson.narrate" | "lesson.stopNarration"
   | "lesson.next" | "lesson.complete" | "lesson.askTitle" | "lesson.askPlaceholder"
@@ -179,6 +180,8 @@ const EN: Record<StringKey, string> = {
   "game.playAgain": "Play again",
   "game.sessionExpired": "That round expired — start a new one.",
   "game.signInSave": "Sign in to save scores to the leaderboard.",
+  "game.potionLab": "⚗️ Potion Lab",
+  "game.potionTip": "Real-time atom-catching arcade — build molecules before the timer runs out.",
 
   "lesson.back": "← Back",
   "lesson.slide": "Slide",

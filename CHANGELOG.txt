@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - Mobile Potion Lab (feature parity with web): the real-time
+  chemistry arcade game (build molecules by catching atoms; bacteria lose points,
+  bombs end the run; age-scaled difficulty kids/tween/teen/adult) was web-only.
+  Ported it to React Native (apps/mobile/src/screens/PotionLab.tsx) and wired it
+  into the arcade GameScreen — a "Potion Lab" mode chip now appears for the
+  chemistry subject and launches the real-time game. High score persists via
+  AsyncStorage. Added game.potionLab/game.potionTip i18n keys.
 - 2026-07-07 - iOS TestFlight launch-crash fix: the app threw an uncaught
   exception at startup (Salareen 0.13.4, unsymbolicated objc_exception_throw).
   Root cause: @livekit/react-native 2.9.8 runs polyfills + WebRTC global setup at
