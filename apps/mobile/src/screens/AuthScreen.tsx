@@ -5,7 +5,7 @@ import {
   StyleSheet, Text, TextInput, View,
 } from "react-native";
 
-import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable } from "../api";
+import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, forgotPassword, resetPassword } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
@@ -15,14 +15,15 @@ import { LANGUAGES, languageInfo, useT } from "../i18n";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
 
-export default function AuthScreen() {
+export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => void }) {
   const { t, locale, setLocale } = useT();
   const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetToken, setResetToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
@@ -49,6 +50,19 @@ export default function AuthScreen() {
       const up = await probeIdentity();
       if (!up) {
         setError(backendDownMessage(IDENTITY_URL));
+        return;
+      }
+      if (mode === "forgot") {
+        const r = await forgotPassword(email.trim());
+        if (r.reset_token) setResetToken(r.reset_token);
+        setMode("reset");
+        setError(t("auth.resetSent"));
+        return;
+      }
+      if (mode === "reset") {
+        await resetPassword(resetToken || email.trim(), password);
+        setMode("login");
+        setError(t("auth.resetDone"));
         return;
       }
       if (mode === "login") {
@@ -110,6 +124,17 @@ export default function AuthScreen() {
             value={email}
             onChangeText={setEmail}
           />
+          {mode === "reset" && DEPLOY_MODE === "local" ? (
+            <TextInput
+              style={styles.input}
+              placeholder={t("auth.resetToken")}
+              placeholderTextColor={theme.colors.muted}
+              value={resetToken}
+              onChangeText={setResetToken}
+              autoCapitalize="none"
+            />
+          ) : null}
+          {mode !== "forgot" ? (
           <View style={styles.passwordRow}>
             <TextInput
               style={styles.passwordInput}
@@ -136,9 +161,15 @@ export default function AuthScreen() {
               />
             </Pressable>
           </View>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          ) : null}
+          {error ? <Text style={[styles.error, error.includes("sent") || error.includes("Done") ? styles.ok : null]}>{error}</Text> : null}
           <PrimaryButton
-            label={mode === "login" ? t("auth.signIn") : t("auth.signUp")}
+            label={
+              mode === "login" ? t("auth.signIn")
+                : mode === "signup" ? t("auth.signUp")
+                  : mode === "forgot" ? t("auth.sendReset")
+                    : t("auth.resetPw")
+            }
             onPress={() => void onSubmit()}
             loading={busy}
             disabled={busy}
@@ -149,6 +180,14 @@ export default function AuthScreen() {
               {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
             </Text>
           </AnimatedPressable>
+          {mode === "login" ? (
+            <AnimatedPressable onPress={() => { setMode("forgot"); setError(""); }}>
+              <Text style={styles.link}>{t("auth.forgot")}</Text>
+            </AnimatedPressable>
+          ) : null}
+          {onBrowseGuest ? (
+            <PrimaryButton label={t("auth.browseGuest")} onPress={onBrowseGuest} variant="ghost" />
+          ) : null}
           {__DEV__ ? (
             <View style={{ marginTop: 16 }}>
               <Text style={styles.hint}>{t("auth.qaHint")}</Text>
@@ -275,6 +314,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   error: { color: theme.colors.netflix, fontSize: 13 },
+  ok: { color: theme.colors.success },
   link: { color: theme.colors.accent, textAlign: "center", marginTop: 4, fontWeight: "600" },
   hint: { color: theme.colors.muted, fontSize: 12 },
   qaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
@@ -308,3 +348,62 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   loadingText: { color: theme.colors.muted, fontSize: 14 },
 });
+
+/** Shown when login returns requires_2fa (web /auth 2FA parity). */
+export function MfaAuthScreen() {
+  const { t } = useT();
+  const { verify2fa, cancel2fa } = useAuth();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function onVerify() {
+    setBusy(true);
+    setError("");
+    try {
+      await verify2fa(code.trim());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <Text style={styles.brand}>Salareen</Text>
+          <Text style={styles.title}>{t("auth.mfaTitle")}</Text>
+          <Text style={styles.sub}>{t("auth.mfaSub")}</Text>
+        </View>
+        <GlassPanel style={styles.card}>
+          <TextInput
+            style={styles.input}
+            placeholder={t("auth.mfaCode")}
+            placeholderTextColor={theme.colors.muted}
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            onSubmitEditing={() => void onVerify()}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <PrimaryButton
+            label={t("auth.mfaVerify")}
+            onPress={() => void onVerify()}
+            loading={busy}
+            disabled={busy || !code.trim()}
+            variant="netflix"
+          />
+          <AnimatedPressable onPress={cancel2fa}>
+            <Text style={styles.link}>{t("auth.mfaCancel")}</Text>
+          </AnimatedPressable>
+        </GlassPanel>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}

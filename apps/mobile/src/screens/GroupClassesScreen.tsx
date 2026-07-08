@@ -5,8 +5,8 @@ import {
 } from "react-native";
 
 import {
-  listGroupClasses, registerGroupClass, startGroupClass,
-  type GroupClassRow, type GroupClassStart,
+  listGroupClasses, listLessons, registerGroupClass, scheduleGroupClass, startGroupClass,
+  type GroupClassRow, type GroupClassStart, type LessonRow,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -52,6 +52,16 @@ export default function GroupClassesScreen({
   const [registerTarget, setRegisterTarget] = useState<GroupClassRow | null>(null);
   const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [schedTitle, setSchedTitle] = useState("");
+  const [schedLessonId, setSchedLessonId] = useState("");
+  const [schedPlatform, setSchedPlatform] = useState("salareen");
+  const [schedMeetingUrl, setSchedMeetingUrl] = useState("");
+  const [schedStart, setSchedStart] = useState("");
+  const [schedDuration, setSchedDuration] = useState("45");
+  const [schedCapacity, setSchedCapacity] = useState("12");
+  const [schedRoomSize, setSchedRoomSize] = useState("6");
 
   const load = async () => {
     setError("");
@@ -67,6 +77,12 @@ export default function GroupClassesScreen({
 
   useEffect(() => {
     void load();
+    void listLessons()
+      .then((ls) => {
+        setLessons(ls);
+        if (ls.length) setSchedLessonId(ls[0].lesson_id);
+      })
+      .catch(() => {});
   }, []);
 
   function roomIdFor(gc: GroupClassRow): string {
@@ -146,6 +162,38 @@ export default function GroupClassesScreen({
     await Linking.openURL(started.class.meeting_url);
   }
 
+  async function submitSchedule() {
+    if (!schedLessonId) return;
+    setBusyId("schedule");
+    setError("");
+    try {
+      const lesson = lessons.find((l) => l.lesson_id === schedLessonId);
+      const startIso = schedStart.trim()
+        ? new Date(schedStart).toISOString()
+        : new Date(Date.now() + 3600000).toISOString();
+      const roomSize = Number(schedRoomSize) || 6;
+      await scheduleGroupClass({
+        title: schedTitle.trim() || lesson?.title || "Group class",
+        lesson_id: schedLessonId,
+        platform: schedPlatform,
+        meeting_url: schedMeetingUrl.trim(),
+        start_time: startIso,
+        duration_min: Number(schedDuration) || 45,
+        capacity: schedPlatform === "salareen" ? roomSize - 1 : Number(schedCapacity) || 12,
+        room_size: schedPlatform === "salareen" ? roomSize : undefined,
+        language: lesson?.language ?? "en",
+      });
+      setShowSchedule(false);
+      setSchedTitle("");
+      setSchedMeetingUrl("");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId("");
+    }
+  }
+
   function promptRegister(gc: GroupClassRow) {
     setRegisterTarget(gc);
     setRegisterName(account?.display_name || "");
@@ -180,6 +228,7 @@ export default function GroupClassesScreen({
         <Text style={styles.title}>{t("group.title")}</Text>
       </View>
       <Text style={styles.lead}>{t("group.intro")}</Text>
+      <PrimaryButton label={t("group.scheduleCta")} onPress={() => setShowSchedule(true)} variant="brand" />
       {loading && !refreshing ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : null}
@@ -305,6 +354,47 @@ export default function GroupClassesScreen({
           </GlassPanel>
         </View>
       </Modal>
+
+      <Modal visible={showSchedule} transparent animationType="slide" onRequestClose={() => setShowSchedule(false)}>
+        <View style={styles.modalScrim}>
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            <GlassPanel style={styles.modalCard}>
+              <Text style={styles.cardTitle}>{t("group.scheduleCta")}</Text>
+              <TextInput style={styles.input} placeholder={t("group.scheduleTitle")}
+                placeholderTextColor={theme.colors.muted} value={schedTitle} onChangeText={setSchedTitle} />
+              {lessons.map((l) => (
+                <AnimatedPressable
+                  key={l.lesson_id}
+                  onPress={() => setSchedLessonId(l.lesson_id)}
+                  style={[styles.lessonPick, schedLessonId === l.lesson_id && styles.lessonPickOn]}
+                >
+                  <Text style={styles.meta}>{l.title}</Text>
+                </AnimatedPressable>
+              ))}
+              <TextInput style={styles.input} placeholder="Platform (salareen/zoom/teams/meet)"
+                placeholderTextColor={theme.colors.muted} value={schedPlatform} onChangeText={setSchedPlatform} />
+              <TextInput style={styles.input} placeholder={t("group.scheduleMeeting")}
+                placeholderTextColor={theme.colors.muted} value={schedMeetingUrl} onChangeText={setSchedMeetingUrl} />
+              <TextInput style={styles.input} placeholder={t("group.scheduleWhen")}
+                placeholderTextColor={theme.colors.muted} value={schedStart} onChangeText={setSchedStart} />
+              <TextInput style={styles.input} placeholder={t("group.scheduleDuration")}
+                placeholderTextColor={theme.colors.muted} value={schedDuration} onChangeText={setSchedDuration}
+                keyboardType="number-pad" />
+              <TextInput style={styles.input} placeholder={t("group.scheduleCapacity")}
+                placeholderTextColor={theme.colors.muted} value={schedCapacity} onChangeText={setSchedCapacity}
+                keyboardType="number-pad" />
+              <TextInput style={styles.input} placeholder={t("group.scheduleRoomSize")}
+                placeholderTextColor={theme.colors.muted} value={schedRoomSize} onChangeText={setSchedRoomSize}
+                keyboardType="number-pad" />
+              <View style={styles.actions}>
+                <PrimaryButton label={t("group.cancel")} onPress={() => setShowSchedule(false)} variant="ghost" />
+                <PrimaryButton label={t("group.scheduleSubmit")} onPress={() => void submitSchedule()}
+                  loading={busyId === "schedule"} variant="netflix" />
+              </View>
+            </GlassPanel>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -337,4 +427,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10,
     padding: 12, color: theme.colors.text, backgroundColor: "rgba(0,0,0,0.2)",
   },
+  lessonPick: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, marginBottom: 6,
+  },
+  lessonPickOn: { borderColor: theme.colors.accent, backgroundColor: "rgba(110,168,254,0.1)" },
 });

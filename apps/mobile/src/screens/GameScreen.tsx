@@ -4,9 +4,9 @@ import {
 } from "react-native";
 
 import {
-  getGamesCatalog, newGame, submitGame,
+  getGamesCatalog, getLeaderboard, newGame, submitGame,
   type AgeGroupInfo, type GamesCatalog, type GameRound, type GameSubmit,
-  type GameTypeInfo,
+  type GameTypeInfo, type Leader,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -46,11 +46,18 @@ export default function GameScreen({ subject, onBack }: Props) {
   const [error, setError] = useState("");
   const [timeLeft, setTimeLeft] = useState(0);
   const [potionActive, setPotionActive] = useState(false);
+  const [leaders, setLeaders] = useState<Leader[]>([]);
   const startedAt = useRef(0);
 
   useEffect(() => {
     getGamesCatalog(locale).then(setCat).catch(() => {});
   }, [locale]);
+
+  useEffect(() => {
+    void getLeaderboard(subject, ageGroup)
+      .then((r) => setLeaders(r.leaders.slice(0, 10)))
+      .catch(() => setLeaders([]));
+  }, [subject, ageGroup]);
 
   const gameTypes: GameTypeInfo[] = useMemo(() => {
     const base = cat?.game_types ?? [];
@@ -152,6 +159,17 @@ export default function GameScreen({ subject, onBack }: Props) {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {leaders.length > 0 ? (
+          <GlassPanel style={styles.card}>
+            <Text style={styles.cardTitle}>{t("game.leaderboard")}</Text>
+            <Text style={styles.meta}>{t("game.leaderboardSub")}</Text>
+            {leaders.map((l) => (
+              <Text key={`${l.rank}-${l.name}`} style={styles.leaderRow}>
+                #{l.rank} {l.name} · {l.game_points} pts
+              </Text>
+            ))}
+          </GlassPanel>
+        ) : null}
         {/* Picker */}
         {!round && !result && (
           <GlassPanel style={styles.card}>
@@ -388,5 +406,6 @@ const styles = StyleSheet.create({
   resultList: { gap: 4, marginTop: 4 },
   resultLine: { fontSize: 13, lineHeight: 18 },
   meta: { color: theme.colors.muted, fontSize: 13, lineHeight: 18 },
+  leaderRow: { color: theme.colors.text, fontSize: 13, lineHeight: 20 },
   error: { color: "#f87171", fontSize: 13 },
 });

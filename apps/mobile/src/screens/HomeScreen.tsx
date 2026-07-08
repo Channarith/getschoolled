@@ -34,6 +34,7 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 
 export default function HomeScreen({
   onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass, onOpenLiveRooms,
+  onOpenLanguages, onOpenRewards, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
@@ -41,6 +42,9 @@ export default function HomeScreen({
   onOpenGroupClasses?: () => void;
   onOpenLiveClass?: () => void;
   onOpenLiveRooms?: () => void;
+  onOpenLanguages?: () => void;
+  onOpenRewards?: () => void;
+  guestMode?: boolean;
 }) {
   const { t, locale } = useT();
   const { account } = useAuth();
@@ -163,6 +167,12 @@ export default function HomeScreen({
           </Text>
           <View style={styles.heroActions}>
             <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
+            {onOpenLanguages ? (
+              <PrimaryButton label={t("home.languages")} onPress={onOpenLanguages} variant="brand" />
+            ) : null}
+            {onOpenRewards ? (
+              <PrimaryButton label={t("home.rewards")} onPress={onOpenRewards} variant="brand" />
+            ) : null}
             {onOpenGroupClasses ? (
               <PrimaryButton label={t("home.groupClasses")} onPress={onOpenGroupClasses} variant="brand" />
             ) : null}
@@ -173,7 +183,11 @@ export default function HomeScreen({
               <PrimaryButton label={t("home.liveNearby")} onPress={onOpenLiveRooms} variant="brand" />
             ) : null}
           </View>
-          <Text style={styles.careersSub}>{t("home.careersSub")}</Text>
+          {guestMode ? (
+            <Text style={styles.careersSub}>{t("settings.previewBadge")}</Text>
+          ) : (
+            <Text style={styles.careersSub}>{t("home.careersSub")}</Text>
+          )}
         </View>
       </ImageBackground>
 

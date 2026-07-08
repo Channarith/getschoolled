@@ -78,6 +78,8 @@ export const CURRICULUM_URL = serviceUrl("curriculumUrl", 8005, "/curriculum");
 export const IDENTITY_URL = serviceUrl("identityUrl", 8008, "/identity");
 export const MEMORY_URL = serviceUrl("memoryUrl", 8004, "/memory");
 export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "");
+export const BILLING_URL = serviceUrl("billingUrl", 8006, "/billing");
+export const SPEECH_URL = serviceUrl("speechUrl", 8002, "/speech");
 
 export const QA_TEST_ACCOUNTS = [
   { label: "QA Pro", email: "qa-pro@salareen.com", password: "QaTest123" },

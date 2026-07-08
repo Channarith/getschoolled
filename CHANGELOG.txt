@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-08 - Mobile web parity: rewards/points economy + arcade leaderboard;
+  full ClassRoom (re-engage, adaptive quiz, pulse/post-class surveys, finish
+  rewards); account management (password reset, 2FA, billing, multi-learner
+  profiles); browse-without-login preview mode; language practice suite;
+  host scheduling UI for group classes. Drive Mode Q&A unchanged (local keyword
+  search, same as web).
 - 2026-07-08 - Mobile UX + live class parity: enlarged bottom tab bar (28px icons,
   56px min touch targets, larger labels) and horizontal swipe between tabs via
   SwipeTabContainer. New Live Class screen (solo 1:1 + group) wired to

@@ -15,6 +15,7 @@ const KEYS = {
   interests: "@aic/interests.v1",   // string[] (categories the user has opened)
   authToken: "@aic/auth-token.v1",  // identity JWT
   potionBest: "@aic/potionlab-best.v1", // number (Potion Lab arcade high score)
+  previewMode: "@aic/preview.v1",   // guest browse without login
 } as const;
 
 /** In-memory auth cache (AsyncStorage is async; API client reads sync). */
@@ -211,4 +212,12 @@ export async function setAuthToken(token: string): Promise<void> {
 export async function clearAuthToken(): Promise<void> {
   tokenCache = null;
   try { await AsyncStorage.removeItem(KEYS.authToken); } catch { /* ignore */ }
+}
+
+export async function getPreviewMode(): Promise<boolean> {
+  return readJSON<boolean>(KEYS.previewMode, false);
+}
+
+export async function setPreviewMode(on: boolean): Promise<void> {
+  await writeJSON(KEYS.previewMode, on);
 }

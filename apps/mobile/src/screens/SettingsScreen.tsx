@@ -36,10 +36,17 @@ type Props = {
   onOpenLearningProfile?: () => void;
   drivingStatus?: DrivingStatus;
   onDrivingSettingsChange?: () => void;
+  guestMode?: boolean;
+  onOpenAccount?: () => void;
+  onOpenRewards?: () => void;
+  onOpenLanguages?: () => void;
+  onOpenBilling?: () => void;
+  onSignIn?: () => void;
 };
 
 export default function SettingsScreen({
   onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
+  guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling, onSignIn,
 }: Props) {
   const { t, locale, setLocale } = useT();
   const { playFullIntro } = useIntroSplash();
@@ -193,18 +200,33 @@ export default function SettingsScreen({
       </View>
 
       <Section title={t("settings.sectionAccount")}>
-        <Text style={styles.about}>
-          {t("settings.accountSignedIn", { email: account?.email || "" })}
-        </Text>
-        <Text style={styles.about}>
-          {student?.onboarding_completed_at
-            ? t("settings.learningProfileDone", { category: categoryLabel || "saved" })
-            : t("settings.learningProfilePending")}
-        </Text>
-        <View style={{ gap: 10, marginTop: 8 }}>
-          <PrimaryButton label={t("settings.openSurvey")} onPress={onOpenLearningProfile} variant="brand" />
-          <PrimaryButton label={t("settings.signOut")} onPress={() => void onSignOut()} variant="ghost" />
-        </View>
+        {guestMode ? (
+          <>
+            <Text style={styles.about}>{t("settings.previewBadge")}</Text>
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <PrimaryButton label={t("preview.signIn")} onPress={onSignIn} variant="netflix" />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.about}>
+              {t("settings.accountSignedIn", { email: account?.email || "" })}
+            </Text>
+            <Text style={styles.about}>
+              {student?.onboarding_completed_at
+                ? t("settings.learningProfileDone", { category: categoryLabel || "saved" })
+                : t("settings.learningProfilePending")}
+            </Text>
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <PrimaryButton label={t("settings.openAccount")} onPress={onOpenAccount} variant="netflix" />
+              <PrimaryButton label={t("settings.openRewards")} onPress={onOpenRewards} variant="brand" />
+              <PrimaryButton label={t("settings.openLanguages")} onPress={onOpenLanguages} variant="brand" />
+              <PrimaryButton label={t("settings.openBilling")} onPress={onOpenBilling} variant="ghost" />
+              <PrimaryButton label={t("settings.openSurvey")} onPress={onOpenLearningProfile} variant="brand" />
+              <PrimaryButton label={t("settings.signOut")} onPress={() => void onSignOut()} variant="ghost" />
+            </View>
+          </>
+        )}
         <Text style={[
           styles.desc,
           { marginTop: 10 },
