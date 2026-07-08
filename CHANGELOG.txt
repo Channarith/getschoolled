@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - iOS TestFlight launch-crash fix: the app threw an uncaught
+  exception at startup (Salareen 0.13.4, unsymbolicated objc_exception_throw).
+  Root cause: @livekit/react-native 2.9.8 runs polyfills + WebRTC global setup at
+  IMPORT time, and App.tsx -> LiveRoomScreen -> LiveKitParticipantTile imported it
+  statically, so all of that executed during launch. Made LiveKit load lazily
+  (runtime require only when a participant tile mounts in a live room; types via
+  import type), guarded so a load failure degrades to the emoji fallback instead
+  of crashing. No launch-path LiveKit/WebRTC execution anymore.
 - 2026-07-07 - EAS build repair (both platforms): fix LiveKit native build
   failures. Android manifest merger failed (minSdkVersion 23 < 24 required by
   @livekit/react-native) -> set expo-build-properties android.minSdkVersion=24.

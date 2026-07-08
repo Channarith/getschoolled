@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { registerGlobals, VideoView } from "@livekit/react-native";
-import { Room, RoomEvent, Track } from "livekit-client";
 
 import { theme } from "../theme";
+
+// Type-only imports are erased at build time (no runtime require), so they do NOT
+// pull LiveKit/WebRTC into the launch bundle.
+import type { Room as LKRoom } from "livekit-client";
+import type { VideoView as LKVideoView } from "@livekit/react-native";
 
 export type LiveKitMedia = {
   url: string;
@@ -19,6 +22,31 @@ type Props = {
   fallbackEmoji: string;
   large?: boolean;
 };
+
+// `@livekit/react-native` runs polyfills + WebRTC global setup at IMPORT time and
+// pulls in a large native/web dependency graph. Importing it eagerly executes all
+// of that during app launch (via App -> LiveRoomScreen -> this tile), which can
+// throw and crash the whole app on startup. Load it lazily the first time a tile
+// actually mounts inside a live room, and cache the modules. Guarded so a load
+// failure degrades to the emoji fallback instead of taking down the app.
+type LiveKitRN = typeof import("@livekit/react-native");
+type LiveKitClient = typeof import("livekit-client");
+
+let rnMod: LiveKitRN | null = null;
+let clientMod: LiveKitClient | null = null;
+
+function loadLiveKit(): { rn: LiveKitRN; client: LiveKitClient } | null {
+  if (rnMod && clientMod) return { rn: rnMod, client: clientMod };
+  try {
+    rnMod = require("@livekit/react-native") as LiveKitRN;
+    clientMod = require("livekit-client") as LiveKitClient;
+    return { rn: rnMod, client: clientMod };
+  } catch {
+    rnMod = null;
+    clientMod = null;
+    return null;
+  }
+}
 
 /** LiveKit video tile with emoji fallback when connection fails (offline/dev). */
 export default function LiveKitParticipantTile({
@@ -37,9 +65,18 @@ export default function LiveKitParticipantTile({
       setTrack(null);
       return;
     }
+    const lk = loadLiveKit();
+    if (!lk) {
+      setLivekitReady(false);
+      setTrack(null);
+      return;
+    }
+    const { registerGlobals } = lk.rn;
+    const { Room, RoomEvent, Track } = lk.client;
+
     let cancelled = false;
-    let room: Room | null = null;
-    (async () => {
+    let room: LKRoom | null = null;
+    void (async () => {
       try {
         registerGlobals();
         room = new Room();
@@ -74,7 +111,9 @@ export default function LiveKitParticipantTile({
     };
   }, [media?.url, media?.token, canPublish]);
 
-  if (livekitReady && track) {
+  const VideoView: typeof LKVideoView | undefined = rnMod?.VideoView;
+
+  if (livekitReady && track && VideoView) {
     return (
       <View style={[styles.tile, large && styles.large]}>
         <VideoView style={StyleSheet.absoluteFillObject} videoTrack={track as never} />
