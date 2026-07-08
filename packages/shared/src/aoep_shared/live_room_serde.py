@@ -52,6 +52,13 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
       "gift_feed": [asdict(g) for g in room.gift_feed],
       "reactions": [asdict(r) for r in room.reactions],
       "viewer_count": room.viewer_count,
+      "country": room.country,
+      "state": room.state,
+      "city": room.city,
+      "latitude": room.latitude,
+      "longitude": room.longitude,
+      "creator_name": room.creator_name,
+      "creator_account_id": room.creator_account_id,
   }
 
 
@@ -92,4 +99,11 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       gift_feed=gift_feed,
       reactions=reactions,
       viewer_count=int(data.get("viewer_count") or 0),
+      country=data.get("country") or "",
+      state=data.get("state") or "",
+      city=data.get("city") or "",
+      latitude=float(data.get("latitude") or 0),
+      longitude=float(data.get("longitude") or 0),
+      creator_name=data.get("creator_name") or "",
+      creator_account_id=data.get("creator_account_id") or "",
   )

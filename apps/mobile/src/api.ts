@@ -412,6 +412,49 @@ export type ScheduleGroupClassInput = {
   language?: string;
 };
 
+export type LiveRoomGeo = {
+  country: string;
+  state: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type LiveRoomListing = {
+  room_id: string;
+  title: string;
+  status: string;
+  room_size: number;
+  learner_count: number;
+  seats_left: number;
+  viewer_count: number;
+  opened_at: string;
+  host_name: string;
+  creator_name: string;
+  country: string;
+  state: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  distance_km?: number | null;
+  class_id?: string;
+  moderator_key?: string;
+};
+
+export type LiveRoomBrowse = {
+  rooms: LiveRoomListing[];
+  total: number;
+  groups?: {
+    country: string;
+    count: number;
+    states: {
+      state: string;
+      count: number;
+      cities: { city: string; count: number; rooms: LiveRoomListing[] }[];
+    }[];
+  }[];
+};
+
 export type LiveRoomState = {
   room_id: string;
   title: string;
@@ -475,10 +518,51 @@ export async function registerGroupClass(
   });
 }
 
-export async function startGroupClass(classId: string): Promise<GroupClassStart> {
+export async function startGroupClass(
+  classId: string,
+  location?: LiveRoomGeo,
+): Promise<GroupClassStart> {
   return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/start`, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    body: JSON.stringify(location ?? {}),
+  });
+}
+
+export async function listLiveRooms(opts?: {
+  lat?: number;
+  lng?: number;
+  radius_km?: number;
+  country?: string;
+  city?: string;
+  grouped?: boolean;
+}): Promise<LiveRoomBrowse> {
+  const q = new URLSearchParams();
+  if (opts?.lat) q.set("lat", String(opts.lat));
+  if (opts?.lng) q.set("lng", String(opts.lng));
+  if (opts?.radius_km) q.set("radius_km", String(opts.radius_km));
+  if (opts?.country) q.set("country", opts.country);
+  if (opts?.city) q.set("city", opts.city);
+  if (opts?.grouped === false) q.set("grouped", "false");
+  const qs = q.toString();
+  return get(ORCHESTRATOR_URL, `/api/live-rooms${qs ? `?${qs}` : ""}`);
+}
+
+export async function createLiveRoom(
+  title: string,
+  creatorName: string,
+  location?: LiveRoomGeo,
+  roomSize = 6,
+): Promise<{ room: LiveRoomState; listing: LiveRoomListing }> {
+  return get(ORCHESTRATOR_URL, "/api/live-rooms", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      title,
+      creator_name: creatorName,
+      room_size: roomSize,
+      location: location ?? {},
+    }),
   });
 }
 
@@ -562,13 +646,17 @@ export type LessonAnswer = {
 };
 
 export function startLessonSession(
-  lessonId: string, studentId?: string,
+  lessonId: string,
+  studentId?: string,
+  classType: "solo" | "group" = "group",
 ): Promise<LessonSessionView> {
   return get<LessonSessionView>(ORCHESTRATOR_URL, "/api/sessions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      lesson_id: lessonId, class_type: "group", student_id: studentId ?? null,
+      lesson_id: lessonId,
+      class_type: classType,
+      student_id: studentId ?? null,
     }),
   });
 }
@@ -612,6 +700,15 @@ export async function joinLiveRoom(roomId: string, name: string, identity = ""):
     headers: { "content-type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, identity }),
   });
+}
+
+export async function leaveLiveRoom(roomId: string, participantId: string): Promise<LiveRoomState> {
+  return get<LiveRoomState>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    });
 }
 
 export async function liveRoomChat(roomId: string, participantId: string, text: string): Promise<LiveRoomState> {

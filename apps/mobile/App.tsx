@@ -6,6 +6,7 @@ import { Animated, I18nManager, SafeAreaView, StyleSheet, View } from "react-nat
 import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
+import SwipeTabContainer from "./src/components/SwipeTabContainer";
 import { LocaleProvider, useT } from "./src/i18n";
 import { IntroSplashProvider } from "./src/introSplash";
 import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
@@ -30,12 +31,15 @@ import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
+import LiveClassScreen from "./src/screens/LiveClassScreen";
+import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
-import { getNotificationsFeed } from "./src/api";
+import { createStudent, getMe, getNotificationsFeed, listStudents } from "./src/api";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
+import { setSettings } from "./src/storage";
 
 export default function App() {
   return (
@@ -57,11 +61,13 @@ function AppInner() {
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [showGroupClasses, setShowGroupClasses] = useState(false);
+  const [showLiveClass, setShowLiveClass] = useState(false);
+  const [showLiveRooms, setShowLiveRooms] = useState(false);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
   const [liveModeratorKey, setLiveModeratorKey] = useState("");
   const [gameSubject, setGameSubject] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<
-    { id: string; title: string; preview?: string } | null
+    { id: string; title: string; preview?: string; classType?: "solo" | "group" } | null
   >(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
@@ -89,7 +95,7 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, showGroupClasses, liveRoomId, gameSubject, activeLesson, fade]);
+  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, liveRoomId, gameSubject, activeLesson, fade]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -155,8 +161,22 @@ function AppInner() {
     })();
   }, [drivingStatus.phase, t, authenticated]);
 
+  async function syncStudentProfile() {
+    try {
+      const { students } = await listStudents();
+      let id = students[0]?.id;
+      if (!id) {
+        const me = await getMe();
+        const created = await createStudent(me.display_name || me.email.split("@")[0]);
+        id = created.id;
+      }
+      if (id) await setSettings({ studentId: id });
+    } catch {}
+  }
+
   async function bootstrap() {
     installNotificationHandler();
+    void syncStudentProfile();
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
@@ -226,8 +246,24 @@ function AppInner() {
   };
 
   const openGame = (subject: string) => setGameSubject(subject);
-  const openLesson = (id: string, title: string, preview?: string) =>
-    setActiveLesson({ id, title, preview });
+  const openLesson = (
+    id: string, title: string, preview?: string, classType: "solo" | "group" = "group",
+  ) => setActiveLesson({ id, title, preview, classType });
+
+  const onTabChange = (id: TabId) => {
+    if (id === "drive" && tab === "drive") setOpenCourseId(null);
+    setShowGroupClasses(false);
+    setShowLiveClass(false);
+    setShowLiveRooms(false);
+    setLiveRoomId(null);
+    setGameSubject(null);
+    setActiveLesson(null);
+    void refreshUnreadAndAlerts();
+    setTab(id);
+  };
+
+  const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
+    && !showLiveRooms && !gameSubject && !activeLesson;
 
   let screen: React.ReactNode = null;
   if (gameSubject) {
@@ -240,6 +276,7 @@ function AppInner() {
         lessonId={activeLesson.id}
         title={activeLesson.title}
         preview={activeLesson.preview}
+        classType={activeLesson.classType}
         onBack={() => setActiveLesson(null)}
       />
     );
@@ -248,7 +285,28 @@ function AppInner() {
       <LiveRoomScreen
         roomId={liveRoomId}
         moderatorKey={liveModeratorKey}
-        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setLiveModeratorKey(""); }}
+        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setShowLiveRooms(false); setLiveModeratorKey(""); }}
+      />
+    );
+  } else if (showLiveRooms) {
+    screen = (
+      <LiveRoomsScreen
+        onOpenRoom={(id, modKey) => {
+          setLiveRoomId(id);
+          setLiveModeratorKey(modKey || "");
+          setShowLiveRooms(false);
+        }}
+        onBack={() => setShowLiveRooms(false)}
+      />
+    );
+  } else if (showLiveClass) {
+    screen = (
+      <LiveClassScreen
+        onStart={(id, title, classType) => {
+          setShowLiveClass(false);
+          setActiveLesson({ id, title, classType });
+        }}
+        onBack={() => setShowLiveClass(false)}
       />
     );
   } else if (showGroupClasses) {
@@ -269,6 +327,8 @@ function AppInner() {
         onOpenCategory={openCategory}
         onOpenCareers={() => setTab("careers")}
         onOpenGroupClasses={() => setShowGroupClasses(true)}
+        onOpenLiveClass={() => setShowLiveClass(true)}
+        onOpenLiveRooms={() => setShowLiveRooms(true)}
       />
     );
   } else if (tab === "drive") {
@@ -342,25 +402,23 @@ function AppInner() {
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
         <Animated.View style={{ flex: 1, opacity: fade }}>
-          {screen}
+          <SwipeTabContainer
+            active={tab}
+            enabled={mainTabsVisible && !openCourseId}
+            onChange={onTabChange}
+          >
+            {screen}
+          </SwipeTabContainer>
         </Animated.View>
         <LearningProfileSurvey
           authEpoch={authEpoch}
           manualOpenToken={surveyManualToken}
         />
       </View>
-      {!liveRoomId && !showGroupClasses && !gameSubject && !activeLesson ? (
+      {mainTabsVisible ? (
         <BottomTabs
           active={tab}
-          onChange={(id) => {
-            if (id === "drive" && tab === "drive") setOpenCourseId(null);
-            setShowGroupClasses(false);
-            setLiveRoomId(null);
-            setGameSubject(null);
-            setActiveLesson(null);
-            void refreshUnreadAndAlerts();
-            setTab(id);
-          }}
+          onChange={onTabChange}
           unreadCount={unreadCount}
         />
       ) : null}

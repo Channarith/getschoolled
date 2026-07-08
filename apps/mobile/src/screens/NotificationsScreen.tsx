@@ -13,7 +13,7 @@ import {
   getInterests, getMyList, getReadIds, getStreak,
   listContinue, markAllRead, markRead, getSettings,
 } from "../storage";
-import { ensurePermissions, scheduleAlertsFor } from "../notifications";
+import { ensurePermissions, listScheduled, scheduleAlertsFor } from "../notifications";
 import { useT } from "../i18n";
 import { theme } from "../theme";
 
@@ -69,8 +69,14 @@ export default function NotificationsScreen({ onOpenCourse, onUnreadChange }: {
         const granted = await ensurePermissions();
         if (granted) {
           await scheduleAlertsFor(feed.items, settings);
+          const pending = await listScheduled();
+          setScheduled(pending.length);
+        } else {
+          setScheduled(0);
         }
-      } catch {}
+      } catch {
+        setScheduled(0);
+      }
     } catch (e) {
       setError(t("notif.error", { error: String(e) }));
     } finally {

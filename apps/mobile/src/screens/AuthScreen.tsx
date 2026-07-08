@@ -1,6 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from "react-native";
 
@@ -21,6 +22,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
@@ -108,16 +110,32 @@ export default function AuthScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
-            style={styles.input}
-            placeholder={t("auth.password")}
-            placeholderTextColor={theme.colors.muted}
-            secureTextEntry
-            autoComplete={mode === "login" ? "password" : "new-password"}
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={() => void onSubmit()}
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder={t("auth.password")}
+              placeholderTextColor={theme.colors.muted}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete={mode === "login" ? "password" : "new-password"}
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={() => void onSubmit()}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              style={styles.eyeButton}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t(showPassword ? "auth.hidePassword" : "auth.showPassword")}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={theme.colors.muted}
+              />
+            </Pressable>
+          </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton
             label={mode === "login" ? t("auth.signIn") : t("auth.signUp")}
@@ -235,6 +253,26 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     padding: 14,
     fontSize: 16,
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+  },
+  passwordInput: {
+    flex: 1,
+    color: theme.colors.text,
+    padding: 14,
+    fontSize: 16,
+  },
+  eyeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   error: { color: theme.colors.netflix, fontSize: 13 },
   link: { color: theme.colors.accent, textAlign: "center", marginTop: 4, fontWeight: "600" },

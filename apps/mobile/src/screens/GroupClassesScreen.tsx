@@ -13,6 +13,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useT } from "../i18n";
+import { getLiveRoomLocation } from "../liveRoomLocation";
 import { theme } from "../theme";
 
 function fmtTime(iso: string): string {
@@ -88,6 +89,25 @@ export default function GroupClassesScreen({
       return;
     }
     if (gc.platform === "salareen" || gc.live_room_id) {
+      // A Salareen room only exists on the server once the class has been
+      // "started" (open_room). Joining a not-yet-live class hits a room id that
+      // doesn't exist -> 404. Open it first (idempotent) so entering succeeds,
+      // then join as a learner (no moderator key — tapping Join isn't hosting).
+      if (!gc.live_room_id && gc.status !== "live") {
+        setBusyId(gc.id);
+        try {
+          const geo = await getLiveRoomLocation();
+          const res = await startGroupClass(gc.id, geo);
+          const roomId = res.bridge.live_room_id || res.bridge.livekit_room || roomIdFor(gc);
+          void load();
+          onOpenRoom(roomId, "");
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setBusyId("");
+        }
+        return;
+      }
       openSalareenRoom(gc);
       return;
     }
@@ -98,7 +118,8 @@ export default function GroupClassesScreen({
     setBusyId(gc.id);
     setError("");
     try {
-      const res = await startGroupClass(gc.id);
+      const geo = await getLiveRoomLocation();
+      const res = await startGroupClass(gc.id, geo);
       setStarted(res);
       await load();
     } catch (e) {

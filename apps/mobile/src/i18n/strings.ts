@@ -83,6 +83,7 @@ export type StringKey =
   | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
   | "auth.email" | "auth.password" | "auth.displayName"
+  | "auth.showPassword" | "auth.hidePassword"
   | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
   | "auth.welcomeTitle" | "auth.welcomeSubtitle" | "auth.checkingSession"
   | "auth.checkingBackend"
@@ -95,7 +96,7 @@ export type StringKey =
   // Streak hero
   | "streak.label"
   // Careers
-  | "home.careers" | "home.careersSub" | "home.groupClasses"
+  | "home.careers" | "home.careersSub" | "home.groupClasses" | "home.liveClass"
   | "careers.back" | "careers.title" | "careers.sub"
   // Group classes
   | "group.title" | "group.intro" | "group.back" | "group.empty"
@@ -109,6 +110,16 @@ export type StringKey =
   | "game.submit" | "game.matchHint" | "game.accuracy" | "game.balance"
   | "game.rank" | "game.playAgain" | "game.sessionExpired" | "game.signInSave"
   | "game.potionLab" | "game.potionTip"
+  // Live room discovery (Bigo-style)
+  | "live.back" | "live.title" | "live.intro" | "live.nearby" | "live.empty"
+  | "live.goLive" | "live.refresh" | "live.createTitle" | "live.titlePlaceholder"
+  | "live.create" | "live.creating" | "live.cancel" | "live.defaultTitle"
+  | "home.liveNearby"
+  | "liveClass.back" | "liveClass.kicker" | "liveClass.title" | "liveClass.sub"
+  | "liveClass.empty" | "liveClass.mode" | "liveClass.solo" | "liveClass.soloHint"
+  | "liveClass.group" | "liveClass.groupHint" | "liveClass.pickLesson"
+  | "liveClass.startSolo" | "liveClass.startGroup"
+  | "liveClass.soloBadge" | "liveClass.groupBadge"
   // Lesson / visual course player
   | "lesson.back" | "lesson.slide" | "lesson.narrate" | "lesson.stopNarration"
   | "lesson.next" | "lesson.complete" | "lesson.askTitle" | "lesson.askPlaceholder"
@@ -134,6 +145,7 @@ const EN: Record<StringKey, string> = {
   "home.careers": "💼 Careers",
   "home.careersSub": "Match live jobs to Salareen courses",
   "home.groupClasses": "👥 Group Classes",
+  "home.liveClass": "🎓 Live 1:1 Class",
 
   "careers.back": "← Back",
   "careers.title": "Careers",
@@ -182,6 +194,37 @@ const EN: Record<StringKey, string> = {
   "game.signInSave": "Sign in to save scores to the leaderboard.",
   "game.potionLab": "⚗️ Potion Lab",
   "game.potionTip": "Real-time atom-catching arcade — build molecules before the timer runs out.",
+
+  "live.back": "← Back",
+  "live.title": "Live Nearby",
+  "live.intro": "Salareen rooms live now — browse by location, tap to join, or go live yourself.",
+  "live.nearby": "Nearby & trending",
+  "live.empty": "No live rooms right now. Tap Go Live to start one others can find.",
+  "live.goLive": "📍 Go Live",
+  "live.refresh": "Refresh",
+  "live.createTitle": "Start a Salareen room",
+  "live.titlePlaceholder": "Room title (e.g. Algebra study group)",
+  "live.create": "Create room",
+  "live.creating": "Creating…",
+  "live.cancel": "Cancel",
+  "live.defaultTitle": "Salareen Live",
+  "home.liveNearby": "📍 Live Nearby",
+
+  "liveClass.back": "← Back",
+  "liveClass.kicker": "LIVE CLASS",
+  "liveClass.title": "Start a live class",
+  "liveClass.sub": "Pick a lesson and learn with the AI tutor — solo 1:1 or in a group.",
+  "liveClass.empty": "No lessons are available right now. Pull to refresh.",
+  "liveClass.mode": "Class type",
+  "liveClass.solo": "Solo (1:1)",
+  "liveClass.soloHint": "Private session with the AI tutor",
+  "liveClass.group": "Group class",
+  "liveClass.groupHint": "Shared session with other learners",
+  "liveClass.pickLesson": "Choose a lesson",
+  "liveClass.startSolo": "Start 1:1 class",
+  "liveClass.startGroup": "Start group class",
+  "liveClass.soloBadge": "1:1 LIVE",
+  "liveClass.groupBadge": "GROUP LIVE",
 
   "lesson.back": "← Back",
   "lesson.slide": "Slide",
@@ -341,6 +384,8 @@ const EN: Record<StringKey, string> = {
 
   "auth.email": "Email",
   "auth.password": "Password",
+  "auth.showPassword": "Show password",
+  "auth.hidePassword": "Hide password",
   "auth.displayName": "Display name",
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",

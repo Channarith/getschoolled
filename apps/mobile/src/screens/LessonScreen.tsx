@@ -20,10 +20,13 @@ type Props = {
   lessonId: string;
   title: string;
   preview?: string;
+  classType?: "solo" | "group";
   onBack: () => void;
 };
 
-export default function LessonScreen({ lessonId, title, preview, onBack }: Props) {
+export default function LessonScreen({
+  lessonId, title, preview, classType = "group", onBack,
+}: Props) {
   const { t, locale } = useT();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
@@ -44,7 +47,7 @@ export default function LessonScreen({ lessonId, title, preview, onBack }: Props
       setError("");
       try {
         const settings = await getSettings();
-        const v = await startLessonSession(lessonId, settings.studentId);
+        const v = await startLessonSession(lessonId, settings.studentId, classType);
         if (!alive) return;
         setView(v);
         setSlide(v.slide);
@@ -60,7 +63,7 @@ export default function LessonScreen({ lessonId, title, preview, onBack }: Props
       alive = false;
       Speech.stop();
     };
-  }, [lessonId]);
+  }, [lessonId, classType]);
 
   function stopNarration() {
     Speech.stop();
@@ -126,7 +129,12 @@ export default function LessonScreen({ lessonId, title, preview, onBack }: Props
     <View style={styles.wrap}>
       <View style={styles.header}>
         <PrimaryButton label={t("lesson.back")} onPress={() => { stopNarration(); onBack(); }} variant="ghost" />
-        <Text style={styles.title} numberOfLines={1}>{view?.lesson.title || title}</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.title} numberOfLines={1}>{view?.lesson.title || title}</Text>
+          <Text style={styles.classBadge}>
+            {classType === "solo" ? t("liveClass.soloBadge") : t("liveClass.groupBadge")}
+          </Text>
+        </View>
       </View>
 
       {loading ? (
@@ -213,7 +221,14 @@ export default function LessonScreen({ lessonId, title, preview, onBack }: Props
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", flex: 1 },
+  headerText: { flex: 1, gap: 2 },
+  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700" },
+  classBadge: {
+    color: theme.colors.accent,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
   body: { gap: 12, paddingBottom: 32 },
   progress: { color: theme.colors.muted, fontSize: 12, fontWeight: "700" },
   card: { gap: 10 },

@@ -291,3 +291,46 @@ def test_live_room_websocket_snapshot():
         msg = ws.receive_json()
         assert msg["type"] == "room"
         assert msg["payload"]["room"]["room_id"] == room_id
+
+
+def test_list_live_rooms_after_start():
+    info = _start_salareen_class(6)
+    listed = client.get("/api/live-rooms")
+    assert listed.status_code == 200, listed.text
+    body = listed.json()
+    assert body["total"] >= 1
+    ids = {r["room_id"] for r in body["rooms"]}
+    assert info["room_id"] in ids
+    assert body.get("groups")
+
+
+def test_create_user_live_room_with_geo():
+    created = client.post(
+        "/api/live-rooms",
+        json={
+            "title": "Study hall SF",
+            "creator_name": "Ada",
+            "room_size": 6,
+            "location": {
+                "country": "United States",
+                "state": "California",
+                "city": "San Francisco",
+                "latitude": 37.77,
+                "longitude": -122.42,
+            },
+        },
+    )
+    assert created.status_code == 200, created.text
+    room_id = created.json()["listing"]["room_id"]
+    assert created.json()["listing"]["city"] == "San Francisco"
+
+    nearby = client.get("/api/live-rooms", params={"lat": 37.78, "lng": -122.41, "radius_km": 50})
+    assert nearby.status_code == 200
+    ids = {r["room_id"] for r in nearby.json()["rooms"]}
+    assert room_id in ids
+
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Bob", "identity": "bob-1"},
+    )
+    assert joined.status_code == 200, joined.text

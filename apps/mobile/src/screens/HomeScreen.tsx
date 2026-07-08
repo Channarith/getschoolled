@@ -33,12 +33,14 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses,
+  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass, onOpenLiveRooms,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
   onOpenCareers: () => void;
   onOpenGroupClasses?: () => void;
+  onOpenLiveClass?: () => void;
+  onOpenLiveRooms?: () => void;
 }) {
   const { t, locale } = useT();
   const { account } = useAuth();
@@ -163,6 +165,12 @@ export default function HomeScreen({
             <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
             {onOpenGroupClasses ? (
               <PrimaryButton label={t("home.groupClasses")} onPress={onOpenGroupClasses} variant="brand" />
+            ) : null}
+            {onOpenLiveClass ? (
+              <PrimaryButton label={t("home.liveClass")} onPress={onOpenLiveClass} variant="brand" />
+            ) : null}
+            {onOpenLiveRooms ? (
+              <PrimaryButton label={t("home.liveNearby")} onPress={onOpenLiveRooms} variant="brand" />
             ) : null}
           </View>
           <Text style={styles.careersSub}>{t("home.careersSub")}</Text>

@@ -2,6 +2,40 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-08 - Mobile UX + live class parity: enlarged bottom tab bar (28px icons,
+  56px min touch targets, larger labels) and horizontal swipe between tabs via
+  SwipeTabContainer. New Live Class screen (solo 1:1 + group) wired to
+  POST /api/sessions with class_type; home hero "Live 1:1 Class" entry; LessonScreen
+  shows class badge and passes classType. Placeholder fixes: sync learner
+  studentId from identity on login + survey; notifications screen shows scheduled
+  local alert count; leaveLiveRoom called when exiting a Salareen live room.
+- 2026-07-07 - Mobile login: added a show/hide password toggle (eye icon) on the
+  auth screen password field. Wrapped the TextInput in a row with an Ionicons
+  eye-outline/eye-off-outline Pressable that flips secureTextEntry; new i18n
+  keys auth.showPassword / auth.hidePassword (English + fallback).
+- 2026-07-07 - Mobile intro splash: replaced the static logo+ring with a
+  beat-synced dancing cartoon (Bayon Buddy). New self-contained beat engine
+  (120 BPM) drives per-beat bounce + squash/stretch + left/right dance steps,
+  an elastic pop, a pulsing beat ring, a live equalizer, floating music-note /
+  sparkle particles, and spinning disco blobs; continuous breathing bob keeps
+  it alive between beats. Engine starts with the jingle and degrades gracefully
+  (still dances) if audio fails. Native-driver animations throughout.
+- 2026-07-07 - Live room discovery by location (Bigo-style): Salareen rooms
+  are now discoverable across users. Added geo fields on LiveRoom (country,
+  state, city, lat/lng, creator), live-room index in backend (memory + Redis),
+  GET /api/live-rooms (flat + grouped by country/state/city, optional nearby
+  radius filter), POST /api/live-rooms (instant go-live room). Group-class start
+  accepts location body. Mobile: Live Nearby screen (browse grouped rooms, Go
+  Live, pull-to-refresh), home entry, expo-location reverse-geocode helper;
+  join/start passes GPS so others can find the room after refresh.
+- 2026-07-07 - Mobile live room 404 fix: entering a Salareen Live Room for a
+  group class that hadn't been started yet showed "404 Not Found" — the room id
+  (class-<id>) only exists on the server after open_room (class start), and
+  join/getLiveRoom never auto-create. Now GroupClasses opens the room first when
+  a learner taps Join on a not-yet-live Salareen class (idempotent start, joined
+  as a learner not moderator); LiveRoomScreen also self-heals by opening the
+  class then retrying join on a 404, and shows a human message instead of a raw
+  404 while a room isn't open yet.
 - 2026-07-07 - Mobile Potion Lab (feature parity with web): the real-time
   chemistry arcade game (build molecules by catching atoms; bacteria lose points,
   bombs end the run; age-scaled difficulty kids/tween/teen/adult) was web-only.

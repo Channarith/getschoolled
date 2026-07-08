@@ -255,6 +255,14 @@ class LiveRoom:
     gift_feed: List[GiftEvent] = field(default_factory=list)
     reactions: List[ReactionEvent] = field(default_factory=list)
     viewer_count: int = 0
+    # Geo discovery (Bigo-style browse by country/state/city).
+    country: str = ""
+    state: str = ""
+    city: str = ""
+    latitude: float = 0.0
+    longitude: float = 0.0
+    creator_name: str = ""
+    creator_account_id: str = ""
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -369,6 +377,12 @@ class LiveRoom:
             "gift_feed": [g.to_dict() for g in self.gift_feed[-GIFT_FEED_SIZE:]],
             "reactions": [r.to_dict() for r in self.reactions[-REACTION_BUFFER_SIZE:]],
             "viewer_count": self.viewer_count or self.learner_count,
+            "country": self.country,
+            "state": self.state,
+            "city": self.city,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "creator_name": self.creator_name,
         }
 
     def to_moderator_dict(self) -> dict:
@@ -432,9 +446,30 @@ class LiveRoomStore:
         slide_title: str = "",
         slide_body: str = "",
         slide_narration: str = "",
+        country: str = "",
+        state: str = "",
+        city: str = "",
+        latitude: float = 0.0,
+        longitude: float = 0.0,
+        creator_name: str = "",
+        creator_account_id: str = "",
     ) -> LiveRoom:
         existing = self._backend.get(room_id)
         if existing is not None:
+            from .live_room_discovery import apply_location
+
+            apply_location(
+                existing,
+                country=country,
+                state=state,
+                city=city,
+                latitude=latitude,
+                longitude=longitude,
+                creator_name=creator_name,
+                creator_account_id=creator_account_id,
+            )
+            if country or city or latitude:
+                self._commit(existing)
             return existing
         room = LiveRoom(
             room_id=room_id,
@@ -444,6 +479,13 @@ class LiveRoomStore:
             title=title,
             room_size=room_size,
             slide=SlideSync(index=0, title=slide_title, body=slide_body, narration=slide_narration),
+            country=country.strip(),
+            state=state.strip(),
+            city=city.strip(),
+            latitude=float(latitude or 0),
+            longitude=float(longitude or 0),
+            creator_name=creator_name.strip(),
+            creator_account_id=creator_account_id.strip(),
         )
         host = Participant(id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True)
         room.participants[host.id] = host
@@ -463,6 +505,76 @@ class LiveRoomStore:
 
     def get(self, room_id: str) -> Optional[LiveRoom]:
         return self._backend.get(room_id)
+
+    def list_live(
+        self,
+        *,
+        lat: float = 0.0,
+        lng: float = 0.0,
+        radius_km: float = 0.0,
+        country: str = "",
+        city: str = "",
+    ) -> List[LiveRoom]:
+        """All rooms with status=live, optionally filtered by geo."""
+        from .live_room_discovery import haversine_km
+
+        rooms: List[LiveRoom] = []
+        for rid in self._backend.list_live_ids():
+            room = self._backend.get(rid)
+            if room is None or room.status != "live":
+                continue
+            if country and (room.country or "").lower() != country.strip().lower():
+                continue
+            if city and (room.city or "").lower() != city.strip().lower():
+                continue
+            if radius_km > 0 and lat and lng and room.latitude and room.longitude:
+                if haversine_km(lat, lng, room.latitude, room.longitude) > radius_km:
+                    continue
+            rooms.append(room)
+        if lat and lng:
+            rooms.sort(
+                key=lambda r: (
+                    haversine_km(lat, lng, r.latitude, r.longitude)
+                    if r.latitude and r.longitude
+                    else 999_999,
+                    -(r.viewer_count or r.learner_count),
+                ),
+            )
+        else:
+            rooms.sort(key=lambda r: (-(r.viewer_count or r.learner_count), r.title))
+        return rooms
+
+    def create_user_room(
+        self,
+        *,
+        title: str,
+        creator_name: str,
+        creator_account_id: str = "",
+        room_size: int = 6,
+        country: str = "",
+        state: str = "",
+        city: str = "",
+        latitude: float = 0.0,
+        longitude: float = 0.0,
+        lesson_id: str = "open-live",
+    ) -> LiveRoom:
+        """Instant Salareen room (Bigo-style go-live) — visible in discovery feed."""
+        room_id = f"sal-{uuid.uuid4().hex[:10]}"
+        return self.open_room(
+            room_id=room_id,
+            class_id="",
+            session_id="",
+            lesson_id=lesson_id,
+            title=title,
+            room_size=room_size,
+            country=country,
+            state=state,
+            city=city,
+            latitude=latitude,
+            longitude=longitude,
+            creator_name=creator_name,
+            creator_account_id=creator_account_id,
+        )
 
     def require(self, room_id: str) -> LiveRoom:
         room = self._backend.get(room_id)

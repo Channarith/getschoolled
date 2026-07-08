@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, Protocol
+from typing import List, Optional, Protocol
 
 from .live_room import LiveRoom
 from .live_room_serde import live_room_from_json, live_room_to_json
@@ -22,6 +22,7 @@ from .live_room_serde import live_room_from_json, live_room_to_json
 logger = logging.getLogger(__name__)
 
 DEFAULT_LIVE_ROOM_TTL_SECONDS = 86_400
+LIVE_INDEX_KEY = "aoep:live:index"
 
 
 class LiveRoomBackend(Protocol):
@@ -36,21 +37,33 @@ class LiveRoomBackend(Protocol):
     def delete(self, room_id: str) -> None:
         ...
 
+    def list_live_ids(self) -> List[str]:
+        ...
+
 
 class InMemoryLiveRoomBackend:
     name = "memory"
 
     def __init__(self) -> None:
         self._rooms: dict[str, LiveRoom] = {}
+        self._live_index: set[str] = set()
 
     def get(self, room_id: str) -> Optional[LiveRoom]:
         return self._rooms.get(room_id)
 
     def save(self, room: LiveRoom) -> None:
         self._rooms[room.room_id] = room
+        if room.status == "live":
+            self._live_index.add(room.room_id)
+        else:
+            self._live_index.discard(room.room_id)
 
     def delete(self, room_id: str) -> None:
         self._rooms.pop(room_id, None)
+        self._live_index.discard(room_id)
+
+    def list_live_ids(self) -> List[str]:
+        return sorted(self._live_index)
 
 
 class RedisLiveRoomBackend:
@@ -61,10 +74,12 @@ class RedisLiveRoomBackend:
         redis_client,
         *,
         prefix: str = "aoep:live:",
+        index_key: str = LIVE_INDEX_KEY,
         ttl_seconds: int = DEFAULT_LIVE_ROOM_TTL_SECONDS,
     ) -> None:
         self._r = redis_client
         self._prefix = prefix
+        self._index = index_key
         self._ttl = ttl_seconds
         self._fallback = InMemoryLiveRoomBackend()
 
@@ -88,6 +103,10 @@ class RedisLiveRoomBackend:
     def save(self, room: LiveRoom) -> None:
         try:
             self._r.set(self._key(room.room_id), live_room_to_json(room), ex=self._ttl)
+            if room.status == "live":
+                self._r.sadd(self._index, room.room_id)
+            else:
+                self._r.srem(self._index, room.room_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("redis live-room save failed (%s); using in-memory", exc)
             self._fallback.save(room)
@@ -95,9 +114,18 @@ class RedisLiveRoomBackend:
     def delete(self, room_id: str) -> None:
         try:
             self._r.delete(self._key(room_id))
+            self._r.srem(self._index, room_id)
         except Exception as exc:  # noqa: BLE001
             logger.warning("redis live-room delete failed (%s)", exc)
             self._fallback.delete(room_id)
+
+    def list_live_ids(self) -> List[str]:
+        try:
+            ids = self._r.smembers(self._index)
+            return sorted(ids) if ids else []
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("redis live-room index failed (%s); using in-memory", exc)
+            return self._fallback.list_live_ids()
 
 
 def build_live_room_backend() -> LiveRoomBackend:
