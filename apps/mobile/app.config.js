@@ -33,6 +33,9 @@ module.exports = ({ config }) => {
           deploymentTarget: "13.4",
         },
         android: {
+          // LiveKit (@livekit/react-native m137) requires Android minSdk 24;
+          // Expo SDK 51 default is 23 -> manifest merger fails without this.
+          minSdkVersion: 24,
           // Local Vultr HTTP + Android emulator dev client (not valid in app.json schema).
           usesCleartextTraffic: true,
         },

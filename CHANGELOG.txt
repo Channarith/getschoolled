@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-07 - EAS build repair (both platforms): fix LiveKit native build
+  failures. Android manifest merger failed (minSdkVersion 23 < 24 required by
+  @livekit/react-native) -> set expo-build-properties android.minSdkVersion=24.
+  iOS archive failed to compile @livekit/react-native-webrtc (WebRTCModule.m
+  called RTCPeerConnectionFactory initWithBypassVoiceProcessing:...:
+  audioProcessingModule: absent from the pinned WebRTC-SDK 125.6422.07 binary —
+  a self-inconsistent 125.x line under Xcode 26/iOS SDK 26.2). Upgraded LiveKit
+  to the m137 set: @livekit/react-native 2.4.3->2.9.8,
+  @livekit/react-native-webrtc 125.0.8->137.0.3 (pins WebRTC-SDK 137.7151.09,
+  matching source selector), livekit-client 2.7.4->2.15.16. Updated
+  apps/mobile/pnpm-lock.yaml. No app code changes (registerGlobals/VideoView/
+  Room API stable across 2.4->2.9).
 - 2026-07-07 - Optional follow-ups (v0.13.3): live-room virtual gifts spend/credit
   via identity /rewards when signed in; AdSense web AdSlot (next/script) + AdMob
   banner on mobile home (tier-gated, Google test IDs in dev); mobile typecheck CI

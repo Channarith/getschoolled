@@ -21,11 +21,11 @@ importers:
         specifier: ^14.0.0
         version: 14.1.0(expo-font@12.0.10(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
       '@livekit/react-native':
-        specifier: 2.4.3
-        version: 2.4.3(@livekit/react-native-webrtc@125.0.8(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)))(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)(tslib@2.8.1)
+        specifier: 2.9.8
+        version: 2.9.8(@livekit/react-native-webrtc@137.0.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)))(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)(tslib@2.8.1)
       '@livekit/react-native-webrtc':
-        specifier: 125.0.8
-        version: 125.0.8(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
+        specifier: 137.0.3
+        version: 137.0.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
       '@react-native-async-storage/async-storage':
         specifier: 1.23.1
         version: 1.23.1(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
@@ -81,8 +81,8 @@ importers:
         specifier: ~3.0.7
         version: 3.0.7(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
       livekit-client:
-        specifier: 2.7.4
-        version: 2.7.4
+        specifier: 2.15.16
+        version: 2.15.16(@types/dom-mediacapture-record@1.0.22)
       react:
         specifier: 18.2.0
         version: 18.2.0
@@ -1036,22 +1036,23 @@ packages:
       '@livekit/krisp-noise-filter':
         optional: true
 
-  '@livekit/mutex@1.0.0':
-    resolution: {integrity: sha512-aiUhoThBNF9UyGTxEURFzJLhhPLIVTnQiEVMjRhPnfHNKLfo2JY9xovHKIus7B78UD5hsP6DlgpmAsjrz4U0Iw==}
+  '@livekit/mutex@1.1.1':
+    resolution: {integrity: sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==}
 
-  '@livekit/protocol@1.29.3':
-    resolution: {integrity: sha512-5La/pm2LsSeCbm7xNe/TvHGYu7uVwDpLrlycpgo5nzofGq/TH67255vS8ni/1Y7vrFuAI8VYG/s42mcC1UF6tQ==}
+  '@livekit/protocol@1.42.2':
+    resolution: {integrity: sha512-0jeCwoMJKcwsZICg5S6RZM4xhJoF78qMvQELjACJQn6/VB+jmiySQKOSELTXvPBVafHfEbMlqxUw2UR1jTXs2g==}
 
-  '@livekit/react-native-webrtc@125.0.8':
-    resolution: {integrity: sha512-aJzU54WgpXutf1XtJuo58eQg596oc1Uy801W2mnEQbC7zFycDmgz5jJ6iiZ/IyStyIr94P4OJKbMjQKylu55/A==}
+  '@livekit/react-native-webrtc@137.0.3':
+    resolution: {integrity: sha512-vfg2w/lMLNIRsIkRO0HWo6aTzkpCiBsgtHuvuIf3QF2pMgCK1w206nmrb4ATlv7v0Xu8e+/q/22gBRdsyIV4Aw==}
     peerDependencies:
       react-native: '>=0.60.0'
 
-  '@livekit/react-native@2.4.3':
-    resolution: {integrity: sha512-GY8O4geyelK4+4aqpvIxgDCdVIw+ksfMgSpXuQ9Mz5nfgDYXl5LoNvsehIkpNsv8OQvH5WiWESTLJ7NwTz2q8w==}
-    engines: {node: '>=18'}
+  '@livekit/react-native@2.9.8':
+    resolution: {integrity: sha512-LWSnl1XreTXY0Ostn94DRjLisO/yu/gE0Negs50jEBPbfCoXOpAzdcY7zjvePaArub4ktH3QMxcJ5YR03PTllQ==}
+    engines: {node: '>=20'}
     peerDependencies:
-      '@livekit/react-native-webrtc': ^125.0.5
+      '@livekit/react-native-webrtc': ^137.0.3
+      livekit-client: ^2.15.8
       react: '*'
       react-native: '*'
 
@@ -1213,6 +1214,9 @@ packages:
 
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
+
+  '@types/dom-mediacapture-record@1.0.22':
+    resolution: {integrity: sha512-mUMZLK3NvwRLcAAT9qmcK+9p7tpU2FHdDsntR3YI4+GY88XrgG4XiE7u1Q2LAN2/FZOz/tdMDC3GQCR4T8nFuw==}
 
   '@types/istanbul-lib-coverage@2.0.6':
     resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
@@ -2005,10 +2009,6 @@ packages:
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
-
-  event-target-shim@6.0.2:
-    resolution: {integrity: sha512-8q3LsZjRezbFZ2PN+uP+Q7pnHUMmAOziU2vA2OwoFaKIXxlxl38IylhSSgUorWu/rf4er67w0ikBqjBFk/pomA==}
-    engines: {node: '>=10.13.0'}
 
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
@@ -2852,8 +2852,10 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  livekit-client@2.7.4:
-    resolution: {integrity: sha512-7xAetJjwt/L+M5XZs9lg5giAGtu4I4wiKvAPmhKLX6qu/Tx2XMTUNkIR6pmiRFcFXNbkIWphtGw4DATOQu0GRg==}
+  livekit-client@2.15.16:
+    resolution: {integrity: sha512-i4cDjlI7W5a7hiBjt3WeOzWwxRNx0ej2spq/JFQarXuvC1t3BbIAY5oOi61VIOHyU5nEQa83YAcKfoP6AeVUJg==}
+    peerDependencies:
+      '@types/dom-mediacapture-record': ^1
 
   locate-path@3.0.0:
     resolution: {integrity: sha512-7AO748wWnIhNqAuaty2ZWHkQHRSNfPVIsPIfwEOWO22AmaoVrWavlOcMR5nzTLNYvp36X220/maaRsrec1G65A==}
@@ -4029,9 +4031,6 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
-  tslib@2.7.0:
-    resolution: {integrity: sha512-gLXCKdN1/j47AiHiOkJN69hJmcbGTHI0ImLmbYLHykhgeN0jVGola9yVjFgzCUklsZQMW55o+dW7IXv3RCXDzA==}
-
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -4212,6 +4211,10 @@ packages:
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
+
+  web-streams-polyfill@4.3.0:
+    resolution: {integrity: sha512-/Gnggvj9oSrEvJbDyyPtAnxBt5fGQM2iWOKQNu7ie1OxDgK40iZpyV3TKaRiEzVj1oA1UxKnEy9XPXh6PW3eVw==}
+    engines: {node: '>= 8'}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -5712,52 +5715,56 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@livekit/components-core@0.12.13(livekit-client@2.7.4)(tslib@2.8.1)':
+  '@livekit/components-core@0.12.13(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(tslib@2.8.1)':
     dependencies:
       '@floating-ui/dom': 1.7.4
-      livekit-client: 2.7.4
+      livekit-client: 2.15.16(@types/dom-mediacapture-record@1.0.22)
       loglevel: 1.9.1
       rxjs: 7.8.2
       tslib: 2.8.1
 
-  '@livekit/components-react@2.9.21(livekit-client@2.7.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(tslib@2.8.1)':
+  '@livekit/components-react@2.9.21(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(tslib@2.8.1)':
     dependencies:
-      '@livekit/components-core': 0.12.13(livekit-client@2.7.4)(tslib@2.8.1)
+      '@livekit/components-core': 0.12.13(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(tslib@2.8.1)
       clsx: 2.1.1
       events: 3.3.0
       jose: 6.2.3
-      livekit-client: 2.7.4
+      livekit-client: 2.15.16(@types/dom-mediacapture-record@1.0.22)
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       tslib: 2.8.1
       usehooks-ts: 3.1.1(react@18.2.0)
 
-  '@livekit/mutex@1.0.0': {}
+  '@livekit/mutex@1.1.1': {}
 
-  '@livekit/protocol@1.29.3':
+  '@livekit/protocol@1.42.2':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
 
-  '@livekit/react-native-webrtc@125.0.8(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))':
+  '@livekit/react-native-webrtc@137.0.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))':
     dependencies:
       base64-js: 1.5.1
       debug: 4.3.4
-      event-target-shim: 6.0.2
       react-native: 0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)
     transitivePeerDependencies:
       - supports-color
 
-  '@livekit/react-native@2.4.3(@livekit/react-native-webrtc@125.0.8(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)))(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)(tslib@2.8.1)':
+  '@livekit/react-native@2.9.8(@livekit/react-native-webrtc@137.0.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)))(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(react-dom@18.2.0(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)(tslib@2.8.1)':
     dependencies:
-      '@livekit/components-react': 2.9.21(livekit-client@2.7.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(tslib@2.8.1)
-      '@livekit/react-native-webrtc': 125.0.8(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
+      '@livekit/components-react': 2.9.21(livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(tslib@2.8.1)
+      '@livekit/mutex': 1.1.1
+      '@livekit/react-native-webrtc': 137.0.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
       array.prototype.at: 1.1.3
-      livekit-client: 2.7.4
+      base64-js: 1.5.1
+      events: 3.3.0
+      livekit-client: 2.15.16(@types/dom-mediacapture-record@1.0.22)
       loglevel: 1.9.2
       promise.allsettled: 1.0.7
       react: 18.2.0
       react-native: 0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0)
       react-native-url-polyfill: 1.3.0(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
+      typed-emitter: 2.1.0
+      web-streams-polyfill: 4.3.0
       well-known-symbols: 4.1.0
     transitivePeerDependencies:
       - '@livekit/krisp-noise-filter'
@@ -6134,6 +6141,8 @@ snapshots:
   '@sinonjs/fake-timers@10.3.0':
     dependencies:
       '@sinonjs/commons': 3.0.1
+
+  '@types/dom-mediacapture-record@1.0.22': {}
 
   '@types/istanbul-lib-coverage@2.0.6': {}
 
@@ -7010,8 +7019,6 @@ snapshots:
   etag@1.8.1: {}
 
   event-target-shim@5.0.1: {}
-
-  event-target-shim@6.0.2: {}
 
   events@3.3.0: {}
 
@@ -7961,15 +7968,17 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  livekit-client@2.7.4:
+  livekit-client@2.15.16(@types/dom-mediacapture-record@1.0.22):
     dependencies:
-      '@livekit/mutex': 1.0.0
-      '@livekit/protocol': 1.29.3
+      '@livekit/mutex': 1.1.1
+      '@livekit/protocol': 1.42.2
+      '@types/dom-mediacapture-record': 1.0.22
       events: 3.3.0
+      jose: 6.2.3
       loglevel: 1.9.2
       sdp-transform: 2.15.0
       ts-debounce: 4.0.0
-      tslib: 2.7.0
+      tslib: 2.8.1
       typed-emitter: 2.1.0
       webrtc-adapter: 9.0.6
 
@@ -9316,8 +9325,6 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tslib@2.7.0: {}
-
   tslib@2.8.1: {}
 
   type-detect@4.0.8: {}
@@ -9484,6 +9491,8 @@ snapshots:
   wcwidth@1.0.1:
     dependencies:
       defaults: 1.0.4
+
+  web-streams-polyfill@4.3.0: {}
 
   webidl-conversions@3.0.1: {}
 
