@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-09 - Mobile branding: replaced app logo assets with the NVIDIA logo
+  (app icon, Android adaptive foreground, splash source, in-app Home hero mark).
+  Regenerated salareen_icon_1024 / salareen_adaptive_fg_1024 / salareen_mark_256
+  as the full logo centered on a black square; switched splash and adaptive icon
+  backgroundColor to #000000 so the logo's black background blends seamlessly.
 - 2026-07-08 - Mobile web parity: rewards/points economy + arcade leaderboard;
   full ClassRoom (re-engage, adaptive quiz, pulse/post-class surveys, finish
   rewards); account management (password reset, 2FA, billing, multi-learner
