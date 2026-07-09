@@ -1,0 +1,53 @@
+# Synthetic monitor: probes salareen.com every 30 minutes and opens a GitHub issue on degradation.
+name: Synthetic Monitor
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to probe (default: https://salareen.com)"
+        required: false
+        default: "https://salareen.com"
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run synthetic monitor
+        id: monitor
+        env:
+          BASE_URL: ${{ inputs.base_url || 'https://salareen.com' }}
+        run: bash scripts/synthetic_monitor.sh
+        continue-on-error: true
+      - name: Open degradation issue
+        if: steps.monitor.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_URL: ${{ inputs.base_url || 'https://salareen.com' }}
+        run: |
+          TITLE="Synthetic monitor DEGRADED — $(date -u +%Y-%m-%d)"
+          # Only open one issue per day to avoid spam
+          EXISTING=$(gh issue list --label "synthetic-monitor" --state open --json title --jq ".[].title" | grep -F "$TITLE" || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Issue already open for today, skipping."
+            exit 0
+          fi
+          gh issue create \
+            --title "$TITLE" \
+            --label "synthetic-monitor,P1" \
+            --body "## Synthetic Monitor Alert
+
+Production health check failed at $(date -u --iso-8601=seconds).
+
+Base URL: $BASE_URL
+
+Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+**Action required:** Investigate service health at $BASE_URL"
