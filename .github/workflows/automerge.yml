@@ -10,6 +10,9 @@ name: Auto-merge
 #  - If branch protection on `main` requires reviews, either remove that
 #    requirement or this job cannot merge (it would need an approval).
 #
+# IMPORTANT: Branch protection on main must now require: CI checks + 1 approving review.
+# See: Settings > Branches > main > Branch protection rules
+#
 # To auto-merge ONLY your own / agent branches instead of every PR, narrow the
 # `if:` condition in the `automerge` job (see the commented example below).
 
@@ -65,8 +68,8 @@ jobs:
 
           # Keep the merged branch (no --delete-branch) so merged PRs stay
           # visible for release tracking/monitoring.
+          # Note: automerge now respects branch protection rules (no --admin bypass).
           echo "Auto-merging PR #$PR_NUMBER (squash) ..."
           gh pr merge "$PR_NUMBER" \
             --repo "$REPO" \
-            --squash \
-            --admin
+            --squash
