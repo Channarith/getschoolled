@@ -802,6 +802,15 @@ class RegisterRequest(BaseModel):
     email: str = ""
 
 
+class LiveRoomLocation(BaseModel):
+    """Client-reported geo for room discovery (Bigo-style browse)."""
+    country: str = ""
+    state: str = ""
+    city: str = ""
+    latitude: float = 0.0
+    longitude: float = 0.0
+
+
 @app.get("/api/group-classes")
 def list_group_classes(upcoming: bool = True) -> dict:
     from aoep_shared.group_classes import ensure_standard_daily_classes
@@ -858,7 +867,10 @@ def group_class_calendar(class_id: str, name: str = "", email: str = "") -> Resp
 
 
 @app.post("/api/group-classes/{class_id}/start")
-def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
+def start_group_class(
+    class_id: str,
+    req: LiveRoomLocation = LiveRoomLocation(),
+) -> dict:  # noqa: F811 (overrides nothing)
     """Go live: create the teaching session and return the meeting bridge plan.
 
     The AI's coursework runs as a normal teaching session; the returned
@@ -895,6 +907,12 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
             slide_title=slide.title,
             slide_body=slide.body,
             slide_narration=slide.narration,
+            country=req.country,
+            state=req.state,
+            city=req.city,
+            latitude=req.latitude,
+            longitude=req.longitude,
+            creator_name=gc.host or "Salareen",
         )
         moderator_key = live.moderator_key
 
@@ -1003,6 +1021,13 @@ class LiveRoomFollowRequest(BaseModel):
     unfollow: bool = False
 
 
+class CreateLiveRoomRequest(BaseModel):
+    title: str
+    creator_name: str
+    room_size: int = 6
+    location: LiveRoomLocation = LiveRoomLocation()
+
+
 def _live_room_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, KeyError):
         return HTTPException(status_code=404, detail="unknown live room")
@@ -1013,6 +1038,67 @@ def _live_room_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, LiveRoomError):
         return HTTPException(status_code=400, detail=str(exc))
     raise exc
+
+
+@app.get("/api/live-rooms")
+def list_live_rooms(
+    lat: float = 0.0,
+    lng: float = 0.0,
+    radius_km: float = 0.0,
+    country: str = "",
+    city: str = "",
+    grouped: bool = True,
+) -> dict:
+    """Discover live Salareen rooms — flat list or grouped by country/state/city."""
+    from aoep_shared.live_room_discovery import (  # noqa: E402
+        group_rooms_by_location,
+        room_listing_dict,
+    )
+
+    store = _live_rooms()
+    rooms = store.list_live(
+        lat=lat,
+        lng=lng,
+        radius_km=radius_km,
+        country=country,
+        city=city,
+    )
+    cards = [room_listing_dict(r, viewer_lat=lat, viewer_lng=lng) for r in rooms]
+    out: dict = {"rooms": cards, "total": len(cards)}
+    if grouped:
+        out["groups"] = group_rooms_by_location(rooms)
+    return out
+
+
+@app.post("/api/live-rooms")
+def create_live_room(
+    req: CreateLiveRoomRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    """Instant Salareen room — appears in the discovery feed for other users."""
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+    from aoep_shared.live_room_discovery import room_listing_dict  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    loc = req.location
+    store = _live_rooms()
+    try:
+        room = store.create_user_room(
+            title=req.title.strip() or "Salareen Live",
+            creator_name=req.creator_name.strip() or "Host",
+            creator_account_id=account_id,
+            room_size=req.room_size,
+            country=loc.country,
+            state=loc.state,
+            city=loc.city,
+            latitude=loc.latitude,
+            longitude=loc.longitude,
+        )
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    listing = room_listing_dict(room)
+    listing["moderator_key"] = room.moderator_key
+    return {"room": room.to_dict(), "listing": listing}
 
 
 @app.get("/api/live-rooms/{room_id}")

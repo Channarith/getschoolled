@@ -2,6 +2,66 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-09 - Mobile branding: replaced app logo assets with the NVIDIA logo
+  (app icon, Android adaptive foreground, splash source, in-app Home hero mark).
+  Regenerated salareen_icon_1024 / salareen_adaptive_fg_1024 / salareen_mark_256
+  as the full logo centered on a black square; switched splash and adaptive icon
+  backgroundColor to #000000 so the logo's black background blends seamlessly.
+- 2026-07-08 - Mobile web parity: rewards/points economy + arcade leaderboard;
+  full ClassRoom (re-engage, adaptive quiz, pulse/post-class surveys, finish
+  rewards); account management (password reset, 2FA, billing, multi-learner
+  profiles); browse-without-login preview mode; language practice suite;
+  host scheduling UI for group classes. Drive Mode Q&A unchanged (local keyword
+  search, same as web).
+- 2026-07-08 - Mobile UX + live class parity: enlarged bottom tab bar (28px icons,
+  56px min touch targets, larger labels) and horizontal swipe between tabs via
+  SwipeTabContainer. New Live Class screen (solo 1:1 + group) wired to
+  POST /api/sessions with class_type; home hero "Live 1:1 Class" entry; LessonScreen
+  shows class badge and passes classType. Placeholder fixes: sync learner
+  studentId from identity on login + survey; notifications screen shows scheduled
+  local alert count; leaveLiveRoom called when exiting a Salareen live room.
+- 2026-07-07 - Mobile login: added a show/hide password toggle (eye icon) on the
+  auth screen password field. Wrapped the TextInput in a row with an Ionicons
+  eye-outline/eye-off-outline Pressable that flips secureTextEntry; new i18n
+  keys auth.showPassword / auth.hidePassword (English + fallback).
+- 2026-07-07 - Mobile intro splash: replaced the static logo+ring with a
+  beat-synced dancing cartoon (Bayon Buddy). New self-contained beat engine
+  (120 BPM) drives per-beat bounce + squash/stretch + left/right dance steps,
+  an elastic pop, a pulsing beat ring, a live equalizer, floating music-note /
+  sparkle particles, and spinning disco blobs; continuous breathing bob keeps
+  it alive between beats. Engine starts with the jingle and degrades gracefully
+  (still dances) if audio fails. Native-driver animations throughout.
+- 2026-07-07 - Live room discovery by location (Bigo-style): Salareen rooms
+  are now discoverable across users. Added geo fields on LiveRoom (country,
+  state, city, lat/lng, creator), live-room index in backend (memory + Redis),
+  GET /api/live-rooms (flat + grouped by country/state/city, optional nearby
+  radius filter), POST /api/live-rooms (instant go-live room). Group-class start
+  accepts location body. Mobile: Live Nearby screen (browse grouped rooms, Go
+  Live, pull-to-refresh), home entry, expo-location reverse-geocode helper;
+  join/start passes GPS so others can find the room after refresh.
+- 2026-07-07 - Mobile live room 404 fix: entering a Salareen Live Room for a
+  group class that hadn't been started yet showed "404 Not Found" — the room id
+  (class-<id>) only exists on the server after open_room (class start), and
+  join/getLiveRoom never auto-create. Now GroupClasses opens the room first when
+  a learner taps Join on a not-yet-live Salareen class (idempotent start, joined
+  as a learner not moderator); LiveRoomScreen also self-heals by opening the
+  class then retrying join on a 404, and shows a human message instead of a raw
+  404 while a room isn't open yet.
+- 2026-07-07 - Mobile Potion Lab (feature parity with web): the real-time
+  chemistry arcade game (build molecules by catching atoms; bacteria lose points,
+  bombs end the run; age-scaled difficulty kids/tween/teen/adult) was web-only.
+  Ported it to React Native (apps/mobile/src/screens/PotionLab.tsx) and wired it
+  into the arcade GameScreen — a "Potion Lab" mode chip now appears for the
+  chemistry subject and launches the real-time game. High score persists via
+  AsyncStorage. Added game.potionLab/game.potionTip i18n keys.
+- 2026-07-07 - iOS TestFlight launch-crash fix: the app threw an uncaught
+  exception at startup (Salareen 0.13.4, unsymbolicated objc_exception_throw).
+  Root cause: @livekit/react-native 2.9.8 runs polyfills + WebRTC global setup at
+  IMPORT time, and App.tsx -> LiveRoomScreen -> LiveKitParticipantTile imported it
+  statically, so all of that executed during launch. Made LiveKit load lazily
+  (runtime require only when a participant tile mounts in a live room; types via
+  import type), guarded so a load failure degrades to the emoji fallback instead
+  of crashing. No launch-path LiveKit/WebRTC execution anymore.
 - 2026-07-07 - EAS build repair (both platforms): fix LiveKit native build
   failures. Android manifest merger failed (minSdkVersion 23 < 24 required by
   @livekit/react-native) -> set expo-build-properties android.minSdkVersion=24.

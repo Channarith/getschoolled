@@ -4,14 +4,16 @@ import {
 } from "react-native";
 
 import {
-  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
+  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomUnban,
+  startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
+import { getLiveRoomLocation } from "../liveRoomLocation";
 import { useLiveRoomSocket } from "../liveRoomWs";
 import { theme } from "../theme";
 
@@ -50,8 +52,14 @@ export default function LiveRoomScreen({
   const refresh = async () => {
     try {
       setRoom(await getLiveRoom(roomId, modKey));
+      setError("");
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      // Room not open yet (never started, or the server was restarted). Show a
+      // human message instead of a raw "404 Not Found"; joining will (re)open it.
+      setError(msg.includes("404") || msg.toLowerCase().includes("unknown live room")
+        ? "This class hasn't started yet — tap Enter room to open it."
+        : msg);
     }
   };
 
@@ -81,7 +89,22 @@ export default function LiveRoomScreen({
     setError("");
     try {
       const ident = STORAGE[roomId]?.identity || `mobile-${name.trim().toLowerCase()}`;
-      const joined = await joinLiveRoom(roomId, name.trim(), ident);
+      let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
+      try {
+        joined = await joinLiveRoom(roomId, name.trim(), ident);
+      } catch (joinErr) {
+        // Room not open yet: for a group-class room (`class-<id>`) open it first
+        // (idempotent server-side), then retry the join once so entering works.
+        const msg = (joinErr as Error).message;
+        const is404 = msg.includes("404") || msg.toLowerCase().includes("unknown live room");
+        if (is404 && roomId.startsWith("class-")) {
+          const geo = await getLiveRoomLocation();
+          await startGroupClass(roomId.slice("class-".length), geo);
+          joined = await joinLiveRoom(roomId, name.trim(), ident);
+        } else {
+          throw joinErr;
+        }
+      }
       setParticipantId(joined.participant.id);
       setIdentity(joined.participant.identity);
       setMedia(joined.media ?? null);
@@ -116,12 +139,19 @@ export default function LiveRoomScreen({
     (e) => e.participant_id === participantId && e.status === "waiting"
   )?.position ?? 0;
 
+  const leaveAndBack = () => {
+    if (participantId) {
+      void leaveLiveRoom(roomId, participantId).catch(() => undefined);
+    }
+    onBack();
+  };
+
   if (wasBlocked) {
     return (
       <View style={styles.wrap}>
         <Text style={styles.title}>Removed from class</Text>
         <Text style={styles.meta}>You were blocked from this live room.</Text>
-        <PrimaryButton label="Back" onPress={onBack} />
+        <PrimaryButton label="Back" onPress={leaveAndBack} />
       </View>
     );
   }
@@ -172,7 +202,7 @@ export default function LiveRoomScreen({
       </View>
 
       <View style={styles.header}>
-        <PrimaryButton label="← Leave" onPress={onBack} variant="ghost" />
+        <PrimaryButton label="← Leave" onPress={leaveAndBack} variant="ghost" />
         <Text style={styles.title} numberOfLines={1}>{room?.title ?? "Live class"}</Text>
       </View>
       <Text style={styles.meta}>

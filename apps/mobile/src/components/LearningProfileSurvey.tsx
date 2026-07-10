@@ -12,7 +12,7 @@ import {
 import AnimatedPressable from "./AnimatedPressable";
 import GlassPanel from "./GlassPanel";
 import PrimaryButton from "./PrimaryButton";
-import { getToken } from "../storage";
+import { getToken, setSettings } from "../storage";
 import { theme } from "../theme";
 
 type Props = {
@@ -118,6 +118,7 @@ export default function LearningProfileSurvey({
 
     setAccountId(me.id);
     setStudentId(primary.id);
+    void setSettings({ studentId: primary.id });
     setTemplate(survey.template);
     setAnswers(primary.onboarding_completed_at ? answersFromProfile(primary) : {});
     setDoneCategory("");

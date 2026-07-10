@@ -1,10 +1,10 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL } from "./config";
 import { getToken } from "./storage";
 
-export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL };
+export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL };
 
 export type AudioCourseRow = {
   id: string; title: string; category: string; subject: string; level: string;
@@ -286,13 +286,78 @@ export async function signup(email: string, password: string, displayName: strin
   });
 }
 
-export async function login(email: string, password: string):
-  Promise<{ token: string; account: Account }> {
+export type LoginResult =
+  | { token: string; account: Account }
+  | { requires_2fa: true; mfa_token: string };
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   return get(IDENTITY_URL, "/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
+}
+
+export async function verify2faLogin(mfaToken: string, code: string):
+  Promise<{ token: string; account: Account }> {
+  return get(IDENTITY_URL, "/auth/2fa/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mfa_token: mfaToken, code }),
+  });
+}
+
+export async function forgotPassword(email: string): Promise<{ sent: boolean; reset_token?: string }> {
+  return get(IDENTITY_URL, "/auth/forgot-password", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<{ reset: boolean }> {
+  return get(IDENTITY_URL, "/auth/reset-password", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+export async function changePassword(current: string, next: string): Promise<{ changed: boolean }> {
+  return get(IDENTITY_URL, "/auth/password", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ current_password: current, new_password: next }),
+  });
+}
+
+export async function setup2fa(): Promise<{ secret: string; otpauth_uri: string }> {
+  return get(IDENTITY_URL, "/auth/2fa/setup", {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function confirm2fa(code: string): Promise<{ enabled: boolean }> {
+  return get(IDENTITY_URL, "/auth/2fa/confirm", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disable2fa(code: string): Promise<{ enabled: boolean }> {
+  return get(IDENTITY_URL, "/auth/2fa/disable", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getSecuritySummary(): Promise<{
+  totp_enabled: boolean; passkeys: number; oauth_linked: string[]; recent_logins: number;
+}> {
+  return get(IDENTITY_URL, "/auth/security", { headers: authHeaders() });
 }
 
 export async function getMe(): Promise<Account> {
@@ -412,6 +477,49 @@ export type ScheduleGroupClassInput = {
   language?: string;
 };
 
+export type LiveRoomGeo = {
+  country: string;
+  state: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type LiveRoomListing = {
+  room_id: string;
+  title: string;
+  status: string;
+  room_size: number;
+  learner_count: number;
+  seats_left: number;
+  viewer_count: number;
+  opened_at: string;
+  host_name: string;
+  creator_name: string;
+  country: string;
+  state: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  distance_km?: number | null;
+  class_id?: string;
+  moderator_key?: string;
+};
+
+export type LiveRoomBrowse = {
+  rooms: LiveRoomListing[];
+  total: number;
+  groups?: {
+    country: string;
+    count: number;
+    states: {
+      state: string;
+      count: number;
+      cities: { city: string; count: number; rooms: LiveRoomListing[] }[];
+    }[];
+  }[];
+};
+
 export type LiveRoomState = {
   room_id: string;
   title: string;
@@ -475,10 +583,51 @@ export async function registerGroupClass(
   });
 }
 
-export async function startGroupClass(classId: string): Promise<GroupClassStart> {
+export async function startGroupClass(
+  classId: string,
+  location?: LiveRoomGeo,
+): Promise<GroupClassStart> {
   return get(ORCHESTRATOR_URL, `/api/group-classes/${encodeURIComponent(classId)}/start`, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    body: JSON.stringify(location ?? {}),
+  });
+}
+
+export async function listLiveRooms(opts?: {
+  lat?: number;
+  lng?: number;
+  radius_km?: number;
+  country?: string;
+  city?: string;
+  grouped?: boolean;
+}): Promise<LiveRoomBrowse> {
+  const q = new URLSearchParams();
+  if (opts?.lat) q.set("lat", String(opts.lat));
+  if (opts?.lng) q.set("lng", String(opts.lng));
+  if (opts?.radius_km) q.set("radius_km", String(opts.radius_km));
+  if (opts?.country) q.set("country", opts.country);
+  if (opts?.city) q.set("city", opts.city);
+  if (opts?.grouped === false) q.set("grouped", "false");
+  const qs = q.toString();
+  return get(ORCHESTRATOR_URL, `/api/live-rooms${qs ? `?${qs}` : ""}`);
+}
+
+export async function createLiveRoom(
+  title: string,
+  creatorName: string,
+  location?: LiveRoomGeo,
+  roomSize = 6,
+): Promise<{ room: LiveRoomState; listing: LiveRoomListing }> {
+  return get(ORCHESTRATOR_URL, "/api/live-rooms", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      title,
+      creator_name: creatorName,
+      room_size: roomSize,
+      location: location ?? {},
+    }),
   });
 }
 
@@ -562,13 +711,17 @@ export type LessonAnswer = {
 };
 
 export function startLessonSession(
-  lessonId: string, studentId?: string,
+  lessonId: string,
+  studentId?: string,
+  classType: "solo" | "group" = "group",
 ): Promise<LessonSessionView> {
   return get<LessonSessionView>(ORCHESTRATOR_URL, "/api/sessions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      lesson_id: lessonId, class_type: "group", student_id: studentId ?? null,
+      lesson_id: lessonId,
+      class_type: classType,
+      student_id: studentId ?? null,
     }),
   });
 }
@@ -612,6 +765,15 @@ export async function joinLiveRoom(roomId: string, name: string, identity = ""):
     headers: { "content-type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, identity }),
   });
+}
+
+export async function leaveLiveRoom(roomId: string, participantId: string): Promise<LiveRoomState> {
+  return get<LiveRoomState>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    });
 }
 
 export async function liveRoomChat(roomId: string, participantId: string, text: string): Promise<LiveRoomState> {
@@ -783,4 +945,288 @@ export async function liveRoomFollowHost(
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ identity, unfollow }),
   });
+}
+
+// --- Rewards, enrollment, classroom, languages, billing (web parity) --- //
+
+export type LedgerEntry = { delta: number; reason: string; ref: string; ts: number };
+export type Redemption = {
+  prize_id: string; kind: string; cost_points: number;
+  voucher_code: string | null; percent: number | null;
+  raffle_entry_id: string | null; detail: Record<string, unknown>;
+};
+export type RewardsSummary = { balance: number; ledger: LedgerEntry[]; redemptions: Redemption[] };
+export type RewardPrize = {
+  id: string; name: string; kind: string; kind_label?: string;
+  cost_points: number; detail: Record<string, unknown>;
+};
+export type Leader = {
+  rank: number; name: string; score: number; game_points: number; games_played: number;
+};
+export type Enrollment = {
+  course_id: string; title: string; status: string; enrolled_at?: number;
+};
+export type Portfolio = {
+  account: Account; students: StudentProfile[];
+  enrollments: Enrollment[]; points_balance: number;
+};
+export type ConsumerPlan = {
+  tier: string; display_name: string; price_usd: number;
+  billing_interval: string; ads: boolean; blurb: string;
+};
+export type Subscription = {
+  tier: string; status: string; current_period_end?: string | null;
+};
+export type QuizItemView = {
+  item_id: string; prompt: string; options: string[];
+  answer_index: number; difficulty?: string; topic?: string;
+};
+export type QuizGrade = {
+  correct: boolean; explanation?: string; mastery_target?: number; difficulty?: string;
+};
+export type Reengagement = { text: string; citations: string[]; prompt?: string };
+export type LxTickResult = {
+  strategy?: string; pacing?: string; difficulty?: string; wellness_nudge?: string;
+};
+export type LangInfo = {
+  code: string; name: string; native: string; flag: string; tier: string; phrase_count: number;
+};
+export type LangSkill = { id: string; name: string; desc: string };
+export type LangCourse = {
+  code: string; name: string; native: string; flag: string; tier: string;
+  skills: LangSkill[]; phrase_count: number; grammar_tip: string; culture_note: string;
+};
+export type LangExercise = {
+  skill: string; language: string;
+  items?: { id: string; prompt: string; options: string[]; answer_index: number }[];
+  pairs?: { term: string; match: string }[];
+  target?: string; roman?: string; en?: string; mouth_tip?: string; tip?: string; note?: string;
+};
+export type Pronounce = {
+  score: number; stars: number; passed: boolean; target: string; heard: string;
+  missed_words: string[]; feedback: string; mouth_tip?: string;
+};
+
+export async function getRewards(): Promise<RewardsSummary> {
+  return get(IDENTITY_URL, "/rewards", { headers: authHeaders() });
+}
+
+export async function getRewardsCatalog(): Promise<{ prizes: RewardPrize[] }> {
+  return get(IDENTITY_URL, "/rewards/catalog");
+}
+
+export async function redeemReward(prizeId: string):
+  Promise<{ redemption: Redemption; balance: number }> {
+  return get(IDENTITY_URL, "/rewards/redeem", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ prize_id: prizeId }),
+  });
+}
+
+export async function grantReward(grant: string):
+  Promise<{ earned: number; balance: number; reason: string }> {
+  return get(IDENTITY_URL, "/rewards/grant", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ grant }),
+  });
+}
+
+export async function getLeaderboard(subject?: string, ageGroup?: string):
+  Promise<{ leaders: Leader[] }> {
+  const p = new URLSearchParams();
+  if (subject) p.set("subject", subject);
+  if (ageGroup) p.set("age_group", ageGroup);
+  const qs = p.toString();
+  return get(IDENTITY_URL, `/games/leaderboard${qs ? `?${qs}` : ""}`);
+}
+
+export async function enrollCourse(courseId: string, title: string, status = "enrolled"):
+  Promise<Enrollment> {
+  return get(IDENTITY_URL, "/enrollments", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ course_id: courseId, title, status }),
+  });
+}
+
+export async function setEnrollmentStatus(
+  courseId: string,
+  status: "enrolled" | "in_progress" | "passed" | "failed",
+  opts: { score?: number; level?: string; hands_on?: boolean } = {},
+): Promise<Enrollment & { points_balance: number }> {
+  return get(IDENTITY_URL, `/enrollments/${encodeURIComponent(courseId)}/status`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ status, ...opts }),
+  });
+}
+
+export async function getPortfolio(): Promise<Portfolio> {
+  return get(IDENTITY_URL, "/portfolio", { headers: authHeaders() });
+}
+
+export async function getConsumerPlans(): Promise<Record<string, ConsumerPlan>> {
+  return get(BILLING_URL, "/plans/consumer");
+}
+
+export async function getSubscription(): Promise<Subscription> {
+  return get(IDENTITY_URL, "/membership/subscription", { headers: authHeaders() });
+}
+
+export async function subscribeToPlan(tier: string): Promise<{
+  tier: string; membership_class: string; subscription: Subscription;
+}> {
+  return get(IDENTITY_URL, "/membership/subscribe", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tier }),
+  });
+}
+
+export async function setStudentMastery(
+  studentId: string, skill: string, value: number,
+): Promise<StudentProfile> {
+  return get(IDENTITY_URL, `/students/${encodeURIComponent(studentId)}/mastery`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ skill, value }),
+  });
+}
+
+export function reengageLessonSession(sessionId: string): Promise<Reengagement> {
+  return get(ORCHESTRATOR_URL, `/api/sessions/${encodeURIComponent(sessionId)}/reengage`, {
+    method: "POST",
+  });
+}
+
+export function getQuiz(args: {
+  topic: string; passages: string[]; studentId?: string;
+  classType?: string; maxItems?: number;
+}): Promise<{ items: QuizItemView[] }> {
+  return get(ORCHESTRATOR_URL, "/assessment/quiz", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      topic: args.topic,
+      passages: args.passages,
+      max_items: args.maxItems ?? 3,
+      student_id: args.studentId ?? null,
+      class_type: args.classType ?? "group",
+    }),
+  });
+}
+
+export function gradeQuiz(args: {
+  item: QuizItemView; chosenIndex: number; studentId?: string; topic?: string;
+}): Promise<QuizGrade> {
+  return get(ORCHESTRATOR_URL, "/assessment/grade", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      item_id: args.item.item_id,
+      options: args.item.options,
+      answer_index: args.item.answer_index,
+      chosen_index: args.chosenIndex,
+      difficulty: args.item.difficulty,
+      topic: args.topic ?? args.item.topic ?? "",
+      student_id: args.studentId ?? null,
+    }),
+  });
+}
+
+export function directorLxTick(body: Record<string, unknown>): Promise<LxTickResult> {
+  return get(ORCHESTRATOR_URL, "/director/lx-tick", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getPulseSurvey(
+  subject?: string, tier?: string,
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  const q = qs.toString();
+  return get(MEMORY_URL, `/survey/pulse${q ? `?${q}` : ""}`);
+}
+
+export async function submitPulseSurvey(payload: {
+  course_id: string; going_well: number; pace: string;
+  class_type?: string; student_id?: string | null; slide_index?: number;
+}): Promise<{ id: string; recorded: boolean }> {
+  return get(MEMORY_URL, "/survey/pulse", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getPostClassSurvey(
+  subject?: string, tier?: string,
+): Promise<{ enabled: boolean; template: SurveyTemplate | null }> {
+  const qs = new URLSearchParams();
+  if (subject) qs.set("subject", subject);
+  if (tier) qs.set("tier", tier);
+  const q = qs.toString();
+  return get(MEMORY_URL, `/survey/post-class${q ? `?${q}` : ""}`);
+}
+
+export async function submitPostClassSurvey(payload: {
+  course_id: string; overall: number; class_type?: string; subject?: string;
+  student_id?: string | null; clarity?: number | null; pace?: string | null;
+  would_recommend?: boolean | null; suggestion?: string;
+}): Promise<{ id: string; recorded: boolean }> {
+  return get(MEMORY_URL, "/survey/post-class", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; count: number }> {
+  return get(SPEECH_URL, "/learn/languages");
+}
+
+export async function getLangCourse(code: string): Promise<LangCourse> {
+  return get(SPEECH_URL, `/learn/${encodeURIComponent(code)}/course`);
+}
+
+export async function newLangExercise(language: string, skill: string, n = 5):
+  Promise<LangExercise> {
+  return get(SPEECH_URL, "/learn/exercise", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ language, skill, n }),
+  });
+}
+
+export async function pronounce(target: string, heard: string, mouthOpenness?: number):
+  Promise<Pronounce> {
+  return get(SPEECH_URL, "/learn/pronounce", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ target, heard, mouth_openness: mouthOpenness ?? null }),
+  });
+}
+
+export async function languagePractice(
+  language: string, skill: string, correct: number, total: number,
+): Promise<{ xp: number; balance: number }> {
+  return get(IDENTITY_URL, "/language/practice", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ language, skill, correct, total }),
+  });
+}
+
+export function groupClassCalendarUrl(classId: string, name = "", email = ""): string {
+  const p = new URLSearchParams();
+  if (name) p.set("name", name);
+  if (email) p.set("email", email);
+  const qs = p.toString();
+  return `${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/calendar.ics${qs ? `?${qs}` : ""}`;
 }

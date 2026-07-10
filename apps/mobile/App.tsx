@@ -1,11 +1,12 @@
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { Animated, I18nManager, SafeAreaView, StyleSheet, View } from "react-native";
+import { Animated, I18nManager, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
+import SwipeTabContainer from "./src/components/SwipeTabContainer";
 import { LocaleProvider, useT } from "./src/i18n";
 import { IntroSplashProvider } from "./src/introSplash";
 import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
@@ -18,9 +19,9 @@ import {
   subscribeDrivingStatus, type DrivingPhase, type DrivingStatus,
 } from "./src/drivingDetection";
 import {
-  getMyList, getReadIds, getSettings, listContinue,
+  getMyList, getReadIds, getSettings, getPreviewMode, listContinue, setPreviewMode,
 } from "./src/storage";
-import AuthScreen, { AuthLoadingScreen } from "./src/screens/AuthScreen";
+import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
 import CareersScreen from "./src/screens/CareersScreen";
@@ -30,12 +31,22 @@ import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
+import LiveClassScreen from "./src/screens/LiveClassScreen";
+import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
-import { getNotificationsFeed } from "./src/api";
+import RewardsScreen from "./src/screens/RewardsScreen";
+import AccountScreen from "./src/screens/AccountScreen";
+import SecurityScreen from "./src/screens/SecurityScreen";
+import BillingScreen from "./src/screens/BillingScreen";
+import LanguagesScreen from "./src/screens/LanguagesScreen";
+import SignInGate from "./src/components/SignInGate";
+import PrimaryButton from "./src/components/PrimaryButton";
+import { createStudent, getMe, getNotificationsFeed, listStudents } from "./src/api";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
+import { setSettings } from "./src/storage";
 
 export default function App() {
   return (
@@ -57,11 +68,19 @@ function AppInner() {
   const [browseCategory, setBrowseCategory] = useState<string>("");
   const [openCourseId, setOpenCourseId] = useState<string | null>(null);
   const [showGroupClasses, setShowGroupClasses] = useState(false);
+  const [showLiveClass, setShowLiveClass] = useState(false);
+  const [showLiveRooms, setShowLiveRooms] = useState(false);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
   const [liveModeratorKey, setLiveModeratorKey] = useState("");
   const [gameSubject, setGameSubject] = useState<string | null>(null);
+  const [showRewards, setShowRewards] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [showBilling, setShowBilling] = useState(false);
+  const [showLanguages, setShowLanguages] = useState(false);
+  const [previewMode, setPreviewModeState] = useState(false);
   const [activeLesson, setActiveLesson] = useState<
-    { id: string; title: string; preview?: string } | null
+    { id: string; title: string; preview?: string; classType?: "solo" | "group" } | null
   >(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [banner, setBanner] = useState<BannerPayload | null>(null);
@@ -69,6 +88,29 @@ function AppInner() {
   const [authEpoch, setAuthEpoch] = useState(0);
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
+  const inApp = authenticated || previewMode;
+
+  useEffect(() => {
+    void getPreviewMode().then(setPreviewModeState);
+  }, []);
+
+  async function enterGuestBrowse() {
+    await setPreviewMode(true);
+    setPreviewModeState(true);
+  }
+
+  async function exitPreviewToAuth() {
+    await setPreviewMode(false);
+    setPreviewModeState(false);
+  }
+
+  function requireAuth(action: () => void) {
+    if (authenticated) {
+      action();
+      return;
+    }
+    void exitPreviewToAuth();
+  }
 
   useEffect(() => {
     if (prevAuthStatusRef.current !== "authenticated" && authStatus === "authenticated") {
@@ -89,7 +131,8 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, showGroupClasses, liveRoomId, gameSubject, activeLesson, fade]);
+  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, liveRoomId, gameSubject,
+    activeLesson, showRewards, showAccount, showSecurity, showBilling, showLanguages, fade]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -155,8 +198,22 @@ function AppInner() {
     })();
   }, [drivingStatus.phase, t, authenticated]);
 
+  async function syncStudentProfile() {
+    try {
+      const { students } = await listStudents();
+      let id = students[0]?.id;
+      if (!id) {
+        const me = await getMe();
+        const created = await createStudent(me.display_name || me.email.split("@")[0]);
+        id = created.id;
+      }
+      if (id) await setSettings({ studentId: id });
+    } catch {}
+  }
+
   async function bootstrap() {
     installNotificationHandler();
+    void syncStudentProfile();
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
@@ -220,17 +277,62 @@ function AppInner() {
 
   // The Drive tab opens straight into the player when a courseId is set;
   // otherwise it falls back to the audio-courses browser.
-  const openCourse = (id: string) => { setOpenCourseId(id); setTab("drive"); };
+  const openCourse = (id: string) => {
+    if (!authenticated) {
+      void exitPreviewToAuth();
+      return;
+    }
+    setOpenCourseId(id);
+    setTab("drive");
+  };
   const openCategory = (category: string) => {
     setBrowseCategory(category); setOpenCourseId(null); setTab("drive");
   };
 
   const openGame = (subject: string) => setGameSubject(subject);
-  const openLesson = (id: string, title: string, preview?: string) =>
-    setActiveLesson({ id, title, preview });
+  const openLesson = (
+    id: string, title: string, preview?: string, classType: "solo" | "group" = "group",
+  ) => setActiveLesson({ id, title, preview, classType });
+
+  const onTabChange = (id: TabId) => {
+    if (id === "drive" && tab === "drive") setOpenCourseId(null);
+    setShowGroupClasses(false);
+    setShowLiveClass(false);
+    setShowLiveRooms(false);
+    setLiveRoomId(null);
+    setGameSubject(null);
+    setActiveLesson(null);
+    setShowRewards(false);
+    setShowAccount(false);
+    setShowSecurity(false);
+    setShowBilling(false);
+    setShowLanguages(false);
+    void refreshUnreadAndAlerts();
+    setTab(id);
+  };
+
+  const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
+    && !showLiveRooms && !gameSubject && !activeLesson
+    && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages;
 
   let screen: React.ReactNode = null;
-  if (gameSubject) {
+  if (showBilling) {
+    screen = <BillingScreen onBack={() => setShowBilling(false)} />;
+  } else if (showSecurity) {
+    screen = <SecurityScreen onBack={() => setShowSecurity(false)} />;
+  } else if (showAccount) {
+    screen = (
+      <AccountScreen
+        onBack={() => setShowAccount(false)}
+        onOpenSecurity={() => { setShowAccount(false); setShowSecurity(true); }}
+        onOpenBilling={() => { setShowAccount(false); setShowBilling(true); }}
+      />
+    );
+  } else if (showRewards) {
+    screen = <RewardsScreen onBack={() => setShowRewards(false)} />;
+  } else if (showLanguages) {
+    screen = <LanguagesScreen onBack={() => setShowLanguages(false)} />;
+  } else if (gameSubject) {
     screen = (
       <GameScreen subject={gameSubject} onBack={() => setGameSubject(null)} />
     );
@@ -240,6 +342,7 @@ function AppInner() {
         lessonId={activeLesson.id}
         title={activeLesson.title}
         preview={activeLesson.preview}
+        classType={activeLesson.classType}
         onBack={() => setActiveLesson(null)}
       />
     );
@@ -248,7 +351,28 @@ function AppInner() {
       <LiveRoomScreen
         roomId={liveRoomId}
         moderatorKey={liveModeratorKey}
-        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setLiveModeratorKey(""); }}
+        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setShowLiveRooms(false); setLiveModeratorKey(""); }}
+      />
+    );
+  } else if (showLiveRooms) {
+    screen = (
+      <LiveRoomsScreen
+        onOpenRoom={(id, modKey) => {
+          setLiveRoomId(id);
+          setLiveModeratorKey(modKey || "");
+          setShowLiveRooms(false);
+        }}
+        onBack={() => setShowLiveRooms(false)}
+      />
+    );
+  } else if (showLiveClass) {
+    screen = (
+      <LiveClassScreen
+        onStart={(id, title, classType) => {
+          setShowLiveClass(false);
+          setActiveLesson({ id, title, classType });
+        }}
+        onBack={() => setShowLiveClass(false)}
       />
     );
   } else if (showGroupClasses) {
@@ -269,16 +393,28 @@ function AppInner() {
         onOpenCategory={openCategory}
         onOpenCareers={() => setTab("careers")}
         onOpenGroupClasses={() => setShowGroupClasses(true)}
+        onOpenLiveClass={() => setShowLiveClass(true)}
+        onOpenLiveRooms={() => setShowLiveRooms(true)}
+        onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
+        onOpenRewards={() => requireAuth(() => setShowRewards(true))}
+        guestMode={!authenticated}
       />
     );
   } else if (tab === "drive") {
     screen = openCourseId
       ? (
-        <DriveModeScreen
-          courseId={openCourseId}
-          isDriving={drivingStatus.phase === "driving"}
-          onBack={() => setOpenCourseId(null)}
-        />
+        !authenticated ? (
+          <GuestFeatureGate
+            onBack={() => setOpenCourseId(null)}
+            onSignIn={() => void exitPreviewToAuth()}
+          />
+        ) : (
+          <DriveModeScreen
+            courseId={openCourseId}
+            isDriving={drivingStatus.phase === "driving"}
+            onBack={() => setOpenCourseId(null)}
+          />
+        )
       )
       : (
         <AudioCoursesScreen
@@ -305,6 +441,12 @@ function AppInner() {
         onOpenLearningProfile={() => setSurveyManualToken((n) => n + 1)}
         drivingStatus={drivingStatus}
         onDrivingSettingsChange={() => void syncDrivingDetection()}
+        guestMode={!authenticated}
+        onOpenAccount={() => requireAuth(() => setShowAccount(true))}
+        onOpenRewards={() => requireAuth(() => setShowRewards(true))}
+        onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
+        onOpenBilling={() => requireAuth(() => setShowBilling(true))}
+        onSignIn={() => void exitPreviewToAuth()}
       />
     );
   }
@@ -325,12 +467,22 @@ function AppInner() {
     );
   }
 
-  if (authStatus === "unauthenticated") {
+  if (authStatus === "mfa_pending") {
     return (
       <SafeAreaView style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
-        <AuthScreen />
+        <MfaAuthScreen />
+      </SafeAreaView>
+    );
+  }
+
+  if (!inApp) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="light" />
+        <AmbientBackground />
+        <AuthScreen onBrowseGuest={() => void enterGuestBrowse()} />
       </SafeAreaView>
     );
   }
@@ -342,25 +494,23 @@ function AppInner() {
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
         <Animated.View style={{ flex: 1, opacity: fade }}>
-          {screen}
+          <SwipeTabContainer
+            active={tab}
+            enabled={mainTabsVisible && !openCourseId}
+            onChange={onTabChange}
+          >
+            {screen}
+          </SwipeTabContainer>
         </Animated.View>
         <LearningProfileSurvey
           authEpoch={authEpoch}
           manualOpenToken={surveyManualToken}
         />
       </View>
-      {!liveRoomId && !showGroupClasses && !gameSubject && !activeLesson ? (
+      {mainTabsVisible ? (
         <BottomTabs
           active={tab}
-          onChange={(id) => {
-            if (id === "drive" && tab === "drive") setOpenCourseId(null);
-            setShowGroupClasses(false);
-            setLiveRoomId(null);
-            setGameSubject(null);
-            setActiveLesson(null);
-            void refreshUnreadAndAlerts();
-            setTab(id);
-          }}
+          onChange={onTabChange}
           unreadCount={unreadCount}
         />
       ) : null}
@@ -371,3 +521,23 @@ function AppInner() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
 });
+
+function GuestFeatureGate({
+  onBack, onSignIn,
+}: {
+  onBack: () => void;
+  onSignIn: () => void;
+}) {
+  const { t } = useT();
+  return (
+    <View style={{ flex: 1, paddingTop: 56, paddingHorizontal: theme.spacing.screenX }}>
+      <PrimaryButton label={t("drive.back")} onPress={onBack} variant="ghost" />
+      <SignInGate
+        title={t("preview.lockedTitle")}
+        body={t("preview.lockedBody")}
+        signInLabel={t("preview.signIn")}
+        onSignIn={onSignIn}
+      />
+    </View>
+  );
+}
