@@ -5,6 +5,7 @@
 // helpers map the UI locale to a BCP-47 tag and pick the device's best
 // (Enhanced) voice for that language, with warmer prosody. For fully human-grade
 // audio, route narration through a neural TTS backend (XTTS / cloud TTS).
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import * as Speech from "expo-speech";
 
 import {
@@ -26,10 +27,35 @@ export function localeToBcp47(locale: string): string {
   return LOCALE_TO_BCP47[locale] || locale || "en-US";
 }
 
+// expo-speech (iOS AVSpeechSynthesizer) shares the app-wide AVAudioSession.
+// Without an explicit playback category iOS silences narration when the
+// hardware mute switch is on, and after LiveKit / the intro jingle grab and
+// release the session it can be left ducked or routed so TTS is inaudible.
+// Re-assert a playback session before speaking so lesson audio always plays.
+let audioSessionReady = false;
+
+export async function ensureSpeechAudioSession(): Promise<void> {
+  try {
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    });
+    audioSessionReady = true;
+  } catch {
+    // Non-fatal: fall back to expo-speech's default audio session.
+    audioSessionReady = false;
+  }
+}
+
 let voicesCache: Speech.Voice[] | null = null;
 
 // Load the device voice list once (used to prefer Enhanced/neural voices).
 export async function warmVoices(): Promise<void> {
+  if (!audioSessionReady) await ensureSpeechAudioSession();
   if (voicesCache) return;
   try {
     voicesCache = await Speech.getAvailableVoicesAsync();
@@ -70,13 +96,18 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
   const lang = localeToBcp47(opts.locale);
-  Speech.speak(text, {
-    language: lang,
-    voice: pickVoiceId(lang, style),
-    pitch: opts.pitch ?? prosody.pitch,
-    rate: opts.rate ?? prosody.rate,
-    onDone: opts.onDone,
-    onStopped: opts.onStopped,
-    onError: opts.onError,
-  });
+  void (async () => {
+    // Configure the playback session first so iOS actually routes TTS to the
+    // speaker (mute switch on, or after LiveKit/intro released the session).
+    await ensureSpeechAudioSession();
+    Speech.speak(text, {
+      language: lang,
+      voice: pickVoiceId(lang, style),
+      pitch: opts.pitch ?? prosody.pitch,
+      rate: opts.rate ?? prosody.rate,
+      onDone: opts.onDone,
+      onStopped: opts.onStopped,
+      onError: opts.onError,
+    });
+  })();
 }

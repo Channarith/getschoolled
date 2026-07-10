@@ -2,11 +2,31 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-10 - Release 0.14.4: version bump so a fresh iOS binary can be uploaded
+  to TestFlight. Apple accepts only one build per version+buildNumber, and 0.14.3
+  was already uploaded, so this ships the audio fix, logo revert, and swipe
+  animation under a new version/buildNumber (0.14.4) + Android versionCode 1404.
+- 2026-07-10 - Mobile swipe animation: tab swipe now visibly slides the whole
+  pane. SwipeTabContainer tracks the drag under the finger (with rubber-band
+  resistance at the first/last tab), then slides the active pane fully off-screen
+  while the incoming pane slides in from the opposite edge. Added velocity-based
+  fling commit (fast flick switches tabs even under the distance threshold).
+- 2026-07-10 - Mobile branding fix: reverted the accidental NVIDIA-logo app
+  assets back to the Salareen golden Bayon Buddy mascot holding the S with the
+  bodhi leaf. Restored salareen_icon_1024 / salareen_mark_256 /
+  salareen_adaptive_fg_1024 from the pre-0.14.2 versions and reset splash +
+  Android adaptive-icon backgroundColor from #000000 to #0b1020 (brand navy).
 - 2026-07-10 - Mobile EAS archive slimming: added repo-root .easignore so EAS
   uploads only apps/mobile (~tens of MB) instead of the whole monorepo (~924MB:
   docs demos, backend services, output/, .eas-npm-cache, .pnpm-home). Root and
   mobile .gitignore now exclude output/ and pnpm/npm caches. Added
   apps/mobile/scripts/verify-eas-archive-size.sh to sanity-check before upload.
+- 2026-07-10 - Mobile iOS lesson audio fix: lesson/Drive-Mode narration
+  (expo-speech) was silent on iOS because the shared AVAudioSession was never
+  configured for playback (muted by the hardware silent switch, and left ducked
+  after LiveKit or the intro jingle released the session). tts.ts now asserts a
+  playback session (playsInSilentModeIOS/staysActiveInBackground, DuckOthers)
+  before every speakNatural call and on warmVoices, so lesson audio always plays.
 - 2026-07-09 - Mobile branding: replaced app logo assets with the NVIDIA logo
   (app icon, Android adaptive foreground, splash source, in-app Home hero mark).
   Regenerated salareen_icon_1024 / salareen_adaptive_fg_1024 / salareen_mark_256
