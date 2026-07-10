@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-10 - Mobile EAS archive slimming: added repo-root .easignore so EAS
+  uploads only apps/mobile (~tens of MB) instead of the whole monorepo (~924MB:
+  docs demos, backend services, output/, .eas-npm-cache, .pnpm-home). Root and
+  mobile .gitignore now exclude output/ and pnpm/npm caches. Added
+  apps/mobile/scripts/verify-eas-archive-size.sh to sanity-check before upload.
 - 2026-07-09 - Mobile branding: replaced app logo assets with the NVIDIA logo
   (app icon, Android adaptive foreground, splash source, in-app Home hero mark).
   Regenerated salareen_icon_1024 / salareen_adaptive_fg_1024 / salareen_mark_256

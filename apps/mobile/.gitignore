@@ -1,4 +1,7 @@
 node_modules/
+.pnpm-home/
+.pnpm-tmp/
+.pnpm-store/
 package-lock.json
 .expo/
 dist/
