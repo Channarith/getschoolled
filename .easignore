@@ -1,0 +1,97 @@
+# EAS Build upload filter (monorepo git root).
+# Native mobile builds only need apps/mobile; uploading the full monorepo
+# (docs demos, backend services, local caches) bloats the archive to ~900MB+
+# and can cause "Failed to upload metadata to EAS Build" timeouts.
+#
+# When this file exists, EAS CLI ignores ALL .gitignore files — keep rules here.
+# Inspect locally before uploading:
+#   cd apps/mobile && eas build:inspect --platform ios --stage archive \
+#     --output /tmp/eas-archive --profile production
+
+# --- Monorepo areas not bundled into the native mobile app ---
+apps/web/
+packages/
+services/
+infra/
+config/
+sample-curriculum/
+scripts/
+
+# Docs, screenshots, demo videos (not in the app binary)
+docs/
+
+# Generated / runtime output
+output/
+logs/
+recordings/
+minio-data/
+models/
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node — installed fresh on the EAS worker
+node_modules/
+**/node_modules/
+
+# Local package-manager caches (never needed on worker)
+.pnpm-store/
+.pnpm-home/
+.pnpm-tmp/
+.eas-npm-cache/
+.npm/
+.yarn/
+.turbo/
+
+# Mobile native trees — prebuild / pod install runs on the worker
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/node_modules/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/dist-web/
+apps/mobile/web-build/
+apps/mobile/.pnpm-home/
+apps/mobile/.pnpm-tmp/
+apps/mobile/.pnpm-store/
+
+# Xcode / Gradle outputs
+**/build/
+**/*.xcarchive
+**/DerivedData/
+
+# Secrets (use EAS Secrets for build-time values)
+.env
+.env.*
+
+# OS / editor / CI artifacts
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+.cursor/
+coverage/
+*.tsbuildinfo
+
+# Playwright / e2e
+apps/web/e2e/
+apps/web/playwright-report/
+apps/web/test-results/
+
+# Local-only
+/local/
+.gstack/
+*kubeconfig*.yaml
+*kubeconfig*.yml
+/Generated_image*.png

@@ -1,5 +1,9 @@
 # ---- Node / Next.js ----
 node_modules/
+.pnpm-store/
+.pnpm-home/
+.pnpm-tmp/
+.eas-npm-cache/
 .next/
 out/
 .turbo/
@@ -53,6 +57,9 @@ models/cache/
 *.pt
 *.pth
 *.ckpt
+
+# ---- Generated output (harvest, exports, local runs) ----
+output/
 
 # ---- Data stores / volumes ----
 infra/compose/data/
