@@ -342,7 +342,7 @@ export default function DriveModeScreen({
         <Text style={styles.cat}>
           {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
         </Text>
-        <Text style={styles.seg}>{course.segments[seg]?.heading}</Text>
+        <Text testID="drive-segment-heading" style={styles.seg}>{course.segments[seg]?.heading}</Text>
         <Text style={styles.prog}>{seg + 1} / {course.segments.length} ({pct}%)</Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressBar, { width: `${pct}%` }]} />
@@ -351,6 +351,7 @@ export default function DriveModeScreen({
           {[0.5, 1, 2, 3].map((r) => (
             <AnimatedPressable
               key={r}
+              testID={`drive-speed-${r}`}
               onPress={() => {
                 setRate(r);
                 if (course) {
@@ -384,22 +385,23 @@ export default function DriveModeScreen({
           ))}
         </ScrollView>
         <View style={styles.row}>
-          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
+          <AnimatedPressable testID="drive-prev" style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
             <Ionicons name="play-skip-back" size={28} color="#fff" />
           </AnimatedPressable>
           {playing ? (
             <AnimatedPressable
+              testID="drive-pause"
               style={[styles.btn, styles.pause]}
               onPress={() => { stopSpeech(); setPlaying(false); }}
             >
               <Ionicons name="pause" size={32} color="#fff" />
             </AnimatedPressable>
           ) : (
-            <AnimatedPressable style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}>
+            <AnimatedPressable testID="drive-play" style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}>
               <Ionicons name="play" size={32} color="#fff" />
             </AnimatedPressable>
           )}
-          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
+          <AnimatedPressable testID="drive-next" style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
             <Ionicons name="play-skip-forward" size={28} color="#fff" />
           </AnimatedPressable>
         </View>

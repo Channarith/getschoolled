@@ -91,6 +91,7 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
 
   return (
     <KeyboardAvoidingView
+      testID="auth-screen"
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
@@ -107,6 +108,7 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
         <GlassPanel style={styles.card}>
           {mode === "signup" ? (
             <TextInput
+              testID="auth-display-name"
               style={styles.input}
               placeholder={t("auth.displayName")}
               placeholderTextColor={theme.colors.muted}
@@ -115,6 +117,7 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
             />
           ) : null}
           <TextInput
+            testID="auth-email"
             style={styles.input}
             placeholder={t("auth.email")}
             placeholderTextColor={theme.colors.muted}
@@ -137,6 +140,7 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
           {mode !== "forgot" ? (
           <View style={styles.passwordRow}>
             <TextInput
+              testID="auth-password"
               style={styles.passwordInput}
               placeholder={t("auth.password")}
               placeholderTextColor={theme.colors.muted}
@@ -164,6 +168,7 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
           ) : null}
           {error ? <Text style={[styles.error, error.includes("sent") || error.includes("Done") ? styles.ok : null]}>{error}</Text> : null}
           <PrimaryButton
+            testID="auth-submit"
             label={
               mode === "login" ? t("auth.signIn")
                 : mode === "signup" ? t("auth.signUp")

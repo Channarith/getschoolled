@@ -44,6 +44,7 @@ export default function BottomTabs({
           return (
             <AnimatedPressable
               key={tab.id}
+              testID={`tab-${tab.id}`}
               onPress={() => onChange(tab.id)}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}

@@ -170,12 +170,16 @@ export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, i
           data={rows}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX, paddingBottom: 24 }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const icon = FORMAT_ICON[item.format] || "book";
             const [c1, c2] = categoryGradient(item.category || item.subject);
             const saved = item.format === "audio" && savedSet.has(item.source_id);
             return (
-              <AnimatedPressable onPress={() => openItem(item)} style={{ marginBottom: 10 }}>
+              <AnimatedPressable
+                testID={`audio-course-${index}`}
+                onPress={() => openItem(item)}
+                style={{ marginBottom: 10 }}
+              >
                 <GlassPanel style={styles.cardRow} padded={false}>
                   <LinearGradient colors={[c1, c2]} style={styles.thumb}>
                     <Ionicons name={icon} size={22} color="#fff" />
