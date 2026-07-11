@@ -10,15 +10,18 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   variant?: "netflix" | "brand" | "ghost";
+  /** Forwarded to the underlying Pressable for E2E (Maestro) targeting. */
+  testID?: string;
 };
 
 export default function PrimaryButton({
-  label, onPress, disabled, loading, variant = "netflix",
+  label, onPress, disabled, loading, variant = "netflix", testID,
 }: Props) {
   const busy = disabled || loading;
   if (variant === "ghost") {
     return (
       <AnimatedPressable
+        testID={testID}
         disabled={busy}
         onPress={onPress}
         style={[styles.ghost, busy && styles.disabled]}
@@ -34,7 +37,7 @@ export default function PrimaryButton({
       : [theme.colors.brand, "#0284c7"];
 
   return (
-    <AnimatedPressable disabled={busy} onPress={onPress} style={busy && styles.disabled}>
+    <AnimatedPressable testID={testID} disabled={busy} onPress={onPress} style={busy && styles.disabled}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btn}>
         {loading ? (
           <ActivityIndicator color="#fff" />

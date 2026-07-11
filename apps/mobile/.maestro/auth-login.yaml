@@ -1,43 +1,38 @@
 # E-AUTH-1 — cold start -> QA login -> persist across relaunch (QA V&V plan).
 #
-# SCAFFOLD: the app has no testIDs yet, so these matchers use visible (English)
-# text. Before this is trusted as a gate, add testIDs to AuthScreen inputs +
-# the primary button and switch the matchers to id: (text matchers break under
-# locale switches and copy edits). Credentials come from env, NEVER the bundle:
-#   MAESTRO_QA_EMAIL / MAESTRO_QA_PASSWORD
-# Runs against the local-integrated compose stack (MOBILE_DEPLOY_MODE=local),
-# never production identity.
+# Uses stable testIDs (added to AuthScreen + BottomTabs), not localized text, so
+# the flow survives copy edits and locale switches. Credentials come from env,
+# NEVER the bundle: MAESTRO_QA_EMAIL / MAESTRO_QA_PASSWORD. Runs against the
+# local-integrated compose stack (MOBILE_DEPLOY_MODE=local), never production
+# identity.
 appId: com.aiclassroom.app
 env:
   QA_EMAIL: ${MAESTRO_QA_EMAIL}
   QA_PASSWORD: ${MAESTRO_QA_PASSWORD}
 ---
+# Signed-out launch lands directly on the auth screen.
 - launchApp:
     clearState: true
 - assertVisible:
-    text: ".*"            # app renders (replace with a stable home/landing testID)
-# Navigate to the auth/login surface. TODO: anchor on a testID once added.
+    id: "auth-screen"
 - tapOn:
-    text: "Sign in"
-    optional: true
+    id: "auth-email"
 - inputText: ${QA_EMAIL}
-    # TODO: tapOn the email field by testID first, then inputText.
 - tapOn:
-    text: "Password"
-    optional: true
+    id: "auth-password"
 - inputText: ${QA_PASSWORD}
 - tapOn:
-    text: "Sign in"
-# Signed-in evidence — replace with a testID on a signed-in-only element.
+    id: "auth-submit"
+# Signed in: the bottom tab bar renders.
 - assertVisible:
-    text: "Home"
-    optional: true
+    id: "tab-home"
 - takeScreenshot: auth-signed-in
-# Persistence: kill + relaunch WITHOUT clearing state; still signed in.
+# Persistence: kill + relaunch WITHOUT clearing state; token survives.
 - stopApp
 - launchApp:
     clearState: false
 - assertVisible:
-    text: "Home"
-    optional: true
+    id: "tab-home"
+- assertNotVisible:
+    id: "auth-screen"
 - takeScreenshot: auth-persisted
