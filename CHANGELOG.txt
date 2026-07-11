@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - Mobile testIDs for E2E: added stable testIDs to the login screen,
+  bottom tab bar, Drive Mode player, and audio-course cards so the Maestro E2E
+  flows can target elements by id instead of brittle localized text. Rewrote the
+  auth-login and drive-mode Maestro flows to use them. A new jest render test
+  verifies the testIDs actually render. Also synced apps/web/package.json to the
+  current version (it had lagged a prior bump). No user-facing behavior change.
 - 2026-07-11 - Mobile test farm foundation (V&V Workstream B): apps/mobile went
   from zero automated tests to a jest-expo unit tier (35 tests) covering the
   safety-critical driving-detection GPS state machine, backend URL resolution,
