@@ -1,11 +1,5 @@
 # Web Playwright E2E suite (apps/web/e2e) against the real compose stack.
 #
-# STAGED HERE (ci-followup/), not yet in .github/workflows/: the PR branch token
-# lacks the `workflow` scope, so it cannot add workflow files directly (same
-# reason ci-followup/demo-check.yml lives here). Promote by copying this file to
-# .github/workflows/web-e2e.yml with a workflow-scoped token, alongside
-# demo-check.yml.
-#
 # Non-blocking by design: nightly + manual dispatch, NOT a required PR check yet.
 # Rationale mirrors ci-followup/demo-check.yml — automerge.yml merges any green
 # PR without human review, so a full-stack browser suite stays advisory until it

@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - CI/mobile farm fixes after the first live workflow runs: the
+  Android Maestro job now installs JDK 17 (RN 0.74's gradle plugin does not
+  resolve on the runner's default Java 22); removed the `|| true` masking from
+  the Maestro build/test steps so a real failure fails the job honestly instead
+  of a false green (crash-log collection keeps its guard); added workflow_dispatch
+  to mobile-tests so it can be triggered on demand; and dropped the stale
+  "STAGED HERE" header comments now that the workflows are live. First run also
+  confirmed the B-SEC-1 production-bundle secret scan passes in real CI.
+
 - 2026-07-11 - Mobile testIDs for E2E: added stable testIDs to the login screen,
   bottom tab bar, Drive Mode player, and audio-course cards so the Maestro E2E
   flows can target elements by id instead of brittle localized text. Rewrote the
