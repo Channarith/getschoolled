@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - Mobile E2E safe local backend: the Android Maestro job now stands
+  up the seeded compose backend (identity seeds qa-learner@salareen.com via
+  SEED_QA_ACCOUNTS=1), excluding the web service, and builds the debug APK in
+  MOBILE_DEPLOY_MODE=local so the emulator talks to that throwaway stack at
+  10.0.2.2 — never production identity. Stack is torn down after the run. The iOS
+  Maestro job is gated off by default (macOS runners can't run Linux Docker) and,
+  when enabled via MOBILE_E2E_IOS=true, must point at a seeded non-production QA
+  cloud env via MOBILE_E2E_CLOUD_URL — it can never accidentally hit prod.
+
 - 2026-07-11 - CI/mobile farm fixes after the first live workflow runs: the
   Android Maestro job now installs JDK 17 (RN 0.74's gradle plugin does not
   resolve on the runner's default Java 22); removed the `|| true` masking from

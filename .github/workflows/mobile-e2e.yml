@@ -39,7 +39,7 @@ jobs:
 
   android-maestro:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,10 +59,34 @@ jobs:
         run: |
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
-      # Build a debug APK (expo prebuild + gradle assembleDebug). Heavy; cache
-      # gradle + node_modules to keep nightly runtime reasonable.
-      - name: Build Android debug APK
+      # Stand up the SEEDED backend stack (identity seeds qa-learner@salareen.com
+      # via SEED_QA_ACCOUNTS=1 in the e2e overlay). Excludes `web` on purpose —
+      # the mobile app never talks to it and its image build is broken on the
+      # runner. The emulator reaches these host ports via 10.0.2.2, so the app
+      # hits this throwaway stack, NEVER production identity.
+      - name: Start seeded backend stack
+        run: |
+          docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml \
+            up -d --build postgres redis orchestrator memory speech curriculum billing identity integrations
+      - name: Wait for backend health
+        run: |
+          for port in 8000 8004 8005 8008; do
+            for i in $(seq 1 60); do
+              curl -sf "http://localhost:$port/health" >/dev/null && break
+              sleep 5
+            done
+            curl -sf "http://localhost:$port/health" >/dev/null || {
+              echo "port $port never became healthy";
+              docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml logs --tail=80;
+              exit 1;
+            }
+          done
+      # Build the debug APK in LOCAL deploy mode so config.ts targets 10.0.2.2
+      # (the seeded stack on this runner), not the cloud/prod origin.
+      - name: Build Android debug APK (local mode)
         working-directory: apps/mobile
+        env:
+          MOBILE_DEPLOY_MODE: local
         run: pnpm run native:build:android
       - name: Enable KVM
         run: |
@@ -83,6 +107,9 @@ jobs:
       - name: Collect Android crash logs
         if: always()
         run: adb logcat -b crash -d > apps/mobile/maestro-android-crash.log 2>/dev/null || true
+      - name: Tear down backend stack
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml down -v || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -94,6 +121,12 @@ jobs:
           if-no-files-found: ignore
 
   ios-maestro:
+    # Gated OFF by default. macOS runners cannot run Linux Docker, so there is no
+    # local seeded backend here. To enable: set repo variable MOBILE_E2E_IOS=true
+    # AND MOBILE_E2E_CLOUD_URL to a SEEDED, NON-PRODUCTION QA backend origin
+    # (never www.salareen.com). Kept off until then so it can't sign a QA user
+    # into production identity.
+    if: ${{ vars.MOBILE_E2E_IOS == 'true' }}
     runs-on: macos-14
     timeout-minutes: 60
     steps:
@@ -110,12 +143,15 @@ jobs:
           curl -Ls "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       # Debug simulator build via expo prebuild + xcodebuild. Boot the iOS 17
-      # iPhone 15 sim, install the .app, run Maestro.
+      # iPhone 15 sim, install the .app, run Maestro. Points at the seeded QA
+      # cloud env (MOBILE_E2E_CLOUD_URL) — required, since there is no local
+      # backend on this runner.
       # NOTE: `ios:debug` is a stand-in — the exact "build .app for a booted sim
-      # + install" path still needs wiring; this step will fail until then, which
-      # is the honest signal that the iOS leg isn't ready.
+      # + install" path still needs wiring; this step will fail until then.
       - name: Build iOS simulator app
         working-directory: apps/mobile
+        env:
+          MOBILE_CLOUD_BASE_URL: ${{ vars.MOBILE_E2E_CLOUD_URL }}
         run: pnpm run ios:debug
       - name: Run Maestro on iOS simulator
         working-directory: apps/mobile
