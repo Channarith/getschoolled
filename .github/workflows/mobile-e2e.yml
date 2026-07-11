@@ -2,11 +2,10 @@
 # simulator (macOS runner) + Android emulator (Linux KVM runner), plus the
 # production-bundle secret scan (B-SEC-1) on the real exported artifact.
 #
-# STAGED HERE (ci-followup/): promote to .github/workflows/mobile-e2e.yml with a
-# workflow-scoped token. Nightly + manual dispatch, NON-BLOCKING to start. The
-# Maestro flows (apps/mobile/.maestro/*.yaml) now target stable testIDs, so the
-# remaining prerequisites before gating are a seeded QA env and the
-# MAESTRO_QA_EMAIL / MAESTRO_QA_PASSWORD repo secrets.
+# Nightly + manual dispatch, NON-BLOCKING to start. The Maestro flows
+# (apps/mobile/.maestro/*.yaml) target stable testIDs, so the remaining
+# prerequisites before gating are a seeded QA env and the MAESTRO_QA_EMAIL /
+# MAESTRO_QA_PASSWORD repo secrets.
 #
 # Self-hosted by design (no paid device farm): GitHub-hosted macOS + Linux
 # runners drive the simulators/emulators. A cloud device farm (Firebase Test Lab

@@ -1,14 +1,11 @@
 # Mobile PR gate: typecheck + jest-expo unit tests (QA V&V plan, Mobile G1).
 #
-# STAGED HERE (ci-followup/): the PR token lacks the `workflow` scope, so this
-# can't land in .github/workflows/ directly (same as web-e2e.yml / demo-check.yml).
-# PROMOTION: with a workflow-scoped token, either drop this into
-# .github/workflows/mobile-tests.yml, OR fold the `test:ci` step into the
-# existing `mobile` job in .github/workflows/ci.yml (which today runs typecheck
-# only) and delete this file. Because automerge merges any green PR, this SHOULD
-# be a required check — it is the only automated verification of mobile logic
-# before ship, and it guards the B-SEC-1 credential regression (config.test.ts
-# asserts QA_TEST_ACCOUNTS is empty without build-time extra).
+# Because automerge merges any green PR, this SHOULD become a required check once
+# stable — it is the only automated verification of mobile logic before ship, and
+# it guards the B-SEC-1 credential regression (config.test.ts asserts
+# QA_TEST_ACCOUNTS is empty without build-time extra). Consider folding the
+# test:ci step into ci.yml's existing `mobile` job (typecheck-only today) so it
+# runs in the same required gate.
 #
 # The K-API-1 contract test (qa/tests/test_mobile_contract.py) already runs in
 # ci.yml's existing `python` job (it globs qa/tests) — no wiring needed there.
