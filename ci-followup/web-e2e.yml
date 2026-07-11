@@ -1,0 +1,73 @@
+# Web Playwright E2E suite (apps/web/e2e) against the real compose stack.
+#
+# STAGED HERE (ci-followup/), not yet in .github/workflows/: the PR branch token
+# lacks the `workflow` scope, so it cannot add workflow files directly (same
+# reason ci-followup/demo-check.yml lives here). Promote by copying this file to
+# .github/workflows/web-e2e.yml with a workflow-scoped token, alongside
+# demo-check.yml.
+#
+# Non-blocking by design: nightly + manual dispatch, NOT a required PR check yet.
+# Rationale mirrors ci-followup/demo-check.yml — automerge.yml merges any green
+# PR without human review, so a full-stack browser suite stays advisory until it
+# has stability history. Promotion path: once flake < 2% over ~2 weeks, lift
+# these steps into a `web-e2e` job in ci.yml (see docs/vv-master-plan.md UI
+# dimension §6, gate 1) so they gate merges.
+name: web-e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"   # nightly, after qa.yml (07:00) and demo-check (07:30)
+
+jobs:
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install web deps + Playwright (chromium)
+        run: |
+          cd apps/web
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start E2E stack (compose e2e overlay)
+        run: make up-e2e
+
+      - name: Wait for stack health
+        run: |
+          for port in 8000 8004 8005 8008; do
+            for i in $(seq 1 60); do
+              curl -sf "http://localhost:$port/health" >/dev/null && break
+              sleep 5
+            done
+            curl -sf "http://localhost:$port/health" >/dev/null || { echo "port $port never became healthy"; exit 1; }
+          done
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000/ -o /dev/null && break
+            sleep 5
+          done
+
+      - name: Run Playwright suite (corporate + core)
+        run: |
+          cd apps/web
+          npm run e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-e2e-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+
+      - name: Tear down
+        if: always()
+        run: make down-e2e
