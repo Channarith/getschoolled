@@ -1,0 +1,38 @@
+# E-DRV-1 — Drive Mode happy path: open a course, play, control (QA V&V plan).
+#
+# SCAFFOLD (see auth-login.yaml): text matchers pending testIDs. Assumes a
+# signed-in state (run auth-login.yaml first, or seed a token) and the seeded
+# 3-course fixture on the local-integrated stack.
+appId: com.aiclassroom.app
+---
+- launchApp:
+    clearState: false
+# Open the Drive tab. TODO: id on the tab bar item.
+- tapOn:
+    text: "Drive"
+    optional: true
+- takeScreenshot: drive-catalog
+# Open the first course in the Drive catalog.
+- tapOn:
+    id: "drive-course-0"
+    optional: true
+# Player renders + play.
+- tapOn:
+    text: "Play"
+    optional: true
+- assertVisible:
+    text: ".*Segment.*"
+    optional: true
+- takeScreenshot: drive-playing
+# Pause / resume via buttons (not voice — voice is a separate manual charter).
+- tapOn:
+    text: "Pause"
+    optional: true
+- tapOn:
+    text: "Play"
+    optional: true
+# Speed chip change should restart the current segment (C-DRV-1 covers the unit).
+- tapOn:
+    text: "2x"
+    optional: true
+- takeScreenshot: drive-2x
