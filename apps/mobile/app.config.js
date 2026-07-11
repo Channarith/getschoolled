@@ -21,6 +21,20 @@ module.exports = ({ config }) => {
   ).replace(/\/$/, "");
   const deployMode = process.env.MOBILE_DEPLOY_MODE || extra.deployMode || "cloud";
 
+  // QA quick-fill accounts are a dev/preview convenience. They are injected into
+  // `extra` (and thus config.ts / the login screen) for every profile EXCEPT
+  // production, so admin/QA credentials never ship in a release bundle
+  // (B-SEC-1 / risk R5). EAS sets EAS_BUILD_PROFILE during cloud builds; a bare
+  // `expo start` / dev build has no profile and gets the accounts.
+  const isProductionBuild = process.env.EAS_BUILD_PROFILE === "production";
+  const qaTestAccounts = isProductionBuild
+    ? []
+    : [
+        { label: "QA Pro", email: "qa-pro@salareen.com", password: "QaTest123" },
+        { label: "QA3", email: "qa3", password: "QaTest123" },
+        { label: "Admin", email: "admin@salareen.com", password: "88888888" },
+      ];
+
   const plugins = [...(config.plugins || [])];
   const hasBuildProps = plugins.some(
     (entry) => (Array.isArray(entry) ? entry[0] : entry) === "expo-build-properties",
@@ -71,6 +85,7 @@ module.exports = ({ config }) => {
       deployMode,
       cloudBaseUrl,
       cloudFailoverBaseUrl,
+      qaTestAccounts,
       admobBannerAndroid:
         process.env.ADMOB_BANNER_ANDROID || "ca-app-pub-3940256099942544/6300978111",
       admobBannerIos:

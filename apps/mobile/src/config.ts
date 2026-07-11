@@ -81,8 +81,15 @@ export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "");
 export const BILLING_URL = serviceUrl("billingUrl", 8006, "/billing");
 export const SPEECH_URL = serviceUrl("speechUrl", 8002, "/speech");
 
-export const QA_TEST_ACCOUNTS = [
-  { label: "QA Pro", email: "qa-pro@salareen.com", password: "QaTest123" },
-  { label: "QA3", email: "qa3", password: "QaTest123" },
-  { label: "Admin", email: "admin@salareen.com", password: "88888888" },
-] as const;
+export type QaTestAccount = { label: string; email: string; password: string };
+
+// QA quick-fill accounts (dev/preview convenience). Sourced from build-time
+// `extra.qaTestAccounts` (see app.config.js), which is populated for every
+// profile EXCEPT production. This keeps admin/QA credentials out of the shipped
+// release JS bundle (B-SEC-1 / risk R5) — a production build resolves this to an
+// empty list, so `strings`-scanning the AAB finds no live credentials.
+export const QA_TEST_ACCOUNTS: readonly QaTestAccount[] = Array.isArray(
+  extra.qaTestAccounts,
+)
+  ? (extra.qaTestAccounts as unknown as QaTestAccount[])
+  : [];
