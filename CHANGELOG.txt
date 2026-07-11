@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - Mobile test farm foundation (V&V Workstream B): apps/mobile went
+  from zero automated tests to a jest-expo unit tier (35 tests) covering the
+  safety-critical driving-detection GPS state machine, backend URL resolution,
+  streak accounting, and the wake-word grammar. Security fix (B-SEC-1 / R5): QA
+  quick-fill accounts (including admin@salareen.com / 88888888) no longer ship
+  in the release JS bundle — they moved to app.config.js and are injected only
+  for non-production builds; a new scripts/mobile-bundle-scan.sh exports a
+  production bundle and fails if any credential leaks. Added a mobile<->backend
+  contract test (qa/tests/test_mobile_contract.py, 59 cases) that fails CI if a
+  service renames or removes a route the app calls. Maestro E2E scaffolds plus
+  staged self-hosted farm workflows (Maestro on a macOS iOS simulator + a
+  Linux-KVM Android emulator) live under ci-followup/ pending a workflow-scoped
+  token, alongside the earlier web-e2e runner.
 - 2026-07-11 - Web E2E coverage (V&V Workstream A): added five P0 Playwright
   spec files under apps/web/e2e/core (login/signup, signed-out landing +
   signed-in catalog, the unlocked /class classroom, rewards + billing, and the

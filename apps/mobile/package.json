@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.14.5",
+  "version": "0.14.7",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -45,6 +45,9 @@
     "web": "bash scripts/mobile-expo.sh start --web",
     "typecheck": "bash scripts/mobile-typecheck.sh",
     "typecheck:verbose": "VERBOSE=1 bash scripts/mobile-typecheck.sh",
+    "test": "jest",
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:watch": "jest --watch",
     "build": "bash scripts/mobile-export.sh",
     "export": "bash scripts/mobile-export.sh ios android",
     "export:ios": "bash scripts/mobile-export.sh ios",
@@ -97,8 +100,13 @@
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^12.5.3",
+    "@types/jest": "^29.5.12",
     "@types/react": "~18.2.45",
     "babel-preset-expo": "~11.0.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~51.0.4",
+    "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   }
 }

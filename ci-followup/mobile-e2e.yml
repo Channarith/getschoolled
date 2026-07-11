@@ -1,0 +1,128 @@
+# Mobile self-hosted test farm (QA V&V plan, Mobile G2): Maestro E2E on an iOS
+# simulator (macOS runner) + Android emulator (Linux KVM runner), plus the
+# production-bundle secret scan (B-SEC-1) on the real exported artifact.
+#
+# STAGED HERE (ci-followup/): promote to .github/workflows/mobile-e2e.yml with a
+# workflow-scoped token. Nightly + manual dispatch, NON-BLOCKING to start — the
+# Maestro flows are scaffolds (apps/mobile/.maestro/*.yaml) pending testIDs and a
+# seeded QA env. Promote to gating once flows are stabilized against a real build.
+#
+# Self-hosted by design (no paid device farm): GitHub-hosted macOS + Linux
+# runners drive the simulators/emulators. A cloud device farm (Firebase Test Lab
+# / BrowserStack) can be added later for real-device matrix breadth without
+# changing this foundation.
+name: mobile-e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"   # nightly, after web-e2e (08:00)
+
+jobs:
+  # B-SEC-1: export a production-profile bundle and assert no credentials leak.
+  bundle-secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - run: pnpm install
+      - name: Bundle secret scan (production export)
+        run: bash scripts/mobile-bundle-scan.sh
+
+  android-maestro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: pnpm install
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      # Build a debug APK (expo prebuild + gradle assembleDebug). Heavy; cache
+      # gradle + node_modules to keep nightly runtime reasonable.
+      - name: Build Android debug APK
+        working-directory: apps/mobile
+        run: pnpm run native:build:android
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run Maestro on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          MAESTRO_QA_EMAIL: ${{ secrets.MAESTRO_QA_EMAIL }}
+          MAESTRO_QA_PASSWORD: ${{ secrets.MAESTRO_QA_PASSWORD }}
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test apps/mobile/.maestro/ --format junit --output maestro-android.xml || true
+      - name: Collect Android crash logs
+        if: always()
+        run: adb logcat -b crash -d > apps/mobile/maestro-android-crash.log 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-android
+          path: |
+            maestro-android.xml
+            apps/mobile/maestro-android-crash.log
+            ~/.maestro/tests/**
+          if-no-files-found: ignore
+
+  ios-maestro:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: pnpm install
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      # Debug simulator build via expo prebuild + xcodebuild. Boot the iOS 17
+      # iPhone 15 sim, install the .app, run Maestro.
+      - name: Build iOS simulator app
+        working-directory: apps/mobile
+        run: pnpm run ios:debug || true   # scaffold: wire the exact sim-build path on promotion
+      - name: Run Maestro on iOS simulator
+        working-directory: apps/mobile
+        env:
+          MAESTRO_QA_EMAIL: ${{ secrets.MAESTRO_QA_EMAIL }}
+          MAESTRO_QA_PASSWORD: ${{ secrets.MAESTRO_QA_PASSWORD }}
+        run: maestro test .maestro/ --format junit --output maestro-ios.xml || true
+      - name: Collect iOS simulator crash logs
+        if: always()
+        run: |
+          mkdir -p apps/mobile/ios-crash
+          cp -R ~/Library/Logs/DiagnosticReports/* apps/mobile/ios-crash/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-ios
+          path: |
+            apps/mobile/maestro-ios.xml
+            apps/mobile/ios-crash/**
+          if-no-files-found: ignore

@@ -1,0 +1,51 @@
+# Mobile PR gate: typecheck + jest-expo unit tests (QA V&V plan, Mobile G1).
+#
+# STAGED HERE (ci-followup/): the PR token lacks the `workflow` scope, so this
+# can't land in .github/workflows/ directly (same as web-e2e.yml / demo-check.yml).
+# PROMOTION: with a workflow-scoped token, either drop this into
+# .github/workflows/mobile-tests.yml, OR fold the `test:ci` step into the
+# existing `mobile` job in .github/workflows/ci.yml (which today runs typecheck
+# only) and delete this file. Because automerge merges any green PR, this SHOULD
+# be a required check — it is the only automated verification of mobile logic
+# before ship, and it guards the B-SEC-1 credential regression (config.test.ts
+# asserts QA_TEST_ACCOUNTS is empty without build-time extra).
+#
+# The K-API-1 contract test (qa/tests/test_mobile_contract.py) already runs in
+# ci.yml's existing `python` job (it globs qa/tests) — no wiring needed there.
+name: mobile-tests
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/mobile/**"
+
+jobs:
+  mobile-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        run: pnpm install
+      - name: Typecheck
+        run: bash scripts/mobile-typecheck.sh
+      - name: Jest unit tests (+ coverage)
+        run: pnpm test:ci
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-jest-coverage
+          path: apps/mobile/coverage/
+          if-no-files-found: ignore

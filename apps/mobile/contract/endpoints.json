@@ -1,0 +1,75 @@
+{
+  "_comment": "K-API-1 mobile<->backend contract manifest (QA V&V plan, Mobile dimension). Every path the mobile app (apps/mobile/src/api.ts) calls, grouped by owning service. Path params use {name} placeholders; the contract test (qa/tests/test_mobile_contract.py) normalizes {name} to a wildcard, so it asserts the ROUTE SHAPE still exists in each service's OpenAPI, catching a backend PR that renames/removes a route mobile depends on. Regenerate by re-reading api.ts when mobile endpoints change.",
+  "services": {
+    "curriculum": [
+      "/audio/courses",
+      "/audio/courses/{id}",
+      "/audio/categories",
+      "/home",
+      "/notifications/feed",
+      "/learn/search",
+      "/learn/facets",
+      "/jobs",
+      "/jobs/{id}"
+    ],
+    "identity": [
+      "/auth/signup",
+      "/auth/login",
+      "/auth/me",
+      "/auth/2fa/setup",
+      "/auth/2fa/confirm",
+      "/auth/2fa/verify",
+      "/auth/2fa/disable",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/auth/password",
+      "/auth/security",
+      "/students",
+      "/students/{id}",
+      "/enrollments",
+      "/enrollments/{courseId}/status",
+      "/rewards",
+      "/rewards/catalog",
+      "/rewards/grant",
+      "/rewards/redeem",
+      "/games/new",
+      "/games/submit",
+      "/games",
+      "/games/leaderboard",
+      "/language/practice",
+      "/membership/subscribe",
+      "/membership/subscription",
+      "/portfolio"
+    ],
+    "memory": [
+      "/survey/onboarding",
+      "/survey/post-class",
+      "/survey/pulse",
+      "/flags/{key}",
+      "/mascots/resolve"
+    ],
+    "orchestrator": [
+      "/api/lessons",
+      "/api/sessions",
+      "/api/sessions/{sessionId}",
+      "/api/group-classes",
+      "/api/group-classes/{classId}",
+      "/api/group-classes/{classId}/calendar.ics",
+      "/api/live-rooms",
+      "/api/live-rooms/{roomId}",
+      "/api/live-rooms/gifts/catalog",
+      "/assessment/grade",
+      "/assessment/quiz",
+      "/director/lx-tick"
+    ],
+    "billing": [
+      "/plans/consumer"
+    ],
+    "speech": [
+      "/learn/languages",
+      "/learn/exercise",
+      "/learn/pronounce",
+      "/learn/{code}/course"
+    ]
+  }
+}
