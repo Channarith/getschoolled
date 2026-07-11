@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - Web E2E coverage (V&V Workstream A): added five P0 Playwright
+  spec files under apps/web/e2e/core (login/signup, signed-out landing +
+  signed-in catalog, the unlocked /class classroom, rewards + billing, and the
+  backend-failure error card), taking the suite from ~19 to 34 cases across the
+  routes learners actually hit first, not just the corporate demo funnel. New
+  e2e/lib/overflow.ts runs a viewport-wide horizontal-overflow sweep at phone
+  (360px), laptop (1280px), and desktop (1920px) widths and checks both the
+  document root and body scrollWidth, so a wide table or unwrapped string that
+  clips on a phone now fails the test (the app has zero CSS breakpoints, so this
+  is the primary responsive guard). New .github/workflows/web-e2e.yml runs the
+  full suite nightly against the compose stack; non-blocking until it has flake
+  history, then it graduates into the PR gate.
 - 2026-07-10 - Release 0.14.4: version bump so a fresh iOS binary can be uploaded
   to TestFlight. Apple accepts only one build per version+buildNumber, and 0.14.3
   was already uploaded, so this ships the audio fix, logo revert, and swipe
