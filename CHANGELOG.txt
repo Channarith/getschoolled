@@ -12,7 +12,14 @@ Format: newest first. No markdown per project convention.
   by id + slot) and the orchestrator seeds-on-miss in start/get/register so the
   class materializes on whichever replica serves the request. Regression tests
   added (deterministic id, idempotent seed, two-replica agreement, start-on-miss
-  API). Bump 0.14.23.
+  API).
+
+- 2026-07-12 - Release 0.15.0 (minor). Rolls up this cycle's larger changes:
+  higher-quality 2D/3D arcade games, multiple intro animations + synthesized
+  intro song, conversational/scenario course content with spoken "repeat after
+  me" checkpoints, the Live Class AI presenter video feed, and reliability fixes
+  (Drive Mode Stop, mobile-tests under pnpm, /auth/me 401 handling, group-class
+  Start 404). Minor bump 0.14.x -> 0.15.0.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
