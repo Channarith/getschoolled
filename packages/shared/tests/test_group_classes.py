@@ -16,7 +16,40 @@ from aoep_shared.group_classes import (
     calendar_ics,
     ensure_standard_daily_classes,
     google_meet_url,
+    standard_class_id,
 )
+
+
+def test_standard_class_id_is_deterministic():
+    a = standard_class_id("salareen", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    b = standard_class_id("salareen", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    c = standard_class_id("meet", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    assert a == b                 # same inputs -> same id
+    assert a != c                 # platform differs -> different id
+    assert a.startswith("std") and len(a) == 12
+
+
+def test_seeded_classes_use_deterministic_ids_and_are_idempotent():
+    store = GroupClassStore()
+    n1 = ensure_standard_daily_classes(store)
+    assert n1 > 0
+    # Re-seeding creates nothing new (dedup by deterministic id).
+    assert ensure_standard_daily_classes(store) == 0
+    for gc in store.list(upcoming_only=False):
+        assert gc.id == standard_class_id(gc.platform, gc.lesson_id, gc.start_time)
+
+
+def test_two_replicas_agree_on_ids():
+    """Simulate two orchestrator replicas: a class listed by one is found in the
+    other (the fix for the 'unknown group class' 404 on start)."""
+    replica_a = GroupClassStore()
+    replica_b = GroupClassStore()
+    ensure_standard_daily_classes(replica_a)
+    ensure_standard_daily_classes(replica_b)
+    listed = replica_a.list(upcoming_only=True)
+    assert listed
+    for gc in listed:
+        assert replica_b.get(gc.id) is not None, f"{gc.id} missing on replica B"
 
 
 def _iso(delta_minutes: int) -> str:
