@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Fix: stop "GET /identity/auth/me 401 (Unauthorized)" spam and
+  stale-session lockups. (1) getMe() now short-circuits when there is no token,
+  so signed-out visitors no longer fire a guaranteed-401 request on every page
+  load / nav click. (2) jsonOrThrow() clears the stored token on ANY 401, so a
+  token that expired or was invalidated by a redeploy (rotated auth signing key)
+  is dropped and the UI returns to a clean signed-out state instead of
+  re-firing failing authenticated requests on every click. Added a Playwright
+  regression (e2e/core/auth-me.spec.ts). Bump 0.14.23.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
