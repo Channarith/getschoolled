@@ -47,6 +47,52 @@ def test_start_salareen_opens_live_room():
     assert body["slide"]["title"]
 
 
+def _schedule_salareen_class(room_size: int = 6) -> str:
+    """Schedule a Salareen class WITHOUT starting it (no live room yet)."""
+    return client.post(
+        "/api/group-classes",
+        json={
+            "title": "Unstarted Salareen",
+            "lesson_id": _first_lesson(),
+            "start_time": _iso(5),
+            "platform": "salareen",
+            "room_size": room_size,
+            "capacity": room_size - 1,
+        },
+    ).json()["id"]
+
+
+def test_get_room_lazy_opens_for_unstarted_class():
+    # Selecting a scheduled-but-not-started Salareen class used to 404.
+    cid = _schedule_salareen_class(6)
+    room = client.get(f"/api/live-rooms/class-{cid}")
+    assert room.status_code == 200, room.text
+    body = room.json()
+    assert body["room_size"] == 6
+    assert body["slide"]["title"]  # session was started on demand
+
+
+def test_join_lazy_opens_and_issues_livekit_token():
+    cid = _schedule_salareen_class(4)
+    joined = client.post(
+        f"/api/live-rooms/class-{cid}/join",
+        json={"name": "Ada", "identity": "ada-web"},
+    )
+    assert joined.status_code == 200, joined.text
+    body = joined.json()
+    # Real videochat: a LiveKit join token + url are issued for the participant.
+    assert body["media"]["token"].count(".") == 2  # JWT header.payload.signature
+    assert body["media"]["room"] == f"class-{cid}"
+    assert body["media"]["url"]
+
+
+def test_unknown_room_still_404s():
+    r = client.get("/api/live-rooms/class-does-not-exist")
+    assert r.status_code == 404
+    r2 = client.get("/api/live-rooms/random-room-xyz")
+    assert r2.status_code == 404
+
+
 def test_join_chat_and_queue_flow():
     info = _start_salareen_class(4)
     joined = client.post(

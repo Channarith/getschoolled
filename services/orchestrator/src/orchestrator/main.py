@@ -1101,10 +1101,65 @@ def create_live_room(
     return {"room": room.to_dict(), "listing": listing}
 
 
-@app.get("/api/live-rooms/{room_id}")
-def get_live_room(room_id: str, moderator_key: str = "") -> dict:
+def _ensure_group_class_room(room_id: str):
+    """Lazily open a Salareen live room for a group class.
+
+    Rooms were only created when a class was explicitly "started", so joining a
+    scheduled-but-not-started class (or after an orchestrator restart dropped the
+    in-memory room) 404'd. This opens/reopens the room on demand from the group
+    class record — starting the teaching session if needed — so selecting a
+    Salareen room "just works". Returns the room, or None if there is no matching
+    Salareen group class (genuine 404).
+    """
     store = _live_rooms()
     room = store.get(room_id)
+    if room is not None:
+        return room
+    if not room_id.startswith("class-"):
+        return None
+    class_id = room_id[len("class-"):]
+    gc = _group_store().get(class_id)
+    if gc is None or gc.platform != "salareen":
+        return None
+
+    sessions = get_sessions()
+    session_id = gc.session_id
+    slide = None
+    if session_id:
+        try:
+            slide = sessions.current_slide(session_id)
+        except KeyError:
+            session_id = ""  # session was lost (restart) — recreate below
+    if not session_id:
+        try:
+            state = sessions.start_session(gc.lesson_id, "group")
+        except KeyError:
+            return None
+        session_id = state.session_id
+        gc.session_id = session_id
+        gc.status = "live"
+        slide = sessions.current_slide(session_id)
+
+    gc.live_room_id = room_id
+    live = store.open_room(  # idempotent: returns the existing room if present
+        room_id=room_id,
+        class_id=gc.id,
+        session_id=session_id,
+        lesson_id=gc.lesson_id,
+        title=gc.title,
+        room_size=gc.room_size,
+        slide_title=slide.title,
+        slide_body=slide.body,
+        slide_narration=slide.narration,
+        creator_name=gc.host or "Salareen",
+    )
+    _group_store().save(gc)
+    return live
+
+
+@app.get("/api/live-rooms/{room_id}")
+def get_live_room(room_id: str, moderator_key: str = "") -> dict:
+    room = _ensure_group_class_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="unknown live room")
     if moderator_key and moderator_key == room.moderator_key:
@@ -1123,6 +1178,9 @@ def join_live_room(
 
     store = _live_rooms()
     account_id = account_from_authorization(authorization) or ""
+    # Open the room on demand for group-class Salareen rooms so joining a
+    # scheduled (not-yet-started) class works instead of 404ing.
+    _ensure_group_class_room(room_id)
     try:
         participant = store.join(
             room_id,

@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Fix 404 when joining a Salareen (built-in) group-class room. Live
+  rooms were only created when a class was explicitly "started", so selecting a
+  scheduled-but-not-started Salareen class (roomId class-<id>) - or joining after
+  an orchestrator restart dropped the in-memory room - returned 404 "unknown live
+  room". The orchestrator now lazily opens/reopens the room on GET and join
+  (_ensure_group_class_room): it looks up the group class, starts the teaching
+  session if needed, and opens the LiveKit-backed room on demand (open_room is
+  idempotent). Join then issues a real LiveKit access token (HS256 JWT, video
+  grant) + URL for the configured LiveKit server, so real WebRTC videochat works
+  once LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET point at the deployed
+  LiveKit (infra/k8s/livekit.yaml). Non-Salareen / unknown rooms still 404. New
+  tests: lazy-open on GET + join, JWT issuance, unknown-room 404.
+
 - 2026-07-12 - Natural, cultural narration via ElevenLabs (Drive Mode + live
   class), web and mobile. New aoep_shared/elevenlabs_tts.py client (stdlib
   urllib, eleven_multilingual_v2, per-style voice + voice_settings, env voice
