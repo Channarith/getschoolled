@@ -2,6 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Voice catalog: lots of voices, accents, languages + regional slang.
+  New aoep_shared/voice_catalog.py — 40 narration voices across 15 languages, each
+  mapped to a real Microsoft neural voice (edge-tts) for TRUE accent fidelity:
+  American, Texan, Californian, British, Australian, Irish, Indian, Canadian,
+  South African; Spanish (Spain/México/Argentina/US); Chinese (Mandarin/Cantonese/
+  Taiwan); French (France/Québec); German, Italian, Portuguese (BR/PT), Japanese,
+  Korean, Hindi, Arabic (Gulf/Egypt), Russian, Vietnamese, Thai, Turkish. Speech
+  gateway adds GET /tts/voices (grouped picker feed); /tts + GET /tts accept a
+  `voice` id (accent) and `slang` flag. Voices carry a dialect tag so the
+  narration is rewritten in the region's SLANG (added British + Australian
+  dialects to dialect.py; Texan/Mexican/Brazilian already existed). Engine
+  resolution: specific ElevenLabs voice or EL default (most natural) → accent-
+  accurate edge-tts → device voice. Web Drive Mode gets a voice/accent picker
+  (persisted); mobile gets a voice-accent chip row; both pass the chosen voice to
+  server TTS. Verified: catalog + endpoint + slang tests, web build, mobile
+  typecheck, live /tts/voices (40 voices).
+
 - 2026-07-12 - Drive Mode always-listen refinement: pause ONLY for questions.
   The always-listen toggle now lets you just ask a question mid-narration and the
   course pauses to answer — no wake word needed. Casual speech, filler, noise, and
