@@ -11,7 +11,7 @@ from __future__ import annotations
 from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from pydantic import BaseModel
 
 app = create_service("speech")
@@ -38,6 +38,110 @@ def languages() -> LanguagesResponse:
 def tts_engine(language: str) -> TtsEngineResponse:
     provider = app.state.factory.speech()
     return TtsEngineResponse(language=language, engine=provider.tts_engine(language))
+
+
+def _active_tts_engine() -> str:
+    """Which neural engine will render narration audio right now."""
+    from aoep_shared import elevenlabs_tts
+    from aoep_shared.meeting.natural_tts import _edge_tts_available
+
+    if elevenlabs_tts.elevenlabs_configured(app.state.config.elevenlabs_api_key):
+        return "elevenlabs"
+    if _edge_tts_available():
+        return "edge-tts"
+    return "none"
+
+
+class TtsStatusResponse(BaseModel):
+    available: bool
+    engine: str
+
+
+@app.get("/tts/status", response_model=TtsStatusResponse)
+def tts_status() -> TtsStatusResponse:
+    """Let web/mobile clients decide whether to fetch neural audio or fall back
+    to on-device speech synthesis (avoids a wasted round-trip per narration)."""
+    engine = _active_tts_engine()
+    return TtsStatusResponse(available=engine != "none", engine=engine)
+
+
+class TtsRequest(BaseModel):
+    text: str
+    language: str = "en"
+    voice_style: str = "standard"
+
+
+@app.get("/tts")
+def tts_get(text: str, language: str = "en", voice_style: str = "standard") -> Response:
+    """GET variant so mobile (expo-av) can load audio directly from a URI.
+
+    Same engine chain as POST /tts. Keep narration segments reasonably short so
+    the URL stays within limits; long text should use POST /tts.
+    """
+    return _render_tts(text, language=language, voice_style=voice_style)
+
+
+@app.post("/tts")
+def tts(req: TtsRequest) -> Response:
+    """Render narration to natural MP3 audio.
+
+    Engine order: ElevenLabs (most natural / cultural) -> edge-tts neural ->
+    501 so the client falls back to its on-device speech synthesis.
+    """
+    return _render_tts(req.text, language=req.language, voice_style=req.voice_style)
+
+
+def _render_tts(text: str, *, language: str, voice_style: str) -> Response:
+    text = (text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    if len(text) > 5000:
+        text = text[:5000]
+    cfg = app.state.config
+    headers = {"Cache-Control": "no-store"}
+
+    # 1) ElevenLabs — top-tier natural, culturally-accented voices.
+    from aoep_shared import elevenlabs_tts
+
+    if elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key):
+        try:
+            audio = elevenlabs_tts.synthesize(
+                text, api_key=cfg.elevenlabs_api_key, language=language,
+                style=voice_style, model=cfg.elevenlabs_model,
+            )
+            return Response(
+                content=audio, media_type="audio/mpeg",
+                headers={**headers, "X-TTS-Engine": "elevenlabs"},
+            )
+        except elevenlabs_tts.ElevenLabsError:
+            pass  # degrade to edge-tts rather than failing the narration
+
+    # 2) edge-tts neural (free, natural). synthesize_neural returns False if the
+    #    edge-tts package is unavailable, so this also covers "not installed".
+    import tempfile
+    from pathlib import Path
+
+    from aoep_shared.meeting.natural_tts import synthesize_neural
+
+    tmp = Path(tempfile.mkstemp(suffix=".mp3")[1])
+    try:
+        if synthesize_neural(text, tmp, language=language):
+            data = tmp.read_bytes()
+            return Response(
+                content=data, media_type="audio/mpeg",
+                headers={**headers, "X-TTS-Engine": "edge-tts"},
+            )
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+    # 3) No server engine — client uses on-device speech synthesis.
+    raise HTTPException(
+        status_code=501,
+        detail="no server TTS engine configured; use client speech synthesis",
+    )
 
 
 # --------------------------------------------------------------------------- #
