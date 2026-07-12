@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Fix: mobile-tests CI (Jest) now passes under pnpm. The Jest
+  transformIgnorePatterns assumed a hoisted node_modules, but pnpm stores
+  packages at node_modules/.pnpm/<pkg>@<ver>/node_modules/<pkg>, so React
+  Native's Flow-syntax files (@react-native/js-polyfills/error-guard.js) were
+  force-ignored and not transpiled -> "SyntaxError: Unexpected identifier
+  'ErrorHandler'" failed all 5 suites. apps/mobile/jest.config.js now uses two
+  pnpm-aware patterns (one for the .pnpm store, one for hoisted layouts) built
+  from a shared TRANSPILE allowlist. All 5 suites / 38 tests pass. Bump 0.14.23.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
