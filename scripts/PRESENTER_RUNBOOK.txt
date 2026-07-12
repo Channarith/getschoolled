@@ -152,10 +152,18 @@ CUSTOM CLONED VOICES (Chatterbox / XTTS / ElevenLabs)
       --persona instructor_jane --tts-engine clone --with-media
 
   Engine env (pick what you run locally):
+    export COSYVOICE_URL=http://127.0.0.1:9880        # CosyVoice 2 (self-hosted; default first)
     export CHATTERBOX_TTS_URL=http://127.0.0.1:8004   # MIT Chatterbox server
     export XTTS_TTS_URL=http://127.0.0.1:8100         # speech gateway / Coqui
     export ELEVENLABS_API_KEY=...                     # cloud premium
-    export CLONE_TTS_PRIORITY=chatterbox,xtts,elevenlabs,edge
+    export CLONE_TTS_PRIORITY=cosyvoice,chatterbox,xtts,elevenlabs,edge
+
+  CosyVoice 2 (recommended): set COSYVOICE_URL to your inference server and the
+  presenter uses it first — zero-shot cloning from a persona's reference sample,
+  or the default multilingual voice when no persona is set. Same server contract
+  as the speech gateway (POST {COSYVOICE_URL}{COSYVOICE_PATH=/tts}); optional
+  COSYVOICE_API_KEY / COSYVOICE_MODE. Unset -> falls back to the engines below.
+  So `teach_and_present.py` narrates with CosyVoice 2 whenever COSYVOICE_URL is set.
 
   List voices: python3 scripts/present_course.py --list-voices
 

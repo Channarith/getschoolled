@@ -15,7 +15,7 @@ from typing import List, Optional, Sequence
 
 from .voice_profiles import VoiceProfile
 
-CLONE_ENGINES = ("clone", "chatterbox", "xtts", "elevenlabs")
+CLONE_ENGINES = ("clone", "cosyvoice", "chatterbox", "xtts", "elevenlabs")
 
 
 def _env(name: str, default: str = "") -> str:
@@ -24,6 +24,7 @@ def _env(name: str, default: str = "") -> str:
 
 def engine_status() -> dict:
     return {
+        "cosyvoice_url": _cosyvoice_url(),
         "chatterbox_url": _chatterbox_url(),
         "xtts_url": _xtts_url(),
         "elevenlabs_configured": bool(_env("ELEVENLABS_API_KEY")),
@@ -33,8 +34,14 @@ def engine_status() -> dict:
 
 
 def clone_engine_priority() -> List[str]:
-    raw = _env("CLONE_TTS_PRIORITY", "chatterbox,xtts,elevenlabs,edge")
+    # CosyVoice 2 first when configured (self-hosted, high quality); the presenter
+    # falls through to Chatterbox/XTTS/ElevenLabs/edge if it's unset or errors.
+    raw = _env("CLONE_TTS_PRIORITY", "cosyvoice,chatterbox,xtts,elevenlabs,edge")
     return [p.strip().lower() for p in raw.split(",") if p.strip()]
+
+
+def _cosyvoice_url() -> str:
+    return _env("COSYVOICE_URL")
 
 
 def _chatterbox_url() -> str:
@@ -139,6 +146,46 @@ def ensure_wav_sample(sample_path: Path, cache_dir: Path) -> Path:
     if _ffmpeg_to_wav(sample_path, wav):
         return wav
     return sample_path
+
+
+def synthesize_cosyvoice(
+    text: str,
+    out_path: Path,
+    *,
+    language: str = "en",
+    sample_path: Optional[Path] = None,
+) -> bool:
+    """CosyVoice 2 (self-hosted). Zero-shot clone from ``sample_path`` when given,
+    otherwise the default multilingual voice (cross_lingual). Same server contract
+    as the speech gateway: POST {COSYVOICE_URL}{COSYVOICE_PATH=/tts} with JSON,
+    audio bytes back.
+    """
+    base = _cosyvoice_url().rstrip("/")
+    narration = (text or "").strip()
+    if not base or not narration:
+        return False
+    payload: dict = {
+        "text": narration,
+        "language": language or "en",
+        "sample_rate": 24000,
+    }
+    if sample_path and Path(sample_path).is_file():
+        ref_b64 = base64.b64encode(Path(sample_path).read_bytes()).decode("ascii")
+        payload["mode"] = _env("COSYVOICE_MODE") or "zero_shot"
+        payload["reference_audio_b64"] = ref_b64
+        payload["speaker_wav_b64"] = ref_b64   # alias some servers expect
+    else:
+        payload["mode"] = _env("COSYVOICE_MODE") or "cross_lingual"
+    headers = {}
+    api_key = _env("COSYVOICE_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    path = _env("COSYVOICE_PATH") or "/tts"
+    try:
+        data = _http_post_json(base + path, payload, headers=headers)
+        return _write_audio_blob(data, out_path)
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+        return False
 
 
 def synthesize_chatterbox(
@@ -307,7 +354,10 @@ def synthesize_cloned(
     for name in engines:
         if name in ("edge", "say", "neural"):
             continue
-        if name == "chatterbox":
+        if name == "cosyvoice":
+            if synthesize_cosyvoice(text, out_path, language=language, sample_path=sample):
+                return True, "cosyvoice"
+        elif name == "chatterbox":
             if synthesize_chatterbox(text, sample, out_path, language=language):
                 return True, "chatterbox"
         elif name == "xtts":

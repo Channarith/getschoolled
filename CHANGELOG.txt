@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Presenter (teach & present): also uses CosyVoice 2. The teach-
+  and-present narration goes through the clone/presenter chain (clone_tts), which
+  is separate from the /tts gateway. Added CosyVoice 2 there: new
+  synthesize_cosyvoice() (zero-shot clone from a persona's reference sample, or
+  the default multilingual/cross-lingual voice with no persona), added to
+  CLONE_ENGINES and made the FIRST entry of the default CLONE_TTS_PRIORITY
+  (cosyvoice,chatterbox,xtts,elevenlabs,edge). speak_natural_blocking renders no-
+  persona narration through CosyVoice before edge-tts/say when COSYVOICE_URL is
+  set. engine_status reports cosyvoice_url; PRESENTER_RUNBOOK documents it.
+  Falls back gracefully when unset/unreachable. Tests added. Bump 0.15.0.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
