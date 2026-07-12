@@ -164,8 +164,11 @@ services:
 
   web:
     build:
-      context: ../../apps/web
-      dockerfile: Dockerfile
+      # Repo-root context (like every other service) — apps/web/Dockerfile COPYs
+      # repo-root-relative paths (COPY apps/web/..., COPY apps/web ./), so a
+      # context of ../../apps/web made those "/apps/web: not found" in BuildKit.
+      context: ../..
+      dockerfile: apps/web/Dockerfile
     # No NEXT_PUBLIC_*_URL needed: the browser bundle derives backend URLs from
     # the page origin and same-origin path prefixes (see apps/web/app/lib/api.ts),
     # which the `edge` gateway rewrites to each service. Port 3000 stays exposed
