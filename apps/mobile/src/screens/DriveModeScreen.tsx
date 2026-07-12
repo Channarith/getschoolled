@@ -5,7 +5,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup } from "../api";
+import { getAudioCourse, getTtsVoices, getTtsInstructors, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup, type Instructor } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -15,7 +15,7 @@ import {
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
-import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice } from "../tts";
+import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
 import {
   normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
   type TrainingLocale,
@@ -46,6 +46,8 @@ export default function DriveModeScreen({
   const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructorId, setInstructorId] = useState("");
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -72,6 +74,7 @@ export default function DriveModeScreen({
   useEffect(() => {
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
     void getVoiceEngineDetails()
       .then((d) => setVoiceEngine(d.label))
       .catch(() => setVoiceEngine("System"));
@@ -80,6 +83,12 @@ export default function DriveModeScreen({
   function chooseVoice(id: string) {
     setVoiceId(id);
     setServerVoice(id);
+    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+  }
+
+  function chooseInstructor(id: string) {
+    setInstructorId(id);
+    setServerInstructor(id);
     if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
   }
 
@@ -463,6 +472,31 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           ))}
         </ScrollView>
+
+        {instructors.length > 0 && (
+          <>
+            <Text style={styles.langLabel}>Instructor personality</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
+              <AnimatedPressable
+                onPress={() => chooseInstructor("")}
+                style={[styles.langChip, instructorId === "" && styles.langChipOn]}
+              >
+                <Text style={[styles.langChipText, instructorId === "" && styles.langChipTextOn]}>Default</Text>
+              </AnimatedPressable>
+              {instructors.map((p) => (
+                <AnimatedPressable
+                  key={p.id}
+                  onPress={() => chooseInstructor(p.id)}
+                  style={[styles.langChip, instructorId === p.id && styles.langChipOn]}
+                >
+                  <Text style={[styles.langChipText, instructorId === p.id && styles.langChipTextOn]}>
+                    {p.emoji} {p.label}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
         {voiceGroups.length > 0 && (
           <>

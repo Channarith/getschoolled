@@ -72,8 +72,14 @@ def synthesize_neural(
     language: str = "en",
     voice: str = "",
     rate: str = "+0%",
+    pitch: str = "+0Hz",
 ) -> bool:
-    """Write MP3 using edge-tts neural voice. Returns True on success."""
+    """Write MP3 using edge-tts neural voice. Returns True on success.
+
+    ``rate`` (e.g. "-6%") and ``pitch`` (e.g. "+22Hz") let an instructor
+    personality shape delivery — firmer/slower for "strict", higher/faster for
+    "child" or "cartoon".
+    """
     if not _edge_tts_available():
         return False
     narration = (text or "").strip()
@@ -86,7 +92,9 @@ def synthesize_neural(
     v = neural_voice_for(language, voice)
 
     async def _run() -> None:
-        comm = edge_tts.Communicate(narration, voice=v, rate=rate or "+0%")
+        comm = edge_tts.Communicate(
+            narration, voice=v, rate=rate or "+0%", pitch=pitch or "+0Hz",
+        )
         await comm.save(str(out_path))
 
     try:

@@ -803,6 +803,14 @@ export type VoiceGroup = { language: string; voices: CatalogVoice[] };
 export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/tts/voices`, { cache: "no-store" }));
 }
+
+export type Instructor = {
+  id: string; label: string; emoji: string; description: string;
+  voice_style: string; tone_hint: string;
+};
+export async function getTtsInstructors(): Promise<{ instructors: Instructor[] }> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/tts/instructors`, { cache: "no-store" }));
+}
 export async function getLangCourse(code: string): Promise<LangCourse> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/${code}/course`, { cache: "no-store" }));
 }

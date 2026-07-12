@@ -70,6 +70,7 @@ class TtsRequest(BaseModel):
     language: str = "en"
     voice_style: str = "standard"
     voice: str = ""          # voice_catalog id (accent/language), e.g. "en_gb_f"
+    instructor: str = ""     # instructor personality id, e.g. "kind" / "strict"
     slang: bool = True       # apply the voice's regional dialect/slang to the text
 
 
@@ -81,28 +82,38 @@ def tts_voices() -> dict:
     return {"groups": catalog_grouped()}
 
 
+@app.get("/tts/instructors")
+def tts_instructors() -> dict:
+    """The catalog of instructor personalities (kind/strict/child/cartoon/…)."""
+    from aoep_shared.instructors import list_instructors
+
+    return {"instructors": list_instructors()}
+
+
 @app.get("/tts")
 def tts_get(text: str, language: str = "en", voice_style: str = "standard",
-            voice: str = "", slang: bool = True) -> Response:
+            voice: str = "", instructor: str = "", slang: bool = True) -> Response:
     """GET variant so mobile (expo-av) can load audio directly from a URI."""
-    return _render_tts(text, language=language, voice_style=voice_style, voice=voice, slang=slang)
+    return _render_tts(text, language=language, voice_style=voice_style, voice=voice,
+                       instructor=instructor, slang=slang)
 
 
 @app.post("/tts")
 def tts(req: TtsRequest) -> Response:
-    """Render narration to natural MP3 audio in the chosen accent/voice.
+    """Render narration to natural MP3 audio in the chosen accent + personality.
 
-    A ``voice`` id (from /tts/voices) selects a specific accent (British, Texan,
-    Australian, Mandarin, Mexican Spanish, …); ``slang`` applies that region's
-    phrasing. Engine order: ElevenLabs -> edge-tts neural -> 501 (client falls
-    back to its on-device voice).
+    A ``voice`` id (from /tts/voices) selects an accent (British, Texan,
+    Australian, Mandarin, Mexican Spanish, …); an ``instructor`` id (from
+    /tts/instructors) shapes the personality/delivery (kind, strict, child,
+    cartoon, …); ``slang`` applies the region's phrasing. Engine order:
+    ElevenLabs -> edge-tts neural -> 501 (client on-device fallback).
     """
     return _render_tts(req.text, language=req.language, voice_style=req.voice_style,
-                       voice=req.voice, slang=req.slang)
+                       voice=req.voice, instructor=req.instructor, slang=req.slang)
 
 
 def _render_tts(text: str, *, language: str, voice_style: str,
-                voice: str = "", slang: bool = True) -> Response:
+                voice: str = "", instructor: str = "", slang: bool = True) -> Response:
     text = (text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -117,6 +128,15 @@ def _render_tts(text: str, *, language: str, voice_style: str,
     edge_voice = chosen.edge_voice if chosen else ""
     eleven_voice_id = chosen.elevenlabs_voice_id if chosen else ""
     speak_lang = chosen.language if chosen else language
+
+    # Instructor personality shapes delivery (prosody) + ElevenLabs style preset.
+    from aoep_shared.instructors import resolve_instructor
+
+    persona = resolve_instructor(instructor)
+    edge_rate = persona.edge_rate if persona else "+0%"
+    edge_pitch = persona.edge_pitch if persona else "+0Hz"
+    if persona:
+        voice_style = persona.voice_style
 
     # Regional slang: rewrite the narration in the voice's dialect flavor.
     if slang and chosen and chosen.dialect:
@@ -152,7 +172,8 @@ def _render_tts(text: str, *, language: str, voice_style: str,
 
     tmp = Path(tempfile.mkstemp(suffix=".mp3")[1])
     try:
-        if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice):
+        if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice,
+                             rate=edge_rate, pitch=edge_pitch):
             data = tmp.read_bytes()
             return Response(content=data, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "edge-tts"})
