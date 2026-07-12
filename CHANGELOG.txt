@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Group video room: local session recording + playback (web), saved
+  to the user's hard drive — NOT the cloud (so cloud disk isn't consumed). New
+  apps/web/app/lib/localRecorder.ts records what the learner sees + hears
+  (getDisplayMedia tab video + tab audio mixed with the mic via MediaRecorder),
+  keeps a playback library in IndexedDB (on-device), and saves the .webm to disk
+  via the File System Access API (download fallback). New components/LocalRecorder.tsx
+  adds a "⏺ Record (local)" toggle + "📼 Recordings" drawer (play/save/delete) +
+  a playback modal, wired into the live-room header. Composes with the room's
+  existing Bigo-style gifts/reactions/follow + viewer count and the Google-Meet-
+  style Q&A queue/chat (already present). Verified: web typecheck, lint (0), build.
+
 - 2026-07-12 - Instructor personalities: many teaching styles, mixable with any
   accent voice. New aoep_shared/instructors.py — 10 personalities (Kind, Strict,
   Professional, Kid-friendly, Cartoon, Coach, Mentor, Storyteller, Socratic
