@@ -10,16 +10,20 @@ description: How the harvester ingests course material (online crawl or local fi
   `--crawl --topic/--seeds` (online, `--daemon` for 24/7), `--critique`,
   `--corpus-search`. Shared engine: `packages/shared/src/aoep_shared/harvest/`.
 
-## Long, hourly crawl (hundreds of pages)
-For a big, polite, resumable crawl use the daemon with budgets:
-`--crawl --topic X --daemon --per-hour N --max-total N --max-hours H` (also
-`--interval`, `--keep-waiting`). Pacing/stop policy is the pure, unit-tested
-`next_crawl_action(...)` in `harvest/crawl.py` (`CrawlLimits`): stops on
-max_total / max_hours / drained queue, else sleeps the interval or the rest of
-the hour once `per_hour` is hit. The queue persists in the SQLite corpus so a
-restart resumes; HTML pages expand into child links so a seed fans out to
-hundreds. Each batch prints a `run` block (pages_total / pages_this_hour /
-elapsed_min / queue_pending).
+## Long, multi-topic, multi-day crawl (hundreds+ of pages)
+For a big, polite, resumable crawl use the daemon with budgets. Batch MANY topics
+at once — repeatable `--topic` and/or `--topics "a,b,c"` (de-duped) all enqueue
+into ONE shared persistent queue and crawl interleaved:
+`--crawl --topics "algebra,biology,physics" --daemon --per-hour N --max-days D`
+(also `--max-total`, `--max-hours`, `--interval`, `--keep-waiting`). Pacing/stop
+policy is the pure, unit-tested `next_crawl_action(...)` in `harvest/crawl.py`
+(`CrawlLimits`): stops on max_total / max_hours(+max_days) / drained queue, else
+sleeps the interval or the rest of the hour once `per_hour` is hit. The queue
+persists in the SQLite corpus so a restart resumes (re-run the same command;
+`--retry-errors` re-queues failures). Per-URL errors never crash the loop; the
+package listing is throttled for long runs. HTML pages expand into child links so
+a seed fans out to hundreds. Each batch prints a `run` block (pages_total /
+pages_this_hour / elapsed_min / queue_pending).
 - Pipeline per source: `extract` (extractors.py) → `generate_course` (generate.py)
   → **partition into lessons** → `export_course_package` (export.py, writes
   `.course.json` + REQUIRED `.pptx`) → catalog/corpus (`corpus_store.py`) +
