@@ -4,7 +4,18 @@ import io
 import json
 from contextlib import redirect_stderr, redirect_stdout
 
-from harvester.run import main
+import argparse
+
+from harvester.run import _collect_topics, main
+
+
+def test_collect_topics_merges_and_dedups():
+    ns = argparse.Namespace(topic=["algebra", "Biology"], topics="chemistry, biology , physics")
+    assert _collect_topics(ns) == ["algebra", "Biology", "chemistry", "physics"]
+    # single --topic still works; blank/None safe
+    assert _collect_topics(argparse.Namespace(topic=["math"], topics=None)) == ["math"]
+    assert _collect_topics(argparse.Namespace(topic=None, topics=None)) == []
+    assert _collect_topics(argparse.Namespace(topic=None, topics="a,,b")) == ["a", "b"]
 
 _SAMPLE = (
     "Introduction\nWelcome to algebra; we cover the core objectives.\n\n"

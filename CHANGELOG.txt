@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
+  now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
+  de-duped and enqueued into ONE shared persistent queue so they crawl together
+  (interleaved) over a long run. New --max-days D (added to --max-hours) bounds a
+  multi-day crawl; combine with --per-hour for polite pacing and --keep-waiting
+  to stay alive. Long-run robustness: per-URL errors already never crash the loop,
+  and the per-batch course-package listing is now throttled (every ~10 batches /
+  on progress) so thousands of courses don't slow each batch over days. Resumable
+  via the SQLite queue (re-run the same command; --retry-errors re-queues
+  failures). New _collect_topics() (tested). Docs: RUNBOOK + harvester-content skill.
+
 - 2026-07-12 - Harvester: long, hourly crawl of hundreds of pages (paced +
   bounded + resumable). New crawl flags on run.py --crawl: --per-hour N (cap
   pages/hour for a polite multi-hour crawl — sleeps out the rest of the hour once
