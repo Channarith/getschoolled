@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Branding: multiple high-quality intro animations + synthesized
+  intro song. New global IntroSequence overlay plays a full-screen branded intro
+  once per browser session (visual-only, since audio autoplay is blocked without
+  a gesture) and rotates at random through 6 premium canvas animations:
+  Hyperspace (starfield warp), Particle Assembly, Neon Rings, Aurora, Confetti
+  Pop and Constellation (apps/web/app/lib/introAnimations.ts), each ending in a
+  glowing logo + wordmark reveal. The "song" is procedurally synthesized with the
+  Web Audio API (apps/web/app/lib/introSong.ts) - 6 short jingles matched to the
+  animations, no audio asset shipped, fails soft when sound is blocked. Account >
+  Settings gains an "Intro animation" card to replay a random intro (with sound,
+  since it's a click) or pick a specific one, plus a per-session autoplay toggle.
+  Respects prefers-reduced-motion; Skip button + Escape dismiss. Bump 0.14.24.
+
 - 2026-07-12 - Arcade: higher-quality games with real graphics engines (2D + 3D).
   Added a reusable 2D canvas engine (apps/web/app/lib/gameEngine2d.ts: DPR-crisp
   Surface, fixed-timestep GameLoop, additive Particles, Starfield, roundRect) and
