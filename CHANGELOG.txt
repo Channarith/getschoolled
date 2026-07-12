@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Live/group/corporate classes: engaging, conversational content +
+  spoken "repeat after me" checkpoints (replaces the repetitive intro/example/
+  reinforcement/quiz/recap scaffold). Rewrote aoep_shared/lesson_depth.enrich_slides
+  so each teaching slide is followed by VARIED, content-grounded beats (apply-it
+  scenarios, connect-the-dots, direct check-in questions) drawn from rotating
+  phrasing pools so no two consecutive beats read alike, and it talks TO the
+  learner (second person, real questions) instead of stamping the same sections on
+  every slide. Concrete detail in each beat comes from the slide's own sentences,
+  and passage "deep dives" now use each unique passage once (no cyclic padding).
+  Added "say_aloud" checkpoint slides: the orchestrator Slide model carries kind +
+  say_aloud, and the web Live Class + ClassRoom (group/corporate) pause on these,
+  narrate the phrase, listen to the learner via the Web Speech API, and score how
+  closely they said it (reusing the pronunciation endpoint) with stars + feedback.
+  Bump 0.14.23.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
