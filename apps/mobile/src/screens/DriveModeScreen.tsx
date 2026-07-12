@@ -23,6 +23,7 @@ import {
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
+  startAmbientListening, stopAmbientListening,
   type VoiceEngineLabel,
 } from "../voiceAssistant";
 import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
@@ -42,6 +43,7 @@ export default function DriveModeScreen({
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -51,6 +53,9 @@ export default function DriveModeScreen({
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
+  const autoListenRef = useRef(true);
+  const awaitingQuestionRef = useRef(false);
+  autoListenRef.current = autoListen;
   // Monotonic playback token: any stop/pause/back bumps it so a stopped
   // utterance's onDone can't re-speak the next segment (which made audio keep
   // playing after Stop / leaving the screen).
@@ -84,13 +89,14 @@ export default function DriveModeScreen({
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
       setTrainingLang(tloc);
       getAudioCourse(courseId, locale, tloc)
-        .then((c) => { setCourse(c); playFrom(c, 0, tloc); })
+        .then((c) => { setCourse(c); playFrom(c, 0, tloc); void startAmbient(); })
         .catch(() => {});
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
       stopSpeech();
       stopVoiceRecognition();
+      stopAmbient();
       clearResumeTimer();
     };
   }, [courseId, locale]);
@@ -184,8 +190,56 @@ export default function DriveModeScreen({
     setListening(false);
   }
 
+  // ---- Hands-free ambient listening (always on; wake-word gated) ---------- //
+  function handleAmbientResult(text: string) {
+    const raw = (text || "").trim();
+    if (!raw) return;
+    if (awaitingQuestionRef.current) {
+      awaitingQuestionRef.current = false;
+      const q = hasWakeWord(raw) ? stripWakeWords(raw) : raw;
+      if (q) { setAssistantTranscript(q); handleAssistantQuestion(q); }
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+    if (!hasWakeWord(raw)) return;   // ignore narration / road noise
+    const after = stripWakeWords(raw);
+    pauseForAssistant("Listening. Ask your question.");
+    if (after) { setAssistantTranscript(after); handleAssistantQuestion(after); }
+    else awaitingQuestionRef.current = true;
+  }
+
+  async function startAmbient() {
+    if (!autoListenRef.current) return;
+    const ok = await startAmbientListening({
+      locale,
+      onResult: (text) => handleAmbientResult(text),
+      onError: (code) => {
+        setListening(false);
+        if (code === "permission_denied") {
+          setAutoListen(false); autoListenRef.current = false;
+          setAssistantStatus(t("drive.voicePermissionDenied", { engine: voiceEngine }));
+        }
+      },
+    });
+    setListening(ok);
+  }
+
+  function stopAmbient() {
+    autoListenRef.current = false;
+    awaitingQuestionRef.current = false;
+    stopAmbientListening();
+    setListening(false);
+  }
+
+  function toggleAutoListen() {
+    if (autoListen) { setAutoListen(false); stopAmbient(); }
+    else { setAutoListen(true); autoListenRef.current = true; void startAmbient(); }
+  }
+
   async function startVoiceRecognition(expectWakeWord = true) {
     expectWakeRef.current = expectWakeWord;
+    // Suspend ambient so only one recognizer is active during the manual capture.
+    stopAmbientListening();
     pauseForAssistant(expectWakeWord
       ? t("drive.listeningWake", { engine: voiceEngine })
       : t("drive.listeningQuestion"));
@@ -207,7 +261,11 @@ export default function DriveModeScreen({
           setAssistantStatus(t("drive.voiceError"));
         }
       },
-      onEnd: () => setListening(false),
+      onEnd: () => {
+        setListening(false);
+        // Resume hands-free ambient listening after the manual one-shot.
+        if (autoListenRef.current) setTimeout(() => { void startAmbient(); }, 500);
+      },
     });
 
     if (started) setListening(true);
@@ -413,6 +471,15 @@ export default function DriveModeScreen({
         </Text>
         <Text style={styles.assistantEngine}>{t("drive.assistantEngineHint")}</Text>
         <View style={styles.assistantActions}>
+          <AnimatedPressable
+            style={[styles.assistantBtn, autoListen ? undefined : styles.assistantBtnGhost]}
+            onPress={toggleAutoListen}
+          >
+            <Ionicons name={autoListen ? "radio" : "mic-off"} size={16} color={autoListen ? "#001022" : "#9aa6c2"} />
+            <Text style={autoListen ? styles.assistantBtnText : styles.assistantBtnGhostText}>
+              {autoListen ? (listening ? "Listening — say Hey Sala" : "Hands-free on") : "Hands-free off"}
+            </Text>
+          </AnimatedPressable>
           <AnimatedPressable style={styles.assistantBtn} onPress={() => void startVoiceRecognition(true)}>
             <Ionicons name="mic" size={16} color="#001022" />
             <Text style={styles.assistantBtnText}>
