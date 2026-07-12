@@ -91,6 +91,35 @@ export function stripWakeWords(text: string): string {
     .trim();
 }
 
+const QUESTION_STARTERS =
+  /^(what'?s?|why|how|when|where|who|whom|whose|which|can|could|would|will|do|does|did|is|are|am|should|shall|may|might|have|has|had|explain|define|describe|tell me|help me|i (?:don'?t|do not) (?:understand|get))\b/i;
+
+// Is this a real question (vs a statement, filler, or noise)? Used by
+// always-listen mode to pause the course ONLY for questions.
+export function isQuestion(text: string): boolean {
+  const t = (text || "").trim();
+  if (!t) return false;
+  if (t.endsWith("?")) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  if (QUESTION_STARTERS.test(t)) return true;
+  return /\b(what|why|how|explain|meaning of|difference between|what does|how do|how does)\b/i.test(t);
+}
+
+function normalizeWords(text: string): string[] {
+  return (text || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+}
+
+// Is the heard text most likely the narration the mic picked up (echo)?
+export function isLikelyEcho(heard: string, narration: string): boolean {
+  const h = normalizeWords(heard);
+  if (h.length < 2) return false;
+  const narrationSet = new Set(normalizeWords(narration));
+  if (narrationSet.size === 0) return false;
+  const overlap = h.filter((w) => narrationSet.has(w)).length / h.length;
+  return overlap >= 0.6;
+}
+
 export async function isVoiceRecognitionAvailable(): Promise<boolean> {
   if (Platform.OS === "web") {
     const root = globalThis as typeof globalThis & {

@@ -41,6 +41,47 @@ export function extractAfterWake(text: string): string | null {
   return t.slice(m.index + m[0].length).replace(/^[\s,.:;!?-]+/, "").trim();
 }
 
+// Interrogatives that start a real question.
+const QUESTION_STARTERS =
+  /^(what'?s?|why|how|when|where|who|whom|whose|which|can|could|would|will|do|does|did|is|are|am|should|shall|may|might|have|has|had|explain|define|describe|tell me|help me|i (?:don'?t|do not) (?:understand|get))\b/i;
+
+/**
+ * Is this utterance an actual QUESTION (vs a statement, filler, or noise)?
+ * Used by always-listen mode to pause the course ONLY for questions.
+ */
+export function isQuestion(text: string): boolean {
+  const t = (text || "").trim();
+  if (!t) return false;
+  if (t.endsWith("?")) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;                       // single-word blips = noise
+  if (QUESTION_STARTERS.test(t)) return true;
+  return /\b(what|why|how|explain|meaning of|difference between|what does|how do|how does)\b/i.test(t);
+}
+
+function normalizeWords(text: string): string[] {
+  return (text || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * Is the heard text most likely the spoken narration the mic picked up (echo),
+ * rather than the user? True when the heard words overlap heavily with the
+ * currently-narrated text — so the narration's own rhetorical questions don't
+ * pause the course.
+ */
+export function isLikelyEcho(heard: string, narration: string): boolean {
+  const h = normalizeWords(heard);
+  if (h.length < 2) return false;
+  const narrationSet = new Set(normalizeWords(narration));
+  if (narrationSet.size === 0) return false;
+  const overlap = h.filter((w) => narrationSet.has(w)).length / h.length;
+  return overlap >= 0.6;
+}
+
 /** Classify a (wake-word-stripped) utterance into a command or a question. */
 export function classifyCommand(text: string): DriveCommand {
   const lower = (text || "").toLowerCase().trim();
