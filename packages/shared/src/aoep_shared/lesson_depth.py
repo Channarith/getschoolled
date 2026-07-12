@@ -118,14 +118,15 @@ def _clean_title(title: str) -> str:
 
 
 def _key_phrase(title: str, body: str) -> str:
-    """A short, speakable phrase for a repeat-after-me checkpoint."""
-    sents = _split_sentences(body)
-    candidate = sents[0] if sents else title
-    words = candidate.split()
-    if len(words) > 11:
-        candidate = " ".join(words[:11])
-    candidate = candidate.strip().rstrip(".,;:")
-    return candidate or title.strip()
+    """A short, complete, speakable phrase for a repeat-after-me checkpoint.
+
+    Prefer a full short sentence (so the learner echoes something coherent);
+    otherwise use the cleaned slide title rather than truncating mid-sentence.
+    """
+    for s in _split_sentences(body):
+        if 3 <= len(s.split()) <= 12:
+            return s.rstrip(".,;:")
+    return _clean_title(title)
 
 
 class _Picker:
