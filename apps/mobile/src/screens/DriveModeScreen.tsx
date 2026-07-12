@@ -23,7 +23,7 @@ import {
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
-  startAmbientListening, stopAmbientListening,
+  startAmbientListening, stopAmbientListening, isQuestion, isLikelyEcho,
   type VoiceEngineLabel,
 } from "../voiceAssistant";
 import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
@@ -55,6 +55,7 @@ export default function DriveModeScreen({
   const expectWakeRef = useRef(true);
   const autoListenRef = useRef(true);
   const awaitingQuestionRef = useRef(false);
+  const currentNarrationRef = useRef("");
   autoListenRef.current = autoListen;
   // Monotonic playback token: any stop/pause/back bumps it so a stopped
   // utterance's onDone can't re-speak the next segment (which made audio keep
@@ -120,6 +121,7 @@ export default function DriveModeScreen({
     // Narrate in the language of the actual text (body_locale), which may
     // differ from the requested training locale when it falls back to English.
     const speakLocale = c.body_locale || tloc;
+    currentNarrationRef.current = `${s.heading}. ${s.text}`;   // for echo filtering
     speakNatural(`${s.heading}. ${s.text}`, {
       locale: speakLocale,
       voiceStyle: voiceStyleRef.current,
@@ -194,6 +196,7 @@ export default function DriveModeScreen({
   function handleAmbientResult(text: string) {
     const raw = (text || "").trim();
     if (!raw) return;
+    // Already heard the wake word: this utterance is the question.
     if (awaitingQuestionRef.current) {
       awaitingQuestionRef.current = false;
       const q = hasWakeWord(raw) ? stripWakeWords(raw) : raw;
@@ -201,11 +204,20 @@ export default function DriveModeScreen({
       else awaitingQuestionRef.current = true;
       return;
     }
-    if (!hasWakeWord(raw)) return;   // ignore narration / road noise
-    const after = stripWakeWords(raw);
-    pauseForAssistant("Listening. Ask your question.");
-    if (after) { setAssistantTranscript(after); handleAssistantQuestion(after); }
-    else awaitingQuestionRef.current = true;
+    // Explicit wake word → honor command/question after it.
+    if (hasWakeWord(raw)) {
+      const after = stripWakeWords(raw);
+      pauseForAssistant("Listening. Ask your question.");
+      if (after) { setAssistantTranscript(after); handleAssistantQuestion(after); }
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+    // No wake word: pause ONLY for a real question that isn't the narration echo.
+    if (isLikelyEcho(raw, currentNarrationRef.current)) return;
+    if (!isQuestion(raw)) return;   // statement / filler / noise → keep playing
+    setAssistantTranscript(raw);
+    pauseForAssistant("Answering your question.");
+    handleAssistantQuestion(raw);
   }
 
   async function startAmbient() {

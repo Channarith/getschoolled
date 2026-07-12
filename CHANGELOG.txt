@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Drive Mode always-listen refinement: pause ONLY for questions.
+  The always-listen toggle now lets you just ask a question mid-narration and the
+  course pauses to answer — no wake word needed. Casual speech, filler, noise, and
+  the narration the mic itself picks up are filtered out: new isQuestion() (only
+  interrogatives trigger) + isLikelyEcho() (ignores utterances that overlap the
+  currently-narrated text, so the narration's own rhetorical questions don't
+  pause it). "Hey Sala" still works as an explicit trigger for commands
+  (pause/next/etc.). Web (voiceCommands.ts + drive/page.tsx, echo via
+  currentNarrationRef) and mobile (voiceAssistant.ts isQuestion/isLikelyEcho +
+  DriveModeScreen). Toggle relabeled "Always listening — just ask a question".
+  Verified: filter unit checks (15/15), web typecheck+build, mobile typecheck.
+
 - 2026-07-12 - Drive Mode hands-free voice: the mic is now ALWAYS listening — no
   button. Previously you had to tap "Ask" for a one-shot capture. Now web and
   mobile run a continuous, wake-word-gated recognizer whenever a Drive course is

@@ -17,7 +17,7 @@ import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
-import { extractAfterWake, hasWakeWord, stripWakeWords } from "../lib/voiceCommands";
+import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
   getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
   TRAINING_LOCALES, type TrainingLocale,
@@ -71,6 +71,7 @@ function DrivePageInner() {
   const autoListenRef = useRef(true);
   const awaitingQuestionRef = useRef(false);   // heard wake word, waiting for the question
   const oneShotActiveRef = useRef(false);      // manual (button) recognizer is running
+  const currentNarrationRef = useRef("");      // text being spoken now (for echo filtering)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   // Live mirrors so callbacks/effects read current values without re-subscribing.
@@ -143,6 +144,7 @@ function DrivePageInner() {
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
+      currentNarrationRef.current = text || "";   // for echo filtering of the mic
       const style = voiceStyleRef.current;
       const base = prosodyForStyle(style).rate;
       // Narrate in the language of the actual text (body_locale), which may
@@ -294,27 +296,36 @@ function DrivePageInner() {
     return Boolean(root.SpeechRecognition || root.webkitSpeechRecognition);
   }
 
-  // Route a final ambient transcript. Only acts on wake-word utterances so the
-  // narration the mic also hears never triggers a false question.
+  // Route a final ambient transcript while the course plays. Pauses ONLY for a
+  // genuine question (or an explicit "Hey Sala" command) — casual speech, noise,
+  // and the narration the mic itself picks up (echo) are filtered out.
   function handleAmbientResult(text: string) {
     const raw = (text || "").trim();
     if (!raw) return;
+
+    // Already heard the wake word: this utterance is the question.
     if (awaitingQuestionRef.current) {
-      // We already heard "Hey Sala" — treat this utterance as the question.
       awaitingQuestionRef.current = false;
       const q = hasWakeWord(raw) ? stripWakeWords(raw) : raw;
       if (q) handleAssistantQuestion(q);
-      else awaitingQuestionRef.current = true;   // still nothing — keep waiting
+      else awaitingQuestionRef.current = true;
       return;
     }
+
+    // Explicit wake word → honor any command or question after it.
     const after = extractAfterWake(raw);
-    if (after === null) return;                  // no wake word → ignore (narration/road noise)
-    pauseForAssistant(t("drive.listenQuestion"));
-    if (after) {
-      handleAssistantQuestion(after);            // "Hey Sala, what does X mean?"
-    } else {
-      awaitingQuestionRef.current = true;        // just "Hey Sala" → await the question
+    if (after !== null) {
+      pauseForAssistant(t("drive.listenQuestion"));
+      if (after) handleAssistantQuestion(after);
+      else awaitingQuestionRef.current = true;
+      return;
     }
+
+    // No wake word: pause ONLY for a real question that isn't the narration echo.
+    if (isLikelyEcho(raw, currentNarrationRef.current)) return;   // the course's own audio
+    if (!isQuestion(raw)) return;                                 // statement / filler / noise
+    pauseForAssistant(t("drive.listenQuestion"));
+    handleAssistantQuestion(raw);
   }
 
   function startAmbientListening() {
