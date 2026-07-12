@@ -1,0 +1,51 @@
+---
+name: release-and-deploy
+description: How to ship a change — version bumping, branch/PR/auto-merge conventions, and deploying to the Vultr Kubernetes (VKE) cluster. Use when cutting a release, bumping VERSION, opening/merging a PR, or deploying; and to avoid the classic "I deployed but the site still shows the old version / 404s" trap (stale images). Covers the changelog convention, the (removed) version gate, auto-merge requiring non-draft PRs, and the VKE image-build + reseed flow.
+---
+
+# Release & deploy
+
+## Branch / commit / PR conventions
+- Branch prefix `cursor/<desc>-<suffix>`; do not force-push/amend unless asked.
+- `CHANGELOG.txt`: prepend a **dated** bullet (`- YYYY-MM-DD - …`, newest first).
+  It uses a **union** merge driver (`.gitattributes`) so concurrent entries
+  auto-combine — keep one bullet per change. Run `make git-setup` once per clone
+  for the local merge drivers.
+- No new markdown docs (use `docs/*.txt`); `python3` always; pin deps.
+
+## Versioning
+- `python3 scripts/bump_pr_version.py` — **patch by default** (0.14.13 → 0.14.14);
+  `--force-level minor` for a deliberate feature release (0.15.0). Updates
+  `VERSION`, `build-info.txt`, `apps/web/app/lib/version.ts` (+ web `package.json`)
+  and the mobile version files.
+- The old per-PR "VERSION must be bumped" CI gate was **removed** (it collided when
+  concurrent PRs hit the same 0.x). Bumping is now optional/explicit; still bump
+  for user-facing releases so the deployed version reflects the change.
+- **Gotcha:** running the FULL pytest suite rewrites the real mobile version files
+  to `0.3.82` (via `scripts/tests/test_bump_pr_version.py`). After a full run,
+  `git checkout -- apps/mobile/{app.json,package.json,src/version.ts}` before commit.
+
+## PRs & auto-merge
+- Create PRs **non-draft** — the `automerge.yml` workflow squash-merges a PR after
+  the CI workflow succeeds, but it CANNOT merge a draft ("Pull Request is still a
+  draft"). It keeps the branch (no --delete-branch).
+- `mobile-tests` CI is currently red for an unrelated global Jest/Babel transform
+  issue; it's a separate (non-CI-workflow) check and does not block auto-merge.
+
+## Deploy to Vultr (VKE)
+- Manifests: `infra/k8s` (base) + `infra/k8s-vke` (overlay; images
+  `sjc.vultrcr.com/salareen/*`, `LIVEKIT_URL=wss://livekit.salareen.com`).
+  Secrets/keys (`LIVEKIT_API_*`, `ADMIN_SECRET` overrides, `ELEVENLABS_API_KEY`,
+  DB) are k8s Secrets; non-secret config is the `aoep-config` configmap.
+- **Stale-image trap (the #1 "still 404 / old version" cause):** a plain
+  `kubectl apply` does NOT rebuild/re-pull `:latest`. Ship code by running the
+  **Deploy VKE (identity + web)** GitHub workflow (builds from `main`, pushes to
+  the Vultr registry, rolls the deployments). Needs `VULTR_REGISTRY_USERNAME`,
+  `VULTR_REGISTRY_PASSWORD`, `KUBE_CONFIG_B64`. Symptoms of a stale image: 404 on
+  newer routes (e.g. `/identity/games/submit`, `/api/live-rooms/*`), nav shows an
+  old `vX.Y.Z`.
+- Durable data: Redis must be durable (PV + AOF + volatile-lru, `infra/k8s/redis.yaml`)
+  or identity accounts/points reset on restart. Reseed accounts after a fresh
+  cluster/restart: `scripts/k8s_reseed_accounts.sh` (see identity-rewards-durability).
+- Recreating the Redis StatefulSet with new `volumeClaimTemplates` needs a one-time
+  `kubectl -n aoep delete statefulset redis --cascade=orphan && kubectl apply -k infra/k8s-vke`.

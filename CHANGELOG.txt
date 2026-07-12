@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Add agent skills for the platform (.cursor/skills/*/SKILL.md).
+  Eight task playbooks capturing the architecture so future AI agents work
+  efficiently: platform-architecture (service/port map + provider abstraction),
+  run-and-test-locally (stack + CI gates + port/venv/mobile-clobber gotchas),
+  backend-service (create_service/providers/tests), identity-rewards-durability
+  (accounts/points/admin/flags + Redis snapshot durability), live-rooms-video
+  (Salareen LiveKit rooms, lazy-open, the 404 rule), harvester-content (crawl →
+  generate → ~20-slide lesson partition → mandatory .pptx), speech-tts
+  (ElevenLabs → edge-tts → device chain), release-and-deploy (versioning,
+  non-draft PR auto-merge, VKE deploy + stale-image trap). Registered a skills
+  index in AGENTS.md and corrected the stale "version bump is a CI gate" note
+  (the gate was removed). Docs only; no code changes.
+
 - 2026-07-12 - Fix 404 when joining a Salareen (built-in) group-class room. Live
   rooms were only created when a class was explicitly "started", so selecting a
   scheduled-but-not-started Salareen class (roomId class-<id>) - or joining after
