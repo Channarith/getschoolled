@@ -19,9 +19,9 @@ for _p in (_REPO / "packages" / "shared" / "src", Path(__file__).resolve().paren
 
 from aoep_shared.harvest import (  # noqa: E402
     GENERATION_INSTRUCTIONS,
+    MAX_SLIDES_PER_LESSON,
     CatalogUpsertStore,
     Checkpoint,
-    CourseTags,
     HarvestCritic,
     HarvestPipeline,
     HarvestQueue,
@@ -33,6 +33,7 @@ from aoep_shared.harvest import (  # noqa: E402
     harvest_loop,
     infer_harvest_metadata,
     merge_tags,
+    partition_course_into_lessons,
 )
 
 DEFAULT_OUT_DIR = _REPO / "output" / "harvest"
@@ -165,6 +166,23 @@ def _emit_course(course, *, out_dir: str, with_media: bool = False) -> None:
         print(f"  PPTX : {pkg.pptx_path}", file=sys.stderr)
 
 
+def _emit_lessons(course, *, args) -> list:
+    """Partition an oversized course into lessons and export each."""
+    lessons = partition_course_into_lessons(course, max_slides=args.max_slides_per_lesson)
+    if len(lessons) > 1:
+        print(
+            f"\nMaterial has {len(course.slides)} slides — partitioned into "
+            f"{len(lessons)} lessons (cap {args.max_slides_per_lesson} slides/lesson).",
+            file=sys.stderr,
+        )
+    for lesson in lessons:
+        out_dir = args.out_dir
+        if len(lessons) > 1:
+            out_dir = str(Path(args.out_dir) / f"lesson-{lesson.lesson_index:02d}")
+        _emit_course(lesson, out_dir=out_dir, with_media=args.with_media)
+    return lessons
+
+
 def _list_harvest_packages(out_dir: Path, *, limit: int = 5) -> list[dict]:
     """Return recent crawl packages under ``out_dir/courses/``."""
     courses_dir = out_dir / "courses"
@@ -212,12 +230,13 @@ def _crawl(args: argparse.Namespace) -> int:
         out_dir=args.out_dir,
         repo_root=_REPO,
         with_media=args.with_media,
+        max_slides_per_lesson=args.max_slides_per_lesson,
     )
     if args.topic and not args.seeds_only:
         n = session.enqueue_topic(args.topic, include_portals=not args.no_portals)
         print(f"Enqueued {n} seeds for topic {args.topic!r}", file=sys.stderr)
     elif args.topic and args.seeds_only:
-        print(f"Skipping --topic discovery (--seeds-only); use --seeds or compliance seeds file", file=sys.stderr)
+        print("Skipping --topic discovery (--seeds-only); use --seeds or compliance seeds file", file=sys.stderr)
     if args.seeds:
         seeds_path = _resolve_repo_path(args.seeds)
         if not seeds_path.is_file():
@@ -298,6 +317,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="override inferred subject (default: RAG + taxonomy)")
     ap.add_argument("--fmt", default="lecture",
                     help="lecture|hands_on|tutorial|video|article")
+    ap.add_argument("--max-slides-per-lesson", type=int, default=MAX_SLIDES_PER_LESSON,
+                    help=("cap slides per lesson (~20 slides = 30 min); longer "
+                          f"material is split into Lesson 1..N (default {MAX_SLIDES_PER_LESSON})"))
     ap.add_argument("--title", default=None)
     ap.add_argument("--query", default=None, help="SQL for --source-type database")
     ap.add_argument("--heading-column", default=None)
@@ -350,12 +372,12 @@ def main(argv: list[str] | None = None) -> int:
         course = _generate(args)
         report = HarvestCritic().review(course)
         print(json.dumps(report.to_dict(), indent=2))
-        _emit_course(course, out_dir=args.out_dir, with_media=args.with_media)
+        _emit_lessons(course, args=args)
         return 0
 
     if args.generate:
         course = _generate(args)
-        _emit_course(course, out_dir=args.out_dir, with_media=args.with_media)
+        _emit_lessons(course, args=args)
         return 0
 
     queue = HarvestQueue()

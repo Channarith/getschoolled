@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Harvester: partition oversized material into lesson-sized decks.
+  Scraped pages / big files often expanded to hundreds or 1000+ slides in ONE
+  deck - far too much for a single lesson. A lesson now targets a 20-30 minute
+  session (~20 slides), so generate.py adds partition_course_into_lessons() /
+  generate_lessons(): decks over the cap are split into evenly-balanced lessons
+  titled "<title> - Lesson i of N" (no tiny trailing stub; each lesson gets its
+  own course_id + rebuilt composition, capped at MAX_SLIDES_PER_LESSON=20, hard
+  ceiling 40). Both harvester paths use it: the --generate/--critique file path
+  (new --max-slides-per-lesson flag, one output dir per lesson) and the online
+  --crawl path (each lesson exported + saved to the catalog with lesson_index/
+  lesson_count; source-level corpus indexing stays once per URL). Verified: a
+  60-section file -> 197 slides -> 10 lessons of 20; new test_harvest_partition.py.
+
 - 2026-07-11 - Fix web compose build context: the `web` service in
   infra/compose/docker-compose.yml used context ../../apps/web while its
   Dockerfile COPYs repo-root-relative paths (COPY apps/web/..., COPY apps/web

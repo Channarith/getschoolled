@@ -6,19 +6,23 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
 
 from .corpus_store import HarvestCorpusStore
 from .critique import HarvestCritic
-from .discovery import discover_topic, load_env_seeds, load_seeds_file
+from .discovery import discover_topic
 from .extractors import extract
 from .fetcher import extract_links, fetch_url
-from .generate import generate_course
+from .generate import (
+    MAX_SLIDES_PER_LESSON,
+    generate_course,
+    partition_course_into_lessons,
+)
 from .knowledge_bridge import default_packs_dir, facts_from_course, write_knowledge_pack
 from .queue_store import PersistentHarvestQueue
 from .sources import SourceSpec, is_allowed
 from .themes import resolve_slide_theme
-from .worker import HarvestStats, HarvestWorker
+from .worker import HarvestWorker
 
 
 @dataclass
@@ -49,6 +53,7 @@ class CrawlSession:
     repo_root: Path
     with_media: bool = True
     expand_links: bool = True
+    max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON
     metrics: CrawlMetrics = field(default_factory=CrawlMetrics)
 
     def enqueue_topic(self, topic: str, *, include_portals: bool = True) -> int:
@@ -75,90 +80,128 @@ class CrawlSession:
             default_title=title,
         )
         subject = spec.subject or "general"
-        course = generate_course(doc, subject=subject, source=spec.url)
-        report = HarvestCritic().review(course)
+        base_course = generate_course(doc, subject=subject, source=spec.url)
+        report = HarvestCritic().review(base_course)
         if not report.passed and report.grade in ("D", "F"):
             return {"status": "rejected", "grade": report.grade, "url": spec.url}
 
-        theme = resolve_slide_theme(
-            title=course.title,
-            subject=course.subject,
-            tags=course.tags.label_list() if course.tags else (),
-            fmt=course.fmt,
+        # Split oversized scraped material (often 100s-1000s of slides) into
+        # ~20-30 minute lessons. Small sources stay a single lesson.
+        lessons = partition_course_into_lessons(
+            base_course, max_slides=self.max_slides_per_lesson,
         )
+
         from .export import export_course_package
 
-        course_dir = self.out_dir / "courses" / course.course_id
-        course_dir.mkdir(parents=True, exist_ok=True)
-        pkg = export_course_package(
-            course, course_dir, write_pptx=True, with_media=self.with_media,
-            repo_root=self.repo_root,
-        )
-        if not pkg.pptx_path or not pkg.pptx_path.is_file():
-            raise RuntimeError(
-                f"harvest export missing required .pptx for {course.course_id} "
-                f"(expected under {course_dir})"
-            )
-        media_manifest = {}
-        mf = course_dir / "media_manifest.json"
-        if mf.is_file():
-            media_manifest = json.loads(mf.read_text(encoding="utf-8"))
-
-        full_text = "\n\n".join(
-            f"{s.title}\n{s.body}" for s in course.slides
-        )
+        # Source-level bookkeeping (once per URL, across all its lessons).
+        full_text = "\n\n".join(f"{s.title}\n{s.body}" for s in base_course.slides)
         chash = hashlib.sha256(raw).hexdigest()
         self.corpus.upsert_source(
             url=spec.url,
             license=spec.license,
-            subject=course.subject,
-            title=course.title,
+            subject=base_course.subject,
+            title=base_course.title,
             source_type=spec.source_type,
             content_hash=chash,
             status="ingested",
-            meta={"grade": report.grade, "composition_score": course.composition_score},
+            meta={
+                "grade": report.grade,
+                "composition_score": base_course.composition_score,
+                "lesson_count": len(lessons),
+            },
         )
         chunks = self.corpus.index_document(
             url=spec.url,
-            title=course.title,
+            title=base_course.title,
             text=full_text,
-            subject=course.subject,
-            course_id=course.course_id,
+            subject=base_course.subject,
+            course_id=base_course.course_id,
         )
         self.metrics.indexed_chunks += chunks
-        self.corpus.save_course(
-            course_id=course.course_id,
-            url=spec.url,
-            title=course.title,
-            subject=course.subject,
-            composition_score=course.composition_score,
-            json_path=str(pkg.course_json_path or ""),
-            pptx_path=str(pkg.pptx_path or ""),
-            theme=theme.to_dict(),
-            media=media_manifest,
-            tags=course.tags.to_dict() if course.tags else {},
-            full_text=full_text,
-        )
-        facts = facts_from_course(course, default_domains=(course.subject,))
+
+        lesson_out: list[dict] = []
+        for lesson in lessons:
+            theme = resolve_slide_theme(
+                title=lesson.title,
+                subject=lesson.subject,
+                tags=lesson.tags.label_list() if lesson.tags else (),
+                fmt=lesson.fmt,
+            )
+            course_dir = self.out_dir / "courses" / lesson.course_id
+            course_dir.mkdir(parents=True, exist_ok=True)
+            pkg = export_course_package(
+                lesson, course_dir, write_pptx=True, with_media=self.with_media,
+                repo_root=self.repo_root,
+            )
+            if not pkg.pptx_path or not pkg.pptx_path.is_file():
+                raise RuntimeError(
+                    f"harvest export missing required .pptx for {lesson.course_id} "
+                    f"(expected under {course_dir})"
+                )
+            media_manifest = {}
+            mf = course_dir / "media_manifest.json"
+            if mf.is_file():
+                media_manifest = json.loads(mf.read_text(encoding="utf-8"))
+            lesson_text = "\n\n".join(f"{s.title}\n{s.body}" for s in lesson.slides)
+            tags_dict = lesson.tags.to_dict() if lesson.tags else {}
+            tags_dict = {
+                **tags_dict,
+                "lesson_index": lesson.lesson_index,
+                "lesson_count": lesson.lesson_count,
+            }
+            self.corpus.save_course(
+                course_id=lesson.course_id,
+                url=spec.url,
+                title=lesson.title,
+                subject=lesson.subject,
+                composition_score=lesson.composition_score,
+                json_path=str(pkg.course_json_path or ""),
+                pptx_path=str(pkg.pptx_path or ""),
+                theme=theme.to_dict(),
+                media=media_manifest,
+                tags=tags_dict,
+                full_text=lesson_text,
+            )
+            self.metrics.generated += 1
+            lesson_out.append({
+                "course_id": lesson.course_id,
+                "title": lesson.title,
+                "lesson_index": lesson.lesson_index,
+                "lesson_count": lesson.lesson_count,
+                "slides": len(lesson.slides),
+                "output_dir": str(course_dir),
+                "course_json": str(pkg.course_json_path or ""),
+                "pptx": str(pkg.pptx_path or ""),
+            })
+
+        # Knowledge pack once from the full source (facts don't need per-lesson split).
+        facts = facts_from_course(base_course, default_domains=(base_course.subject,))
         if facts:
             pack_dir = default_packs_dir()
             pack_dir.mkdir(parents=True, exist_ok=True)
             write_knowledge_pack(
                 facts,
-                pack_dir / f"harvest_{course.course_id}.json",
-                pack_name=f"harvest_{course.course_id}",
+                pack_dir / f"harvest_{base_course.course_id}.json",
+                pack_name=f"harvest_{base_course.course_id}",
             )
-        self.metrics.generated += 1
+        base_theme = resolve_slide_theme(
+            title=base_course.title, subject=base_course.subject,
+            tags=base_course.tags.label_list() if base_course.tags else (),
+            fmt=base_course.fmt,
+        )
+        first = lesson_out[0]
         return {
             "status": "ingested",
-            "course_id": course.course_id,
-            "title": course.title,
-            "slides": len(course.slides),
+            "course_id": base_course.course_id,
+            "title": base_course.title,
+            "slides": len(base_course.slides),
             "grade": report.grade,
-            "theme": theme.to_dict(),
-            "output_dir": str(course_dir),
-            "course_json": str(pkg.course_json_path or ""),
-            "pptx": str(pkg.pptx_path or ""),
+            "lesson_count": len(lessons),
+            "lessons": lesson_out,
+            "theme": base_theme.to_dict(),
+            "output_dir": first["output_dir"],
+            "course_json": first["course_json"],
+            "pptx": first["pptx"],
         }
 
     def _extract(self, spec: SourceSpec, raw: str | bytes) -> dict:
@@ -223,6 +266,7 @@ def open_crawl_session(
     corpus_path: Optional[Path] = None,
     repo_root: Optional[Path] = None,
     with_media: bool = True,
+    max_slides_per_lesson: int = MAX_SLIDES_PER_LESSON,
 ) -> CrawlSession:
     import os
 
@@ -239,4 +283,5 @@ def open_crawl_session(
         out_dir=out,
         repo_root=root,
         with_media=with_media,
+        max_slides_per_lesson=max_slides_per_lesson,
     )
