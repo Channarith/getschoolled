@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-11 - Fix web compose build context: the `web` service in
+  infra/compose/docker-compose.yml used context ../../apps/web while its
+  Dockerfile COPYs repo-root-relative paths (COPY apps/web/..., COPY apps/web
+  ./), so BuildKit failed with "/apps/web: not found" and `make up-e2e` could
+  not build the web image. Changed to context ../.. + dockerfile
+  apps/web/Dockerfile, matching every other service. Unblocks the web-e2e
+  Playwright workflow and the demo-check gate, both of which stand up the full
+  stack via make up-e2e.
+
 - 2026-07-11 - Mobile E2E safe local backend: the Android Maestro job now stands
   up the seeded compose backend (identity seeds qa-learner@salareen.com via
   SEED_QA_ACCOUNTS=1), excluding the web service, and builds the debug APK in
