@@ -6,19 +6,21 @@ import {
   getAudioCategories,
   getAudioCourse,
   getToken,
+  getTtsInstructors,
   getTtsVoices,
   listAudioCourses,
   listStudents,
   SPEECH_URL,
   type AudioCourse,
   type AudioCourseRow,
+  type Instructor,
   type VoiceGroup,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
-import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerVoice, speakNaturally } from "../lib/tts";
+import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, setServerVoice, speakNaturally } from "../lib/tts";
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
   getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
@@ -65,6 +67,8 @@ function DrivePageInner() {
   const [micDenied, setMicDenied] = useState(false);
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [serverVoice, setServerVoiceState] = useState("");
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -122,9 +126,12 @@ function DrivePageInner() {
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     // Load the accent/voice catalog + restore the saved choice.
     getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
     try {
-      const saved = localStorage.getItem("aoep_drive_voice") || "";
-      if (saved) { setServerVoiceState(saved); setServerVoice(saved); }
+      const savedVoice = localStorage.getItem("aoep_drive_voice") || "";
+      if (savedVoice) { setServerVoiceState(savedVoice); setServerVoice(savedVoice); }
+      const savedInstr = localStorage.getItem("aoep_drive_instructor") || "";
+      if (savedInstr) { setInstructorState(savedInstr); setServerInstructor(savedInstr); }
     } catch { /* private mode */ }
     void refreshVoiceStyle();
   }, [locale]);
@@ -133,8 +140,13 @@ function DrivePageInner() {
     setServerVoiceState(id);
     setServerVoice(id);
     try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
-    // Restart ambient recognizer language follows narration; re-speak current
-    // segment so the new voice is heard immediately if playing.
+    if (playingRef.current && courseRef.current) replayCurrentSegment();
+  }
+
+  function chooseInstructor(id: string) {
+    setInstructorState(id);
+    setServerInstructor(id);
+    try { localStorage.setItem("aoep_drive_instructor", id); } catch { /* */ }
     if (playingRef.current && courseRef.current) replayCurrentSegment();
   }
   const refresh = useCallback(() => {
@@ -581,8 +593,19 @@ function DrivePageInner() {
             ) : (
               <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
             )}
-            {voiceGroups.length > 0 && (
+            {instructors.length > 0 && (
               <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
+                {t("drive.instructor")}&nbsp;
+                <select value={instructor} onChange={(e) => chooseInstructor(e.target.value)}>
+                  <option value="">{t("drive.instructorDefault")}</option>
+                  {instructors.map((p) => (
+                    <option key={p.id} value={p.id}>{p.emoji} {p.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {voiceGroups.length > 0 && (
+              <label style={{ marginLeft: instructors.length ? undefined : "auto", color: "#9aa6c2" }}>
                 {t("drive.voice")}&nbsp;
                 <select value={serverVoice} onChange={(e) => chooseVoice(e.target.value)}>
                   <option value="">{t("drive.voiceDefault")}</option>

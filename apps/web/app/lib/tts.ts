@@ -118,7 +118,8 @@ let _speechBaseUrl = "";
 let _serverTtsReady: boolean | null = null;   // null = unprobed
 let _statusProbe: Promise<boolean> | null = null;
 let _currentAudio: HTMLAudioElement | null = null;
-let _serverVoiceId = "";   // chosen voice_catalog id (accent/language), "" = default
+let _serverVoiceId = "";       // chosen voice_catalog id (accent/language)
+let _serverInstructor = "";    // chosen instructor personality id
 
 export function configureServerTts(baseUrl: string): void {
   _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
@@ -131,6 +132,15 @@ export function setServerVoice(voiceId: string): void {
 
 export function getServerVoice(): string {
   return _serverVoiceId;
+}
+
+// Select an instructor personality (kind/strict/child/cartoon/…).
+export function setServerInstructor(instructorId: string): void {
+  _serverInstructor = instructorId || "";
+}
+
+export function getServerInstructor(): string {
+  return _serverInstructor;
 }
 
 async function serverTtsAvailable(): Promise<boolean> {
@@ -176,6 +186,7 @@ async function playServerAudio(text: string, opts: SpeakOptions, done: () => voi
         language: (opts.locale || "en").split("-")[0],
         voice_style: opts.voiceStyle ?? "standard",
         voice: _serverVoiceId,
+        instructor: _serverInstructor,
       }),
     });
     if (!resp.ok) return false;             // 501/4xx -> browser fallback

@@ -188,6 +188,8 @@ const SHARED: Record<string, string> = {
   "drive.micBlocked": "Microphone blocked. Allow mic access, or tap Ask to type.",
   "drive.voice": "Voice",
   "drive.voiceDefault": "Default (auto)",
+  "drive.instructor": "Instructor",
+  "drive.instructorDefault": "Default",
   "drive.pauseAsk": "Pause + Ask",
   "drive.assistantTitle": "Sala Drive Assistant",
   "drive.assistantDefault": "Say Hey Sala or Salareen to ask a question.",

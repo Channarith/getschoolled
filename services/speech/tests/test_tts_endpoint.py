@@ -69,7 +69,7 @@ def test_tts_voice_selects_accented_edge_voice(monkeypatch):
     monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: False)
     captured = {}
 
-    def fake_neural(text, out_path, *, language="en", voice="", rate="+0%"):
+    def fake_neural(text, out_path, *, language="en", voice="", rate="+0%", pitch="+0Hz"):
         captured["voice"] = voice
         captured["text"] = text
         from pathlib import Path
@@ -83,6 +83,36 @@ def test_tts_voice_selects_accented_edge_voice(monkeypatch):
     assert captured["voice"] == "en-GB-SoniaNeural"
 
 
+def test_tts_instructors_catalog():
+    r = client.get("/tts/instructors")
+    assert r.status_code == 200
+    ids = {i["id"] for i in r.json()["instructors"]}
+    assert {"kind", "strict", "professional", "child", "cartoon"} <= ids
+
+
+def test_tts_instructor_shapes_prosody(monkeypatch):
+    """A 'child' instructor renders with higher pitch + faster rate on edge-tts."""
+    from aoep_shared import elevenlabs_tts
+    from aoep_shared.meeting import natural_tts
+
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: False)
+    captured = {}
+
+    def fake_neural(text, out_path, *, language="en", voice="", rate="+0%", pitch="+0Hz"):
+        captured["rate"] = rate
+        captured["pitch"] = pitch
+        from pathlib import Path
+        Path(out_path).write_bytes(b"\xff\xfb" + b"Z" * 4000)
+        return True
+
+    monkeypatch.setattr(natural_tts, "synthesize_neural", fake_neural)
+    r = client.post("/tts", json={"text": "Let's learn shapes", "instructor": "child"})
+    assert r.status_code == 200
+    assert captured["pitch"].startswith("+") and captured["pitch"].endswith("Hz")
+    assert int(captured["pitch"].rstrip("Hz")) >= 20     # young/bubbly
+    assert captured["rate"].startswith("+")              # faster
+
+
 def test_tts_applies_regional_slang(monkeypatch):
     """A Texan voice rewrites the narration with Texan slang before TTS."""
     from aoep_shared import elevenlabs_tts
@@ -91,7 +121,7 @@ def test_tts_applies_regional_slang(monkeypatch):
     monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: False)
     captured = {}
 
-    def fake_neural(text, out_path, *, language="en", voice="", rate="+0%"):
+    def fake_neural(text, out_path, *, language="en", voice="", rate="+0%", pitch="+0Hz"):
         captured["text"] = text
         from pathlib import Path
         Path(out_path).write_bytes(b"\xff\xfb" + b"Z" * 4000)

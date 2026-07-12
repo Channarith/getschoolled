@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Instructor personalities: many teaching styles, mixable with any
+  accent voice. New aoep_shared/instructors.py — 10 personalities (Kind, Strict,
+  Professional, Kid-friendly, Cartoon, Coach, Mentor, Storyteller, Socratic
+  Professor, Chill), each shaping DELIVERY (ElevenLabs voice_style + edge-tts
+  rate/pitch — e.g. child = higher/faster, strict = lower/slower, cartoon = big
+  energy) and carrying a tone_hint for the tutor's answer style. Speech gateway
+  adds GET /tts/instructors and an `instructor` param on /tts (+ GET). edge-tts
+  synthesize_neural now takes `pitch` so personality prosody works. Web + mobile
+  Drive Mode add an instructor picker (persisted on web); both pass the chosen
+  personality to server TTS. Personalities compose with voice accents + slang
+  (e.g. British + Strict, Texan + Kind). Verified: instructor + endpoint tests,
+  177 speech/shared tests, web build, mobile typecheck, live /tts/instructors (10).
+
 - 2026-07-12 - Voice catalog: lots of voices, accents, languages + regional slang.
   New aoep_shared/voice_catalog.py — 40 narration voices across 15 languages, each
   mapped to a real Microsoft neural voice (edge-tts) for TRUE accent fidelity:

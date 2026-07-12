@@ -1200,6 +1200,14 @@ export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {
   return get(SPEECH_URL, "/tts/voices");
 }
 
+export type Instructor = {
+  id: string; label: string; emoji: string; description: string;
+  voice_style: string; tone_hint: string;
+};
+export async function getTtsInstructors(): Promise<{ instructors: Instructor[] }> {
+  return get(SPEECH_URL, "/tts/instructors");
+}
+
 export async function getLangCourse(code: string): Promise<LangCourse> {
   return get(SPEECH_URL, `/learn/${encodeURIComponent(code)}/course`);
 }
