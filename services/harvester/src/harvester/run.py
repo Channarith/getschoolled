@@ -255,21 +255,80 @@ def _crawl(args: argparse.Namespace) -> int:
     if env_seeds:
         session.enqueue_seeds(env_seeds)
 
-    interval = max(5, int(args.interval))
+    from aoep_shared.harvest.crawl import CrawlLimits, next_crawl_action
+
+    limits = CrawlLimits(
+        daemon=bool(args.daemon),
+        interval_s=max(5, int(args.interval)),
+        max_total=max(0, int(args.max_total)),
+        max_seconds=max(0.0, float(args.max_hours)) * 3600.0,
+        per_hour=max(0, int(args.per_hour)),
+        keep_waiting=bool(args.keep_waiting),
+    )
     batch = args.max_items or 5
+    start = time.time()
+    hour_start = start
+    hour_pages = 0
+    prev_fetched = 0
+
     while True:
         metrics = session.run_once(max_items=batch)
-        summary = {**metrics.to_dict(), "corpus": session.corpus.stats()}
+        stats = session.corpus.stats()
+        delta = metrics.fetched - prev_fetched
+        prev_fetched = metrics.fetched
+        hour_pages += delta
+        elapsed = time.time() - start
+        summary = {
+            **metrics.to_dict(),
+            "corpus": stats,
+            "run": {
+                "pages_total": metrics.fetched,
+                "pages_this_hour": hour_pages,
+                "elapsed_min": round(elapsed / 60, 1),
+                "queue_pending": stats.get("queue_pending", 0),
+            },
+        }
         packages = _list_harvest_packages(Path(args.out_dir))
         if packages:
             summary["packages"] = packages
         print(json.dumps(summary, indent=2), flush=True)
+
         if args.once:
             break
-        if args.daemon:
-            time.sleep(interval)
-        else:
+
+        # Roll the hour window before deciding.
+        now = time.time()
+        if now - hour_start >= limits.hour_s:
+            hour_start = now
+            hour_pages = 0
+
+        action, reason, seconds = next_crawl_action(
+            pages_total=metrics.fetched,
+            made_progress=delta > 0,
+            queue_pending=int(stats.get("queue_pending", 0)),
+            elapsed_s=elapsed,
+            hour_pages=hour_pages,
+            hour_elapsed_s=now - hour_start,
+            limits=limits,
+        )
+        if action == "stop":
+            print(
+                f"Crawl stopping ({reason}): {metrics.fetched} pages in "
+                f"{round(elapsed / 60, 1)} min.",
+                file=sys.stderr,
+            )
             break
+        if reason == "hourly_cap":
+            print(
+                f"Hourly cap ({limits.per_hour}/hr) reached — sleeping "
+                f"{round(seconds / 60)} min to pace a long, polite crawl.",
+                file=sys.stderr,
+            )
+            time.sleep(seconds)
+            hour_start = time.time()
+            hour_pages = 0
+        else:
+            time.sleep(seconds)
     return 0
 
 
@@ -346,6 +405,14 @@ def main(argv: list[str] | None = None) -> int:
                     help="with --crawl: run forever (background harvest loop)")
     ap.add_argument("--interval", type=int, default=60,
                     help="seconds between crawl batches in --daemon mode (default 60)")
+    ap.add_argument("--max-total", type=int, default=0,
+                    help="with --crawl: stop after N pages ingested this run (0 = unlimited)")
+    ap.add_argument("--max-hours", type=float, default=0.0,
+                    help="with --crawl --daemon: stop after H hours of wall-clock time (0 = unlimited)")
+    ap.add_argument("--per-hour", type=int, default=0,
+                    help="with --crawl --daemon: cap pages ingested per hour for a long, polite crawl (0 = unlimited)")
+    ap.add_argument("--keep-waiting", action="store_true",
+                    help="with --crawl --daemon: keep running after the queue drains (wait for new seeds) instead of exiting")
     ap.add_argument("--no-portals", action="store_true",
                     help="with --crawl --topic: skip curated OER portal seeds")
     ap.add_argument("--seeds-only", action="store_true",

@@ -260,6 +260,49 @@ class CrawlSession:
         return self.metrics
 
 
+@dataclass
+class CrawlLimits:
+    """Budget for a long, paced (hourly) crawl of many pages."""
+    daemon: bool = False
+    interval_s: int = 60          # seconds between batches (normal pacing)
+    max_total: int = 0            # stop after N pages ingested this run (0 = unlimited)
+    max_seconds: float = 0.0      # stop after this wall-clock time (0 = unlimited)
+    per_hour: int = 0             # cap pages ingested per rolling hour (0 = unlimited)
+    keep_waiting: bool = False    # keep running after the queue drains (wait for seeds)
+    hour_s: float = 3600.0        # length of the "hour" window (override for tests)
+
+
+def next_crawl_action(
+    *,
+    pages_total: int,
+    made_progress: bool,
+    queue_pending: int,
+    elapsed_s: float,
+    hour_pages: int,
+    hour_elapsed_s: float,
+    limits: CrawlLimits,
+) -> tuple[str, str, float]:
+    """Decide what a long crawl loop should do after a batch.
+
+    Returns ``(action, reason, seconds)`` where action is ``"stop"`` or
+    ``"sleep"``. Pure + deterministic so the pacing/stop policy is unit-testable
+    without any network or a running crawl.
+    """
+    if limits.max_total and pages_total >= limits.max_total:
+        return ("stop", "max_total", 0.0)
+    if limits.max_seconds and elapsed_s >= limits.max_seconds:
+        return ("stop", "max_hours", 0.0)
+    drained = queue_pending <= 0 and not made_progress
+    if drained and not limits.keep_waiting:
+        return ("stop", "drained", 0.0)
+    if not limits.daemon:
+        return ("stop", "single_pass", 0.0)
+    if limits.per_hour and hour_pages >= limits.per_hour:
+        wait = max(1.0, limits.hour_s - hour_elapsed_s)
+        return ("sleep", "hourly_cap", wait)
+    return ("sleep", "interval", float(max(1, limits.interval_s)))
+
+
 def open_crawl_session(
     *,
     out_dir: str | Path = "output/harvest",

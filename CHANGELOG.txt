@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Harvester: long, hourly crawl of hundreds of pages (paced +
+  bounded + resumable). New crawl flags on run.py --crawl: --per-hour N (cap
+  pages/hour for a polite multi-hour crawl — sleeps out the rest of the hour once
+  hit), --max-total N (stop after N pages this run), --max-hours H (wall-clock
+  cap), --keep-waiting (stay alive after the queue drains). The daemon loop now
+  tracks totals + an hourly window and stops automatically when the queue drains;
+  each batch prints a run block (pages_total/pages_this_hour/elapsed_min/
+  queue_pending). Pacing/stop policy is the pure, unit-tested next_crawl_action()
+  (+ CrawlLimits) in harvest/crawl.py. The queue persists in the SQLite corpus so
+  a restart resumes; HTML pages fan out into child links so a topic seed grows to
+  hundreds. Docs: services/harvester/RUNBOOK.txt + harvester-content skill.
+
 - 2026-07-12 - Group video room: local session recording + playback (web), saved
   to the user's hard drive — NOT the cloud (so cloud disk isn't consumed). New
   apps/web/app/lib/localRecorder.ts records what the learner sees + hears
