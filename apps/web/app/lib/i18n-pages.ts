@@ -186,6 +186,8 @@ const SHARED: Record<string, string> = {
   "drive.handsFreeOff": "🔇 Always-listen off",
   "drive.handsFreeHint": "Always-listen is on: ask a question and the course pauses to answer. Casual talk, noise, and the narration are ignored. (Say “Hey Sala” for commands like pause/next.)",
   "drive.micBlocked": "Microphone blocked. Allow mic access, or tap Ask to type.",
+  "drive.voice": "Voice",
+  "drive.voiceDefault": "Default (auto)",
   "drive.pauseAsk": "Pause + Ask",
   "drive.assistantTitle": "Sala Drive Assistant",
   "drive.assistantDefault": "Say Hey Sala or Salareen to ask a question.",

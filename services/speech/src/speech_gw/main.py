@@ -69,29 +69,40 @@ class TtsRequest(BaseModel):
     text: str
     language: str = "en"
     voice_style: str = "standard"
+    voice: str = ""          # voice_catalog id (accent/language), e.g. "en_gb_f"
+    slang: bool = True       # apply the voice's regional dialect/slang to the text
+
+
+@app.get("/tts/voices")
+def tts_voices() -> dict:
+    """The catalog of narration voices (accents/languages) for a UI picker."""
+    from aoep_shared.voice_catalog import catalog_grouped
+
+    return {"groups": catalog_grouped()}
 
 
 @app.get("/tts")
-def tts_get(text: str, language: str = "en", voice_style: str = "standard") -> Response:
-    """GET variant so mobile (expo-av) can load audio directly from a URI.
-
-    Same engine chain as POST /tts. Keep narration segments reasonably short so
-    the URL stays within limits; long text should use POST /tts.
-    """
-    return _render_tts(text, language=language, voice_style=voice_style)
+def tts_get(text: str, language: str = "en", voice_style: str = "standard",
+            voice: str = "", slang: bool = True) -> Response:
+    """GET variant so mobile (expo-av) can load audio directly from a URI."""
+    return _render_tts(text, language=language, voice_style=voice_style, voice=voice, slang=slang)
 
 
 @app.post("/tts")
 def tts(req: TtsRequest) -> Response:
-    """Render narration to natural MP3 audio.
+    """Render narration to natural MP3 audio in the chosen accent/voice.
 
-    Engine order: ElevenLabs (most natural / cultural) -> edge-tts neural ->
-    501 so the client falls back to its on-device speech synthesis.
+    A ``voice`` id (from /tts/voices) selects a specific accent (British, Texan,
+    Australian, Mandarin, Mexican Spanish, …); ``slang`` applies that region's
+    phrasing. Engine order: ElevenLabs -> edge-tts neural -> 501 (client falls
+    back to its on-device voice).
     """
-    return _render_tts(req.text, language=req.language, voice_style=req.voice_style)
+    return _render_tts(req.text, language=req.language, voice_style=req.voice_style,
+                       voice=req.voice, slang=req.slang)
 
 
-def _render_tts(text: str, *, language: str, voice_style: str) -> Response:
+def _render_tts(text: str, *, language: str, voice_style: str,
+                voice: str = "", slang: bool = True) -> Response:
     text = (text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -100,24 +111,40 @@ def _render_tts(text: str, *, language: str, voice_style: str) -> Response:
     cfg = app.state.config
     headers = {"Cache-Control": "no-store"}
 
-    # 1) ElevenLabs — top-tier natural, culturally-accented voices.
+    from aoep_shared.voice_catalog import resolve_voice
+
+    chosen = resolve_voice(voice, language=language)
+    edge_voice = chosen.edge_voice if chosen else ""
+    eleven_voice_id = chosen.elevenlabs_voice_id if chosen else ""
+    speak_lang = chosen.language if chosen else language
+
+    # Regional slang: rewrite the narration in the voice's dialect flavor.
+    if slang and chosen and chosen.dialect:
+        try:
+            from aoep_shared.dialect import humanize_narration
+
+            text = humanize_narration(text, chosen.dialect, language=speak_lang)
+        except Exception:
+            pass  # slang is best-effort; never fail narration over it
+
     from aoep_shared import elevenlabs_tts
 
-    if elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key):
+    el_ready = elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key)
+
+    # 1) ElevenLabs when a specific EL voice is mapped, OR when no accent-specific
+    #    edge voice is requested (EL is the most natural default).
+    if el_ready and (eleven_voice_id or not edge_voice):
         try:
             audio = elevenlabs_tts.synthesize(
-                text, api_key=cfg.elevenlabs_api_key, language=language,
-                style=voice_style, model=cfg.elevenlabs_model,
+                text, api_key=cfg.elevenlabs_api_key, language=speak_lang,
+                style=voice_style, voice_id=eleven_voice_id, model=cfg.elevenlabs_model,
             )
-            return Response(
-                content=audio, media_type="audio/mpeg",
-                headers={**headers, "X-TTS-Engine": "elevenlabs"},
-            )
+            return Response(content=audio, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "elevenlabs"})
         except elevenlabs_tts.ElevenLabsError:
-            pass  # degrade to edge-tts rather than failing the narration
+            pass
 
-    # 2) edge-tts neural (free, natural). synthesize_neural returns False if the
-    #    edge-tts package is unavailable, so this also covers "not installed".
+    # 2) edge-tts neural — TRUE per-accent voices (British/Aussie/Mandarin/…).
     import tempfile
     from pathlib import Path
 
@@ -125,19 +152,29 @@ def _render_tts(text: str, *, language: str, voice_style: str) -> Response:
 
     tmp = Path(tempfile.mkstemp(suffix=".mp3")[1])
     try:
-        if synthesize_neural(text, tmp, language=language):
+        if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice):
             data = tmp.read_bytes()
-            return Response(
-                content=data, media_type="audio/mpeg",
-                headers={**headers, "X-TTS-Engine": "edge-tts"},
-            )
+            return Response(content=data, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "edge-tts"})
     finally:
         try:
             tmp.unlink()
         except OSError:
             pass
 
-    # 3) No server engine — client uses on-device speech synthesis.
+    # 3) ElevenLabs default as a last resort (e.g. edge-tts not installed).
+    if el_ready:
+        try:
+            audio = elevenlabs_tts.synthesize(
+                text, api_key=cfg.elevenlabs_api_key, language=speak_lang,
+                style=voice_style, model=cfg.elevenlabs_model,
+            )
+            return Response(content=audio, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "elevenlabs"})
+        except elevenlabs_tts.ElevenLabsError:
+            pass
+
+    # 4) No server engine — client uses on-device speech synthesis.
     raise HTTPException(
         status_code=501,
         detail="no server TTS engine configured; use client speech synthesis",
