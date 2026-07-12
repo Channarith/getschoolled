@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Homework tool: usable from the browser + a real generator UI.
+  The operator-only homework endpoints are internal-only (X-Internal-Token,
+  fail-closed), so the browser could never call them (403 in any auth-enforced
+  deploy) and the page only had a hard-coded 2-question grade demo. Added a
+  server-side BFF (apps/web/app/api/homework/[...path]/route.ts) that verifies
+  the caller is a signed-in ADMIN via identity /auth/me and injects the internal
+  token (same pattern as the admin flags BFF); all homework client calls now go
+  through it. The /homework page now GENERATES an assignment (subject, #
+  questions, optional course id, or free-form source material), shows the
+  questions, GRADES a pasted/scanned submission against the generated assignment,
+  supports OCR file upload (/homework/scan), and shows AI-vs-human authorship.
+  Backend: /homework/generate can now build from free-form `content` (not just a
+  deck/course), so it works without a pre-loaded catalog. Tests added. Bump 0.15.0.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
