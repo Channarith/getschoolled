@@ -2,6 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Vultr: self-hosted CosyVoice 2 GPU TTS (vLLM-accelerated). New
+  services/cosyvoice/: a FastAPI wrapper (server.py) around FunAudioLLM CosyVoice
+  2 exposing our /tts contract (modes: instruct2/zero_shot/cross_lingual/sft),
+  plus a CUDA Dockerfile that installs vLLM and the CosyVoice repo, and a README.
+  vLLM acceleration is ON by default (COSYVOICE_USE_VLLM=1) - big speedup =>
+  fewer Vultr GPU-hours. New infra/k8s/cosyvoice.yaml Deployment+Service+PVC on
+  the GPU pool (nodeSelector aoep.gpu/pool, nvidia.com/gpu:1, port 9880), added to
+  the kustomize base and the VKE image rewrite (sjc.vultrcr.com/salareen/
+  cosyvoice). COSYVOICE_URL=http://cosyvoice:9880 wired into aoep-config (base +
+  VKE), so the speech gateway + presenter prefer CosyVoice once the pod is healthy
+  (graceful fallback otherwise). VKE RUNBOOK documents build/push/deploy. Contract
+  tests (fake model, no GPU) pass. Bump 0.15.0.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
