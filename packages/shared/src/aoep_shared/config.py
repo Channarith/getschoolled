@@ -132,6 +132,12 @@ class AppConfig(BaseModel):
     # OCR (homework scanning; handwriting needs a cloud OCR backend).
     ocr_api_key: str = ""
     ocr_endpoint: str = ""
+    # Neural TTS: ElevenLabs gives top-tier, natural, cultural voices for
+    # narration (Drive Mode, live class). When the key is set the speech gateway
+    # renders audio with it; otherwise it falls back to edge-tts neural voices,
+    # then to the browser's on-device voice.
+    elevenlabs_api_key: str = ""
+    elevenlabs_model: str = "eleven_multilingual_v2"
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -195,6 +201,8 @@ def load_config(
         memory_base_url=get("MEMORY_URL", ""),
         vision_model_dir=get("VISION_MODEL_DIR", ""),
         ocr_api_key=get("OCR_API_KEY", ""),
+        elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
+        elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),

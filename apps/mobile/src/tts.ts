@@ -91,15 +91,93 @@ export type SpeakOptions = {
   onError?: () => void;
 };
 
-// Speak with the best natural voice for the locale + lifelike prosody.
+// --------------------------------------------------------------------------- //
+// Server neural TTS (ElevenLabs -> edge-tts) with graceful expo-speech fallback.
+// When the speech gateway has a neural engine we stream MP3 audio (far more
+// natural / cultural than the on-device voice); otherwise we use expo-speech.
+let _speechBaseUrl = "";
+let _serverTtsReady: boolean | null = null;
+let _statusProbe: Promise<boolean> | null = null;
+let _serverSound: Audio.Sound | null = null;
+// GET /tts is used so expo-av can load a URI directly; keep segments within a
+// safe URL length, else fall back to the device voice for that segment.
+const MAX_SERVER_TTS_CHARS = 3000;
+
+export function configureServerTts(baseUrl: string): void {
+  _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
+}
+
+async function serverTtsAvailable(): Promise<boolean> {
+  if (!_speechBaseUrl) return false;
+  if (_serverTtsReady !== null) return _serverTtsReady;
+  if (!_statusProbe) {
+    _statusProbe = fetch(`${_speechBaseUrl}/tts/status`)
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((j) => Boolean(j?.available))
+      .catch(() => false)
+      .then((ok) => { _serverTtsReady = ok; return ok; });
+  }
+  return _statusProbe;
+}
+
+async function stopServerSound(): Promise<void> {
+  const s = _serverSound;
+  _serverSound = null;
+  if (s) {
+    try { await s.stopAsync(); } catch { /* */ }
+    try { await s.unloadAsync(); } catch { /* */ }
+  }
+}
+
+// Stop ALL narration (device voice AND server audio).
+export function stopSpeech(): void {
+  try { Speech.stop(); } catch { /* */ }
+  void stopServerSound();
+}
+
+async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolean> {
+  if (encodeURIComponent(text).length > MAX_SERVER_TTS_CHARS) return false;
+  try {
+    await ensureSpeechAudioSession();
+    const lang = (opts.locale || "en").split("-")[0];
+    const style = opts.voiceStyle ?? "standard";
+    const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
+      + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`;
+    const { sound, status } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
+    if (!status.isLoaded) {
+      try { await sound.unloadAsync(); } catch { /* */ }
+      return false;
+    }
+    await stopServerSound();
+    _serverSound = sound;
+    let ended = false;
+    const finish = (cb?: () => void) => {
+      if (ended) return;
+      ended = true;
+      void stopServerSound();
+      cb?.();
+    };
+    sound.setOnPlaybackStatusUpdate((st) => {
+      if (!st.isLoaded) {
+        if ((st as { error?: string }).error) finish(opts.onError);
+        return;
+      }
+      if (st.didJustFinish) finish(opts.onDone);
+    });
+    return true;
+  } catch {
+    await stopServerSound();
+    return false;
+  }
+}
+
+// Speak with the most natural voice available: server neural audio when the
+// gateway offers it, else the best on-device voice + lifelike prosody.
 export function speakNatural(text: string, opts: SpeakOptions): void {
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
   const lang = localeToBcp47(opts.locale);
-  void (async () => {
-    // Configure the playback session first so iOS actually routes TTS to the
-    // speaker (mute switch on, or after LiveKit/intro released the session).
-    await ensureSpeechAudioSession();
+  const speakDevice = () => {
     Speech.speak(text, {
       language: lang,
       voice: pickVoiceId(lang, style),
@@ -109,5 +187,14 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
       onStopped: opts.onStopped,
       onError: opts.onError,
     });
+  };
+  void (async () => {
+    // Configure the playback session first so iOS actually routes TTS to the
+    // speaker (mute switch on, or after LiveKit/intro released the session).
+    await ensureSpeechAudioSession();
+    if (await serverTtsAvailable()) {
+      if (await playServerAudio(text, opts)) return;   // neural audio playing
+    }
+    speakDevice();                                     // fallback
   })();
 }

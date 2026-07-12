@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Natural, cultural narration via ElevenLabs (Drive Mode + live
+  class), web and mobile. New aoep_shared/elevenlabs_tts.py client (stdlib
+  urllib, eleven_multilingual_v2, per-style voice + voice_settings, env voice
+  overrides) and speech-gateway endpoints: POST /tts + GET /tts (mobile) render
+  MP3 with the engine chain ElevenLabs -> edge-tts neural -> 501, plus GET
+  /tts/status so clients probe once. Web (apps/web/app/lib/tts.ts): speakNaturally
+  now fetches + plays server neural audio when available and falls back to the
+  best on-device voice on any error; a unified cancelSpeech() stops both browser
+  utterances and server audio (Drive Mode rewired to it). Mobile
+  (apps/mobile/src/tts.ts): speakNatural streams server audio via expo-av with an
+  expo-speech fallback and a unified stopSpeech(); Drive Mode wired in. Config:
+  ELEVENLABS_API_KEY / ELEVENLABS_MODEL (set the key to enable; falls back
+  gracefully when unset). Verified: elevenlabs client + /tts endpoint tests, full
+  backend suite, web + mobile typecheck, web production build.
+
 - 2026-07-12 - Harvester: partition oversized material into lesson-sized decks.
   Scraped pages / big files often expanded to hundreds or 1000+ slides in ONE
   deck - far too much for a single lesson. A lesson now targets a 20-30 minute
