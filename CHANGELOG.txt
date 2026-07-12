@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Live Class: AI presenter video feed (Bigo-style). The solo Live
+  Class was slide + text only; now the AI instructor "presents" in a live video
+  tile at the top of the class. New apps/web/app/components/AiPresenter.tsx: a
+  branded mascot that animates (bob + pulsing glow + audio visualizer) whenever
+  narration is speaking, with a red LIVE badge, an elapsed timer, live captions
+  of what's being said, floating chat bubbles (recent Q&A), a persona pill, and a
+  mute toggle. The Live Class now auto-narrates each slide as it appears (driving
+  the speaking animation) so the agent talks through the lesson; muting stops the
+  voice but keeps captions. Respects prefers-reduced-motion. Bump 0.14.23.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together
