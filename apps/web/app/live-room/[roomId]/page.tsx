@@ -31,6 +31,7 @@ import {
 } from "../../lib/api";
 import { friendlyError } from "../../lib/errors";
 import { LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
+import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
@@ -591,6 +592,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <h2 style={{ margin: "4px 0 0", fontSize: 20 }}>{room?.title ?? "Live class"}</h2>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <LocalRecorder roomId={roomId} title={room?.title ?? "Live class"} />
           {room?.recording.status === "recording" && (
             <span style={{ color: "#fca5a5", fontWeight: 600 }}>● REC</span>
           )}
