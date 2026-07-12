@@ -17,17 +17,41 @@ once per clone/CI runner that performs a local merge, then merge as usual:
   driver configured. When a local merge is impractical, default to accepting the
   incoming branch's `README.md`/`CHANGELOG.txt` and re-running the README cleanup.
 
+## Skills (.cursor/skills)
+
+Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
+`description`). Read the matching one before non-trivial work:
+- **platform-architecture** — orientation: service/port map, `aoep_shared`
+  provider abstraction, deploy-mode selection. Start here when unsure where X lives.
+- **run-and-test-locally** — run the stack (services/web/mobile), run pytest/ruff/
+  typecheck/build, CI gates, and port/venv/mobile-clobber gotchas.
+- **backend-service** — add/modify a FastAPI service or provider (`create_service`,
+  `app.state.factory`, config, per-service tests).
+- **identity-rewards-durability** — accounts/auth/students, points/rewards, admin +
+  feature-flag `ADMIN_SECRET`, and the Redis-snapshot durability model.
+- **live-rooms-video** — Salareen group-class LiveKit rooms (lazy-open, real JWT,
+  the 404 rule) vs Zoom/Teams/Meet bridges.
+- **harvester-content** — crawl/generate courses, partition into ~20-slide lessons,
+  mandatory `.pptx` export, corpus/packs.
+- **speech-tts** — neural narration (ElevenLabs → edge-tts → device), `/tts`
+  endpoints, web/mobile playback + `cancelSpeech`.
+- **release-and-deploy** — versioning, non-draft PR auto-merge, and the VKE deploy
+  flow (avoid the stale-image "still 404 / old version" trap).
+- **game-crafter** — Three.js game design/build pipeline (product feature).
+
 ## Push-to-main checklist (required every time main is updated)
 
 1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)
    for the change. CHANGELOG uses a union merge driver (.gitattributes) so
    concurrent entries auto-combine - keep one dated bullet per change.
-2. **Release version (required on every PR to main):** run
-   `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
+2. **Release version (recommended for user-facing releases; no longer a CI gate):**
+   run `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
    `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
-   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default
-   (`python3 scripts/bump_pr_version.py` → 0.12.1, 0.12.2, …). Use
-   `--force-level minor` only for deliberate feature releases (0.13.0).
+   Patch bump by default (0.14.13 → 0.14.14). Use `--force-level minor` only for
+   deliberate feature releases (0.15.0). The old per-PR version-bump gate was
+   removed (it collided when concurrent PRs hit the same 0.x); bumping is now
+   optional but keeps the deployed version accurate. See the `release-and-deploy`
+   skill for the full flow.
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must
