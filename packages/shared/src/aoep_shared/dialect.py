@@ -96,6 +96,48 @@ DIALECTS: Dict[str, DialectProfile] = {
         ),
         tutor_tone_hint="Warm Southern US tone — direct, folksy but respectful.",
     ),
+    "en_gb": DialectProfile(
+        id="en_gb", language="en", label="British", region="gb",
+        intro_template=(
+            "Right, lovely to have you. Today we're looking at {title}. "
+            "We'll go through {preview}{tail}. Do chime in if anything's unclear."
+        ),
+        outro_template=(
+            "And that's {title} sorted. Well done for sticking with it. "
+            "Have a go on your own — that's when it properly lands."
+        ),
+        discourse_markers=("Right,", "So,", "The thing is,", "To be fair,"),
+        replacements=(
+            ("Welcome!", "Right, lovely to have you."),
+            ("We will walk through", "We'll go through"),
+            ("That is a wrap on", "And that's"),
+            ("Nice work", "Well done"),
+            ("try it yourself", "have a go"),
+            ("awesome", "brilliant"),
+        ),
+        tutor_tone_hint="Polite British English — understated, 'brilliant/lovely', dry warmth.",
+    ),
+    "en_au": DialectProfile(
+        id="en_au", language="en", label="Australian", region="au",
+        intro_template=(
+            "G'day — good on ya for turning up. Today we're on {title}. "
+            "We'll run through {preview}{tail}. Sing out if something's not clicking."
+        ),
+        outro_template=(
+            "Righto, that's {title} done. No worries hanging in there. "
+            "Give it a crack yourself — that's how it sticks."
+        ),
+        discourse_markers=("Righto,", "Look,", "No worries,", "Fair enough,"),
+        replacements=(
+            ("Welcome!", "G'day — good on ya for turning up."),
+            ("We will walk through", "We'll run through"),
+            ("Take your time", "No rush"),
+            ("That is a wrap on", "Righto, that's"),
+            ("Nice work", "Good on ya"),
+            ("try it yourself", "give it a crack"),
+        ),
+        tutor_tone_hint="Easy-going Australian — 'g'day/no worries/give it a crack', friendly.",
+    ),
     "es_mx": DialectProfile(
         id="es_mx", language="es", label="México", region="mx",
         intro_template=(
@@ -145,6 +187,8 @@ def normalize_dialect(dialect: Optional[str], *, language: str = "en") -> Option
     aliases = {
         "california": "us_ca", "ca": "us_ca", "californian": "us_ca",
         "texas": "us_tx", "tx": "us_tx", "texan": "us_tx",
+        "british": "en_gb", "uk": "en_gb", "gb": "en_gb", "england": "en_gb",
+        "australian": "en_au", "australia": "en_au", "au": "en_au", "aussie": "en_au",
         "mexican": "es_mx", "mexico": "es_mx", "mx": "es_mx",
         "brazilian": "pt_br", "brazil": "pt_br", "br": "pt_br",
         "en": "us_general", "us": "us_general", "general": "us_general",

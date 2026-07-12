@@ -1191,6 +1191,15 @@ export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; coun
   return get(SPEECH_URL, "/learn/languages");
 }
 
+export type CatalogVoice = {
+  id: string; label: string; language: string; locale: string;
+  accent: string; gender: string; dialect: string;
+};
+export type VoiceGroup = { language: string; voices: CatalogVoice[] };
+export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {
+  return get(SPEECH_URL, "/tts/voices");
+}
+
 export async function getLangCourse(code: string): Promise<LangCourse> {
   return get(SPEECH_URL, `/learn/${encodeURIComponent(code)}/course`);
 }

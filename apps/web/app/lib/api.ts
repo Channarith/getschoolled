@@ -794,6 +794,15 @@ export type Pronounce = { score: number; stars: number; passed: boolean; target:
 export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; count: number }> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/languages`, { cache: "no-store" }));
 }
+
+export type CatalogVoice = {
+  id: string; label: string; language: string; locale: string;
+  accent: string; gender: string; dialect: string;
+};
+export type VoiceGroup = { language: string; voices: CatalogVoice[] };
+export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/tts/voices`, { cache: "no-store" }));
+}
 export async function getLangCourse(code: string): Promise<LangCourse> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/${code}/course`, { cache: "no-store" }));
 }

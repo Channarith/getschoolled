@@ -6,17 +6,19 @@ import {
   getAudioCategories,
   getAudioCourse,
   getToken,
+  getTtsVoices,
   listAudioCourses,
   listStudents,
   SPEECH_URL,
   type AudioCourse,
   type AudioCourseRow,
+  type VoiceGroup,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
-import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
+import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerVoice, speakNaturally } from "../lib/tts";
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
   getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
@@ -61,6 +63,8 @@ function DrivePageInner() {
   // Hands-free Drive Mode: mic stays always-on and wake-word-gated (no button).
   const [autoListen, setAutoListen] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
+  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
+  const [serverVoice, setServerVoiceState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -116,8 +120,23 @@ function DrivePageInner() {
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
+    // Load the accent/voice catalog + restore the saved choice.
+    getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    try {
+      const saved = localStorage.getItem("aoep_drive_voice") || "";
+      if (saved) { setServerVoiceState(saved); setServerVoice(saved); }
+    } catch { /* private mode */ }
     void refreshVoiceStyle();
   }, [locale]);
+
+  function chooseVoice(id: string) {
+    setServerVoiceState(id);
+    setServerVoice(id);
+    try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
+    // Restart ambient recognizer language follows narration; re-speak current
+    // segment so the new voice is heard immediately if playing.
+    if (playingRef.current && courseRef.current) replayCurrentSegment();
+  }
   const refresh = useCallback(() => {
     if (!getToken()) return;
     listAudioCourses({ category: cat, q, limit: "60" }, locale, trainingLang)
@@ -562,7 +581,22 @@ function DrivePageInner() {
             ) : (
               <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
             )}
-            <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
+            {voiceGroups.length > 0 && (
+              <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
+                {t("drive.voice")}&nbsp;
+                <select value={serverVoice} onChange={(e) => chooseVoice(e.target.value)}>
+                  <option value="">{t("drive.voiceDefault")}</option>
+                  {voiceGroups.map((g) => (
+                    <optgroup key={g.language} label={g.language.toUpperCase()}>
+                      {g.voices.map((v) => (
+                        <option key={v.id} value={v.id}>{v.accent} · {v.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label style={{ marginLeft: voiceGroups.length ? undefined : "auto", color: "#9aa6c2" }}>
               {t("drive.speed")}&nbsp;
               <select value={rate} onChange={(e) => setRate(Number(e.target.value))}>
                 {[0.5, 1, 2, 3].map((r) => <option key={r} value={r}>{r}x</option>)}

@@ -99,6 +99,15 @@ let _speechBaseUrl = "";
 let _serverTtsReady: boolean | null = null;
 let _statusProbe: Promise<boolean> | null = null;
 let _serverSound: Audio.Sound | null = null;
+let _serverVoiceId = "";   // chosen voice_catalog id (accent/language)
+
+export function setServerVoice(voiceId: string): void {
+  _serverVoiceId = voiceId || "";
+}
+
+export function getServerVoice(): string {
+  return _serverVoiceId;
+}
 // GET /tts is used so expo-av can load a URI directly; keep segments within a
 // safe URL length, else fall back to the device voice for that segment.
 const MAX_SERVER_TTS_CHARS = 3000;
@@ -142,7 +151,8 @@ async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolea
     const lang = (opts.locale || "en").split("-")[0];
     const style = opts.voiceStyle ?? "standard";
     const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
-      + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`;
+      + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`
+      + (_serverVoiceId ? `&voice=${encodeURIComponent(_serverVoiceId)}` : "");
     const { sound, status } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
     if (!status.isLoaded) {
       try { await sound.unloadAsync(); } catch { /* */ }

@@ -5,7 +5,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, listStudents, SPEECH_URL, type AudioCourse } from "../api";
+import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -15,7 +15,7 @@ import {
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
-import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices } from "../tts";
+import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice } from "../tts";
 import {
   normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
   type TrainingLocale,
@@ -44,6 +44,8 @@ export default function DriveModeScreen({
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
   const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
+  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
+  const [voiceId, setVoiceId] = useState("");
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -69,10 +71,17 @@ export default function DriveModeScreen({
 
   useEffect(() => {
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
+    void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
     void getVoiceEngineDetails()
       .then((d) => setVoiceEngine(d.label))
       .catch(() => setVoiceEngine("System"));
   }, []);
+
+  function chooseVoice(id: string) {
+    setVoiceId(id);
+    setServerVoice(id);
+    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+  }
 
   async function refreshVoiceStyle() {
     const settings = await getSettings();
@@ -454,6 +463,32 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           ))}
         </ScrollView>
+
+        {voiceGroups.length > 0 && (
+          <>
+            <Text style={styles.langLabel}>Voice &amp; accent</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
+              <AnimatedPressable
+                onPress={() => chooseVoice("")}
+                style={[styles.langChip, voiceId === "" && styles.langChipOn]}
+              >
+                <Text style={[styles.langChipText, voiceId === "" && styles.langChipTextOn]}>Auto</Text>
+              </AnimatedPressable>
+              {voiceGroups.flatMap((g) => g.voices).map((v) => (
+                <AnimatedPressable
+                  key={v.id}
+                  onPress={() => chooseVoice(v.id)}
+                  style={[styles.langChip, voiceId === v.id && styles.langChipOn]}
+                >
+                  <Text style={[styles.langChipText, voiceId === v.id && styles.langChipTextOn]}>
+                    {v.accent}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
         <View style={styles.row}>
           <AnimatedPressable testID="drive-prev" style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
             <Ionicons name="play-skip-back" size={28} color="#fff" />

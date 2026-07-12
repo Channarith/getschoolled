@@ -118,9 +118,19 @@ let _speechBaseUrl = "";
 let _serverTtsReady: boolean | null = null;   // null = unprobed
 let _statusProbe: Promise<boolean> | null = null;
 let _currentAudio: HTMLAudioElement | null = null;
+let _serverVoiceId = "";   // chosen voice_catalog id (accent/language), "" = default
 
 export function configureServerTts(baseUrl: string): void {
   _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
+}
+
+// Select a server neural voice (accent/language) from the voice catalog.
+export function setServerVoice(voiceId: string): void {
+  _serverVoiceId = voiceId || "";
+}
+
+export function getServerVoice(): string {
+  return _serverVoiceId;
 }
 
 async function serverTtsAvailable(): Promise<boolean> {
@@ -165,6 +175,7 @@ async function playServerAudio(text: string, opts: SpeakOptions, done: () => voi
         text,
         language: (opts.locale || "en").split("-")[0],
         voice_style: opts.voiceStyle ?? "standard",
+        voice: _serverVoiceId,
       }),
     });
     if (!resp.ok) return false;             // 501/4xx -> browser fallback
