@@ -1,4 +1,3 @@
-import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
@@ -6,7 +5,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, listStudents, type AudioCourse } from "../api";
+import { getAudioCourse, listStudents, SPEECH_URL, type AudioCourse } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -16,7 +15,7 @@ import {
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
-import { speakNatural, warmVoices } from "../tts";
+import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices } from "../tts";
 import {
   normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
   type TrainingLocale,
@@ -59,10 +58,11 @@ export default function DriveModeScreen({
 
   function stopSpeech() {
     playGenRef.current++;
-    Speech.stop();
+    stopAllTts();   // stops device voice AND server neural audio
   }
 
   useEffect(() => {
+    configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     void getVoiceEngineDetails()
       .then((d) => setVoiceEngine(d.label))
       .catch(() => setVoiceEngine("System"));
@@ -99,7 +99,7 @@ export default function DriveModeScreen({
     clearResumeTimer();
     setAssistantOpen(false);
     const gen = ++playGenRef.current;   // new playback generation
-    Speech.stop();
+    stopAllTts();
     if (i >= c.segments.length) {
       setPlaying(false);
       void onCompleted(c);
@@ -355,7 +355,7 @@ export default function DriveModeScreen({
               onPress={() => {
                 setRate(r);
                 if (course) {
-                  Speech.stop();
+                  stopAllTts();
                   playFrom(course, seg);
                 }
               }}

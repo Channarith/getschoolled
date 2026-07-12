@@ -107,6 +107,86 @@ export type SpeakOptions = {
   onend?: () => void;
 };
 
+// --------------------------------------------------------------------------- //
+// Server neural TTS (ElevenLabs -> edge-tts) with graceful browser fallback.
+//
+// The speech gateway renders the most natural, culturally-accented audio via
+// ElevenLabs when ELEVENLABS_API_KEY is set (else edge-tts neural). We probe
+// /tts/status once; when a neural engine is available we fetch + play MP3 audio,
+// otherwise we use the on-device Web Speech voice (still picked for naturalness).
+let _speechBaseUrl = "";
+let _serverTtsReady: boolean | null = null;   // null = unprobed
+let _statusProbe: Promise<boolean> | null = null;
+let _currentAudio: HTMLAudioElement | null = null;
+
+export function configureServerTts(baseUrl: string): void {
+  _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
+}
+
+async function serverTtsAvailable(): Promise<boolean> {
+  if (!_speechBaseUrl) return false;
+  if (_serverTtsReady !== null) return _serverTtsReady;
+  if (!_statusProbe) {
+    _statusProbe = fetch(`${_speechBaseUrl}/tts/status`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { available: false }))
+      .then((j) => Boolean(j?.available))
+      .catch(() => false)
+      .then((ok) => { _serverTtsReady = ok; return ok; });
+  }
+  return _statusProbe;
+}
+
+function stopServerAudio(): void {
+  if (_currentAudio) {
+    try { _currentAudio.pause(); } catch { /* */ }
+    _currentAudio.src = "";
+    _currentAudio = null;
+  }
+}
+
+// Stop ALL narration (browser utterances AND server audio). Callers that used to
+// call window.speechSynthesis.cancel() should call this so server audio also
+// stops on pause / skip / replay / language switch.
+export function cancelSpeech(): void {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch { /* */ }
+  }
+  stopServerAudio();
+}
+
+// Fetch one MP3 for the whole text and play it. Resolves true if it played (or
+// finished), false if it could not start (so the caller falls back to browser).
+async function playServerAudio(text: string, opts: SpeakOptions, done: () => void): Promise<boolean> {
+  try {
+    const resp = await fetch(`${_speechBaseUrl}/tts`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language: (opts.locale || "en").split("-")[0],
+        voice_style: opts.voiceStyle ?? "standard",
+      }),
+    });
+    if (!resp.ok) return false;             // 501/4xx -> browser fallback
+    const blob = await resp.blob();
+    if (!blob.size) return false;
+    const url = URL.createObjectURL(blob);
+    stopServerAudio();
+    const audio = new Audio(url);
+    _currentAudio = audio;
+    const cleanup = () => { URL.revokeObjectURL(url); if (_currentAudio === audio) _currentAudio = null; };
+    // Once the fetch succeeded the server engine works, so a mid-play error
+    // should just end this segment (not replay the whole thing via the browser).
+    audio.onended = () => { cleanup(); done(); };
+    audio.onerror = () => { cleanup(); done(); };
+    if (opts.rate && opts.rate > 0) audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate));
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Split narration into natural speech chunks (sentence/clause boundaries). The
 // engine inserts a brief, lifelike pause between queued utterances, so chunking
 // fixes the flat, run-on, "robotic" delivery you get from one giant utterance.
@@ -125,8 +205,31 @@ export function splitForSpeech(text: string): string[] {
 // Chunks the text and queues the chunks so the engine paces sentences naturally;
 // a slightly slower rate reads warmer and clearer than the default.
 export function speakNaturally(text: string, opts: SpeakOptions): void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+  let finished = false;
+  const done = () => {
+    if (finished) return;
+    finished = true;
     opts.onend?.();
+  };
+
+  // Prefer server neural audio (ElevenLabs / edge-tts) when available; fall back
+  // to the on-device voice on any failure so narration never silently stops.
+  serverTtsAvailable().then((ok) => {
+    if (finished) return;
+    if (ok) {
+      playServerAudio(text, opts, done).then((played) => {
+        if (!played && !finished) speakBrowser(text, opts, done);
+      });
+    } else {
+      speakBrowser(text, opts, done);
+    }
+  }).catch(() => { if (!finished) speakBrowser(text, opts, done); });
+}
+
+// On-device Web Speech narration (the natural-voice fallback).
+function speakBrowser(text: string, opts: SpeakOptions, done: () => void): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    done();
     return;
   }
   const synth = window.speechSynthesis;
@@ -136,12 +239,6 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
   const voice = pickVoice(synth.getVoices(), lang, style);
   const chunks = splitForSpeech(text);
 
-  let finished = false;
-  const done = () => {
-    if (finished) return;
-    finished = true;
-    opts.onend?.();
-  };
   if (!chunks.length) {
     done();
     return;

@@ -8,6 +8,7 @@ import {
   getToken,
   listAudioCourses,
   listStudents,
+  SPEECH_URL,
   type AudioCourse,
   type AudioCourseRow,
 } from "../lib/api";
@@ -15,7 +16,7 @@ import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
-import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
+import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
 import {
   getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
   TRAINING_LOCALES, type TrainingLocale,
@@ -98,6 +99,7 @@ function DrivePageInner() {
     setTrainingLang(stored);
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
+    configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     void refreshVoiceStyle();
   }, [locale]);
   const refresh = useCallback(() => {
@@ -142,7 +144,7 @@ function DrivePageInner() {
 
   const playSeg = useCallback((c: AudioCourse, i: number) => {
     const gen = ++playGenRef.current;   // new playback generation
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
     speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
@@ -153,7 +155,7 @@ function DrivePageInner() {
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
     const gen = ++playGenRef.current;
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
@@ -173,7 +175,7 @@ function DrivePageInner() {
     const wasPlaying = playingRef.current;
     const at = segRef.current;
     playGenRef.current++;               // invalidate the utterance we're cancelling
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     void getAudioCourse(current.id, locale, loc)
       .then((c) => {
         setCourse(c);
@@ -225,13 +227,13 @@ function DrivePageInner() {
 
   // Cancel (not just pause) so a language switch while paused can't resume a
   // stale utterance; Resume replays the current segment in the current voice.
-  function pause() { playGenRef.current++; window.speechSynthesis.cancel(); setPlaying(false); }
+  function pause() { playGenRef.current++; cancelSpeech(); setPlaying(false); }
   function resume() { replayCurrentSegment(); }
   function stop() {
     clearResumeTimer();
     stopVoiceRecognition();
     playGenRef.current++;               // stop for good: no auto-advance
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     setPlaying(false);
     setCourse(null);
     setAssistantOpen(false);
@@ -240,7 +242,7 @@ function DrivePageInner() {
   function pauseForAssistant(status = t("drive.listenStatus")) {
     clearResumeTimer();
     playGenRef.current++;
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     setPlaying(false);
     setAssistantOpen(true);
     setAssistantStatus(status);
@@ -327,7 +329,7 @@ function DrivePageInner() {
       setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
       playGenRef.current++;
-      window.speechSynthesis.cancel();
+      cancelSpeech();
       return;
     }
     if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
@@ -349,7 +351,7 @@ function DrivePageInner() {
     setAssistantAnswer(answer);
     setAssistantStatus(t("drive.answeringStatus"));
     playGenRef.current++;
-    window.speechSynthesis.cancel();
+    cancelSpeech();
     speak(t("drive.resumePrompt", { answer }), () => {
       resumeAfterAssistant(6500);
     });
@@ -366,7 +368,7 @@ function DrivePageInner() {
   useEffect(() => () => {
     clearResumeTimer();
     stopVoiceRecognition();
-    try { window.speechSynthesis.cancel(); } catch { /* */ }
+    try { cancelSpeech(); } catch { /* */ }
   }, []);
 
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
@@ -397,7 +399,7 @@ function DrivePageInner() {
               value={seg}
               onChange={(e) => {
                 const i = Number(e.target.value);
-                window.speechSynthesis.cancel();
+                cancelSpeech();
                 playSeg(course, i);
               }}
               style={{ width: "100%", accentColor: "#0ea5e9", cursor: "pointer" }}
