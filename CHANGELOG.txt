@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - Drive Mode hands-free voice: the mic is now ALWAYS listening — no
+  button. Previously you had to tap "Ask" for a one-shot capture. Now web and
+  mobile run a continuous, wake-word-gated recognizer whenever a Drive course is
+  playing: say "Hey Sala" (or "Salareen"/"Sala") then your question or a command
+  (pause/resume/next/previous/repeat) and it barges in, answers, and resumes —
+  all hands-free. Wake-word gating means the spoken narration the mic also hears
+  never triggers a false question. New pure parser apps/web/app/lib/voiceCommands.ts
+  (wake detection, question extraction, command classification). Web
+  (drive/page.tsx) auto-starts ambient listening on play with a hands-free
+  toggle + indicator, graceful fallback to the tap-to-Ask button if the mic is
+  blocked/unsupported. Mobile (voiceAssistant.ts startAmbientListening/
+  stopAmbientListening + continuous option; DriveModeScreen auto-listen + toggle).
+  Verified: parser unit checks (11/11), web typecheck+build, mobile typecheck.
+  (Live voice needs a real microphone — it cannot be exercised headlessly.)
+
 - 2026-07-12 - Add agent skills for the platform (.cursor/skills/*/SKILL.md).
   Eight task playbooks capturing the architecture so future AI agents work
   efficiently: platform-architecture (service/port map + provider abstraction),
