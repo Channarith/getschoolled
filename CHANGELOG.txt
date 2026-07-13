@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.19.0 - LiveKit backend setup so Salareen video (tier 2) actually
+  connects. Root cause: the key/secret the orchestrator SIGNS tokens with must
+  match the LiveKit server's `keys:`, or the server 401s every token and video
+  never connects. Fixes: (1) compose `livekit` used `--dev` (built-in placeholder
+  keys devkey:secret) which did NOT match the orchestrator (devkey:devsecret) —
+  now overrides via LIVEKIT_KEYS and pins the image to v1.8.0 (infra/compose/
+  docker-compose.yml); (2) config/local.env + cloud.env now set/ document
+  LIVEKIT_API_KEY/SECRET and the match requirement; (3) new scripts/run_livekit.sh
+  (+ `make run-livekit`) runs a matching LiveKit server for native dev, wired into
+  dev_up/dev_down/dev_status with a localhost URL rewrite; (4) infra/k8s/
+  livekit.yaml now derives LIVEKIT_KEYS from the same aoep-secrets the services
+  use (dependent env expansion) instead of a hardcoded key, so prod can't drift.
+  Verified end-to-end: a token minted by the running orchestrator is ACCEPTED
+  (HTTP 101, full ICE session) by a real livekit-server 1.8.0 with matching keys,
+  and REJECTED (401) with mismatched keys.
+
 - 2026-07-13 - v0.18.0 - Live rooms: fix recurring "404 Not Found" when entering a
   Salareen group-class room. _ensure_group_class_room now SEEDS-ON-MISS (via
   _find_group_class) instead of a bare store.get(), so GET/join lazily reopen a
