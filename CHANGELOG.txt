@@ -2,7 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-13 - v0.15.1 - Homework generator now runs from the command line, just
+
+- 2026-07-13 - v0.16.1 - Homework generator now runs from the command line, just
   like the harvester. New services/homework/src/homework/run.py: a thin argparse
   CLI over aoep_shared.homework with flag-selected modes (mirrors the harvester's
   run.py). --generate PATH / --content TEXT builds an assignment from a local file
@@ -16,6 +17,24 @@ Format: newest first. No markdown per project convention.
   recipe. No server or keys required for the default path. Added services/homework
   tests (mirroring services/harvester/tests) and Makefile targets homework-generate
   / homework-grade. Bump 0.15.1.
+- 2026-07-13 - v0.16.0 - Versioning traceability: every PR now MUST bump the
+  version and NAME that version in the changelog. (1) Re-added the CI gate
+  scripts/check_pr_version_bump.sh (+ version-bump job in ci.yml), but fixed the
+  false-collision bug that got it removed before: it now compares HEAD's VERSION
+  against the MERGE-BASE (fork point), not the moving tip of main, so concurrent
+  PRs that pick the same number no longer fail each other. It requires VERSION to
+  be strictly greater than the fork point, the web+mobile version files to match,
+  AND the newest CHANGELOG entry to contain the new version. (2) Adopted the
+  changelog format "- YYYY-MM-DD - vX.Y.Z - <what changed>" so each entry
+  documents its version, not just a date. (3) scripts/bump_pr_version.py
+  auto-promotes PATCH -> MINOR once >8 changes accrue since the last release
+  (AOEP_MINOR_BUMP_THRESHOLD tunes/disables; --force-level overrides). (4) New
+  scripts/merge-version.sh `maxver` merge driver (setup-git.sh + .gitattributes
+  for VERSION + web/mobile version.ts) auto-resolves concurrent bumps to the
+  HIGHER semver so main only moves forward. Also fixed the bump-test isolation
+  bug that clobbered the real apps/mobile/* version files. Bump 0.16.0
+  (auto-minor: >8 pending changes).
+
 
 - 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
   merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
