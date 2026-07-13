@@ -10,22 +10,60 @@ from aoep_shared.adaptive import LearnerSignals
 from aoep_shared.schemas import ClassType
 
 
-def test_enrich_slides_reaches_target_duration():
-    class S:
-        def __init__(self, title, body):
-            self.title = title
-            self.body = body
-            self.narration = body
+class _S:
+    def __init__(self, title, body, kind="teach", say_aloud=""):
+        self.title = title
+        self.body = body
+        self.narration = body
+        self.kind = kind
+        self.say_aloud = say_aloud
 
-    slides = [S(f"Topic {i}", "word " * 40) for i in range(5)]
+
+def _make(idx, title, body, narr, *, kind="teach", say_aloud=""):
+    s = _S(title, body, kind=kind, say_aloud=say_aloud)
+    s.narration = narr
+    return s
+
+
+def test_enrich_slides_reaches_target_duration():
+    slides = [_S(f"Topic {i}", "Photosynthesis converts light into sugar. Plants need it to grow.")
+              for i in range(5)]
     enriched, _ = enrich_slides(
         slides,
         [f"Fact {i}: definition number {i}." for i in range(10)],
         target_min=20,
-        slide_factory=lambda idx, title, body, narr: S(title, body),
+        slide_factory=_make,
     )
     assert duration_minutes(enriched) >= TARGET_MIN_MINUTES
     assert len(enriched) > len(slides)
+
+
+def test_enrich_slides_is_conversational_and_varied():
+    """No repetitive 'Example —/Reinforcement —' scaffold; beats are varied."""
+    slides = [_S(f"Topic {i}", f"Concept {i} explains an idea. It applies in the field. Detail {i} matters.")
+              for i in range(4)]
+    enriched, _ = enrich_slides(
+        slides, [f"Fact {i}: real detail {i}." for i in range(6)],
+        slide_factory=_make,
+    )
+    titles = [s.title for s in enriched]
+    # Old formulaic titles are gone.
+    assert not any(tt.startswith("Worked example") or tt.startswith("Review:") for tt in titles)
+    # Consecutive added slides don't repeat the same opening words.
+    firsts = [s.body.split()[0:4] for s in enriched]
+    repeats = sum(1 for a, b in zip(firsts, firsts[1:]) if a == b)
+    assert repeats == 0
+    # Conversational: direct address / questions present across the lesson.
+    joined = " ".join(s.body for s in enriched).lower()
+    assert "you" in joined and "?" in " ".join(s.body for s in enriched)
+
+
+def test_enrich_slides_includes_repeat_after_me_checkpoints():
+    slides = [_S(f"Topic {i}", f"Concept {i} is the key idea to remember here.") for i in range(3)]
+    enriched, _ = enrich_slides(slides, [], slide_factory=_make)
+    say = [s for s in enriched if getattr(s, "kind", "") == "say_aloud"]
+    assert say, "expected at least one repeat-after-me checkpoint"
+    assert all(s.say_aloud for s in say), "checkpoints must carry a phrase to speak"
 
 
 def test_frustration_detection():

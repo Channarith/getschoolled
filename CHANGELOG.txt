@@ -2,29 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Branding: multiple high-quality intro animations + synthesized
-  intro song. New global IntroSequence overlay plays a full-screen branded intro
-  once per browser session (visual-only, since audio autoplay is blocked without
-  a gesture) and rotates at random through 6 premium canvas animations:
-  Hyperspace (starfield warp), Particle Assembly, Neon Rings, Aurora, Confetti
-  Pop and Constellation (apps/web/app/lib/introAnimations.ts), each ending in a
-  glowing logo + wordmark reveal. The "song" is procedurally synthesized with the
-  Web Audio API (apps/web/app/lib/introSong.ts) - 6 short jingles matched to the
-  animations, no audio asset shipped, fails soft when sound is blocked. Account >
-  Settings gains an "Intro animation" card to replay a random intro (with sound,
-  since it's a click) or pick a specific one, plus a per-session autoplay toggle.
-  Respects prefers-reduced-motion; Skip button + Escape dismiss. Bump 0.14.24.
-
-- 2026-07-12 - Arcade: higher-quality games with real graphics engines (2D + 3D).
-  Added a reusable 2D canvas engine (apps/web/app/lib/gameEngine2d.ts: DPR-crisp
-  Surface, fixed-timestep GameLoop, additive Particles, Starfield, roundRect) and
-  two flagship graphical games launched from /arcade: "Cosmic Catch" (2D math -
-  /arcade/cosmic-catch) with a starfield, glowing answer bubbles, particle bursts,
-  combo/score, screen shake and age-scaled difficulty; and "Solar Quiz 3D"
-  (WebGL via three.js - /arcade/solar-3d) with a lit Sun, orbiting planets, orbit
-  rings, a starfield and click-to-answer raycasting. Both are self-contained
-  (no backend), pointer + keyboard + touch input, and clean up their loops on
-  unmount. Added three@0.169.0 dependency; arcade page now features these games.
+- 2026-07-12 - Live/group/corporate classes: engaging, conversational content +
+  spoken "repeat after me" checkpoints (replaces the repetitive intro/example/
+  reinforcement/quiz/recap scaffold). Rewrote aoep_shared/lesson_depth.enrich_slides
+  so each teaching slide is followed by VARIED, content-grounded beats (apply-it
+  scenarios, connect-the-dots, direct check-in questions) drawn from rotating
+  phrasing pools so no two consecutive beats read alike, and it talks TO the
+  learner (second person, real questions) instead of stamping the same sections on
+  every slide. Concrete detail in each beat comes from the slide's own sentences,
+  and passage "deep dives" now use each unique passage once (no cyclic padding).
+  Added "say_aloud" checkpoint slides: the orchestrator Slide model carries kind +
+  say_aloud, and the web Live Class + ClassRoom (group/corporate) pause on these,
+  narrate the phrase, listen to the learner via the Web Speech API, and score how
+  closely they said it (reusing the pronunciation endpoint) with stars + feedback.
+  Bump 0.14.23.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
