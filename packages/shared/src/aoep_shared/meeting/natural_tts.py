@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import List, Optional
+
+_IS_WINDOWS = os.name == "nt" or sys.platform.startswith("win")
 
 # Microsoft Edge neural voices (edge-tts). Warm, non-robotic; needs network once per clip.
 DEFAULT_NEURAL_VOICE = "en-US-AriaNeural"
@@ -116,8 +120,52 @@ def _play_subprocess(cmd: list, *, timeout: int) -> bool:
         return False
 
 
+def _play_windows(path: Path) -> bool:
+    """Blocking playback on Windows via the built-in .NET MediaPlayer (mp3/wav).
+
+    No external player (afplay/ffplay) exists on a stock Windows box, so without
+    this the presenter has nothing to play the edge-tts .mp3 — audio is silent
+    AND the run races by, because each speak() returns instantly instead of
+    blocking for the clip's duration. PowerShell + System.Windows.Media.MediaPlayer
+    ships with Windows and plays mp3 natively; we block for the clip length.
+    """
+    # Escape single quotes for the PowerShell single-quoted string literal.
+    safe = str(path).replace("'", "''")
+    script = (
+        "Add-Type -AssemblyName presentationCore;"
+        "$p = New-Object System.Windows.Media.MediaPlayer;"
+        f"$p.Open([uri]'{safe}');"
+        "$deadline = (Get-Date).AddSeconds(10);"
+        "while (-not $p.NaturalDuration.HasTimeSpan -and (Get-Date) -lt $deadline)"
+        " { Start-Sleep -Milliseconds 50 };"
+        "$p.Play();"
+        "if ($p.NaturalDuration.HasTimeSpan)"
+        " { Start-Sleep -Milliseconds ([int]$p.NaturalDuration.TimeSpan.TotalMilliseconds + 300) };"
+        "$p.Stop(); $p.Close();"
+    )
+    exe = shutil.which("powershell") or shutil.which("pwsh")
+    if not exe:
+        return False
+    return _play_subprocess(
+        [exe, "-NoProfile", "-NonInteractive", "-Command", script], timeout=900,
+    )
+
+
+def _play_winsound_wav(path: Path) -> bool:
+    """Last-resort Windows WAV playback via the stdlib winsound module."""
+    if path.suffix.lower() != ".wav":
+        return False
+    try:
+        import winsound
+
+        winsound.PlaySound(str(path), winsound.SND_FILENAME)
+        return True
+    except (ImportError, RuntimeError):
+        return False
+
+
 def play_audio_file(path: Path) -> bool:
-    """Blocking playback until the clip finishes."""
+    """Blocking playback until the clip finishes (cross-platform)."""
     path = Path(path)
     if not path.is_file():
         return False
@@ -128,6 +176,15 @@ def play_audio_file(path: Path) -> bool:
             ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", str(path)],
             timeout=900,
         )
+    if _IS_WINDOWS:
+        return _play_windows(path) or _play_winsound_wav(path)
+    # Linux without ffplay: try common CLI players (mp3 + wav).
+    for player, args in (
+        ("mpg123", ["-q"]), ("cvlc", ["--play-and-exit", "--intf", "dummy"]),
+        ("aplay", []), ("paplay", []),
+    ):
+        if shutil.which(player):
+            return _play_subprocess([player, *args, str(path)], timeout=900)
     return False
 
 
@@ -246,10 +303,21 @@ def _pick_macos_voice(preferred: str = "") -> str:
 def tts_engine_status() -> dict:
     from .clone_tts import engine_status as clone_status
 
+    audio_player = bool(
+        shutil.which("afplay")
+        or shutil.which("ffplay")
+        or (_IS_WINDOWS and (shutil.which("powershell") or shutil.which("pwsh")))
+        or shutil.which("mpg123")
+        or shutil.which("aplay")
+    )
     return {
         "edge_tts": _edge_tts_available(),
         "say": shutil.which("say") is not None,
         "afplay": shutil.which("afplay") is not None,
+        "ffplay": shutil.which("ffplay") is not None,
+        "windows_media_player": _IS_WINDOWS
+        and bool(shutil.which("powershell") or shutil.which("pwsh")),
+        "audio_player_available": audio_player,
         "default_neural_voice": DEFAULT_NEURAL_VOICE,
         **clone_status(),
     }
