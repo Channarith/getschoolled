@@ -2,16 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Presenter (teach & present): also uses CosyVoice 2. The teach-
-  and-present narration goes through the clone/presenter chain (clone_tts), which
-  is separate from the /tts gateway. Added CosyVoice 2 there: new
-  synthesize_cosyvoice() (zero-shot clone from a persona's reference sample, or
-  the default multilingual/cross-lingual voice with no persona), added to
-  CLONE_ENGINES and made the FIRST entry of the default CLONE_TTS_PRIORITY
-  (cosyvoice,chatterbox,xtts,elevenlabs,edge). speak_natural_blocking renders no-
-  persona narration through CosyVoice before edge-tts/say when COSYVOICE_URL is
-  set. engine_status reports cosyvoice_url; PRESENTER_RUNBOOK documents it.
-  Falls back gracefully when unset/unreachable. Tests added. Bump 0.15.0.
+- 2026-07-12 - Vultr: self-hosted CosyVoice 2 GPU TTS (vLLM-accelerated). New
+  services/cosyvoice/: a FastAPI wrapper (server.py) around FunAudioLLM CosyVoice
+  2 exposing our /tts contract (modes: instruct2/zero_shot/cross_lingual/sft),
+  plus a CUDA Dockerfile that installs vLLM and the CosyVoice repo, and a README.
+  vLLM acceleration is ON by default (COSYVOICE_USE_VLLM=1) - big speedup =>
+  fewer Vultr GPU-hours. New infra/k8s/cosyvoice.yaml Deployment+Service+PVC on
+  the GPU pool (nodeSelector aoep.gpu/pool, nvidia.com/gpu:1, port 9880), added to
+  the kustomize base and the VKE image rewrite (sjc.vultrcr.com/salareen/
+  cosyvoice). COSYVOICE_URL=http://cosyvoice:9880 wired into aoep-config (base +
+  VKE), so the speech gateway + presenter prefer CosyVoice once the pod is healthy
+  (graceful fallback otherwise). VKE RUNBOOK documents build/push/deploy. Contract
+  tests (fake model, no GPU) pass. Bump 0.15.0.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are

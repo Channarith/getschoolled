@@ -50,6 +50,31 @@ Vultr may or may not accept Cloud GPU plans directly in VKE node pools in every
 account/region. If VKE rejects a GPU node pool, create the A16 GPU as a separate
 Vultr instance and point LLM_BASE_URL at the model server on that instance.
 
+CosyVoice 2 (neural TTS, GPU + vLLM)
+------------------------------------
+CosyVoice 2 renders the natural course narration (Drive Mode + live class via the
+speech gateway) and the teach-&-present presenter. It runs on the GPU pool with
+vLLM acceleration (COSYVOICE_USE_VLLM=1) - vLLM makes generation much faster, so
+one GPU serves many concurrent narrations and your Vultr GPU-hours go further.
+
+Setup:
+  1. Build + push the image (multi-GB; build on a GPU box or large runner):
+       docker build -f services/cosyvoice/Dockerfile \
+         -t sjc.vultrcr.com/salareen/cosyvoice:latest .
+       docker push sjc.vultrcr.com/salareen/cosyvoice:latest
+  2. Label a GPU node so it schedules:  kubectl label node <gpu-node> aoep.gpu/pool=true
+  3. kubectl apply -k infra/k8s-vke        # includes cosyvoice.yaml + COSYVOICE_URL
+  4. kubectl -n aoep rollout status deploy/cosyvoice --timeout=600s   # first start pulls weights to the PVC
+  5. kubectl -n aoep rollout restart deploy/speech   # pick up COSYVOICE_URL
+
+COSYVOICE_URL=http://cosyvoice:9880 is already in aoep-config, so once the pod is
+healthy the speech + presenter paths prefer CosyVoice automatically (falling back
+to ElevenLabs/edge-tts if it's down/absent). It can share the LLM GPU node or use
+its own; see infra/k8s/cosyvoice.yaml (nvidia.com/gpu: 1). If VKE won't give you a
+GPU node pool, run the image on a standalone Vultr GPU instance and set
+COSYVOICE_URL to that host instead. The cosyvoice image is NOT built by the
+per-commit deploy workflow (too heavy) - rebuild/push it manually when it changes.
+
 CPU/API pool demo baseline:
   3 x vc2-4c-8gb  (~$120/mo)
 
