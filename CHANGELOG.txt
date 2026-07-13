@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - Versioning: re-added AUTO-MINOR bumping + a HIGHER-VERSION merge
+  driver. (1) scripts/bump_pr_version.py now auto-promotes a PATCH to a MINOR
+  (0.x.0) once >8 features have accrued since the last release (counted from the
+  pending changelog block), matching the ">8 features -> next version" rule;
+  --force-level still overrides and AOEP_MINOR_BUMP_THRESHOLD tunes/disables it
+  (0 = off). build_release.py rolls the pending block at release, resetting the
+  counter to PATCH. (2) New scripts/merge-version.sh `maxver` git merge driver
+  (wired by setup-git.sh, bound in .gitattributes for VERSION +
+  apps/web/app/lib/version.ts + apps/mobile/src/version.ts): concurrent version
+  bumps auto-resolve to the HIGHER semver so main only moves forward and never
+  hard-conflicts on version files (verified both merge directions + equal case).
+  Like the README `theirs` driver it runs on local/agent merges, not GitHub's
+  server-side merge. Also fixed the bump-test isolation bug that clobbered the
+  real apps/mobile/* version files. Bump 0.16.0 (auto-minor: >8 pending changes).
+
 - 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
   merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
   while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so

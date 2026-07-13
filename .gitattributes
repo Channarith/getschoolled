@@ -6,6 +6,21 @@
 # producing merge conflicts. union is also honored by GitHub's server-side merge.
 CHANGELOG.txt merge=union
 #
+# build-info.txt is AUTO-GENERATED (scripts/bump_pr_version.py / build_release.py)
+# on every bump, so concurrent PRs always rewrote it and it hard-conflicted. It
+# carries no hand-authored content, so union never blocks and the next bump
+# regenerates it cleanly. Built-in + honored by GitHub's server-side merge.
+build-info.txt merge=union
+#
+# VERSION and the generated version.ts files auto-resolve to the HIGHER semantic
+# version via the custom `maxver` driver (scripts/merge-version.sh, wired by
+# scripts/setup-git.sh) so concurrent version bumps never block and main only
+# moves forward. Like `theirs`, this is a custom driver: it runs on local/agent
+# merges (run setup-git.sh once per clone) but NOT on GitHub's server-side merge.
+VERSION merge=maxver
+apps/web/app/lib/version.ts merge=maxver
+apps/mobile/src/version.ts merge=maxver
+#
 # README conflicts auto-resolve by accepting the INCOMING (theirs) version. This
 # uses the custom `theirs` driver configured by scripts/setup-git.sh, so it
 # applies to local/agent merges (run that script once per clone). GitHub's
