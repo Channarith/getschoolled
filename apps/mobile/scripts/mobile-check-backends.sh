@@ -55,12 +55,14 @@ if [ "$DEPLOY_MODE" = "cloud" ]; then
   check_http "identity (login)" "$CLOUD_BASE/identity/__meta" || WARN=$((WARN + 1))
   check_http "curriculum (catalog)" "$CLOUD_BASE/curriculum/health" || WARN=$((WARN + 1))
   check_http "memory" "$CLOUD_BASE/memory/health" || WARN=$((WARN + 1))
+  check_http "orchestrator (live rooms)" "$CLOUD_BASE/orchestrator/api/live-rooms" || WARN=$((WARN + 1))
   if [ "$WARN" -gt 0 ]; then
     echo "  Primary unreachable — probing Vultr failover ($CLOUD_FAILOVER)…"
     FAILOVER_WARN=0
     check_http "identity (failover)" "$CLOUD_FAILOVER/identity/__meta" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
     check_http "curriculum (failover)" "$CLOUD_FAILOVER/curriculum/health" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
     check_http "memory (failover)" "$CLOUD_FAILOVER/memory/health" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
+    check_http "orchestrator (failover)" "$CLOUD_FAILOVER/orchestrator/api/live-rooms" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
     if [ "$FAILOVER_WARN" -eq 0 ]; then
       echo "  OK   Vultr failover reachable (app will use it when primary fails)"
       exit 0

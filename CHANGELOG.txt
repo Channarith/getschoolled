@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.17.0 - Mobile live room 404 fix: cloud orchestrator URL now
+  uses the same /orchestrator prefix as the web app (was bare www.salareen.com
+  + /api/..., which could hit Next.js and return "404 Not Found" instead of
+  reaching the orchestrator). LiveRoomScreen proactively opens not-yet-started
+  class-* rooms on load, shows friendly errors for all 404/not-found cases, and
+  displays the real host name instead of a hardcoded "Theodore". Backend probe
+  added to mobile-check-backends.sh.
+
 - 2026-07-13 - v0.16.3 - Web: synced the theme/logo branch onto upstream main
   (v0.16.2) and kept the light warm-campus theme, gold-S/bodhi-leaf emblem, and
   the Our Story on-theme ecosystem diagram. Restored the single-row desktop top

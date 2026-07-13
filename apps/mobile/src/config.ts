@@ -77,7 +77,10 @@ function serviceUrl(key: string, port: number, cloudPath: string): string {
 export const CURRICULUM_URL = serviceUrl("curriculumUrl", 8005, "/curriculum");
 export const IDENTITY_URL = serviceUrl("identityUrl", 8008, "/identity");
 export const MEMORY_URL = serviceUrl("memoryUrl", 8004, "/memory");
-export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "");
+// Same-origin /orchestrator prefix as the web app (infra/k8s-vke ingress rewrites
+// /<svc>/... to each backend). Bare /api/... on www can 404 from Next.js when the
+// edge route is missing or stale; /orchestrator/api/... always reaches orchestrator.
+export const ORCHESTRATOR_URL = serviceUrl("orchestratorUrl", 8000, "/orchestrator");
 export const BILLING_URL = serviceUrl("billingUrl", 8006, "/billing");
 export const SPEECH_URL = serviceUrl("speechUrl", 8002, "/speech");
 

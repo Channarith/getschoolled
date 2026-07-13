@@ -21,6 +21,26 @@ const STORAGE: Record<string, { participantId: string; identity: string }> = {};
 const MOD_STORAGE: Record<string, string> = {};
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
+function isLiveRoomMissingError(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  return msg.includes("404")
+    || lower.includes("unknown live room")
+    || lower.includes("not found");
+}
+
+function friendlyLiveRoomMissingMessage(roomId: string): string {
+  if (roomId.startsWith("class-")) {
+    return "This class hasn't started yet — tap Enter room to open it.";
+  }
+  return "This room is no longer available — it may have ended or the server restarted.";
+}
+
+function hostLabel(room: LiveRoomState | null): string {
+  return room?.host?.name
+    || room?.participants?.find((p) => p.role === "host")?.name
+    || "Host";
+}
+
 export default function LiveRoomScreen({
   roomId,
   onBack,
@@ -55,11 +75,18 @@ export default function LiveRoomScreen({
       setError("");
     } catch (e) {
       const msg = (e as Error).message;
-      // Room not open yet (never started, or the server was restarted). Show a
-      // human message instead of a raw "404 Not Found"; joining will (re)open it.
-      setError(msg.includes("404") || msg.toLowerCase().includes("unknown live room")
-        ? "This class hasn't started yet — tap Enter room to open it."
-        : msg);
+      if (isLiveRoomMissingError(msg) && roomId.startsWith("class-")) {
+        try {
+          const geo = await getLiveRoomLocation();
+          await startGroupClass(roomId.slice("class-".length), geo);
+          setRoom(await getLiveRoom(roomId, modKey));
+          setError("");
+          return;
+        } catch {
+          /* fall through to friendly message */
+        }
+      }
+      setError(isLiveRoomMissingError(msg) ? friendlyLiveRoomMissingMessage(roomId) : msg);
     }
   };
 
@@ -96,8 +123,7 @@ export default function LiveRoomScreen({
         // Room not open yet: for a group-class room (`class-<id>`) open it first
         // (idempotent server-side), then retry the join once so entering works.
         const msg = (joinErr as Error).message;
-        const is404 = msg.includes("404") || msg.toLowerCase().includes("unknown live room");
-        if (is404 && roomId.startsWith("class-")) {
+        if (isLiveRoomMissingError(msg) && roomId.startsWith("class-")) {
           const geo = await getLiveRoomLocation();
           await startGroupClass(roomId.slice("class-".length), geo);
           joined = await joinLiveRoom(roomId, name.trim(), ident);
@@ -118,7 +144,7 @@ export default function LiveRoomScreen({
       if (msg.toLowerCase().includes("block") || msg.toLowerCase().includes("removed")) {
         setWasBlocked(true);
       }
-      setError(msg);
+      setError(isLiveRoomMissingError(msg) ? friendlyLiveRoomMissingMessage(roomId) : msg);
     } finally {
       setBusy(false);
     }
@@ -161,7 +187,7 @@ export default function LiveRoomScreen({
       <View style={styles.wrap}>
         <PrimaryButton label="← Back" onPress={onBack} variant="ghost" />
         <Text style={styles.title}>Salareen Live Room</Text>
-        <Text style={styles.meta}>Theodore hosts · grid up to {room?.room_size ?? 6} seats</Text>
+        <Text style={styles.meta}>{hostLabel(room)} hosts · grid up to {room?.room_size ?? 6} seats</Text>
         {loading ? <ActivityIndicator color={theme.colors.accent} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <GlassPanel style={styles.joinCard}>

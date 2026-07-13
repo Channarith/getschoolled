@@ -33,8 +33,7 @@ describe("cloud mode (default)", () => {
     expect(c.CURRICULUM_URL).toBe("https://www.salareen.com/curriculum");
     expect(c.IDENTITY_URL).toBe("https://www.salareen.com/identity");
     expect(c.MEMORY_URL).toBe("https://www.salareen.com/memory");
-    // orchestrator has an empty service path -> bare origin.
-    expect(c.ORCHESTRATOR_URL).toBe("https://www.salareen.com");
+    expect(c.ORCHESTRATOR_URL).toBe("https://www.salareen.com/orchestrator");
   });
 
   test("rejects a configured localhost URL and falls back to the cloud origin", () => {
@@ -54,6 +53,9 @@ describe("cloud mode (default)", () => {
     const c = loadConfig("ios", {});
     expect(c.failoverUrlFor("https://www.salareen.com/curriculum")).toBe(
       "http://45.63.91.80/curriculum",
+    );
+    expect(c.failoverUrlFor("https://www.salareen.com/orchestrator")).toBe(
+      "http://45.63.91.80/orchestrator",
     );
     // A URL outside the primary origin has no failover twin.
     expect(c.failoverUrlFor("https://example.com/x")).toBeNull();
