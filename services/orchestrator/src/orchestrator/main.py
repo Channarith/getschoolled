@@ -853,9 +853,22 @@ def schedule_group_class(req: ScheduleGroupClassRequest) -> dict:
     return gc.to_dict()
 
 
+def _find_group_class(class_id: str):
+    """Look up a class, materializing the standard (deterministic-id) classes on
+    a miss. On multi-replica / post-restart deployments the class listed by one
+    replica may not yet exist in this worker's store; seeding is idempotent and
+    reproduces the same ids, so the retry finds it."""
+    store = _group_store()
+    gc = store.get(class_id)
+    if gc is None:
+        _seed_group_classes()
+        gc = store.get(class_id)
+    return gc
+
+
 @app.get("/api/group-classes/{class_id}")
 def get_group_class(class_id: str) -> dict:
-    gc = _group_store().get(class_id)
+    gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
     return gc.to_dict()
@@ -864,6 +877,8 @@ def get_group_class(class_id: str) -> dict:
 @app.post("/api/group-classes/{class_id}/register")
 def register_group_class(class_id: str, req: RegisterRequest) -> dict:
     store = _group_store()
+    if store.get(class_id) is None:
+        _seed_group_classes()   # materialize standard classes on a miss (see _find_group_class)
     try:
         store.register(class_id, req.name, req.email)
     except KeyError:
@@ -903,7 +918,7 @@ def start_group_class(
     built-in "salareen" classes, learners join the live room directly.
     """
     store = _group_store()
-    gc = store.get(class_id)
+    gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
 

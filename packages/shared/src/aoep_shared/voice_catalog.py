@@ -29,6 +29,7 @@ class Voice:
     edge_voice: str    # edge-tts neural voice name (accent-accurate)
     elevenlabs_voice_id: str = ""   # optional specific ElevenLabs voice
     dialect: str = ""               # aoep_shared.dialect id for slang flavor
+    cosyvoice_speaker: str = ""     # optional CosyVoice 2 enrolled speaker id
 
     def to_dict(self) -> dict:
         return {

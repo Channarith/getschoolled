@@ -15,6 +15,8 @@ data:
   NEMOTRON_MODEL: "nvidia/llama-3.1-nemotron-70b-instruct"
   SPEECH_BASE_URL: "http://speech:8000"
   VISION_BASE_URL: "http://perception:8000"
+  # CosyVoice 2 GPU TTS (vLLM-accelerated) in-cluster; see infra/k8s/cosyvoice.yaml.
+  COSYVOICE_URL: "http://cosyvoice:9880"
   LIVEKIT_URL: "wss://livekit.salareen.com"
   OBJECT_STORE_ENDPOINT: "https://<vultr-region>.vultrobjects.com"
   OBJECT_STORE_BUCKET: "salareen-prod"

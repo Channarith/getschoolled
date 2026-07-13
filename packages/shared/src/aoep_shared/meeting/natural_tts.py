@@ -206,6 +206,22 @@ def speak_natural_blocking(
         if ok and mp3.is_file():
             return play_audio_file(mp3)
 
+    # CosyVoice 2 (self-hosted) for the default/no-persona voice: when
+    # COSYVOICE_URL is set and we're on "auto"/"cosyvoice", render with it before
+    # falling back to edge-tts / macOS say. (With a persona sample the clone path
+    # above already tries CosyVoice first via the engine priority.)
+    from .clone_tts import _cosyvoice_url, synthesize_cosyvoice
+
+    if _cosyvoice_url() and engine in ("auto", "cosyvoice"):
+        root_dir = cache_dir or Path(tempfile.gettempdir()) / "aoep_presenter_tts"
+        root_dir.mkdir(parents=True, exist_ok=True)
+        digest = abs(hash((narration[:500], "cosyvoice", language))) % 10_000_000
+        cv = root_dir / f"cosy_{digest}.mp3"
+        ref = sample_path if (sample_path and sample_path.is_file()) else None
+        if cv.is_file() or synthesize_cosyvoice(narration, cv, language=language, sample_path=ref):
+            if cv.is_file():
+                return play_audio_file(cv)
+
     use_neural = engine in ("auto", "edge", "neural") and _edge_tts_available()
     if use_neural:
         root = cache_dir or Path(tempfile.gettempdir()) / "aoep_presenter_tts"

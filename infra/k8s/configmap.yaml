@@ -20,6 +20,10 @@ data:
   # addressed by its Service name).
   SPEECH_BASE_URL: "http://speech:8000"
   VISION_BASE_URL: "http://perception:8000"
+  # CosyVoice 2 (self-hosted GPU TTS, vLLM-accelerated) - see infra/k8s/cosyvoice.yaml.
+  # When set, the speech gateway + presenter render narration through it. Empty
+  # (or the Deployment absent) -> ElevenLabs/edge-tts/device-voice fallback.
+  COSYVOICE_URL: "http://cosyvoice:9880"
   LIVEKIT_URL: "wss://livekit.aoep.example"
   OBJECT_STORE_ENDPOINT: "https://s3.amazonaws.com"
   OBJECT_STORE_BUCKET: "aoep-prod"
