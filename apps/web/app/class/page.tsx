@@ -32,6 +32,7 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import AiPresenter from "../components/AiPresenter";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
 type SpeechRec = {
@@ -75,6 +76,7 @@ export default function ClassPage() {
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   // Adaptive quiz state (difficulty personalizes via the memory service).
@@ -108,6 +110,7 @@ export default function ClassPage() {
   }
 
   function speak(text: string) {
+    setSpokenText(text);   // caption updates even when muted
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -119,38 +122,13 @@ export default function ClassPage() {
     window.speechSynthesis.speak(utterance);
   }
 
-  // Reset the speaking-checkpoint result on each slide; narrate the phrase for a
-  // repeat-after-me slide so the learner can echo it, then pause here.
+  // The AI presenter narrates each slide as it appears, so the video feed shows
+  // the agent actually presenting the lesson (and drives the speaking animation).
   useEffect(() => {
-    setHeard("");
-    setPron(null);
-    setListening(false);
-    if (slide?.say_aloud) speak(slide.narration || `Repeat after me: ${slide.say_aloud}`);
+    if (!view || !slide) return;
+    speak(`${slide.title}. ${slide.narration || slide.body}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide?.index]);
-
-  function startRepeatAfterMe() {
-    const target = slide?.say_aloud;
-    if (!target) return;
-    const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
-    stopSpeaking();
-    const rec = new Ctor();
-    rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    setPron(null);
-    setListening(true);
-    rec.onresult = (e) => {
-      const said = e.results[0][0].transcript;
-      setHeard(said);
-      pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    rec.start();
-  }
+  }, [slide?.index, view?.session.session_id]);
 
   async function onStart() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
@@ -471,6 +449,21 @@ export default function ClassPage() {
 
       {view && slide && (
         <>
+          <AiPresenter
+            speaking={speaking}
+            name="Salareen AI Instructor"
+            persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
+            caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+            live
+            muted={!speakAnswers}
+            onToggleMute={() => {
+              const next = !speakAnswers;
+              setSpeakAnswers(next);
+              if (!next) stopSpeaking();
+              else speak(`${slide.title}. ${slide.narration || slide.body}`);
+            }}
+            messages={chat}
+          />
           <div className="slide">
             <div className="muted">
               {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
