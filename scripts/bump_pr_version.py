@@ -6,17 +6,18 @@ branch after updating CHANGELOG.txt:
 
   python3 scripts/bump_pr_version.py
 
-Release strategy (kept deliberately simple):
-  * Routine PRs (bug fixes, cleanups, small changes) -> PATCH bump (0.9.y).
-    This is the DEFAULT and what almost every PR should use.
-  * A larger feature release -> MINOR bump (0.x.0) via --force-level minor.
-  * A breaking/major release -> MAJOR bump (x.0.0) via --force-level major.
+Release strategy:
+  * Routine PRs (bug fixes, cleanups, small changes) -> PATCH bump (0.x.y).
+  * AUTO-MINOR: once more than MINOR_BUMP_THRESHOLD (default 8) features have
+    been introduced or changed since the last release (counted from the pending
+    changelog block), the next bump is promoted to a MINOR (0.x.0). This matches
+    the project's "autobump to the next version when we have >8 features" rule.
+  * --force-level {patch,minor,major} always overrides the automatic choice.
 
-We intentionally do NOT auto-promote to a MINOR bump based on the size of the
-[unreleased] changelog block. That block is rolled only by build_release.py at
-formal release time, so per-PR it just keeps growing and would force a minor
-bump on every PR -- making 0.x balloon far too quickly. Minor/major bumps are an
-explicit decision, not a side effect of accumulated changelog text.
+Tuning: set AOEP_MINOR_BUMP_THRESHOLD to change the >8 threshold (0 disables
+auto-minor). build_release.py rolls the pending changelog block into a released
+section at release time, which resets the counter so the next cycle starts at
+PATCH again.
 
 Updates VERSION, build-info.txt, apps/web/app/lib/version.ts, and
 apps/web/package.json. Does NOT roll CHANGELOG.txt (dated PR bullets stay at top).
@@ -27,6 +28,7 @@ Use --check to print the computed version without writing files.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +36,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_release as br  # noqa: E402
+
+# >N features/changes since the last release auto-promotes a PATCH to a MINOR.
+DEFAULT_MINOR_BUMP_THRESHOLD = 8
+
+
+def _minor_bump_threshold() -> int:
+    raw = os.environ.get("AOEP_MINOR_BUMP_THRESHOLD", "").strip()
+    if raw:
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+    return DEFAULT_MINOR_BUMP_THRESHOLD
 
 
 def _pending_changelog_entries(text: str) -> int:
@@ -59,24 +74,37 @@ def main(argv: list[str] | None = None) -> int:
     current = br.read_version()
     changelog_text = br.CHANGELOG_FILE.read_text(encoding="utf-8")
     pending = _pending_changelog_entries(changelog_text)
+    threshold = _minor_bump_threshold()
 
-    if args.force_level == "major":
+    # Resolve the bump level: explicit flag wins; otherwise auto-promote to MINOR
+    # once >threshold features have accrued since the last release, else PATCH.
+    if args.force_level:
+        level = args.force_level
+        auto = False
+    elif threshold > 0 and pending > threshold:
+        level = "minor"
+        auto = True
+    else:
+        level = "patch"
+        auto = False
+
+    if level == "major":
         new_tuple = (current[0] + 1, 0, 0)
-    elif args.force_level == "minor":
+    elif level == "minor":
         new_tuple = (current[0], current[1] + 1, 0)
     else:
-        # Default = PATCH. Routine PRs stay on 0.9.y; minor/major bumps are an
-        # explicit --force-level decision (see module docstring for rationale).
         new_tuple = (current[0], current[1], current[2] + 1)
 
     new_version = ".".join(str(p) for p in new_tuple)
     sha = br.git_sha()
     components = br.discover_components()
 
-    level = args.force_level or "patch (default)"
+    reason = (f" (auto: {pending} > {threshold} pending changes)" if auto
+              else " (forced)" if args.force_level
+              else f" ({pending} pending <= {threshold} threshold)")
     print(f"current version:   {'.'.join(str(p) for p in current)}")
-    print(f"bump level:        {level}")
-    print(f"pending changelog: {pending} (informational only; does not force a bump)")
+    print(f"bump level:        {level}{reason}")
+    print(f"pending changelog: {pending}")
     print(f"new version:       {new_version}")
 
     if args.check:

@@ -6,6 +6,18 @@ on:
   pull_request:
 
 jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require VERSION bump + changelog version on every PR
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: bash scripts/check_pr_version_bump.sh
+
   python:
     runs-on: ubuntu-latest
     steps:
