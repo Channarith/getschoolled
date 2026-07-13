@@ -58,6 +58,14 @@ export CURRICULUM_DIR="${CURRICULUM_DIR:-$ROOT/sample-curriculum}"
 # docker compose; when it doesn't exist on this host, fall back to the repo's.
 [ -d "$CURRICULUM_DIR" ] || export CURRICULUM_DIR="$ROOT/sample-curriculum"
 export ENABLE_TEST_ENDPOINTS="${ENABLE_TEST_ENDPOINTS:-1}"
+# LiveKit: config/local.env carries the compose hostname (ws://livekit:7880);
+# native dev runs the server on localhost. Rewrite unless already overridden,
+# and default the keys so the orchestrator's tokens match the server.
+case "${LIVEKIT_URL:-}" in
+  *//livekit:*|"") export LIVEKIT_URL="ws://localhost:7880" ;;
+esac
+export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
+export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-devsecret}"
 # Local/demo headroom: every browser tab and E2E worker shares the 127.0.0.1
 # rate bucket, so the production-like 120 req/min trips during rich pages.
 export RATE_LIMIT="${RATE_LIMIT:-600}"
@@ -78,6 +86,21 @@ SERVICES=(
 
 healthy() { curl -fsS "http://127.0.0.1:$1/health" >/dev/null 2>&1; }
 web_up()  { curl -fsS -o /dev/null "http://127.0.0.1:3000" >/dev/null 2>&1; }
+
+# --- 3a. LiveKit (WebRTC for Salareen live rooms) -------------------------- #
+say "Starting LiveKit (WebRTC)…"
+if curl -fsS -o /dev/null "http://127.0.0.1:7880" 2>/dev/null; then
+  ok "livekit already running (:7880)"
+else
+  ( LIVEKIT_API_KEY="$LIVEKIT_API_KEY" LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET" \
+      nohup "$ROOT/scripts/run_livekit.sh" >"$LOGS/livekit.log" 2>&1 & echo $! >"$LOGS/livekit.pid" )
+  sleep 1
+  if curl -fsS -o /dev/null "http://127.0.0.1:7880" 2>/dev/null; then
+    ok "livekit starting (:7880) — logs/livekit.log"
+  else
+    warn "livekit not up yet (tier-2 video). Rooms still work without it — see logs/livekit.log"
+  fi
+fi
 
 say "Starting backend services…"
 for spec in "${SERVICES[@]}"; do
@@ -112,6 +135,7 @@ for spec in "${SERVICES[@]}"; do
   else warn "$(printf '%-13s' "$name") NOT healthy — see logs/$name.log"; fi
 done
 if web_up; then ok "$(printf '%-13s' web) http://localhost:3000"; else warn "web not ready yet — see logs/web.log"; fi
+if curl -fsS -o /dev/null "http://127.0.0.1:7880" 2>/dev/null; then ok "$(printf '%-13s' livekit) ws://localhost:7880  (WebRTC video)"; else warn "livekit down — Salareen video won't connect (rooms/chat still work)"; fi
 
 echo
 say "Live integrations"

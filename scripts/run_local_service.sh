@@ -69,6 +69,13 @@ while IFS= read -r line; do
   export "$key=$val"
 done < "$ENV_FILE"
 
+# config/local.env carries the compose LiveKit hostname (ws://livekit:7880),
+# which doesn't resolve for a native run. Point at localhost so tokens the
+# orchestrator mints target the local `make run-livekit` server.
+case "${LIVEKIT_URL:-}" in
+  *//livekit:*) export LIVEKIT_URL="ws://localhost:7880" ;;
+esac
+
 cd "${ROOT}/services/${svc}"
 export PYTHONPATH=src
 exec "$VENV_PY" -m uvicorn "$module" --host 0.0.0.0 --port "$port"

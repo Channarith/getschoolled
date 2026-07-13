@@ -17,3 +17,8 @@ if curl -fsS -o /dev/null "http://127.0.0.1:3000" 2>/dev/null; then
 else
   printf "  \033[1;31m○\033[0m %-13s http://localhost:3000   (down)\n" "web"
 fi
+if curl -fsS -o /dev/null "http://127.0.0.1:7880" 2>/dev/null; then
+  printf "  \033[1;32m●\033[0m %-13s ws://localhost:7880   (WebRTC)\n" "livekit"
+else
+  printf "  \033[1;31m○\033[0m %-13s ws://localhost:7880   (down)\n" "livekit"
+fi
