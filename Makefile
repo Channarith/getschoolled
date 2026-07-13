@@ -90,6 +90,18 @@ harvest-crawl-daemon:
 harvest-search:
 	$(VENV_PY) services/harvester/src/harvester/run.py --corpus-search "$(QUERY)" --top-k 8
 
+# Homework CLI (offline). Override SRC/TITLE/SUBJECT/HOMEWORK_OUT.
+HOMEWORK_OUT ?= output/homework
+HW_TITLE ?= Homework
+HW_SUBJECT ?= general
+homework-generate:
+	$(VENV_PY) services/homework/src/homework/run.py --generate "$(SRC)" \
+		--title "$(HW_TITLE)" --subject "$(HW_SUBJECT)" --out-dir $(HOMEWORK_OUT)
+
+homework-grade:
+	$(VENV_PY) services/homework/src/homework/run.py --grade "$(ASSIGNMENT)" \
+		--submission-file "$(SUBMISSION)" --subject "$(HW_SUBJECT)"
+
 meeting-agents-lab:
 	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
 
