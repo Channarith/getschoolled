@@ -2,17 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Fix: Drive Mode "Stop" now truly stops neural narration. Hitting
-  Stop (or Pause/skip) while a segment's server TTS (/tts) MP3 was still being
-  fetched did nothing - no <audio> existed yet to pause - so when the fetch
-  resolved it started playing AFTER the player had closed ("the window
-  disappears but it keeps talking, on a different section"). apps/web/app/lib/
-  tts.ts now carries a playback epoch bumped by cancelSpeech() plus an
-  AbortController: an in-flight /tts fetch is aborted on Stop, and if one still
-  resolves it checks the epoch and refuses to start audio (and won't fall back
-  to the browser voice or fire the segment's onend/advance). Added a Playwright
-  regression (e2e/core/drive-stop.spec.ts): stopping mid-fetch starts zero
-  audio, with a control proving the neural path otherwise plays. Bump 0.14.23.
+- 2026-07-12 - Fix: mobile-tests CI (Jest) now passes under pnpm. The Jest
+  transformIgnorePatterns assumed a hoisted node_modules, but pnpm stores
+  packages at node_modules/.pnpm/<pkg>@<ver>/node_modules/<pkg>, so React
+  Native's Flow-syntax files (@react-native/js-polyfills/error-guard.js) were
+  force-ignored and not transpiled -> "SyntaxError: Unexpected identifier
+  'ErrorHandler'" failed all 5 suites. apps/mobile/jest.config.js now uses two
+  pnpm-aware patterns (one for the .pnpm store, one for hoisted layouts) built
+  from a shared TRANSPILE allowlist. All 5 suites / 38 tests pass. Bump 0.14.23.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
