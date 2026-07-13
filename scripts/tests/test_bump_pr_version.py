@@ -110,6 +110,41 @@ def test_force_patch_overrides_auto_minor(monkeypatch, tmp_path):
     assert (tmp_path / "VERSION").read_text().strip() == "0.15.1"
 
 
+def test_bumps_from_base_branch_when_ahead(monkeypatch, tmp_path):
+    # Branch VERSION is behind main (concurrent merge advanced main). The bump
+    # must start from main's version, not the stale local one: 0.16.1 -> 0.16.2.
+    _setup(tmp_path, "0.16.0", "CHANGELOG\n=====\n\n[unreleased]\n- x\n")
+    monkeypatch.setattr(bump_pr, "base_branch_version", lambda *a, **k: ((0, 16, 1), "origin/main"))
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert bump_pr.main(["--force-level", "patch"]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.16.2"
+
+
+def test_uses_local_when_base_unavailable(monkeypatch, tmp_path):
+    # Offline / base ref missing -> fall back to the local VERSION.
+    _setup(tmp_path, "0.15.0", "CHANGELOG\n=====\n\n[unreleased]\n- x\n")
+    monkeypatch.setattr(bump_pr, "base_branch_version", lambda *a, **k: (None, ""))
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert bump_pr.main(["--force-level", "patch"]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.15.1"
+
+
+def test_local_wins_when_ahead_of_base(monkeypatch, tmp_path):
+    # If local is somehow ahead of main, keep bumping from local (never regress).
+    _setup(tmp_path, "0.20.0", "CHANGELOG\n=====\n\n[unreleased]\n- x\n")
+    monkeypatch.setattr(bump_pr, "base_branch_version", lambda *a, **k: ((0, 16, 1), "origin/main"))
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert bump_pr.main(["--force-level", "patch"]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.20.1"
+
+
+def test_parse_version_helper():
+    assert bump_pr._parse_version("0.16.1\n") == (0, 16, 1)
+    assert bump_pr._parse_version("  1.2.3  ") == (1, 2, 3)
+    assert bump_pr._parse_version("nonsense") is None
+    assert bump_pr._parse_version("") is None
+
+
 def test_build_release_refresh_only(monkeypatch, tmp_path):
     cl = """CHANGELOG
 =====

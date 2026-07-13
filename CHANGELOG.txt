@@ -2,7 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-13 - v0.16.0 - Ads monetization: made ads actually appear where people
+- 2026-07-13 - v0.16.2 - Version bump now checks the LATEST base branch first.
+  scripts/bump_pr_version.py fetches origin/main and bumps from the HIGHER of the
+  local VERSION and main's VERSION, so a branch that forked before a concurrent
+  merge still lands ABOVE main (e.g. main 0.16.1 + patch -> 0.16.2) instead of
+  re-emitting a stale number. Prints local vs base-branch vs bump-from for
+  transparency; --base-ref / --no-fetch to tune. All version files
+  (VERSION, build-info, web+mobile version.ts/package.json, app.json) are
+  refreshed together as before.
+
+- 2026-07-13 - v0.16.2 - Ads monetization: made ads actually appear where people
   learn AND actually accountable. (1) Revenue accounting: new
   aoep_shared/ad_revenue.py ledger (impressions/clicks, CPM/CPC by network+format,
   eCPM, CTR) + billing endpoints POST /ads/impression, POST /ads/click, GET
@@ -20,7 +29,7 @@ Format: newest first. No markdown per project convention.
   (4) Test experience: append ?ads=1 to any web URL to force ads on an ad-free/
   admin (VIP) account (that's why admin/qa-pro test logins saw none) - documented
   in config/cloud.env + docs/architecture.txt. Adds Python tests for the ledger +
-  revenue API. Bump 0.16.0.
+  revenue API. Bump 0.16.2.
 
 - 2026-07-13 - v0.16.1 - Homework generator now runs from the command line, just
   like the harvester. New services/homework/src/homework/run.py: a thin argparse
