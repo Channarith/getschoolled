@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.15.1 - Homework generator now runs from the command line, just
+  like the harvester. New services/homework/src/homework/run.py: a thin argparse
+  CLI over aoep_shared.homework with flag-selected modes (mirrors the harvester's
+  run.py). --generate PATH / --content TEXT builds an assignment from a local file
+  (text/html/pdf/pptx/docx via the harvester extractors, or a JSON slide deck /
+  *.course.json via --source-type slides) and writes <id>.assignment.json under
+  --out-dir (default output/homework), printing the assignment JSON to stdout and
+  a summary to stderr; --scan FILE runs OCR (Tesseract if installed, else the
+  offline mock) into a Submission; --authorship prints the AI-vs-human signal;
+  --grade ASSIGNMENT_JSON autogrades --answers or a --submission-file (offline by
+  default, --online adds trusted-web corroboration); --instructions prints the
+  recipe. No server or keys required for the default path. Added services/homework
+  tests (mirroring services/harvester/tests) and Makefile targets homework-generate
+  / homework-grade. Bump 0.15.1.
+
 - 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
   merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
   while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so
