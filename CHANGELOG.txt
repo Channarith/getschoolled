@@ -2,15 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Live Class: AI presenter video feed (Bigo-style). The solo Live
-  Class was slide + text only; now the AI instructor "presents" in a live video
-  tile at the top of the class. New apps/web/app/components/AiPresenter.tsx: a
-  branded mascot that animates (bob + pulsing glow + audio visualizer) whenever
-  narration is speaking, with a red LIVE badge, an elapsed timer, live captions
-  of what's being said, floating chat bubbles (recent Q&A), a persona pill, and a
-  mute toggle. The Live Class now auto-narrates each slide as it appears (driving
-  the speaking animation) so the agent talks through the lesson; muting stops the
-  voice but keeps captions. Respects prefers-reduced-motion. Bump 0.14.23.
+- 2026-07-12 - Fix: stop "GET /identity/auth/me 401 (Unauthorized)" spam and
+  stale-session lockups. (1) getMe() now short-circuits when there is no token,
+  so signed-out visitors no longer fire a guaranteed-401 request on every page
+  load / nav click. (2) jsonOrThrow() clears the stored token on ANY 401, so a
+  token that expired or was invalidated by a redeploy (rotated auth signing key)
+  is dropped and the UI returns to a clean signed-out state instead of
+  re-firing failing authenticated requests on every click. Added a Playwright
+  regression (e2e/core/auth-me.spec.ts). Bump 0.14.23.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are

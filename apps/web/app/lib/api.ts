@@ -426,6 +426,10 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
 }
 
 export async function getMe(): Promise<Account> {
+  // No token → the visitor is signed out. Skip the request that is guaranteed to
+  // 401 (avoids the console error + a pointless round-trip on every guest load
+  // and nav click). Callers already treat a rejection as "signed out".
+  if (!getToken()) throw new Error("401 Not authenticated");
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
 }
 
@@ -1012,6 +1016,12 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401 && getToken()) {
+      // A stored token was rejected (expired, or the server's auth signing key
+      // rotated on a redeploy). Drop it so the UI returns to a clean signed-out
+      // state and stops re-firing failing authenticated requests on every click.
+      clearToken();
+    }
     let detail = res.statusText;
     try {
       const j = (await res.json()) as { detail?: unknown };
