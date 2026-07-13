@@ -28,6 +28,18 @@ def test_generate_homework_from_deck():
     assert {q["type"] for q in a["questions"]} & {"mcq", "short", "essay"}
 
 
+def test_generate_from_content_standalone():
+    """No deck/course needed: generate from pasted source material."""
+    a = client.post("/homework/generate", json={
+        "content": "Photosynthesis converts light, water and CO2 into glucose and oxygen.\n"
+                   "Chlorophyll in the leaves captures the light energy.",
+        "subject": "biology", "num_questions": 3,
+    }).json()
+    assert a["source"] == "content"
+    assert len(a["questions"]) >= 1
+    assert {q["type"] for q in a["questions"]} & {"mcq", "short", "essay"}
+
+
 def test_generate_requires_source():
     r = client.post("/homework/generate", json={"title": "x"})
     assert r.status_code == 422

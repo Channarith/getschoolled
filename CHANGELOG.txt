@@ -2,24 +2,19 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Fix: group-class "Start" 404 (POST /api/group-classes/{id}/start
-  -> "unknown group class"). Standard daily classes were seeded with RANDOM ids
-  (uuid4), so each orchestrator replica / process restart minted different ids;
-  a class listed by one replica couldn't be started on another (and only /list
-  seeded — start/get/register didn't). Now seeded classes use a DETERMINISTIC id
-  (aoep_shared.group_classes.standard_class_id = std+sha1(platform|lesson|start)),
-  so every replica/restart agrees on the same id; seeding is idempotent (dedups
-  by id + slot) and the orchestrator seeds-on-miss in start/get/register so the
-  class materializes on whichever replica serves the request. Regression tests
-  added (deterministic id, idempotent seed, two-replica agreement, start-on-miss
-  API).
-
-- 2026-07-12 - Release 0.15.0 (minor). Rolls up this cycle's larger changes:
-  higher-quality 2D/3D arcade games, multiple intro animations + synthesized
-  intro song, conversational/scenario course content with spoken "repeat after
-  me" checkpoints, the Live Class AI presenter video feed, and reliability fixes
-  (Drive Mode Stop, mobile-tests under pnpm, /auth/me 401 handling, group-class
-  Start 404). Minor bump 0.14.x -> 0.15.0.
+- 2026-07-12 - Homework tool: usable from the browser + a real generator UI.
+  The operator-only homework endpoints are internal-only (X-Internal-Token,
+  fail-closed), so the browser could never call them (403 in any auth-enforced
+  deploy) and the page only had a hard-coded 2-question grade demo. Added a
+  server-side BFF (apps/web/app/api/homework/[...path]/route.ts) that verifies
+  the caller is a signed-in ADMIN via identity /auth/me and injects the internal
+  token (same pattern as the admin flags BFF); all homework client calls now go
+  through it. The /homework page now GENERATES an assignment (subject, #
+  questions, optional course id, or free-form source material), shows the
+  questions, GRADES a pasted/scanned submission against the generated assignment,
+  supports OCR file upload (/homework/scan), and shows AI-vs-human authorship.
+  Backend: /homework/generate can now build from free-form `content` (not just a
+  deck/course), so it works without a pre-loaded catalog. Tests added. Bump 0.15.0.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are

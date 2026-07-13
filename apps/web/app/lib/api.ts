@@ -2201,9 +2201,16 @@ export async function hilDecide(
   );
 }
 
+// Homework endpoints are operator-only (internal token, server-side). We call
+// them through the same-origin BFF at /api/homework/* which verifies the caller
+// is an admin and injects the internal token; the browser never holds it.
+const HOMEWORK_BFF = "/api/homework";
+
 export async function gradeReviews(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/homework/grade-reviews${q}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${HOMEWORK_BFF}/grade-reviews${q}`, {
+    headers: { ...authHeaders() }, cache: "no-store",
+  }));
 }
 
 export async function gradeReviewDecide(
@@ -2212,9 +2219,9 @@ export async function gradeReviewDecide(
   editedPayload?: Record<string, unknown>
 ): Promise<ReviewItem> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade-reviews/${itemId}/decision`, {
+    await fetch(`${HOMEWORK_BFF}/grade-reviews/${itemId}/decision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
     })
   );
@@ -2261,29 +2268,74 @@ export async function gradeHomework(args: {
   submission_text?: string;
   handwritten?: boolean;
   deck_id?: string;
+  course_id?: string;
   subject?: string;
 }): Promise<HomeworkGrade> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade`, {
+    await fetch(`${HOMEWORK_BFF}/grade`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );
 }
 
+export type GeneratedQuestion = {
+  question_id: string;
+  type: string;
+  prompt: string;
+  options: string[];
+  answer_index: number | null;
+  answer_key: string;
+  rubric: string[];
+};
+export type GeneratedAssignment = {
+  assignment_id: string;
+  title: string;
+  subject: string;
+  source: string;
+  questions: GeneratedQuestion[];
+};
+
 export async function generateHomework(args: {
   deck_id?: string;
   course_id?: string;
+  content?: string;
   title?: string;
   subject?: string;
   num_questions?: number;
-}): Promise<{ assignment_id: string; title: string; subject: string; questions: unknown[] }> {
+  locale?: string;
+}): Promise<GeneratedAssignment> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/generate`, {
+    await fetch(`${HOMEWORK_BFF}/generate`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
+    })
+  );
+}
+
+export type ScanResult = { raw_text: string; handwritten: boolean; confidence: number; segments: string[] };
+
+// OCR a typed/handwritten submission file (image or text) into a submission.
+export async function scanHomework(file: File, opts: { hint?: string; expected?: number } = {}): Promise<ScanResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.hint) form.append("hint", opts.hint);
+  if (opts.expected != null) form.append("expected", String(opts.expected));
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/scan`, { method: "POST", headers: { ...authHeaders() }, body: form })
+  );
+}
+
+export type AuthorshipResult = { label: string; ai_probability: number; signals: Record<string, number>; note: string };
+
+export async function checkAuthorship(text: string, handwritten = false): Promise<AuthorshipResult> {
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/authorship`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text, handwritten }),
     })
   );
 }
