@@ -20,6 +20,8 @@ import {
 } from "../lib/api";
 import { useFlag } from "../lib/flags";
 import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey";
+import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
+import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
 
 const PLANS = [
@@ -44,6 +46,16 @@ export default function AccountPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
   const [primaryStudent, setPrimaryStudent] = useState<StudentProfile | null>(null);
+  const [introAutoplay, setIntroAutoplay] = useState(true);
+
+  useEffect(() => {
+    try { setIntroAutoplay(localStorage.getItem(INTRO_AUTOPLAY_KEY) !== "off"); } catch { /* */ }
+  }, []);
+
+  function toggleIntroAutoplay(on: boolean) {
+    setIntroAutoplay(on);
+    try { localStorage.setItem(INTRO_AUTOPLAY_KEY, on ? "on" : "off"); } catch { /* */ }
+  }
 
   async function refresh() {
     try {
@@ -198,6 +210,36 @@ export default function AccountPage() {
               <Link href="/legal"><button>{t("account.legal")}</button></Link>
               <Link href="/security"><button>Sign-in security</button></Link>
             </div>
+          </div>
+
+          <div className="card">
+            <h3>🎬 Intro animation</h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Replay the branded intro (with its jingle). We rotate through {INTRO_VARIANTS.length} high-quality
+              animations at random — or pick one below.
+            </p>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={() => playIntro()}
+                style={{ background: "#7c3aed", color: "#fff", fontWeight: 600 }}
+              >
+                ▶ Play random intro
+              </button>
+              {INTRO_VARIANTS.map((v) => (
+                <button key={v.id} type="button" onClick={() => playIntro(v.id)}>
+                  {v.name}
+                </button>
+              ))}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={introAutoplay}
+                onChange={(e) => toggleIntroAutoplay(e.target.checked)}
+              />
+              <span className="muted">Play automatically the first time I open the app each session</span>
+            </label>
           </div>
 
           <div className="card">

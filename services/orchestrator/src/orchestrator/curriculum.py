@@ -25,6 +25,11 @@ class Slide(BaseModel):
     title: str
     body: str
     narration: str
+    # Interaction metadata for engaging delivery. "teach" is a normal slide;
+    # "say_aloud" is a repeat-after-me checkpoint the player pauses on to listen
+    # to and score the learner's speech (``say_aloud`` holds the phrase to say).
+    kind: str = "teach"
+    say_aloud: str = ""
 
 
 class KSBItem(BaseModel):
@@ -251,8 +256,10 @@ class CurriculumStore:
                 lesson, passages = _parse_lesson(entry, fh.read())
             from aoep_shared.lesson_depth import enrich_slides
 
-            def _slide_factory(idx: int, title: str, body: str, narration: str) -> Slide:
-                return Slide(index=idx, title=title, body=body, narration=narration)
+            def _slide_factory(idx: int, title: str, body: str, narration: str,
+                               *, kind: str = "teach", say_aloud: str = "") -> Slide:
+                return Slide(index=idx, title=title, body=body, narration=narration,
+                             kind=kind, say_aloud=say_aloud)
 
             enriched, extra_passages = enrich_slides(
                 lesson.slides, passages, slide_factory=_slide_factory,
