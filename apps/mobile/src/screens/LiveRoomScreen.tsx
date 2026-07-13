@@ -117,6 +117,9 @@ export default function LiveRoomScreen({
       const msg = (e as Error).message;
       if (msg.toLowerCase().includes("block") || msg.toLowerCase().includes("removed")) {
         setWasBlocked(true);
+      } else if (msg.includes("404") || msg.toLowerCase().includes("unknown live room") || msg.toLowerCase().includes("unknown group class")) {
+        setError("Room no longer available. Please go back and rejoin from the class list.");
+        return;
       }
       setError(msg);
     } finally {

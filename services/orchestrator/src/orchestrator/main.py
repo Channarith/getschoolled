@@ -1157,7 +1157,9 @@ def _ensure_group_class_room(room_id: str):
     if not room_id.startswith("class-"):
         return None
     class_id = room_id[len("class-"):]
-    gc = _group_store().get(class_id)
+    # Use _find_group_class (not _group_store().get) so standard daily classes
+    # are re-seeded after an orchestrator restart instead of returning None.
+    gc = _find_group_class(class_id)
     if gc is None or gc.platform != "salareen":
         return None
 

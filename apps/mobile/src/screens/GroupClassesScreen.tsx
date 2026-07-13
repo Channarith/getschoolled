@@ -105,10 +105,10 @@ export default function GroupClassesScreen({
       return;
     }
     if (gc.platform === "salareen" || gc.live_room_id) {
-      // A Salareen room only exists on the server once the class has been
-      // "started" (open_room). Joining a not-yet-live class hits a room id that
-      // doesn't exist -> 404. Open it first (idempotent) so entering succeeds,
-      // then join as a learner (no moderator key — tapping Join isn't hosting).
+      // For a not-yet-live Salareen class, start it first so the room exists
+      // before navigating in. If it's already live (or has a room id from a
+      // prior start), navigate directly — _ensure_group_class_room on the server
+      // will lazily reopen the room if it was dropped (e.g. after a restart).
       if (!gc.live_room_id && gc.status !== "live") {
         setBusyId(gc.id);
         try {

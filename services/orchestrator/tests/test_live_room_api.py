@@ -93,6 +93,33 @@ def test_unknown_room_still_404s():
     assert r2.status_code == 404
 
 
+def test_get_room_lazy_opens_via_reseed():
+    """_ensure_group_class_room must use _find_group_class so standard daily
+    Salareen classes are re-seeded when missing from the store (e.g. after a
+    restart where the startup seed was skipped or not yet run), not just
+    _group_store().get() which returns None in that case."""
+    from orchestrator.main import app
+    from aoep_shared.group_classes import ensure_standard_daily_classes
+
+    # Seed a standard daily class and grab one of its IDs.
+    n = ensure_standard_daily_classes(app.state.group_classes)
+    std_classes = [
+        c for c in app.state.group_classes.list(upcoming_only=True)
+        if c.platform == "salareen" and c.id.startswith("std")
+    ]
+    assert std_classes, "no standard salareen classes were seeded"
+    cid = std_classes[0].id
+
+    # The live room store does NOT have this room yet (never been started/opened).
+    assert app.state.live_rooms.get(f"class-{cid}") is None, "room should not exist yet"
+
+    # GET should lazily open the room via _ensure_group_class_room → _find_group_class.
+    r = client.get(f"/api/live-rooms/class-{cid}")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["slide"]["title"]  # session created on demand
+
+
 def test_join_chat_and_queue_flow():
     info = _start_salareen_class(4)
     joined = client.post(
