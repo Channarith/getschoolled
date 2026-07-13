@@ -2,39 +2,26 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
-  merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
-  while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so
-  `tsc` failed with "Cannot find module 'three'"; restored both deps (lockfile
-  already had them). (2) apps/web/app/class/page.tsx referenced `AiPresenter`
-  (missing import) and `startRepeatAfterMe` (missing definition) after the
-  presenter/repeat-after-me/streaming PRs merged over each other; re-added the
-  AiPresenter import + the SpeechRec type + startRepeatAfterMe(). typecheck +
-  lint + build now pass. No version bump (keeps VERSION=0.15.0 = main).
+- 2026-07-13 - Merge conflicts: build-info.txt no longer blocks PRs. It's an
+  auto-generated file (bump_pr_version.py / build_release.py) that every PR
+  rewrote, so concurrent PRs hard-conflicted on it. Added `build-info.txt
+  merge=union` to .gitattributes (alongside the existing CHANGELOG.txt union),
+  so both high-churn generated files auto-resolve on merge instead of blocking
+  (verified: a two-branch merge that previously conflicted now merges clean).
+  union is built-in + GitHub-honored (no per-clone setup); the next bump/build
+  regenerates build-info.txt anyway. setup-git.sh + Makefile help updated. Bump 0.15.1.
 
-- 2026-07-13 - Real-time chunked streaming voice pipeline (sub-second TTFB). New
-  apps/web/app/lib/voicePipeline.ts: SpeechChunker cuts streamed LLM tokens into
-  tiny chunks (aggressive ~3-word first chunk, then phrase-sized at punctuation /
-  a word cap) and StreamingVoice synthesizes each chunk immediately (prefetch) and
-  plays them strictly in order, gaplessly - so audio starts within the first few
-  words instead of after the whole sentence. tts.synthChunk() renders one chunk to
-  a ready-to-play neural-audio Playable (server /tts, on-device fallback). Live
-  Class "Ask" now drives LLM token stream -> chunker -> voice for real-time spoken
-  answers. Tests: chunk boundaries + in-order playback (Playwright).
-
-- 2026-07-12 - NVIDIA Nemotron conversational agent + real-time streaming answers.
-  The conversational tutor/voice agent can now run on NVIDIA Nemotron: implemented
-  the previously-stubbed OpenAI-compatible LLM call (providers/llm.py _transport,
-  Bearer auth via LLM_API_KEY), added token STREAMING (complete_stream over SSE
-  deltas), a NemotronLLMProvider (NVIDIA NIM default endpoint / self-hosted vLLM),
-  and factory selection when NEMOTRON_API_KEY or LLM_PROVIDER=nemotron is set.
-  Orchestrator gains POST /api/sessions/{id}/ask/stream (SSE): TeachingSessions.
-  ask_stream() streams tokens for immediate TTS, then a final guarded 'done' event
-  (citations + grounding). Web: askStream() client + the Live Class "Ask" now
-  streams the answer into the chat and speaks sentences as they arrive (low-
-  latency); falls back to buffered ask on error. Config/env + k8s wiring
-  (LLM_API_KEY, LLM_PROVIDER, NEMOTRON_API_KEY/BASE_URL/MODEL; NEMOTRON_API_KEY in
-  aoep-secrets). Graceful offline fallback preserved. Tests added. Bump 0.15.0.
+- 2026-07-12 - Fix: Drive Mode "Stop" now truly stops neural narration. Hitting
+  Stop (or Pause/skip) while a segment's server TTS (/tts) MP3 was still being
+  fetched did nothing - no <audio> existed yet to pause - so when the fetch
+  resolved it started playing AFTER the player had closed ("the window
+  disappears but it keeps talking, on a different section"). apps/web/app/lib/
+  tts.ts now carries a playback epoch bumped by cancelSpeech() plus an
+  AbortController: an in-flight /tts fetch is aborted on Stop, and if one still
+  resolves it checks the epoch and refuses to start audio (and won't fall back
+  to the browser voice or fire the segment's onend/advance). Added a Playwright
+  regression (e2e/core/drive-stop.spec.ts): stopping mid-fetch starts zero
+  audio, with a control proving the neural path otherwise plays. Bump 0.14.23.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
