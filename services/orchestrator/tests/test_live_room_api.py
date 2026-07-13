@@ -74,7 +74,7 @@ def test_get_room_lazy_opens_for_unstarted_class():
 
 
 def test_get_room_lazy_opens_when_group_store_is_cold():
-    # A class id listed by another replica should still open on this worker.
+    # A class id listed by another replica should still open/join on this worker.
     probe = GroupClassStore()
     ensure_standard_daily_classes(probe)
     salareen = [gc for gc in probe.list(upcoming_only=True) if gc.platform == "salareen"]
@@ -83,6 +83,12 @@ def test_get_room_lazy_opens_when_group_store_is_cold():
     prev_store = app.state.group_classes
     app.state.group_classes = GroupClassStore()
     try:
+        joined = client.post(
+            f"/api/live-rooms/class-{class_id}/join",
+            json={"name": "Replica learner", "identity": "replica-1"},
+        )
+        assert joined.status_code == 200, joined.text
+        assert joined.json()["media"]["token"].count(".") == 2
         room = client.get(f"/api/live-rooms/class-{class_id}")
         assert room.status_code == 200, room.text
     finally:
