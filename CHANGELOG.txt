@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - Real-time chunked streaming voice pipeline (sub-second TTFB). New
+  apps/web/app/lib/voicePipeline.ts: SpeechChunker cuts streamed LLM tokens into
+  tiny chunks (aggressive ~3-word first chunk, then phrase-sized at punctuation /
+  a word cap) and StreamingVoice synthesizes each chunk immediately (prefetch) and
+  plays them strictly in order, gaplessly - so audio starts within the first few
+  words instead of after the whole sentence. tts.synthChunk() renders one chunk to
+  a ready-to-play neural-audio Playable (server /tts, on-device fallback). Live
+  Class "Ask" now drives LLM token stream -> chunker -> voice for real-time spoken
+  answers. Tests: chunk boundaries + in-order playback (Playwright).
+
 - 2026-07-12 - NVIDIA Nemotron conversational agent + real-time streaming answers.
   The conversational tutor/voice agent can now run on NVIDIA Nemotron: implemented
   the previously-stubbed OpenAI-compatible LLM call (providers/llm.py _transport,

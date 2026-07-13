@@ -32,6 +32,8 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import { synthChunk } from "../lib/tts";
+import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 
 // Color the adaptive difficulty badge so the learner can see it shift.
 function difficultyStyle(d: string): { background: string; color: string; border: string } {
@@ -70,6 +72,7 @@ export default function ClassPage() {
   const [speaking, setSpeaking] = useState(false);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voiceRef = useRef<StreamingVoice | null>(null);   // real-time chunked voice
   // Adaptive quiz state (difficulty personalizes via the memory service).
   const [quiz, setQuiz] = useState<QuizItemView[] | null>(null);
   const [quizIdx, setQuizIdx] = useState(0);
@@ -93,6 +96,8 @@ export default function ClassPage() {
 
   function stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
+    try { voiceRef.current?.stop(); } catch { /* */ }
+    voiceRef.current = null;
     speechRef.current = null;
     setSpeaking(false);
   }
@@ -306,17 +311,6 @@ export default function ClassPage() {
     }
   }
 
-  // Queue speech WITHOUT cancelling the previous utterance, so we can speak each
-  // sentence the moment it streams in (real-time, low-latency voice).
-  function speakQueued(text: string) {
-    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1;
-    u.onend = () => setSpeaking(false);
-    setSpeaking(true);
-    try { window.speechSynthesis.speak(u); } catch { /* no browser TTS */ }
-  }
-
   async function onAsk() {
     if (!view || !question.trim()) return;
     const q = question.trim();
@@ -324,25 +318,18 @@ export default function ClassPage() {
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
-      // Stream the answer: display + speak sentences as they arrive (Nemotron
-      // agent when configured). Falls back to a buffered ask on any error.
+      // Real-time chunked voice: stream LLM tokens (Nemotron when configured) ->
+      // cut into tiny chunks -> synthesize + play each immediately so the first
+      // audio is heard within ~a few words. Falls back to a buffered ask.
       let a: Answer | AskDone | null = null;
       try {
         stopSpeaking();
         setChat((c) => [...c, { role: "teacher", text: "" }]);   // grows as tokens stream
+        const chunker = new SpeechChunker();
+        const voice = new StreamingVoice((t) => synthChunk(t, { locale: "en", voiceStyle: "standard" }));
+        voiceRef.current = voice;
+        if (speakAnswers) setSpeaking(true);
         let acc = "";
-        let spoken = 0;
-        const flushSentences = (final = false) => {
-          const rest = acc.slice(spoken);
-          const parts = rest.split(/(?<=[.!?])\s+/);
-          const upto = final ? parts.length : parts.length - 1;
-          for (let i = 0; i < upto; i++) {
-            const s = parts[i].trim();
-            if (s) speakQueued(s);
-          }
-          if (!final && parts.length > 1) spoken += rest.length - parts[parts.length - 1].length;
-          else if (final) spoken = acc.length;
-        };
         a = await askStream(view.session.session_id, q, {
           onDelta: (chunk) => {
             acc += chunk;
@@ -353,10 +340,14 @@ export default function ClassPage() {
               }
               return copy;
             });
-            flushSentences(false);
+            if (speakAnswers) for (const piece of chunker.feed(chunk)) voice.enqueue(piece);
           },
         });
-        flushSentences(true);
+        if (speakAnswers) {
+          const tail = chunker.flush();
+          if (tail) voice.enqueue(tail);
+          voice.drained().then(() => setSpeaking(false));
+        }
         if (a) {
           setChat((c) => {
             const copy = [...c];
