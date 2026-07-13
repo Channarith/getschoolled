@@ -14,6 +14,7 @@ import {
   getToken,
   gradeQuiz,
   listLessons,
+  pronounce,
   reengage,
   reportIssue,
   setEnrollmentStatus,
@@ -22,6 +23,7 @@ import {
   type Answer,
   type Disclosure,
   type Lesson,
+  type Pronounce,
   type QuizGrade,
   type QuizItemView,
   type Reengagement,
@@ -30,6 +32,14 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import AiPresenter from "../components/AiPresenter";
+
+// Minimal Web Speech API typing for the repeat-after-me checkpoint.
+type SpeechRec = {
+  lang: string; interimResults: boolean; maxAlternatives: number;
+  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+};
 
 // Color the adaptive difficulty badge so the learner can see it shift.
 function difficultyStyle(d: string): { background: string; color: string; border: string } {
@@ -66,6 +76,7 @@ export default function ClassPage() {
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   // Adaptive quiz state (difficulty personalizes via the memory service).
@@ -74,6 +85,9 @@ export default function ClassPage() {
   const [quizDifficulty, setQuizDifficulty] = useState<string>("");
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizGrade, setQuizGrade] = useState<QuizGrade | null>(null);
+  const [heard, setHeard] = useState("");
+  const [pron, setPron] = useState<Pronounce | null>(null);
+  const [listening, setListening] = useState(false);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -96,6 +110,7 @@ export default function ClassPage() {
   }
 
   function speak(text: string) {
+    setSpokenText(text);   // caption updates even when muted
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -106,6 +121,14 @@ export default function ClassPage() {
     setSpeaking(true);
     window.speechSynthesis.speak(utterance);
   }
+
+  // The AI presenter narrates each slide as it appears, so the video feed shows
+  // the agent actually presenting the lesson (and drives the speaking animation).
+  useEffect(() => {
+    if (!view || !slide) return;
+    speak(`${slide.title}. ${slide.narration || slide.body}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide?.index, view?.session.session_id]);
 
   async function onStart() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
@@ -426,6 +449,21 @@ export default function ClassPage() {
 
       {view && slide && (
         <>
+          <AiPresenter
+            speaking={speaking}
+            name="Salareen AI Instructor"
+            persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
+            caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+            live
+            muted={!speakAnswers}
+            onToggleMute={() => {
+              const next = !speakAnswers;
+              setSpeakAnswers(next);
+              if (!next) stopSpeaking();
+              else speak(`${slide.title}. ${slide.narration || slide.body}`);
+            }}
+            messages={chat}
+          />
           <div className="slide">
             <div className="muted">
               {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
@@ -433,6 +471,40 @@ export default function ClassPage() {
             <h2>{slide.title}</h2>
             <p>{slide.body}</p>
             <p className="muted">🔊 {slide.narration}</p>
+
+            {slide.say_aloud && (
+              <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>🎤 Your turn — repeat after me</div>
+                <p style={{ fontSize: 18, margin: "4px 0" }}>
+                  &ldquo;<strong>{slide.say_aloud}</strong>&rdquo;
+                </p>
+                <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" onClick={startRepeatAfterMe} disabled={listening}
+                    style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}>
+                    {listening ? "Listening…" : pron ? "🎤 Try again" : "🎤 Speak now"}
+                  </button>
+                  <button type="button" onClick={() => speak(slide.narration || `Repeat after me: ${slide.say_aloud}`)}
+                    style={{ background: "#e0f2fe", color: "#075985", border: "1px solid #0ea5e9" }}>
+                    🔊 Hear it
+                  </button>
+                  {heard && <span className="muted">You said: &ldquo;{heard}&rdquo;</span>}
+                </div>
+                {pron && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 20 }}>
+                      {"★".repeat(pron.stars)}{"☆".repeat(Math.max(0, 3 - pron.stars))}{" "}
+                      <strong style={{ color: pron.passed ? "#16a34a" : "#d97706" }}>{pron.score}%</strong>
+                      {pron.passed ? " — nicely said!" : " — give it another go."}
+                    </div>
+                    {pron.feedback && <div className="muted" style={{ marginTop: 2 }}>{pron.feedback}</div>}
+                    {pron.missed_words?.length > 0 && (
+                      <div className="muted" style={{ marginTop: 2 }}>Focus on: {pron.missed_words.join(", ")}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="row">
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →
