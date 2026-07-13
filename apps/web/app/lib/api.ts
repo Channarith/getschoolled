@@ -945,6 +945,10 @@ export type Slide = {
   title: string;
   body: string;
   narration: string;
+  // "teach" (normal) or "say_aloud" (repeat-after-me checkpoint). When
+  // say_aloud is set, the player pauses to listen to and score the learner.
+  kind?: string;
+  say_aloud?: string;
 };
 
 export type Lesson = {
