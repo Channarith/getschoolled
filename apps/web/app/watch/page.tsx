@@ -6,6 +6,8 @@ import Link from "next/link";
 import { getAdBreaks, getMe, getToken, searchCourses, type AdBreak, type AdPlan, type CatalogCourse } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
+import { effectiveAdTier } from "../lib/useCourseAds";
+import VideoAdBreak from "../components/VideoAdBreak";
 
 const COURSE_SECONDS = 60; // compressed demo runtime for the simulated player
 const AD_FREE_TIERS = new Set(["pro", "premium"]);
@@ -25,7 +27,6 @@ function WatchInner() {
   const [playing, setPlaying] = useState(false);
   const [contentTime, setContentTime] = useState(0);
   const [ad, setAd] = useState<AdBreak | null>(null);
-  const [adTime, setAdTime] = useState(0);
   const playedMidrolls = useRef<Set<number>>(new Set());
   const log = useRef<string[]>([]);
   const [, force] = useState(0);
@@ -70,7 +71,7 @@ function WatchInner() {
       setPlaying(true);
       return;
     }
-    const p = await getAdBreaks(courseId, tier).catch((e) => { setError(String(e)); return null; });
+    const p = await getAdBreaks(courseId, effectiveAdTier(tier)).catch((e) => { setError(String(e)); return null; });
     if (!p) return;
     setPlan(p);
     note(p.ad_free ? `Ad-free playback (${tierLabel})` : `Loaded ${p.breaks.length} ad break(s)`);
@@ -79,24 +80,13 @@ function WatchInner() {
   }
 
   function startAd(b: AdBreak) {
-    setAd(b); setAdTime(0); setPlaying(false);
+    setAd(b); setPlaying(false);
     note(`${b.position} ad: "${b.ads[0]?.title}" (${b.ads[0]?.advertiser})`);
   }
   function endAd() {
     if (ad) note(`ad complete: ${ad.ads[0]?.title}`);
     setAd(null); setPlaying(true);
   }
-
-  // Ad ticker
-  useEffect(() => {
-    if (!ad) return;
-    const t = setInterval(() => setAdTime((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, [ad]);
-  useEffect(() => {
-    const dur = ad?.ads[0]?.duration_s ?? 0;
-    if (ad && adTime >= dur) endAd();
-  }, [adTime, ad]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Content ticker + mid-roll cue detection
   useEffect(() => {
@@ -120,8 +110,6 @@ function WatchInner() {
     if (contentTime >= COURSE_SECONDS) { setPlaying(false); note("course finished"); }
   }, [contentTime, plan, playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const skipIn = ad ? Math.max(0, (ad.ads[0]?.skippable_after_s ?? 9999) - adTime) : 0;
-  const canSkip = ad ? adTime >= (ad.ads[0]?.skippable_after_s ?? Infinity) : false;
   const adFree = AD_FREE_TIERS.has(tier);
 
   return (
@@ -146,24 +134,24 @@ function WatchInner() {
 
       {error && <p style={{ color: "#e11d48" }}>{error}</p>}
 
-      <div style={{ background: "#000", borderRadius: 12, aspectRatio: "16/9", display: "flex",
+      <div style={{ position: "relative", background: "#000", borderRadius: 12, aspectRatio: "16/9", display: "flex",
         alignItems: "center", justifyContent: "center", color: "#888", marginTop: 16 }}>
-        {ad ? (
-          <div style={{ textAlign: "center", padding: 24 }}>
-            <div style={{ color: "#fbbf24", fontSize: 13, marginBottom: 8 }}>AD — {ad.position}</div>
-            <div style={{ fontSize: 20, color: "#fff" }}>{ad.ads[0]?.title}</div>
-            <div style={{ color: "#aaa", marginTop: 8 }}>{ad.ads[0]?.advertiser} · {adTime}s / {ad.ads[0]?.duration_s}s</div>
-            {canSkip
-              ? <button onClick={endAd} style={{ marginTop: 16, padding: "8px 20px" }}>Skip ad →</button>
-              : skipIn < 9999 && <div style={{ marginTop: 12, color: "#666" }}>Skip in {skipIn}s</div>}
-          </div>
-        ) : playing ? (
+        {playing ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 28, color: "#fff" }}>▶ Playing course</div>
             <div style={{ color: "#aaa", marginTop: 8 }}>{contentTime}s / {COURSE_SECONDS}s</div>
           </div>
-        ) : (
+        ) : !ad ? (
           <div>Press Play to start</div>
+        ) : null}
+        {ad && (
+          <VideoAdBreak
+            adBreak={ad}
+            placement={`watch-${ad.position}`}
+            tier={effectiveAdTier(tier)}
+            mode="inline"
+            onDone={endAd}
+          />
         )}
       </div>
 

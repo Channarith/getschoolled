@@ -3,20 +3,26 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  getAdPlan,
   getAudioCategories,
   getAudioCourse,
+  getMe,
   getToken,
   getTtsInstructors,
   getTtsVoices,
   listAudioCourses,
   listStudents,
   SPEECH_URL,
+  type AdBreak,
   type AudioCourse,
   type AudioCourseRow,
   type Instructor,
   type VoiceGroup,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import VideoAdBreak from "../components/VideoAdBreak";
+import { effectiveAdTier } from "../lib/useCourseAds";
+import { useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
@@ -70,6 +76,11 @@ function DrivePageInner() {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [tier, setTier] = useState("basic");
+  const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
+  const afterAdRef = useRef<null | (() => void)>(null);
+  const prerollShown = useRef(false);
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
@@ -119,6 +130,7 @@ function DrivePageInner() {
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
+    getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
     const stored = getTrainingLocaleOrDefault(locale);
     setTrainingLang(stored);
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
@@ -253,6 +265,34 @@ function DrivePageInner() {
       playSeg(c, 0);
       if (autoListenRef.current) startAmbientListening();   // hands-free from the start
     } catch (e) { setError(String(e)); }
+  }
+
+  function onAdDone() {
+    const fn = afterAdRef.current;
+    afterAdRef.current = null;
+    setAdBreak(null);
+    fn?.();
+  }
+
+  // User-initiated start: play a one-time audio pre-roll (ad-supported tiers)
+  // before the first course of the session, then start playback. Auto-advance
+  // (playNextCourse) still calls startCourse directly — no ad between queued courses.
+  async function startCourseWithAds(id: string) {
+    if (!getToken()) { setLoggedIn(false); return; }
+    if (adsEnabled && !prerollShown.current) {
+      prerollShown.current = true;
+      try {
+        const plan = await getAdPlan(effectiveAdTier(tier));
+        const pre = plan.breaks.find((b) => b.position === "preroll");
+        if (pre && !plan.ad_free) {
+          cancelSpeech();
+          afterAdRef.current = () => { void startCourse(id); };
+          setAdBreak(pre);
+          return;
+        }
+      } catch { /* ads best-effort; fall through to playback */ }
+    }
+    await startCourse(id);
   }
 
   useEffect(() => {
@@ -541,6 +581,15 @@ function DrivePageInner() {
 
   return (
     <main className="container" style={{ maxWidth: 900 }}>
+      {adBreak && (
+        <VideoAdBreak
+          adBreak={adBreak}
+          placement={`drive-${adBreak.position}`}
+          tier={effectiveAdTier(tier)}
+          audioOnly
+          onDone={onAdDone}
+        />
+      )}
       <h1>{t("drive.pageTitle")}</h1>
       <p className="muted">
         {t("drive.pageIntro", { total })}
@@ -760,7 +809,7 @@ function DrivePageInner() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 12 }}>
         {rows.map((r) => (
-          <button key={r.id} onClick={() => startCourse(r.id)}
+          <button key={r.id} onClick={() => startCourseWithAds(r.id)}
             style={{ textAlign: "left", background: "var(--panel)", color: "var(--text)",
               border: course?.id === r.id ? "2px solid #0ea5e9" : "1px solid var(--border)",
               borderRadius: 12, padding: 14, cursor: "pointer" }}>

@@ -678,12 +678,67 @@ export type AdCreative = {
   duration_s: number; click_url: string | null; skippable_after_s: number | null;
 };
 export type AdBreak = { position: "preroll" | "midroll" | "postroll"; offset_s: number; ads: AdCreative[] };
-export type AdPlan = { course_id: string; tier: string; ad_free: boolean; breaks: AdBreak[] };
+export type AdPlan = { course_id?: string; tier: string; ad_free: boolean; breaks: AdBreak[] };
 
 export async function getAdBreaks(courseId: string, tier: string): Promise<AdPlan> {
   return jsonOrThrow(
     await fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(courseId)}/ad-breaks?tier=${encodeURIComponent(tier)}`,
       { cache: "no-store" })
+  );
+}
+
+/** Course-agnostic ad plan (Drive Mode audio courses aren't in the catalog). */
+export async function getAdPlan(tier: string, durationMin = 30): Promise<AdPlan> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/plan?tier=${encodeURIComponent(tier)}&duration_min=${durationMin}`,
+      { cache: "no-store" })
+  );
+}
+
+// --- ad revenue accounting (impression/click beacons + admin report) ------ //
+export type AdEventBeacon = {
+  placement: string;
+  network?: string;
+  fmt?: "display" | "video";
+  tier?: string;
+  unit_id?: string;
+  creative_id?: string;
+  advertiser?: string;
+};
+
+/** Fire an ad impression/click beacon (best-effort; never throws). */
+async function sendAdBeacon(kind: "impression" | "click", ev: AdEventBeacon): Promise<void> {
+  try {
+    await fetch(`${BILLING_URL}/ads/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ev),
+      keepalive: true,
+    });
+  } catch {
+    /* beacons are best-effort telemetry */
+  }
+}
+export function recordAdImpression(ev: AdEventBeacon): void { void sendAdBeacon("impression", ev); }
+export function recordAdClick(ev: AdEventBeacon): void { void sendAdBeacon("click", ev); }
+
+export type AdRevenueRow = {
+  key: string; impressions: number; clicks: number; ctr: number;
+  revenue_usd: number; ecpm_usd: number;
+};
+export type AdRevenueReport = {
+  active_network: string;
+  totals: { impressions: number; clicks: number; ctr: number; revenue_usd: number; ecpm_usd: number };
+  by_network: AdRevenueRow[];
+  by_placement: AdRevenueRow[];
+  by_day: AdRevenueRow[];
+  recent: Array<{ kind: string; placement: string; network: string; fmt: string; tier: string;
+    creative_id: string; advertiser: string; revenue_usd: number; ts: number }>;
+};
+
+export async function getAdRevenue(days = 0): Promise<AdRevenueReport> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/revenue${days ? `?days=${days}` : ""}`, { cache: "no-store" })
   );
 }
 

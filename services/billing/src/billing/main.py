@@ -25,6 +25,12 @@ from pydantic import BaseModel
 
 app = create_service("billing")
 
+# Ad revenue ledger (impressions/clicks/CPM). In-memory per replica, like
+# telemetry; the admin console reads GET /ads/revenue for a live estimate.
+from aoep_shared.ad_revenue import AdRevenueLedger  # noqa: E402
+
+app.state.ad_ledger = AdRevenueLedger()
+
 
 class CanStartRequest(BaseModel):
     tier: PlanTier
@@ -211,3 +217,72 @@ def ads_slot(slot_id: str, tier: str = "free") -> dict:
     if slot is None:
         return {"slot_id": slot_id, "show": False}
     return {"show": True, **slot}
+
+
+@app.get("/ads/plan")
+def ads_plan(tier: str = "free", duration_min: int = 30) -> dict:
+    """Course-agnostic ad-break schedule (tier-gated house inventory).
+
+    Used by surfaces that don't have a catalog course id (e.g. Drive Mode audio
+    courses). curriculum's /courses/{id}/ad-breaks is the course-specific path.
+    """
+    from aoep_shared.ads import AD_FREE_TIERS, ad_plan_for
+
+    breaks = ad_plan_for(tier, duration_min=max(1, duration_min))
+    return {
+        "tier": tier,
+        "ad_free": (tier or "free").lower() in AD_FREE_TIERS,
+        "breaks": [b.model_dump(mode="json") for b in breaks],
+    }
+
+
+class AdEventRequest(BaseModel):
+    placement: str                      # e.g. "home-banner", "class-preroll"
+    network: str = "house"
+    fmt: str = "display"                # "display" | "video"
+    tier: str = "free"
+    unit_id: str = ""
+    creative_id: str = ""
+    advertiser: str = ""
+
+
+@app.post("/ads/impression")
+def ads_impression(req: AdEventRequest) -> dict:
+    """Record an ad impression beacon (web AdSlot / video ad / mobile AdMob).
+
+    Best-effort: browsers/mobile POST this when an ad is actually shown so we can
+    estimate revenue (CPM) and the ads funnel. Not the payout of record — real
+    money is reported by the ad network's own dashboard.
+    """
+    ev = app.state.ad_ledger.record_impression(
+        req.placement, network=req.network, fmt=req.fmt, tier=req.tier,
+        unit_id=req.unit_id, creative_id=req.creative_id, advertiser=req.advertiser,
+    )
+    return {"ok": True, "revenue_usd": ev.revenue_usd}
+
+
+@app.post("/ads/click")
+def ads_click(req: AdEventRequest) -> dict:
+    """Record an ad click beacon (adds estimated CPC revenue)."""
+    ev = app.state.ad_ledger.record_click(
+        req.placement, network=req.network, fmt=req.fmt, tier=req.tier,
+        unit_id=req.unit_id, creative_id=req.creative_id, advertiser=req.advertiser,
+    )
+    return {"ok": True, "revenue_usd": ev.revenue_usd}
+
+
+@app.get("/ads/revenue")
+def ads_revenue(days: float = 0.0) -> dict:
+    """Ad-revenue report (impressions, clicks, CTR, estimated revenue + eCPM).
+
+    Read-only aggregate for the admin console (client-gated like telemetry).
+    ``days`` optionally limits the recent-event feed to a time window.
+    """
+    since = days * 86400.0 if days and days > 0 else None
+    return {"active_network": _active_ad_network(), **app.state.ad_ledger.summary(since_s=since)}
+
+
+def _active_ad_network() -> str:
+    from aoep_shared.ad_networks import active_network
+
+    return active_network().value

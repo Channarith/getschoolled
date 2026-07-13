@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
 import { bannerUnitId, tierShowsAds } from "../ads/config";
+import { recordAdClick, recordAdImpression } from "../ads/revenue";
 
 type BannerModule = typeof import("react-native-google-mobile-ads");
 
@@ -15,10 +16,12 @@ try {
 
 type Props = {
   tier?: string;
+  placement?: string;
 };
 
-/** Bottom banner for free/basic members. Uses Google test units in dev. */
-export default function AdBanner({ tier }: Props) {
+/** Banner for free/basic members. Uses Google test units in dev; fires
+ * impression/click beacons into the revenue ledger. */
+export default function AdBanner({ tier, placement = "mobile-banner" }: Props) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -44,6 +47,12 @@ export default function AdBanner({ tier }: Props) {
         unitId={bannerUnitId()}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: Platform.OS === "ios" }}
+        onAdLoaded={() => recordAdImpression({
+          placement, network: "admob", fmt: "display", tier, unit_id: bannerUnitId(),
+        })}
+        onAdOpened={() => recordAdClick({
+          placement, network: "admob", fmt: "display", tier, unit_id: bannerUnitId(),
+        })}
       />
     </View>
   );

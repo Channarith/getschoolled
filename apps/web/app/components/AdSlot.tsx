@@ -1,9 +1,10 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
-import { getAdSlot, type AdSlotPayload } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { getAdSlot, recordAdClick, recordAdImpression, type AdSlotPayload } from "../lib/api";
 import { useFlag } from "../lib/flags";
+import { effectiveAdTier } from "../lib/useCourseAds";
 
 type Props = {
   slotId: string;
@@ -61,17 +62,34 @@ function AdSenseUnit({ slot, slotId, className }: {
 export default function AdSlot({ slotId, tier, className }: Props) {
   const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const [slot, setSlot] = useState<AdSlotPayload | null>(null);
+  const logged = useRef(false);
 
   useEffect(() => {
     if (!adsEnabled) { setSlot({ show: false }); return; }
     let cancelled = false;
-    getAdSlot(slotId, tier)
+    logged.current = false;
+    getAdSlot(slotId, effectiveAdTier(tier))
       .then((s) => { if (!cancelled) setSlot(s); })
       .catch(() => { if (!cancelled) setSlot({ show: false }); });
     return () => { cancelled = true; };
   }, [slotId, tier, adsEnabled]);
 
+  // Impression beacon once, when a visible slot resolves.
+  useEffect(() => {
+    if (!slot?.show || logged.current) return;
+    logged.current = true;
+    recordAdImpression({
+      placement: slotId, network: slot.network || "house", fmt: "display",
+      tier: effectiveAdTier(tier), unit_id: slotId,
+    });
+  }, [slot, slotId, tier]);
+
   if (!adsEnabled || !slot?.show) return null;
+
+  const onHouseClick = () => recordAdClick({
+    placement: slotId, network: slot.network || "house", fmt: "display",
+    tier: effectiveAdTier(tier), unit_id: slotId,
+  });
 
   if (slot.house && slot.click_url) {
     return (
@@ -90,7 +108,7 @@ export default function AdSlot({ slotId, tier, className }: Props) {
         }}
       >
         <span style={{ fontSize: 14, color: "#e2e8f0" }}>{slot.label || "Sponsored"}</span>
-        <a href={slot.click_url} className="btn primary" style={{ fontSize: 13, padding: "6px 12px" }}>
+        <a href={slot.click_url} onClick={onHouseClick} className="btn primary" style={{ fontSize: 13, padding: "6px 12px" }}>
           Learn more
         </a>
       </aside>

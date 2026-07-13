@@ -16,12 +16,14 @@ import {
   getToken,
   gradeQuiz,
   listLessons,
+  getMe,
   pronounce,
   reengage,
   reportIssue,
   setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
+  type AdBreak,
   type Answer,
   type Disclosure,
   type Lesson,
@@ -35,6 +37,8 @@ import {
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import AiPresenter from "../components/AiPresenter";
+import VideoAdBreak from "../components/VideoAdBreak";
+import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
 import { synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 
@@ -82,6 +86,12 @@ export default function ClassPage() {
   const [speaking, setSpeaking] = useState(false);
   const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
+  const [tier, setTier] = useState("basic");
+  const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
+  const afterAdRef = useRef<null | (() => void)>(null);
+  const advanceCount = useRef(0);
+  const MIDROLL_EVERY_ADVANCES = 5;
+  const { preroll, takeNextMidroll } = useCourseAds(lessonId, tier);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voiceRef = useRef<StreamingVoice | null>(null);   // real-time chunked voice
   // Adaptive quiz state (difficulty personalizes via the memory service).
@@ -96,6 +106,9 @@ export default function ClassPage() {
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    if (getToken()) {
+      getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
+    }
     listLessons()
       .then((ls) => {
         setLessons(ls);
@@ -162,8 +175,22 @@ export default function ClassPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.index, view?.session.session_id]);
 
-  async function onStart() {
-    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+  // Play an ad break, then run `then` when it completes/skips. Used for the
+  // pre-roll before a class starts and mid-rolls between slides (ad-supported
+  // tiers only; VIP/pro get an empty plan so `preroll`/midrolls are null).
+  function runAd(b: AdBreak, then: () => void) {
+    stopSpeaking();
+    afterAdRef.current = then;
+    setAdBreak(b);
+  }
+  function onAdDone() {
+    const fn = afterAdRef.current;
+    afterAdRef.current = null;
+    setAdBreak(null);
+    fn?.();
+  }
+
+  async function doStart() {
     setError("");
     setBusy(true);
     try {
@@ -172,6 +199,7 @@ export default function ClassPage() {
       setSlide(v.slide);
       setChat([]);
       setQuiz(null);
+      advanceCount.current = 0;
     } catch (e) {
       setError(String(e));
     } finally {
@@ -179,7 +207,13 @@ export default function ClassPage() {
     }
   }
 
-  async function onAdvance() {
+  async function onStart() {
+    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+    if (preroll) { runAd(preroll, doStart); return; }
+    await doStart();
+  }
+
+  async function doAdvance() {
     if (!view) return;
     setBusy(true);
     try {
@@ -190,6 +224,16 @@ export default function ClassPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onAdvance() {
+    if (!view) return;
+    advanceCount.current += 1;
+    if (advanceCount.current % MIDROLL_EVERY_ADVANCES === 0) {
+      const mid = takeNextMidroll();
+      if (mid) { runAd(mid, () => { void doAdvance(); }); return; }
+    }
+    await doAdvance();
   }
 
   // Learner is drifting/lost: ask the teaching brain to re-engage. Renders the
@@ -452,6 +496,14 @@ export default function ClassPage() {
 
   return (
     <main className="container">
+      {adBreak && (
+        <VideoAdBreak
+          adBreak={adBreak}
+          placement={`class-${adBreak.position}`}
+          tier={effectiveAdTier(tier)}
+          onDone={onAdDone}
+        />
+      )}
       <h1>Live Class</h1>
       {disclosure && (
         <div className="card" style={{ borderColor: "#6ea8fe" }}>

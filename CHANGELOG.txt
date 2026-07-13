@@ -2,6 +2,26 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.16.0 - Ads monetization: made ads actually appear where people
+  learn AND actually accountable. (1) Revenue accounting: new
+  aoep_shared/ad_revenue.py ledger (impressions/clicks, CPM/CPC by network+format,
+  eCPM, CTR) + billing endpoints POST /ads/impression, POST /ads/click, GET
+  /ads/revenue, and a course-agnostic GET /ads/plan. Web AdSlot + the new video
+  ad player + mobile AdMob all fire beacons; the admin console gained an "Ad
+  Revenue" panel (impressions/clicks/CTR/eCPM + per-placement table). Estimate +
+  funnel only; the ad network's dashboard remains the payout of record. (2) Ads in
+  the real viewing flow: new web VideoAdBreak.tsx plays pre/mid-roll with a real
+  <video>, skip timer, and click-through (house placeholder media falls back to a
+  branded card). Wired into /class (pre-roll on start + mid-roll every 5 slides),
+  Drive Mode (one-time audio pre-roll), and /watch (replaced the text simulation).
+  (3) iPhone + Android ads: mobile AdMob banner now fires beacons and appears on
+  Home + Browse; new interstitial (iOS+Android, mid-lesson) via
+  ads/interstitial.ts; iOS/Android interstitial unit IDs wired in app.config.js.
+  (4) Test experience: append ?ads=1 to any web URL to force ads on an ad-free/
+  admin (VIP) account (that's why admin/qa-pro test logins saw none) - documented
+  in config/cloud.env + docs/architecture.txt. Adds Python tests for the ledger +
+  revenue API. Bump 0.16.0.
+
 - 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
   merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
   while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so

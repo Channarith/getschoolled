@@ -10,7 +10,9 @@ import {
   type LearnableItem,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
+import AdBanner from "../components/AdBanner";
 import GlassPanel from "../components/GlassPanel";
+import { useAuth } from "../auth/AuthContext";
 import { getMyList, recordInterest, toggleMyList } from "../storage";
 import { useT } from "../i18n";
 import { categoryGradient, theme } from "../theme";
@@ -43,6 +45,7 @@ const FORMAT_LABELS: Record<string, string> = {
 
 export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, initialCategory }: Props) {
   const { t, locale } = useT();
+  const { account } = useAuth();
   const [rows, setRows] = useState<LearnableItem[]>([]);
   const [cats, setCats] = useState<string[]>([]);
   const [formats, setFormats] = useState<string[]>([]);
@@ -212,6 +215,7 @@ export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, i
           }}
         />
       )}
+      <AdBanner tier={account?.tier} placement="mobile-browse-banner" />
     </View>
   );
 }
