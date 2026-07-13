@@ -16,6 +16,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
+import { useInterstitial } from "../ads/interstitial";
 import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
 import { getSettings } from "../storage";
@@ -61,6 +62,9 @@ export default function LessonScreen({
   const [surveyBusy, setSurveyBusy] = useState(false);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
+  const interstitial = useInterstitial(account?.tier);
+  const advanceCountRef = useRef(0);
+  const MIDROLL_EVERY_ADVANCES = 4;
 
   useEffect(() => {
     let alive = true;
@@ -133,6 +137,12 @@ export default function LessonScreen({
   async function next() {
     if (!view) return;
     stopNarration();
+    // Mid-lesson interstitial for ad-supported tiers (best-effort; proceeds if
+    // no ad is loaded). show() presents the full-screen AdMob ad on iOS/Android.
+    advanceCountRef.current += 1;
+    if (advanceCountRef.current % MIDROLL_EVERY_ADVANCES === 0) {
+      interstitial.show();
+    }
     setAdvancing(true);
     setError("");
     try {

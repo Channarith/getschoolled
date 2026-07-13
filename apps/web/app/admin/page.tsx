@@ -7,12 +7,14 @@ import {
   adminSetFlag,
   adminSetFlagSession,
   adminSurveyInsights,
+  getAdRevenue,
   getAllTelemetry,
   getMe,
   getServiceErrors,
   getServiceVersions,
   getToken,
   SERVICE_URLS,
+  type AdRevenueReport,
   type FlagSpec,
   type ServiceVersion,
   type TelemetryError,
@@ -54,6 +56,7 @@ export default function AdminPage() {
   const [errorsFor, setErrorsFor] = useState<string>("");
   const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [adRevenue, setAdRevenue] = useState<AdRevenueReport | null>(null);
 
   // Logged-in operator admins skip the secret prompt (BFF uses server ADMIN_SECRET).
   useEffect(() => {
@@ -78,7 +81,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!authed) return;
-    const load = () => getAllTelemetry().then(setTelemetry).catch(() => setTelemetry([]));
+    const load = () => {
+      getAllTelemetry().then(setTelemetry).catch(() => setTelemetry([]));
+      getAdRevenue().then(setAdRevenue).catch(() => setAdRevenue(null));
+    };
     load();
     if (!autoRefresh) return;
     const id = setInterval(load, 5000);
@@ -332,6 +338,68 @@ export default function AdminPage() {
               ))
             )}
           </div>
+        )}
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          <h2 style={{ fontSize: 18, margin: 0, flex: 1 }}>Ad Revenue (monetization)</h2>
+          <button onClick={() => getAdRevenue().then(setAdRevenue).catch(() => {})} style={{ padding: "4px 12px", cursor: "pointer" }}>
+            Refresh
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: "#666" }}>
+          Estimated ad earnings from impression/click beacons (web + mobile). Network of record:{" "}
+          <code>{adRevenue?.active_network ?? "—"}</code>. Real payout is reconciled in the ad
+          network&rsquo;s own dashboard; this is our in-app estimate + funnel.
+        </p>
+        {adRevenue ? (
+          <>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", margin: "8px 0 14px" }}>
+              {([
+                ["Revenue (est.)", `$${adRevenue.totals.revenue_usd.toFixed(4)}`],
+                ["Impressions", adRevenue.totals.impressions.toLocaleString()],
+                ["Clicks", adRevenue.totals.clicks.toLocaleString()],
+                ["CTR", `${(adRevenue.totals.ctr * 100).toFixed(2)}%`],
+                ["eCPM", `$${adRevenue.totals.ecpm_usd.toFixed(2)}`],
+              ] as const).map(([label, val]) => (
+                <div key={label} style={{ background: "#f7f7f7", borderRadius: 8, padding: "10px 16px", minWidth: 110 }}>
+                  <div style={{ fontSize: 12, color: "#666" }}>{label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{val}</div>
+                </div>
+              ))}
+            </div>
+            {adRevenue.by_placement.length > 0 ? (
+              <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+                    <th style={{ padding: 6 }}>Placement</th><th style={{ padding: 6 }}>Impr.</th>
+                    <th style={{ padding: 6 }}>Clicks</th><th style={{ padding: 6 }}>CTR</th>
+                    <th style={{ padding: 6 }}>eCPM</th><th style={{ padding: 6 }}>Revenue (est.)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adRevenue.by_placement.map((r) => (
+                    <tr key={r.key} style={{ borderTop: "1px solid #eee" }}>
+                      <td style={{ padding: 6 }}><code>{r.key}</code></td>
+                      <td style={{ padding: 6 }}>{r.impressions.toLocaleString()}</td>
+                      <td style={{ padding: 6 }}>{r.clicks.toLocaleString()}</td>
+                      <td style={{ padding: 6 }}>{(r.ctr * 100).toFixed(2)}%</td>
+                      <td style={{ padding: 6 }}>${r.ecpm_usd.toFixed(2)}</td>
+                      <td style={{ padding: 6 }}>${r.revenue_usd.toFixed(4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="muted" style={{ fontSize: 13 }}>
+                No ad events yet. Ads show for Standard/free tiers — open <code>/watch</code>, the home feed,
+                <code>/class</code> or Drive Mode on a basic account (or append <code>?ads=1</code> to force ads on any account).
+              </p>
+            )}
+          </>
+        ) : (
+          <p style={{ color: "#666" }}>Loading ad revenue…</p>
         )}
       </section>
 

@@ -314,7 +314,7 @@ export default function HomeScreen({
         )}
       />
 
-      <AdBanner tier={account?.tier} />
+      <AdBanner tier={account?.tier} placement="mobile-home-banner" />
     </ScrollView>
   );
 }

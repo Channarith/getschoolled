@@ -19,6 +19,13 @@ export const TEST_BANNER_UNIT_ID = Platform.select({
   default: "ca-app-pub-3940256099942544/6300978111",
 }) as string;
 
+/** Google sample / test interstitial unit IDs (safe for dev builds). */
+export const TEST_INTERSTITIAL_UNIT_ID = Platform.select({
+  ios: "ca-app-pub-3940256099942544/4411468910",
+  android: "ca-app-pub-3940256099942544/1033173712",
+  default: "ca-app-pub-3940256099942544/1033173712",
+}) as string;
+
 export function bannerUnitId(): string {
   const key = Platform.OS === "ios" ? "admobBannerIos" : "admobBannerAndroid";
   const configured = extra[key];
@@ -26,4 +33,13 @@ export function bannerUnitId(): string {
     return configured;
   }
   return TEST_BANNER_UNIT_ID;
+}
+
+export function interstitialUnitId(): string {
+  const key = Platform.OS === "ios" ? "admobInterstitialIos" : "admobInterstitialAndroid";
+  const configured = extra[key];
+  if (configured && configured.includes("/")) {
+    return configured;
+  }
+  return TEST_INTERSTITIAL_UNIT_ID;
 }

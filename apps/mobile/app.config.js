@@ -90,6 +90,10 @@ module.exports = ({ config }) => {
         process.env.ADMOB_BANNER_ANDROID || "ca-app-pub-3940256099942544/6300978111",
       admobBannerIos:
         process.env.ADMOB_BANNER_IOS || "ca-app-pub-3940256099942544/2934735716",
+      admobInterstitialAndroid:
+        process.env.ADMOB_INTERSTITIAL_ANDROID || "ca-app-pub-3940256099942544/1033173712",
+      admobInterstitialIos:
+        process.env.ADMOB_INTERSTITIAL_IOS || "ca-app-pub-3940256099942544/4411468910",
     },
   };
 };
