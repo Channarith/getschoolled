@@ -100,6 +100,19 @@ def test_start_salareen_class_returns_session_and_plan():
     assert body["bridge"]["livekit"]["room"].startswith("class-")
 
 
+def test_start_group_class_accepts_legacy_short_id():
+    lid = _first_lesson()
+    cid = client.post("/api/group-classes", json={
+        "title": "Legacy short start", "lesson_id": lid, "start_time": _iso(5),
+    }).json()["id"]
+
+    started = client.post(f"/api/group-classes/{cid[:8]}/start")
+    assert started.status_code == 200, started.text
+    body = started.json()
+    assert body["class"]["id"] == cid
+    assert body["bridge"]["livekit"]["room"] == f"class-{cid}"
+
+
 def test_start_external_class_returns_bridge_plan():
     lid = _first_lesson()
     cid = client.post("/api/group-classes", json={

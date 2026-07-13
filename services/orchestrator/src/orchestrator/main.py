@@ -853,16 +853,28 @@ def schedule_group_class(req: ScheduleGroupClassRequest) -> dict:
     return gc.to_dict()
 
 
+def _find_unique_group_class_prefix(store: GroupClassStore, class_id: str):
+    if len(class_id) < 8:
+        return None
+    matches = [gc for gc in store.list(upcoming_only=False) if gc.id.startswith(class_id)]
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
 def _find_group_class(class_id: str):
     """Look up a class, materializing the standard (deterministic-id) classes on
     a miss. On multi-replica / post-restart deployments the class listed by one
     replica may not yet exist in this worker's store; seeding is idempotent and
-    reproduces the same ids, so the retry finds it."""
+    reproduces the same ids, so the retry finds it. Legacy live-room links used
+    class id prefixes in room ids, so a unique prefix is accepted as well."""
     store = _group_store()
     gc = store.get(class_id)
     if gc is None:
         _seed_group_classes()
         gc = store.get(class_id)
+        if gc is None:
+            gc = _find_unique_group_class_prefix(store, class_id)
     return gc
 
 
@@ -1157,9 +1169,13 @@ def _ensure_group_class_room(room_id: str):
     if not room_id.startswith("class-"):
         return None
     class_id = room_id[len("class-"):]
-    gc = _group_store().get(class_id)
+    gc = _find_group_class(class_id)
     if gc is None or gc.platform != "salareen":
         return None
+    if gc.live_room_id:
+        existing = store.get(gc.live_room_id)
+        if existing is not None:
+            return existing
 
     sessions = get_sessions()
     session_id = gc.session_id
@@ -1219,10 +1235,11 @@ def join_live_room(
     account_id = account_from_authorization(authorization) or ""
     # Open the room on demand for group-class Salareen rooms so joining a
     # scheduled (not-yet-started) class works instead of 404ing.
-    _ensure_group_class_room(room_id)
+    ensured_room = _ensure_group_class_room(room_id)
+    resolved_room_id = ensured_room.room_id if ensured_room is not None else room_id
     try:
         participant = store.join(
-            room_id,
+            resolved_room_id,
             req.name,
             identity=req.identity,
             account_id=account_id,
@@ -1231,19 +1248,19 @@ def join_live_room(
         raise _live_room_http_error(exc)
     media = app.state.factory.media()
     token = media.issue_token(
-        room=room_id,
+        room=resolved_room_id,
         identity=participant.identity,
         can_publish=participant.can_publish,
     )
-    room = store.require(room_id)
+    room = store.require(resolved_room_id)
     from aoep_shared.live_room_social import PresenceToast  # noqa: E402
     from aoep_shared.live_room_ws import ws_presence  # noqa: E402
 
     toast = PresenceToast(kind="join", participant_id=participant.id, name=participant.name)
     _schedule_live_broadcast(
         background,
-        room_id,
-        ws_presence(toast.to_dict(), room_id=room_id, viewer_count=room.viewer_count),
+        resolved_room_id,
+        ws_presence(toast.to_dict(), room_id=resolved_room_id, viewer_count=room.viewer_count),
     )
     return {
         "participant": participant.to_dict(),
@@ -1255,8 +1272,8 @@ def join_live_room(
             "url": token.url,
         },
         "gift_balance": store.gift_balance_for(participant, authorization),
-        "host_follower_count": store.host_follower_count(room_id),
-        "following_host": store.is_following_host(room_id, participant.identity),
+        "host_follower_count": store.host_follower_count(resolved_room_id),
+        "following_host": store.is_following_host(resolved_room_id, participant.identity),
     }
 
 

@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.17.0 - Mobile/Live Rooms: fixed legacy shortened
+  class-<prefix> Salareen room ids by resolving unique group-class prefixes
+  during lazy room open and group-class start, preventing raw mobile 404s while
+  keeping genuinely unknown rooms as 404.
+
 - 2026-07-13 - v0.16.3 - Web: synced the theme/logo branch onto upstream main
   (v0.16.2) and kept the light warm-campus theme, gold-S/bodhi-leaf emblem, and
   the Our Story on-theme ecosystem diagram. Restored the single-row desktop top

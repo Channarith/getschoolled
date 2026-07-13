@@ -86,6 +86,27 @@ def test_join_lazy_opens_and_issues_livekit_token():
     assert body["media"]["url"]
 
 
+def test_join_lazy_opens_legacy_short_class_room_id():
+    cid = _schedule_salareen_class(6)
+    legacy_room_id = f"class-{cid[:8]}"
+    joined = client.post(
+        f"/api/live-rooms/{legacy_room_id}/join",
+        json={"name": "Ada", "identity": "ada-mobile"},
+    )
+    assert joined.status_code == 200, joined.text
+    body = joined.json()
+    assert body["room"]["class_id"] == cid
+    assert body["room"]["room_id"] == legacy_room_id
+    assert body["media"]["room"] == legacy_room_id
+
+    full_id_join = client.post(
+        f"/api/live-rooms/class-{cid}/join",
+        json={"name": "Grace", "identity": "grace-mobile"},
+    )
+    assert full_id_join.status_code == 200, full_id_join.text
+    assert full_id_join.json()["media"]["room"] == legacy_room_id
+
+
 def test_unknown_room_still_404s():
     r = client.get("/api/live-rooms/class-does-not-exist")
     assert r.status_code == 404
