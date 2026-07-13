@@ -2,14 +2,24 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-12 - Fix: stop "GET /identity/auth/me 401 (Unauthorized)" spam and
-  stale-session lockups. (1) getMe() now short-circuits when there is no token,
-  so signed-out visitors no longer fire a guaranteed-401 request on every page
-  load / nav click. (2) jsonOrThrow() clears the stored token on ANY 401, so a
-  token that expired or was invalidated by a redeploy (rotated auth signing key)
-  is dropped and the UI returns to a clean signed-out state instead of
-  re-firing failing authenticated requests on every click. Added a Playwright
-  regression (e2e/core/auth-me.spec.ts). Bump 0.14.23.
+- 2026-07-12 - Fix: group-class "Start" 404 (POST /api/group-classes/{id}/start
+  -> "unknown group class"). Standard daily classes were seeded with RANDOM ids
+  (uuid4), so each orchestrator replica / process restart minted different ids;
+  a class listed by one replica couldn't be started on another (and only /list
+  seeded — start/get/register didn't). Now seeded classes use a DETERMINISTIC id
+  (aoep_shared.group_classes.standard_class_id = std+sha1(platform|lesson|start)),
+  so every replica/restart agrees on the same id; seeding is idempotent (dedups
+  by id + slot) and the orchestrator seeds-on-miss in start/get/register so the
+  class materializes on whichever replica serves the request. Regression tests
+  added (deterministic id, idempotent seed, two-replica agreement, start-on-miss
+  API).
+
+- 2026-07-12 - Release 0.15.0 (minor). Rolls up this cycle's larger changes:
+  higher-quality 2D/3D arcade games, multiple intro animations + synthesized
+  intro song, conversational/scenario course content with spoken "repeat after
+  me" checkpoints, the Live Class AI presenter video feed, and reliability fixes
+  (Drive Mode Stop, mobile-tests under pnpm, /auth/me 401 handling, group-class
+  Start 404). Minor bump 0.14.x -> 0.15.0.
 
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
