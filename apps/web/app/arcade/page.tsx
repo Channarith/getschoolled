@@ -130,6 +130,30 @@ export default function ArcadePage() {
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
+      {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(34,211,238,0.12))" }}>
+          <h3 style={{ marginTop: 0 }}>🎮 Featured arcade games</h3>
+          <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/cosmic-catch?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
+              🪐 Cosmic Catch · 2D (math)
+            </Link>
+            <Link href={`/arcade/solar-3d`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
+              🌌 Solar Quiz · 3D (astronomy)
+            </Link>
+            {SUBJECT_ICON.chemistry && (
+              <Link href={`/arcade/chemistry?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 600 }}>
+                ⚗️ Potion Lab · 2D (chemistry)
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Picker */}
       {!round && (
         <div className="card">

@@ -138,6 +138,11 @@ class AppConfig(BaseModel):
     # then to the browser's on-device voice.
     elevenlabs_api_key: str = ""
     elevenlabs_model: str = "eleven_multilingual_v2"
+    # CosyVoice 2 (self-hosted, FunAudioLLM): a streaming multilingual neural TTS
+    # you run yourself. When COSYVOICE_URL points at your inference server the
+    # speech gateway prefers it over ElevenLabs/edge-tts for narration.
+    cosyvoice_url: str = ""
+    cosyvoice_api_key: str = ""
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -203,6 +208,8 @@ def load_config(
         ocr_api_key=get("OCR_API_KEY", ""),
         elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
+        cosyvoice_url=get("COSYVOICE_URL", ""),
+        cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),

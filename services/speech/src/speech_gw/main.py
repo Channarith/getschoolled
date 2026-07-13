@@ -42,9 +42,11 @@ def tts_engine(language: str) -> TtsEngineResponse:
 
 def _active_tts_engine() -> str:
     """Which neural engine will render narration audio right now."""
-    from aoep_shared import elevenlabs_tts
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
     from aoep_shared.meeting.natural_tts import _edge_tts_available
 
+    if cosyvoice_tts.cosyvoice_configured(getattr(app.state.config, "cosyvoice_url", "")):
+        return "cosyvoice"
     if elevenlabs_tts.elevenlabs_configured(app.state.config.elevenlabs_api_key):
         return "elevenlabs"
     if _edge_tts_available():
@@ -146,6 +148,23 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             text = humanize_narration(text, chosen.dialect, language=speak_lang)
         except Exception:
             pass  # slang is best-effort; never fail narration over it
+
+    # 0) CosyVoice 2 (self-hosted) is preferred when configured. The instructor's
+    #    tone hint becomes the natural-language instruction (instruct2 mode).
+    from aoep_shared import cosyvoice_tts
+
+    if cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", "")):
+        try:
+            audio, ctype = cosyvoice_tts.synthesize(
+                text, base_url=cfg.cosyvoice_url, language=speak_lang,
+                speaker=(chosen.cosyvoice_speaker if chosen else ""),
+                instruct=(persona.tone_hint if persona else ""),
+                api_key=getattr(cfg, "cosyvoice_api_key", ""),
+            )
+            return Response(content=audio, media_type=ctype or "audio/wav",
+                            headers={**headers, "X-TTS-Engine": "cosyvoice"})
+        except cosyvoice_tts.CosyVoiceError:
+            pass  # fall through to ElevenLabs / edge-tts / client fallback
 
     from aoep_shared import elevenlabs_tts
 

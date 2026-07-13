@@ -120,6 +120,13 @@ let _statusProbe: Promise<boolean> | null = null;
 let _currentAudio: HTMLAudioElement | null = null;
 let _serverVoiceId = "";       // chosen voice_catalog id (accent/language)
 let _serverInstructor = "";    // chosen instructor personality id
+// Playback epoch: bumped by every cancelSpeech(). A speak() call captures the
+// epoch at start; if it changes (Stop/pause/skip/replay/language switch) while
+// its neural-audio fetch is still in flight, the resolved audio must NOT start.
+// Without this, hitting Stop during a fetch let the *next* segment begin playing
+// after the player was already closed.
+let _epoch = 0;
+let _inflight: AbortController | null = null;
 
 export function configureServerTts(baseUrl: string): void {
   _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
@@ -157,8 +164,18 @@ async function serverTtsAvailable(): Promise<boolean> {
 }
 
 function stopServerAudio(): void {
+  // Abort a fetch that hasn't produced audio yet, so it can't start playing
+  // after we've been told to stop.
+  if (_inflight) {
+    try { _inflight.abort(); } catch { /* */ }
+    _inflight = null;
+  }
   if (_currentAudio) {
     try { _currentAudio.pause(); } catch { /* */ }
+    // Detach handlers first so tearing down the src can't fire onended/onerror
+    // (which would call the segment's done() callback).
+    _currentAudio.onended = null;
+    _currentAudio.onerror = null;
     _currentAudio.src = "";
     _currentAudio = null;
   }
@@ -166,8 +183,10 @@ function stopServerAudio(): void {
 
 // Stop ALL narration (browser utterances AND server audio). Callers that used to
 // call window.speechSynthesis.cancel() should call this so server audio also
-// stops on pause / skip / replay / language switch.
+// stops on pause / skip / replay / language switch. Bumping the epoch also
+// invalidates any in-flight neural-audio fetch so it can't start after Stop.
 export function cancelSpeech(): void {
+  _epoch++;
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try { window.speechSynthesis.cancel(); } catch { /* */ }
   }
@@ -175,8 +194,15 @@ export function cancelSpeech(): void {
 }
 
 // Fetch one MP3 for the whole text and play it. Resolves true if it played (or
-// finished), false if it could not start (so the caller falls back to browser).
-async function playServerAudio(text: string, opts: SpeakOptions, done: () => void): Promise<boolean> {
+// was cancelled — either way the caller must NOT fall back to the browser),
+// false if it could not start for a real reason (then the caller uses the
+// browser voice). `myEpoch` is the playback epoch at the time speak() started;
+// if it no longer matches we were cancelled and must not start any audio.
+async function playServerAudio(
+  text: string, opts: SpeakOptions, done: () => void, myEpoch: number,
+): Promise<boolean> {
+  const ac = new AbortController();
+  _inflight = ac;
   try {
     const resp = await fetch(`${_speechBaseUrl}/tts`, {
       method: "POST",
@@ -188,12 +214,17 @@ async function playServerAudio(text: string, opts: SpeakOptions, done: () => voi
         voice: _serverVoiceId,
         instructor: _serverInstructor,
       }),
+      signal: ac.signal,
     });
+    if (_epoch !== myEpoch) return true;    // cancelled during fetch: swallow
     if (!resp.ok) return false;             // 501/4xx -> browser fallback
     const blob = await resp.blob();
+    _inflight = null;                       // fetch fully done; nothing to abort
+    if (_epoch !== myEpoch) return true;    // cancelled while reading body
     if (!blob.size) return false;
     const url = URL.createObjectURL(blob);
-    stopServerAudio();
+    stopServerAudio();                      // stop any previous segment's audio
+    if (_epoch !== myEpoch) { URL.revokeObjectURL(url); return true; }  // cancelled just now
     const audio = new Audio(url);
     _currentAudio = audio;
     const cleanup = () => { URL.revokeObjectURL(url); if (_currentAudio === audio) _currentAudio = null; };
@@ -205,7 +236,11 @@ async function playServerAudio(text: string, opts: SpeakOptions, done: () => voi
     await audio.play();
     return true;
   } catch {
+    // Aborted / cancelled: swallow so we don't fall back to the browser voice.
+    if (ac.signal.aborted || _epoch !== myEpoch) return true;
     return false;
+  } finally {
+    if (_inflight === ac) _inflight = null;
   }
 }
 
@@ -227,6 +262,7 @@ export function splitForSpeech(text: string): string[] {
 // Chunks the text and queues the chunks so the engine paces sentences naturally;
 // a slightly slower rate reads warmer and clearer than the default.
 export function speakNaturally(text: string, opts: SpeakOptions): void {
+  const myEpoch = _epoch;   // invalidated by any cancelSpeech() after this point
   let finished = false;
   const done = () => {
     if (finished) return;
@@ -237,23 +273,24 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
   // Prefer server neural audio (ElevenLabs / edge-tts) when available; fall back
   // to the on-device voice on any failure so narration never silently stops.
   serverTtsAvailable().then((ok) => {
-    if (finished) return;
+    if (finished || _epoch !== myEpoch) return;   // cancelled before we started
     if (ok) {
-      playServerAudio(text, opts, done).then((played) => {
-        if (!played && !finished) speakBrowser(text, opts, done);
+      playServerAudio(text, opts, done, myEpoch).then((played) => {
+        if (!played && !finished && _epoch === myEpoch) speakBrowser(text, opts, done, myEpoch);
       });
     } else {
-      speakBrowser(text, opts, done);
+      speakBrowser(text, opts, done, myEpoch);
     }
-  }).catch(() => { if (!finished) speakBrowser(text, opts, done); });
+  }).catch(() => { if (!finished && _epoch === myEpoch) speakBrowser(text, opts, done, myEpoch); });
 }
 
 // On-device Web Speech narration (the natural-voice fallback).
-function speakBrowser(text: string, opts: SpeakOptions, done: () => void): void {
+function speakBrowser(text: string, opts: SpeakOptions, done: () => void, myEpoch: number): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
     done();
     return;
   }
+  if (_epoch !== myEpoch) return;   // cancelled between fetch fallback and here
   const synth = window.speechSynthesis;
   const lang = localeToBcp47(opts.locale);
   const style = opts.voiceStyle ?? "standard";
