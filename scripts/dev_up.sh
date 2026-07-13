@@ -48,9 +48,19 @@ load_env "$ROOT/.env.local"            # overlay real secrets (wins) for live mo
 export DEPLOY_MODE="${DEPLOY_MODE:-local}"
 export AUTH_SIGNING_KEY="${AUTH_SIGNING_KEY:-dev-auth-signing-key}"
 export ADMIN_SECRET="${ADMIN_SECRET:-dev-admin-secret}"
+# Internal-only endpoints (homework tools, catalog export, integrations
+# client admin) fail closed without a token; give local dev a static one so
+# the AI-teacher paths and the stress harness work out of the box.
+export INTERNAL_TOKEN="${INTERNAL_TOKEN:-dev-internal-token}"
 export HIL_AUTONOMY="${HIL_AUTONOMY:-autonomous}"
 export CURRICULUM_DIR="${CURRICULUM_DIR:-$ROOT/sample-curriculum}"
+# config/local.env carries the container path (/app/sample-curriculum) for
+# docker compose; when it doesn't exist on this host, fall back to the repo's.
+[ -d "$CURRICULUM_DIR" ] || export CURRICULUM_DIR="$ROOT/sample-curriculum"
 export ENABLE_TEST_ENDPOINTS="${ENABLE_TEST_ENDPOINTS:-1}"
+# Local/demo headroom: every browser tab and E2E worker shares the 127.0.0.1
+# rate bucket, so the production-like 120 req/min trips during rich pages.
+export RATE_LIMIT="${RATE_LIMIT:-600}"
 export AOEP_GIT_SHA="${AOEP_GIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
 
 # --- 3. services ----------------------------------------------------------- #

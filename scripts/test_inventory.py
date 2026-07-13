@@ -94,12 +94,16 @@ def classify(path: str, name: str) -> str:
             return "Machine vision"   # embodiment/robot grouped under perception/robot
         if "group" in n or "bridge" in n:
             return "Live & group classes"
+        if "live_room" in p or "live-room" in p or "live_room" in n:
+            return "Live & group classes"
         return "AI tutor (live class)"
     if any(k in n for k in ("rag", "knowledge", "search", "scene", "provenance", "validation", "correction")):
         return "Knowledge base (RAG) & trust"
     if any(k in n for k in ("foresight", "bandit", "adaptive", "inference")):
         return "Adaptive learning"
     if "bridges" in n:
+        return "Live & group classes"
+    if "live_room" in p or "live-room" in p:
         return "Live & group classes"
     if "embod" in n or "edge" in n:
         return "Machine vision"

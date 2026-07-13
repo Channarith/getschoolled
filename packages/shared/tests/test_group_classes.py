@@ -16,7 +16,40 @@ from aoep_shared.group_classes import (
     calendar_ics,
     ensure_standard_daily_classes,
     google_meet_url,
+    standard_class_id,
 )
+
+
+def test_standard_class_id_is_deterministic():
+    a = standard_class_id("salareen", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    b = standard_class_id("salareen", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    c = standard_class_id("meet", "intro-to-fractions", "2026-07-13T14:00:00+00:00")
+    assert a == b                 # same inputs -> same id
+    assert a != c                 # platform differs -> different id
+    assert a.startswith("std") and len(a) == 12
+
+
+def test_seeded_classes_use_deterministic_ids_and_are_idempotent():
+    store = GroupClassStore()
+    n1 = ensure_standard_daily_classes(store)
+    assert n1 > 0
+    # Re-seeding creates nothing new (dedup by deterministic id).
+    assert ensure_standard_daily_classes(store) == 0
+    for gc in store.list(upcoming_only=False):
+        assert gc.id == standard_class_id(gc.platform, gc.lesson_id, gc.start_time)
+
+
+def test_two_replicas_agree_on_ids():
+    """Simulate two orchestrator replicas: a class listed by one is found in the
+    other (the fix for the 'unknown group class' 404 on start)."""
+    replica_a = GroupClassStore()
+    replica_b = GroupClassStore()
+    ensure_standard_daily_classes(replica_a)
+    ensure_standard_daily_classes(replica_b)
+    listed = replica_a.list(upcoming_only=True)
+    assert listed
+    for gc in listed:
+        assert replica_b.get(gc.id) is not None, f"{gc.id} missing on replica B"
 
 
 def _iso(delta_minutes: int) -> str:
@@ -32,6 +65,8 @@ def test_schedule_normalizes_and_defaults():
     )
     assert gc.title == "Photosynthesis 101"
     assert gc.platform == "salareen"
+    assert gc.room_size == 6
+    assert gc.capacity == 5
     assert gc.status == "scheduled"
     assert gc.seats_left == gc.capacity
     assert gc.needs_bridge is False
@@ -127,11 +162,27 @@ def test_to_dict_includes_derived_fields():
     assert d["id"] == gc.id
 
 
+def test_salareen_room_size_caps_capacity():
+    store = GroupClassStore()
+    gc = store.schedule(
+        title="Grid class",
+        lesson_id="a",
+        start_time=_iso(10),
+        platform="salareen",
+        room_size=9,
+        capacity=200,
+    )
+    assert gc.room_size == 9
+    assert gc.capacity == 8
+
+
 def test_bridge_plan_salareen_vs_external():
     salareen = GroupClass(title="t", lesson_id="a", start_time=_iso(10))
     plan = bridge_plan(salareen)
     assert plan["needs_bridge"] is False
     assert plan["livekit_room"].startswith("class-")
+    assert plan["room_size"] == 6
+    assert "/live-room/" in plan["join_path"]
 
     zoom = GroupClass(
         title="t",

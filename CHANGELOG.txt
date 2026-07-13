@@ -25,6 +25,674 @@ Format: newest first. No markdown per project convention.
   circular alpha mask so the artwork's dark corners are transparent — the
   favicon/app icons show a clean circle instead of a dark square, and the mark
   blends on any background.
+- 2026-07-13 - v0.16.2 - Version bump now checks the LATEST base branch first.
+  scripts/bump_pr_version.py fetches origin/main and bumps from the HIGHER of the
+  local VERSION and main's VERSION, so a branch that forked before a concurrent
+  merge still lands ABOVE main (e.g. main 0.16.1 + patch -> 0.16.2) instead of
+  re-emitting a stale number. Prints local vs base-branch vs bump-from for
+  transparency; --base-ref / --no-fetch to tune. All version files
+  (VERSION, build-info, web+mobile version.ts/package.json, app.json) are
+  refreshed together as before.
+
+- 2026-07-13 - v0.16.2 - Ads monetization: made ads actually appear where people
+  learn AND actually accountable. (1) Revenue accounting: new
+  aoep_shared/ad_revenue.py ledger (impressions/clicks, CPM/CPC by network+format,
+  eCPM, CTR) + billing endpoints POST /ads/impression, POST /ads/click, GET
+  /ads/revenue, and a course-agnostic GET /ads/plan. Web AdSlot + the new video
+  ad player + mobile AdMob all fire beacons; the admin console gained an "Ad
+  Revenue" panel (impressions/clicks/CTR/eCPM + per-placement table). Estimate +
+  funnel only; the ad network's dashboard remains the payout of record. (2) Ads in
+  the real viewing flow: new web VideoAdBreak.tsx plays pre/mid-roll with a real
+  <video>, skip timer, and click-through (house placeholder media falls back to a
+  branded card). Wired into /class (pre-roll on start + mid-roll every 5 slides),
+  Drive Mode (one-time audio pre-roll), and /watch (replaced the text simulation).
+  (3) iPhone + Android ads: mobile AdMob banner now fires beacons and appears on
+  Home + Browse; new interstitial (iOS+Android, mid-lesson) via
+  ads/interstitial.ts; iOS/Android interstitial unit IDs wired in app.config.js.
+  (4) Test experience: append ?ads=1 to any web URL to force ads on an ad-free/
+  admin (VIP) account (that's why admin/qa-pro test logins saw none) - documented
+  in config/cloud.env + docs/architecture.txt. Adds Python tests for the ledger +
+  revenue API. Bump 0.16.2.
+
+- 2026-07-13 - v0.16.1 - Homework generator now runs from the command line, just
+  like the harvester. New services/homework/src/homework/run.py: a thin argparse
+  CLI over aoep_shared.homework with flag-selected modes (mirrors the harvester's
+  run.py). --generate PATH / --content TEXT builds an assignment from a local file
+  (text/html/pdf/pptx/docx via the harvester extractors, or a JSON slide deck /
+  *.course.json via --source-type slides) and writes <id>.assignment.json under
+  --out-dir (default output/homework), printing the assignment JSON to stdout and
+  a summary to stderr; --scan FILE runs OCR (Tesseract if installed, else the
+  offline mock) into a Submission; --authorship prints the AI-vs-human signal;
+  --grade ASSIGNMENT_JSON autogrades --answers or a --submission-file (offline by
+  default, --online adds trusted-web corroboration); --instructions prints the
+  recipe. No server or keys required for the default path. Added services/homework
+  tests (mirroring services/harvester/tests) and Makefile targets homework-generate
+  / homework-grade. Bump 0.15.1.
+- 2026-07-13 - v0.16.0 - Versioning traceability: every PR now MUST bump the
+  version and NAME that version in the changelog. (1) Re-added the CI gate
+  scripts/check_pr_version_bump.sh (+ version-bump job in ci.yml), but fixed the
+  false-collision bug that got it removed before: it now compares HEAD's VERSION
+  against the MERGE-BASE (fork point), not the moving tip of main, so concurrent
+  PRs that pick the same number no longer fail each other. It requires VERSION to
+  be strictly greater than the fork point, the web+mobile version files to match,
+  AND the newest CHANGELOG entry to contain the new version. (2) Adopted the
+  changelog format "- YYYY-MM-DD - vX.Y.Z - <what changed>" so each entry
+  documents its version, not just a date. (3) scripts/bump_pr_version.py
+  auto-promotes PATCH -> MINOR once >8 changes accrue since the last release
+  (AOEP_MINOR_BUMP_THRESHOLD tunes/disables; --force-level overrides). (4) New
+  scripts/merge-version.sh `maxver` merge driver (setup-git.sh + .gitattributes
+  for VERSION + web/mobile version.ts) auto-resolves concurrent bumps to the
+  HIGHER semver so main only moves forward. Also fixed the bump-test isolation
+  bug that clobbered the real apps/mobile/* version files. Bump 0.16.0
+  (auto-minor: >8 pending changes).
+
+
+- 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
+  merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
+  while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so
+  `tsc` failed with "Cannot find module 'three'"; restored both deps (lockfile
+  already had them). (2) apps/web/app/class/page.tsx referenced `AiPresenter`
+  (missing import) and `startRepeatAfterMe` (missing definition) after the
+  presenter/repeat-after-me/streaming PRs merged over each other; re-added the
+  AiPresenter import + the SpeechRec type + startRepeatAfterMe(). typecheck +
+  lint + build now pass. No version bump (keeps VERSION=0.15.0 = main).
+
+- 2026-07-13 - Real-time chunked streaming voice pipeline (sub-second TTFB). New
+  apps/web/app/lib/voicePipeline.ts: SpeechChunker cuts streamed LLM tokens into
+  tiny chunks (aggressive ~3-word first chunk, then phrase-sized at punctuation /
+  a word cap) and StreamingVoice synthesizes each chunk immediately (prefetch) and
+  plays them strictly in order, gaplessly - so audio starts within the first few
+  words instead of after the whole sentence. tts.synthChunk() renders one chunk to
+  a ready-to-play neural-audio Playable (server /tts, on-device fallback). Live
+  Class "Ask" now drives LLM token stream -> chunker -> voice for real-time spoken
+  answers. Tests: chunk boundaries + in-order playback (Playwright).
+
+- 2026-07-12 - NVIDIA Nemotron conversational agent + real-time streaming answers.
+  The conversational tutor/voice agent can now run on NVIDIA Nemotron: implemented
+  the previously-stubbed OpenAI-compatible LLM call (providers/llm.py _transport,
+  Bearer auth via LLM_API_KEY), added token STREAMING (complete_stream over SSE
+  deltas), a NemotronLLMProvider (NVIDIA NIM default endpoint / self-hosted vLLM),
+  and factory selection when NEMOTRON_API_KEY or LLM_PROVIDER=nemotron is set.
+  Orchestrator gains POST /api/sessions/{id}/ask/stream (SSE): TeachingSessions.
+  ask_stream() streams tokens for immediate TTS, then a final guarded 'done' event
+  (citations + grounding). Web: askStream() client + the Live Class "Ask" now
+  streams the answer into the chat and speaks sentences as they arrive (low-
+  latency); falls back to buffered ask on error. Config/env + k8s wiring
+  (LLM_API_KEY, LLM_PROVIDER, NEMOTRON_API_KEY/BASE_URL/MODEL; NEMOTRON_API_KEY in
+  aoep-secrets). Graceful offline fallback preserved. Tests added. Bump 0.15.0.
+
+- 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
+  now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
+  de-duped and enqueued into ONE shared persistent queue so they crawl together
+  (interleaved) over a long run. New --max-days D (added to --max-hours) bounds a
+  multi-day crawl; combine with --per-hour for polite pacing and --keep-waiting
+  to stay alive. Long-run robustness: per-URL errors already never crash the loop,
+  and the per-batch course-package listing is now throttled (every ~10 batches /
+  on progress) so thousands of courses don't slow each batch over days. Resumable
+  via the SQLite queue (re-run the same command; --retry-errors re-queues
+  failures). New _collect_topics() (tested). Docs: RUNBOOK + harvester-content skill.
+
+- 2026-07-12 - Harvester: long, hourly crawl of hundreds of pages (paced +
+  bounded + resumable). New crawl flags on run.py --crawl: --per-hour N (cap
+  pages/hour for a polite multi-hour crawl — sleeps out the rest of the hour once
+  hit), --max-total N (stop after N pages this run), --max-hours H (wall-clock
+  cap), --keep-waiting (stay alive after the queue drains). The daemon loop now
+  tracks totals + an hourly window and stops automatically when the queue drains;
+  each batch prints a run block (pages_total/pages_this_hour/elapsed_min/
+  queue_pending). Pacing/stop policy is the pure, unit-tested next_crawl_action()
+  (+ CrawlLimits) in harvest/crawl.py. The queue persists in the SQLite corpus so
+  a restart resumes; HTML pages fan out into child links so a topic seed grows to
+  hundreds. Docs: services/harvester/RUNBOOK.txt + harvester-content skill.
+
+- 2026-07-12 - Group video room: local session recording + playback (web), saved
+  to the user's hard drive — NOT the cloud (so cloud disk isn't consumed). New
+  apps/web/app/lib/localRecorder.ts records what the learner sees + hears
+  (getDisplayMedia tab video + tab audio mixed with the mic via MediaRecorder),
+  keeps a playback library in IndexedDB (on-device), and saves the .webm to disk
+  via the File System Access API (download fallback). New components/LocalRecorder.tsx
+  adds a "⏺ Record (local)" toggle + "📼 Recordings" drawer (play/save/delete) +
+  a playback modal, wired into the live-room header. Composes with the room's
+  existing Bigo-style gifts/reactions/follow + viewer count and the Google-Meet-
+  style Q&A queue/chat (already present). Verified: web typecheck, lint (0), build.
+
+- 2026-07-12 - Instructor personalities: many teaching styles, mixable with any
+  accent voice. New aoep_shared/instructors.py — 10 personalities (Kind, Strict,
+  Professional, Kid-friendly, Cartoon, Coach, Mentor, Storyteller, Socratic
+  Professor, Chill), each shaping DELIVERY (ElevenLabs voice_style + edge-tts
+  rate/pitch — e.g. child = higher/faster, strict = lower/slower, cartoon = big
+  energy) and carrying a tone_hint for the tutor's answer style. Speech gateway
+  adds GET /tts/instructors and an `instructor` param on /tts (+ GET). edge-tts
+  synthesize_neural now takes `pitch` so personality prosody works. Web + mobile
+  Drive Mode add an instructor picker (persisted on web); both pass the chosen
+  personality to server TTS. Personalities compose with voice accents + slang
+  (e.g. British + Strict, Texan + Kind). Verified: instructor + endpoint tests,
+  177 speech/shared tests, web build, mobile typecheck, live /tts/instructors (10).
+
+- 2026-07-12 - Voice catalog: lots of voices, accents, languages + regional slang.
+  New aoep_shared/voice_catalog.py — 40 narration voices across 15 languages, each
+  mapped to a real Microsoft neural voice (edge-tts) for TRUE accent fidelity:
+  American, Texan, Californian, British, Australian, Irish, Indian, Canadian,
+  South African; Spanish (Spain/México/Argentina/US); Chinese (Mandarin/Cantonese/
+  Taiwan); French (France/Québec); German, Italian, Portuguese (BR/PT), Japanese,
+  Korean, Hindi, Arabic (Gulf/Egypt), Russian, Vietnamese, Thai, Turkish. Speech
+  gateway adds GET /tts/voices (grouped picker feed); /tts + GET /tts accept a
+  `voice` id (accent) and `slang` flag. Voices carry a dialect tag so the
+  narration is rewritten in the region's SLANG (added British + Australian
+  dialects to dialect.py; Texan/Mexican/Brazilian already existed). Engine
+  resolution: specific ElevenLabs voice or EL default (most natural) → accent-
+  accurate edge-tts → device voice. Web Drive Mode gets a voice/accent picker
+  (persisted); mobile gets a voice-accent chip row; both pass the chosen voice to
+  server TTS. Verified: catalog + endpoint + slang tests, web build, mobile
+  typecheck, live /tts/voices (40 voices).
+
+- 2026-07-12 - Drive Mode always-listen refinement: pause ONLY for questions.
+  The always-listen toggle now lets you just ask a question mid-narration and the
+  course pauses to answer — no wake word needed. Casual speech, filler, noise, and
+  the narration the mic itself picks up are filtered out: new isQuestion() (only
+  interrogatives trigger) + isLikelyEcho() (ignores utterances that overlap the
+  currently-narrated text, so the narration's own rhetorical questions don't
+  pause it). "Hey Sala" still works as an explicit trigger for commands
+  (pause/next/etc.). Web (voiceCommands.ts + drive/page.tsx, echo via
+  currentNarrationRef) and mobile (voiceAssistant.ts isQuestion/isLikelyEcho +
+  DriveModeScreen). Toggle relabeled "Always listening — just ask a question".
+  Verified: filter unit checks (15/15), web typecheck+build, mobile typecheck.
+
+- 2026-07-12 - Drive Mode hands-free voice: the mic is now ALWAYS listening — no
+  button. Previously you had to tap "Ask" for a one-shot capture. Now web and
+  mobile run a continuous, wake-word-gated recognizer whenever a Drive course is
+  playing: say "Hey Sala" (or "Salareen"/"Sala") then your question or a command
+  (pause/resume/next/previous/repeat) and it barges in, answers, and resumes —
+  all hands-free. Wake-word gating means the spoken narration the mic also hears
+  never triggers a false question. New pure parser apps/web/app/lib/voiceCommands.ts
+  (wake detection, question extraction, command classification). Web
+  (drive/page.tsx) auto-starts ambient listening on play with a hands-free
+  toggle + indicator, graceful fallback to the tap-to-Ask button if the mic is
+  blocked/unsupported. Mobile (voiceAssistant.ts startAmbientListening/
+  stopAmbientListening + continuous option; DriveModeScreen auto-listen + toggle).
+  Verified: parser unit checks (11/11), web typecheck+build, mobile typecheck.
+  (Live voice needs a real microphone — it cannot be exercised headlessly.)
+
+- 2026-07-12 - Add agent skills for the platform (.cursor/skills/*/SKILL.md).
+  Eight task playbooks capturing the architecture so future AI agents work
+  efficiently: platform-architecture (service/port map + provider abstraction),
+  run-and-test-locally (stack + CI gates + port/venv/mobile-clobber gotchas),
+  backend-service (create_service/providers/tests), identity-rewards-durability
+  (accounts/points/admin/flags + Redis snapshot durability), live-rooms-video
+  (Salareen LiveKit rooms, lazy-open, the 404 rule), harvester-content (crawl →
+  generate → ~20-slide lesson partition → mandatory .pptx), speech-tts
+  (ElevenLabs → edge-tts → device chain), release-and-deploy (versioning,
+  non-draft PR auto-merge, VKE deploy + stale-image trap). Registered a skills
+  index in AGENTS.md and corrected the stale "version bump is a CI gate" note
+  (the gate was removed). Docs only; no code changes.
+
+- 2026-07-12 - Fix 404 when joining a Salareen (built-in) group-class room. Live
+  rooms were only created when a class was explicitly "started", so selecting a
+  scheduled-but-not-started Salareen class (roomId class-<id>) - or joining after
+  an orchestrator restart dropped the in-memory room - returned 404 "unknown live
+  room". The orchestrator now lazily opens/reopens the room on GET and join
+  (_ensure_group_class_room): it looks up the group class, starts the teaching
+  session if needed, and opens the LiveKit-backed room on demand (open_room is
+  idempotent). Join then issues a real LiveKit access token (HS256 JWT, video
+  grant) + URL for the configured LiveKit server, so real WebRTC videochat works
+  once LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET point at the deployed
+  LiveKit (infra/k8s/livekit.yaml). Non-Salareen / unknown rooms still 404. New
+  tests: lazy-open on GET + join, JWT issuance, unknown-room 404.
+
+- 2026-07-12 - Natural, cultural narration via ElevenLabs (Drive Mode + live
+  class), web and mobile. New aoep_shared/elevenlabs_tts.py client (stdlib
+  urllib, eleven_multilingual_v2, per-style voice + voice_settings, env voice
+  overrides) and speech-gateway endpoints: POST /tts + GET /tts (mobile) render
+  MP3 with the engine chain ElevenLabs -> edge-tts neural -> 501, plus GET
+  /tts/status so clients probe once. Web (apps/web/app/lib/tts.ts): speakNaturally
+  now fetches + plays server neural audio when available and falls back to the
+  best on-device voice on any error; a unified cancelSpeech() stops both browser
+  utterances and server audio (Drive Mode rewired to it). Mobile
+  (apps/mobile/src/tts.ts): speakNatural streams server audio via expo-av with an
+  expo-speech fallback and a unified stopSpeech(); Drive Mode wired in. Config:
+  ELEVENLABS_API_KEY / ELEVENLABS_MODEL (set the key to enable; falls back
+  gracefully when unset). Verified: elevenlabs client + /tts endpoint tests, full
+  backend suite, web + mobile typecheck, web production build.
+
+- 2026-07-12 - Harvester: partition oversized material into lesson-sized decks.
+  Scraped pages / big files often expanded to hundreds or 1000+ slides in ONE
+  deck - far too much for a single lesson. A lesson now targets a 20-30 minute
+  session (~20 slides), so generate.py adds partition_course_into_lessons() /
+  generate_lessons(): decks over the cap are split into evenly-balanced lessons
+  titled "<title> - Lesson i of N" (no tiny trailing stub; each lesson gets its
+  own course_id + rebuilt composition, capped at MAX_SLIDES_PER_LESSON=20, hard
+  ceiling 40). Both harvester paths use it: the --generate/--critique file path
+  (new --max-slides-per-lesson flag, one output dir per lesson) and the online
+  --crawl path (each lesson exported + saved to the catalog with lesson_index/
+  lesson_count; source-level corpus indexing stays once per URL). Verified: a
+  60-section file -> 197 slides -> 10 lessons of 20; new test_harvest_partition.py.
+
+- 2026-07-11 - Fix web compose build context: the `web` service in
+  infra/compose/docker-compose.yml used context ../../apps/web while its
+  Dockerfile COPYs repo-root-relative paths (COPY apps/web/..., COPY apps/web
+  ./), so BuildKit failed with "/apps/web: not found" and `make up-e2e` could
+  not build the web image. Changed to context ../.. + dockerfile
+  apps/web/Dockerfile, matching every other service. Unblocks the web-e2e
+  Playwright workflow and the demo-check gate, both of which stand up the full
+  stack via make up-e2e.
+
+- 2026-07-11 - Mobile E2E safe local backend: the Android Maestro job now stands
+  up the seeded compose backend (identity seeds qa-learner@salareen.com via
+  SEED_QA_ACCOUNTS=1), excluding the web service, and builds the debug APK in
+  MOBILE_DEPLOY_MODE=local so the emulator talks to that throwaway stack at
+  10.0.2.2 — never production identity. Stack is torn down after the run. The iOS
+  Maestro job is gated off by default (macOS runners can't run Linux Docker) and,
+  when enabled via MOBILE_E2E_IOS=true, must point at a seeded non-production QA
+  cloud env via MOBILE_E2E_CLOUD_URL — it can never accidentally hit prod.
+
+- 2026-07-11 - CI/mobile farm fixes after the first live workflow runs: the
+  Android Maestro job now installs JDK 17 (RN 0.74's gradle plugin does not
+  resolve on the runner's default Java 22); removed the `|| true` masking from
+  the Maestro build/test steps so a real failure fails the job honestly instead
+  of a false green (crash-log collection keeps its guard); added workflow_dispatch
+  to mobile-tests so it can be triggered on demand; and dropped the stale
+  "STAGED HERE" header comments now that the workflows are live. First run also
+  confirmed the B-SEC-1 production-bundle secret scan passes in real CI.
+
+- 2026-07-11 - Mobile testIDs for E2E: added stable testIDs to the login screen,
+  bottom tab bar, Drive Mode player, and audio-course cards so the Maestro E2E
+  flows can target elements by id instead of brittle localized text. Rewrote the
+  auth-login and drive-mode Maestro flows to use them. A new jest render test
+  verifies the testIDs actually render. Also synced apps/web/package.json to the
+  current version (it had lagged a prior bump). No user-facing behavior change.
+- 2026-07-11 - Mobile test farm foundation (V&V Workstream B): apps/mobile went
+  from zero automated tests to a jest-expo unit tier (35 tests) covering the
+  safety-critical driving-detection GPS state machine, backend URL resolution,
+  streak accounting, and the wake-word grammar. Security fix (B-SEC-1 / R5): QA
+  quick-fill accounts (including admin@salareen.com / 88888888) no longer ship
+  in the release JS bundle — they moved to app.config.js and are injected only
+  for non-production builds; a new scripts/mobile-bundle-scan.sh exports a
+  production bundle and fails if any credential leaks. Added a mobile<->backend
+  contract test (qa/tests/test_mobile_contract.py, 59 cases) that fails CI if a
+  service renames or removes a route the app calls. Maestro E2E scaffolds plus
+  staged self-hosted farm workflows (Maestro on a macOS iOS simulator + a
+  Linux-KVM Android emulator) live under ci-followup/ pending a workflow-scoped
+  token, alongside the earlier web-e2e runner.
+- 2026-07-11 - Web E2E coverage (V&V Workstream A): added five P0 Playwright
+  spec files under apps/web/e2e/core (login/signup, signed-out landing +
+  signed-in catalog, the unlocked /class classroom, rewards + billing, and the
+  backend-failure error card), taking the suite from ~19 to 34 cases across the
+  routes learners actually hit first, not just the corporate demo funnel. New
+  e2e/lib/overflow.ts runs a viewport-wide horizontal-overflow sweep at phone
+  (360px), laptop (1280px), and desktop (1920px) widths and checks both the
+  document root and body scrollWidth, so a wide table or unwrapped string that
+  clips on a phone now fails the test (the app has zero CSS breakpoints, so this
+  is the primary responsive guard). New .github/workflows/web-e2e.yml runs the
+  full suite nightly against the compose stack; non-blocking until it has flake
+  history, then it graduates into the PR gate.
+- 2026-07-10 - Release 0.14.4: version bump so a fresh iOS binary can be uploaded
+  to TestFlight. Apple accepts only one build per version+buildNumber, and 0.14.3
+  was already uploaded, so this ships the audio fix, logo revert, and swipe
+  animation under a new version/buildNumber (0.14.4) + Android versionCode 1404.
+- 2026-07-10 - Mobile swipe animation: tab swipe now visibly slides the whole
+  pane. SwipeTabContainer tracks the drag under the finger (with rubber-band
+  resistance at the first/last tab), then slides the active pane fully off-screen
+  while the incoming pane slides in from the opposite edge. Added velocity-based
+  fling commit (fast flick switches tabs even under the distance threshold).
+- 2026-07-10 - Mobile branding fix: reverted the accidental NVIDIA-logo app
+  assets back to the Salareen golden Bayon Buddy mascot holding the S with the
+  bodhi leaf. Restored salareen_icon_1024 / salareen_mark_256 /
+  salareen_adaptive_fg_1024 from the pre-0.14.2 versions and reset splash +
+  Android adaptive-icon backgroundColor from #000000 to #0b1020 (brand navy).
+- 2026-07-10 - Mobile EAS archive slimming: added repo-root .easignore so EAS
+  uploads only apps/mobile (~tens of MB) instead of the whole monorepo (~924MB:
+  docs demos, backend services, output/, .eas-npm-cache, .pnpm-home). Root and
+  mobile .gitignore now exclude output/ and pnpm/npm caches. Added
+  apps/mobile/scripts/verify-eas-archive-size.sh to sanity-check before upload.
+- 2026-07-10 - Mobile iOS lesson audio fix: lesson/Drive-Mode narration
+  (expo-speech) was silent on iOS because the shared AVAudioSession was never
+  configured for playback (muted by the hardware silent switch, and left ducked
+  after LiveKit or the intro jingle released the session). tts.ts now asserts a
+  playback session (playsInSilentModeIOS/staysActiveInBackground, DuckOthers)
+  before every speakNatural call and on warmVoices, so lesson audio always plays.
+- 2026-07-09 - Mobile branding: replaced app logo assets with the NVIDIA logo
+  (app icon, Android adaptive foreground, splash source, in-app Home hero mark).
+  Regenerated salareen_icon_1024 / salareen_adaptive_fg_1024 / salareen_mark_256
+  as the full logo centered on a black square; switched splash and adaptive icon
+  backgroundColor to #000000 so the logo's black background blends seamlessly.
+- 2026-07-08 - Mobile web parity: rewards/points economy + arcade leaderboard;
+  full ClassRoom (re-engage, adaptive quiz, pulse/post-class surveys, finish
+  rewards); account management (password reset, 2FA, billing, multi-learner
+  profiles); browse-without-login preview mode; language practice suite;
+  host scheduling UI for group classes. Drive Mode Q&A unchanged (local keyword
+  search, same as web).
+- 2026-07-08 - Mobile UX + live class parity: enlarged bottom tab bar (28px icons,
+  56px min touch targets, larger labels) and horizontal swipe between tabs via
+  SwipeTabContainer. New Live Class screen (solo 1:1 + group) wired to
+  POST /api/sessions with class_type; home hero "Live 1:1 Class" entry; LessonScreen
+  shows class badge and passes classType. Placeholder fixes: sync learner
+  studentId from identity on login + survey; notifications screen shows scheduled
+  local alert count; leaveLiveRoom called when exiting a Salareen live room.
+- 2026-07-07 - Mobile login: added a show/hide password toggle (eye icon) on the
+  auth screen password field. Wrapped the TextInput in a row with an Ionicons
+  eye-outline/eye-off-outline Pressable that flips secureTextEntry; new i18n
+  keys auth.showPassword / auth.hidePassword (English + fallback).
+- 2026-07-07 - Mobile intro splash: replaced the static logo+ring with a
+  beat-synced dancing cartoon (Bayon Buddy). New self-contained beat engine
+  (120 BPM) drives per-beat bounce + squash/stretch + left/right dance steps,
+  an elastic pop, a pulsing beat ring, a live equalizer, floating music-note /
+  sparkle particles, and spinning disco blobs; continuous breathing bob keeps
+  it alive between beats. Engine starts with the jingle and degrades gracefully
+  (still dances) if audio fails. Native-driver animations throughout.
+- 2026-07-07 - Live room discovery by location (Bigo-style): Salareen rooms
+  are now discoverable across users. Added geo fields on LiveRoom (country,
+  state, city, lat/lng, creator), live-room index in backend (memory + Redis),
+  GET /api/live-rooms (flat + grouped by country/state/city, optional nearby
+  radius filter), POST /api/live-rooms (instant go-live room). Group-class start
+  accepts location body. Mobile: Live Nearby screen (browse grouped rooms, Go
+  Live, pull-to-refresh), home entry, expo-location reverse-geocode helper;
+  join/start passes GPS so others can find the room after refresh.
+- 2026-07-07 - Mobile live room 404 fix: entering a Salareen Live Room for a
+  group class that hadn't been started yet showed "404 Not Found" — the room id
+  (class-<id>) only exists on the server after open_room (class start), and
+  join/getLiveRoom never auto-create. Now GroupClasses opens the room first when
+  a learner taps Join on a not-yet-live Salareen class (idempotent start, joined
+  as a learner not moderator); LiveRoomScreen also self-heals by opening the
+  class then retrying join on a 404, and shows a human message instead of a raw
+  404 while a room isn't open yet.
+- 2026-07-07 - Mobile Potion Lab (feature parity with web): the real-time
+  chemistry arcade game (build molecules by catching atoms; bacteria lose points,
+  bombs end the run; age-scaled difficulty kids/tween/teen/adult) was web-only.
+  Ported it to React Native (apps/mobile/src/screens/PotionLab.tsx) and wired it
+  into the arcade GameScreen — a "Potion Lab" mode chip now appears for the
+  chemistry subject and launches the real-time game. High score persists via
+  AsyncStorage. Added game.potionLab/game.potionTip i18n keys.
+- 2026-07-07 - iOS TestFlight launch-crash fix: the app threw an uncaught
+  exception at startup (Salareen 0.13.4, unsymbolicated objc_exception_throw).
+  Root cause: @livekit/react-native 2.9.8 runs polyfills + WebRTC global setup at
+  IMPORT time, and App.tsx -> LiveRoomScreen -> LiveKitParticipantTile imported it
+  statically, so all of that executed during launch. Made LiveKit load lazily
+  (runtime require only when a participant tile mounts in a live room; types via
+  import type), guarded so a load failure degrades to the emoji fallback instead
+  of crashing. No launch-path LiveKit/WebRTC execution anymore.
+- 2026-07-07 - EAS build repair (both platforms): fix LiveKit native build
+  failures. Android manifest merger failed (minSdkVersion 23 < 24 required by
+  @livekit/react-native) -> set expo-build-properties android.minSdkVersion=24.
+  iOS archive failed to compile @livekit/react-native-webrtc (WebRTCModule.m
+  called RTCPeerConnectionFactory initWithBypassVoiceProcessing:...:
+  audioProcessingModule: absent from the pinned WebRTC-SDK 125.6422.07 binary —
+  a self-inconsistent 125.x line under Xcode 26/iOS SDK 26.2). Upgraded LiveKit
+  to the m137 set: @livekit/react-native 2.4.3->2.9.8,
+  @livekit/react-native-webrtc 125.0.8->137.0.3 (pins WebRTC-SDK 137.7151.09,
+  matching source selector), livekit-client 2.7.4->2.15.16. Updated
+  apps/mobile/pnpm-lock.yaml. No app code changes (registerGlobals/VideoView/
+  Room API stable across 2.4->2.9).
+- 2026-07-07 - Optional follow-ups (v0.13.3): live-room virtual gifts spend/credit
+  via identity /rewards when signed in; AdSense web AdSlot (next/script) + AdMob
+  banner on mobile home (tier-gated, Google test IDs in dev); mobile typecheck CI
+  job; EAS fix — pin @expo/config-plugins as direct dep + hardened local plugins
+  (stops recurring expo config MODULE_NOT_FOUND on cloud builds).
+- 2026-07-07 - EAS fix (v0.13.3): withLiveKit plugin used non-existent
+  withPermissions({ios,android}) API — rewrote to AndroidConfig.Permissions.
+  withPermissions + withInfoPlist (config-plugins v8). verify-expo-config-plugins
+  now runs the real `expo config` command to catch "not a function" plugin errors
+  during install. Verified: expo config --json --full --type public exits 0.
+
+- 2026-07-07 - Mobile platform fixes (v0.13.2): sign-in gate before app features;
+  Group Classes Register/Join/Start for all platforms; in-app GameScreen and
+  LessonScreen (no web-app popup); Drive Mode stop-button + 27-language training
+  audio; intro splash with Salareen jingle (1:32–1:39) and settings replay.
+  Merged atop cloud-agent live social streaming (PR #219 / v0.13.0).
+
+- 2026-07-07 - Live social streaming for Group Classes (Salareen live rooms):
+  LiveKit multi-guest video/audio on web and mobile (emoji fallback offline);
+  virtual gifts with points economy; floating tap reactions; real-time WebSocket
+  broadcast (chat, gifts, reactions, presence, queue/slide) with 3s polling
+  fallback; viewer count, follow host, join/leave toasts. Backend: extended
+  aoep_shared live room model, gift catalog, follow store, WS hub; orchestrator
+  REST + /api/live-rooms/{id}/ws. Version 0.13.0.
+- 2026-07-07 - Mobile intro splash: first-launch animated Salareen splash with
+  jingle clip (1:32–1:39 from bundled theme). Settings toggle to disable launch
+  intro; Settings button replays full song + animation. Tap anywhere to skip.
+
+- 2026-07-07 - Mobile visual courses + games now play in-app (was a dead-end
+  popup). New GameScreen plays the arcade (quiz/speed/match, timed rounds, score
+  + leaderboard submit) via identity /games. New LessonScreen delivers live_class
+  / visual courses through the orchestrator teaching session (slide viewer,
+  Next/advance, narration via expo-speech, ask-the-tutor Q&A) with a graceful
+  in-app reader fallback when no live session exists. AudioCoursesScreen routes
+  taps by format (audio→Drive, game→arcade, everything else→lesson player) so no
+  format shows the old "opens in the Salareen web app" alert. Added mobile API
+  clients: getGamesCatalog/newGame/submitGame and startLessonSession/
+  advanceLessonSession/askLessonSession.
+
+- 2026-07-07 - Mobile Group Classes: fix taps doing nothing — seeded Meet
+  classes had no actionable buttons (Salareen-only join). Full Register / Join /
+  Start flows for all platforms (Salareen in-app room, Meet/Zoom/Teams via
+  Linking.openURL). Start modal opens the live room or external meeting. API
+  client now sends auth headers on all requests; added registerGroupClass and
+  listLessons. Backend seeds daily Salareen live classes (10am + 3pm ET) in
+  addition to Google Meet slots.
+
+- 2026-07-07 - Mobile (iOS + Android): sign-in required before any app features,
+  matching the web app. New AuthScreen on first launch; saved JWT in AsyncStorage
+  is validated via GET /auth/me on startup so returning users auto-enter without
+  re-entering credentials. Settings keeps account info + sign-out only; tabs and
+  classes are hidden until authenticated.
+
+- 2026-07-07 - Drive Mode: Stop/Back now silences audio immediately (mobile +
+  web). Root cause: a cancelled utterance's onend/onerror (web) or onDone
+  (mobile) still fired the "advance to next segment" callback, so cancelling
+  restarted playback - the screen closed but narration kept going. Added a
+  monotonic playback-generation token that every stop/pause/back/skip/language
+  switch bumps; only the still-current generation may auto-advance. Also fixes
+  a double-advance on manual skip.
+
+- 2026-07-07 - Drive Mode audio language now transitions live (mobile + web).
+  Switching the spoken (training) language pauses narration, refetches the
+  course localized, and resumes at the same segment in the new language.
+  Mobile gains an in-player language selector (was Settings-only); web unifies
+  the browse + now-playing toggles and fixes paused-then-switch resume (Resume
+  replays the current segment so it can't resume a stale utterance). Both
+  clients now narrate using the course's returned body_locale so the TTS voice
+  always matches the actual text language. Web ClassRoom stops in-flight
+  narration on a language switch so it no longer keeps talking in the old voice.
+- 2026-07-07 - Training/audio courses can now be requested in all 27 supported
+  languages (was en/es/zh). Backend normalize_training_locale accepts every
+  SUPPORTED_LANGUAGES code; audio_courses adds a pluggable body translator hook
+  (set_body_translator, e.g. NLLB-200 via SpeechProvider) with on-demand,
+  cached per-course translation and a graceful English-body fallback (offline).
+  Client TrainingLocale lists + BCP-47 voice maps expanded to all 27 languages.
+
+- 2026-07-07 - iOS build: pre-generate React-Codegen artifacts (rnsvg
+  ComponentDescriptors.cpp) before xcodebuild. RN 0.74 lists codegen outputs as
+  compile inputs but only creates them in a before_compile script phase; clean
+  ios/build (release prebuild) caused "Build input file cannot be found".
+  ensure-ios-codegen.sh runs from mobile-ios-pod-refresh.sh whenever artifacts
+  are missing.
+
+- 2026-07-07 - iOS Xcode build: fix "[Expo] Configure project" failing with
+  "Operation not permitted" on expo-configure-project.sh (macOS provenance xattr
+  on Pods scripts). Podfile post_install + patch-ios-expo-configure-project.js
+  + withIosExpoConfigureFix prebuild plugin now pipe script contents through
+  bash -c, disable user script sandboxing on Pod targets, and mobile-ios-pod-refresh.sh
+  always reapplies the patch after pod install.
+
+- 2026-07-07 - iOS App Store 90683 fix (root cause: stale archive). The rejected
+  upload was an old v0.12.11 xcarchive built before the NSPhotoLibrary* keys were
+  added, so its Info.plist lacked them. mobile-xcodebuild-release.sh now ALWAYS
+  regenerates ios/ from app.json (expo prebuild --clean), wipes ios/build for a
+  fresh archive, and asserts both NSPhotoLibrary purpose strings are present
+  before archiving (KEEP_IOS=1 opts out). bump/build now also sync
+  ios.buildNumber + android.versionCode from VERSION so every store upload has
+  fresh, unique build metadata. Removed the stale ios/build archive.
+
+- 2026-07-07 - Audio courses: fix remaining service/qa tests that asserted the
+  removed intro wrapper heading and 20-minute padding (curriculum
+  test_audio_courses_api / test_audio_i18n_api, qa test_new_features_integration)
+  so the whole python CI job is green with the authentic-content catalog.
+
+- 2026-07-07 - Audio courses: restore es/zh localized spoken bodies via a hybrid
+  selector - curated localized fact sets are used verbatim when present, else the
+  rich English narration pack; still zero intro/recap wrappers, padding, or
+  repetition. Fixed catalog_i18n / training_content_i18n / khmer tests that
+  asserted the removed wrapper headings.
+
+- 2026-07-07 - Drive-mode audio catalog: all 225 classes now emit only authored
+  segments — removed generic intro/recap wrappers on knowledge lessons, removed
+  language repeat-after-me and recap segments, and dropped the old fallback
+  template path (know_why/know_core/know_deeper). Every knowledge class maps
+  1:1 to audio_topic_data.TOPIC_SECTIONS with zero filler narration.
+
+- 2026-07-07 - Drive-mode audio courses: remove all generated padding, recall,
+  quiz, and reinforcement segments. Course duration now reflects only authentic
+  authored narration from phrase/course data; synthetic segment count is zero.
+
+- 2026-07-07 - Drive-mode audio courses: wire 176-topic substantive narration pack
+  (audio_topic_data.TOPIC_SECTIONS) into knowledge lessons; remove verbatim
+  20-minute filler loop (e.g. What Is Blockchain drops from 93 to ~13 segments
+  with Satoshi, hash chains, proof of work, Ethereum, DeFi, energy, CBDCs).
+- 2026-07-07 - iOS TestFlight: add NSPhotoLibraryUsageDescription and
+  NSPhotoLibraryAddUsageDescription to app.json infoPlist (Apple 90683).
+
+- 2026-07-07 - iOS physical device: mobile-run-ios.sh --physical / pnpm run ios:device
+  (fixes duplicate --device when ios:debug -- --device targeted simulator + flag).
+
+- 2026-07-07 - EAS workflow: trigger Create Production Builds on push to main
+  (apps/mobile/**) so Expo GitHub app can queue iOS+Android without local eas CLI.
+
+- 2026-07-07 - EAS iOS Xcode 26: patch-react-native-jsinspector-ios.js adds include
+  guards on jsinspector-modern headers (fixes UniqueMonostate / ExecutionContext
+  redefinition when Pods + pnpm paths both appear); eas-build-post-install re-runs
+  pod install after patches.
+
+- 2026-07-07 - EAS eas.json: remove invalid installCommand (not in schema); hoisted
+  pnpm via apps/mobile/.npmrc + eas-build-pre-install / eas-build-post-install hooks.
+
+- 2026-07-07 - EAS iOS export:embed fix: direct @react-native/assets-registry dependency,
+  hoisted pnpm installCommand in eas.json, verify-eas-metro-resolve.js gate in
+  eas-build-post-install, metro extraNodeModules pin (fixes MODULE_NOT_FOUND on
+  assets-registry/registry.js during Xcode bundle phase).
+
+- 2026-07-07 - iOS xcode:release signing: pass -allowProvisioningUpdates and
+  DEVELOPMENT_TEAM/CODE_SIGN_STYLE=Automatic; clearer errors when no provisioning
+  profile exists for com.aiclassroom.app.
+
+- 2026-07-07 - Mobile iOS local release: direct expo-asset dependency (fixes EAS/local
+  export:embed bundle step); mobile-xcodebuild-release.sh + pnpm run xcode:release
+  for Mac .xcarchive without EAS (Organizer → Distribute App).
+
+- 2026-07-06 - Corporate-demo E2E validation (v0.12.18): Playwright web E2E
+  suite introduced (apps/web/e2e, 19 tests over the corporate funnel: catalog,
+  locked player, completion/rewards, careers matcher, i18n/responsive) plus a
+  one-command GO/NO-GO gate (make demo-check) and strategy doc
+  (docs/vv-corporate-demo-validation.md). Demo blockers fixed: default
+  corporate program tracks now seed at startup (SEED_CORPORATE_PROGRAMS),
+  program cards deep-link to /corporate/learn, and the "Assign to team"
+  dead-end is a sales-contact CTA. Platform fixes surfaced by this effort:
+  qa/regression.py now runs services/identity/tests; native dev stack no
+  longer loads zero lessons (CURRICULUM_DIR container-path fallback);
+  CORS headers now present on rate-limited 429s (middleware ordering);
+  local stacks carry a dev INTERNAL_TOKEN so internal-only endpoints and
+  the three internal stress scenarios work; dev_down.sh sweeps orphaned
+  service processes by port.
+
+- 2026-07-06 - EAS iOS archive bundle root cause fix: metro.config.js no longer
+  require()s metro-config/src/defaults/exclusionList. metro-config is a transitive
+  (phantom) dependency; under pnpm's isolated node_modules on EAS that require
+  throws MODULE_NOT_FOUND, failing `expo export:embed` in the Xcode "Bundle React
+  Native code and images" phase (worked locally only because local node_modules is
+  a flat tree). blockList is now built as a single RegExp from Expo's default
+  config plus our project patterns — no undeclared imports.
+
+- 2026-07-06 - Mobile cloud API failover: primary backend stays
+  https://www.salareen.com; on network error or 502/503/504 the API client
+  retries the Vultr cluster at http://45.63.91.80 with the same service paths
+  (/identity, /curriculum, /memory, orchestrator). Configurable via
+  expo.extra.cloudFailoverBaseUrl / MOBILE_CLOUD_FAILOVER_BASE_URL.
+  mobile-check-backends.sh probes failover when primary is down.
+
+- 2026-07-06 - Mobile standalone release builds (no localhost/Metro): the red
+  "Unable to load script / index.android.bundle" screen came from installing a
+  DEBUG dev build that expects Metro on localhost:8081. New scripts build a
+  standalone binary with the JS bundle embedded and the backend pinned to the
+  cloud/Vultr host: native:build:android:release (assembleRelease APK via
+  scripts/mobile-build-release-android.sh, MOBILE_DEPLOY_MODE=cloud) and
+  native:build:ios:release. API host was already cloud by default (config.ts
+  uses https://www.salareen.com in cloud mode and ignores the localhost extras).
+
+- 2026-07-06 - EAS iOS prebuildCommand regression fix: remove the custom
+  prebuildCommand from eas.json. EAS appends "--platform <p>" to prebuildCommand
+  and expects a single expo-prebuild invocation, so the compound "&& (...)" shell
+  form broke ("unknown or unexpected option: -d"). EAS runs pod install after
+  prebuild automatically, and the pod/patch steps also run in eas-build-post-install.
+
+- 2026-07-06 - EAS iOS config-plugin regression fix: remove the standalone
+  ./plugins/with-xcode-env-updates.js. On the EAS worker a standalone plugin file
+  cannot resolve @expo/config-plugins under pnpm, so `expo config` failed before
+  build. Metro heap for the archive bundle is already provided by eas.json env
+  (NODE_OPTIONS/METRO_NODE_OPTIONS), making the plugin redundant.
+
+- 2026-07-06 - EAS iOS archive bundle fix: Metro heap + cache + pnpm resolution for
+  export:embed. eas.json sets NODE_OPTIONS/METRO_NODE_OPTIONS; eas-build-post-install
+  materializes Metro-local deps and clears metro-cache; prebuildCommand refreshes
+  CocoaPods after expo prebuild; iOS deploymentTarget 13.4 via expo-build-properties.
+
+- 2026-07-06 - EAS iOS/Android build fix: pin Node 22.20.0 in apps/mobile/eas.json
+  base profile. EAS default image shipped Node 20.19.4, but the repo pins
+  pnpm@11.8.0 which requires Node >= 22.13 (uses node:sqlite builtin), so
+  "pnpm install" crashed with ERR_UNKNOWN_BUILTIN_MODULE node:sqlite. Pinning
+  Node 22 makes the build machine runtime match the pinned package manager.
+- 2026-07-07 - Mobile iOS: add direct expo-asset dependency (fixes EAS/local Release
+  bundle step); mobile-xcodebuild-release.sh + pnpm run xcode:release for Mac
+  .xcarchive without EAS (Organizer → Distribute App for Ad Hoc / TestFlight).
+
+- 2026-07-07 - EAS mobile builds: workflow_dispatch on Create Production Builds
+  (.eas/workflows) plus GitHub Actions eas-mobile-build.yml (EXPO_TOKEN secret)
+  to queue iOS + Android production builds for aiclassroom from CI or Expo UI.
+
+- 2026-07-06 - Web + mobile compact one-page Group Classes: full-width sticky nav
+  header (site-header) fixes cut-off blue banner on mobile; hamburger menu for
+  nav links under 900px; page-one single-column layout (max 640px) with stacked
+  class cards and wrap buttons; viewport meta; mobile Group Classes screen refresh.
+
+- 2026-07-06 - docs/live-room-testing.txt: laptop + mobile commands for Salareen
+  live-room chat (start services, GUI two-browser test, pytest, curl, simulator,
+  physical device LAN IP, Vultr cloud).
+
+- 2026-07-06 - Salareen Live Room user reports: learners can flag bad actors
+  (spam, harassment, inappropriate, disruptive, other) via POST
+  /api/live-rooms/{id}/report. Educators with moderator_key see open reports on
+  room poll, dismiss without banning, or block from the report panel. Web and
+  mobile Report buttons on participant tiles; reports persist in Redis with room
+  state on Vultr VKE.
+
+- 2026-07-06 - Vultr VKE live room hosting: Salareen chat sessions now persist in
+  Redis (aoep:live:* keys) across orchestrator replicas when REDIS_URL is set,
+  matching teaching sessions. GroupClassStore also Redis-backed (aoep:gc:*).
+  LIVE_ROOM_BACKEND=memory / GROUP_CLASS_BACKEND=memory for tests. In-cluster
+  LiveKit deployment (infra/k8s/livekit.yaml) + livekit.salareen.com ingress for
+  WebRTC signaling on Vultr; k8s-vke RUNBOOK updated.
+
+- 2026-07-06 - Salareen Live Room regression: qa/tests/test_live_room_chat_regression.py
+  golden-path for Q&A queue turn-taking, raise-hand toggle, and ban/block; stress.py
+  smoke scenarios for live-room state, queue/join, and call-next; qa/regression.py and
+  RUNBOOK/release-testing/api-reference updated; qa/tests conftest wires service src
+  paths for cross-service smoke.
+
+- 2026-07-06 - Salareen Live Room Q&A queue: structured turn-taking replaces ad-hoc
+  raise-hand. Learners join a speaking queue (optionally with a question preview),
+  see their position, and get the floor one at a time. Moderators Call next / End
+  turn; Theodore announces who is up. Ask while someone else is speaking enqueues
+  instead of interrupting. Web and mobile show the queue panel and floor holder.
+
+- 2026-07-06 - Salareen Live Room ban/block: educators who start a class receive a
+  moderator_key to block troublesome learners (kick + identity ban), list blocked
+  users, and unblock. Banned identities cannot rejoin (HTTP 403). Web live room
+  shows Block/Unblock controls; mobile passes moderator key from Start & join.
+
+- 2026-07-06 - Salareen Live Room (golden Group Classes feature): built-in 4th
+  platform alongside Zoom, Teams, and Google Meet — Bigo/Mico-style multi-user
+  grid on web and mobile. New aoep_shared.live_room with configurable room size
+  (4, 6, or 9 seats including AI host Theodore), raise-hand, mute, in-room chat,
+  slide sync, session recording hooks, and AI Q&A via teaching session. Orchestrator
+  /api/live-rooms/* endpoints; group-classes scheduling adds room_size for
+  salareen; web /live-room/[roomId] UI with participant grid; mobile Group Classes
+  + Live Room screens; join flow fixed from group-classes page.
 
 - 2026-07-02 - Brand logo refresh: new gold "S" + bodhi-leaf emblem for the web
   app. Replaced logo-mark.webp (used by the nav brand mark and the ProfileMenu

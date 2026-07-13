@@ -19,16 +19,59 @@ def test_every_course_is_audio_only_and_drive_safe():
         assert c.visual_required is False
         assert c.drive_safe is True
         assert len(c.segments) >= 2          # has narration
-        assert c.duration_min >= 20
+        assert c.duration_min >= 1           # honest estimate, no padding target
 
 
-def test_enriched_courses_include_quiz_segments():
-    cat = build_catalog()
-    with_quiz = [c for c in cat if any(s.kind == "quiz" for s in c.segments)]
-    assert len(with_quiz) >= len(cat) // 2
-    sample = with_quiz[0]
-    quiz = next(s for s in sample.segments if s.kind == "quiz")
-    assert quiz.text
+def test_knowledge_courses_are_not_filler_loops():
+    """Knowledge lessons must not balloon via verbatim segment repetition."""
+    knowledge = [c for c in build_catalog() if c.id.startswith("audio-")]
+    assert knowledge
+    for c in knowledge:
+        bodies = [s.text for s in c.segments if s.kind == "narration"]
+        assert len(bodies) == len(set(bodies)), f"{c.id} repeats narration bodies"
+        assert len(c.segments) < 25, f"{c.id} has {len(c.segments)} segments (filler loop?)"
+
+
+def test_courses_do_not_include_synthetic_padding_segments():
+    banned = (
+        "welcome to this audio lesson",
+        "keep your eyes on the road",
+        "repeat after me",
+        "great work! let's review",
+        "learning on the move",
+        "why it's worth knowing",
+        "quick recap of",
+    )
+    for c in build_catalog():
+        synthetic = [s for s in c.segments if s.kind in {"quiz", "reinforcement"}]
+        assert not synthetic, f"{c.id} contains generated padding or recall segments"
+        joined = " ".join(s.text for s in c.segments).lower()
+        for phrase in banned:
+            assert phrase not in joined, f"{c.id} still contains filler narration: {phrase!r}"
+
+
+def test_knowledge_courses_match_topic_section_count():
+    from aoep_shared.audio_courses import _TOPICS, get_course
+    from aoep_shared.audio_topic_data import TOPIC_SECTIONS
+
+    for titles in _TOPICS.values():
+        for title in titles:
+            slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
+            c = get_course(f"audio-{slug}")
+            assert c is not None
+            expected = len(TOPIC_SECTIONS[title])
+            assert len(c.segments) == expected, (
+                f"audio-{slug}: expected {expected} substantive sections, got {len(c.segments)}"
+            )
+
+
+def test_blockchain_course_has_substantive_content():
+    c = get_course("audio-what-is-blockchain")
+    assert c is not None
+    joined = " ".join(f"{s.heading} {s.text}" for s in c.segments).lower()
+    for term in ("satoshi", "hash", "proof of work", "ethereum", "bitcoin"):
+        assert term in joined, f"missing {term}"
+    assert len(c.segments) == 8
 
 
 def test_language_courses_are_included():

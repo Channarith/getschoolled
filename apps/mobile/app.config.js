@@ -5,6 +5,7 @@
  * MOBILE_CLOUD_BASE_URL=https://www.salareen.com
  */
 const CLOUD_DEFAULT = "https://www.salareen.com";
+const CLOUD_FAILOVER_DEFAULT = "http://45.63.91.80";
 
 module.exports = ({ config }) => {
   const extra = config.extra || {};
@@ -13,7 +14,26 @@ module.exports = ({ config }) => {
     || extra.cloudBaseUrl
     || CLOUD_DEFAULT
   ).replace(/\/$/, "");
+  const cloudFailoverBaseUrl = (
+    process.env.MOBILE_CLOUD_FAILOVER_BASE_URL
+    || extra.cloudFailoverBaseUrl
+    || CLOUD_FAILOVER_DEFAULT
+  ).replace(/\/$/, "");
   const deployMode = process.env.MOBILE_DEPLOY_MODE || extra.deployMode || "cloud";
+
+  // QA quick-fill accounts are a dev/preview convenience. They are injected into
+  // `extra` (and thus config.ts / the login screen) for every profile EXCEPT
+  // production, so admin/QA credentials never ship in a release bundle
+  // (B-SEC-1 / risk R5). EAS sets EAS_BUILD_PROFILE during cloud builds; a bare
+  // `expo start` / dev build has no profile and gets the accounts.
+  const isProductionBuild = process.env.EAS_BUILD_PROFILE === "production";
+  const qaTestAccounts = isProductionBuild
+    ? []
+    : [
+        { label: "QA Pro", email: "qa-pro@salareen.com", password: "QaTest123" },
+        { label: "QA3", email: "qa3", password: "QaTest123" },
+        { label: "Admin", email: "admin@salareen.com", password: "88888888" },
+      ];
 
   const plugins = [...(config.plugins || [])];
   const hasBuildProps = plugins.some(
@@ -23,11 +43,37 @@ module.exports = ({ config }) => {
     plugins.push([
       "expo-build-properties",
       {
+        ios: {
+          deploymentTarget: "13.4",
+        },
         android: {
+          // LiveKit (@livekit/react-native m137) requires Android minSdk 24;
+          // Expo SDK 51 default is 23 -> manifest merger fails without this.
+          minSdkVersion: 24,
           // Local Vultr HTTP + Android emulator dev client (not valid in app.json schema).
           usesCleartextTraffic: true,
         },
       },
+    ]);
+  }
+  const hasExpoConfigureFix = plugins.some(
+    (entry) =>
+      (Array.isArray(entry) ? entry[0] : entry) === "./plugins/withIosExpoConfigureFix.js",
+  );
+  if (!hasExpoConfigureFix) {
+    plugins.push("./plugins/withIosExpoConfigureFix.js");
+  }
+  if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "./plugins/withLiveKit.js")) {
+    plugins.push("./plugins/withLiveKit.js");
+  }
+  const admobAndroidAppId =
+    process.env.ADMOB_ANDROID_APP_ID || "ca-app-pub-3940256099942544~3347511713";
+  const admobIosAppId =
+    process.env.ADMOB_IOS_APP_ID || "ca-app-pub-3940256099942544~1458002511";
+  if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "react-native-google-mobile-ads")) {
+    plugins.push([
+      "react-native-google-mobile-ads",
+      { androidAppId: admobAndroidAppId, iosAppId: admobIosAppId },
     ]);
   }
 
@@ -38,6 +84,16 @@ module.exports = ({ config }) => {
       ...extra,
       deployMode,
       cloudBaseUrl,
+      cloudFailoverBaseUrl,
+      qaTestAccounts,
+      admobBannerAndroid:
+        process.env.ADMOB_BANNER_ANDROID || "ca-app-pub-3940256099942544/6300978111",
+      admobBannerIos:
+        process.env.ADMOB_BANNER_IOS || "ca-app-pub-3940256099942544/2934735716",
+      admobInterstitialAndroid:
+        process.env.ADMOB_INTERSTITIAL_ANDROID || "ca-app-pub-3940256099942544/1033173712",
+      admobInterstitialIos:
+        process.env.ADMOB_INTERSTITIAL_IOS || "ca-app-pub-3940256099942544/4411468910",
     },
   };
 };

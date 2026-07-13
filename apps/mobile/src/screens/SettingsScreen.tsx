@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  Alert, ScrollView, StyleSheet, Switch, Text, View,
 } from "react-native";
 
-import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getMe, listStudents, login, signup,
-  type Account, type StudentProfile,
+import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, listStudents,
+  type StudentProfile,
 } from "../api";
+import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
-import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
+import { DEPLOY_MODE } from "../config";
+import { useIntroSplash } from "../introSplash";
 import {
   ensurePermissions, fireImmediate, listScheduled,
   rescheduleDailyReminder,
@@ -18,7 +20,7 @@ import {
   markNotDriving, requestDrivingPermissions, type DrivingStatus,
 } from "../drivingDetection";
 import {
-  DEFAULT_SETTINGS, clearAuthToken, getSettings, setAuthToken, setSettings,
+  DEFAULT_SETTINGS, getSettings, setSettings,
   type Settings, type TrainingLocale,
 } from "../storage";
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
@@ -34,23 +36,25 @@ type Props = {
   onOpenLearningProfile?: () => void;
   drivingStatus?: DrivingStatus;
   onDrivingSettingsChange?: () => void;
+  guestMode?: boolean;
+  onOpenAccount?: () => void;
+  onOpenRewards?: () => void;
+  onOpenLanguages?: () => void;
+  onOpenBilling?: () => void;
+  onSignIn?: () => void;
 };
 
 export default function SettingsScreen({
   onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
+  guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling, onSignIn,
 }: Props) {
   const { t, locale, setLocale } = useT();
+  const { playFullIntro } = useIntroSplash();
+  const { account, signOut, refreshAccount } = useAuth();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [scheduled, setScheduled] = useState<number>(0);
-  const [account, setAccount] = useState<Account | null>(null);
   const [student, setStudent] = useState<StudentProfile | null>(null);
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState("");
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
 
   const probeIdentity = useCallback(async () => {
@@ -66,14 +70,11 @@ export default function SettingsScreen({
       : t("auth.backendDownCloud", { url: host });
   }, [t]);
 
-  const refreshAccount = useCallback(async () => {
+  const refreshStudent = useCallback(async () => {
     try {
-      const me = await getMe();
-      setAccount(me);
       const students = (await listStudents()).students;
       setStudent(students[0] ?? null);
     } catch {
-      setAccount(null);
       setStudent(null);
     }
   }, []);
@@ -85,9 +86,10 @@ export default function SettingsScreen({
   useEffect(() => {
     void getSettings().then(setS);
     void refreshScheduled();
+    void refreshStudent();
     void refreshAccount();
     void probeIdentity();
-  }, [refreshAccount, probeIdentity]);
+  }, [refreshStudent, refreshAccount, probeIdentity]);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
@@ -161,40 +163,9 @@ export default function SettingsScreen({
   const locPerm = drivingStatus?.locationGranted ? "granted" : "off";
   const motionPerm = drivingStatus?.motionGranted ? "granted" : "off";
 
-  async function onAuthSubmit() {
-    setAuthBusy(true);
-    setAuthError("");
-    try {
-      const up = await probeIdentity();
-      if (!up) {
-        setAuthError(backendDownMessage(IDENTITY_URL));
-        return;
-      }
-      const res = mode === "login"
-        ? await login(email.trim(), password)
-        : await signup(email.trim(), password, displayName.trim() || email.split("@")[0]);
-      await setAuthToken(res.token);
-      setAccount(res.account);
-      await refreshAccount();
-      onAuthChange?.();
-    } catch (e) {
-      setAuthError(String(e));
-    } finally {
-      setAuthBusy(false);
-    }
-  }
-
   async function onSignOut() {
-    await clearAuthToken();
-    setAccount(null);
-    setStudent(null);
+    await signOut();
     onAuthChange?.();
-  }
-
-  async function fillQa(qaEmail: string, qaPassword: string) {
-    setEmail(qaEmail);
-    setPassword(qaPassword);
-    setMode("login");
   }
 
   const askPermission = async () => {
@@ -229,75 +200,31 @@ export default function SettingsScreen({
       </View>
 
       <Section title={t("settings.sectionAccount")}>
-        {account ? (
+        {guestMode ? (
           <>
-            <Text style={styles.about}>{t("settings.accountSignedIn", { email: account.email })}</Text>
+            <Text style={styles.about}>{t("settings.previewBadge")}</Text>
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <PrimaryButton label={t("preview.signIn")} onPress={onSignIn} variant="netflix" />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.about}>
+              {t("settings.accountSignedIn", { email: account?.email || "" })}
+            </Text>
             <Text style={styles.about}>
               {student?.onboarding_completed_at
                 ? t("settings.learningProfileDone", { category: categoryLabel || "saved" })
                 : t("settings.learningProfilePending")}
             </Text>
             <View style={{ gap: 10, marginTop: 8 }}>
+              <PrimaryButton label={t("settings.openAccount")} onPress={onOpenAccount} variant="netflix" />
+              <PrimaryButton label={t("settings.openRewards")} onPress={onOpenRewards} variant="brand" />
+              <PrimaryButton label={t("settings.openLanguages")} onPress={onOpenLanguages} variant="brand" />
+              <PrimaryButton label={t("settings.openBilling")} onPress={onOpenBilling} variant="ghost" />
               <PrimaryButton label={t("settings.openSurvey")} onPress={onOpenLearningProfile} variant="brand" />
               <PrimaryButton label={t("settings.signOut")} onPress={() => void onSignOut()} variant="ghost" />
             </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.about}>{t("settings.accountGuest")}</Text>
-            <View style={{ gap: 10, marginTop: 8 }}>
-              {mode === "signup" ? (
-                <TextInput
-                  style={styles.input}
-                  placeholder={t("auth.displayName")}
-                  placeholderTextColor={theme.colors.muted}
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                />
-              ) : null}
-              <TextInput
-                style={styles.input}
-                placeholder={t("auth.email")}
-                placeholderTextColor={theme.colors.muted}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder={t("auth.password")}
-                placeholderTextColor={theme.colors.muted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-              {authError ? <Text style={styles.error}>{authError}</Text> : null}
-              <PrimaryButton
-                label={mode === "login" ? t("auth.signIn") : t("auth.signUp")}
-                onPress={() => void onAuthSubmit()}
-                loading={authBusy}
-                disabled={authBusy}
-              />
-              <AnimatedPressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
-                <Text style={styles.link}>
-                  {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
-                </Text>
-              </AnimatedPressable>
-            </View>
-            {__DEV__ ? (
-              <View style={{ marginTop: 12 }}>
-                <Text style={styles.desc}>{t("auth.qaHint")}</Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                  {QA_TEST_ACCOUNTS.map((qa) => (
-                    <AnimatedPressable key={qa.email} onPress={() => void fillQa(qa.email, qa.password)}
-                      style={styles.qaChip}>
-                      <Text style={styles.qaText}>{t("auth.useQa", { label: qa.label })}</Text>
-                    </AnimatedPressable>
-                  ))}
-                </View>
-              </View>
-            ) : null}
           </>
         )}
         <Text style={[
@@ -509,6 +436,20 @@ export default function SettingsScreen({
              desc={t("settings.permissionDesc")}>
           <AnimatedPressable onPress={() => void askPermission()} style={styles.btn}>
             <Text style={styles.btnText}>{t("settings.request")}</Text>
+          </AnimatedPressable>
+        </Row>
+      </Section>
+
+      <Section title={t("settings.sectionIntro")}>
+        <Row label={t("settings.introSplash")} desc={t("settings.introSplashDesc")}>
+          <Switch
+            value={s.introSplashEnabled}
+            onValueChange={(v) => update({ introSplashEnabled: v })}
+            thumbColor={s.introSplashEnabled ? theme.colors.netflix : "#666"} />
+        </Row>
+        <Row label={t("settings.playFullIntro")} desc={t("settings.playFullIntroDesc")}>
+          <AnimatedPressable onPress={playFullIntro} style={styles.btn}>
+            <Text style={styles.btnText}>{t("settings.playFullIntro")}</Text>
           </AnimatedPressable>
         </Row>
       </Section>

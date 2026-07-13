@@ -53,6 +53,40 @@ ONLINE CRAWL (OER, schools, public data, search engines)
   - Seeds file: --crawl --seeds seeds.jsonl  (JSONL SourceSpec rows)
   - Env seeds: HARVEST_SEEDS=/path/to/seeds.jsonl
 
+  Long, hourly crawl of hundreds of pages (paced + bounded, resumable):
+
+    python3 services/harvester/src/harvester/run.py --crawl --topic "biology" \\
+      --daemon --per-hour 60 --max-total 500 --max-hours 12 --interval 45
+
+  Batch-crawl MANY topics at once, running for DAYS:
+
+    python3 services/harvester/src/harvester/run.py --crawl \\
+      --topics "algebra,biology,physics,world history,python" \\
+      --daemon --per-hour 80 --max-days 3 --keep-waiting
+
+  - --topic is repeatable (--topic a --topic b) and/or --topics "a,b,c"; all
+    topics are de-duped and enqueued into ONE shared persistent queue, so they
+    crawl together (interleaved) for the whole run.
+  - --max-days D bounds a multi-day run (added to --max-hours). --per-hour keeps
+    it polite over days.
+  - Resumable: kill it and re-run the same command — the SQLite queue continues
+    where it left off (add --retry-errors to re-queue previously failed URLs).
+  - Robust for long runs: per-URL errors are caught and never crash the loop; the
+    package listing is throttled so thousands of courses don't slow each batch.
+
+  - --per-hour N : cap pages ingested per rolling hour (polite pacing over hours;
+    sleeps the rest of the hour once the cap is hit).
+  - --max-total N: stop after N pages ingested this run.
+  - --max-hours H: stop after H wall-clock hours.
+  - --interval S : seconds between batches when under the hourly cap (default 60).
+  - --max-items  : pages per batch (default 5). The frontier grows as HTML pages
+    are expanded into child links, so a topic seed fans out to hundreds.
+  - Resumable: the queue is persisted in the SQLite corpus, so a restart continues
+    where it left off. The crawl stops automatically when the queue drains
+    (use --keep-waiting to keep the daemon alive waiting for new seeds).
+  - Each batch prints a "run" block: pages_total, pages_this_hour, elapsed_min,
+    queue_pending.
+
   Each ingested course lands under output/harvest/courses/<course_id>/ with
   .pptx, .course.json (includes theme: poster, wallpaper, accent), and optional
   media_manifest.json + per-slide audio.

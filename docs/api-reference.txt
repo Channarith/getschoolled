@@ -123,6 +123,29 @@ Public unless noted. The teaching loop the web app drives.
   GET  /api/group-classes/{id}
   POST /api/group-classes/{id}/register {name,email}
   POST /api/group-classes/{id}/start             go live -> session + meeting bridge plan
+  GET  /api/group-classes/{id}/calendar.ics      calendar invite download
+
+  Salareen Live Room (built-in multi-user grid; Theodore hosts):
+  GET  /api/live-rooms/{id}                      room state (queue, floor, chat, slide)
+  POST /api/live-rooms/{id}/join {name,identity} join + LiveKit token
+  POST /api/live-rooms/{id}/leave {participant_id}
+  POST /api/live-rooms/{id}/chat {participant_id,text}
+  POST /api/live-rooms/{id}/raise-hand {participant_id,question?}  toggle Q&A queue
+  POST /api/live-rooms/{id}/queue/join {participant_id,question?}
+  POST /api/live-rooms/{id}/queue/leave {participant_id}
+  POST /api/live-rooms/{id}/queue/call-next {moderator_key}      give floor to next
+  POST /api/live-rooms/{id}/queue/finish-turn {participant_id,moderator_key?}
+  POST /api/live-rooms/{id}/mute {participant_id,muted,by_host?,moderator_key?}
+  POST /api/live-rooms/{id}/ban {participant_id,moderator_key,reason?}
+  POST /api/live-rooms/{id}/unban {identity,moderator_key}
+  POST /api/live-rooms/{id}/report {reporter_participant_id,reported_participant_id,reason,category?}
+  POST /api/live-rooms/{id}/reports/dismiss {report_id,moderator_key}
+  GET  /api/live-rooms/{id}?moderator_key=…  (includes open reports for educators)
+  POST /api/live-rooms/{id}/ask {participant_id,question,language?}
+  POST /api/live-rooms/{id}/advance              AI host next slide (broadcast)
+  POST /api/live-rooms/{id}/record/start
+  POST /api/live-rooms/{id}/record/stop
+  POST /api/live-rooms/{id}/end
   (See docs/api-use-cases.txt 5; bridges are wired in the integrations service.)
 
 ============================================================================

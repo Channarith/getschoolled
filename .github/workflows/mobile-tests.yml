@@ -1,0 +1,49 @@
+# Mobile PR gate: typecheck + jest-expo unit tests (QA V&V plan, Mobile G1).
+#
+# Because automerge merges any green PR, this SHOULD become a required check once
+# stable — it is the only automated verification of mobile logic before ship, and
+# it guards the B-SEC-1 credential regression (config.test.ts asserts
+# QA_TEST_ACCOUNTS is empty without build-time extra). Consider folding the
+# test:ci step into ci.yml's existing `mobile` job (typecheck-only today) so it
+# runs in the same required gate.
+#
+# The K-API-1 contract test (qa/tests/test_mobile_contract.py) already runs in
+# ci.yml's existing `python` job (it globs qa/tests) — no wiring needed there.
+name: mobile-tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/mobile/**"
+
+jobs:
+  mobile-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        run: pnpm install
+      - name: Typecheck
+        run: bash scripts/mobile-typecheck.sh
+      - name: Jest unit tests (+ coverage)
+        run: pnpm test:ci
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-jest-coverage
+          path: apps/mobile/coverage/
+          if-no-files-found: ignore

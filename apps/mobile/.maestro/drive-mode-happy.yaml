@@ -1,0 +1,36 @@
+# E-DRV-1 — Drive Mode happy path: open a course, play, control (QA V&V plan).
+#
+# Uses stable testIDs (Drive catalog card + player controls). Assumes a
+# signed-in state (run auth-login.yaml first, or seed a token) and the seeded
+# 3-course fixture on the local-integrated stack.
+appId: com.aiclassroom.app
+---
+- launchApp:
+    clearState: false
+# Drive tab -> AudioCoursesScreen catalog.
+- tapOn:
+    id: "tab-drive"
+- assertVisible:
+    id: "audio-course-0"
+- takeScreenshot: drive-catalog
+# Open the first course -> DriveModeScreen player.
+- tapOn:
+    id: "audio-course-0"
+- assertVisible:
+    id: "drive-segment-heading"
+# Start playback, then exercise the controls.
+- tapOn:
+    id: "drive-play"
+- assertVisible:
+    id: "drive-pause"          # play toggled to pause -> narration started
+- takeScreenshot: drive-playing
+- tapOn:
+    id: "drive-pause"
+- assertVisible:
+    id: "drive-play"           # toggled back
+# Speed chip 2x should restart the current segment.
+- tapOn:
+    id: "drive-speed-2"
+- assertVisible:
+    id: "drive-segment-heading"
+- takeScreenshot: drive-2x

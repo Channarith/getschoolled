@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.3.82",
+    "version": "0.16.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -52,11 +52,15 @@
           "audio",
           "remote-notification"
         ],
-        "NSMicrophoneUsageDescription": "Used for Drive Mode voice questions and pronunciation practice.",
-        "NSSpeechRecognitionUsageDescription": "Used so you can ask Sala questions hands-free while listening to classes.",
+        "NSMicrophoneUsageDescription": "Salareen uses the microphone for Drive Mode voice questions (Hey Sala assistant).",
+        "NSSpeechRecognitionUsageDescription": "Salareen uses speech recognition so you can ask questions hands-free in Drive Mode.",
         "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free Drive Mode.",
-        "NSMotionUsageDescription": "Use device motion to improve driving detection while Drive Mode is enabled."
-      }
+        "NSMotionUsageDescription": "Use device motion to improve driving detection while Drive Mode is enabled.",
+        "NSPhotoLibraryUsageDescription": "Salareen only accesses your photo library if you choose to pick a profile or share image in a class activity.",
+        "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "0.16.2"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -72,11 +76,13 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
-      ]
+      ],
+      "versionCode": 1602
     },
     "extra": {
       "deployMode": "cloud",
       "cloudBaseUrl": "https://www.salareen.com",
+      "cloudFailoverBaseUrl": "http://45.63.91.80",
       "curriculumUrl": "http://localhost:8005",
       "identityUrl": "http://localhost:8008",
       "memoryUrl": "http://localhost:8004",

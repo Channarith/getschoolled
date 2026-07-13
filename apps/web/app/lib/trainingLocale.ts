@@ -1,21 +1,31 @@
-/** Spoken lesson language for Drive Mode (en / es / zh). */
+/**
+ * Spoken lesson language for Drive Mode / audio courses (web).
+ *
+ * The list mirrors the platform's supported languages (see ``i18n-strings``).
+ * English, Spanish, and Chinese ship with fully curated spoken content; other
+ * languages are served via the backend body translator when configured, and
+ * otherwise fall back to English narration. The player narrates using the
+ * course's returned ``body_locale`` so the voice matches the text language.
+ */
 
-export type TrainingLocale = "en" | "es" | "zh";
+import { LANGUAGE_LIST, LOCALES, type Locale } from "./i18n-strings";
 
-export const TRAINING_LOCALES: TrainingLocale[] = ["en", "es", "zh"];
+export type TrainingLocale = Locale;
 
-export const TRAINING_LOCALE_LABELS: Record<TrainingLocale, string> = {
-  en: "English",
-  es: "Español",
-  zh: "中文",
-};
+export const TRAINING_LOCALES: TrainingLocale[] = [...LOCALES];
+
+export const TRAINING_LOCALE_LABELS: Record<TrainingLocale, string> =
+  LANGUAGE_LIST.reduce((acc, l) => {
+    acc[l.code] = l.native;
+    return acc;
+  }, {} as Record<TrainingLocale, string>);
 
 const STORAGE_KEY = "aoep-training-locale";
+const SUPPORTED = new Set<string>(TRAINING_LOCALES);
 
 export function normalizeTrainingLocale(locale: string | null | undefined): TrainingLocale {
   const base = (locale || "en").toLowerCase().split("-")[0];
-  if (base === "es" || base === "zh") return base;
-  return "en";
+  return (SUPPORTED.has(base) ? base : "en") as TrainingLocale;
 }
 
 export function getTrainingLocale(): TrainingLocale | null {
@@ -27,7 +37,7 @@ export function getTrainingLocale(): TrainingLocale | null {
   return null;
 }
 
-/** Persisted choice, or English when unset. */
+/** Persisted choice, or the UI-derived default when unset. */
 export function getTrainingLocaleOrDefault(uiLocale?: string): TrainingLocale {
   return getTrainingLocale() ?? trainingLocaleFromUi(uiLocale || "en");
 }

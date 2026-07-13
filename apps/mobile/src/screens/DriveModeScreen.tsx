@@ -1,26 +1,29 @@
-import * as Speech from "expo-speech";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, listStudents, type AudioCourse } from "../api";
+import { getAudioCourse, getTtsVoices, getTtsInstructors, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup, type Instructor } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import {
-  bumpStreak, clearProgress, getMyList, getSettings,
+  bumpStreak, clearProgress, getMyList, getSettings, setSettings,
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
 import { useT } from "../i18n";
-import { speakNatural, warmVoices } from "../tts";
-import { normalizeTrainingLocale, type TrainingLocale } from "../trainingLocale";
+import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
+import {
+  normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
+  type TrainingLocale,
+} from "../trainingLocale";
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
   startVoiceListening, stopVoiceListening, stripWakeWords,
+  startAmbientListening, stopAmbientListening, isQuestion, isLikelyEcho,
   type VoiceEngineLabel,
 } from "../voiceAssistant";
 import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
@@ -40,6 +43,11 @@ export default function DriveModeScreen({
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
+  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
+  const [voiceId, setVoiceId] = useState("");
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructorId, setInstructorId] = useState("");
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -49,12 +57,40 @@ export default function DriveModeScreen({
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
+  const autoListenRef = useRef(true);
+  const awaitingQuestionRef = useRef(false);
+  const currentNarrationRef = useRef("");
+  autoListenRef.current = autoListen;
+  // Monotonic playback token: any stop/pause/back bumps it so a stopped
+  // utterance's onDone can't re-speak the next segment (which made audio keep
+  // playing after Stop / leaving the screen).
+  const playGenRef = useRef(0);
+
+  function stopSpeech() {
+    playGenRef.current++;
+    stopAllTts();   // stops device voice AND server neural audio
+  }
 
   useEffect(() => {
+    configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
+    void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
     void getVoiceEngineDetails()
       .then((d) => setVoiceEngine(d.label))
       .catch(() => setVoiceEngine("System"));
   }, []);
+
+  function chooseVoice(id: string) {
+    setVoiceId(id);
+    setServerVoice(id);
+    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+  }
+
+  function chooseInstructor(id: string) {
+    setInstructorId(id);
+    setServerInstructor(id);
+    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+  }
 
   async function refreshVoiceStyle() {
     const settings = await getSettings();
@@ -72,13 +108,14 @@ export default function DriveModeScreen({
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
       setTrainingLang(tloc);
       getAudioCourse(courseId, locale, tloc)
-        .then((c) => { setCourse(c); playFrom(c, 0, tloc); })
+        .then((c) => { setCourse(c); playFrom(c, 0, tloc); void startAmbient(); })
         .catch(() => {});
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
-      Speech.stop();
+      stopSpeech();
       stopVoiceRecognition();
+      stopAmbient();
       clearResumeTimer();
     };
   }, [courseId, locale]);
@@ -86,7 +123,8 @@ export default function DriveModeScreen({
   function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
     clearResumeTimer();
     setAssistantOpen(false);
-    Speech.stop();
+    const gen = ++playGenRef.current;   // new playback generation
+    stopAllTts();
     if (i >= c.segments.length) {
       setPlaying(false);
       void onCompleted(c);
@@ -98,12 +136,41 @@ export default function DriveModeScreen({
       segment: i, total: c.segments.length,
     });
     const s = c.segments[i];
+    // Narrate in the language of the actual text (body_locale), which may
+    // differ from the requested training locale when it falls back to English.
+    const speakLocale = c.body_locale || tloc;
+    currentNarrationRef.current = `${s.heading}. ${s.text}`;   // for echo filtering
     speakNatural(`${s.heading}. ${s.text}`, {
-      locale: tloc,
+      locale: speakLocale,
       voiceStyle: voiceStyleRef.current,
       rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
-      onDone: () => { if (segRef.current === i) playFrom(c, i + 1, tloc); },
+      onDone: () => {
+        if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
+      },
     });
+  }
+
+  // Pause -> switch spoken language -> resume at the same point in the new
+  // language. Refetches the course so segment bodies come back localized.
+  function switchLanguage(loc: TrainingLocale) {
+    if (loc === trainingLang) return;
+    const wasPlaying = playing;
+    const atSeg = segRef.current >= 0 ? segRef.current : seg;
+    setTrainingLang(loc);
+    void setSettings({ trainingLocale: loc });
+    stopSpeech();
+    setPlaying(false);
+    getAudioCourse(courseId, locale, loc)
+      .then((c) => {
+        setCourse(c);
+        if (wasPlaying) {
+          playFrom(c, atSeg, loc);
+        } else {
+          segRef.current = atSeg;
+          setSeg(atSeg);
+        }
+      })
+      .catch(() => {});
   }
 
   function clearResumeTimer() {
@@ -116,7 +183,7 @@ export default function DriveModeScreen({
   function pauseForAssistant(status = "Listening. Say Hey Sala or Salareen, then ask your question.") {
     clearResumeTimer();
     segRef.current = -1;
-    Speech.stop();
+    stopSpeech();
     setPlaying(false);
     setAssistantOpen(true);
     setAssistantStatus(status);
@@ -143,8 +210,66 @@ export default function DriveModeScreen({
     setListening(false);
   }
 
+  // ---- Hands-free ambient listening (always on; wake-word gated) ---------- //
+  function handleAmbientResult(text: string) {
+    const raw = (text || "").trim();
+    if (!raw) return;
+    // Already heard the wake word: this utterance is the question.
+    if (awaitingQuestionRef.current) {
+      awaitingQuestionRef.current = false;
+      const q = hasWakeWord(raw) ? stripWakeWords(raw) : raw;
+      if (q) { setAssistantTranscript(q); handleAssistantQuestion(q); }
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+    // Explicit wake word → honor command/question after it.
+    if (hasWakeWord(raw)) {
+      const after = stripWakeWords(raw);
+      pauseForAssistant("Listening. Ask your question.");
+      if (after) { setAssistantTranscript(after); handleAssistantQuestion(after); }
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+    // No wake word: pause ONLY for a real question that isn't the narration echo.
+    if (isLikelyEcho(raw, currentNarrationRef.current)) return;
+    if (!isQuestion(raw)) return;   // statement / filler / noise → keep playing
+    setAssistantTranscript(raw);
+    pauseForAssistant("Answering your question.");
+    handleAssistantQuestion(raw);
+  }
+
+  async function startAmbient() {
+    if (!autoListenRef.current) return;
+    const ok = await startAmbientListening({
+      locale,
+      onResult: (text) => handleAmbientResult(text),
+      onError: (code) => {
+        setListening(false);
+        if (code === "permission_denied") {
+          setAutoListen(false); autoListenRef.current = false;
+          setAssistantStatus(t("drive.voicePermissionDenied", { engine: voiceEngine }));
+        }
+      },
+    });
+    setListening(ok);
+  }
+
+  function stopAmbient() {
+    autoListenRef.current = false;
+    awaitingQuestionRef.current = false;
+    stopAmbientListening();
+    setListening(false);
+  }
+
+  function toggleAutoListen() {
+    if (autoListen) { setAutoListen(false); stopAmbient(); }
+    else { setAutoListen(true); autoListenRef.current = true; void startAmbient(); }
+  }
+
   async function startVoiceRecognition(expectWakeWord = true) {
     expectWakeRef.current = expectWakeWord;
+    // Suspend ambient so only one recognizer is active during the manual capture.
+    stopAmbientListening();
     pauseForAssistant(expectWakeWord
       ? t("drive.listeningWake", { engine: voiceEngine })
       : t("drive.listeningQuestion"));
@@ -166,7 +291,11 @@ export default function DriveModeScreen({
           setAssistantStatus(t("drive.voiceError"));
         }
       },
-      onEnd: () => setListening(false),
+      onEnd: () => {
+        setListening(false);
+        // Resume hands-free ambient listening after the manual one-shot.
+        if (autoListenRef.current) setTimeout(() => { void startAmbient(); }, 500);
+      },
     });
 
     if (started) setListening(true);
@@ -200,7 +329,7 @@ export default function DriveModeScreen({
     setAssistantTranscript(command);
     const lower = command.toLowerCase();
     if (/\b(pause|stop|hold)\b/.test(lower)) {
-      Speech.stop();
+      stopSpeech();
       setPlaying(false);
       setAssistantAnswer("Paused. Say or tap Resume when you want to continue.");
       setAssistantStatus("Paused for you.");
@@ -224,9 +353,9 @@ export default function DriveModeScreen({
     const answer = answerFromCourse(course, seg, command);
     setAssistantAnswer(answer);
     setAssistantStatus("Answering your question. I will resume automatically unless you pause.");
-    Speech.stop();
+    stopSpeech();
     speakNatural(`${answer} Would you like to resume? Say resume, or I will continue shortly.`, {
-      locale: trainingLang,
+      locale: course.body_locale || trainingLang,
       voiceStyle: voiceStyleRef.current,
       onDone: () => resumeCourse(6500),
     });
@@ -267,7 +396,7 @@ export default function DriveModeScreen({
   return (
     <View style={styles.c}>
       <View style={styles.topRow}>
-        <AnimatedPressable onPress={() => { Speech.stop(); onBack(); }}>
+        <AnimatedPressable onPress={() => { stopSpeech(); onBack(); }}>
           <View style={styles.backRow}>
             <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             <Text style={styles.back}>{t("drive.back")}</Text>
@@ -301,7 +430,7 @@ export default function DriveModeScreen({
         <Text style={styles.cat}>
           {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
         </Text>
-        <Text style={styles.seg}>{course.segments[seg]?.heading}</Text>
+        <Text testID="drive-segment-heading" style={styles.seg}>{course.segments[seg]?.heading}</Text>
         <Text style={styles.prog}>{seg + 1} / {course.segments.length} ({pct}%)</Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressBar, { width: `${pct}%` }]} />
@@ -310,10 +439,11 @@ export default function DriveModeScreen({
           {[0.5, 1, 2, 3].map((r) => (
             <AnimatedPressable
               key={r}
+              testID={`drive-speed-${r}`}
               onPress={() => {
                 setRate(r);
                 if (course) {
-                  Speech.stop();
+                  stopAllTts();
                   playFrom(course, seg);
                 }
               }}
@@ -323,23 +453,94 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           ))}
         </View>
+
+        <Text style={styles.langLabel}>{t("drive.trainingLang")}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.langRow}
+        >
+          {TRAINING_LOCALES.map((loc) => (
+            <AnimatedPressable
+              key={loc}
+              onPress={() => switchLanguage(loc)}
+              style={[styles.langChip, trainingLang === loc && styles.langChipOn]}
+            >
+              <Text style={[styles.langChipText, trainingLang === loc && styles.langChipTextOn]}>
+                {TRAINING_LOCALE_LABELS[loc]}
+              </Text>
+            </AnimatedPressable>
+          ))}
+        </ScrollView>
+
+        {instructors.length > 0 && (
+          <>
+            <Text style={styles.langLabel}>Instructor personality</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
+              <AnimatedPressable
+                onPress={() => chooseInstructor("")}
+                style={[styles.langChip, instructorId === "" && styles.langChipOn]}
+              >
+                <Text style={[styles.langChipText, instructorId === "" && styles.langChipTextOn]}>Default</Text>
+              </AnimatedPressable>
+              {instructors.map((p) => (
+                <AnimatedPressable
+                  key={p.id}
+                  onPress={() => chooseInstructor(p.id)}
+                  style={[styles.langChip, instructorId === p.id && styles.langChipOn]}
+                >
+                  <Text style={[styles.langChipText, instructorId === p.id && styles.langChipTextOn]}>
+                    {p.emoji} {p.label}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
+        {voiceGroups.length > 0 && (
+          <>
+            <Text style={styles.langLabel}>Voice &amp; accent</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
+              <AnimatedPressable
+                onPress={() => chooseVoice("")}
+                style={[styles.langChip, voiceId === "" && styles.langChipOn]}
+              >
+                <Text style={[styles.langChipText, voiceId === "" && styles.langChipTextOn]}>Auto</Text>
+              </AnimatedPressable>
+              {voiceGroups.flatMap((g) => g.voices).map((v) => (
+                <AnimatedPressable
+                  key={v.id}
+                  onPress={() => chooseVoice(v.id)}
+                  style={[styles.langChip, voiceId === v.id && styles.langChipOn]}
+                >
+                  <Text style={[styles.langChipText, voiceId === v.id && styles.langChipTextOn]}>
+                    {v.accent}
+                  </Text>
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
         <View style={styles.row}>
-          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
+          <AnimatedPressable testID="drive-prev" style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
             <Ionicons name="play-skip-back" size={28} color="#fff" />
           </AnimatedPressable>
           {playing ? (
             <AnimatedPressable
+              testID="drive-pause"
               style={[styles.btn, styles.pause]}
-              onPress={() => { Speech.stop(); setPlaying(false); }}
+              onPress={() => { stopSpeech(); setPlaying(false); }}
             >
               <Ionicons name="pause" size={32} color="#fff" />
             </AnimatedPressable>
           ) : (
-            <AnimatedPressable style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}>
+            <AnimatedPressable testID="drive-play" style={[styles.btn, styles.play]} onPress={() => playFrom(course, seg)}>
               <Ionicons name="play" size={32} color="#fff" />
             </AnimatedPressable>
           )}
-          <AnimatedPressable style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
+          <AnimatedPressable testID="drive-next" style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
             <Ionicons name="play-skip-forward" size={28} color="#fff" />
           </AnimatedPressable>
         </View>
@@ -351,6 +552,15 @@ export default function DriveModeScreen({
         </Text>
         <Text style={styles.assistantEngine}>{t("drive.assistantEngineHint")}</Text>
         <View style={styles.assistantActions}>
+          <AnimatedPressable
+            style={[styles.assistantBtn, autoListen ? undefined : styles.assistantBtnGhost]}
+            onPress={toggleAutoListen}
+          >
+            <Ionicons name={autoListen ? "radio" : "mic-off"} size={16} color={autoListen ? "#001022" : "#9aa6c2"} />
+            <Text style={autoListen ? styles.assistantBtnText : styles.assistantBtnGhostText}>
+              {autoListen ? (listening ? "Listening — say Hey Sala" : "Hands-free on") : "Hands-free off"}
+            </Text>
+          </AnimatedPressable>
           <AnimatedPressable style={styles.assistantBtn} onPress={() => void startVoiceRecognition(true)}>
             <Ionicons name="mic" size={16} color="#001022" />
             <Text style={styles.assistantBtnText}>
@@ -480,6 +690,19 @@ const styles = StyleSheet.create({
   speedChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
   speedChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
   speedChipTextOn: { color: "#fff" },
+  langLabel: { color: theme.colors.muted, marginBottom: 8, ...theme.typography.caption },
+  langRow: { flexDirection: "row", gap: 8, paddingBottom: 4, marginBottom: 4 },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  langChipOn: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
+  langChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
+  langChipTextOn: { color: "#fff" },
   progressBar: { height: 6, backgroundColor: theme.colors.netflix },
   row: { flexDirection: "row", justifyContent: "center", gap: 18 },
   btn: {

@@ -104,10 +104,14 @@ def resolve_slot(slot_id: str, *, tier: str = "free") -> Optional[Dict[str, Any]
 
     if network == AdNetworkId.GOOGLE_ADSENSE:
         client = os.environ.get("ADSENSE_CLIENT", "")
+        slot_env = "ADSENSE_SLOT_" + slot_id.upper().replace("-", "_")
+        data_ad_slot = os.environ.get(slot_env, "")
+        if not data_ad_slot and client == "ca-pub-3940256099942544":
+            data_ad_slot = "6300978111"
         payload.update({
             "client_id": client,
             "script_url": f"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={client}",
-            "data_ad_slot": os.environ.get("ADSENSE_SLOT_" + slot_id.upper(), ""),
+            "data_ad_slot": data_ad_slot,
             "data_ad_format": "auto",
             "data_full_width_responsive": True,
         })

@@ -35,6 +35,7 @@ export type StringKey =
   | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
   | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
   | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
+  | "drive.trainingLang"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -76,11 +77,40 @@ export type StringKey =
   | "settings.drivePerms" | "settings.drivePermsDesc"
   | "settings.drivePermsDeniedTitle" | "settings.drivePermsDeniedBody"
   | "settings.driveNotDriving"
+  | "settings.sectionIntro" | "settings.introSplash" | "settings.introSplashDesc"
+  | "settings.playFullIntro" | "settings.playFullIntroDesc"
+  // Intro splash
+  | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
   | "auth.email" | "auth.password" | "auth.displayName"
+  | "auth.showPassword" | "auth.hidePassword"
   | "auth.signIn" | "auth.signUp" | "auth.createAccount" | "auth.haveAccount"
+  | "auth.welcomeTitle" | "auth.welcomeSubtitle" | "auth.checkingSession"
+  | "auth.checkingBackend"
   | "auth.qaHint" | "auth.useQa" | "auth.backendDown" | "auth.backendDownLocal"
   | "auth.backendDownCloud" | "auth.backendUp"
+  | "auth.forgot" | "auth.sendReset" | "auth.resetPw" | "auth.resetToken"
+  | "auth.resetSent" | "auth.resetDone" | "auth.browseGuest"
+  | "auth.mfaTitle" | "auth.mfaSub" | "auth.mfaCode" | "auth.mfaVerify" | "auth.mfaCancel"
+  // Preview / guest browse
+  | "preview.lockedTitle" | "preview.lockedBody" | "preview.signIn"
+  // Rewards
+  | "rewards.back" | "rewards.title" | "rewards.balance" | "rewards.catalog" | "rewards.history"
+  // Account
+  | "account.back" | "account.title" | "account.points" | "account.security"
+  | "account.billing" | "account.learners" | "account.newLearner" | "account.add"
+  | "account.password" | "account.currentPw" | "account.newPw" | "account.changePw" | "account.refresh"
+  // Security / 2FA
+  | "security.back" | "security.title" | "security.enabled" | "security.disabled"
+  | "security.setup" | "security.secret" | "security.code" | "security.confirm" | "security.disable"
+  // Billing
+  | "billing.back" | "billing.title" | "billing.current" | "billing.choose"
+  // Languages
+  | "languages.back" | "languages.title" | "languages.sub" | "languages.grade"
+  | "languages.heard" | "languages.check" | "languages.done" | "languages.pickLang"
+  // Settings extras
+  | "settings.previewBadge" | "settings.openAccount" | "settings.openRewards"
+  | "settings.openLanguages" | "settings.openBilling"
   // Alert banner
   | "banner.open"
   // Time
@@ -88,8 +118,41 @@ export type StringKey =
   // Streak hero
   | "streak.label"
   // Careers
-  | "home.careers" | "home.careersSub"
+  | "home.careers" | "home.careersSub" | "home.groupClasses" | "home.liveClass"
+  | "home.languages" | "home.rewards"
   | "careers.back" | "careers.title" | "careers.sub"
+  // Group classes
+  | "group.title" | "group.intro" | "group.back" | "group.empty"
+  | "group.seatsLeft" | "group.register" | "group.full" | "group.join" | "group.start"
+  | "group.live" | "group.startedTitle" | "group.openMeeting" | "group.openClass"
+  | "group.close" | "group.cancel" | "group.registerTitle" | "group.registerName"
+  | "group.registerEmail" | "group.registerNameRequired" | "group.registerSuccess"
+  | "group.cannotOpenMeeting" | "group.joinUnavailable"
+  | "group.scheduleCta" | "group.scheduleTitle" | "group.scheduleMeeting"
+  | "group.scheduleWhen" | "group.scheduleDuration" | "group.scheduleCapacity"
+  | "group.scheduleRoomSize" | "group.scheduleSubmit"
+  // Arcade / games
+  | "game.back" | "game.chooseMode" | "game.ageGroup" | "game.play"
+  | "game.submit" | "game.matchHint" | "game.accuracy" | "game.balance"
+  | "game.rank" | "game.playAgain" | "game.sessionExpired" | "game.signInSave"
+  | "game.potionLab" | "game.potionTip" | "game.leaderboard" | "game.leaderboardSub"
+  // Live room discovery (Bigo-style)
+  | "live.back" | "live.title" | "live.intro" | "live.nearby" | "live.empty"
+  | "live.goLive" | "live.refresh" | "live.createTitle" | "live.titlePlaceholder"
+  | "live.create" | "live.creating" | "live.cancel" | "live.defaultTitle"
+  | "home.liveNearby"
+  | "liveClass.back" | "liveClass.kicker" | "liveClass.title" | "liveClass.sub"
+  | "liveClass.empty" | "liveClass.mode" | "liveClass.solo" | "liveClass.soloHint"
+  | "liveClass.group" | "liveClass.groupHint" | "liveClass.pickLesson"
+  | "liveClass.startSolo" | "liveClass.startGroup"
+  | "liveClass.soloBadge" | "liveClass.groupBadge"
+  // Lesson / visual course player
+  | "lesson.back" | "lesson.slide" | "lesson.narrate" | "lesson.stopNarration"
+  | "lesson.next" | "lesson.complete" | "lesson.askTitle" | "lesson.askPlaceholder"
+  | "lesson.ask" | "lesson.sources" | "lesson.noSession"
+  | "lesson.reengage" | "lesson.quiz" | "lesson.finish" | "lesson.earned"
+  | "lesson.guestFinish" | "lesson.quizTitle" | "lesson.correct" | "lesson.incorrect"
+  | "lesson.quizNext"
   | "careers.searchRole" | "careers.searchLocation"
   | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty";
 
@@ -110,6 +173,10 @@ const EN: Record<StringKey, string> = {
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
   "home.careers": "💼 Careers",
   "home.careersSub": "Match live jobs to Salareen courses",
+  "home.languages": "🌍 Languages",
+  "home.rewards": "🏆 Rewards",
+  "home.groupClasses": "👥 Group Classes",
+  "home.liveClass": "🎓 Live 1:1 Class",
 
   "careers.back": "← Back",
   "careers.title": "Careers",
@@ -120,6 +187,106 @@ const EN: Record<StringKey, string> = {
   "careers.apply": "View / Apply ↗",
   "careers.tapMatch": "Tap for course match →",
   "careers.empty": "No openings match your search.",
+
+  "group.title": "Group Classes",
+  "group.intro": "Live multi-learner sessions where Theodore presents coursework — in the Salareen room or on Zoom, Teams, or Meet.",
+  "group.back": "← Back",
+  "group.empty": "No upcoming classes yet.",
+  "group.seatsLeft": "Seats left",
+  "group.register": "Register",
+  "group.full": "Full",
+  "group.join": "Join",
+  "group.start": "Start (AI presents)",
+  "group.live": "LIVE",
+  "group.startedTitle": "Class is live",
+  "group.openMeeting": "Open meeting",
+  "group.openClass": "Open Salareen room",
+  "group.close": "Close",
+  "group.cancel": "Cancel",
+  "group.registerTitle": "Register for class",
+  "group.registerName": "Your name",
+  "group.registerEmail": "Email (optional)",
+  "group.registerNameRequired": "Please enter your name.",
+  "group.registerSuccess": "You're registered for this class.",
+  "group.cannotOpenMeeting": "Cannot open the meeting link on this device.",
+  "group.joinUnavailable": "This class is not joinable yet. Tap Start to go live first.",
+  "group.scheduleCta": "Schedule a class",
+  "group.scheduleTitle": "Class title (optional)",
+  "group.scheduleMeeting": "Meeting URL (Zoom / Teams / Meet)",
+  "group.scheduleWhen": "Start time (ISO or leave blank for +1h)",
+  "group.scheduleDuration": "Duration (minutes)",
+  "group.scheduleCapacity": "Capacity",
+  "group.scheduleRoomSize": "Salareen room size",
+  "group.scheduleSubmit": "Schedule",
+
+  "game.back": "← Back",
+  "game.chooseMode": "Choose a game mode",
+  "game.ageGroup": "Age group",
+  "game.play": "Play",
+  "game.submit": "Submit answers",
+  "game.matchHint": "Tap a term, then its match.",
+  "game.accuracy": "Accuracy",
+  "game.balance": "Balance",
+  "game.rank": "Global rank",
+  "game.playAgain": "Play again",
+  "game.sessionExpired": "That round expired — start a new one.",
+  "game.signInSave": "Sign in to save scores to the leaderboard.",
+  "game.potionLab": "⚗️ Potion Lab",
+  "game.potionTip": "Real-time atom-catching arcade — build molecules before the timer runs out.",
+  "game.leaderboard": "Arcade leaderboard",
+  "game.leaderboardSub": "Top players for this subject and age group.",
+
+  "live.back": "← Back",
+  "live.title": "Live Nearby",
+  "live.intro": "Salareen rooms live now — browse by location, tap to join, or go live yourself.",
+  "live.nearby": "Nearby & trending",
+  "live.empty": "No live rooms right now. Tap Go Live to start one others can find.",
+  "live.goLive": "📍 Go Live",
+  "live.refresh": "Refresh",
+  "live.createTitle": "Start a Salareen room",
+  "live.titlePlaceholder": "Room title (e.g. Algebra study group)",
+  "live.create": "Create room",
+  "live.creating": "Creating…",
+  "live.cancel": "Cancel",
+  "live.defaultTitle": "Salareen Live",
+  "home.liveNearby": "📍 Live Nearby",
+
+  "liveClass.back": "← Back",
+  "liveClass.kicker": "LIVE CLASS",
+  "liveClass.title": "Start a live class",
+  "liveClass.sub": "Pick a lesson and learn with the AI tutor — solo 1:1 or in a group.",
+  "liveClass.empty": "No lessons are available right now. Pull to refresh.",
+  "liveClass.mode": "Class type",
+  "liveClass.solo": "Solo (1:1)",
+  "liveClass.soloHint": "Private session with the AI tutor",
+  "liveClass.group": "Group class",
+  "liveClass.groupHint": "Shared session with other learners",
+  "liveClass.pickLesson": "Choose a lesson",
+  "liveClass.startSolo": "Start 1:1 class",
+  "liveClass.startGroup": "Start group class",
+  "liveClass.soloBadge": "1:1 LIVE",
+  "liveClass.groupBadge": "GROUP LIVE",
+
+  "lesson.back": "← Back",
+  "lesson.slide": "Slide",
+  "lesson.narrate": "▶ Narrate",
+  "lesson.stopNarration": "■ Stop",
+  "lesson.next": "Next →",
+  "lesson.complete": "Class complete ✓",
+  "lesson.askTitle": "Ask the tutor",
+  "lesson.askPlaceholder": "Ask a question about this class…",
+  "lesson.ask": "Ask",
+  "lesson.sources": "Sources",
+  "lesson.noSession": "A live session isn't available for this item right now.",
+  "lesson.reengage": "Re-engage",
+  "lesson.quiz": "In-class quiz",
+  "lesson.finish": "Finish class",
+  "lesson.earned": "Class complete! +{n} pts · balance {balance}",
+  "lesson.guestFinish": "Class complete — sign in to earn rewards.",
+  "lesson.quizTitle": "Quick check",
+  "lesson.correct": "Correct!",
+  "lesson.incorrect": "Not quite — review and try the next one.",
+  "lesson.quizNext": "Next question",
 
   "rail.continue": "Continue listening",
   "rail.continueSub": "Pick up where you left off.",
@@ -151,6 +318,7 @@ const EN: Record<StringKey, string> = {
   "drive.listening": "Listening…",
   "drive.pauseAsk": "Pause + Ask",
   "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
+  "drive.trainingLang": "Lesson language",
   "drive.openGoogle": "Google voice",
   "drive.assistantTitle": "Sala Drive Assistant",
   "drive.mic": "Mic",
@@ -229,7 +397,7 @@ const EN: Record<StringKey, string> = {
   "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
   "settings.narrationAuto": "Auto (profile)",
   "settings.sectionTrainingLang": "LESSON LANGUAGE",
-  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode (English, Spanish, or Chinese).",
+  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",
@@ -251,22 +419,105 @@ const EN: Record<StringKey, string> = {
   "settings.drivePermsDeniedBody": "Enable location and motion access for Salareen in your phone Settings to use driving detection.",
   "settings.driveNotDriving": "I'm not driving",
 
+  "settings.sectionIntro": "INTRO",
+  "settings.introSplash": "Launch intro splash",
+  "settings.introSplashDesc": "Animated Salareen jingle on first app open (1:32–1:39). Turn off to skip.",
+  "settings.playFullIntro": "Play full theme",
+  "settings.playFullIntroDesc": "Replay the full Salareen song with the animated splash.",
+
+  "intro.tagline": "Thousands of classes. One AI campus.",
+  "intro.fullTagline": "សាលារៀន — your learning home.",
+  "intro.skip": "Tap to skip",
+
   "driving.bannerTitle": "Driving detected",
   "driving.bannerBody": "Hands-free Drive Mode is ready — tap to continue your class.",
 
   "auth.email": "Email",
   "auth.password": "Password",
+  "auth.showPassword": "Show password",
+  "auth.hidePassword": "Hide password",
   "auth.displayName": "Display name",
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",
   "auth.createAccount": "New here? Create an account",
   "auth.haveAccount": "Already have an account? Sign in",
+  "auth.welcomeTitle": "Sign in to continue",
+  "auth.welcomeSubtitle": "Sign in once to access classes, Drive Mode, careers, and your learning profile. Your session is saved on this device.",
+  "auth.checkingSession": "Checking your session…",
+  "auth.checkingBackend": "Checking connection…",
   "auth.qaHint": "QA test accounts (dev)",
   "auth.useQa": "Use {label}",
   "auth.backendDown": "Identity service unreachable at {url}.",
   "auth.backendDownLocal": "Identity service unreachable at {url}. On your Mac run: make run-identity",
   "auth.backendDownCloud": "Salareen cloud unreachable at {url}. Check your network or try again.",
   "auth.backendUp": "Identity service connected",
+  "auth.forgot": "Forgot password?",
+  "auth.sendReset": "Send reset link",
+  "auth.resetPw": "Set new password",
+  "auth.resetToken": "Reset token (local dev)",
+  "auth.resetSent": "Reset instructions sent — check your email (or use the dev token below).",
+  "auth.resetDone": "Password updated — sign in with your new password.",
+  "auth.browseGuest": "Browse without signing in",
+  "auth.mfaTitle": "Two-factor authentication",
+  "auth.mfaSub": "Enter the 6-digit code from your authenticator app.",
+  "auth.mfaCode": "Authentication code",
+  "auth.mfaVerify": "Verify",
+  "auth.mfaCancel": "Cancel and sign out",
+
+  "preview.lockedTitle": "Sign in to use this feature",
+  "preview.lockedBody": "Preview mode lets you browse — sign in to play audio, take classes, and save progress.",
+  "preview.signIn": "Sign in",
+
+  "rewards.back": "← Back",
+  "rewards.title": "Rewards",
+  "rewards.balance": "{n} points",
+  "rewards.catalog": "Redeem prizes",
+  "rewards.history": "Recent activity",
+
+  "account.back": "← Back",
+  "account.title": "Account",
+  "account.points": "{n} reward points",
+  "account.security": "Security & 2FA",
+  "account.billing": "Billing & plans",
+  "account.learners": "Learner profiles",
+  "account.newLearner": "New learner name",
+  "account.add": "Add learner",
+  "account.password": "Change password",
+  "account.currentPw": "Current password",
+  "account.newPw": "New password",
+  "account.changePw": "Update password",
+  "account.refresh": "Refresh profile",
+
+  "security.back": "← Back",
+  "security.title": "Security",
+  "security.enabled": "Two-factor authentication is ON",
+  "security.disabled": "Two-factor authentication is OFF",
+  "security.setup": "Set up authenticator",
+  "security.secret": "Secret key: {secret}",
+  "security.code": "6-digit code",
+  "security.confirm": "Enable 2FA",
+  "security.disable": "Disable 2FA",
+
+  "billing.back": "← Back",
+  "billing.title": "Billing",
+  "billing.current": "Current plan: {tier} ({status})",
+  "billing.choose": "Choose plan",
+
+  "languages.back": "← Back",
+  "languages.title": "Language practice",
+  "languages.sub": "Drills, quizzes, and pronunciation for every supported language.",
+  "languages.grade": "Check answers",
+  "languages.heard": "What you said…",
+  "languages.check": "Check pronunciation",
+  "languages.done": "{correct}/{total} correct · +{xp} XP",
+  "languages.pickLang": "← Pick another language",
+
+  "settings.previewBadge": "Preview mode — browse the catalog. Sign in to play audio and save progress.",
+  "settings.openAccount": "Manage account",
+  "settings.openRewards": "Rewards & points",
+  "settings.openLanguages": "Language practice",
+  "settings.openBilling": "Billing & subscription",
+
 
   "banner.open": "Open",
 

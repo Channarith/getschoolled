@@ -53,9 +53,13 @@ from .export import (
 )
 from .generate import (
     GENERATION_INSTRUCTIONS,
+    HARD_MAX_SLIDES_PER_LESSON,
+    MAX_SLIDES_PER_LESSON,
     GeneratedCourse,
     GeneratedSlide,
     generate_course,
+    generate_lessons,
+    partition_course_into_lessons,
 )
 from .pipeline import BatchMetrics, CatalogUpsertStore, HarvestPipeline, catalog_key
 from .queue import HarvestQueue, url_key
@@ -121,6 +125,10 @@ __all__ = [
     "GeneratedCourse",
     "GeneratedSlide",
     "generate_course",
+    "generate_lessons",
+    "partition_course_into_lessons",
+    "MAX_SLIDES_PER_LESSON",
+    "HARD_MAX_SLIDES_PER_LESSON",
     "GENERATION_INSTRUCTIONS",
     "normalize_document",
     # online crawl + corpus

@@ -911,6 +911,19 @@ class RedeemRequest(BaseModel):
     prize_id: str
 
 
+class SpendRequest(BaseModel):
+    amount: int = Field(ge=1)
+    reason: str = ""
+    ref: str = ""
+
+
+class InternalEarnRequest(BaseModel):
+    account_id: str
+    amount: int = Field(ge=1)
+    reason: str = ""
+    ref: str = ""
+
+
 @app.post("/rewards/redeem")
 def rewards_redeem(req: RedeemRequest, acct=Depends(current_account)) -> dict:
     from aoep_shared.rewards import prize_by_id
@@ -923,6 +936,36 @@ def rewards_redeem(req: RedeemRequest, acct=Depends(current_account)) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"redemption": rec, "balance": app.state.accounts.points_balance(acct.id)}
+
+
+@app.post("/rewards/spend")
+def rewards_spend(req: SpendRequest, acct=Depends(current_account)) -> dict:
+    """Spend reward points (e.g. live-room virtual gifts)."""
+    try:
+        balance = app.state.accounts.spend_points(
+            acct.id,
+            req.amount,
+            reason=req.reason or "spend",
+            ref=req.ref,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"balance": balance, "spent": req.amount}
+
+
+@app.post("/internal/rewards/earn", dependencies=[Depends(require_internal)])
+def internal_rewards_earn(req: InternalEarnRequest) -> dict:
+    """Credit reward points from an internal service (orchestrator live gifts)."""
+    try:
+        balance = app.state.accounts.earn_points(
+            req.account_id,
+            req.amount,
+            reason=req.reason or "internal_earn",
+            ref=req.ref,
+        )
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"balance": balance, "earned": req.amount}
 
 
 @app.get("/portfolio")

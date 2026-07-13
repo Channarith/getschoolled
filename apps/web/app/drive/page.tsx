@@ -3,19 +3,31 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  getAdPlan,
   getAudioCategories,
   getAudioCourse,
+  getMe,
   getToken,
+  getTtsInstructors,
+  getTtsVoices,
   listAudioCourses,
   listStudents,
+  SPEECH_URL,
+  type AdBreak,
   type AudioCourse,
   type AudioCourseRow,
+  type Instructor,
+  type VoiceGroup,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import VideoAdBreak from "../components/VideoAdBreak";
+import { effectiveAdTier } from "../lib/useCourseAds";
+import { useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
-import { ensureVoices, localeToBcp47, speakNaturally } from "../lib/tts";
+import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, setServerVoice, speakNaturally } from "../lib/tts";
+import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
   getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
   TRAINING_LOCALES, type TrainingLocale,
@@ -56,13 +68,46 @@ function DrivePageInner() {
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [typedQuestion, setTypedQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  // Hands-free Drive Mode: mic stays always-on and wake-word-gated (no button).
+  const [autoListen, setAutoListen] = useState(true);
+  const [micDenied, setMicDenied] = useState(false);
+  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
+  const [serverVoice, setServerVoiceState] = useState("");
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [tier, setTier] = useState("basic");
+  const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
+  const afterAdRef = useRef<null | (() => void)>(null);
+  const prerollShown = useRef(false);
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
+  // Always-on ambient recognizer (separate from the one-shot button recognizer).
+  const ambientRef = useRef<any>(null);
+  const autoListenRef = useRef(true);
+  const awaitingQuestionRef = useRef(false);   // heard wake word, waiting for the question
+  const oneShotActiveRef = useRef(false);      // manual (button) recognizer is running
+  const currentNarrationRef = useRef("");      // text being spoken now (for echo filtering)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
+  // Live mirrors so callbacks/effects read current values without re-subscribing.
+  const courseRef = useRef<AudioCourse | null>(null);
+  const segRef = useRef(0);
+  const playingRef = useRef(false);
+  const trainingLangRef = useRef<TrainingLocale>("en");
+  // Monotonic playback token. Any control that cancels speech bumps it so a
+  // cancelled utterance's onend/onerror can't advance the queue (which made
+  // Stop/skip appear to "keep playing"). Only the still-current generation
+  // may auto-advance to the next segment.
+  const playGenRef = useRef(0);
+  courseRef.current = course;
+  segRef.current = seg;
+  playingRef.current = playing;
+  trainingLangRef.current = trainingLang;
+  autoListenRef.current = autoListen;
 
   async function refreshVoiceStyle() {
     setNarrationPref(getNarrationVoicePref());
@@ -77,15 +122,45 @@ function DrivePageInner() {
     setAssistantStatus(t("drive.assistantDefault"));
   }, [t]);
 
+  // Stop the mic when leaving Drive Mode.
+  useEffect(() => {
+    return () => { stopAmbientListening(); stopVoiceRecognition(); };
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
+    getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
     const stored = getTrainingLocaleOrDefault(locale);
     setTrainingLang(stored);
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
+    configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
+    // Load the accent/voice catalog + restore the saved choice.
+    getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
+    try {
+      const savedVoice = localStorage.getItem("aoep_drive_voice") || "";
+      if (savedVoice) { setServerVoiceState(savedVoice); setServerVoice(savedVoice); }
+      const savedInstr = localStorage.getItem("aoep_drive_instructor") || "";
+      if (savedInstr) { setInstructorState(savedInstr); setServerInstructor(savedInstr); }
+    } catch { /* private mode */ }
     void refreshVoiceStyle();
   }, [locale]);
+
+  function chooseVoice(id: string) {
+    setServerVoiceState(id);
+    setServerVoice(id);
+    try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
+    if (playingRef.current && courseRef.current) replayCurrentSegment();
+  }
+
+  function chooseInstructor(id: string) {
+    setInstructorState(id);
+    setServerInstructor(id);
+    try { localStorage.setItem("aoep_drive_instructor", id); } catch { /* */ }
+    if (playingRef.current && courseRef.current) replayCurrentSegment();
+  }
   const refresh = useCallback(() => {
     if (!getToken()) return;
     listAudioCourses({ category: cat, q, limit: "60" }, locale, trainingLang)
@@ -94,45 +169,82 @@ function DrivePageInner() {
   }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Re-fetch the selected course when its id (or locale/lang) changes. We depend
-  // on the id rather than the full `course` object on purpose: this effect calls
-  // setCourse(), so depending on `course` would cause an infinite refetch loop.
+  // Silently refresh the selected course text when the UI locale (or the
+  // selected course id) changes. Spoken-language switches are handled by
+  // `switchTrainingLang` below (which also cancels/replays audio), so this
+  // effect intentionally does NOT depend on `trainingLang`. We depend on the
+  // id rather than the full `course` object because this effect calls
+  // setCourse() (depending on `course` would loop).
   const selectedCourseId = course?.id;
   useEffect(() => {
     if (!selectedCourseId || !loggedIn) return;
-    getAudioCourse(selectedCourseId, locale, trainingLang)
-      .then((c) => setCourse(c))
+    let cancelled = false;
+    getAudioCourse(selectedCourseId, locale, trainingLangRef.current)
+      .then((c) => { if (!cancelled) setCourse(c); })
       .catch(() => {});
-  }, [locale, trainingLang, selectedCourseId, loggedIn]);
+    return () => { cancelled = true; };
+  }, [locale, selectedCourseId, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
+      currentNarrationRef.current = text || "";   // for echo filtering of the mic
       const style = voiceStyleRef.current;
       const base = prosodyForStyle(style).rate;
+      // Narrate in the language of the actual text (body_locale), which may
+      // differ from the requested training locale when it falls back to English.
+      const speakLocale = courseRef.current?.body_locale || trainingLangRef.current;
       speakNaturally(text, {
-        locale: trainingLang,
+        locale: speakLocale,
         voiceStyle: style,
         rate: base * rate,
         onend: onEnd,
       });
     } catch { onEnd?.(); }
-  }, [rate, trainingLang]);
+  }, [rate]);
 
   const playSeg = useCallback((c: AudioCourse, i: number) => {
-    window.speechSynthesis.cancel();
+    const gen = ++playGenRef.current;   // new playback generation
+    cancelSpeech();
     if (i >= c.segments.length) { setPlaying(false); playNextCourse(); return; }
     setSeg(i); setPlaying(true);
-    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => playSeg(c, i + 1));
+    speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
+      if (playGenRef.current === gen) playSeg(c, i + 1);
+    });
   }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
-    window.speechSynthesis.cancel();
+    const gen = ++playGenRef.current;
+    cancelSpeech();
     const s = course.segments[seg];
     if (!s) return;
     setPlaying(true);
-    speak(`${s.heading}. ${s.text}`, () => playSeg(course, seg + 1));
+    speak(`${s.heading}. ${s.text}`, () => {
+      if (playGenRef.current === gen) playSeg(course, seg + 1);
+    });
   }, [course, seg, speak, playSeg]);
+
+  // Pause -> switch spoken language -> resume at the same point in the new
+  // language. Refetches the open course so segment bodies come back localized,
+  // then replays the current segment (or stays paused) in the new voice.
+  const switchTrainingLang = useCallback((loc: TrainingLocale) => {
+    setTrainingLocale(loc);
+    setTrainingLang(loc);
+    const current = courseRef.current;
+    if (!current) return;
+    const wasPlaying = playingRef.current;
+    const at = segRef.current;
+    playGenRef.current++;               // invalidate the utterance we're cancelling
+    cancelSpeech();
+    void getAudioCourse(current.id, locale, loc)
+      .then((c) => {
+        setCourse(c);
+        setSeg(at);
+        if (wasPlaying) playSeg(c, at);
+        else setPlaying(false);
+      })
+      .catch(() => {});
+  }, [locale, playSeg]);
 
   const prevRateRef = useRef(rate);
   const prevNarrationPrefRef = useRef(narrationPref);
@@ -151,7 +263,36 @@ function DrivePageInner() {
       const c = await getAudioCourse(id, locale, trainingLang);
       setCourse(c); setSeg(0);
       playSeg(c, 0);
+      if (autoListenRef.current) startAmbientListening();   // hands-free from the start
     } catch (e) { setError(String(e)); }
+  }
+
+  function onAdDone() {
+    const fn = afterAdRef.current;
+    afterAdRef.current = null;
+    setAdBreak(null);
+    fn?.();
+  }
+
+  // User-initiated start: play a one-time audio pre-roll (ad-supported tiers)
+  // before the first course of the session, then start playback. Auto-advance
+  // (playNextCourse) still calls startCourse directly — no ad between queued courses.
+  async function startCourseWithAds(id: string) {
+    if (!getToken()) { setLoggedIn(false); return; }
+    if (adsEnabled && !prerollShown.current) {
+      prerollShown.current = true;
+      try {
+        const plan = await getAdPlan(effectiveAdTier(tier));
+        const pre = plan.breaks.find((b) => b.position === "preroll");
+        if (pre && !plan.ad_free) {
+          cancelSpeech();
+          afterAdRef.current = () => { void startCourse(id); };
+          setAdBreak(pre);
+          return;
+        }
+      } catch { /* ads best-effort; fall through to playback */ }
+    }
+    await startCourse(id);
   }
 
   useEffect(() => {
@@ -173,12 +314,16 @@ function DrivePageInner() {
     }
   }
 
-  function pause() { window.speechSynthesis.pause(); setPlaying(false); }
-  function resume() { window.speechSynthesis.resume(); setPlaying(true); }
+  // Cancel (not just pause) so a language switch while paused can't resume a
+  // stale utterance; Resume replays the current segment in the current voice.
+  function pause() { playGenRef.current++; cancelSpeech(); setPlaying(false); }
+  function resume() { replayCurrentSegment(); }
   function stop() {
     clearResumeTimer();
     stopVoiceRecognition();
-    window.speechSynthesis.cancel();
+    stopAmbientListening();
+    playGenRef.current++;               // stop for good: no auto-advance
+    cancelSpeech();
     setPlaying(false);
     setCourse(null);
     setAssistantOpen(false);
@@ -186,7 +331,8 @@ function DrivePageInner() {
 
   function pauseForAssistant(status = t("drive.listenStatus")) {
     clearResumeTimer();
-    window.speechSynthesis.cancel();
+    playGenRef.current++;
+    cancelSpeech();
     setPlaying(false);
     setAssistantOpen(true);
     setAssistantStatus(status);
@@ -214,6 +360,112 @@ function DrivePageInner() {
     setListening(false);
   }
 
+  // ---- Hands-free ambient listening (always on; wake-word gated) ---------- //
+  function supportsSpeechRecognition(): boolean {
+    if (typeof window === "undefined") return false;
+    const root = window as any;
+    return Boolean(root.SpeechRecognition || root.webkitSpeechRecognition);
+  }
+
+  // Route a final ambient transcript while the course plays. Pauses ONLY for a
+  // genuine question (or an explicit "Hey Sala" command) — casual speech, noise,
+  // and the narration the mic itself picks up (echo) are filtered out.
+  function handleAmbientResult(text: string) {
+    const raw = (text || "").trim();
+    if (!raw) return;
+
+    // Already heard the wake word: this utterance is the question.
+    if (awaitingQuestionRef.current) {
+      awaitingQuestionRef.current = false;
+      const q = hasWakeWord(raw) ? stripWakeWords(raw) : raw;
+      if (q) handleAssistantQuestion(q);
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+
+    // Explicit wake word → honor any command or question after it.
+    const after = extractAfterWake(raw);
+    if (after !== null) {
+      pauseForAssistant(t("drive.listenQuestion"));
+      if (after) handleAssistantQuestion(after);
+      else awaitingQuestionRef.current = true;
+      return;
+    }
+
+    // No wake word: pause ONLY for a real question that isn't the narration echo.
+    if (isLikelyEcho(raw, currentNarrationRef.current)) return;   // the course's own audio
+    if (!isQuestion(raw)) return;                                 // statement / filler / noise
+    pauseForAssistant(t("drive.listenQuestion"));
+    handleAssistantQuestion(raw);
+  }
+
+  function startAmbientListening() {
+    if (!autoListenRef.current || !supportsSpeechRecognition()) return;
+    const root = window as any;
+    const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
+    try { ambientRef.current?.stop?.(); } catch { /* */ }
+    const rec = new SpeechRecognition();
+    rec.lang = localeToBcp47(trainingLangRef.current || locale);
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (event: any) => {
+      const results = event.results || [];
+      const last = results[results.length - 1];
+      if (!last || !last.isFinal) return;
+      const text = (last[0]?.transcript || "").trim();
+      if (text) handleAmbientResult(text);
+    };
+    rec.onerror = (event: any) => {
+      const err = event?.error || "";
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        // Mic permission denied — stop trying and let the user use the button.
+        setMicDenied(true);
+        setAutoListen(false);
+        autoListenRef.current = false;
+        setListening(false);
+      }
+      // "no-speech" / "aborted" / "network" are transient → onend restarts.
+    };
+    rec.onend = () => {
+      setListening(false);
+      // Browsers end the stream on silence/timeout; restart to stay always-on
+      // (unless the manual one-shot recognizer is currently active).
+      if (autoListenRef.current && !oneShotActiveRef.current) {
+        window.setTimeout(() => {
+          if (autoListenRef.current && !oneShotActiveRef.current && !ambientRef.current?.__running) {
+            startAmbientListening();
+          }
+        }, 500);
+      }
+    };
+    ambientRef.current = rec;
+    (rec as any).__running = true;
+    const origEnd = rec.onend;
+    rec.onend = (e: any) => { (rec as any).__running = false; origEnd(e); };
+    setListening(true);
+    try { rec.start(); } catch { /* already starting */ }
+  }
+
+  function stopAmbientListening() {
+    autoListenRef.current = false;
+    awaitingQuestionRef.current = false;
+    try { ambientRef.current?.stop?.(); } catch { /* */ }
+    ambientRef.current = null;
+    setListening(false);
+  }
+
+  function toggleAutoListen() {
+    if (autoListen) {
+      setAutoListen(false);
+      stopAmbientListening();
+    } else {
+      setMicDenied(false);
+      setAutoListen(true);
+      autoListenRef.current = true;
+      startAmbientListening();
+    }
+  }
+
   function startVoiceRecognition(expectWakeWord = false) {
     pauseForAssistant(t("drive.listenQuestion"));
     const root = window as any;
@@ -222,6 +474,9 @@ function DrivePageInner() {
       setAssistantStatus(t("drive.voiceUnavailable"));
       return;
     }
+    // Suspend ambient listening so only one recognizer is active at a time.
+    oneShotActiveRef.current = true;
+    try { ambientRef.current?.stop?.(); } catch { /* */ }
     stopVoiceRecognition();
     const recognition = new SpeechRecognition();
     recognition.lang = localeToBcp47(locale);
@@ -239,7 +494,14 @@ function DrivePageInner() {
       setAssistantStatus(t("drive.hearRetry"));
       setListening(false);
     };
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      oneShotActiveRef.current = false;
+      // Resume hands-free ambient listening after the manual one-shot.
+      if (autoListenRef.current && courseRef.current) {
+        window.setTimeout(() => { if (autoListenRef.current) startAmbientListening(); }, 500);
+      }
+    };
     recognitionRef.current = recognition;
     setListening(true);
     recognition.start();
@@ -272,7 +534,8 @@ function DrivePageInner() {
       setAssistantAnswer(t("drive.pausedAnswer"));
       setAssistantStatus(t("drive.pausedStatus"));
       setPlaying(false);
-      window.speechSynthesis.cancel();
+      playGenRef.current++;
+      cancelSpeech();
       return;
     }
     if (/\b(resume|continue|carry on|keep going)\b/.test(lower)) {
@@ -293,7 +556,8 @@ function DrivePageInner() {
     const answer = answerFromCourse(course, seg, command, t);
     setAssistantAnswer(answer);
     setAssistantStatus(t("drive.answeringStatus"));
-    window.speechSynthesis.cancel();
+    playGenRef.current++;
+    cancelSpeech();
     speak(t("drive.resumePrompt", { answer }), () => {
       resumeAfterAssistant(6500);
     });
@@ -310,13 +574,22 @@ function DrivePageInner() {
   useEffect(() => () => {
     clearResumeTimer();
     stopVoiceRecognition();
-    try { window.speechSynthesis.cancel(); } catch { /* */ }
+    try { cancelSpeech(); } catch { /* */ }
   }, []);
 
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
 
   return (
     <main className="container" style={{ maxWidth: 900 }}>
+      {adBreak && (
+        <VideoAdBreak
+          adBreak={adBreak}
+          placement={`drive-${adBreak.position}`}
+          tier={effectiveAdTier(tier)}
+          audioOnly
+          onDone={onAdDone}
+        />
+      )}
       <h1>{t("drive.pageTitle")}</h1>
       <p className="muted">
         {t("drive.pageIntro", { total })}
@@ -341,7 +614,7 @@ function DrivePageInner() {
               value={seg}
               onChange={(e) => {
                 const i = Number(e.target.value);
-                window.speechSynthesis.cancel();
+                cancelSpeech();
                 playSeg(course, i);
               }}
               style={{ width: "100%", accentColor: "#0ea5e9", cursor: "pointer" }}
@@ -358,14 +631,55 @@ function DrivePageInner() {
               : <button onClick={resume} style={{ ...BIG, background: "#16a34a", color: "#fff" }}>{t("drive.play")}</button>}
             <button onClick={() => playSeg(course, seg + 1)} style={BIG}>⏭</button>
             <button onClick={stop} style={{ ...BIG, background: "#e11d48", color: "#fff" }}>⏹</button>
-            <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
-            <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
+            {supportsSpeechRecognition() && !micDenied ? (
+              <button
+                onClick={toggleAutoListen}
+                title={t("drive.handsFreeHint")}
+                style={{ ...BIG, background: autoListen ? (listening ? "#16a34a" : "#0d9488") : "#334155", color: "#fff" }}
+              >
+                {autoListen ? t("drive.handsFreeOn") : t("drive.handsFreeOff")}
+              </button>
+            ) : (
+              <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
+            )}
+            {instructors.length > 0 && (
+              <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
+                {t("drive.instructor")}&nbsp;
+                <select value={instructor} onChange={(e) => chooseInstructor(e.target.value)}>
+                  <option value="">{t("drive.instructorDefault")}</option>
+                  {instructors.map((p) => (
+                    <option key={p.id} value={p.id}>{p.emoji} {p.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {voiceGroups.length > 0 && (
+              <label style={{ marginLeft: instructors.length ? undefined : "auto", color: "#9aa6c2" }}>
+                {t("drive.voice")}&nbsp;
+                <select value={serverVoice} onChange={(e) => chooseVoice(e.target.value)}>
+                  <option value="">{t("drive.voiceDefault")}</option>
+                  {voiceGroups.map((g) => (
+                    <optgroup key={g.language} label={g.language.toUpperCase()}>
+                      {g.voices.map((v) => (
+                        <option key={v.id} value={v.id}>{v.accent} · {v.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label style={{ marginLeft: voiceGroups.length ? undefined : "auto", color: "#9aa6c2" }}>
               {t("drive.speed")}&nbsp;
               <select value={rate} onChange={(e) => setRate(Number(e.target.value))}>
                 {[0.5, 1, 2, 3].map((r) => <option key={r} value={r}>{r}x</option>)}
               </select>
             </label>
           </div>
+          {micDenied ? (
+            <div className="muted" style={{ marginTop: 6, color: "#f59e0b", fontSize: 13 }}>{t("drive.micBlocked")}</div>
+          ) : autoListen && supportsSpeechRecognition() ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
+          ) : null}
           <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
             <span className="muted" style={{ fontSize: 13 }}>{t("drive.trainingLang")}</span>
             {TRAINING_LOCALES.map((loc) => {
@@ -374,17 +688,7 @@ function DrivePageInner() {
                 <button
                   key={loc}
                   type="button"
-                  onClick={() => {
-                    setTrainingLocale(loc);
-                    setTrainingLang(loc);
-                    if (course) {
-                      window.speechSynthesis.cancel();
-                      void getAudioCourse(course.id, locale, loc).then((c) => {
-                        setCourse(c);
-                        playSeg(c, seg);
-                      });
-                    }
-                  }}
+                  onClick={() => switchTrainingLang(loc)}
                   style={{
                     padding: "6px 10px",
                     borderRadius: 999,
@@ -477,7 +781,7 @@ function DrivePageInner() {
               <button
                 key={loc}
                 type="button"
-                onClick={() => { setTrainingLocale(loc); setTrainingLang(loc); }}
+                onClick={() => switchTrainingLang(loc)}
                 style={{
                   padding: "6px 10px",
                   borderRadius: 999,
@@ -505,7 +809,7 @@ function DrivePageInner() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 12 }}>
         {rows.map((r) => (
-          <button key={r.id} onClick={() => startCourse(r.id)}
+          <button key={r.id} onClick={() => startCourseWithAds(r.id)}
             style={{ textAlign: "left", background: "var(--panel)", color: "var(--text)",
               border: course?.id === r.id ? "2px solid #0ea5e9" : "1px solid var(--border)",
               borderRadius: 12, padding: 14, cursor: "pointer" }}>

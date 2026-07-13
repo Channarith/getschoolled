@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
+  askStream,
+  type AskDone,
   enrollCourse,
   getDisclosure,
   getQuiz,
@@ -14,14 +16,18 @@ import {
   getToken,
   gradeQuiz,
   listLessons,
+  getMe,
+  pronounce,
   reengage,
   reportIssue,
   setEnrollmentStatus,
   startSession,
   submitPostClassSurvey,
+  type AdBreak,
   type Answer,
   type Disclosure,
   type Lesson,
+  type Pronounce,
   type QuizGrade,
   type QuizItemView,
   type Reengagement,
@@ -30,6 +36,18 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import AiPresenter from "../components/AiPresenter";
+import VideoAdBreak from "../components/VideoAdBreak";
+import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
+import { synthChunk } from "../lib/tts";
+import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
+
+// Minimal Web Speech API typing for the repeat-after-me checkpoint.
+type SpeechRec = {
+  lang: string; interimResults: boolean; maxAlternatives: number;
+  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+};
 
 // Color the adaptive difficulty badge so the learner can see it shift.
 function difficultyStyle(d: string): { background: string; color: string; border: string } {
@@ -66,17 +84,31 @@ export default function ClassPage() {
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
+  const [tier, setTier] = useState("basic");
+  const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
+  const afterAdRef = useRef<null | (() => void)>(null);
+  const advanceCount = useRef(0);
+  const MIDROLL_EVERY_ADVANCES = 5;
+  const { preroll, takeNextMidroll } = useCourseAds(lessonId, tier);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voiceRef = useRef<StreamingVoice | null>(null);   // real-time chunked voice
   // Adaptive quiz state (difficulty personalizes via the memory service).
   const [quiz, setQuiz] = useState<QuizItemView[] | null>(null);
   const [quizIdx, setQuizIdx] = useState(0);
   const [quizDifficulty, setQuizDifficulty] = useState<string>("");
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizGrade, setQuizGrade] = useState<QuizGrade | null>(null);
+  const [heard, setHeard] = useState("");
+  const [pron, setPron] = useState<Pronounce | null>(null);
+  const [listening, setListening] = useState(false);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    if (getToken()) {
+      getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
+    }
     listLessons()
       .then((ls) => {
         setLessons(ls);
@@ -91,11 +123,14 @@ export default function ClassPage() {
 
   function stopSpeaking() {
     try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
+    try { voiceRef.current?.stop(); } catch { /* */ }
+    voiceRef.current = null;
     speechRef.current = null;
     setSpeaking(false);
   }
 
   function speak(text: string) {
+    setSpokenText(text);   // caption updates even when muted
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -107,8 +142,55 @@ export default function ClassPage() {
     window.speechSynthesis.speak(utterance);
   }
 
-  async function onStart() {
-    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+  // Repeat-after-me checkpoint: listen to the learner and score how closely they
+  // said the target phrase (reuses the pronunciation endpoint).
+  function startRepeatAfterMe() {
+    const target = slide?.say_aloud;
+    if (!target) return;
+    const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    stopSpeaking();
+    const rec = new Ctor();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setPron(null);
+    setListening(true);
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      setHeard(said);
+      pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.start();
+  }
+
+  // The AI presenter narrates each slide as it appears, so the video feed shows
+  // the agent actually presenting the lesson (and drives the speaking animation).
+  useEffect(() => {
+    if (!view || !slide) return;
+    speak(`${slide.title}. ${slide.narration || slide.body}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide?.index, view?.session.session_id]);
+
+  // Play an ad break, then run `then` when it completes/skips. Used for the
+  // pre-roll before a class starts and mid-rolls between slides (ad-supported
+  // tiers only; VIP/pro get an empty plan so `preroll`/midrolls are null).
+  function runAd(b: AdBreak, then: () => void) {
+    stopSpeaking();
+    afterAdRef.current = then;
+    setAdBreak(b);
+  }
+  function onAdDone() {
+    const fn = afterAdRef.current;
+    afterAdRef.current = null;
+    setAdBreak(null);
+    fn?.();
+  }
+
+  async function doStart() {
     setError("");
     setBusy(true);
     try {
@@ -117,6 +199,7 @@ export default function ClassPage() {
       setSlide(v.slide);
       setChat([]);
       setQuiz(null);
+      advanceCount.current = 0;
     } catch (e) {
       setError(String(e));
     } finally {
@@ -124,7 +207,13 @@ export default function ClassPage() {
     }
   }
 
-  async function onAdvance() {
+  async function onStart() {
+    if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+    if (preroll) { runAd(preroll, doStart); return; }
+    await doStart();
+  }
+
+  async function doAdvance() {
     if (!view) return;
     setBusy(true);
     try {
@@ -135,6 +224,16 @@ export default function ClassPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onAdvance() {
+    if (!view) return;
+    advanceCount.current += 1;
+    if (advanceCount.current % MIDROLL_EVERY_ADVANCES === 0) {
+      const mid = takeNextMidroll();
+      if (mid) { runAd(mid, () => { void doAdvance(); }); return; }
+    }
+    await doAdvance();
   }
 
   // Learner is drifting/lost: ask the teaching brain to re-engage. Renders the
@@ -311,31 +410,77 @@ export default function ClassPage() {
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
-      const a: Answer = await ask(view.session.session_id, q);
-      speak(a.text);
-      setChat((c) => [
-        ...c,
-        {
-          role: "teacher",
-          text: a.text,
-          citations: a.citations,
-          grounded: a.grounded,
-          confidence:
-            a.hallucination_risk !== undefined
-              ? Math.round((1 - a.hallucination_risk) * 100)
-              : undefined,
-          unsupported: a.unsupported,
-        },
-      ]);
-      // The AI teacher may grant points for a good question. Redeem the signed
-      // voucher to the learner's account (server-verified) and show it.
-      if (a.reward?.grant_token && getToken()) {
+      // Real-time chunked voice: stream LLM tokens (Nemotron when configured) ->
+      // cut into tiny chunks -> synthesize + play each immediately so the first
+      // audio is heard within ~a few words. Falls back to a buffered ask.
+      let a: Answer | AskDone | null = null;
+      try {
+        stopSpeaking();
+        setChat((c) => [...c, { role: "teacher", text: "" }]);   // grows as tokens stream
+        const chunker = new SpeechChunker();
+        const voice = new StreamingVoice((t) => synthChunk(t, { locale: "en", voiceStyle: "standard" }));
+        voiceRef.current = voice;
+        if (speakAnswers) setSpeaking(true);
+        let acc = "";
+        a = await askStream(view.session.session_id, q, {
+          onDelta: (chunk) => {
+            acc += chunk;
+            setChat((c) => {
+              const copy = [...c];
+              for (let i = copy.length - 1; i >= 0; i--) {
+                if (copy[i].role === "teacher") { copy[i] = { ...copy[i], text: acc }; break; }
+              }
+              return copy;
+            });
+            if (speakAnswers) for (const piece of chunker.feed(chunk)) voice.enqueue(piece);
+          },
+        });
+        if (speakAnswers) {
+          const tail = chunker.flush();
+          if (tail) voice.enqueue(tail);
+          voice.drained().then(() => setSpeaking(false));
+        }
+        if (a) {
+          setChat((c) => {
+            const copy = [...c];
+            for (let i = copy.length - 1; i >= 0; i--) {
+              if (copy[i].role === "teacher") {
+                copy[i] = {
+                  role: "teacher", text: a!.text, citations: a!.citations, grounded: a!.grounded,
+                  confidence: a!.hallucination_risk !== undefined
+                    ? Math.round((1 - a!.hallucination_risk) * 100) : undefined,
+                  unsupported: a!.unsupported,
+                };
+                break;
+              }
+            }
+            return copy;
+          });
+        }
+      } catch {
+        // Streaming unsupported/failed -> buffered ask.
+        const buffered: Answer = await ask(view.session.session_id, q);
+        a = buffered;
+        speak(buffered.text);
+        setChat((c) => [
+          ...c,
+          {
+            role: "teacher", text: buffered.text, citations: buffered.citations,
+            grounded: buffered.grounded,
+            confidence: buffered.hallucination_risk !== undefined
+              ? Math.round((1 - buffered.hallucination_risk) * 100) : undefined,
+            unsupported: buffered.unsupported,
+          },
+        ]);
+      }
+      const reward = (a as Answer)?.reward;
+      if (reward?.grant_token && getToken()) {
         try {
-          const r = await grantReward(a.reward.grant_token);
+          const r = await grantReward(reward.grant_token);
           if (r.earned > 0) {
             setChat((c) => [
               ...c,
-              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${a.reward!.reason} (balance: ${r.balance})` },
+              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${reward.reason} (balance: ${r.balance})` },
             ]);
           }
         } catch {
@@ -351,6 +496,14 @@ export default function ClassPage() {
 
   return (
     <main className="container">
+      {adBreak && (
+        <VideoAdBreak
+          adBreak={adBreak}
+          placement={`class-${adBreak.position}`}
+          tier={effectiveAdTier(tier)}
+          onDone={onAdDone}
+        />
+      )}
       <h1>Live Class</h1>
       {disclosure && (
         <div className="card" style={{ borderColor: "#6ea8fe" }}>
@@ -426,6 +579,21 @@ export default function ClassPage() {
 
       {view && slide && (
         <>
+          <AiPresenter
+            speaking={speaking}
+            name="Salareen AI Instructor"
+            persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
+            caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+            live
+            muted={!speakAnswers}
+            onToggleMute={() => {
+              const next = !speakAnswers;
+              setSpeakAnswers(next);
+              if (!next) stopSpeaking();
+              else speak(`${slide.title}. ${slide.narration || slide.body}`);
+            }}
+            messages={chat}
+          />
           <div className="slide">
             <div className="muted">
               {view.lesson.title} · Slide {slide.index + 1} of {view.lesson.slides.length}
@@ -433,6 +601,40 @@ export default function ClassPage() {
             <h2>{slide.title}</h2>
             <p>{slide.body}</p>
             <p className="muted">🔊 {slide.narration}</p>
+
+            {slide.say_aloud && (
+              <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>🎤 Your turn — repeat after me</div>
+                <p style={{ fontSize: 18, margin: "4px 0" }}>
+                  &ldquo;<strong>{slide.say_aloud}</strong>&rdquo;
+                </p>
+                <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" onClick={startRepeatAfterMe} disabled={listening}
+                    style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}>
+                    {listening ? "Listening…" : pron ? "🎤 Try again" : "🎤 Speak now"}
+                  </button>
+                  <button type="button" onClick={() => speak(slide.narration || `Repeat after me: ${slide.say_aloud}`)}
+                    style={{ background: "#e0f2fe", color: "#075985", border: "1px solid #0ea5e9" }}>
+                    🔊 Hear it
+                  </button>
+                  {heard && <span className="muted">You said: &ldquo;{heard}&rdquo;</span>}
+                </div>
+                {pron && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 20 }}>
+                      {"★".repeat(pron.stars)}{"☆".repeat(Math.max(0, 3 - pron.stars))}{" "}
+                      <strong style={{ color: pron.passed ? "#16a34a" : "#d97706" }}>{pron.score}%</strong>
+                      {pron.passed ? " — nicely said!" : " — give it another go."}
+                    </div>
+                    {pron.feedback && <div className="muted" style={{ marginTop: 2 }}>{pron.feedback}</div>}
+                    {pron.missed_words?.length > 0 && (
+                      <div className="muted" style={{ marginTop: 2 }}>Focus on: {pron.missed_words.join(", ")}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="row">
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →

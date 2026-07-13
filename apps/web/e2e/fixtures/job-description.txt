@@ -1,0 +1,20 @@
+Senior Data Engineer — FinTech Scale-up (Remote)
+
+We are looking for a Senior Data Engineer to design and operate our
+analytics platform. You will build reliable batch and streaming pipelines,
+model data for analysts, and partner with ML engineers on feature
+pipelines.
+
+Responsibilities:
+- Build and maintain ETL/ELT pipelines in Python and SQL
+- Design warehouse schemas and data models for analytics
+- Operate cloud infrastructure (AWS or GCP) with Terraform and Docker
+- Implement data quality checks, monitoring, and CI/CD for data jobs
+- Collaborate with data scientists on machine learning workflows
+
+Requirements:
+- 5+ years with Python, SQL, and modern data tooling
+- Experience with Spark or similar distributed processing
+- Solid grasp of statistics and experimentation
+- DevOps fundamentals: Linux, containers, infrastructure as code
+- Bonus: AWS certification, dbt, Kafka

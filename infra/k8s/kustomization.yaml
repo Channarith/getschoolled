@@ -7,8 +7,10 @@ resources:
   - services.yaml
   - autoscaling.yaml
   - redis.yaml
+  - livekit.yaml
   - ingress.yaml
   - ingress-origin.yaml
   - llm-vllm.yaml
+  - cosyvoice.yaml
   - harvester.yaml
   - retention-cronjob.yaml

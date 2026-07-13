@@ -1,0 +1,41 @@
+# Deterministic demo/E2E overlay: pin the jobs board to the offline sample
+# provider, enable seeding + test endpoints, and keep every AI path on its
+# offline fallback (no paid keys required).
+#
+#   make up-e2e
+#   cd apps/web && npm run e2e
+# RATE_LIMIT: parallel E2E workers share one client IP, so the production-like
+# 120 req/min default trips mid-suite (and 429s would flake specs).
+services:
+  curriculum:
+    environment:
+      JOBS_LIVE: "0"
+      JOBS_PROVIDER: "sample"
+      SEED_CORPORATE_PROGRAMS: "1"
+      ENABLE_TEST_ENDPOINTS: "1"
+      RATE_LIMIT: "1000"
+      INTERNAL_TOKEN: "dev-internal-token"
+
+  orchestrator:
+    environment:
+      ENABLE_TEST_ENDPOINTS: "1"
+      RATE_LIMIT: "1000"
+      INTERNAL_TOKEN: "dev-internal-token"
+
+  identity:
+    environment:
+      SEED_QA_ACCOUNTS: "1"
+      ENABLE_TEST_ENDPOINTS: "1"
+      RATE_LIMIT: "1000"
+      INTERNAL_TOKEN: "dev-internal-token"
+
+  memory:
+    environment:
+      ENABLE_TEST_ENDPOINTS: "1"
+      RATE_LIMIT: "1000"
+      INTERNAL_TOKEN: "dev-internal-token"
+
+  integrations:
+    environment:
+      RATE_LIMIT: "1000"
+      INTERNAL_TOKEN: "dev-internal-token"

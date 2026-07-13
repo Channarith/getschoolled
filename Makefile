@@ -16,7 +16,7 @@ COMPOSE := infra/compose/docker-compose.yml
 
 help:
 	@echo "Targets:"
-	@echo "  git-setup      Configure merge drivers (CHANGELOG=union, README=theirs)"
+	@echo "  git-setup      Configure merge drivers (CHANGELOG/build-info=union, README=theirs)"
 	@echo "  install        Create venv and install all Python packages (editable)"
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
@@ -89,6 +89,18 @@ harvest-crawl-daemon:
 
 harvest-search:
 	$(VENV_PY) services/harvester/src/harvester/run.py --corpus-search "$(QUERY)" --top-k 8
+
+# Homework CLI (offline). Override SRC/TITLE/SUBJECT/HOMEWORK_OUT.
+HOMEWORK_OUT ?= output/homework
+HW_TITLE ?= Homework
+HW_SUBJECT ?= general
+homework-generate:
+	$(VENV_PY) services/homework/src/homework/run.py --generate "$(SRC)" \
+		--title "$(HW_TITLE)" --subject "$(HW_SUBJECT)" --out-dir $(HOMEWORK_OUT)
+
+homework-grade:
+	$(VENV_PY) services/homework/src/homework/run.py --grade "$(ASSIGNMENT)" \
+		--submission-file "$(SUBMISSION)" --subject "$(HW_SUBJECT)"
 
 meeting-agents-lab:
 	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
@@ -200,6 +212,23 @@ up:
 
 down:
 	docker compose -f $(COMPOSE) down
+
+# Deterministic demo/E2E stack: offline sample jobs board, seeded corporate
+# programs + QA accounts, test endpoints on. Only the services the corporate
+# demo touches (skips perception/harvester/agent-runtime/edge).
+COMPOSE_E2E := infra/compose/docker-compose.e2e.yml
+E2E_SERVICES := postgres redis orchestrator memory speech curriculum billing identity integrations web
+
+up-e2e:
+	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) up -d --build $(E2E_SERVICES)
+
+down-e2e:
+	docker compose -f $(COMPOSE) -f $(COMPOSE_E2E) down
+
+# Corporate-demo readiness gate: targeted tests + stack probes + Playwright
+# E2E + stress smoke, ending in a GO / NO-GO verdict. Run against `make up-e2e`.
+demo-check:
+	$(VENV_PY) scripts/demo_check.py
 
 # Multi-replica + nginx-LB local stack. See infra/compose/scale.yml +
 # infra/compose/nginx-edge.conf. Hit http://localhost:18500 for the

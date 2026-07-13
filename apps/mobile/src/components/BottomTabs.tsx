@@ -44,6 +44,7 @@ export default function BottomTabs({
           return (
             <AnimatedPressable
               key={tab.id}
+              testID={`tab-${tab.id}`}
               onPress={() => onChange(tab.id)}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
@@ -52,7 +53,7 @@ export default function BottomTabs({
               <View style={styles.iconWrap}>
                 <Ionicons
                   name={isActive ? tab.iconActive : tab.icon}
-                  size={24}
+                  size={28}
                   color={color}
                 />
                 {tab.id === "notifications" && unreadCount > 0 ? (
@@ -79,15 +80,21 @@ const styles = StyleSheet.create({
   wrap: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
-    paddingBottom: 20,
-    paddingTop: 8,
+    paddingBottom: 24,
+    paddingTop: 10,
   },
-  bar: { flexDirection: "row" },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 4 },
-  iconWrap: { height: 28, justifyContent: "center" },
+  bar: { flexDirection: "row", paddingHorizontal: 4 },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    minHeight: 56,
+  },
+  iconWrap: { height: 32, justifyContent: "center" },
   label: {
-    fontSize: 9,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 5,
     color: theme.colors.muted,
     fontWeight: "600",
   },

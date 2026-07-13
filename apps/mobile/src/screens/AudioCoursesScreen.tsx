@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,13 +10,17 @@ import {
   type LearnableItem,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
+import AdBanner from "../components/AdBanner";
 import GlassPanel from "../components/GlassPanel";
+import { useAuth } from "../auth/AuthContext";
 import { getMyList, recordInterest, toggleMyList } from "../storage";
 import { useT } from "../i18n";
 import { categoryGradient, theme } from "../theme";
 
 type Props = {
   onOpen: (id: string) => void;
+  onOpenGame: (subject: string) => void;
+  onOpenLesson: (lessonId: string, title: string, preview?: string) => void;
   initialCategory?: string;
 };
 
@@ -39,8 +43,9 @@ const FORMAT_LABELS: Record<string, string> = {
   language: "Languages",
 };
 
-export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
+export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, initialCategory }: Props) {
   const { t, locale } = useT();
+  const { account } = useAuth();
   const [rows, setRows] = useState<LearnableItem[]>([]);
   const [cats, setCats] = useState<string[]>([]);
   const [formats, setFormats] = useState<string[]>([]);
@@ -88,15 +93,18 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
   };
 
   const openItem = (item: LearnableItem) => {
+    void recordInterest(item.category);
     if (item.format === "audio") {
-      void recordInterest(item.category);
       onOpen(item.source_id);
       return;
     }
-    Alert.alert(
-      item.title,
-      `${item.format} content opens in the Salareen web app (${item.deep_link || "salareen.com"}).`,
-    );
+    if (item.format === "game") {
+      onOpenGame(item.subject || item.source_id);
+      return;
+    }
+    // live_class + any other visual/interactive format opens the in-app lesson
+    // player (live teaching session), falling back to a readable content view.
+    onOpenLesson(item.source_id, item.title, item.preview);
   };
 
   return (
@@ -117,8 +125,8 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={formats}
         keyExtractor={(f) => f}
-        style={{ maxHeight: 52, marginBottom: 8 }}
-        contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
+        style={styles.chipRow}
+        contentContainerStyle={styles.chipRowContent}
         renderItem={({ item }) => {
           const on = format === item;
           const icon = FORMAT_ICON[item] || "ellipse";
@@ -139,8 +147,8 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={chips}
         keyExtractor={(c) => c || "all"}
-        style={{ maxHeight: 44, marginBottom: 8 }}
-        contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}
+        style={styles.chipRow}
+        contentContainerStyle={styles.chipRowContent}
         renderItem={({ item }) => (
           <AnimatedPressable
             onPress={() => setCat(item)}
@@ -165,12 +173,16 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
           data={rows}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX, paddingBottom: 24 }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const icon = FORMAT_ICON[item.format] || "book";
             const [c1, c2] = categoryGradient(item.category || item.subject);
             const saved = item.format === "audio" && savedSet.has(item.source_id);
             return (
-              <AnimatedPressable onPress={() => openItem(item)} style={{ marginBottom: 10 }}>
+              <AnimatedPressable
+                testID={`audio-course-${index}`}
+                onPress={() => openItem(item)}
+                style={{ marginBottom: 10 }}
+              >
                 <GlassPanel style={styles.cardRow} padded={false}>
                   <LinearGradient colors={[c1, c2]} style={styles.thumb}>
                     <Ionicons name={icon} size={22} color="#fff" />
@@ -203,6 +215,7 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
           }}
         />
       )}
+      <AdBanner tier={account?.tier} placement="mobile-browse-banner" />
     </View>
   );
 }
@@ -218,6 +231,12 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginLeft: 12 },
   input: { flex: 1, color: theme.colors.text, padding: 12, ...theme.typography.body },
+  chipRow: { flexGrow: 0, marginBottom: 10 },
+  chipRowContent: {
+    paddingHorizontal: theme.spacing.screenX,
+    alignItems: "center",
+    paddingVertical: 4,
+  },
   chip: {
     backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: theme.radius.pill,
@@ -226,6 +245,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
+    minHeight: 38,
+    justifyContent: "center",
   },
   chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
   chipText: { color: "#f8fafc", fontWeight: "700", fontSize: 13 },
@@ -233,6 +254,7 @@ const styles = StyleSheet.create({
   formatChip: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     backgroundColor: "rgba(255,255,255,0.16)",
     borderRadius: theme.radius.pill,
@@ -242,11 +264,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     minWidth: 72,
+    minHeight: 40,
   },
   formatChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
   formatChipText: { color: "#f8fafc", fontWeight: "700", fontSize: 12, maxWidth: 88 },
   formatChipTextOn: { color: "#fff", fontWeight: "800" },
-  count: { color: theme.colors.muted, fontSize: 12, marginBottom: 8, paddingHorizontal: theme.spacing.screenX },
+  count: { color: theme.colors.muted, fontSize: 12, marginTop: 2, marginBottom: 10, paddingHorizontal: theme.spacing.screenX },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   thumb: {
     width: 52, height: 52, borderRadius: theme.radius.sm,

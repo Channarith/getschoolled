@@ -1,0 +1,68 @@
+# Corporate-demo readiness gate (docs/vv-corporate-demo-validation.md §6).
+# Non-blocking by design: manual runs before a demo + a nightly canary.
+# Deliberately NOT a required PR check yet — automerge.yml merges any green PR
+# without human review, so this stays advisory until it has stability history.
+name: demo-check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 7 * * *"   # nightly, after qa.yml
+
+jobs:
+  demo-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python packages
+        run: make install PY=python3
+
+      - name: Install web deps + Playwright
+        run: |
+          cd apps/web
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start demo stack (compose e2e overlay)
+        run: make up-e2e
+
+      - name: Wait for stack health
+        run: |
+          for port in 8000 8004 8005 8008; do
+            for i in $(seq 1 60); do
+              curl -sf "http://localhost:$port/health" >/dev/null && break
+              sleep 5
+            done
+            curl -sf "http://localhost:$port/health" >/dev/null || { echo "port $port never became healthy"; exit 1; }
+          done
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000/ -o /dev/null && break
+            sleep 5
+          done
+
+      - name: Demo readiness gate
+        run: .venv/bin/python scripts/demo_check.py --json demo-check.json
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-check-results
+          path: |
+            demo-check.json
+            apps/web/playwright-report/
+          if-no-files-found: ignore
+
+      - name: Tear down
+        if: always()
+        run: make down-e2e

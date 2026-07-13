@@ -17,17 +17,46 @@ once per clone/CI runner that performs a local merge, then merge as usual:
   driver configured. When a local merge is impractical, default to accepting the
   incoming branch's `README.md`/`CHANGELOG.txt` and re-running the README cleanup.
 
+## Skills (.cursor/skills)
+
+Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
+`description`). Read the matching one before non-trivial work:
+- **platform-architecture** — orientation: service/port map, `aoep_shared`
+  provider abstraction, deploy-mode selection. Start here when unsure where X lives.
+- **run-and-test-locally** — run the stack (services/web/mobile), run pytest/ruff/
+  typecheck/build, CI gates, and port/venv/mobile-clobber gotchas.
+- **backend-service** — add/modify a FastAPI service or provider (`create_service`,
+  `app.state.factory`, config, per-service tests).
+- **identity-rewards-durability** — accounts/auth/students, points/rewards, admin +
+  feature-flag `ADMIN_SECRET`, and the Redis-snapshot durability model.
+- **live-rooms-video** — Salareen group-class LiveKit rooms (lazy-open, real JWT,
+  the 404 rule) vs Zoom/Teams/Meet bridges.
+- **harvester-content** — crawl/generate courses, partition into ~20-slide lessons,
+  mandatory `.pptx` export, corpus/packs.
+- **speech-tts** — neural narration (ElevenLabs → edge-tts → device), `/tts`
+  endpoints, web/mobile playback + `cancelSpeech`.
+- **release-and-deploy** — versioning, non-draft PR auto-merge, and the VKE deploy
+  flow (avoid the stale-image "still 404 / old version" trap).
+- **game-crafter** — Three.js game design/build pipeline (product feature).
+
 ## Push-to-main checklist (required every time main is updated)
 
-1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)
-   for the change. CHANGELOG uses a union merge driver (.gitattributes) so
-   concurrent entries auto-combine - keep one dated bullet per change.
-2. **Release version (required on every PR to main):** run
+1. CHANGELOG.txt: prepend an entry that names BOTH the date AND the version:
+   `- YYYY-MM-DD - vX.Y.Z - …` (newest first), where `X.Y.Z` is the version you
+   bump to in step 2. CHANGELOG uses a union merge driver (.gitattributes) so
+   concurrent entries auto-combine - keep one bullet per change. Documenting the
+   version (not just the date) is REQUIRED and CI-enforced (traceability).
+2. **Release version (REQUIRED on every PR - CI-enforced):** run
    `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
-   `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
-   CI fails PRs that do not bump VERSION vs `main`. Patch bump by default
-   (`python3 scripts/bump_pr_version.py` → 0.12.1, 0.12.2, …). Use
-   `--force-level minor` only for deliberate feature releases (0.13.0).
+   `build-info.txt`, `apps/web/app/lib/version.ts`, `apps/mobile/src/version.ts`
+   (and the package/app manifests). Patch bump by default; auto-promotes to a
+   minor once >8 changes have accrued (tune via `AOEP_MINOR_BUMP_THRESHOLD`);
+   `--force-level minor|major` overrides. `scripts/check_pr_version_bump.sh` (the
+   `version-bump` CI job) fails the PR unless VERSION is strictly greater than the
+   branch's MERGE-BASE and the newest changelog entry names that version. It
+   compares against the fork point (not main's tip), so concurrent PRs don't
+   falsely collide, and the `maxver` merge driver keeps main moving forward. See
+   the `release-and-deploy` skill for the full flow.
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must

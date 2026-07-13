@@ -83,10 +83,11 @@ def test_audio_course_titles_localize_in_khmer():
     es_course = next(c for c in cat if c.id == "lang-es-phrases")
     # Title: "<Spanish-in-Khmer>: <Essential phrases-in-Khmer> (audio)".
     assert "\u17a2\u17c1\u179f\u17d2\u1794\u17c9\u1789\u17bc\u179b" in es_course.title  # esponyol
-    # Category + level + first heading in Khmer.
+    # Category + level localize to Khmer for the browsing UI. (Segment
+    # headings are the authentic English phrase cues - the lesson teaches the
+    # target language and no longer carries a localized intro wrapper.)
     assert any("\u1780" <= ch <= "\u17ff" for ch in es_course.category)
     assert any("\u1780" <= ch <= "\u17ff" for ch in es_course.level)
-    assert any("\u1780" <= ch <= "\u17ff" for ch in es_course.segments[0].heading)
 
 
 def test_notification_feed_renders_km_titles():

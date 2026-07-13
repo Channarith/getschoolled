@@ -7,11 +7,12 @@ cd "$ROOT"
 # shellcheck source=mobile-env.sh
 . "$(dirname "$0")/mobile-env.sh"
 
-read -r DEPLOY_MODE CLOUD_BASE <<< "$(node - <<'NODE'
+read -r DEPLOY_MODE CLOUD_BASE CLOUD_FAILOVER <<< "$(node - <<'NODE'
 const app = require("./app.json");
 const mode = process.env.MOBILE_DEPLOY_MODE || app.expo.extra?.deployMode || "cloud";
 const base = (process.env.MOBILE_CLOUD_BASE_URL || app.expo.extra?.cloudBaseUrl || "https://www.salareen.com").replace(/\/$/, "");
-console.log(mode, base);
+const failover = (process.env.MOBILE_CLOUD_FAILOVER_BASE_URL || app.expo.extra?.cloudFailoverBaseUrl || "http://45.63.91.80").replace(/\/$/, "");
+console.log(mode, base, failover);
 NODE
 )"
 
@@ -50,13 +51,22 @@ check_port() {
 
 WARN=0
 if [ "$DEPLOY_MODE" = "cloud" ]; then
-  echo "==> Backend mode: cloud ($CLOUD_BASE)"
+  echo "==> Backend mode: cloud (primary $CLOUD_BASE, failover $CLOUD_FAILOVER)"
   check_http "identity (login)" "$CLOUD_BASE/identity/__meta" || WARN=$((WARN + 1))
   check_http "curriculum (catalog)" "$CLOUD_BASE/curriculum/health" || WARN=$((WARN + 1))
   check_http "memory" "$CLOUD_BASE/memory/health" || WARN=$((WARN + 1))
   if [ "$WARN" -gt 0 ]; then
+    echo "  Primary unreachable — probing Vultr failover ($CLOUD_FAILOVER)…"
+    FAILOVER_WARN=0
+    check_http "identity (failover)" "$CLOUD_FAILOVER/identity/__meta" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
+    check_http "curriculum (failover)" "$CLOUD_FAILOVER/curriculum/health" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
+    check_http "memory (failover)" "$CLOUD_FAILOVER/memory/health" || FAILOVER_WARN=$((FAILOVER_WARN + 1))
+    if [ "$FAILOVER_WARN" -eq 0 ]; then
+      echo "  OK   Vultr failover reachable (app will use it when primary fails)"
+      exit 0
+    fi
     echo
-    echo "Cloud cluster may be down or unreachable from this network."
+    echo "Cloud cluster unreachable on both primary and Vultr failover."
     echo "Override to local Mac services: MOBILE_DEPLOY_MODE=local npm run launch:android:native"
     exit 1
   fi

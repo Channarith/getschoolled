@@ -30,6 +30,7 @@ from aoep_shared.homework import (
     Assignment,
     assignment_from_slides,
     detect_authorship,
+    generate_assignment,
     grade_submission,
     ocr_to_submission,
     segment_answers,
@@ -78,6 +79,14 @@ app = create_service("curriculum")
 app.state.decks = DeckStore()
 app.state.scenes = {}
 app.state.catalog = CatalogStore(path=os.environ.get("CATALOG_PATH") or None)
+
+# Populate the /corporate funnel out of the box (mirrors the audio catalog
+# bridge's empty-store fallback; disable with SEED_CORPORATE_PROGRAMS=0).
+from .corporate_programs import seed_default_programs, seeding_enabled  # noqa: E402
+
+if seeding_enabled():
+    seed_default_programs(app.state.catalog)
+
 app.state.corrections = {}  # id -> Correction (review queue)
 
 # Course scoring admin: editable config + manual overrides + telemetry (Phase: scoring tuning).
@@ -575,8 +584,9 @@ def audio_courses(category: str | None = None, q: str | None = None,
     """Audio-only, drive-safe classes for hands-free learning.
 
     ``locale`` localizes category/level labels and segment headings.
-    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS;
-    defaults from ``locale`` when omitted.
+    ``training_locale`` (any supported language) selects the spoken lesson
+    body for TTS: authentic curated text where available, otherwise a
+    translated or English-fallback body. Defaults from ``locale`` when omitted.
     """
     from aoep_shared.audio_courses import list_courses
 
@@ -1263,6 +1273,9 @@ def scene_verify(signed: SignedScene) -> dict:
 class GenerateHomeworkRequest(BaseModel):
     deck_id: str | None = None
     course_id: str | None = None
+    # Free-form source material (topic notes / lesson text) to build questions
+    # from when no deck/course is loaded — so the tool works standalone.
+    content: str = ""
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
@@ -1455,8 +1468,18 @@ def homework_generate(req: GenerateHomeworkRequest) -> Assignment:
             if m.deck_id and (deck := app.state.decks.get(m.deck_id)):
                 slides.extend(deck.slides)
         source = f"course:{req.course_id}"
+    elif req.content.strip():
+        # Build questions directly from pasted source material (paragraphs/lines).
+        import re as _re
+        passages = [p.strip() for p in _re.split(r"\n\s*\n|\n", req.content) if p.strip()]
+        if not passages:
+            raise HTTPException(status_code=422, detail="no usable content to generate from")
+        return generate_assignment(
+            passages, title=req.title, subject=req.subject, source="content",
+            locale=req.locale, num_questions=req.num_questions,
+        )
     else:
-        raise HTTPException(status_code=422, detail="provide deck_id or course_id")
+        raise HTTPException(status_code=422, detail="provide deck_id, course_id, or content")
     if not slides:
         raise HTTPException(status_code=422, detail="no slide content to generate from")
     return assignment_from_slides(

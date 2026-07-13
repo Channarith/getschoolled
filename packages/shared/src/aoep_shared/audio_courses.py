@@ -3,14 +3,15 @@
 Generates a large catalog of audio-first courses designed to be taken while
 driving (or commuting / exercising): every course is narration-only, marked
 ``visual_required=False`` and ``drive_safe=True``, with no images, video, or
-on-screen interaction required. Narration is segmented (intro -> key ideas ->
-recap) so a hands-free player can autoplay and announce progress.
+on-screen interaction required. Each segment is substantive authored content —
+no synthetic padding, recall prompts, intro wrappers, or repeated narration.
 
 Two generators feed the catalog:
-- language audio lessons (reuses the 26-language phrasebook): "listen & repeat"
-  greetings/conversation/travel for every supported language, and
-- knowledge audio lessons across many categories (history, science, business,
-  finance, wellness, technology, ...).
+    - language audio lessons (reuses the 26-language phrasebook): "listen & repeat"
+      greetings/conversation/travel for every supported language, and
+    - knowledge audio lessons across many categories (history, science, business,
+      finance, wellness, technology, ...), each backed by substantive sections
+      in ``audio_topic_data.TOPIC_SECTIONS`` (history, usage, algorithms, pros/cons).
 
 Pure/offline + stdlib + pydantic. The curriculum service exposes it over HTTP and
 the web/mobile "Drive Mode" players narrate it via on-device TTS.
@@ -31,19 +32,20 @@ from .catalog_i18n import (
 )
 from .training_content_i18n import (
     audio_title_suffix, localize_course_title, localize_facts,
-    normalize_training_locale,
+    normalize_training_locale, translate_body,
 )
+from .audio_topic_data import TOPIC_SECTIONS
 from .language_learning import LANGUAGE_META, phrases_for
 from .languages import SUPPORTED_LANGUAGES
 
 WORDS_PER_MINUTE = 120
-MIN_AUDIO_MINUTES = 20
+MIN_AUDIO_MINUTES = 1           # honest floor for very short audio snippets
 
 
 class AudioSegment(BaseModel):
     heading: str
     text: str
-    kind: str = "narration"   # narration | quiz | reinforcement
+    kind: str = "narration"
 
 
 class AudioCourse(BaseModel):
@@ -65,39 +67,13 @@ class AudioCourse(BaseModel):
         return sum(len(s.text.split()) for s in self.segments)
 
 
-def _duration(segments: List[AudioSegment]) -> int:
-    words = sum(len(s.text.split()) for s in segments if s.kind != "quiz")
-    return max(MIN_AUDIO_MINUTES, round(words / WORDS_PER_MINUTE))
+def _narration_words(segments: List[AudioSegment]) -> int:
+    return sum(len(s.text.split()) for s in segments if s.kind != "quiz")
 
 
-def _enrich_audio_segments(segs: List[AudioSegment], *, topic: str = "this topic") -> List[AudioSegment]:
-    """Pad drive-mode lessons to 20+ minutes with reinforcement and pop quizzes."""
-    out: List[AudioSegment] = list(segs)
-    target_words = MIN_AUDIO_MINUTES * WORDS_PER_MINUTE
-    i = 0
-    while sum(len(s.text.split()) for s in out if s.kind != "quiz") < target_words:
-        src = segs[i % len(segs)] if segs else None
-        if src is None:
-            break
-        i += 1
-        out.append(AudioSegment(
-            heading=f"Reinforcement: {src.heading}",
-            text=(
-                f"Let's revisit {topic}. {src.text} "
-                "Pause and summarize this section aloud before continuing."
-            ),
-            kind="reinforcement",
-        ))
-        if len(out) % 4 == 0:
-            out.append(AudioSegment(
-                heading="Pop quiz",
-                text=(
-                    f"Quick check on {topic}: what were the two main ideas from the last section? "
-                    "Say your answer out loud. If unsure, use voice rewind to hear it again."
-                ),
-                kind="quiz",
-            ))
-    return out
+def _duration(segments: List[AudioSegment], *, min_minutes: int = MIN_AUDIO_MINUTES) -> int:
+    words = _narration_words(segments)
+    return max(min_minutes, round(words / WORDS_PER_MINUTE))
 
 
 # --------------------------------------------------------------------------- #
@@ -125,23 +101,13 @@ def _language_courses(locale: str) -> List[AudioCourse]:
             if len(phrases) < 2:
                 continue
             lesson_local = localize_lesson_type(lesson_en, locale)
-            segs = [AudioSegment(
-                heading=localize_heading("Introduction", locale),
-                text=narration("lang_intro", locale,
-                               language=name_in_locale, lesson=lesson_local))]
+            segs: List[AudioSegment] = []
             for p in phrases:
                 say = narration("lang_phrase_say", locale,
                                 language=name_in_locale, en=p["en"], target=p["target"])
                 if p.get("roman"):
                     say += narration("lang_phrase_roman", locale, roman=p["roman"])
-                say += narration("lang_phrase_repeat", locale, target=p["target"])
                 segs.append(AudioSegment(heading=p["en"], text=say))
-            recap = ", ".join(p["target"] for p in phrases)
-            segs.append(AudioSegment(
-                heading=localize_heading("Recap", locale),
-                text=narration("lang_recap", locale,
-                               language=name_in_locale, recap=recap)))
-            segs = _enrich_audio_segments(segs, topic=lesson_local)
             out.append(AudioCourse(
                 id=f"lang-{code}-{category}",
                 title=f"{name_in_locale}: {lesson_local} (audio)",
@@ -332,86 +298,40 @@ _TOPICS: Dict[str, List[str]] = {
     ],
 }
 
-_FACTS: Dict[str, List[str]] = {
-    # Canonical English bullets; localized copies live in training_content_i18n.
-    "Budgeting Basics": [
-        "A budget is simply a plan for your money: income in, expenses out, the rest saved.",
-        "A popular rule is fifty-thirty-twenty - needs, wants, and savings or debt.",
-        "Track spending for one month and you'll quickly spot easy places to cut.",
-    ],
-    "How Compound Interest Works": [
-        "Compound interest means you earn interest on your interest, not just your deposit.",
-        "Time is the magic ingredient - starting early beats investing more later.",
-        "The rule of seventy-two estimates years to double: divide seventy-two by the rate.",
-    ],
-    "An Introduction to Stoicism": [
-        "Stoicism teaches focusing only on what you can control - your actions and judgments.",
-        "Negative events are neutral; our opinions about them cause distress.",
-        "A daily practice is to rehearse challenges calmly before they happen.",
-    ],
-    "What Is Artificial Intelligence": [
-        "A.I. is software that learns patterns from data instead of being explicitly programmed.",
-        "Machine learning improves with more examples, much like practice.",
-        "Today's large language models predict the next word to generate helpful text.",
-    ],
-    "The Pomodoro Technique": [
-        "Work in focused twenty-five minute sprints called pomodoros.",
-        "Take a five minute break after each, and a longer break every four.",
-        "It beats procrastination by making starting feel small and finite.",
-    ],
-    "Photosynthesis Explained": [
-        "Plants turn sunlight, water, and carbon dioxide into sugar and oxygen.",
-        "Chlorophyll in the leaves captures the light energy.",
-        "This process is the foundation of almost every food chain on Earth.",
-    ],
-}
-
 
 def _knowledge_course(
     category: str, title: str, locale: str, training_locale: str,
 ) -> AudioCourse:
     """Build a knowledge audio lesson.
 
-    ``locale`` localizes headings and category labels for the UI.
-    ``training_locale`` (en/es/zh) localizes spoken lesson bodies for TTS.
+    ``locale`` localizes category labels for the UI. ``training_locale``
+    (en/es/zh) selects the spoken body: when a curated localized fact set
+    exists for the topic it is used verbatim (authentic, non-English);
+    otherwise the rich English narration pack is used. Either way the lesson
+    contains only substantive authored segments - no intro/recap wrappers,
+    no padding, and no repeated narration.
     """
     tloc = normalize_training_locale(training_locale)
     display_title = localize_course_title(title, tloc)
-    points, body_loc = localize_facts(title, tloc)
     cat_local = localize_category(category, locale)
-    intro_heading = localize_heading("Introduction", locale)
-    recap_heading = localize_heading("Recap", locale)
     key_idea_label = localize_heading("Key idea", locale)
-    # The intro/recap framing narration is UI-localized (all 13 locales), so it
-    # follows ``locale``; only the factual bullets + title follow
-    # ``training_locale`` (en/es/zh).
-    segs = [AudioSegment(
-        heading=intro_heading,
-        text=narration("know_intro", locale, title=display_title))]
+    points = None
+    body_loc = "en"
+    if tloc != "en":
+        localized, loc = localize_facts(title, tloc)
+        if loc != "en" and localized:
+            points, body_loc = localized, loc
     if points:
-        for i, p in enumerate(points, start=1):
-            segs.append(AudioSegment(heading=f"{key_idea_label} {i}", text=p))
-        recap_text = " ".join(points)
-        segs.append(AudioSegment(
-            heading=recap_heading,
-            text=narration("know_recap", locale, title=display_title, recap=recap_text)))
-    else:
-        segs += [
-            AudioSegment(
-                heading=localize_heading("Why it matters", locale),
-                text=narration("know_why", locale, title=display_title)),
-            AudioSegment(
-                heading=localize_heading("Core ideas", locale),
-                text=narration("know_core", locale, title=display_title)),
-            AudioSegment(
-                heading=localize_heading("Going deeper", locale),
-                text=narration("know_deeper", locale, title=display_title)),
-            AudioSegment(
-                heading=recap_heading,
-                text=narration("know_fallback_recap", locale, title=display_title)),
+        segs = [
+            AudioSegment(heading=f"{key_idea_label} {i}", text=p)
+            for i, p in enumerate(points, start=1)
         ]
-        body_loc = tloc
-    segs = _enrich_audio_segments(segs, topic=display_title)
+    else:
+        segs = [
+            AudioSegment(heading=heading, text=body)
+            for heading, body in TOPIC_SECTIONS[title]
+        ]
+        body_loc = "en"
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
         id=f"audio-{slug}",
@@ -426,7 +346,7 @@ def _knowledge_course(
     )
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=64)
 def build_catalog(locale: str = DEFAULT_LOCALE, training_locale: Optional[str] = None) -> List[AudioCourse]:
     """Build the full audio catalog in the requested locale.
 
@@ -512,11 +432,53 @@ def list_courses(*, category: Optional[str] = None, q: Optional[str] = None,
     }
 
 
+# On-demand translations of a full course into an uncurated training locale.
+# Keyed by (course_id, training_locale); populated only when a body translator
+# is registered (see training_content_i18n.set_body_translator).
+_TRANSLATED_COURSES: Dict[tuple, AudioCourse] = {}
+
+
+def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
+    """Return ``course`` spoken in ``tloc`` when a translator can provide it.
+
+    When the course body already matches ``tloc`` (curated content), or the
+    target is English, or no translator is available, the course is returned
+    unchanged with its honest ``body_locale`` so the client narrates with a
+    voice that matches the text. Language "listen & repeat" courses are never
+    translated - their content is intentionally in the target language already.
+    """
+    if tloc == "en" or course.body_locale == tloc or course.id.startswith("lang-"):
+        return course
+    key = (course.id, tloc)
+    cached = _TRANSLATED_COURSES.get(key)
+    if cached is not None:
+        return cached
+    source = course.body_locale or "en"
+    new_segments: List[AudioSegment] = []
+    translated_any = False
+    for seg in course.segments:
+        text = translate_body(seg.text, tloc, source=source)
+        if text:
+            new_segments.append(AudioSegment(heading=seg.heading, text=text, kind=seg.kind))
+            translated_any = True
+        else:
+            new_segments.append(seg)
+    if not translated_any:
+        # No translator (offline) -> keep the English body + body_locale so the
+        # client speaks English text with an English voice (coherent fallback).
+        return course
+    localized = course.model_copy(deep=True)
+    localized.segments = new_segments
+    localized.body_locale = tloc
+    _TRANSLATED_COURSES[key] = localized
+    return localized
+
+
 def get_course(course_id: str, locale: str = DEFAULT_LOCALE,
                training_locale: Optional[str] = None) -> Optional[AudioCourse]:
     locale = normalize_locale(locale)
     tloc = normalize_training_locale(training_locale or locale)
     for c in build_catalog(locale, tloc):
         if c.id == course_id:
-            return c
+            return _maybe_translate(c, tloc)
     return None

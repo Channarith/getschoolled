@@ -1,0 +1,43 @@
+---
+description: EAS / Expo mobile build constraints — avoid recurring cloud build failures
+globs: apps/mobile/**/*
+alwaysApply: false
+---
+
+# Mobile EAS build rules
+
+## Config plugins must load AND run at `expo config` time
+
+EAS runs `expo config --json --full --type public` during the build to compute the
+runtime version. Local plugins under `apps/mobile/plugins/*.js` must both (a) resolve
+their `require()`s and (b) call only APIs that actually exist — a wrong API throws
+`X is not a function` here, not at prebuild.
+
+- Pin `@expo/config-plugins` as a **direct** dep at the SDK-bundled version (SDK 51 → `8.0.11`). Never rely on it being transitive via `expo`.
+- Wrap plugin top-level `require()` in try/catch and export a no-op `(config) => config` on failure.
+- **Correct v8 API (do not guess):**
+  - Android permissions → `AndroidConfig.Permissions.withPermissions(config, string[])`. There is **no** top-level `withPermissions`, and it does **not** take `{ ios, android }`.
+  - iOS Info.plist keys / `UIBackgroundModes` → `withInfoPlist(config, cb)`.
+  - iOS Podfile edits → `withPodfile(config, cb)` + `mergeContents` from `@expo/config-plugins/build/utils/generateCode`.
+- After ANY plugin/dep change, run `node scripts/verify-expo-config-plugins.js`. It reproduces the EAS `expo config` command and fails on both MODULE_NOT_FOUND and "not a function". It also runs in `eas-build-post-install.sh`.
+- A plugin that only calls `withInfoPlist`/`withPodfile` (mod registration) won't exercise its callback during `expo config` — but the registration call itself must be a real function, which the smoke test catches.
+
+## pnpm layout for Metro + EAS
+
+- Keep `apps/mobile/.npmrc`: `node-linker=hoisted`, `package-import-method=copy`, `optimistic-repeat-install=false`.
+- `eas-build-pre-install.sh` must export the same flags for workers that ignore `.npmrc`.
+- Do **not** add custom `installCommand` in `eas.json` unless EAS docs require it (removed in v0.12.14 — broke workers).
+- Update `apps/mobile/pnpm-lock.yaml` whenever `package.json` deps change (`pnpm install --lockfile-only` from `apps/mobile` with `--ignore-workspace` if home dir has a pnpm workspace).
+
+## Native modules and plugins
+
+- New native modules (LiveKit, AdMob, etc.) need: `expo` config plugin entry in `app.config.js`, lockfile update, and a **fresh EAS native build** (not OTA-only).
+- Prefer official package config plugins (`react-native-google-mobile-ads`, `expo-build-properties`) over hand-rolled Podfile edits when possible.
+- iOS `UIBackgroundModes` in `app.json` — no duplicate entries (merge in plugin, don't repeat in static JSON).
+
+## Pre-merge checklist (mobile / EAS)
+
+1. `cd apps/mobile && pnpm install && node scripts/verify-expo-config-plugins.js`
+2. `bash scripts/mobile-typecheck.sh`
+3. Confirm `pnpm-lock.yaml` includes any new direct dependency
+4. Bump `VERSION` + mobile `app.json` / `version.ts` via `python3 scripts/bump_pr_version.py`

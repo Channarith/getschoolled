@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getAdSlot, type AdSlotPayload } from "../lib/api";
+import Script from "next/script";
+import { useEffect, useRef, useState } from "react";
+import { getAdSlot, recordAdClick, recordAdImpression, type AdSlotPayload } from "../lib/api";
 import { useFlag } from "../lib/flags";
+import { effectiveAdTier } from "../lib/useCourseAds";
 
 type Props = {
   slotId: string;
@@ -10,22 +12,84 @@ type Props = {
   className?: string;
 };
 
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
+function AdSenseUnit({ slot, slotId, className }: {
+  slot: AdSlotPayload;
+  slotId: string;
+  className?: string;
+}) {
+  useEffect(() => {
+    if (!slot.client_id) return;
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {
+      /* ad blockers / SSR */
+    }
+  }, [slot.client_id, slot.data_ad_slot]);
+
+  return (
+    <aside className={className} style={{ margin: "1rem 0", minHeight: slot.height || 90 }}>
+      <ins
+        className="adsbygoogle"
+        style={{ display: "block" }}
+        data-ad-client={slot.client_id}
+        data-ad-slot={slot.data_ad_slot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+      {slot.script_url ? (
+        <Script
+          id={`adsense-${slotId}`}
+          strategy="afterInteractive"
+          src={slot.script_url}
+          crossOrigin="anonymous"
+        />
+      ) : null}
+      <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+        Ad — set ADSENSE_CLIENT in cloud env (use Google test publisher for staging)
+      </p>
+    </aside>
+  );
+}
+
 /** Display ad slot for standard (non-VIP) members; VIP tiers see nothing.
  * Globally gated by the monetization.video_ads feature flag. */
 export default function AdSlot({ slotId, tier, className }: Props) {
   const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
   const [slot, setSlot] = useState<AdSlotPayload | null>(null);
+  const logged = useRef(false);
 
   useEffect(() => {
     if (!adsEnabled) { setSlot({ show: false }); return; }
     let cancelled = false;
-    getAdSlot(slotId, tier)
+    logged.current = false;
+    getAdSlot(slotId, effectiveAdTier(tier))
       .then((s) => { if (!cancelled) setSlot(s); })
       .catch(() => { if (!cancelled) setSlot({ show: false }); });
     return () => { cancelled = true; };
   }, [slotId, tier, adsEnabled]);
 
+  // Impression beacon once, when a visible slot resolves.
+  useEffect(() => {
+    if (!slot?.show || logged.current) return;
+    logged.current = true;
+    recordAdImpression({
+      placement: slotId, network: slot.network || "house", fmt: "display",
+      tier: effectiveAdTier(tier), unit_id: slotId,
+    });
+  }, [slot, slotId, tier]);
+
   if (!adsEnabled || !slot?.show) return null;
+
+  const onHouseClick = () => recordAdClick({
+    placement: slotId, network: slot.network || "house", fmt: "display",
+    tier: effectiveAdTier(tier), unit_id: slotId,
+  });
 
   if (slot.house && slot.click_url) {
     return (
@@ -44,7 +108,7 @@ export default function AdSlot({ slotId, tier, className }: Props) {
         }}
       >
         <span style={{ fontSize: 14, color: "#e2e8f0" }}>{slot.label || "Sponsored"}</span>
-        <a href={slot.click_url} className="btn primary" style={{ fontSize: 13, padding: "6px 12px" }}>
+        <a href={slot.click_url} onClick={onHouseClick} className="btn primary" style={{ fontSize: 13, padding: "6px 12px" }}>
           Learn more
         </a>
       </aside>
@@ -52,24 +116,7 @@ export default function AdSlot({ slotId, tier, className }: Props) {
   }
 
   if (slot.network === "google_adsense" && slot.client_id) {
-    return (
-      <aside className={className} style={{ margin: "1rem 0", minHeight: slot.height || 90 }}>
-        <ins
-          className="adsbygoogle"
-          style={{ display: "block" }}
-          data-ad-client={slot.client_id}
-          data-ad-slot={slot.data_ad_slot}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
-        <script
-          async
-          src={slot.script_url}
-          crossOrigin="anonymous"
-        />
-        <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>Ad — configure ADSENSE_CLIENT in cloud env</p>
-      </aside>
-    );
+    return <AdSenseUnit slot={slot} slotId={slotId} className={className} />;
   }
 
   return (

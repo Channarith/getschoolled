@@ -1,0 +1,65 @@
+name: EAS Mobile Build
+
+# Manual iOS + Android production builds for apps/mobile (Salareen / aiclassroom).
+# Requires EXPO_TOKEN in repo secrets: Settings → Secrets and variables → Actions.
+# Expo GitHub app users can also run .eas/workflows/create-production-builds.yml
+# from the Expo dashboard (Workflows → Create Production Builds).
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Build mode
+        required: true
+        default: workflow
+        type: choice
+        options:
+          - workflow
+          - android-only
+          - ios-only
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-mobile-build
+  cancel-in-progress: false
+
+jobs:
+  eas-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # pnpm 11.8.0 requires Node >= 22.13 (uses node:sqlite); Node 20 crashes
+          # install with ERR_UNKNOWN_BUILTIN_MODULE. Match eas.json base node.
+          node-version: 22.20.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install mobile dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Android (production)
+        if: inputs.mode == 'workflow' || inputs.mode == 'android-only'
+        run: eas build -p android --profile production --clear-cache --non-interactive
+
+      - name: Build iOS (production)
+        if: inputs.mode == 'workflow' || inputs.mode == 'ios-only'
+        run: eas build -p ios --profile production --clear-cache --non-interactive

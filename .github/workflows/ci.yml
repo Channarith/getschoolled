@@ -6,6 +6,18 @@ on:
   pull_request:
 
 jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require VERSION bump + changelog version on every PR
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: bash scripts/check_pr_version_bump.sh
+
   python:
     runs-on: ubuntu-latest
     steps:
@@ -52,3 +64,50 @@ jobs:
       - uses: actions/checkout@v4
       - name: Render kustomize manifests
         run: kubectl kustomize infra/k8s >/dev/null
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        run: pnpm install
+      - name: Typecheck mobile app
+        run: bash scripts/mobile-typecheck.sh
+
+  gate-meta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No --admin in pr merge
+        run: |
+          # Exclude ci.yml itself (it contains these patterns as grep strings)
+          if grep -rn "gh pr merge.*--admin\|--admin.*gh pr merge" .github/workflows/*.yml \
+              --exclude=ci.yml; then
+            echo "FAIL: --admin found in pr merge command" >&2
+            exit 1
+          fi
+          echo "OK: no --admin in pr merge"
+      - name: No silent rollout failures
+        run: |
+          # Exclude ci.yml itself (it contains these patterns as grep strings)
+          if grep -rn "rollout status.*|| true\||| true" .github/workflows/*.yml \
+              --exclude=ci.yml | grep "rollout status"; then
+            echo "FAIL: silent rollout failure (|| true) found" >&2
+            exit 1
+          fi
+          echo "OK: no silent rollout failures"
+      - name: No :latest push in deploy workflows
+        run: |
+          if grep -n "REGISTRY.*:latest\|:latest" .github/workflows/deploy.yml .github/workflows/deploy-vke-manual.yml 2>/dev/null | grep -v "^#" | grep -v "gate-meta\|synthetic\|post_deploy"; then
+            echo "FAIL: :latest tag found in deploy workflow" >&2
+            exit 1
+          fi
+          echo "OK: no :latest in deploy workflows"

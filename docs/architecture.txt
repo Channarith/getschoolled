@@ -86,10 +86,24 @@ ASCII; the README keeps the rendered GitHub version.
     admin GET /admin/survey/insights -> OLAP cube (course x class_type x rating)
           + mined free-text suggestion themes
 
-4c. Ad decisioning (monetization)
-    web /watch -> curriculum GET /courses/{id}/ad-breaks?tier=
-         tier in {pro,premium} -> ad-free (empty plan)
-         else -> pre-roll + capped mid-rolls (VAST/VMAP), skippable
+4c. Ad decisioning + revenue (monetization)
+    Video ad breaks (pre/mid-roll, VAST/VMAP), tier-gated:
+      web /watch, /class, Drive Mode -> curriculum GET /courses/{id}/ad-breaks?tier=
+        (Drive audio courses aren't in the catalog -> billing GET /ads/plan?tier=)
+      tier in {pro,premium} (VIP; admin defaults VIP) -> ad-free (empty plan)
+      else -> pre-roll + capped mid-rolls; VideoAdBreak.tsx plays them (real
+              <video>, skip timer, click-through; house media falls back to a
+              branded card). class = pre-roll on start + mid-roll every 5 slides;
+              Drive = one-time audio pre-roll per session.
+    Display ads: web AdSlot (home) via billing GET /ads/slot; mobile AdMob
+      banner (Home, Browse) + interstitial (mid-lesson) on iOS + Android.
+    Revenue accounting: web + mobile fire impression/click beacons ->
+      billing POST /ads/impression|/ads/click -> AdRevenueLedger (aoep_shared/
+      ad_revenue.py: CPM/CPC by network+format, eCPM, CTR). Admin console
+      "Ad Revenue" reads billing GET /ads/revenue. Estimate + funnel only; the
+      network's own dashboard is the payout of record.
+    Testing: append ?ads=1 to any web URL to force ads on an ad-free/admin
+      account, or sign in as a Standard-tier account (qa1/qa2).
 
 4d. Rewards (points -> prizes)
     identity set_status(passed) -> PointsLedger += points_for_completion

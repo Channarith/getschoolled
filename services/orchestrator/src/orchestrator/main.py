@@ -8,6 +8,7 @@ local LiveKit container or a cloud cluster.
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 
 from aoep_shared.adaptive import AdaptivePolicy, Difficulty, LearnerSignals, Pacing
 from aoep_shared.assessment import (
@@ -19,7 +20,7 @@ from aoep_shared.assessment import (
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import Depends, HTTPException, Response
+from fastapi import BackgroundTasks, Depends, Header, HTTPException, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
@@ -205,6 +206,30 @@ def api_advance(session_id: str) -> Slide:
         return get_sessions().advance(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
+
+
+@app.post("/api/sessions/{session_id}/ask/stream")
+def api_ask_stream(session_id: str, req: AskRequest):
+    """Server-Sent Events stream of the conversational agent's answer for the
+    real-time voice assistant (start speaking on the first tokens). Each event is
+    `data: {json}\\n\\n`; a final {"type":"done", ...} carries the guarded answer +
+    grounding metadata. Powered by the Nemotron agent when configured."""
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    sessions = get_sessions()
+    try:
+        sessions.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+
+    def _events():
+        for event in sessions.ask_stream(session_id, req.text, language=req.language):
+            yield f"data: {_json.dumps(event)}\n\n"
+
+    return StreamingResponse(_events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @app.post("/api/sessions/{session_id}/ask", response_model=Answer)
@@ -732,8 +757,20 @@ from aoep_shared.group_classes import (  # noqa: E402
     GroupClassStore,
     bridge_plan,
 )
+from aoep_shared.live_room import (  # noqa: E402
+    AI_HOST_ID,
+    BannedError,
+    LiveRoomError,
+    LiveRoomStore,
+    RoomFullError,
+)
 
 app.state.group_classes = GroupClassStore()
+app.state.live_rooms = LiveRoomStore()
+
+from .live_room_hub import LiveRoomConnectionHub  # noqa: E402
+
+app.state.live_room_hub = LiveRoomConnectionHub()
 
 
 def _seed_group_classes() -> None:
@@ -758,6 +795,18 @@ def _group_store() -> GroupClassStore:
     return app.state.group_classes
 
 
+def _live_rooms() -> LiveRoomStore:
+    return app.state.live_rooms
+
+
+async def _broadcast_live_room(room_id: str, event: dict) -> None:
+    await app.state.live_room_hub.broadcast(room_id, event)
+
+
+def _schedule_live_broadcast(background: BackgroundTasks, room_id: str, event: dict) -> None:
+    background.add_task(_broadcast_live_room, room_id, event)
+
+
 class ScheduleGroupClassRequest(BaseModel):
     title: str
     lesson_id: str
@@ -767,6 +816,7 @@ class ScheduleGroupClassRequest(BaseModel):
     duration_min: int = 60
     host: str = "Salareen AI"
     capacity: int = 100
+    room_size: int = 6
     language: str = "en"
     description: str = ""
 
@@ -774,6 +824,15 @@ class ScheduleGroupClassRequest(BaseModel):
 class RegisterRequest(BaseModel):
     name: str
     email: str = ""
+
+
+class LiveRoomLocation(BaseModel):
+    """Client-reported geo for room discovery (Bigo-style browse)."""
+    country: str = ""
+    state: str = ""
+    city: str = ""
+    latitude: float = 0.0
+    longitude: float = 0.0
 
 
 @app.get("/api/group-classes")
@@ -794,9 +853,22 @@ def schedule_group_class(req: ScheduleGroupClassRequest) -> dict:
     return gc.to_dict()
 
 
+def _find_group_class(class_id: str):
+    """Look up a class, materializing the standard (deterministic-id) classes on
+    a miss. On multi-replica / post-restart deployments the class listed by one
+    replica may not yet exist in this worker's store; seeding is idempotent and
+    reproduces the same ids, so the retry finds it."""
+    store = _group_store()
+    gc = store.get(class_id)
+    if gc is None:
+        _seed_group_classes()
+        gc = store.get(class_id)
+    return gc
+
+
 @app.get("/api/group-classes/{class_id}")
 def get_group_class(class_id: str) -> dict:
-    gc = _group_store().get(class_id)
+    gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
     return gc.to_dict()
@@ -805,6 +877,8 @@ def get_group_class(class_id: str) -> dict:
 @app.post("/api/group-classes/{class_id}/register")
 def register_group_class(class_id: str, req: RegisterRequest) -> dict:
     store = _group_store()
+    if store.get(class_id) is None:
+        _seed_group_classes()   # materialize standard classes on a miss (see _find_group_class)
     try:
         store.register(class_id, req.name, req.email)
     except KeyError:
@@ -832,7 +906,10 @@ def group_class_calendar(class_id: str, name: str = "", email: str = "") -> Resp
 
 
 @app.post("/api/group-classes/{class_id}/start")
-def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
+def start_group_class(
+    class_id: str,
+    req: LiveRoomLocation = LiveRoomLocation(),
+) -> dict:  # noqa: F811 (overrides nothing)
     """Go live: create the teaching session and return the meeting bridge plan.
 
     The AI's coursework runs as a normal teaching session; the returned
@@ -841,7 +918,7 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
     built-in "salareen" classes, learners join the live room directly.
     """
     store = _group_store()
-    gc = store.get(class_id)
+    gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
 
@@ -852,10 +929,37 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
         raise HTTPException(status_code=404, detail=f"unknown lesson {gc.lesson_id}")
 
     gc.session_id = state.session_id
-    store.set_status(gc.id, "live")
+    gc.status = "live"
 
     room = f"class-{gc.id}"
+    slide = sessions.current_slide(state.session_id)
+    moderator_key = ""
+    if gc.platform == "salareen":
+        gc.live_room_id = room
+        live = _live_rooms().open_room(
+            room_id=room,
+            class_id=gc.id,
+            session_id=state.session_id,
+            lesson_id=gc.lesson_id,
+            title=gc.title,
+            room_size=gc.room_size,
+            slide_title=slide.title,
+            slide_body=slide.body,
+            slide_narration=slide.narration,
+            country=req.country,
+            state=req.state,
+            city=req.city,
+            latitude=req.latitude,
+            longitude=req.longitude,
+            creator_name=gc.host or "Salareen",
+        )
+        moderator_key = live.moderator_key
+
+    store.save(gc)
+
     plan = dict(bridge_plan(gc, livekit_room=room))
+    if moderator_key:
+        plan["moderator_key"] = moderator_key
     media = app.state.factory.media()
     token = media.issue_token(room=room, identity="aoep-teacher")
     plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
@@ -869,6 +973,739 @@ def start_group_class(class_id: str) -> dict:  # noqa: F811 (overrides nothing)
         ).model_dump(),
         "bridge": plan,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Salareen Live Room (built-in multi-user grid for group classes)
+# --------------------------------------------------------------------------- #
+
+
+class LiveRoomJoinRequest(BaseModel):
+    name: str
+    identity: str = ""
+
+
+class LiveRoomChatRequest(BaseModel):
+    participant_id: str
+    text: str
+
+
+class LiveRoomMuteRequest(BaseModel):
+    participant_id: str
+    muted: bool
+    by_host: bool = False
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomHandRequest(BaseModel):
+    participant_id: str
+    question: str = ""
+
+
+class LiveRoomQueueRequest(BaseModel):
+    participant_id: str
+    question: str = ""
+
+
+class LiveRoomTurnRequest(BaseModel):
+    participant_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomBanRequest(BaseModel):
+    participant_id: str
+    reason: str = ""
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomUnbanRequest(BaseModel):
+    identity: str
+    actor_id: str = ""
+    moderator_key: str = ""
+
+
+class LiveRoomReportRequest(BaseModel):
+    reporter_participant_id: str
+    reported_participant_id: str
+    reason: str
+    category: str = "other"
+
+
+class LiveRoomDismissReportRequest(BaseModel):
+    report_id: str
+    moderator_key: str = ""
+
+
+class LiveRoomAskRequest(BaseModel):
+    participant_id: str
+    question: str
+    language: str = "en"
+
+
+class LiveRoomGiftRequest(BaseModel):
+    participant_id: str
+    gift_id: str
+    recipient_participant_id: str = ""
+
+
+class LiveRoomReactionRequest(BaseModel):
+    participant_id: str
+    emoji: str
+
+
+class LiveRoomFollowRequest(BaseModel):
+    identity: str
+    unfollow: bool = False
+
+
+class CreateLiveRoomRequest(BaseModel):
+    title: str
+    creator_name: str
+    room_size: int = 6
+    location: LiveRoomLocation = LiveRoomLocation()
+
+
+def _live_room_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, KeyError):
+        return HTTPException(status_code=404, detail="unknown live room")
+    if isinstance(exc, RoomFullError):
+        return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, BannedError):
+        return HTTPException(status_code=403, detail=str(exc))
+    if isinstance(exc, LiveRoomError):
+        return HTTPException(status_code=400, detail=str(exc))
+    raise exc
+
+
+@app.get("/api/live-rooms")
+def list_live_rooms(
+    lat: float = 0.0,
+    lng: float = 0.0,
+    radius_km: float = 0.0,
+    country: str = "",
+    city: str = "",
+    grouped: bool = True,
+) -> dict:
+    """Discover live Salareen rooms — flat list or grouped by country/state/city."""
+    from aoep_shared.live_room_discovery import (  # noqa: E402
+        group_rooms_by_location,
+        room_listing_dict,
+    )
+
+    store = _live_rooms()
+    rooms = store.list_live(
+        lat=lat,
+        lng=lng,
+        radius_km=radius_km,
+        country=country,
+        city=city,
+    )
+    cards = [room_listing_dict(r, viewer_lat=lat, viewer_lng=lng) for r in rooms]
+    out: dict = {"rooms": cards, "total": len(cards)}
+    if grouped:
+        out["groups"] = group_rooms_by_location(rooms)
+    return out
+
+
+@app.post("/api/live-rooms")
+def create_live_room(
+    req: CreateLiveRoomRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    """Instant Salareen room — appears in the discovery feed for other users."""
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+    from aoep_shared.live_room_discovery import room_listing_dict  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    loc = req.location
+    store = _live_rooms()
+    try:
+        room = store.create_user_room(
+            title=req.title.strip() or "Salareen Live",
+            creator_name=req.creator_name.strip() or "Host",
+            creator_account_id=account_id,
+            room_size=req.room_size,
+            country=loc.country,
+            state=loc.state,
+            city=loc.city,
+            latitude=loc.latitude,
+            longitude=loc.longitude,
+        )
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    listing = room_listing_dict(room)
+    listing["moderator_key"] = room.moderator_key
+    return {"room": room.to_dict(), "listing": listing}
+
+
+def _ensure_group_class_room(room_id: str):
+    """Lazily open a Salareen live room for a group class.
+
+    Rooms were only created when a class was explicitly "started", so joining a
+    scheduled-but-not-started class (or after an orchestrator restart dropped the
+    in-memory room) 404'd. This opens/reopens the room on demand from the group
+    class record — starting the teaching session if needed — so selecting a
+    Salareen room "just works". Returns the room, or None if there is no matching
+    Salareen group class (genuine 404).
+    """
+    store = _live_rooms()
+    room = store.get(room_id)
+    if room is not None:
+        return room
+    if not room_id.startswith("class-"):
+        return None
+    class_id = room_id[len("class-"):]
+    gc = _group_store().get(class_id)
+    if gc is None or gc.platform != "salareen":
+        return None
+
+    sessions = get_sessions()
+    session_id = gc.session_id
+    slide = None
+    if session_id:
+        try:
+            slide = sessions.current_slide(session_id)
+        except KeyError:
+            session_id = ""  # session was lost (restart) — recreate below
+    if not session_id:
+        try:
+            state = sessions.start_session(gc.lesson_id, "group")
+        except KeyError:
+            return None
+        session_id = state.session_id
+        gc.session_id = session_id
+        gc.status = "live"
+        slide = sessions.current_slide(session_id)
+
+    gc.live_room_id = room_id
+    live = store.open_room(  # idempotent: returns the existing room if present
+        room_id=room_id,
+        class_id=gc.id,
+        session_id=session_id,
+        lesson_id=gc.lesson_id,
+        title=gc.title,
+        room_size=gc.room_size,
+        slide_title=slide.title,
+        slide_body=slide.body,
+        slide_narration=slide.narration,
+        creator_name=gc.host or "Salareen",
+    )
+    _group_store().save(gc)
+    return live
+
+
+@app.get("/api/live-rooms/{room_id}")
+def get_live_room(room_id: str, moderator_key: str = "") -> dict:
+    room = _ensure_group_class_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    if moderator_key and moderator_key == room.moderator_key:
+        return room.to_moderator_dict()
+    return room.to_dict()
+
+
+@app.post("/api/live-rooms/{room_id}/join")
+def join_live_room(
+    room_id: str,
+    req: LiveRoomJoinRequest,
+    background: BackgroundTasks,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    store = _live_rooms()
+    account_id = account_from_authorization(authorization) or ""
+    # Open the room on demand for group-class Salareen rooms so joining a
+    # scheduled (not-yet-started) class works instead of 404ing.
+    _ensure_group_class_room(room_id)
+    try:
+        participant = store.join(
+            room_id,
+            req.name,
+            identity=req.identity,
+            account_id=account_id,
+        )
+    except (KeyError, LiveRoomError, RoomFullError) as exc:
+        raise _live_room_http_error(exc)
+    media = app.state.factory.media()
+    token = media.issue_token(
+        room=room_id,
+        identity=participant.identity,
+        can_publish=participant.can_publish,
+    )
+    room = store.require(room_id)
+    from aoep_shared.live_room_social import PresenceToast  # noqa: E402
+    from aoep_shared.live_room_ws import ws_presence  # noqa: E402
+
+    toast = PresenceToast(kind="join", participant_id=participant.id, name=participant.name)
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_presence(toast.to_dict(), room_id=room_id, viewer_count=room.viewer_count),
+    )
+    return {
+        "participant": participant.to_dict(),
+        "room": room.to_dict(),
+        "media": {
+            "room": token.room,
+            "identity": token.identity,
+            "token": token.token,
+            "url": token.url,
+        },
+        "gift_balance": store.gift_balance_for(participant, authorization),
+        "host_follower_count": store.host_follower_count(room_id),
+        "following_host": store.is_following_host(room_id, participant.identity),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/leave")
+def leave_live_room(
+    room_id: str,
+    req: LiveRoomHandRequest,
+    background: BackgroundTasks,
+) -> dict:
+    store = _live_rooms()
+    try:
+        p = store.require(room_id).get_participant(req.participant_id)
+        name = p.name
+        pid = p.id
+        store.leave(room_id, req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    room = store.require(room_id)
+    from aoep_shared.live_room_social import PresenceToast  # noqa: E402
+    from aoep_shared.live_room_ws import ws_presence  # noqa: E402
+
+    toast = PresenceToast(kind="leave", participant_id=pid, name=name)
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_presence(toast.to_dict(), room_id=room_id, viewer_count=room.viewer_count),
+    )
+    return room.to_dict()
+
+
+@app.post("/api/live-rooms/{room_id}/chat")
+def live_room_chat(
+    room_id: str,
+    req: LiveRoomChatRequest,
+    background: BackgroundTasks,
+) -> dict:
+    store = _live_rooms()
+    try:
+        msg = store.post_chat(room_id, req.participant_id, req.text)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    from aoep_shared.live_room_ws import ws_chat  # noqa: E402
+
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_chat(asdict(msg), room_id=room_id),
+    )
+    return {"message": asdict(msg), "room": store.require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/raise-hand")
+def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        p = _live_rooms().toggle_hand(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {
+        "participant": p.to_dict(),
+        "queue_position": room.queue_position(req.participant_id),
+        "room": room.to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/join")
+def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
+    try:
+        entry = _live_rooms().join_queue(room_id, req.participant_id, question=req.question)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = _live_rooms().require(room_id)
+    return {"entry": entry.to_dict(), "room": room.to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/leave")
+def live_room_queue_leave(room_id: str, req: LiveRoomHandRequest) -> dict:
+    try:
+        _live_rooms().leave_queue(room_id, req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/queue/call-next")
+def live_room_call_next(
+    room_id: str,
+    req: LiveRoomTurnRequest,
+    background: BackgroundTasks,
+) -> dict:
+    store = _live_rooms()
+    try:
+        speaker = store.call_next(room_id, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    room = store.require(room_id).to_dict()
+    from aoep_shared.live_room_ws import ws_queue  # noqa: E402
+
+    _schedule_live_broadcast(background, room_id, ws_queue(room, room_id=room_id))
+    return {
+        "speaker": speaker.to_dict() if speaker else None,
+        "room": room,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/queue/finish-turn")
+def live_room_finish_turn(room_id: str, req: LiveRoomTurnRequest) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        pid = req.participant_id or room.floor_participant_id
+        if not pid:
+            raise LiveRoomError("no one has the floor")
+        store.finish_turn(room_id, pid, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": store.require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/mute")
+def live_room_mute(room_id: str, req: LiveRoomMuteRequest) -> dict:
+    try:
+        p = _live_rooms().set_mute(
+            room_id,
+            req.participant_id,
+            muted=req.muted,
+            by_host=req.by_host,
+            actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"participant": p.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/ban")
+def live_room_ban(room_id: str, req: LiveRoomBanRequest) -> dict:
+    try:
+        banned = _live_rooms().ban_participant(
+            room_id,
+            req.participant_id,
+            actor_id=req.actor_id or AI_HOST_ID,
+            reason=req.reason,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"banned": banned.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/unban")
+def live_room_unban(room_id: str, req: LiveRoomUnbanRequest) -> dict:
+    try:
+        _live_rooms().unban(
+            room_id,
+            req.identity,
+            actor_id=req.actor_id or AI_HOST_ID,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/report")
+def live_room_report(room_id: str, req: LiveRoomReportRequest) -> dict:
+    """Learner reports another participant for moderator review."""
+    try:
+        report = _live_rooms().report_participant(
+            room_id,
+            req.reporter_participant_id,
+            req.reported_participant_id,
+            reason=req.reason,
+            category=req.category,
+        )
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "report": report.to_dict(),
+        "room": _live_rooms().require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/reports/dismiss")
+def live_room_dismiss_report(room_id: str, req: LiveRoomDismissReportRequest) -> dict:
+    """Moderator dismisses a user report without banning."""
+    try:
+        report = _live_rooms().dismiss_report(
+            room_id,
+            req.report_id,
+            moderator_key=req.moderator_key,
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "report": report.to_dict(),
+        "room": _live_rooms().require(room_id).to_moderator_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/advance")
+def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
+    """AI host advances the lesson slide for all participants."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    sessions = get_sessions()
+    try:
+        slide = sessions.advance(room.session_id)
+        lesson = sessions.lesson_for(room.session_id)
+        session = sessions.get_session(room.session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="teaching session not found")
+    narration = " ".join((slide.narration or slide.body or slide.title).split())[:500]
+    store.update_slide(
+        room_id,
+        index=session.current_slide,
+        title=slide.title,
+        body=slide.body,
+        narration=slide.narration,
+    )
+    if narration:
+        store.post_host_message(
+            room_id,
+            f"📖 {slide.title} — {narration}",
+        )
+    slide_dict = store.require(room_id).slide.to_dict()
+    room_dict = store.require(room_id).to_dict()
+    from aoep_shared.live_room_ws import ws_slide  # noqa: E402
+
+    _schedule_live_broadcast(background, room_id, ws_slide(slide_dict, room_id=room_id))
+    return {
+        "slide": slide_dict,
+        "room": room_dict,
+        "lesson_title": lesson.title,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/ask")
+def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
+    """Learner asks a question; Theodore answers in the room chat."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        learner = room.get_participant(req.participant_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    sessions = get_sessions()
+    try:
+        mode, entry = store.ask_when_ready(room_id, req.participant_id, req.question)
+        if mode == "queued":
+            return {
+                "queued": True,
+                "queue_position": entry.position if entry else 0,
+                "entry": entry.to_dict() if entry else None,
+                "room": store.require(room_id).to_dict(),
+            }
+        store.post_chat(room_id, req.participant_id, req.question)
+        answer = sessions.ask(room.session_id, req.question, language=req.language)
+        host_msg = store.post_host_message(
+            room_id,
+            f"@{learner.name} {answer.text}",
+        )
+        store.finish_turn(room_id, req.participant_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="teaching session not found")
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    return {
+        "queued": False,
+        "answer": answer.model_dump(),
+        "host_message": asdict(host_msg),
+        "room": store.require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/record/start")
+def live_room_record_start(room_id: str) -> dict:
+    try:
+        rec = _live_rooms().start_recording(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return {"recording": rec.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/record/stop")
+def live_room_record_stop(room_id: str) -> dict:
+    try:
+        rec = _live_rooms().stop_recording(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return {"recording": rec.to_dict(), "room": _live_rooms().require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/end")
+def live_room_end(room_id: str) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.end_room(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    gc = _group_store().get(room.class_id)
+    if gc is not None:
+        _group_store().set_status(gc.id, "ended")
+    return room.to_dict()
+
+
+@app.get("/api/live-rooms/gifts/catalog")
+def live_room_gift_catalog() -> dict:
+    return {"gifts": _live_rooms().gift_catalog()}
+
+
+@app.get("/api/live-rooms/{room_id}/gift-balance")
+def live_room_gift_balance(
+    room_id: str,
+    identity: str = "",
+    participant_id: str = "",
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    if participant_id:
+        try:
+            participant = room.get_participant(participant_id)
+            return {"balance": store.gift_balance_for(participant, authorization)}
+        except LiveRoomError:
+            pass
+    return {"balance": store.gift_balance(identity)}
+
+
+@app.post("/api/live-rooms/{room_id}/gifts/send")
+def live_room_send_gift(
+    room_id: str,
+    req: LiveRoomGiftRequest,
+    background: BackgroundTasks,
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
+    try:
+        gift, balance = store.send_gift(
+            room_id,
+            req.participant_id,
+            gift_id=req.gift_id,
+            recipient_participant_id=req.recipient_participant_id,
+            authorization=authorization,
+        )
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    from aoep_shared.live_room_ws import ws_gift  # noqa: E402
+
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_gift(gift.to_dict(), room_id=room_id, sender_balance=balance),
+    )
+    return {
+        "gift": gift.to_dict(),
+        "sender_balance": balance,
+        "room": store.require(room_id).to_dict(),
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/reactions")
+def live_room_reaction(
+    room_id: str,
+    req: LiveRoomReactionRequest,
+    background: BackgroundTasks,
+) -> dict:
+    store = _live_rooms()
+    try:
+        reaction = store.send_reaction(room_id, req.participant_id, emoji=req.emoji)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    from aoep_shared.live_room_ws import ws_reaction  # noqa: E402
+
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_reaction(reaction.to_dict(), room_id=room_id),
+    )
+    return {"reaction": reaction.to_dict(), "room": store.require(room_id).to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/follow")
+def live_room_follow_host(
+    room_id: str,
+    req: LiveRoomFollowRequest,
+    background: BackgroundTasks,
+) -> dict:
+    store = _live_rooms()
+    try:
+        following, count = store.follow_host(
+            room_id, req.identity, unfollow=req.unfollow
+        )
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    from aoep_shared.live_room_ws import ws_follow  # noqa: E402
+
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_follow(following, count, room_id=room_id),
+    )
+    return {
+        "following": following,
+        "follower_count": count,
+        "room_id": room_id,
+    }
+
+
+@app.get("/api/live-rooms/{room_id}/follow")
+def live_room_follow_status(room_id: str, identity: str = "") -> dict:
+    store = _live_rooms()
+    try:
+        store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return {
+        "following": store.is_following_host(room_id, identity),
+        "follower_count": store.host_follower_count(room_id),
+    }
+
+
+@app.websocket("/api/live-rooms/{room_id}/ws")
+async def live_room_websocket(room_id: str, websocket: WebSocket) -> None:
+    store = _live_rooms()
+    if store.get(room_id) is None:
+        await websocket.close(code=4404)
+        return
+    hub = app.state.live_room_hub
+    await hub.connect(room_id, websocket)
+    from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+
+    try:
+        room = store.require(room_id).to_dict()
+        await websocket.send_json(ws_room_snapshot(room, room_id=room_id))
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await hub.disconnect(room_id, websocket)
 
 
 # --------------------------------------------------------------------------- #

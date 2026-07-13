@@ -1,0 +1,29 @@
+# VKE overlay: expose LiveKit signaling on livekit.salareen.com (WebSocket).
+# WebRTC UDP may need a dedicated LoadBalancer or hostNetwork on larger
+# deployments; TCP fallback on 7881 works through this ingress for small rooms.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: livekit
+  namespace: aoep
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [livekit.salareen.com]
+      secretName: livekit-tls
+  rules:
+    - host: livekit.salareen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: livekit
+                port:
+                  number: 7880

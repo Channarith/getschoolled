@@ -19,9 +19,9 @@ for _p in (_REPO / "packages" / "shared" / "src", Path(__file__).resolve().paren
 
 from aoep_shared.harvest import (  # noqa: E402
     GENERATION_INSTRUCTIONS,
+    MAX_SLIDES_PER_LESSON,
     CatalogUpsertStore,
     Checkpoint,
-    CourseTags,
     HarvestCritic,
     HarvestPipeline,
     HarvestQueue,
@@ -33,6 +33,7 @@ from aoep_shared.harvest import (  # noqa: E402
     harvest_loop,
     infer_harvest_metadata,
     merge_tags,
+    partition_course_into_lessons,
 )
 
 DEFAULT_OUT_DIR = _REPO / "output" / "harvest"
@@ -165,6 +166,23 @@ def _emit_course(course, *, out_dir: str, with_media: bool = False) -> None:
         print(f"  PPTX : {pkg.pptx_path}", file=sys.stderr)
 
 
+def _emit_lessons(course, *, args) -> list:
+    """Partition an oversized course into lessons and export each."""
+    lessons = partition_course_into_lessons(course, max_slides=args.max_slides_per_lesson)
+    if len(lessons) > 1:
+        print(
+            f"\nMaterial has {len(course.slides)} slides — partitioned into "
+            f"{len(lessons)} lessons (cap {args.max_slides_per_lesson} slides/lesson).",
+            file=sys.stderr,
+        )
+    for lesson in lessons:
+        out_dir = args.out_dir
+        if len(lessons) > 1:
+            out_dir = str(Path(args.out_dir) / f"lesson-{lesson.lesson_index:02d}")
+        _emit_course(lesson, out_dir=out_dir, with_media=args.with_media)
+    return lessons
+
+
 def _list_harvest_packages(out_dir: Path, *, limit: int = 5) -> list[dict]:
     """Return recent crawl packages under ``out_dir/courses/``."""
     courses_dir = out_dir / "courses"
@@ -197,8 +215,33 @@ def _list_harvest_packages(out_dir: Path, *, limit: int = 5) -> list[dict]:
     return rows
 
 
+def _collect_topics(args: argparse.Namespace) -> list[str]:
+    """All requested topics: repeatable --topic plus comma-separated --topics."""
+    topics: list[str] = []
+    for t in (args.topic or []):
+        if t and t.strip():
+            topics.append(t.strip())
+    for t in (getattr(args, "topics", "") or "").split(","):
+        if t.strip():
+            topics.append(t.strip())
+    # De-dup, preserve order.
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in topics:
+        key = t.lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(t)
+    return out
+
+
 def _crawl(args: argparse.Namespace) -> int:
-    """Online crawl: discover → fetch → generate → RAG index (background-safe)."""
+    """Online crawl: discover → fetch → generate → RAG index (background-safe).
+
+    Batch-crawl many topics at once (repeatable --topic / --topics) into one
+    shared, persistent queue and run for hours or days (--per-hour, --max-hours,
+    --max-days). Resumable across restarts; auto-stops when the queue drains.
+    """
     from aoep_shared.harvest.crawl import open_crawl_session
     from aoep_shared.harvest.discovery import load_env_seeds, load_seeds_file
     from aoep_shared.harvest.export import ensure_pptx_available
@@ -212,12 +255,20 @@ def _crawl(args: argparse.Namespace) -> int:
         out_dir=args.out_dir,
         repo_root=_REPO,
         with_media=args.with_media,
+        max_slides_per_lesson=args.max_slides_per_lesson,
     )
-    if args.topic and not args.seeds_only:
-        n = session.enqueue_topic(args.topic, include_portals=not args.no_portals)
-        print(f"Enqueued {n} seeds for topic {args.topic!r}", file=sys.stderr)
-    elif args.topic and args.seeds_only:
-        print(f"Skipping --topic discovery (--seeds-only); use --seeds or compliance seeds file", file=sys.stderr)
+    topics = _collect_topics(args)
+    if topics and not args.seeds_only:
+        total = 0
+        for topic in topics:
+            n = session.enqueue_topic(topic, include_portals=not args.no_portals)
+            total += n
+            print(f"Enqueued {n} seeds for topic {topic!r}", file=sys.stderr)
+        if len(topics) > 1:
+            print(f"Batch: {total} seeds across {len(topics)} topics into one shared queue",
+                  file=sys.stderr)
+    elif topics and args.seeds_only:
+        print("Skipping --topic discovery (--seeds-only); use --seeds or compliance seeds file", file=sys.stderr)
     if args.seeds:
         seeds_path = _resolve_repo_path(args.seeds)
         if not seeds_path.is_file():
@@ -236,21 +287,86 @@ def _crawl(args: argparse.Namespace) -> int:
     if env_seeds:
         session.enqueue_seeds(env_seeds)
 
-    interval = max(5, int(args.interval))
+    from aoep_shared.harvest.crawl import CrawlLimits, next_crawl_action
+
+    limits = CrawlLimits(
+        daemon=bool(args.daemon),
+        interval_s=max(5, int(args.interval)),
+        max_total=max(0, int(args.max_total)),
+        max_seconds=(max(0.0, float(args.max_hours)) + max(0.0, float(args.max_days)) * 24.0) * 3600.0,
+        per_hour=max(0, int(args.per_hour)),
+        keep_waiting=bool(args.keep_waiting),
+    )
     batch = args.max_items or 5
+    start = time.time()
+    hour_start = start
+    hour_pages = 0
+    prev_fetched = 0
+    batch_no = 0
+
     while True:
+        batch_no += 1
         metrics = session.run_once(max_items=batch)
-        summary = {**metrics.to_dict(), "corpus": session.corpus.stats()}
-        packages = _list_harvest_packages(Path(args.out_dir))
-        if packages:
-            summary["packages"] = packages
+        stats = session.corpus.stats()
+        delta = metrics.fetched - prev_fetched
+        prev_fetched = metrics.fetched
+        hour_pages += delta
+        elapsed = time.time() - start
+        summary = {
+            **metrics.to_dict(),
+            "corpus": stats,
+            "run": {
+                "pages_total": metrics.fetched,
+                "pages_this_hour": hour_pages,
+                "elapsed_min": round(elapsed / 60, 1),
+                "queue_pending": stats.get("queue_pending", 0),
+            },
+        }
+        # Listing packages scans + sorts the whole courses dir; over a days-long
+        # crawl with thousands of courses that's wasteful, so only do it
+        # occasionally (and always on --once / when there was progress).
+        if args.once or (delta > 0 and batch_no % 10 == 1):
+            packages = _list_harvest_packages(Path(args.out_dir))
+            if packages:
+                summary["packages"] = packages
         print(json.dumps(summary, indent=2), flush=True)
+
         if args.once:
             break
-        if args.daemon:
-            time.sleep(interval)
-        else:
+
+        # Roll the hour window before deciding.
+        now = time.time()
+        if now - hour_start >= limits.hour_s:
+            hour_start = now
+            hour_pages = 0
+
+        action, reason, seconds = next_crawl_action(
+            pages_total=metrics.fetched,
+            made_progress=delta > 0,
+            queue_pending=int(stats.get("queue_pending", 0)),
+            elapsed_s=elapsed,
+            hour_pages=hour_pages,
+            hour_elapsed_s=now - hour_start,
+            limits=limits,
+        )
+        if action == "stop":
+            print(
+                f"Crawl stopping ({reason}): {metrics.fetched} pages in "
+                f"{round(elapsed / 60, 1)} min.",
+                file=sys.stderr,
+            )
             break
+        if reason == "hourly_cap":
+            print(
+                f"Hourly cap ({limits.per_hour}/hr) reached — sleeping "
+                f"{round(seconds / 60)} min to pace a long, polite crawl.",
+                file=sys.stderr,
+            )
+            time.sleep(seconds)
+            hour_start = time.time()
+            hour_pages = 0
+        else:
+            time.sleep(seconds)
     return 0
 
 
@@ -298,6 +414,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="override inferred subject (default: RAG + taxonomy)")
     ap.add_argument("--fmt", default="lecture",
                     help="lecture|hands_on|tutorial|video|article")
+    ap.add_argument("--max-slides-per-lesson", type=int, default=MAX_SLIDES_PER_LESSON,
+                    help=("cap slides per lesson (~20 slides = 30 min); longer "
+                          f"material is split into Lesson 1..N (default {MAX_SLIDES_PER_LESSON})"))
     ap.add_argument("--title", default=None)
     ap.add_argument("--query", default=None, help="SQL for --source-type database")
     ap.add_argument("--heading-column", default=None)
@@ -318,12 +437,24 @@ def main(argv: list[str] | None = None) -> int:
                     help="export per-slide narration audio + demo-video refs (media_manifest.json)")
     ap.add_argument("--crawl", action="store_true",
                     help="online crawl: discover OER/search seeds, fetch, generate, RAG index")
-    ap.add_argument("--topic", default=None,
-                    help="with --crawl: discover seeds for this topic (repeatable)")
+    ap.add_argument("--topic", action="append", default=None, metavar="TOPIC",
+                    help="with --crawl: discover seeds for this topic (repeatable for a batch)")
+    ap.add_argument("--topics", default=None, metavar="A,B,C",
+                    help="with --crawl: comma-separated list of topics to batch-crawl at once")
     ap.add_argument("--daemon", action="store_true",
                     help="with --crawl: run forever (background harvest loop)")
     ap.add_argument("--interval", type=int, default=60,
                     help="seconds between crawl batches in --daemon mode (default 60)")
+    ap.add_argument("--max-total", type=int, default=0,
+                    help="with --crawl: stop after N pages ingested this run (0 = unlimited)")
+    ap.add_argument("--max-hours", type=float, default=0.0,
+                    help="with --crawl --daemon: stop after H hours of wall-clock time (0 = unlimited)")
+    ap.add_argument("--max-days", type=float, default=0.0,
+                    help="with --crawl --daemon: stop after D days (added to --max-hours; 0 = unlimited)")
+    ap.add_argument("--per-hour", type=int, default=0,
+                    help="with --crawl --daemon: cap pages ingested per hour for a long, polite crawl (0 = unlimited)")
+    ap.add_argument("--keep-waiting", action="store_true",
+                    help="with --crawl --daemon: keep running after the queue drains (wait for new seeds) instead of exiting")
     ap.add_argument("--no-portals", action="store_true",
                     help="with --crawl --topic: skip curated OER portal seeds")
     ap.add_argument("--seeds-only", action="store_true",
@@ -350,12 +481,12 @@ def main(argv: list[str] | None = None) -> int:
         course = _generate(args)
         report = HarvestCritic().review(course)
         print(json.dumps(report.to_dict(), indent=2))
-        _emit_course(course, out_dir=args.out_dir, with_media=args.with_media)
+        _emit_lessons(course, args=args)
         return 0
 
     if args.generate:
         course = _generate(args)
-        _emit_course(course, out_dir=args.out_dir, with_media=args.with_media)
+        _emit_lessons(course, args=args)
         return 0
 
     queue = HarvestQueue()

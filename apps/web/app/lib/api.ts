@@ -426,6 +426,10 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
 }
 
 export async function getMe(): Promise<Account> {
+  // No token → the visitor is signed out. Skip the request that is guaranteed to
+  // 401 (avoids the console error + a pointless round-trip on every guest load
+  // and nav click). Callers already treat a rejection as "signed out".
+  if (!getToken()) throw new Error("401 Not authenticated");
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
 }
 
@@ -674,12 +678,67 @@ export type AdCreative = {
   duration_s: number; click_url: string | null; skippable_after_s: number | null;
 };
 export type AdBreak = { position: "preroll" | "midroll" | "postroll"; offset_s: number; ads: AdCreative[] };
-export type AdPlan = { course_id: string; tier: string; ad_free: boolean; breaks: AdBreak[] };
+export type AdPlan = { course_id?: string; tier: string; ad_free: boolean; breaks: AdBreak[] };
 
 export async function getAdBreaks(courseId: string, tier: string): Promise<AdPlan> {
   return jsonOrThrow(
     await fetch(`${CURRICULUM_URL}/courses/${encodeURIComponent(courseId)}/ad-breaks?tier=${encodeURIComponent(tier)}`,
       { cache: "no-store" })
+  );
+}
+
+/** Course-agnostic ad plan (Drive Mode audio courses aren't in the catalog). */
+export async function getAdPlan(tier: string, durationMin = 30): Promise<AdPlan> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/plan?tier=${encodeURIComponent(tier)}&duration_min=${durationMin}`,
+      { cache: "no-store" })
+  );
+}
+
+// --- ad revenue accounting (impression/click beacons + admin report) ------ //
+export type AdEventBeacon = {
+  placement: string;
+  network?: string;
+  fmt?: "display" | "video";
+  tier?: string;
+  unit_id?: string;
+  creative_id?: string;
+  advertiser?: string;
+};
+
+/** Fire an ad impression/click beacon (best-effort; never throws). */
+async function sendAdBeacon(kind: "impression" | "click", ev: AdEventBeacon): Promise<void> {
+  try {
+    await fetch(`${BILLING_URL}/ads/${kind}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ev),
+      keepalive: true,
+    });
+  } catch {
+    /* beacons are best-effort telemetry */
+  }
+}
+export function recordAdImpression(ev: AdEventBeacon): void { void sendAdBeacon("impression", ev); }
+export function recordAdClick(ev: AdEventBeacon): void { void sendAdBeacon("click", ev); }
+
+export type AdRevenueRow = {
+  key: string; impressions: number; clicks: number; ctr: number;
+  revenue_usd: number; ecpm_usd: number;
+};
+export type AdRevenueReport = {
+  active_network: string;
+  totals: { impressions: number; clicks: number; ctr: number; revenue_usd: number; ecpm_usd: number };
+  by_network: AdRevenueRow[];
+  by_placement: AdRevenueRow[];
+  by_day: AdRevenueRow[];
+  recent: Array<{ kind: string; placement: string; network: string; fmt: string; tier: string;
+    creative_id: string; advertiser: string; revenue_usd: number; ts: number }>;
+};
+
+export async function getAdRevenue(days = 0): Promise<AdRevenueReport> {
+  return jsonOrThrow(
+    await fetch(`${BILLING_URL}/ads/revenue${days ? `?days=${days}` : ""}`, { cache: "no-store" })
   );
 }
 
@@ -739,6 +798,9 @@ export type AudioCourse = {
   id: string; title: string; category: string; subject: string; level: string;
   duration_min: number; tags: string[]; format: string; visual_required: boolean;
   drive_safe: boolean; segments: AudioSegment[];
+  // Actual language of the spoken body text (may differ from the requested
+  // training locale when it falls back to English). Use this for TTS voice.
+  body_locale?: string; locale?: string; training_locale?: string;
 };
 
 export async function getAudioCategories(locale = "en"): Promise<{ category: string; count: number }[]> {
@@ -790,6 +852,23 @@ export type Pronounce = { score: number; stars: number; passed: boolean; target:
 
 export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; count: number }> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/languages`, { cache: "no-store" }));
+}
+
+export type CatalogVoice = {
+  id: string; label: string; language: string; locale: string;
+  accent: string; gender: string; dialect: string;
+};
+export type VoiceGroup = { language: string; voices: CatalogVoice[] };
+export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/tts/voices`, { cache: "no-store" }));
+}
+
+export type Instructor = {
+  id: string; label: string; emoji: string; description: string;
+  voice_style: string; tone_hint: string;
+};
+export async function getTtsInstructors(): Promise<{ instructors: Instructor[] }> {
+  return jsonOrThrow(await fetch(`${SPEECH_URL}/tts/instructors`, { cache: "no-store" }));
 }
 export async function getLangCourse(code: string): Promise<LangCourse> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/${code}/course`, { cache: "no-store" }));
@@ -921,6 +1000,10 @@ export type Slide = {
   title: string;
   body: string;
   narration: string;
+  // "teach" (normal) or "say_aloud" (repeat-after-me checkpoint). When
+  // say_aloud is set, the player pauses to listen to and score the learner.
+  kind?: string;
+  say_aloud?: string;
 };
 
 export type Lesson = {
@@ -988,6 +1071,12 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401 && getToken()) {
+      // A stored token was rejected (expired, or the server's auth signing key
+      // rotated on a redeploy). Drop it so the UI returns to a clean signed-out
+      // state and stops re-firing failing authenticated requests on every click.
+      clearToken();
+    }
     let detail = res.statusText;
     try {
       const j = (await res.json()) as { detail?: unknown };
@@ -1110,6 +1199,9 @@ export type GroupClass = {
   registered: number;
   needs_bridge: boolean;
   session_id: string;
+  room_size?: number;
+  learner_capacity?: number;
+  live_room_id?: string;
 };
 
 export type ScheduleGroupClassInput = {
@@ -1121,6 +1213,7 @@ export type ScheduleGroupClassInput = {
   duration_min?: number;
   host?: string;
   capacity?: number;
+  room_size?: number;
   language?: string;
   description?: string;
 };
@@ -1132,11 +1225,15 @@ export type GroupClassStart = {
     needs_bridge: boolean;
     platform: string;
     livekit_room: string;
+    live_room_id?: string;
+    join_path?: string;
+    room_size?: number;
     meeting_ref?: string;
     join_url?: string;
     connect_endpoint?: string;
     note?: string;
     livekit?: { room: string; token: string; url: string };
+    moderator_key?: string;
   };
 };
 
@@ -1186,6 +1283,422 @@ export async function startGroupClass(classId: string): Promise<GroupClassStart>
       headers: { "content-type": "application/json" },
     })
   );
+}
+
+// --- Salareen live room (built-in multi-user grid) --- //
+export type LiveParticipant = {
+  id: string;
+  name: string;
+  role: string;
+  identity: string;
+  muted: boolean;
+  muted_by_host: boolean;
+  hand_raised: boolean;
+  can_publish: boolean;
+  joined_at: string;
+};
+
+export type LiveRoomChatMessage = {
+  id: string;
+  from_id: string;
+  from_name: string;
+  text: string;
+  sent_at: string;
+};
+
+export type LiveRoomState = {
+  room_id: string;
+  class_id: string;
+  session_id: string;
+  lesson_id: string;
+  title: string;
+  room_size: number;
+  learner_capacity: number;
+  learner_count: number;
+  seats_left: number;
+  status: string;
+  host: LiveParticipant;
+  participants: LiveParticipant[];
+  chat: LiveRoomChatMessage[];
+  recording: { status: string; started_at?: string; stopped_at?: string; recording_id?: string; note?: string };
+  slide: { index: number; title: string; body: string; narration: string };
+  raised_hands: LiveParticipant[];
+  banned?: { identity: string; name: string; reason: string; banned_at: string; banned_by: string }[];
+  speaking_queue?: {
+    id: string;
+    participant_id: string;
+    name: string;
+    question: string;
+    status: string;
+    position: number;
+    enqueued_at: string;
+  }[];
+  floor_participant_id?: string;
+  floor_holder?: LiveParticipant | null;
+  reports?: {
+    id: string;
+    reporter_participant_id: string;
+    reporter_name: string;
+    reported_participant_id: string;
+    reported_name: string;
+    reported_identity: string;
+    category: string;
+    reason: string;
+    status: string;
+    reported_at: string;
+  }[];
+  gift_feed?: {
+    id: string;
+    gift_id: string;
+    gift_name: string;
+    emoji: string;
+    cost_points: number;
+    sender_name: string;
+    recipient_name: string;
+    sent_at: string;
+  }[];
+  reactions?: { id: string; emoji: string; participant_name: string; sent_at: string }[];
+  viewer_count?: number;
+};
+
+export type LiveGiftCatalogItem = {
+  id: string;
+  name: string;
+  emoji: string;
+  cost_points: number;
+};
+
+export type LiveRoomJoin = {
+  participant: LiveParticipant;
+  room: LiveRoomState;
+  media: { room: string; identity: string; token: string; url: string };
+  gift_balance?: number;
+  host_follower_count?: number;
+  following_host?: boolean;
+};
+
+export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const q = moderatorKey
+    ? `?moderator_key=${encodeURIComponent(moderatorKey)}`
+    : "";
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}${q}`, {
+      cache: "no-store",
+    })
+  );
+}
+
+export async function joinLiveRoom(roomId: string, name: string, identity = ""): Promise<LiveRoomJoin> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, identity }),
+    })
+  );
+}
+
+export async function leaveLiveRoom(roomId: string, participantId: string): Promise<LiveRoomState> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    })
+  );
+}
+
+export async function liveRoomChat(roomId: string, participantId: string, text: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, text }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomRaiseHand(
+  roomId: string,
+  participantId: string,
+  question = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/raise-hand`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomJoinQueue(
+  roomId: string,
+  participantId: string,
+  question = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomLeaveQueue(roomId: string, participantId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-next`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomFinishTurn(
+  roomId: string,
+  participantId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/finish-turn`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomMute(
+  roomId: string,
+  participantId: string,
+  muted: boolean,
+  byHost = false,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/mute`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        muted,
+        by_host: byHost,
+        moderator_key: moderatorKey,
+      }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomBan(
+  roomId: string,
+  participantId: string,
+  reason = "",
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participant_id: participantId,
+        reason,
+        moderator_key: moderatorKey,
+      }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomUnban(
+  roomId: string,
+  identity: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/unban`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity, moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomReport(
+  roomId: string,
+  reporterParticipantId: string,
+  reportedParticipantId: string,
+  reason: string,
+  category = "other"
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/report`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        reporter_participant_id: reporterParticipantId,
+        reported_participant_id: reportedParticipantId,
+        reason,
+        category,
+      }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomDismissReport(
+  roomId: string,
+  reportId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/reports/dismiss`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ report_id: reportId, moderator_key: moderatorKey }),
+      }
+    )
+  );
+  return r.room;
+}
+
+export async function liveRoomAdvance(roomId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/advance`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomAsk(
+  roomId: string,
+  participantId: string,
+  question: string,
+  language = "en"
+): Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question, language }),
+    })
+  );
+}
+
+export async function liveRoomRecordStart(roomId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/record/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomRecordStop(roomId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/record/stop`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    })
+  );
+  return r.room;
+}
+
+export async function getLiveGiftCatalog(): Promise<{ gifts: LiveGiftCatalogItem[] }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/gifts/catalog`, { cache: "no-store" })
+  );
+}
+
+export async function liveRoomSendGift(
+  roomId: string,
+  participantId: string,
+  giftId: string,
+  recipientParticipantId = "",
+): Promise<{ room: LiveRoomState; gift: LiveRoomState["gift_feed"] extends (infer T)[] | undefined ? T : never; sender_balance: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/gifts/send`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        participant_id: participantId,
+        gift_id: giftId,
+        recipient_participant_id: recipientParticipantId,
+      }),
+    })
+  );
+}
+
+export async function liveRoomReaction(
+  roomId: string,
+  participantId: string,
+  emoji: string,
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/reactions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, emoji }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomFollowHost(
+  roomId: string,
+  identity: string,
+  unfollow = false,
+): Promise<{ following: boolean; follower_count: number }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/follow`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity, unfollow }),
+    })
+  );
+}
+
+export async function liveRoomFollowStatus(
+  roomId: string,
+  identity: string,
+): Promise<{ following: boolean; follower_count: number }> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/follow?identity=${encodeURIComponent(identity)}`,
+      { cache: "no-store" },
+    )
+  );
+}
+
+export function liveRoomWsUrl(roomId: string): string {
+  const base = ORCHESTRATOR_URL.replace(/\/$/, "");
+  const proto = base.startsWith("https") ? "wss" : "ws";
+  const host = base.replace(/^https?:\/\//, "");
+  return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
 }
 
 export async function advance(sessionId: string): Promise<Slide> {
@@ -1743,9 +2256,16 @@ export async function hilDecide(
   );
 }
 
+// Homework endpoints are operator-only (internal token, server-side). We call
+// them through the same-origin BFF at /api/homework/* which verifies the caller
+// is an admin and injects the internal token; the browser never holds it.
+const HOMEWORK_BFF = "/api/homework";
+
 export async function gradeReviews(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/homework/grade-reviews${q}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${HOMEWORK_BFF}/grade-reviews${q}`, {
+    headers: { ...authHeaders() }, cache: "no-store",
+  }));
 }
 
 export async function gradeReviewDecide(
@@ -1754,9 +2274,9 @@ export async function gradeReviewDecide(
   editedPayload?: Record<string, unknown>
 ): Promise<ReviewItem> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade-reviews/${itemId}/decision`, {
+    await fetch(`${HOMEWORK_BFF}/grade-reviews/${itemId}/decision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
     })
   );
@@ -1803,29 +2323,74 @@ export async function gradeHomework(args: {
   submission_text?: string;
   handwritten?: boolean;
   deck_id?: string;
+  course_id?: string;
   subject?: string;
 }): Promise<HomeworkGrade> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade`, {
+    await fetch(`${HOMEWORK_BFF}/grade`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );
 }
 
+export type GeneratedQuestion = {
+  question_id: string;
+  type: string;
+  prompt: string;
+  options: string[];
+  answer_index: number | null;
+  answer_key: string;
+  rubric: string[];
+};
+export type GeneratedAssignment = {
+  assignment_id: string;
+  title: string;
+  subject: string;
+  source: string;
+  questions: GeneratedQuestion[];
+};
+
 export async function generateHomework(args: {
   deck_id?: string;
   course_id?: string;
+  content?: string;
   title?: string;
   subject?: string;
   num_questions?: number;
-}): Promise<{ assignment_id: string; title: string; subject: string; questions: unknown[] }> {
+  locale?: string;
+}): Promise<GeneratedAssignment> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/generate`, {
+    await fetch(`${HOMEWORK_BFF}/generate`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
+    })
+  );
+}
+
+export type ScanResult = { raw_text: string; handwritten: boolean; confidence: number; segments: string[] };
+
+// OCR a typed/handwritten submission file (image or text) into a submission.
+export async function scanHomework(file: File, opts: { hint?: string; expected?: number } = {}): Promise<ScanResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.hint) form.append("hint", opts.hint);
+  if (opts.expected != null) form.append("expected", String(opts.expected));
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/scan`, { method: "POST", headers: { ...authHeaders() }, body: form })
+  );
+}
+
+export type AuthorshipResult = { label: string; ai_probability: number; signals: Record<string, number>; note: string };
+
+export async function checkAuthorship(text: string, handwritten = false): Promise<AuthorshipResult> {
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/authorship`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text, handwritten }),
     })
   );
 }
@@ -1945,4 +2510,45 @@ export async function ask(sessionId: string, text: string, language = "en"): Pro
       body: JSON.stringify({ text, language }),
     }),
   );
+}
+
+export type AskDone = {
+  type: "done"; text: string; citations: string[]; grounded: boolean;
+  hallucination_risk: number; understood: string[]; unsupported: string[]; corrected: boolean;
+};
+
+// Stream the conversational agent's answer (SSE) for a real-time, low-latency
+// voice/chat response. onDelta fires per incremental token chunk; resolves with
+// the final guarded answer (or null if the stream produced no done event).
+export async function askStream(
+  sessionId: string, text: string,
+  opts: { language?: string; onDelta?: (chunk: string) => void; onDone?: (d: AskDone) => void } = {},
+): Promise<AskDone | null> {
+  const resp = await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask/stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, language: opts.language ?? "en" }),
+  });
+  if (!resp.ok || !resp.body) throw new Error(`ask stream failed: ${resp.status}`);
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let done: AskDone | null = null;
+  for (;;) {
+    const { value, done: fin } = await reader.read();
+    if (fin) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev: { type?: string; text?: string; [k: string]: unknown };
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === "delta" && ev.text) opts.onDelta?.(ev.text);
+      else if (ev.type === "done") { done = ev as unknown as AskDone; opts.onDone?.(done); }
+    }
+  }
+  return done;
 }

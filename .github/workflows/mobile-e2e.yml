@@ -1,0 +1,174 @@
+# Mobile self-hosted test farm (QA V&V plan, Mobile G2): Maestro E2E on an iOS
+# simulator (macOS runner) + Android emulator (Linux KVM runner), plus the
+# production-bundle secret scan (B-SEC-1) on the real exported artifact.
+#
+# Nightly + manual dispatch, NON-BLOCKING to start. The Maestro flows
+# (apps/mobile/.maestro/*.yaml) target stable testIDs. Remaining prerequisites
+# before this can go green: the MAESTRO_QA_EMAIL / MAESTRO_QA_PASSWORD repo
+# secrets and a seeded QA env for the flows to hit. Until then the Maestro jobs
+# fail honestly (no `|| true` masking) — that red is informative, not a bug.
+#
+# Self-hosted by design (no paid device farm): GitHub-hosted macOS + Linux
+# runners drive the simulators/emulators. A cloud device farm (Firebase Test Lab
+# / BrowserStack) can be added later for real-device matrix breadth without
+# changing this foundation.
+name: mobile-e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"   # nightly, after web-e2e (08:00)
+
+jobs:
+  # B-SEC-1: export a production-profile bundle and assert no credentials leak.
+  bundle-secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - run: pnpm install
+      - name: Bundle secret scan (production export)
+        run: bash scripts/mobile-bundle-scan.sh
+
+  android-maestro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # RN 0.74's gradle plugin (com.facebook.react.settings) does not resolve
+      # on Java 22 (the runner default) — it needs JDK 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: pnpm install
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      # Stand up the SEEDED backend stack (identity seeds qa-learner@salareen.com
+      # via SEED_QA_ACCOUNTS=1 in the e2e overlay). Excludes `web` on purpose —
+      # the mobile app never talks to it and its image build is broken on the
+      # runner. The emulator reaches these host ports via 10.0.2.2, so the app
+      # hits this throwaway stack, NEVER production identity.
+      - name: Start seeded backend stack
+        run: |
+          docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml \
+            up -d --build postgres redis orchestrator memory speech curriculum billing identity integrations
+      - name: Wait for backend health
+        run: |
+          for port in 8000 8004 8005 8008; do
+            for i in $(seq 1 60); do
+              curl -sf "http://localhost:$port/health" >/dev/null && break
+              sleep 5
+            done
+            curl -sf "http://localhost:$port/health" >/dev/null || {
+              echo "port $port never became healthy";
+              docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml logs --tail=80;
+              exit 1;
+            }
+          done
+      # Build the debug APK in LOCAL deploy mode so config.ts targets 10.0.2.2
+      # (the seeded stack on this runner), not the cloud/prod origin.
+      - name: Build Android debug APK (local mode)
+        working-directory: apps/mobile
+        env:
+          MOBILE_DEPLOY_MODE: local
+        run: pnpm run native:build:android
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run Maestro on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          MAESTRO_QA_EMAIL: ${{ secrets.MAESTRO_QA_EMAIL }}
+          MAESTRO_QA_PASSWORD: ${{ secrets.MAESTRO_QA_PASSWORD }}
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test apps/mobile/.maestro/ --format junit --output maestro-android.xml
+      - name: Collect Android crash logs
+        if: always()
+        run: adb logcat -b crash -d > apps/mobile/maestro-android-crash.log 2>/dev/null || true
+      - name: Tear down backend stack
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.e2e.yml down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-android
+          path: |
+            maestro-android.xml
+            apps/mobile/maestro-android-crash.log
+            ~/.maestro/tests/**
+          if-no-files-found: ignore
+
+  ios-maestro:
+    # Gated OFF by default. macOS runners cannot run Linux Docker, so there is no
+    # local seeded backend here. To enable: set repo variable MOBILE_E2E_IOS=true
+    # AND MOBILE_E2E_CLOUD_URL to a SEEDED, NON-PRODUCTION QA backend origin
+    # (never www.salareen.com). Kept off until then so it can't sign a QA user
+    # into production identity.
+    if: ${{ vars.MOBILE_E2E_IOS == 'true' }}
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable && corepack prepare pnpm@11.8.0 --activate
+      - name: Install mobile deps
+        working-directory: apps/mobile
+        run: pnpm install
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      # Debug simulator build via expo prebuild + xcodebuild. Boot the iOS 17
+      # iPhone 15 sim, install the .app, run Maestro. Points at the seeded QA
+      # cloud env (MOBILE_E2E_CLOUD_URL) — required, since there is no local
+      # backend on this runner.
+      # NOTE: `ios:debug` is a stand-in — the exact "build .app for a booted sim
+      # + install" path still needs wiring; this step will fail until then.
+      - name: Build iOS simulator app
+        working-directory: apps/mobile
+        env:
+          MOBILE_CLOUD_BASE_URL: ${{ vars.MOBILE_E2E_CLOUD_URL }}
+        run: pnpm run ios:debug
+      - name: Run Maestro on iOS simulator
+        working-directory: apps/mobile
+        env:
+          MAESTRO_QA_EMAIL: ${{ secrets.MAESTRO_QA_EMAIL }}
+          MAESTRO_QA_PASSWORD: ${{ secrets.MAESTRO_QA_PASSWORD }}
+        run: maestro test .maestro/ --format junit --output maestro-ios.xml
+      - name: Collect iOS simulator crash logs
+        if: always()
+        run: |
+          mkdir -p apps/mobile/ios-crash
+          cp -R ~/Library/Logs/DiagnosticReports/* apps/mobile/ios-crash/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-ios
+          path: |
+            apps/mobile/maestro-ios.xml
+            apps/mobile/ios-crash/**
+          if-no-files-found: ignore

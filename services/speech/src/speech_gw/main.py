@@ -11,7 +11,7 @@ from __future__ import annotations
 from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from pydantic import BaseModel
 
 app = create_service("speech")
@@ -38,6 +38,187 @@ def languages() -> LanguagesResponse:
 def tts_engine(language: str) -> TtsEngineResponse:
     provider = app.state.factory.speech()
     return TtsEngineResponse(language=language, engine=provider.tts_engine(language))
+
+
+def _active_tts_engine() -> str:
+    """Which neural engine will render narration audio right now."""
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
+    from aoep_shared.meeting.natural_tts import _edge_tts_available
+
+    if cosyvoice_tts.cosyvoice_configured(getattr(app.state.config, "cosyvoice_url", "")):
+        return "cosyvoice"
+    if elevenlabs_tts.elevenlabs_configured(app.state.config.elevenlabs_api_key):
+        return "elevenlabs"
+    if _edge_tts_available():
+        return "edge-tts"
+    return "none"
+
+
+class TtsStatusResponse(BaseModel):
+    available: bool
+    engine: str
+
+
+@app.get("/tts/status", response_model=TtsStatusResponse)
+def tts_status() -> TtsStatusResponse:
+    """Let web/mobile clients decide whether to fetch neural audio or fall back
+    to on-device speech synthesis (avoids a wasted round-trip per narration)."""
+    engine = _active_tts_engine()
+    return TtsStatusResponse(available=engine != "none", engine=engine)
+
+
+class TtsRequest(BaseModel):
+    text: str
+    language: str = "en"
+    voice_style: str = "standard"
+    voice: str = ""          # voice_catalog id (accent/language), e.g. "en_gb_f"
+    instructor: str = ""     # instructor personality id, e.g. "kind" / "strict"
+    slang: bool = True       # apply the voice's regional dialect/slang to the text
+
+
+@app.get("/tts/voices")
+def tts_voices() -> dict:
+    """The catalog of narration voices (accents/languages) for a UI picker."""
+    from aoep_shared.voice_catalog import catalog_grouped
+
+    return {"groups": catalog_grouped()}
+
+
+@app.get("/tts/instructors")
+def tts_instructors() -> dict:
+    """The catalog of instructor personalities (kind/strict/child/cartoon/…)."""
+    from aoep_shared.instructors import list_instructors
+
+    return {"instructors": list_instructors()}
+
+
+@app.get("/tts")
+def tts_get(text: str, language: str = "en", voice_style: str = "standard",
+            voice: str = "", instructor: str = "", slang: bool = True) -> Response:
+    """GET variant so mobile (expo-av) can load audio directly from a URI."""
+    return _render_tts(text, language=language, voice_style=voice_style, voice=voice,
+                       instructor=instructor, slang=slang)
+
+
+@app.post("/tts")
+def tts(req: TtsRequest) -> Response:
+    """Render narration to natural MP3 audio in the chosen accent + personality.
+
+    A ``voice`` id (from /tts/voices) selects an accent (British, Texan,
+    Australian, Mandarin, Mexican Spanish, …); an ``instructor`` id (from
+    /tts/instructors) shapes the personality/delivery (kind, strict, child,
+    cartoon, …); ``slang`` applies the region's phrasing. Engine order:
+    ElevenLabs -> edge-tts neural -> 501 (client on-device fallback).
+    """
+    return _render_tts(req.text, language=req.language, voice_style=req.voice_style,
+                       voice=req.voice, instructor=req.instructor, slang=req.slang)
+
+
+def _render_tts(text: str, *, language: str, voice_style: str,
+                voice: str = "", instructor: str = "", slang: bool = True) -> Response:
+    text = (text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    if len(text) > 5000:
+        text = text[:5000]
+    cfg = app.state.config
+    headers = {"Cache-Control": "no-store"}
+
+    from aoep_shared.voice_catalog import resolve_voice
+
+    chosen = resolve_voice(voice, language=language)
+    edge_voice = chosen.edge_voice if chosen else ""
+    eleven_voice_id = chosen.elevenlabs_voice_id if chosen else ""
+    speak_lang = chosen.language if chosen else language
+
+    # Instructor personality shapes delivery (prosody) + ElevenLabs style preset.
+    from aoep_shared.instructors import resolve_instructor
+
+    persona = resolve_instructor(instructor)
+    edge_rate = persona.edge_rate if persona else "+0%"
+    edge_pitch = persona.edge_pitch if persona else "+0Hz"
+    if persona:
+        voice_style = persona.voice_style
+
+    # Regional slang: rewrite the narration in the voice's dialect flavor.
+    if slang and chosen and chosen.dialect:
+        try:
+            from aoep_shared.dialect import humanize_narration
+
+            text = humanize_narration(text, chosen.dialect, language=speak_lang)
+        except Exception:
+            pass  # slang is best-effort; never fail narration over it
+
+    # 0) CosyVoice 2 (self-hosted) is preferred when configured. The instructor's
+    #    tone hint becomes the natural-language instruction (instruct2 mode).
+    from aoep_shared import cosyvoice_tts
+
+    if cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", "")):
+        try:
+            audio, ctype = cosyvoice_tts.synthesize(
+                text, base_url=cfg.cosyvoice_url, language=speak_lang,
+                speaker=(chosen.cosyvoice_speaker if chosen else ""),
+                instruct=(persona.tone_hint if persona else ""),
+                api_key=getattr(cfg, "cosyvoice_api_key", ""),
+            )
+            return Response(content=audio, media_type=ctype or "audio/wav",
+                            headers={**headers, "X-TTS-Engine": "cosyvoice"})
+        except cosyvoice_tts.CosyVoiceError:
+            pass  # fall through to ElevenLabs / edge-tts / client fallback
+
+    from aoep_shared import elevenlabs_tts
+
+    el_ready = elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key)
+
+    # 1) ElevenLabs when a specific EL voice is mapped, OR when no accent-specific
+    #    edge voice is requested (EL is the most natural default).
+    if el_ready and (eleven_voice_id or not edge_voice):
+        try:
+            audio = elevenlabs_tts.synthesize(
+                text, api_key=cfg.elevenlabs_api_key, language=speak_lang,
+                style=voice_style, voice_id=eleven_voice_id, model=cfg.elevenlabs_model,
+            )
+            return Response(content=audio, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "elevenlabs"})
+        except elevenlabs_tts.ElevenLabsError:
+            pass
+
+    # 2) edge-tts neural — TRUE per-accent voices (British/Aussie/Mandarin/…).
+    import tempfile
+    from pathlib import Path
+
+    from aoep_shared.meeting.natural_tts import synthesize_neural
+
+    tmp = Path(tempfile.mkstemp(suffix=".mp3")[1])
+    try:
+        if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice,
+                             rate=edge_rate, pitch=edge_pitch):
+            data = tmp.read_bytes()
+            return Response(content=data, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "edge-tts"})
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+    # 3) ElevenLabs default as a last resort (e.g. edge-tts not installed).
+    if el_ready:
+        try:
+            audio = elevenlabs_tts.synthesize(
+                text, api_key=cfg.elevenlabs_api_key, language=speak_lang,
+                style=voice_style, model=cfg.elevenlabs_model,
+            )
+            return Response(content=audio, media_type="audio/mpeg",
+                            headers={**headers, "X-TTS-Engine": "elevenlabs"})
+        except elevenlabs_tts.ElevenLabsError:
+            pass
+
+    # 4) No server engine — client uses on-device speech synthesis.
+    raise HTTPException(
+        status_code=501,
+        detail="no server TTS engine configured; use client speech synthesis",
+    )
 
 
 # --------------------------------------------------------------------------- #

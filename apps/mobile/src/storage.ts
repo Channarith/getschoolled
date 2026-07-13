@@ -14,6 +14,8 @@ const KEYS = {
   streak: "@aic/streak.v1",         // { days: number, lastDayISO: string }
   interests: "@aic/interests.v1",   // string[] (categories the user has opened)
   authToken: "@aic/auth-token.v1",  // identity JWT
+  potionBest: "@aic/potionlab-best.v1", // number (Potion Lab arcade high score)
+  previewMode: "@aic/preview.v1",   // guest browse without login
 } as const;
 
 /** In-memory auth cache (AsyncStorage is async; API client reads sync). */
@@ -45,6 +47,10 @@ export type Settings = {
   narrationVoicePref: NarrationVoicePref;
   /** Spoken lesson language for Drive Mode (en / es / zh). */
   trainingLocale: TrainingLocale;
+  /** Play animated Salareen jingle on first app launch. */
+  introSplashEnabled: boolean;
+  /** Set after the first-launch intro has been shown (or skipped). */
+  introSplashSeen: boolean;
 };
 
 export type { TrainingLocale };
@@ -63,6 +69,8 @@ export const DEFAULT_SETTINGS: Settings = {
   driveDrivingAlerts: true,
   narrationVoicePref: "auto",
   trainingLocale: "en",
+  introSplashEnabled: true,
+  introSplashSeen: false,
 };
 
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
@@ -173,6 +181,16 @@ export async function recordInterest(category: string): Promise<void> {
   await writeJSON(KEYS.interests, Array.from(set).slice(-12));
 }
 
+export async function getPotionBest(): Promise<number> {
+  return readJSON<number>(KEYS.potionBest, 0);
+}
+export async function setPotionBest(score: number): Promise<number> {
+  const cur = await getPotionBest();
+  const next = Math.max(cur, Math.floor(score));
+  if (next !== cur) await writeJSON(KEYS.potionBest, next);
+  return next;
+}
+
 export function getToken(): string | null {
   return tokenCache;
 }
@@ -194,4 +212,12 @@ export async function setAuthToken(token: string): Promise<void> {
 export async function clearAuthToken(): Promise<void> {
   tokenCache = null;
   try { await AsyncStorage.removeItem(KEYS.authToken); } catch { /* ignore */ }
+}
+
+export async function getPreviewMode(): Promise<boolean> {
+  return readJSON<boolean>(KEYS.previewMode, false);
+}
+
+export async function setPreviewMode(on: boolean): Promise<void> {
+  await writeJSON(KEYS.previewMode, on);
 }

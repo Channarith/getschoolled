@@ -1,0 +1,38 @@
+# E-AUTH-1 — cold start -> QA login -> persist across relaunch (QA V&V plan).
+#
+# Uses stable testIDs (added to AuthScreen + BottomTabs), not localized text, so
+# the flow survives copy edits and locale switches. Credentials come from env,
+# NEVER the bundle: MAESTRO_QA_EMAIL / MAESTRO_QA_PASSWORD. Runs against the
+# local-integrated compose stack (MOBILE_DEPLOY_MODE=local), never production
+# identity.
+appId: com.aiclassroom.app
+env:
+  QA_EMAIL: ${MAESTRO_QA_EMAIL}
+  QA_PASSWORD: ${MAESTRO_QA_PASSWORD}
+---
+# Signed-out launch lands directly on the auth screen.
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "auth-screen"
+- tapOn:
+    id: "auth-email"
+- inputText: ${QA_EMAIL}
+- tapOn:
+    id: "auth-password"
+- inputText: ${QA_PASSWORD}
+- tapOn:
+    id: "auth-submit"
+# Signed in: the bottom tab bar renders.
+- assertVisible:
+    id: "tab-home"
+- takeScreenshot: auth-signed-in
+# Persistence: kill + relaunch WITHOUT clearing state; token survives.
+- stopApp
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: "tab-home"
+- assertNotVisible:
+    id: "auth-screen"
+- takeScreenshot: auth-persisted

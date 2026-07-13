@@ -69,7 +69,8 @@ export default function GroupClassesPage() {
   const [meetingUrl, setMeetingUrl] = useState("");
   const [startTime, setStartTime] = useState(defaultStart());
   const [duration, setDuration] = useState(60);
-  const [capacity, setCapacity] = useState(100);
+  const [capacity, setCapacity] = useState(5);
+  const [roomSize, setRoomSize] = useState(6);
 
   const offline = t("error.offline");
 
@@ -113,7 +114,8 @@ export default function GroupClassesPage() {
         meeting_url: meetingUrl.trim(),
         start_time: new Date(startTime).toISOString(),
         duration_min: duration,
-        capacity,
+        capacity: platform === "salareen" ? roomSize - 1 : capacity,
+        room_size: platform === "salareen" ? roomSize : undefined,
         language: lesson?.language ?? "en",
       });
       setTitle("");
@@ -151,9 +153,10 @@ export default function GroupClassesPage() {
     if (!requireAccount()) return;
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
-    } else {
-      window.location.href = "/class";
+      return;
     }
+    const roomId = gc.live_room_id || `class-${gc.id}`;
+    window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
   }
 
   async function onStart(gc: GroupClass) {
@@ -163,6 +166,10 @@ export default function GroupClassesPage() {
     try {
       const res = await startGroupClass(gc.id);
       setStarted(res);
+      const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
+      if (res.bridge.moderator_key) {
+        sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
+      }
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));
@@ -172,9 +179,9 @@ export default function GroupClassesPage() {
   }
 
   return (
-    <main className="container">
+    <main className="container page-one group-page">
       <h1>{t("group.title")}</h1>
-      <p className="muted" style={{ maxWidth: 720 }}>
+      <p className="muted" style={{ margin: "0 0 16px", lineHeight: 1.5 }}>
         {t("group.intro")}
       </p>
 
@@ -194,9 +201,9 @@ export default function GroupClassesPage() {
       </div>
 
       {showForm && (
-        <div className="card">
+        <div className="card group-schedule-panel">
           <h3 style={{ marginTop: 0 }}>{t("group.scheduleCta")}</h3>
-          <div style={{ display: "grid", gap: 10, maxWidth: 560 }}>
+          <div style={{ display: "grid", gap: 10 }}>
             <label>
               <div className="muted">{t("group.fTitle")}</div>
               <input style={{ width: "100%" }} value={title}
@@ -221,6 +228,24 @@ export default function GroupClassesPage() {
                 ))}
               </select>
             </label>
+            {platform === "salareen" && (
+              <label>
+                <div className="muted">Room size (including AI host)</div>
+                <select
+                  style={{ width: "100%" }}
+                  value={roomSize}
+                  onChange={(e) => {
+                    const size = Number(e.target.value);
+                    setRoomSize(size);
+                    setCapacity(size - 1);
+                  }}
+                >
+                  <option value={4}>4 seats (3 learners + Theodore)</option>
+                  <option value={6}>6 seats (5 learners + Theodore)</option>
+                  <option value={9}>9 seats (8 learners + Theodore)</option>
+                </select>
+              </label>
+            )}
             {platform !== "salareen" && (
               <label>
                 <div className="muted">{t("group.fMeetingUrl")}</div>
@@ -240,12 +265,19 @@ export default function GroupClassesPage() {
                 <input type="number" min={5} step={5} style={{ width: "100%" }} value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))} />
               </label>
-              <label style={{ width: 110 }}>
-                <div className="muted">{t("group.fCapacity")}</div>
-                <input type="number" min={1} style={{ width: "100%" }} value={capacity}
-                  onChange={(e) => setCapacity(Number(e.target.value))} />
-              </label>
+              {platform !== "salareen" && (
+                <label style={{ width: 110 }}>
+                  <div className="muted">{t("group.fCapacity")}</div>
+                  <input type="number" min={1} style={{ width: "100%" }} value={capacity}
+                    onChange={(e) => setCapacity(Number(e.target.value))} />
+                </label>
+              )}
             </div>
+            {platform === "salareen" && (
+              <div className="muted" style={{ fontSize: 13 }}>
+                Salareen live room: Theodore hosts; learners join the multi-user grid.
+              </div>
+            )}
             <div className="row">
               <button onClick={onSchedule} disabled={busy || !lessonId}
                 style={{ background: "#111", color: "#fff" }}>
@@ -256,49 +288,50 @@ export default function GroupClassesPage() {
         </div>
       )}
 
-      <h3>{t("group.upcoming")}</h3>
+      <h3 style={{ marginTop: 20 }}>{t("group.upcoming")}</h3>
       {classes.length === 0 && (
         <div className="card"><div className="muted">{t("group.empty")}</div></div>
       )}
 
-      <div style={{ display: "grid", gap: 12 }}>
+      <div className="group-class-list">
         {classes.map((gc) => {
           const badge = PLATFORM_BADGE[gc.platform] ?? PLATFORM_BADGE.salareen;
           return (
-            <div key={gc.id} className="card">
-              <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+            <div key={gc.id} className="card group-class-card">
+              <div className="group-class-meta">
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
+                    background: badge.bg, color: badge.fg, fontWeight: 600 }}>
+                    {badge.label}
+                  </span>
+                  {gc.status === "live" && (
                     <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
-                      background: badge.bg, color: badge.fg, fontWeight: 600 }}>
-                      {badge.label}
+                      background: "#fee2e2", color: "#b91c1c", fontWeight: 600 }}>
+                      ● {t("group.live")}
                     </span>
-                    {gc.status === "live" && (
-                      <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: 999,
-                        background: "#fee2e2", color: "#b91c1c", fontWeight: 600 }}>
-                        ● {t("group.live")}
-                      </span>
-                    )}
-                  </div>
-                  <h3 style={{ margin: "8px 0 2px" }}>{gc.title}</h3>
-                  <div className="muted">{fmtTime(gc.start_time)} · {gc.duration_min} min · {gc.host}</div>
-                  <div className="muted">
-                    {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
-                  </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
-                    {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
-                  </button>
-                  <button onClick={() => onJoin(gc)} disabled={busy}>
-                    {t("group.join")}
-                  </button>
-                  <button onClick={() => onStart(gc)} disabled={busy}
-                    title={t("group.startHint")}
-                    style={{ background: "#0ea5e9", color: "#fff" }}>
-                    {t("group.start")}
-                  </button>
+                <h3>{gc.title}</h3>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {fmtTime(gc.start_time)} · {gc.duration_min} min · {gc.host}
                 </div>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
+                  {gc.platform === "salareen" && gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
+                </div>
+              </div>
+              <div className="group-class-actions">
+                <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
+                  {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
+                </button>
+                <button onClick={() => onJoin(gc)} disabled={busy}>
+                  {t("group.join")}
+                </button>
+                <button onClick={() => onStart(gc)} disabled={busy}
+                  title={t("group.startHint")}
+                  style={{ background: "#0ea5e9", color: "#fff" }}>
+                  {t("group.start")}
+                </button>
               </div>
             </div>
           );
@@ -330,8 +363,16 @@ export default function GroupClassesPage() {
                   {t("group.openMeeting")}
                 </button>
               )}
-              <button onClick={() => (window.location.href = "/class")}
-                style={{ background: "#111", color: "#fff" }}>
+              <button
+                onClick={() => {
+                  const roomId = started.bridge.live_room_id || started.bridge.livekit?.room || `class-${started.class.id}`;
+                  if (started.bridge.moderator_key) {
+                    sessionStorage.setItem(`salareen-live-moderator:${roomId}`, started.bridge.moderator_key);
+                  }
+                  window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
+                }}
+                style={{ background: "#111", color: "#fff" }}
+              >
                 {t("group.openClass")}
               </button>
               <button onClick={() => setStarted(null)}>{t("group.close")}</button>

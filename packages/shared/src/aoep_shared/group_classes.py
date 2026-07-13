@@ -18,7 +18,12 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .group_class_backend import GroupClassBackend
+
+from .live_room import learner_capacity, validate_room_size
 
 # Platforms a class can run on. The three external ones map onto
 # aoep_shared.bridges.BridgePlatform; "salareen" is the built-in LiveKit room
@@ -86,6 +91,7 @@ class GroupClass:
     duration_min: int = 60
     host: str = "Salareen AI"
     capacity: int = 100
+    room_size: int = 6  # Salareen grid: 4, 6, or 9 total seats including AI host
     language: str = "en"
     description: str = ""
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -93,6 +99,7 @@ class GroupClass:
     registrations: List[Registration] = field(default_factory=list)
     session_id: str = ""           # set when the class goes live
     bridge_session_id: str = ""    # set when the meeting bridge is connected
+    live_room_id: str = ""         # Salareen room id (class-{id}) when live
 
     def __post_init__(self) -> None:
         self.title = (self.title or "").strip()
@@ -116,9 +123,22 @@ class GroupClass:
         self.duration_min = int(self.duration_min)
         if self.duration_min <= 0:
             raise GroupClassError("duration_min must be positive")
+        self.room_size = int(self.room_size)
+        if self.platform == "salareen":
+            self.room_size = validate_room_size(self.room_size)
+            max_learners = learner_capacity(self.room_size)
+            if self.capacity > max_learners:
+                self.capacity = max_learners
+        else:
+            self.room_size = 6
         self.capacity = int(self.capacity)
         if self.capacity <= 0:
             raise GroupClassError("capacity must be positive")
+        if self.platform == "salareen" and self.capacity > learner_capacity(self.room_size):
+            raise GroupClassError(
+                f"salareen capacity cannot exceed {learner_capacity(self.room_size)} "
+                f"for a {self.room_size}-seat room"
+            )
         if self.status not in _STATUSES:
             raise GroupClassError(f"invalid status {self.status!r}")
 
@@ -143,29 +163,62 @@ class GroupClass:
         d["seats_left"] = self.seats_left
         d["registered"] = len(self.registrations)
         d["needs_bridge"] = self.needs_bridge
+        d["room_size"] = self.room_size
+        d["learner_capacity"] = (
+            learner_capacity(self.room_size) if self.platform == "salareen" else self.capacity
+        )
+        d["live_room_id"] = self.live_room_id
         return d
 
 
 class GroupClassStore:
-    """In-memory registry of scheduled group classes (process-local)."""
+    """Registry of scheduled group classes.
 
-    def __init__(self) -> None:
-        self._classes: Dict[str, GroupClass] = {}
+    In-memory locally; on Vultr VKE (``REDIS_URL`` set) classes are stored in
+    Redis so start/join flows work on any orchestrator replica.
+    """
+
+    def __init__(self, backend: Optional["GroupClassBackend"] = None) -> None:
+        if backend is None:
+            from .group_class_backend import build_group_class_backend
+
+            backend = build_group_class_backend()
+        self._backend = backend
+
+    @property
+    def backend_name(self) -> str:
+        return self._backend.name
+
+    def _commit(self, gc: GroupClass) -> None:
+        self._backend.save(gc)
+
+    def _all_classes(self) -> List[GroupClass]:
+        items: List[GroupClass] = []
+        for class_id in self._backend.list_ids():
+            gc = self._backend.get(class_id)
+            if gc is not None:
+                items.append(gc)
+        return items
 
     def schedule(self, **kwargs) -> GroupClass:
         gc = GroupClass(**kwargs)
-        self._classes[gc.id] = gc
+        self._commit(gc)
         return gc
 
     def add(self, gc: GroupClass) -> GroupClass:
-        self._classes[gc.id] = gc
+        self._commit(gc)
+        return gc
+
+    def save(self, gc: GroupClass) -> GroupClass:
+        """Persist field updates (session_id, live_room_id, etc.)."""
+        self._commit(gc)
         return gc
 
     def get(self, class_id: str) -> Optional[GroupClass]:
-        return self._classes.get(class_id)
+        return self._backend.get(class_id)
 
     def require(self, class_id: str) -> GroupClass:
-        gc = self._classes.get(class_id)
+        gc = self._backend.get(class_id)
         if gc is None:
             raise KeyError(class_id)
         return gc
@@ -184,7 +237,7 @@ class GroupClassStore:
         currently live). ``include_ended`` drops classes already marked ended.
         """
         ref = now or _now()
-        items = list(self._classes.values())
+        items = self._all_classes()
         if not include_ended:
             items = [c for c in items if c.status != STATUS_ENDED]
         if upcoming_only:
@@ -212,6 +265,7 @@ class GroupClassStore:
         if gc.is_full:
             raise ClassFullError("this class is full")
         gc.registrations.append(reg)
+        self._commit(gc)
         return reg
 
     def set_status(self, class_id: str, status: str) -> GroupClass:
@@ -219,6 +273,7 @@ class GroupClassStore:
             raise GroupClassError(f"invalid status {status!r}")
         gc = self.require(class_id)
         gc.status = status
+        self._commit(gc)
         return gc
 
 
@@ -236,8 +291,14 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
             "needs_bridge": False,
             "platform": gc.platform,
             "livekit_room": room,
+            "live_room_id": gc.live_room_id or room,
+            "room_size": gc.room_size,
+            "join_path": f"/live-room/{gc.live_room_id or room}",
             "join_url": gc.meeting_url or "",
-            "note": "Built-in Salareen room — learners join the live class directly.",
+            "note": (
+                "Built-in Salareen live room — join the multi-user grid "
+                f"({gc.room_size} seats, AI host Theodore)."
+            ),
         }
     return {
         "needs_bridge": True,
@@ -307,6 +368,20 @@ def calendar_ics(
     return "\r\n".join(lines) + "\r\n"
 
 
+def standard_class_id(platform: str, lesson_id: str, start_iso: str) -> str:
+    """Stable id for a seeded standard class.
+
+    Derived from (platform, lesson, start time) so EVERY orchestrator replica —
+    and every process restart — produces the exact same id for the same logical
+    class. That's what lets a class listed by one replica be started on another
+    (previously the id was random per replica → "unknown group class" 404).
+    """
+    import hashlib
+
+    h = hashlib.sha1(f"{platform}|{lesson_id}|{start_iso}".encode()).hexdigest()
+    return f"std{h[:9]}"
+
+
 def ensure_standard_daily_classes(
     store: GroupClassStore,
     *,
@@ -325,37 +400,57 @@ def ensure_standard_daily_classes(
     now_local = _now().astimezone(tz)
     created = 0
     slot_hours = (12, 17)
+    salareen_hours = (10, 15)
     titles = {
         12: "Standard Group Class — Midday",
         17: "Standard Group Class — Evening",
     }
+    salareen_titles = {
+        10: "Salareen Live Class — Morning",
+        15: "Salareen Live Class — Afternoon",
+    }
+    # Snapshot existing classes once (not per-slot) and dedup by BOTH the logical
+    # slot key and the deterministic id, so re-seeding is idempotent even against
+    # legacy random-id rows.
+    existing = store.list(upcoming_only=False)
+    seen_keys = {(c.platform, c.start_time, c.lesson_id) for c in existing}
+    seen_ids = {c.id for c in existing}
+
+    def _seed(platform: str, hour: int, title: str, day_offset: int, hours: tuple,
+              **extra) -> None:
+        nonlocal created
+        start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
+        if start_local <= now_local:
+            return
+        start_iso = start_local.astimezone(timezone.utc).isoformat()
+        lesson_id = lessons[(day_offset * len(hours) + hours.index(hour)) % len(lessons)]
+        cid = standard_class_id(platform, lesson_id, start_iso)
+        if (platform, start_iso, lesson_id) in seen_keys or cid in seen_ids:
+            return
+        store.schedule(
+            id=cid, title=title, lesson_id=lesson_id, platform=platform,
+            start_time=start_iso, duration_min=60, language="en", **extra,
+        )
+        seen_keys.add((platform, start_iso, lesson_id))
+        seen_ids.add(cid)
+        created += 1
+
     for day_offset in range(days_ahead):
         day = (now_local + timedelta(days=day_offset)).date()
         for hour in slot_hours:
-            start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
-            if start_local <= now_local:
-                continue
-            start_iso = start_local.astimezone(timezone.utc).isoformat()
+            start_iso = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz) \
+                .astimezone(timezone.utc).isoformat()
             lesson_id = lessons[(day_offset * len(slot_hours) + slot_hours.index(hour)) % len(lessons)]
-            title = titles[hour]
-            existing = [
-                c for c in store.list(upcoming_only=False)
-                if c.platform == "meet" and c.start_time == start_iso and c.lesson_id == lesson_id
-            ]
-            if existing:
-                continue
-            gc = store.schedule(
-                title=title,
-                lesson_id=lesson_id,
-                platform="meet",
-                meeting_url=google_meet_url(f"{lesson_id}-{start_iso}"),
-                start_time=start_iso,
-                duration_min=60,
-                host="Salareen AI",
-                capacity=100,
-                language="en",
+            _seed(
+                "meet", hour, titles[hour], day_offset, slot_hours,
+                meeting_url=google_meet_url(standard_class_id("meet", lesson_id, start_iso)),
+                host="Salareen AI", capacity=100,
                 description="Daily standard group class on Google Meet. Book to receive a calendar invite.",
             )
-            gc.meeting_url = google_meet_url(gc.id)
-            created += 1
+        for hour in salareen_hours:
+            _seed(
+                "salareen", hour, salareen_titles[hour], day_offset, salareen_hours,
+                meeting_url="", host="Theodore (AI)", capacity=5, room_size=6,
+                description="In-app Salareen live room with Theodore. Tap Start to go live, then Join.",
+            )
     return created

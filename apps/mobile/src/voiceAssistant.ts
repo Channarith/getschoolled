@@ -91,6 +91,35 @@ export function stripWakeWords(text: string): string {
     .trim();
 }
 
+const QUESTION_STARTERS =
+  /^(what'?s?|why|how|when|where|who|whom|whose|which|can|could|would|will|do|does|did|is|are|am|should|shall|may|might|have|has|had|explain|define|describe|tell me|help me|i (?:don'?t|do not) (?:understand|get))\b/i;
+
+// Is this a real question (vs a statement, filler, or noise)? Used by
+// always-listen mode to pause the course ONLY for questions.
+export function isQuestion(text: string): boolean {
+  const t = (text || "").trim();
+  if (!t) return false;
+  if (t.endsWith("?")) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  if (QUESTION_STARTERS.test(t)) return true;
+  return /\b(what|why|how|explain|meaning of|difference between|what does|how do|how does)\b/i.test(t);
+}
+
+function normalizeWords(text: string): string[] {
+  return (text || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+}
+
+// Is the heard text most likely the narration the mic picked up (echo)?
+export function isLikelyEcho(heard: string, narration: string): boolean {
+  const h = normalizeWords(heard);
+  if (h.length < 2) return false;
+  const narrationSet = new Set(normalizeWords(narration));
+  if (narrationSet.size === 0) return false;
+  const overlap = h.filter((w) => narrationSet.has(w)).length / h.length;
+  return overlap >= 0.6;
+}
+
 export async function isVoiceRecognitionAvailable(): Promise<boolean> {
   if (Platform.OS === "web") {
     const root = globalThis as typeof globalThis & {
@@ -167,6 +196,7 @@ export type StartListeningOpts = {
   onResult: (transcript: string) => void;
   onError: (code: string) => void;
   onEnd: () => void;
+  continuous?: boolean;
 };
 
 function startWebListening(opts: StartListeningOpts): boolean {
@@ -184,7 +214,7 @@ function startWebListening(opts: StartListeningOpts): boolean {
   const recognition = new Ctor();
   recognition.lang = localeToBcp47(opts.locale);
   recognition.interimResults = false;
-  recognition.continuous = false;
+  recognition.continuous = opts.continuous ?? false;
   recognition.onresult = (event) => {
     const results = event.results as ArrayLike<{ [j: number]: { transcript?: string } }>;
     const text = Array.from({ length: results.length }, (_, i) => results[i]?.[0]?.transcript ?? "")
@@ -231,7 +261,7 @@ function startNativeListening(opts: StartListeningOpts): boolean {
     mod.start({
       lang: localeToBcp47(opts.locale),
       interimResults: false,
-      continuous: false,
+      continuous: opts.continuous ?? false,
       contextualStrings: CONTEXTUAL_PHRASES,
       iosTaskHint: "dictation",
       androidIntentOptions: {
@@ -267,6 +297,50 @@ export async function startVoiceListening(opts: StartListeningOpts): Promise<boo
   const started = startNativeListening(opts);
   if (!started) opts.onError("unavailable");
   return started;
+}
+
+// ---- Ambient (always-on) listening for hands-free Drive Mode --------------- //
+// Keeps the mic listening while the Drive screen is foregrounded, auto-restarting
+// when the recognizer ends on silence/timeout. Callers wake-word-gate the results
+// so the narration the mic also hears never triggers a false question.
+let ambientActive = false;
+
+export type AmbientOpts = {
+  locale: string;
+  onResult: (transcript: string) => void;
+  onError?: (code: string) => void;
+};
+
+export async function startAmbientListening(opts: AmbientOpts): Promise<boolean> {
+  ambientActive = true;
+  const run = async (): Promise<boolean> =>
+    startVoiceListening({
+      locale: opts.locale,
+      continuous: true,
+      onResult: (t) => opts.onResult(t),
+      onError: (code) => {
+        if (code === "permission_denied" || code === "unavailable") {
+          ambientActive = false;
+          opts.onError?.(code);
+        }
+        // transient errors (no-speech/aborted/network) -> onEnd restarts
+      },
+      onEnd: () => {
+        if (ambientActive) {
+          setTimeout(() => { if (ambientActive) void run(); }, 600);
+        }
+      },
+    });
+  return run();
+}
+
+export function stopAmbientListening(): void {
+  ambientActive = false;
+  stopVoiceListening();
+}
+
+export function isAmbientListening(): boolean {
+  return ambientActive;
 }
 
 /** Open the system voice assistant where the OS allows (e.g. Google app on Android). */
