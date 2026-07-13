@@ -368,6 +368,20 @@ def calendar_ics(
     return "\r\n".join(lines) + "\r\n"
 
 
+def standard_class_id(platform: str, lesson_id: str, start_iso: str) -> str:
+    """Stable id for a seeded standard class.
+
+    Derived from (platform, lesson, start time) so EVERY orchestrator replica —
+    and every process restart — produces the exact same id for the same logical
+    class. That's what lets a class listed by one replica be started on another
+    (previously the id was random per replica → "unknown group class" 404).
+    """
+    import hashlib
+
+    h = hashlib.sha1(f"{platform}|{lesson_id}|{start_iso}".encode()).hexdigest()
+    return f"std{h[:9]}"
+
+
 def ensure_standard_daily_classes(
     store: GroupClassStore,
     *,
@@ -395,60 +409,48 @@ def ensure_standard_daily_classes(
         10: "Salareen Live Class — Morning",
         15: "Salareen Live Class — Afternoon",
     }
+    # Snapshot existing classes once (not per-slot) and dedup by BOTH the logical
+    # slot key and the deterministic id, so re-seeding is idempotent even against
+    # legacy random-id rows.
+    existing = store.list(upcoming_only=False)
+    seen_keys = {(c.platform, c.start_time, c.lesson_id) for c in existing}
+    seen_ids = {c.id for c in existing}
+
+    def _seed(platform: str, hour: int, title: str, day_offset: int, hours: tuple,
+              **extra) -> None:
+        nonlocal created
+        start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
+        if start_local <= now_local:
+            return
+        start_iso = start_local.astimezone(timezone.utc).isoformat()
+        lesson_id = lessons[(day_offset * len(hours) + hours.index(hour)) % len(lessons)]
+        cid = standard_class_id(platform, lesson_id, start_iso)
+        if (platform, start_iso, lesson_id) in seen_keys or cid in seen_ids:
+            return
+        store.schedule(
+            id=cid, title=title, lesson_id=lesson_id, platform=platform,
+            start_time=start_iso, duration_min=60, language="en", **extra,
+        )
+        seen_keys.add((platform, start_iso, lesson_id))
+        seen_ids.add(cid)
+        created += 1
+
     for day_offset in range(days_ahead):
         day = (now_local + timedelta(days=day_offset)).date()
         for hour in slot_hours:
-            start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
-            if start_local <= now_local:
-                continue
-            start_iso = start_local.astimezone(timezone.utc).isoformat()
+            start_iso = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz) \
+                .astimezone(timezone.utc).isoformat()
             lesson_id = lessons[(day_offset * len(slot_hours) + slot_hours.index(hour)) % len(lessons)]
-            title = titles[hour]
-            existing = [
-                c for c in store.list(upcoming_only=False)
-                if c.platform == "meet" and c.start_time == start_iso and c.lesson_id == lesson_id
-            ]
-            if existing:
-                continue
-            gc = store.schedule(
-                title=title,
-                lesson_id=lesson_id,
-                platform="meet",
-                meeting_url=google_meet_url(f"{lesson_id}-{start_iso}"),
-                start_time=start_iso,
-                duration_min=60,
-                host="Salareen AI",
-                capacity=100,
-                language="en",
+            _seed(
+                "meet", hour, titles[hour], day_offset, slot_hours,
+                meeting_url=google_meet_url(standard_class_id("meet", lesson_id, start_iso)),
+                host="Salareen AI", capacity=100,
                 description="Daily standard group class on Google Meet. Book to receive a calendar invite.",
             )
-            gc.meeting_url = google_meet_url(gc.id)
-            created += 1
         for hour in salareen_hours:
-            start_local = datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
-            if start_local <= now_local:
-                continue
-            start_iso = start_local.astimezone(timezone.utc).isoformat()
-            lesson_id = lessons[(day_offset * len(salareen_hours) + salareen_hours.index(hour)) % len(lessons)]
-            title = salareen_titles[hour]
-            existing = [
-                c for c in store.list(upcoming_only=False)
-                if c.platform == "salareen" and c.start_time == start_iso and c.lesson_id == lesson_id
-            ]
-            if existing:
-                continue
-            store.schedule(
-                title=title,
-                lesson_id=lesson_id,
-                platform="salareen",
-                meeting_url="",
-                start_time=start_iso,
-                duration_min=60,
-                host="Theodore (AI)",
-                capacity=5,
-                room_size=6,
-                language="en",
+            _seed(
+                "salareen", hour, salareen_titles[hour], day_offset, salareen_hours,
+                meeting_url="", host="Theodore (AI)", capacity=5, room_size=6,
                 description="In-app Salareen live room with Theodore. Tap Start to go live, then Join.",
             )
-            created += 1
     return created

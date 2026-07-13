@@ -6,9 +6,29 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
+from aoep_shared.group_classes import GroupClassStore, ensure_standard_daily_classes
 from orchestrator.main import app
 
 client = TestClient(app)
+
+
+def test_start_group_class_seeds_on_miss():
+    """Regression: starting a standard class whose id isn't yet in this worker's
+    store (multi-replica / post-restart) must seed-on-miss and succeed, not 404.
+    """
+    with TestClient(app) as c:
+        # A deterministic standard-class id, as another replica's /list produced.
+        probe = GroupClassStore()
+        ensure_standard_daily_classes(probe)
+        salareen = [gc for gc in probe.list(upcoming_only=True) if gc.platform == "salareen"]
+        assert salareen, "expected seeded salareen classes"
+        cid = salareen[0].id
+        # Simulate a replica that has not materialized this class yet.
+        app.state.group_classes = GroupClassStore()
+        assert app.state.group_classes.get(cid) is None
+        r = c.post(f"/api/group-classes/{cid}/start", json={})
+        assert r.status_code == 200, r.text
+        assert r.json()["class"]["id"] == cid
 
 
 def _iso(delta_minutes: int) -> str:

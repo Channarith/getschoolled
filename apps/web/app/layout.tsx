@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { APP_VERSION } from "./lib/version";
 import DisclaimerGate from "./components/DisclaimerGate";
 import OnboardingSurveyGate from "./components/OnboardingSurveyGate";
+import IntroSequence from "./components/IntroSequence";
 import BackgroundProvider from "./components/BackgroundProvider";
 import LocalizedNav from "./components/LocalizedNav";
 import SiteFooter from "./components/SiteFooter";
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <FlagsProvider>
             <MaintenanceBanner />
             <BackgroundProvider />
+            <IntroSequence />
             <DisclaimerGate />
             <OnboardingSurveyGate />
             <LocalizedNav appVersion={APP_VERSION} />
