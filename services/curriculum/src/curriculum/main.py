@@ -30,6 +30,7 @@ from aoep_shared.homework import (
     Assignment,
     assignment_from_slides,
     detect_authorship,
+    generate_assignment,
     grade_submission,
     ocr_to_submission,
     segment_answers,
@@ -1272,6 +1273,9 @@ def scene_verify(signed: SignedScene) -> dict:
 class GenerateHomeworkRequest(BaseModel):
     deck_id: str | None = None
     course_id: str | None = None
+    # Free-form source material (topic notes / lesson text) to build questions
+    # from when no deck/course is loaded — so the tool works standalone.
+    content: str = ""
     title: str = "Homework"
     subject: str = "general"
     num_questions: int = 4
@@ -1464,8 +1468,18 @@ def homework_generate(req: GenerateHomeworkRequest) -> Assignment:
             if m.deck_id and (deck := app.state.decks.get(m.deck_id)):
                 slides.extend(deck.slides)
         source = f"course:{req.course_id}"
+    elif req.content.strip():
+        # Build questions directly from pasted source material (paragraphs/lines).
+        import re as _re
+        passages = [p.strip() for p in _re.split(r"\n\s*\n|\n", req.content) if p.strip()]
+        if not passages:
+            raise HTTPException(status_code=422, detail="no usable content to generate from")
+        return generate_assignment(
+            passages, title=req.title, subject=req.subject, source="content",
+            locale=req.locale, num_questions=req.num_questions,
+        )
     else:
-        raise HTTPException(status_code=422, detail="provide deck_id or course_id")
+        raise HTTPException(status_code=422, detail="provide deck_id, course_id, or content")
     if not slides:
         raise HTTPException(status_code=422, detail="no slide content to generate from")
     return assignment_from_slides(

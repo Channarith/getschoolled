@@ -426,6 +426,10 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
 }
 
 export async function getMe(): Promise<Account> {
+  // No token → the visitor is signed out. Skip the request that is guaranteed to
+  // 401 (avoids the console error + a pointless round-trip on every guest load
+  // and nav click). Callers already treat a rejection as "signed out".
+  if (!getToken()) throw new Error("401 Not authenticated");
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
 }
 
@@ -941,6 +945,10 @@ export type Slide = {
   title: string;
   body: string;
   narration: string;
+  // "teach" (normal) or "say_aloud" (repeat-after-me checkpoint). When
+  // say_aloud is set, the player pauses to listen to and score the learner.
+  kind?: string;
+  say_aloud?: string;
 };
 
 export type Lesson = {
@@ -1008,6 +1016,12 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401 && getToken()) {
+      // A stored token was rejected (expired, or the server's auth signing key
+      // rotated on a redeploy). Drop it so the UI returns to a clean signed-out
+      // state and stops re-firing failing authenticated requests on every click.
+      clearToken();
+    }
     let detail = res.statusText;
     try {
       const j = (await res.json()) as { detail?: unknown };
@@ -2187,9 +2201,16 @@ export async function hilDecide(
   );
 }
 
+// Homework endpoints are operator-only (internal token, server-side). We call
+// them through the same-origin BFF at /api/homework/* which verifies the caller
+// is an admin and injects the internal token; the browser never holds it.
+const HOMEWORK_BFF = "/api/homework";
+
 export async function gradeReviews(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/homework/grade-reviews${q}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${HOMEWORK_BFF}/grade-reviews${q}`, {
+    headers: { ...authHeaders() }, cache: "no-store",
+  }));
 }
 
 export async function gradeReviewDecide(
@@ -2198,9 +2219,9 @@ export async function gradeReviewDecide(
   editedPayload?: Record<string, unknown>
 ): Promise<ReviewItem> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade-reviews/${itemId}/decision`, {
+    await fetch(`${HOMEWORK_BFF}/grade-reviews/${itemId}/decision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
     })
   );
@@ -2247,29 +2268,74 @@ export async function gradeHomework(args: {
   submission_text?: string;
   handwritten?: boolean;
   deck_id?: string;
+  course_id?: string;
   subject?: string;
 }): Promise<HomeworkGrade> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade`, {
+    await fetch(`${HOMEWORK_BFF}/grade`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );
 }
 
+export type GeneratedQuestion = {
+  question_id: string;
+  type: string;
+  prompt: string;
+  options: string[];
+  answer_index: number | null;
+  answer_key: string;
+  rubric: string[];
+};
+export type GeneratedAssignment = {
+  assignment_id: string;
+  title: string;
+  subject: string;
+  source: string;
+  questions: GeneratedQuestion[];
+};
+
 export async function generateHomework(args: {
   deck_id?: string;
   course_id?: string;
+  content?: string;
   title?: string;
   subject?: string;
   num_questions?: number;
-}): Promise<{ assignment_id: string; title: string; subject: string; questions: unknown[] }> {
+  locale?: string;
+}): Promise<GeneratedAssignment> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/generate`, {
+    await fetch(`${HOMEWORK_BFF}/generate`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
+    })
+  );
+}
+
+export type ScanResult = { raw_text: string; handwritten: boolean; confidence: number; segments: string[] };
+
+// OCR a typed/handwritten submission file (image or text) into a submission.
+export async function scanHomework(file: File, opts: { hint?: string; expected?: number } = {}): Promise<ScanResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.hint) form.append("hint", opts.hint);
+  if (opts.expected != null) form.append("expected", String(opts.expected));
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/scan`, { method: "POST", headers: { ...authHeaders() }, body: form })
+  );
+}
+
+export type AuthorshipResult = { label: string; ai_probability: number; signals: Record<string, number>; note: string };
+
+export async function checkAuthorship(text: string, handwritten = false): Promise<AuthorshipResult> {
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/authorship`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text, handwritten }),
     })
   );
 }
