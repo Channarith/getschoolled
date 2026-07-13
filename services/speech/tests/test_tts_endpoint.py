@@ -113,6 +113,53 @@ def test_tts_instructor_shapes_prosody(monkeypatch):
     assert captured["rate"].startswith("+")              # faster
 
 
+def test_tts_prefers_cosyvoice_when_configured(monkeypatch):
+    """CosyVoice 2 is preferred over ElevenLabs/edge when COSYVOICE_URL is set."""
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
+
+    monkeypatch.setattr(cosyvoice_tts, "cosyvoice_configured", lambda *a, **k: True)
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: True)
+    captured = {}
+
+    def fake_cosy(text, **kw):
+        captured.update(kw)
+        captured["text"] = text
+        return b"RIFF" + b"C" * 5000, "audio/wav"
+
+    monkeypatch.setattr(cosyvoice_tts, "synthesize", fake_cosy)
+    r = client.post("/tts", json={"text": "Welcome to the lesson", "language": "en", "instructor": "child"})
+    assert r.status_code == 200
+    assert r.headers["x-tts-engine"] == "cosyvoice"
+    assert r.headers["content-type"] == "audio/wav"
+    # instructor tone hint is forwarded as the natural-language instruction.
+    assert captured.get("language") == "en"
+    assert captured.get("instruct", "").strip()
+
+
+def test_tts_status_reports_cosyvoice(monkeypatch):
+    from aoep_shared import cosyvoice_tts
+
+    monkeypatch.setattr(cosyvoice_tts, "cosyvoice_configured", lambda *a, **k: True)
+    body = client.get("/tts/status").json()
+    assert body["available"] is True and body["engine"] == "cosyvoice"
+
+
+def test_tts_cosyvoice_failure_falls_back_to_elevenlabs(monkeypatch):
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
+
+    monkeypatch.setattr(cosyvoice_tts, "cosyvoice_configured", lambda *a, **k: True)
+
+    def boom(text, **kw):
+        raise cosyvoice_tts.CosyVoiceError("server down")
+
+    monkeypatch.setattr(cosyvoice_tts, "synthesize", boom)
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: True)
+    monkeypatch.setattr(elevenlabs_tts, "synthesize", lambda text, **kw: b"\xff\xfb" + b"A" * 5000)
+    r = client.post("/tts", json={"text": "hello", "language": "en"})
+    assert r.status_code == 200
+    assert r.headers["x-tts-engine"] == "elevenlabs"
+
+
 def test_tts_applies_regional_slang(monkeypatch):
     """A Texan voice rewrites the narration with Texan slang before TTS."""
     from aoep_shared import elevenlabs_tts

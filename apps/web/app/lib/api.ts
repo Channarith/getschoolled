@@ -426,6 +426,10 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
 }
 
 export async function getMe(): Promise<Account> {
+  // No token → the visitor is signed out. Skip the request that is guaranteed to
+  // 401 (avoids the console error + a pointless round-trip on every guest load
+  // and nav click). Callers already treat a rejection as "signed out".
+  if (!getToken()) throw new Error("401 Not authenticated");
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
 }
 
@@ -1012,6 +1016,12 @@ export async function grantReward(grant: string):
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401 && getToken()) {
+      // A stored token was rejected (expired, or the server's auth signing key
+      // rotated on a redeploy). Drop it so the UI returns to a clean signed-out
+      // state and stops re-firing failing authenticated requests on every click.
+      clearToken();
+    }
     let detail = res.statusText;
     try {
       const j = (await res.json()) as { detail?: unknown };
@@ -2191,9 +2201,16 @@ export async function hilDecide(
   );
 }
 
+// Homework endpoints are operator-only (internal token, server-side). We call
+// them through the same-origin BFF at /api/homework/* which verifies the caller
+// is an admin and injects the internal token; the browser never holds it.
+const HOMEWORK_BFF = "/api/homework";
+
 export async function gradeReviews(status?: string): Promise<{ autonomy: string; items: ReviewItem[] }> {
   const q = status ? `?status=${encodeURIComponent(status)}` : "";
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/homework/grade-reviews${q}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${HOMEWORK_BFF}/grade-reviews${q}`, {
+    headers: { ...authHeaders() }, cache: "no-store",
+  }));
 }
 
 export async function gradeReviewDecide(
@@ -2202,9 +2219,9 @@ export async function gradeReviewDecide(
   editedPayload?: Record<string, unknown>
 ): Promise<ReviewItem> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade-reviews/${itemId}/decision`, {
+    await fetch(`${HOMEWORK_BFF}/grade-reviews/${itemId}/decision`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ action, edited_payload: editedPayload ?? null }),
     })
   );
@@ -2251,29 +2268,74 @@ export async function gradeHomework(args: {
   submission_text?: string;
   handwritten?: boolean;
   deck_id?: string;
+  course_id?: string;
   subject?: string;
 }): Promise<HomeworkGrade> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/grade`, {
+    await fetch(`${HOMEWORK_BFF}/grade`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
     })
   );
 }
 
+export type GeneratedQuestion = {
+  question_id: string;
+  type: string;
+  prompt: string;
+  options: string[];
+  answer_index: number | null;
+  answer_key: string;
+  rubric: string[];
+};
+export type GeneratedAssignment = {
+  assignment_id: string;
+  title: string;
+  subject: string;
+  source: string;
+  questions: GeneratedQuestion[];
+};
+
 export async function generateHomework(args: {
   deck_id?: string;
   course_id?: string;
+  content?: string;
   title?: string;
   subject?: string;
   num_questions?: number;
-}): Promise<{ assignment_id: string; title: string; subject: string; questions: unknown[] }> {
+  locale?: string;
+}): Promise<GeneratedAssignment> {
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/homework/generate`, {
+    await fetch(`${HOMEWORK_BFF}/generate`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(args),
+    })
+  );
+}
+
+export type ScanResult = { raw_text: string; handwritten: boolean; confidence: number; segments: string[] };
+
+// OCR a typed/handwritten submission file (image or text) into a submission.
+export async function scanHomework(file: File, opts: { hint?: string; expected?: number } = {}): Promise<ScanResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (opts.hint) form.append("hint", opts.hint);
+  if (opts.expected != null) form.append("expected", String(opts.expected));
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/scan`, { method: "POST", headers: { ...authHeaders() }, body: form })
+  );
+}
+
+export type AuthorshipResult = { label: string; ai_probability: number; signals: Record<string, number>; note: string };
+
+export async function checkAuthorship(text: string, handwritten = false): Promise<AuthorshipResult> {
+  return jsonOrThrow(
+    await fetch(`${HOMEWORK_BFF}/authorship`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text, handwritten }),
     })
   );
 }
@@ -2393,4 +2455,45 @@ export async function ask(sessionId: string, text: string, language = "en"): Pro
       body: JSON.stringify({ text, language }),
     }),
   );
+}
+
+export type AskDone = {
+  type: "done"; text: string; citations: string[]; grounded: boolean;
+  hallucination_risk: number; understood: string[]; unsupported: string[]; corrected: boolean;
+};
+
+// Stream the conversational agent's answer (SSE) for a real-time, low-latency
+// voice/chat response. onDelta fires per incremental token chunk; resolves with
+// the final guarded answer (or null if the stream produced no done event).
+export async function askStream(
+  sessionId: string, text: string,
+  opts: { language?: string; onDelta?: (chunk: string) => void; onDone?: (d: AskDone) => void } = {},
+): Promise<AskDone | null> {
+  const resp = await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask/stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, language: opts.language ?? "en" }),
+  });
+  if (!resp.ok || !resp.body) throw new Error(`ask stream failed: ${resp.status}`);
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let done: AskDone | null = null;
+  for (;;) {
+    const { value, done: fin } = await reader.read();
+    if (fin) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev: { type?: string; text?: string; [k: string]: unknown };
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === "delta" && ev.text) opts.onDelta?.(ev.text);
+      else if (ev.type === "done") { done = ev as unknown as AskDone; opts.onDone?.(done); }
+    }
+  }
+  return done;
 }

@@ -77,8 +77,16 @@ class AppConfig(BaseModel):
     # local container URLs and cloud service URLs.
     llm_base_url: str = "http://llm:8000/v1"
     llm_model: str = "aoep-base-edu"
+    llm_api_key: str = ""          # Bearer token for the OpenAI-compatible endpoint
+    llm_provider: str = ""         # "" (auto) | "nemotron" to force the Nemotron agent
     # Track B routing: "category=model,category=model" -> per-domain adapters.
     llm_routes: str = ""
+    # NVIDIA Nemotron conversational agent (OpenAI-compatible via NIM or self-hosted
+    # vLLM). Set NEMOTRON_API_KEY to route the tutor/voice agent through Nemotron
+    # with streaming (real-time, low-latency answers).
+    nemotron_api_key: str = ""
+    nemotron_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nemotron_model: str = "nvidia/llama-3.1-nemotron-70b-instruct"
     # Bake-off champion pointer (JSON); serving layer uses it to pick the model.
     champion_path: str = ""
     # 24/7 harvester (runs on a separate worker agent).
@@ -138,6 +146,11 @@ class AppConfig(BaseModel):
     # then to the browser's on-device voice.
     elevenlabs_api_key: str = ""
     elevenlabs_model: str = "eleven_multilingual_v2"
+    # CosyVoice 2 (self-hosted, FunAudioLLM): a streaming multilingual neural TTS
+    # you run yourself. When COSYVOICE_URL points at your inference server the
+    # speech gateway prefers it over ElevenLabs/edge-tts for narration.
+    cosyvoice_url: str = ""
+    cosyvoice_api_key: str = ""
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -191,7 +204,12 @@ def load_config(
         component_modes=dict(component_modes),
         llm_base_url=get("LLM_BASE_URL", "http://llm:8000/v1"),
         llm_model=get("LLM_MODEL", "aoep-base-edu"),
+        llm_api_key=get("LLM_API_KEY", ""),
+        llm_provider=get("LLM_PROVIDER", ""),
         llm_routes=get("LLM_ROUTES", ""),
+        nemotron_api_key=get("NEMOTRON_API_KEY", ""),
+        nemotron_base_url=get("NEMOTRON_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+        nemotron_model=get("NEMOTRON_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct"),
         champion_path=get("CHAMPION_PATH", ""),
         harvest_user_agent=get("HARVEST_USER_AGENT", "AOEP-Harvester/1.0 (+contact@example.org)"),
         harvest_max_rps=float(get("HARVEST_MAX_RPS", "1.0") or "1.0"),
@@ -203,6 +221,8 @@ def load_config(
         ocr_api_key=get("OCR_API_KEY", ""),
         elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
+        cosyvoice_url=get("COSYVOICE_URL", ""),
+        cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),

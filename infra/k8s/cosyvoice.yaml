@@ -1,0 +1,96 @@
+# CosyVoice 2 neural TTS, self-hosted on the GPU pool with vLLM acceleration.
+#
+# CosyVoice 2 (FunAudioLLM) renders the most natural, multilingual narration for
+# course audio dictation (Drive Mode + live class via the speech gateway) and the
+# teach-&-present presenter. It exposes POST /tts (our contract) and is reached
+# in-cluster at http://cosyvoice:9880 (see aoep-config COSYVOICE_URL).
+#
+# vLLM acceleration (COSYVOICE_USE_VLLM=1) dramatically speeds up generation, so a
+# single A16/L4-class GPU serves many concurrent narrations - which keeps the
+# hourly Vultr GPU cost down. Weights are baked into the image or pulled to the
+# shared model PVC on first start.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosyvoice
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: cosyvoice }
+  strategy:
+    type: Recreate   # single GPU: don't double-schedule during a roll
+  template:
+    metadata:
+      labels: { app: cosyvoice, tier: gpu }
+    spec:
+      # Same GPU pool + toleration as the LLM (label your Vultr GPU nodes
+      # aoep.gpu/pool=true, or edit this selector to match your pool).
+      nodeSelector:
+        aoep.gpu/pool: "true"
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: cosyvoice
+          image: ghcr.io/aoep/cosyvoice:latest
+          imagePullPolicy: Always
+          ports: [{ containerPort: 9880 }]
+          env:
+            - name: COSYVOICE_PORT
+              value: "9880"
+            # vLLM acceleration (recommended) - big speedup => lower GPU cost.
+            - name: COSYVOICE_USE_VLLM
+              value: "1"
+            - name: COSYVOICE_MODEL_ID
+              value: "iic/CosyVoice2-0.5B"
+            - name: COSYVOICE_MODEL_DIR
+              value: "/models/CosyVoice2-0.5B"
+            # Optional default prompt speaker for no-reference (cross-lingual) synthesis.
+            - name: COSYVOICE_DEFAULT_SPK
+              value: ""
+          resources:
+            requests: { cpu: "1", memory: 4Gi }
+            limits:
+              nvidia.com/gpu: 1
+              cpu: "4"
+              memory: 16Gi
+          readinessProbe:
+            httpGet: { path: /health, port: 9880 }
+            initialDelaySeconds: 60     # model load can take a while on cold start
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /health, port: 9880 }
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            failureThreshold: 6
+          volumeMounts:
+            - name: cosyvoice-models
+              mountPath: /models
+      volumes:
+        - name: cosyvoice-models
+          persistentVolumeClaim:
+            claimName: aoep-cosyvoice-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cosyvoice
+  namespace: aoep
+spec:
+  selector: { app: cosyvoice }
+  ports: [{ port: 9880, targetPort: 9880 }]
+---
+# Model weights cache (pulled from ModelScope/HF on first start, then reused).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aoep-cosyvoice-models
+  namespace: aoep
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi

@@ -38,6 +38,9 @@ images:
   - name: ghcr.io/aoep/web
     newName: sjc.vultrcr.com/salareen/web
     newTag: latest
+  - name: ghcr.io/aoep/cosyvoice
+    newName: sjc.vultrcr.com/salareen/cosyvoice
+    newTag: latest
   - name: aoep/harvester
     newName: sjc.vultrcr.com/salareen/harvester
     newTag: latest
