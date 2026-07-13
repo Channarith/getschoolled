@@ -10,7 +10,7 @@ Format: newest first. No markdown per project convention.
   (missing import) and `startRepeatAfterMe` (missing definition) after the
   presenter/repeat-after-me/streaming PRs merged over each other; re-added the
   AiPresenter import + the SpeechRec type + startRepeatAfterMe(). typecheck +
-  lint + build now pass. No version bump (keeps VERSION=0.15.0 = main).
+  lint + build now pass. Bump 0.15.1.
 
 - 2026-07-13 - Real-time chunked streaming voice pipeline (sub-second TTFB). New
   apps/web/app/lib/voicePipeline.ts: SpeechChunker cuts streamed LLM tokens into
