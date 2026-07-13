@@ -22,8 +22,8 @@ export default function LanguagePicker({
         value={locale}
         onChange={(e) => setLocale(e.target.value as typeof locale)}
         style={{
-          background: "#111827", color: "#e8ecf6",
-          border: "1px solid #1d2746", borderRadius: 6,
+          background: "var(--panel-2)", color: "var(--text)",
+          border: "1px solid var(--border)", borderRadius: 6,
           padding: "4px 8px", fontSize: 13,
         }}
       >

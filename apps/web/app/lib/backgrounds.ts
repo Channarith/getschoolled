@@ -36,6 +36,8 @@ const snow = (c: string) => svg(`<g fill='${c}'><circle cx='10' cy='10' r='2'/><
 const leaves = (c: string) => svg(`<path d='M8 24C8 14 18 8 28 8 28 18 18 24 8 24z' fill='${c}'/>`, 48, 48);
 const network = (c: string) => svg(`<g stroke='${c}' stroke-width='1' fill='${c}'><line x1='10' y1='10' x2='50' y2='30'/><line x1='50' y1='30' x2='20' y2='55'/><line x1='10' y1='10' x2='20' y2='55'/><circle cx='10' cy='10' r='3'/><circle cx='50' cy='30' r='3'/><circle cx='20' cy='55' r='3'/></g>`, 70, 70);
 const sparkle = (c: string) => svg(`<g fill='${c}'><path d='M20 6l2 8 8 2-8 2-2 8-2-8-8-2 8-2z'/><circle cx='44' cy='44' r='2'/><circle cx='48' cy='12' r='1.5'/></g>`, 60, 60);
+// Sparse neural-network constellation (nodes + edges) — reads as "AI".
+const neural = (c: string) => svg(`<g fill='none' stroke='${c}' stroke-width='1'><line x1='18' y1='24' x2='60' y2='40'/><line x1='60' y1='40' x2='40' y2='84'/><line x1='60' y1='40' x2='104' y2='70'/><line x1='40' y1='84' x2='96' y2='104'/><line x1='18' y1='24' x2='40' y2='84'/></g><g fill='${c}'><circle cx='18' cy='24' r='2.4'/><circle cx='60' cy='40' r='2.8'/><circle cx='40' cy='84' r='2.4'/><circle cx='104' cy='70' r='2.4'/><circle cx='96' cy='104' r='2.4'/></g>`, 120, 120);
 
 // Quick CSS builders.
 const lin = (deg: number, ...c: string[]) => `linear-gradient(${deg}deg, ${c.join(", ")})`;
@@ -44,6 +46,13 @@ const con = (...c: string[]) => `conic-gradient(from 210deg at 60% 40%, ${c.join
 const pat = (svgUrl: string, base: string) => `${svgUrl}, ${base}`;
 
 export const BACKGROUNDS: Background[] = [
+  // -------------------- brand / default -------------------- //
+  // On-theme AI-education backdrop: warm cream with soft gold + plum glows and a
+  // subtle gold neural-network constellation. Matches the light site theme and
+  // the Our Story page; the site default so the platform feels cohesive.
+  { id: "ai-campus", name: "AI Campus", category: "minimal", kind: "css",
+    css: `${neural("rgba(176,128,58,.16)")}, radial-gradient(1100px 720px at 15% 0%, rgba(224,196,150,.32), transparent 60%), radial-gradient(900px 650px at 92% 6%, rgba(206,178,206,.26), transparent 55%), linear-gradient(160deg, #faf3e7, #f4e8d7 60%, #f2e5e6)` },
+
   // -------------------- holiday (year-round) -------------------- //
   { id: "newyear", name: "New Year Fireworks", category: "holiday", kind: "css",
     css: pat(sparkle("rgba(255,215,0,.5)"), rad("#1e293b", "#0b1020 60%")) },
@@ -194,7 +203,7 @@ export const BACKGROUNDS: Background[] = [
     css: rad("#ffffff", "#e2e8f0 60%", "#cbd5e1") },
 ];
 
-export const DEFAULT_BACKGROUND_ID = "meshgrad";
+export const DEFAULT_BACKGROUND_ID = "ai-campus";
 
 export const CATEGORIES = [
   "holiday", "seasonal", "social", "economic", "realistic",

@@ -16,8 +16,10 @@ export const BG_EVENT = "aoep-bg-change";
 function resolve(): Background {
   if (typeof window === "undefined") return getBackground(null);
   const auto = window.localStorage.getItem(BG_AUTO_KEY);
-  // Default to Auto (seasonal/holiday) the first time.
-  if (auto === null || auto === "1") return getBackground(seasonalBackgroundId());
+  // Auto (seasonal/holiday rotation) is now opt-in. By default the site shows
+  // the branded AI-education wallpaper (DEFAULT_BACKGROUND_ID) so the platform
+  // stays on-theme instead of rotating in holiday looks (e.g. July 4th stars).
+  if (auto === "1") return getBackground(seasonalBackgroundId());
   return getBackground(window.localStorage.getItem(BG_KEY));
 }
 

@@ -1,12 +1,17 @@
 :root {
-  --bg: #0b1020;
-  --panel: #151c34;
-  --panel-2: #1d2746;
-  --accent: #6ea8fe;
-  --accent-2: #8be9c0;
-  --text: #e8ecf6;
-  --muted: #9aa6c2;
-  --border: #2a3461;
+  /* Light "warm campus" theme (site-wide). The app was originally dark; these
+     tokens flip every token-driven surface (body text, cards, tiles, inputs,
+     rails, job cards, etc.) to a warm cream/plum/gold palette that matches the
+     Our Story page. The top nav is intentionally kept dark (a "dark island") —
+     see the .nav override below. */
+  --bg: #f4e9d8;
+  --panel: #ffffff;
+  --panel-2: #f3e9db;
+  --accent: #2f6bd8;
+  --accent-2: #0f9d8f;
+  --text: #241b34;
+  --muted: #736a82;
+  --border: #e3d7c3;
 }
 
 * {
@@ -263,10 +268,36 @@ a {
     display: inline-block;
   }
 
+  /* Single-row top bar on desktop: brand | links | actions.
+     Upstream stacks the brand and the link menu on two rows; we flatten
+     .nav-top (display:contents) so the brand, links, and actions all become
+     direct flex items of .nav and sit on one line, like the original design. */
+  .nav {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 18px;
+    padding: 12px 16px;
+  }
+
+  .nav-top {
+    display: contents;
+  }
+
+  .nav .brand {
+    order: 1;
+  }
+
   .nav-menu {
+    order: 2;
+    margin: 0 auto 0 8px; /* auto-right margin pushes actions to the far edge */
+    padding: 0;
     border-top: none;
-    padding-top: 0;
-    padding-bottom: 14px;
+  }
+
+  .nav-actions {
+    order: 3;
+    margin-left: 0;
   }
 }
 
@@ -299,6 +330,43 @@ a {
 
   .container {
     padding: 20px 16px 48px;
+  }
+}
+
+/* ---- Dark "island" top bar on the light theme ------------------------------
+   The site uses a light cream body, but the top bar stays dark (approved
+   design). These override the token-driven nav colors on .site-header only. */
+.site-header {
+  background: color-mix(in srgb, #141a30 92%, transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav {
+  color: #dbe2f0;
+}
+
+.nav-menu a {
+  color: #c7cfe6;
+}
+
+.nav-menu a:hover {
+  color: #ffffff;
+}
+
+.nav .version,
+.nav-ai-badge {
+  color: #c3ccdf;
+}
+
+.nav-toggle {
+  color: #dbe2f0;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 900px) {
+  /* Mobile dropdown chips: subtle light-on-dark instead of the body's cream. */
+  .nav-menu a {
+    background: color-mix(in srgb, #ffffff 8%, transparent);
   }
 }
 
@@ -415,7 +483,7 @@ a {
 
 button {
   background: var(--accent);
-  color: #0b1020;
+  color: #ffffff;
   border: none;
   border-radius: 10px;
   padding: 10px 16px;
@@ -471,7 +539,7 @@ textarea {
 .bubble.student {
   align-self: flex-end;
   background: var(--accent);
-  color: #0b1020;
+  color: #ffffff;
 }
 
 .bubble.teacher {
@@ -500,6 +568,7 @@ textarea {
 }
 
 .theme-hero {
+  position: relative;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -507,9 +576,40 @@ textarea {
   border-bottom: 1px solid var(--t-border);
 }
 
+/* Soft fade from the dark hero image into the cream body (same technique as the
+   Our Story hero) so there's no hard seam. Disabled on the audience-themed
+   landing templates (.themed), which manage their own background. */
+.theme-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+}
+
+.themed .theme-hero {
+  border-bottom: 1px solid var(--t-border);
+}
+
+.themed .theme-hero::after {
+  display: none;
+}
+
 .theme-hero-inner {
+  position: relative;
+  z-index: 2;
   max-width: 1000px;
   margin: 0 auto;
+}
+
+/* Text over the dark hero images stays light (the body .muted is now dark). */
+.theme-hero .muted,
+.landing-hero .muted {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .theme-toolbar {
@@ -874,6 +974,19 @@ textarea {
 .landing-hero-bg {
   z-index: 0;
   animation-duration: 48s;
+}
+
+/* Fade the full-screen landing hero into the cream page at its bottom edge. */
+.landing-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(to bottom, transparent, var(--bg));
 }
 
 .landing-inner {
