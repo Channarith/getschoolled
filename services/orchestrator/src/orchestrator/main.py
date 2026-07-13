@@ -1157,7 +1157,11 @@ def _ensure_group_class_room(room_id: str):
     if not room_id.startswith("class-"):
         return None
     class_id = room_id[len("class-"):]
-    gc = _group_store().get(class_id)
+    # Seed-on-miss (like start_group_class): a fresh replica, a post-restart
+    # store, or an evicted entry may not hold this standard class yet. Its
+    # deterministic id is reproducible, so materialize it before giving up —
+    # otherwise GET/join can't lazily reopen the room and 404s persist.
+    gc = _find_group_class(class_id)
     if gc is None or gc.platform != "salareen":
         return None
 

@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.18.0 - Live rooms: fix recurring "404 Not Found" when entering a
+  Salareen group-class room. _ensure_group_class_room now SEEDS-ON-MISS (via
+  _find_group_class) instead of a bare store.get(), so GET/join lazily reopen a
+  standard class even on a fresh replica, after a restart, or when the store
+  entry was evicted — the deterministic class id is reproduced and the room is
+  reopened with a real LiveKit token. Added a regression test that wipes the
+  group-class store and asserts GET+join still lazy-open (200)
+  (services/orchestrator/src/orchestrator/main.py, tests/test_live_room_api.py).
+
 - 2026-07-13 - v0.16.3 - Web: synced the theme/logo branch onto upstream main
   (v0.16.2) and kept the light warm-campus theme, gold-S/bodhi-leaf emblem, and
   the Our Story on-theme ecosystem diagram. Restored the single-row desktop top
