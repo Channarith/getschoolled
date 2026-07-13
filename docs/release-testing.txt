@@ -196,17 +196,23 @@ Immediate next steps:
   cd apps/mobile && pnpm run typecheck && pnpm run build
 
 ============================================================================
-8. VERSION BUMP (OPTIONAL — NO LONGER A CI GATE)
+8. VERSION BUMP ON EVERY PR (REQUIRED — CI GATE)
 ============================================================================
-Bumping VERSION is RECOMMENDED for user-facing releases but is NOT enforced in
-CI. The old per-PR version-bump gate was removed because concurrent PRs kept
-colliding on the same 0.9.x: whichever merged second failed the check even
-though nothing was wrong. Bump deliberately when you cut a release instead:
+Every PR MUST advance VERSION and name that version in the newest CHANGELOG
+entry. This is enforced by scripts/check_pr_version_bump.sh (the `version-bump`
+CI job). It compares against the branch's MERGE-BASE (fork point), NOT main's
+moving tip, so concurrent PRs that land the same number never falsely collide
+(the old tip-comparison gate did — that bug is fixed). The `maxver` merge driver
+(.gitattributes) then keeps main moving to the higher version on merge.
 
-  python3 scripts/bump_pr_version.py            # patch bump (0.9.y)
-  python3 scripts/bump_pr_version.py --force-level minor   # 0.x.0
+  python3 scripts/bump_pr_version.py            # patch, or auto-minor if >8 changes
+  python3 scripts/bump_pr_version.py --force-level minor   # force 0.x.0
   python3 scripts/bump_pr_version.py --check    # dry run
+  AOEP_MINOR_BUMP_THRESHOLD=0 python3 scripts/bump_pr_version.py  # disable auto-minor
 
-Updates: VERSION, build-info.txt, apps/web/app/lib/version.ts, apps/web/package.json.
+Changelog entries must use:  - YYYY-MM-DD - vX.Y.Z - <what changed>
+
+Updates: VERSION, build-info.txt, apps/web/app/lib/version.ts, apps/web/package.json,
+apps/mobile/src/version.ts, apps/mobile/{package.json,app.json}.
 After merge, the Auto Push Build workflow refreshes build-info.txt only (no second
 bump). The Release workflow creates a GitHub Release tag when VERSION is new.

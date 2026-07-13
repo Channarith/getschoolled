@@ -41,17 +41,22 @@ Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
 
 ## Push-to-main checklist (required every time main is updated)
 
-1. CHANGELOG.txt: prepend a **dated** entry (`- YYYY-MM-DD - …`, newest first)
-   for the change. CHANGELOG uses a union merge driver (.gitattributes) so
-   concurrent entries auto-combine - keep one dated bullet per change.
-2. **Release version (recommended for user-facing releases; no longer a CI gate):**
-   run `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
-   `build-info.txt`, and `apps/web/app/lib/version.ts` (and web `package.json`).
-   Patch bump by default (0.14.13 → 0.14.14). Use `--force-level minor` only for
-   deliberate feature releases (0.15.0). The old per-PR version-bump gate was
-   removed (it collided when concurrent PRs hit the same 0.x); bumping is now
-   optional but keeps the deployed version accurate. See the `release-and-deploy`
-   skill for the full flow.
+1. CHANGELOG.txt: prepend an entry that names BOTH the date AND the version:
+   `- YYYY-MM-DD - vX.Y.Z - …` (newest first), where `X.Y.Z` is the version you
+   bump to in step 2. CHANGELOG uses a union merge driver (.gitattributes) so
+   concurrent entries auto-combine - keep one bullet per change. Documenting the
+   version (not just the date) is REQUIRED and CI-enforced (traceability).
+2. **Release version (REQUIRED on every PR - CI-enforced):** run
+   `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
+   `build-info.txt`, `apps/web/app/lib/version.ts`, `apps/mobile/src/version.ts`
+   (and the package/app manifests). Patch bump by default; auto-promotes to a
+   minor once >8 changes have accrued (tune via `AOEP_MINOR_BUMP_THRESHOLD`);
+   `--force-level minor|major` overrides. `scripts/check_pr_version_bump.sh` (the
+   `version-bump` CI job) fails the PR unless VERSION is strictly greater than the
+   branch's MERGE-BASE and the newest changelog entry names that version. It
+   compares against the fork point (not main's tip), so concurrent PRs don't
+   falsely collide, and the `maxver` merge driver keeps main moving forward. See
+   the `release-and-deploy` skill for the full flow.
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must
