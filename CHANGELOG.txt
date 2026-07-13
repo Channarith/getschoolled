@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - v0.17.0 - Live rooms: fixed Salareen class join/get 404s on cold
+  orchestrator workers by reusing seeded group-class lookup in lazy room open,
+  and added a regression test for class-<id> room hydration when group store is
+  initially empty.
+
 - 2026-07-13 - v0.16.3 - Web: synced the theme/logo branch onto upstream main
   (v0.16.2) and kept the light warm-campus theme, gold-S/bodhi-leaf emblem, and
   the Our Story on-theme ecosystem diagram. Restored the single-row desktop top

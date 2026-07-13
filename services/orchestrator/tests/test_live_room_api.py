@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
+from aoep_shared.group_classes import GroupClassStore, ensure_standard_daily_classes
 from orchestrator.main import app
 
 client = TestClient(app)
@@ -70,6 +71,22 @@ def test_get_room_lazy_opens_for_unstarted_class():
     body = room.json()
     assert body["room_size"] == 6
     assert body["slide"]["title"]  # session was started on demand
+
+
+def test_get_room_lazy_opens_when_group_store_is_cold():
+    # A class id listed by another replica should still open on this worker.
+    probe = GroupClassStore()
+    ensure_standard_daily_classes(probe)
+    salareen = [gc for gc in probe.list(upcoming_only=True) if gc.platform == "salareen"]
+    assert salareen, "expected seeded salareen classes"
+    class_id = salareen[0].id
+    prev_store = app.state.group_classes
+    app.state.group_classes = GroupClassStore()
+    try:
+        room = client.get(f"/api/live-rooms/class-{class_id}")
+        assert room.status_code == 200, room.text
+    finally:
+        app.state.group_classes = prev_store
 
 
 def test_join_lazy_opens_and_issues_livekit_token():
