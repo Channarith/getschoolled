@@ -244,6 +244,77 @@ async function playServerAudio(
   }
 }
 
+// --------------------------------------------------------------------------- //
+// Chunked streaming voice: synthesize ONE small text chunk into a ready-to-play
+// audio "Playable". Used by the real-time pipeline (voicePipeline.ts) so each
+// LLM-token chunk is rendered + played immediately for sub-second latency.
+// Prefers server neural audio (prefetches the blob now); falls back to the
+// on-device voice per chunk.
+type Playable = { play: () => Promise<void>; cancel: () => void };
+
+async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTMLAudioElement | null> {
+  try {
+    const resp = await fetch(`${_speechBaseUrl}/tts`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language: (opts.locale || "en").split("-")[0],
+        voice_style: opts.voiceStyle ?? "standard",
+        voice: _serverVoiceId,
+        instructor: _serverInstructor,
+      }),
+    });
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    if (!blob.size) return null;
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    if (opts.rate && opts.rate > 0) audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate));
+    audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
+export async function synthChunk(text: string, opts: SpeakOptions): Promise<Playable> {
+  const t = (text || "").trim();
+  if (!t) return { play: async () => {}, cancel: () => {} };
+
+  if (await serverTtsAvailable()) {
+    const audio = await _fetchServerAudio(t, opts);   // prefetched here
+    if (audio) {
+      return {
+        play: () => new Promise<void>((resolve) => {
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(() => resolve());
+        }),
+        cancel: () => { try { audio.pause(); audio.src = ""; } catch { /* */ } },
+      };
+    }
+  }
+
+  // On-device fallback for this chunk.
+  return {
+    play: () => new Promise<void>((resolve) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
+      const lang = localeToBcp47(opts.locale);
+      const style = opts.voiceStyle ?? "standard";
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = lang;
+      const voice = pickVoice(window.speechSynthesis.getVoices(), lang, style);
+      if (voice) u.voice = voice;
+      u.rate = opts.rate ?? prosodyForStyle(style).rate;
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
+      window.speechSynthesis.speak(u);
+    }),
+    cancel: () => { try { window.speechSynthesis.cancel(); } catch { /* */ } },
+  };
+}
+
 // Split narration into natural speech chunks (sentence/clause boundaries). The
 // engine inserts a brief, lifelike pause between queued utterances, so chunking
 // fixes the flat, run-on, "robotic" delivery you get from one giant utterance.
