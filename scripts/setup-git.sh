@@ -5,8 +5,9 @@
 #     ./scripts/setup-git.sh        # or:  make git-setup
 #
 # What this sets up (see .gitattributes for the per-path bindings):
-#   - CHANGELOG.txt -> union   (built-in; keeps BOTH sides' appended entries)
-#   - README.md     -> theirs  (custom; accepts the INCOMING / theirs version)
+#   - CHANGELOG.txt  -> union   (built-in; keeps BOTH sides' appended entries)
+#   - build-info.txt -> union   (built-in; generated file, keeps both / regenerated)
+#   - README.md      -> theirs  (custom; accepts the INCOMING / theirs version)
 #
 # Notes:
 #   * The `theirs` driver lives in repo-local git config (NOT committed), so each
@@ -28,5 +29,6 @@ git config merge.theirs.driver 'cp -f -- "%B" "%A"'
 git config rerere.enabled true
 
 echo "git merge drivers configured:"
-echo "  CHANGELOG.txt -> union  (keep both sides; via .gitattributes)"
-echo "  README.md     -> theirs (accept incoming; via .gitattributes + merge.theirs)"
+echo "  CHANGELOG.txt  -> union  (keep both sides; via .gitattributes)"
+echo "  build-info.txt -> union  (generated; keep both / regenerated; via .gitattributes)"
+echo "  README.md      -> theirs (accept incoming; via .gitattributes + merge.theirs)"

@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - Merge conflicts: build-info.txt no longer blocks PRs. It's an
+  auto-generated file (bump_pr_version.py / build_release.py) that every PR
+  rewrote, so concurrent PRs hard-conflicted on it. Added `build-info.txt
+  merge=union` to .gitattributes (alongside the existing CHANGELOG.txt union),
+  so both high-churn generated files auto-resolve on merge instead of blocking
+  (verified: a two-branch merge that previously conflicted now merges clean).
+  union is built-in + GitHub-honored (no per-clone setup); the next bump/build
+  regenerates build-info.txt anyway. setup-git.sh + Makefile help updated.
+
 - 2026-07-12 - Fix: Drive Mode "Stop" now truly stops neural narration. Hitting
   Stop (or Pause/skip) while a segment's server TTS (/tts) MP3 was still being
   fetched did nothing - no <audio> existed yet to pause - so when the fetch
