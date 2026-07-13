@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-12 - NVIDIA Nemotron conversational agent + real-time streaming answers.
+  The conversational tutor/voice agent can now run on NVIDIA Nemotron: implemented
+  the previously-stubbed OpenAI-compatible LLM call (providers/llm.py _transport,
+  Bearer auth via LLM_API_KEY), added token STREAMING (complete_stream over SSE
+  deltas), a NemotronLLMProvider (NVIDIA NIM default endpoint / self-hosted vLLM),
+  and factory selection when NEMOTRON_API_KEY or LLM_PROVIDER=nemotron is set.
+  Orchestrator gains POST /api/sessions/{id}/ask/stream (SSE): TeachingSessions.
+  ask_stream() streams tokens for immediate TTS, then a final guarded 'done' event
+  (citations + grounding). Web: askStream() client + the Live Class "Ask" now
+  streams the answer into the chat and speaks sentences as they arrive (low-
+  latency); falls back to buffered ask on error. Config/env + k8s wiring
+  (LLM_API_KEY, LLM_PROVIDER, NEMOTRON_API_KEY/BASE_URL/MODEL; NEMOTRON_API_KEY in
+  aoep-secrets). Graceful offline fallback preserved. Tests added. Bump 0.15.0.
+
 - 2026-07-12 - Harvester: batch-crawl many topics at once, for days. --topic is
   now repeatable and a new --topics "a,b,c" takes a comma list; all topics are
   de-duped and enqueued into ONE shared persistent queue so they crawl together

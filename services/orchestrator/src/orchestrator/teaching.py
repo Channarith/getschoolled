@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 
 from aoep_shared.groundedness import guard_answer
 from aoep_shared.providers.base import ChatMessage
+from aoep_shared.providers.llm import LLMError
 from aoep_shared.rag import Document, RagIndex
 from aoep_shared.slang import default_lexicon
 from aoep_shared.dialect import humanize_narration, tutor_tone_hint
@@ -207,19 +208,15 @@ class TeachingSessions:
             )
         return self.current_slide(session_id)
 
-    def ask(self, session_id: str, question: str, language: str = "en",
-            dialect: str | None = None) -> Answer:
-        session = self._require(session_id)
+    def _ask_prompt(self, session, question: str, language: str, dialect: str | None):
+        """Shared retrieval + prompt build for ask() and ask_stream()."""
         tone = tutor_tone_hint(dialect, language=language)
         # Understand culture-specific slang/idioms before retrieval/answering, so
         # "it's a piece of cake" is treated as "very easy".
         norm = default_lexicon().normalize(question, language=language)
-        retrieval_query = norm.plain
-        retrieved = self._index_for(session.lesson_id).retrieve(retrieval_query, top_k=2)
+        retrieved = self._index_for(session.lesson_id).retrieve(norm.plain, top_k=2)
         context = [r.document.text for r in retrieved]
-        gloss = (
-            f"\nSTUDENT_SLANG: {'; '.join(norm.glossed)}" if norm.detections else ""
-        )
+        gloss = f"\nSTUDENT_SLANG: {'; '.join(norm.glossed)}" if norm.detections else ""
         prompt = (
             "You are a patient teacher. Answer the student's question using only "
             "the lesson context. If the student used slang/idioms, interpret them "
@@ -227,31 +224,38 @@ class TeachingSessions:
             f"{tone}\n"
             f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
+        messages = [
+            ChatMessage(role="system", content=f"You are a helpful teacher. {tone}"),
+            ChatMessage(role="user", content=prompt),
+        ]
+        return messages, context, norm, tone
+
+    def _record_qa(self, session, question: str, safe_text: str) -> None:
+        session.history.append(ChatTurn(role="student", text=question))
+        session.history.append(ChatTurn(role="teacher", text=safe_text))
+        self.store.save(session)
+        counters = self.counters_for(session.session_id)
+        counters.questions_asked += 1
+        if counters.student_id:
+            self.memory.record_behavior(
+                counters.student_id, session.lesson_id, asked_question=True
+            )
+
+    def ask(self, session_id: str, question: str, language: str = "en",
+            dialect: str | None = None) -> Answer:
+        session = self._require(session_id)
+        messages, context, norm, _tone = self._ask_prompt(session, question, language, dialect)
         try:
-            text = self.llm.complete(
-                [
-                    ChatMessage(role="system",
-                                content=f"You are a helpful teacher. {tone}"),
-                    ChatMessage(role="user", content=prompt),
-                ]
-            ).text
-        except NotImplementedError:
-            # No model server configured -> deterministic grounded fallback.
+            text = self.llm.complete(messages).text
+        except (NotImplementedError, LLMError):
+            # No model server configured/reachable -> deterministic grounded fallback.
             text = humanize_narration(
                 _offline_answer(question, context), dialect, language=language,
             )
         # Hallucination guard: only serve answers grounded in the retrieved
         # context; otherwise abstain/ground to avoid showing unsupported claims.
         safe_text, report = guard_answer(text, context, question=question)
-        session.history.append(ChatTurn(role="student", text=question))
-        session.history.append(ChatTurn(role="teacher", text=safe_text))
-        self.store.save(session)
-        counters = self.counters_for(session_id)
-        counters.questions_asked += 1
-        if counters.student_id:
-            self.memory.record_behavior(
-                counters.student_id, session.lesson_id, asked_question=True
-            )
+        self._record_qa(session, question, safe_text)
         return Answer(
             text=safe_text,
             citations=context,
@@ -261,6 +265,48 @@ class TeachingSessions:
             hallucination_risk=report.hallucination_risk,
             unsupported=report.unsupported,
         )
+
+    def ask_stream(self, session_id: str, question: str, language: str = "en",
+                   dialect: str | None = None):
+        """Stream the conversational agent's answer as it's generated (real-time,
+        low-latency voice). Yields event dicts:
+
+          {"type": "delta", "text": <chunk>}       # incremental tokens (speak now)
+          {"type": "done",  "text": <safe_text>, "citations": [...],
+           "grounded": bool, "hallucination_risk": float, "understood": [...],
+           "corrected": bool}                       # final guarded answer + metadata
+
+        Tokens stream immediately for responsiveness; the hallucination guard runs
+        on the full text at the end, and ``corrected`` flags when the guarded
+        answer differs from what was streamed.
+        """
+        session = self._require(session_id)
+        messages, context, norm, _tone = self._ask_prompt(session, question, language, dialect)
+        streamed: list[str] = []
+        try:
+            for chunk in self.llm.complete_stream(messages):
+                if chunk:
+                    streamed.append(chunk)
+                    yield {"type": "delta", "text": chunk}
+        except (NotImplementedError, LLMError):
+            streamed = []
+        raw = "".join(streamed).strip()
+        if not raw:
+            raw = humanize_narration(_offline_answer(question, context), dialect, language=language)
+            yield {"type": "delta", "text": raw}
+        safe_text, report = guard_answer(raw, context, question=question)
+        self._record_qa(session, question, safe_text)
+        yield {
+            "type": "done",
+            "text": safe_text,
+            "citations": context,
+            "language": language,
+            "understood": norm.glossed,
+            "grounded": report.grounded,
+            "hallucination_risk": report.hallucination_risk,
+            "unsupported": report.unsupported,
+            "corrected": safe_text.strip() != raw.strip(),
+        }
 
     def reengage(self, session_id: str) -> Reengagement:
         """A deterministic, slide-grounded re-engagement beat (the REENGAGING

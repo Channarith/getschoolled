@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   advance,
   ask,
+  askStream,
+  type AskDone,
   enrollCourse,
   getDisclosure,
   getQuiz,
@@ -304,6 +306,17 @@ export default function ClassPage() {
     }
   }
 
+  // Queue speech WITHOUT cancelling the previous utterance, so we can speak each
+  // sentence the moment it streams in (real-time, low-latency voice).
+  function speakQueued(text: string) {
+    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1;
+    u.onend = () => setSpeaking(false);
+    setSpeaking(true);
+    try { window.speechSynthesis.speak(u); } catch { /* no browser TTS */ }
+  }
+
   async function onAsk() {
     if (!view || !question.trim()) return;
     const q = question.trim();
@@ -311,31 +324,80 @@ export default function ClassPage() {
     setChat((c) => [...c, { role: "student", text: q }]);
     setBusy(true);
     try {
-      const a: Answer = await ask(view.session.session_id, q);
-      speak(a.text);
-      setChat((c) => [
-        ...c,
-        {
-          role: "teacher",
-          text: a.text,
-          citations: a.citations,
-          grounded: a.grounded,
-          confidence:
-            a.hallucination_risk !== undefined
-              ? Math.round((1 - a.hallucination_risk) * 100)
-              : undefined,
-          unsupported: a.unsupported,
-        },
-      ]);
-      // The AI teacher may grant points for a good question. Redeem the signed
-      // voucher to the learner's account (server-verified) and show it.
-      if (a.reward?.grant_token && getToken()) {
+      // Stream the answer: display + speak sentences as they arrive (Nemotron
+      // agent when configured). Falls back to a buffered ask on any error.
+      let a: Answer | AskDone | null = null;
+      try {
+        stopSpeaking();
+        setChat((c) => [...c, { role: "teacher", text: "" }]);   // grows as tokens stream
+        let acc = "";
+        let spoken = 0;
+        const flushSentences = (final = false) => {
+          const rest = acc.slice(spoken);
+          const parts = rest.split(/(?<=[.!?])\s+/);
+          const upto = final ? parts.length : parts.length - 1;
+          for (let i = 0; i < upto; i++) {
+            const s = parts[i].trim();
+            if (s) speakQueued(s);
+          }
+          if (!final && parts.length > 1) spoken += rest.length - parts[parts.length - 1].length;
+          else if (final) spoken = acc.length;
+        };
+        a = await askStream(view.session.session_id, q, {
+          onDelta: (chunk) => {
+            acc += chunk;
+            setChat((c) => {
+              const copy = [...c];
+              for (let i = copy.length - 1; i >= 0; i--) {
+                if (copy[i].role === "teacher") { copy[i] = { ...copy[i], text: acc }; break; }
+              }
+              return copy;
+            });
+            flushSentences(false);
+          },
+        });
+        flushSentences(true);
+        if (a) {
+          setChat((c) => {
+            const copy = [...c];
+            for (let i = copy.length - 1; i >= 0; i--) {
+              if (copy[i].role === "teacher") {
+                copy[i] = {
+                  role: "teacher", text: a!.text, citations: a!.citations, grounded: a!.grounded,
+                  confidence: a!.hallucination_risk !== undefined
+                    ? Math.round((1 - a!.hallucination_risk) * 100) : undefined,
+                  unsupported: a!.unsupported,
+                };
+                break;
+              }
+            }
+            return copy;
+          });
+        }
+      } catch {
+        // Streaming unsupported/failed -> buffered ask.
+        const buffered: Answer = await ask(view.session.session_id, q);
+        a = buffered;
+        speak(buffered.text);
+        setChat((c) => [
+          ...c,
+          {
+            role: "teacher", text: buffered.text, citations: buffered.citations,
+            grounded: buffered.grounded,
+            confidence: buffered.hallucination_risk !== undefined
+              ? Math.round((1 - buffered.hallucination_risk) * 100) : undefined,
+            unsupported: buffered.unsupported,
+          },
+        ]);
+      }
+      const reward = (a as Answer)?.reward;
+      if (reward?.grant_token && getToken()) {
         try {
-          const r = await grantReward(a.reward.grant_token);
+          const r = await grantReward(reward.grant_token);
           if (r.earned > 0) {
             setChat((c) => [
               ...c,
-              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${a.reward!.reason} (balance: ${r.balance})` },
+              { role: "reward", text: `🎉 The AI teacher awarded you ${r.earned} points — ${reward.reason} (balance: ${r.balance})` },
             ]);
           }
         } catch {

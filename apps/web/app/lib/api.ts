@@ -2390,3 +2390,44 @@ export async function ask(sessionId: string, text: string, language = "en"): Pro
     }),
   );
 }
+
+export type AskDone = {
+  type: "done"; text: string; citations: string[]; grounded: boolean;
+  hallucination_risk: number; understood: string[]; unsupported: string[]; corrected: boolean;
+};
+
+// Stream the conversational agent's answer (SSE) for a real-time, low-latency
+// voice/chat response. onDelta fires per incremental token chunk; resolves with
+// the final guarded answer (or null if the stream produced no done event).
+export async function askStream(
+  sessionId: string, text: string,
+  opts: { language?: string; onDelta?: (chunk: string) => void; onDone?: (d: AskDone) => void } = {},
+): Promise<AskDone | null> {
+  const resp = await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/ask/stream`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, language: opts.language ?? "en" }),
+  });
+  if (!resp.ok || !resp.body) throw new Error(`ask stream failed: ${resp.status}`);
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let done: AskDone | null = null;
+  for (;;) {
+    const { value, done: fin } = await reader.read();
+    if (fin) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev: { type?: string; text?: string; [k: string]: unknown };
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === "delta" && ev.text) opts.onDelta?.(ev.text);
+      else if (ev.type === "done") { done = ev as unknown as AskDone; opts.onDone?.(done); }
+    }
+  }
+  return done;
+}

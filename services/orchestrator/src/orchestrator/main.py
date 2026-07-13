@@ -208,6 +208,30 @@ def api_advance(session_id: str) -> Slide:
         raise HTTPException(status_code=404, detail="unknown session")
 
 
+@app.post("/api/sessions/{session_id}/ask/stream")
+def api_ask_stream(session_id: str, req: AskRequest):
+    """Server-Sent Events stream of the conversational agent's answer for the
+    real-time voice assistant (start speaking on the first tokens). Each event is
+    `data: {json}\\n\\n`; a final {"type":"done", ...} carries the guarded answer +
+    grounding metadata. Powered by the Nemotron agent when configured."""
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    sessions = get_sessions()
+    try:
+        sessions.get_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+
+    def _events():
+        for event in sessions.ask_stream(session_id, req.text, language=req.language):
+            yield f"data: {_json.dumps(event)}\n\n"
+
+    return StreamingResponse(_events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
 @app.post("/api/sessions/{session_id}/ask", response_model=Answer)
 def api_ask(session_id: str, req: AskRequest) -> Answer:
     sessions = get_sessions()

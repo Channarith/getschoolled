@@ -69,6 +69,19 @@ class LLMProvider(Provider):
     ) -> Completion:
         ...
 
+    def complete_stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        temperature: float = 0.2,
+        max_tokens: int = 512,
+    ) -> Iterable[str]:
+        """Yield answer text incrementally (token/delta chunks) for low-latency,
+        real-time conversational agents. Default: one chunk with the full answer,
+        so callers can always iterate; streaming providers override this.
+        """
+        yield self.complete(messages, temperature=temperature, max_tokens=max_tokens).text
+
 
 # --------------------------------------------------------------------------- #
 # Speech (ASR / translation / TTS)

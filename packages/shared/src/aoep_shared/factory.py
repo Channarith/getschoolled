@@ -50,6 +50,16 @@ class ProviderFactory:
         return instance
 
     def llm(self) -> LLMProvider:
+        # A configured Nemotron agent (NVIDIA NIM / self-hosted vLLM) wins over the
+        # default local/cloud provider so the conversational + voice paths stream
+        # through it. Cached like the other components.
+        if "llm" not in self._cache:
+            from .providers.llm import NemotronLLMProvider, nemotron_configured
+
+            if nemotron_configured(self._config):
+                self._cache["llm"] = NemotronLLMProvider(self._config)
+        if "llm" in self._cache:
+            return self._cache["llm"]
         return self._select("llm", LocalLLMProvider, CloudLLMProvider)
 
     def speech(self) -> SpeechProvider:
