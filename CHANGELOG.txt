@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-13 - Fix: repair the web typecheck/build on main (broken by overlapping
+  merges). (1) apps/web/package.json lost `three` + `@types/three` during a merge
+  while apps/web/app/arcade/solar-3d/page.tsx (which imports three) stayed - so
+  `tsc` failed with "Cannot find module 'three'"; restored both deps (lockfile
+  already had them). (2) apps/web/app/class/page.tsx referenced `AiPresenter`
+  (missing import) and `startRepeatAfterMe` (missing definition) after the
+  presenter/repeat-after-me/streaming PRs merged over each other; re-added the
+  AiPresenter import + the SpeechRec type + startRepeatAfterMe(). typecheck +
+  lint + build now pass. No version bump (keeps VERSION=0.15.0 = main).
+
 - 2026-07-13 - Real-time chunked streaming voice pipeline (sub-second TTFB). New
   apps/web/app/lib/voicePipeline.ts: SpeechChunker cuts streamed LLM tokens into
   tiny chunks (aggressive ~3-word first chunk, then phrase-sized at punctuation /

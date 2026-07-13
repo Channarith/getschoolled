@@ -34,8 +34,16 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
+import AiPresenter from "../components/AiPresenter";
 import { synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
+
+// Minimal Web Speech API typing for the repeat-after-me checkpoint.
+type SpeechRec = {
+  lang: string; interimResults: boolean; maxAlternatives: number;
+  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+};
 
 // Color the adaptive difficulty badge so the learner can see it shift.
 function difficultyStyle(d: string): { background: string; color: string; border: string } {
@@ -119,6 +127,31 @@ export default function ClassPage() {
     speechRef.current = utterance;
     setSpeaking(true);
     window.speechSynthesis.speak(utterance);
+  }
+
+  // Repeat-after-me checkpoint: listen to the learner and score how closely they
+  // said the target phrase (reuses the pronunciation endpoint).
+  function startRepeatAfterMe() {
+    const target = slide?.say_aloud;
+    if (!target) return;
+    const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    stopSpeaking();
+    const rec = new Ctor();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setPron(null);
+    setListening(true);
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      setHeard(said);
+      pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.start();
   }
 
   // The AI presenter narrates each slide as it appears, so the video feed shows
