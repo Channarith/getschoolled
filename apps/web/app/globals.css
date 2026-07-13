@@ -268,10 +268,36 @@ a {
     display: inline-block;
   }
 
+  /* Single-row top bar on desktop: brand | links | actions.
+     Upstream stacks the brand and the link menu on two rows; we flatten
+     .nav-top (display:contents) so the brand, links, and actions all become
+     direct flex items of .nav and sit on one line, like the original design. */
+  .nav {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 18px;
+    padding: 12px 16px;
+  }
+
+  .nav-top {
+    display: contents;
+  }
+
+  .nav .brand {
+    order: 1;
+  }
+
   .nav-menu {
+    order: 2;
+    margin: 0 auto 0 8px; /* auto-right margin pushes actions to the far edge */
+    padding: 0;
     border-top: none;
-    padding-top: 0;
-    padding-bottom: 14px;
+  }
+
+  .nav-actions {
+    order: 3;
+    margin-left: 0;
   }
 }
 
