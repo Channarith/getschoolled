@@ -18,6 +18,7 @@ import {
   getToken,
   listLessons,
   listStudents,
+  pronounce,
   recordAdaptationEvent,
   recordBehavior,
   recordWellnessCheckIn,
@@ -31,6 +32,7 @@ import {
   type ClassQuizItem,
   type Disclosure,
   type Lesson,
+  type Pronounce,
   type SessionView,
   type Slide,
   type SurveyTemplate,
@@ -38,6 +40,18 @@ import {
 import SignInToUse from "./SignInToUse";
 import { useT } from "../lib/i18n";
 import { speakNaturally } from "../lib/tts";
+
+// Minimal Web Speech API typing for the repeat-after-me checkpoint.
+type SpeechRec = {
+  lang: string; interimResults: boolean; maxAlternatives: number;
+  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+};
+
+const RECOG_LANG: Record<string, string> = {
+  en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE", it: "it-IT", pt: "pt-BR",
+  zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", hi: "hi-IN", ar: "ar-SA", ru: "ru-RU",
+};
 
 export type ClassRoomProps = {
   // Page heading (e.g. "Live Class" or "Corporate training").
@@ -108,6 +122,9 @@ export default function ClassRoom({
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
   const [popQuizAnswers, setPopQuizAnswers] = useState<Record<string, number>>({});
   const [studentId, setStudentId] = useState("");
+  const [heard, setHeard] = useState("");
+  const [pron, setPron] = useState<Pronounce | null>(null);
+  const [listening, setListening] = useState(false);
   const [adaptationProfile, setAdaptationProfile] = useState<Record<string, unknown>>({});
   const [lxScore, setLxScore] = useState<number | null>(null);
   const [lxTarget, setLxTarget] = useState(75);
@@ -197,6 +214,52 @@ export default function ClassRoom({
       onend: () => setSpeaking(false),
     });
     setSpeaking(true);
+  }
+
+  // On each slide change, reset any prior speaking-checkpoint result. For a
+  // repeat-after-me slide, have the teacher say the phrase so the learner can
+  // echo it (the class then pauses here until they speak or advance).
+  useEffect(() => {
+    setHeard("");
+    setPron(null);
+    setListening(false);
+    if (slide?.say_aloud) speak(slide.narration || `Repeat after me: ${slide.say_aloud}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide?.index]);
+
+  // Listen to the learner and score how closely they said the target phrase.
+  function startRepeatAfterMe() {
+    const target = slide?.say_aloud;
+    if (!target) return;
+    const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    stopSpeaking();   // don't record our own narration
+    const rec = new Ctor();
+    rec.lang = RECOG_LANG[locale] ?? "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    setPron(null);
+    setListening(true);
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      setHeard(said);
+      pronounce(target, said)
+        .then((r) => {
+          setPron(r);
+          if (studentId) {
+            recordBehavior({
+              student_id: studentId,
+              topic: view?.lesson.title ?? "",
+              saw_slide: true,
+            }).catch(() => {});
+          }
+        })
+        .catch((err) => setError(String(err)));
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.start();
   }
 
   async function refreshLxTick(slideIndex: number, slidesTotal: number) {
@@ -751,6 +814,44 @@ export default function ClassRoom({
             <h2>{slide.title}</h2>
             <p>{slide.body}</p>
             <p className="muted">🔊 {slide.narration}</p>
+
+            {slide.say_aloud && (
+              <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>🎤 Your turn — repeat after me</div>
+                <p style={{ fontSize: 18, margin: "4px 0" }}>
+                  &ldquo;<strong>{slide.say_aloud}</strong>&rdquo;
+                </p>
+                <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={startRepeatAfterMe}
+                    disabled={listening}
+                    style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}
+                  >
+                    {listening ? "Listening…" : pron ? "🎤 Try again" : "🎤 Speak now"}
+                  </button>
+                  <button type="button" onClick={() => speak(slide.narration || `Repeat after me: ${slide.say_aloud}`)}
+                    style={{ background: "#e0f2fe", color: "#075985", border: "1px solid #0ea5e9" }}>
+                    🔊 Hear it
+                  </button>
+                  {heard && <span className="muted">You said: &ldquo;{heard}&rdquo;</span>}
+                </div>
+                {pron && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 20 }}>
+                      {"★".repeat(pron.stars)}{"☆".repeat(Math.max(0, 3 - pron.stars))}{" "}
+                      <strong style={{ color: pron.passed ? "#16a34a" : "#d97706" }}>{pron.score}%</strong>
+                      {pron.passed ? " — nicely said!" : " — give it another go."}
+                    </div>
+                    {pron.feedback && <div className="muted" style={{ marginTop: 2 }}>{pron.feedback}</div>}
+                    {pron.missed_words?.length > 0 && (
+                      <div className="muted" style={{ marginTop: 2 }}>Focus on: {pron.missed_words.join(", ")}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="row">
               <button onClick={onAdvance} disabled={busy}>
                 {t("class.nextSlide")}
