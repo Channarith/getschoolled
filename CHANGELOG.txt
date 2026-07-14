@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.8 - Config: set the real Vultr Object Storage endpoint
+  (https://sjc1.vultrobjects.com, Silicon Valley) in infra/k8s-vke/configmap-vke.yaml,
+  replacing the "<vultr-region>" placeholder. Access key/secret stay in aoep-secrets
+  (out of band, not committed).
+
 - 2026-07-14 - v0.19.7 - Rules: added .cursor/rules/pull-requests.mdc (alwaysApply)
   so every branch always gets a PR — create non-draft into main via
   ManagePullRequest, keep it updated each turn, base main, fill from a template if
