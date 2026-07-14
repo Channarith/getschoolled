@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.13 - Live-room theme: the in-room classroom now uses the
+  site's light "warm campus" palette (globals.css tokens --bg/--panel/--text/
+  --accent/--accent-2/--border) instead of the old dark-purple gradients, so it
+  looks clean and consistent with the rest of the web app. Rethemed the page
+  background, participant tiles (host = blue→teal accent, learners = light panel),
+  slide/chat/gift/queue panels, inputs, empty seats, and buttons
+  (apps/web/app/live-room/[roomId]/page.tsx). Verified in-browser: light cream bg,
+  white panels, blue/teal accents, no dark-purple. (Video-tile label scrims stay
+  dark for readability over video.)
+
 - 2026-07-14 - v0.19.12 - Live-room: hard media-layer mutex + AI auto-Q&A.
   (1) HARD MUTEX: learners now join with can_publish=False, so their LiveKit token
   physically cannot send audio/video. A new POST /api/live-rooms/{id}/media-token

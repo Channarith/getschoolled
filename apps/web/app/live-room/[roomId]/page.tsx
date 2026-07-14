@@ -101,13 +101,13 @@ function ParticipantTile({
         borderRadius: large ? 16 : 12,
         overflow: "hidden",
         background: isHost
-          ? "linear-gradient(145deg, #4c1d95 0%, #7c3aed 55%, #db2777 100%)"
-          : "linear-gradient(145deg, #1e1b4b 0%, #312e81 100%)",
+          ? "linear-gradient(145deg, var(--accent) 0%, var(--accent-2) 100%)"
+          : "color-mix(in srgb, var(--accent) 8%, var(--panel))",
         border: hasFloor
-          ? "2px solid #34d399"
+          ? "2px solid var(--accent-2)"
           : p.hand_raised
-            ? "2px solid #fbbf24"
-            : "1px solid rgba(255,255,255,0.12)",
+            ? "2px solid #d99a1c"
+            : "1px solid var(--border)",
         minHeight: large ? 220 : 110,
         display: "flex",
         flexDirection: "column",
@@ -139,7 +139,7 @@ function ParticipantTile({
             justifyContent: "center",
             fontSize: large ? 48 : 28,
             fontWeight: 700,
-            color: "rgba(255,255,255,0.9)",
+            color: isHost ? "rgba(255,255,255,0.95)" : "var(--muted)",
           }}
         >
           {isHost ? "🎓" : initials(p.name)}
@@ -616,7 +616,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <button
             onClick={() => void handleJoin()}
             disabled={busy}
-            style={{ marginTop: 12, background: "#7c3aed", color: "#fff", width: "100%" }}
+            style={{ marginTop: 12, background: "var(--accent)", color: "#fff", width: "100%" }}
           >
             {busy ? "Joining…" : "Enter live room"}
           </button>
@@ -633,8 +633,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #0f0720 0%, #1a0a2e 40%, #2d1b4e 100%)",
-        color: "#f8fafc",
+        // Match the site's light "warm campus" theme (globals.css tokens) so the
+        // classroom looks like the rest of the app, not a separate dark product.
+        background:
+          "linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 88%, var(--accent)) 100%)",
+        color: "var(--text)",
         padding: "12px 16px 24px",
       }}
     >
@@ -649,7 +652,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         }}
       >
         <div>
-          <div style={{ fontSize: 12, color: "#c4b5fd" }}>Salareen Live · {roomId}</div>
+          <div style={{ fontSize: 12, color: "var(--accent)" }}>Salareen Live · {roomId}</div>
           <h2 style={{ margin: "4px 0 0", fontSize: 20 }}>{room?.title ?? "Live class"}</h2>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
@@ -657,10 +660,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {room?.recording.status === "recording" && (
             <span style={{ color: "#fca5a5", fontWeight: 600 }}>● REC</span>
           )}
-          <span className="muted" style={{ color: "#ddd6fe" }}>
+          <span className="muted">
             👁 {socket.viewerCount || room?.viewer_count || room?.learner_count || 0}
           </span>
-          <span className="muted" style={{ color: "#ddd6fe" }}>
+          <span className="muted">
             ❤️ {socket.followerCount || followerCount} followers
           </span>
           {socket.connected ? (
@@ -689,9 +692,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 fontSize: 12,
                 padding: "4px 10px",
                 borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: followingHost ? "rgba(236,72,153,0.35)" : "transparent",
-                color: "#fce7f3",
+                border: "1px solid var(--border)",
+                background: followingHost ? "color-mix(in srgb, var(--accent) 15%, var(--panel))" : "var(--panel)",
+                color: "var(--text)",
                 cursor: "pointer",
               }}
             >
@@ -897,12 +900,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 key={`empty-${i}`}
                 style={{
                   borderRadius: 12,
-                  border: "1px dashed rgba(255,255,255,0.15)",
+                  border: "1px dashed var(--border)",
                   minHeight: 110,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "rgba(255,255,255,0.35)",
+                  color: "var(--muted)",
                   fontSize: 12,
                 }}
               >
@@ -950,17 +953,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {room?.slide && (
             <div
               style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
                 borderRadius: 12,
                 padding: 14,
               }}
             >
-              <div style={{ fontSize: 12, color: "#c4b5fd", marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4 }}>
                 Slide {room.slide.index + 1}
               </div>
               <strong>{room.slide.title}</strong>
-              <p style={{ margin: "8px 0 0", color: "#e9d5ff", fontSize: 14, lineHeight: 1.5 }}>
+              <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14, lineHeight: 1.5 }}>
                 {room.slide.narration || room.slide.body}
               </p>
             </div>
@@ -978,9 +981,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <div
             style={{
               flex: 1,
-              background: "rgba(0,0,0,0.35)",
+              background: "var(--panel)",
               borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid var(--border)",
               padding: 10,
               overflowY: "auto",
               maxHeight: 320,
@@ -1017,8 +1020,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   fontSize: 18,
                   padding: "4px 8px",
                   borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border)",
+                  background: "var(--panel)",
                   cursor: "pointer",
                 }}
               >
@@ -1034,7 +1037,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 fontSize: 12,
                 padding: "6px 12px",
                 borderRadius: 8,
-                background: "#db2777",
+                background: "var(--accent-2)",
                 color: "#fff",
                 border: "none",
                 cursor: "pointer",
@@ -1051,7 +1054,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                 gap: 6,
                 padding: 8,
-                background: "rgba(0,0,0,0.35)",
+                background: "color-mix(in srgb, var(--accent) 6%, var(--panel))",
                 borderRadius: 10,
               }}
             >
@@ -1077,9 +1080,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   style={{
                     padding: 8,
                     borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "#fce7f3",
+                    border: "1px solid var(--border)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
                     cursor: "pointer",
                     fontSize: 12,
                   }}
@@ -1097,11 +1100,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               value={chatDraft}
               onChange={(e) => setChatDraft(e.target.value)}
               placeholder="Say something…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid #4c1d95", padding: "8px 10px", background: "#1e1033", color: "#fff" }}
+              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void sendChat()}
               disabled={busy || me?.muted || me?.muted_by_host}
             />
-            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "#7c3aed", color: "#fff" }}>
+            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "var(--accent)", color: "#fff" }}>
               Chat
             </button>
           </div>
@@ -1111,11 +1114,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
               placeholder="Ask Theodore a question…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid #4c1d95", padding: "8px 10px", background: "#1e1033", color: "#fff" }}
+              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
             />
-            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "#db2777", color: "#fff" }}>
+            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "var(--accent-2)", color: "#fff" }}>
               Ask
             </button>
           </div>
