@@ -7,7 +7,9 @@ resources:
   - services.yaml
   - autoscaling.yaml
   - redis.yaml
-  - livekit.yaml
+  # Self-hosted LiveKit is NOT deployed by default — Salareen uses LiveKit Cloud
+  # (LIVEKIT_URL in configmap-vke.yaml). To self-host instead, re-add livekit.yaml
+  # here and livekit-ingress-vke.yaml to the k8s-vke overlay.
   - ingress.yaml
   - ingress-origin.yaml
   - llm-vllm.yaml

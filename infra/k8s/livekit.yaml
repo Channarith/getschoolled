@@ -1,3 +1,9 @@
+# OPT-IN self-hosted LiveKit server. NOT deployed by default — Salareen runs on
+# LiveKit Cloud (see LIVEKIT_URL in infra/k8s-vke/configmap-vke.yaml). This file is
+# kept for teams that want to self-host: add it back to infra/k8s/kustomization.yaml
+# (and livekit-ingress-vke.yaml to the k8s-vke overlay), and point LIVEKIT_URL at
+# this in-cluster service. Do NOT run it alongside Cloud — the orchestrator only
+# ever dials one LIVEKIT_URL.
 apiVersion: v1
 kind: ConfigMap
 metadata:

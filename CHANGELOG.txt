@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.4 - LiveKit: stop deploying the self-hosted LiveKit server on
+  VKE (it was CrashLoopBackOff and unused — Salareen runs on LiveKit Cloud).
+  Removed livekit.yaml from infra/k8s/kustomization.yaml and livekit-ingress-vke.yaml
+  from the k8s-vke overlay; both files stay in the repo as opt-in self-hosting
+  (documented). Nothing depends on the in-cluster livekit Service (the orchestrator
+  dials LIVEKIT_URL = the Cloud project). Note: apply -k won't prune the existing
+  objects, so delete deploy/svc/ingress "livekit" once by hand.
+
 - 2026-07-14 - v0.19.3 - Deploy: make the "Configure kubeconfig" failure
   self-explanatory. The Vultr API kubeconfig fetch now reports the HTTP status
   (401/403 = bad/expired VULTR_API_KEY or its IP access-control blocks GitHub

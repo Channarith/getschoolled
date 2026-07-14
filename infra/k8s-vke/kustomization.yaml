@@ -3,7 +3,8 @@ kind: Kustomization
 namespace: aoep
 resources:
   - ../k8s
-  - livekit-ingress-vke.yaml
+  # livekit-ingress-vke.yaml intentionally omitted — Salareen uses LiveKit Cloud,
+  # so there is no in-cluster LiveKit server to expose at livekit.salareen.com.
 patches:
   - path: configmap-vke.yaml
   - path: ingress-vke.yaml
