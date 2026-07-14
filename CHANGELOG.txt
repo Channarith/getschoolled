@@ -2,6 +2,31 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.5 - Deploy safety: stop `kubectl apply -k` from clobbering
+  real secrets. The `aoep-secrets` Secret used to live in the applied
+  infra/k8s/configmap.yaml with "__INJECT__" placeholders, so every deploy reset
+  LIVEKIT_API_*, DATABASE_URL, PAYMENT_API_KEY, etc. back to placeholders (the
+  recurring "LiveKit breaks after deploy" trap). Moved it OUT of the kustomization:
+  it is now managed out of band via a new idempotent scripts/k8s_bootstrap_secrets.sh
+  (create-if-missing, never overwrites) with a template at
+  infra/k8s/aoep-secrets.example.yaml. `apply -k` no longer touches secrets, so the
+  post-apply re-patch step is gone.
+
+- 2026-07-14 - v0.19.4 - LiveKit: stop deploying the self-hosted LiveKit server on
+  VKE (it was CrashLoopBackOff and unused — Salareen runs on LiveKit Cloud).
+  Removed livekit.yaml from infra/k8s/kustomization.yaml and livekit-ingress-vke.yaml
+  from the k8s-vke overlay; both files stay in the repo as opt-in self-hosting
+  (documented). Nothing depends on the in-cluster livekit Service (the orchestrator
+  dials LIVEKIT_URL = the Cloud project). Note: apply -k won't prune the existing
+  objects, so delete deploy/svc/ingress "livekit" once by hand.
+
+- 2026-07-14 - v0.19.3 - Deploy: make the "Configure kubeconfig" failure
+  self-explanatory. The Vultr API kubeconfig fetch now reports the HTTP status
+  (401/403 = bad/expired VULTR_API_KEY or its IP access-control blocks GitHub
+  runners; 404 = wrong VKE_CLUSTER_ID; 000 = unreachable) instead of a generic
+  "fetch/parse failed", and points at the KUBE_CONFIG_B64 fallback
+  (scripts/github_configure_kubeconfig.sh). No behavior change on success.
+
 - 2026-07-14 - v0.19.2 - LiveKit Cloud: point the deployed LIVEKIT_URL at the
   managed LiveKit Cloud project (wss://salareen-q3lne5d9.livekit.cloud) instead of
   the unused self-hosted wss://livekit.salareen.com. The orchestrator stamps

@@ -67,9 +67,17 @@ print_fix_hint() {
 # With VULTR_API_KEY + VKE_CLUSTER_ID this is self-healing.
 if [ -n "${VULTR_API_KEY:-}" ] && [ -n "${VKE_CLUSTER_ID:-}" ]; then
   echo "Fetching fresh kubeconfig from Vultr API for cluster ${VKE_CLUSTER_ID}…"
-  RESP="$(curl -fsS -H "Authorization: Bearer ${VULTR_API_KEY}" \
+  BODY_FILE="$(mktemp)"
+  # Capture the HTTP status so a failure says WHY (not a generic "fetch failed").
+  # curl's -w already prints the status (000 on connect failure); `|| true` just
+  # keeps the non-zero exit from aborting under `set -e` (no double 000).
+  CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' \
+    -H "Authorization: Bearer ${VULTR_API_KEY}" \
     "https://api.vultr.com/v2/kubernetes/clusters/${VKE_CLUSTER_ID}/config" 2>/dev/null || true)"
-  if [ -n "$RESP" ] && KCFG="$(printf '%s' "$RESP" | python3 -c \
+  CODE="${CODE:-000}"
+  RESP="$(cat "$BODY_FILE" 2>/dev/null || true)"
+  rm -f "$BODY_FILE"
+  if [ "$CODE" = "200" ] && KCFG="$(printf '%s' "$RESP" | python3 -c \
       'import sys,json,base64; print(base64.b64decode(json.load(sys.stdin)["kube_config"]).decode())' 2>/dev/null)"; then
     write_config "$KCFG"
     if validate_config; then
@@ -78,7 +86,12 @@ if [ -n "${VULTR_API_KEY:-}" ] && [ -n "${VKE_CLUSTER_ID:-}" ]; then
     fi
     echo "WARN: Vultr API kubeconfig invalid — falling back to KUBE_CONFIG_B64…" >&2
   else
-    echo "WARN: Vultr API config fetch/parse failed — falling back to KUBE_CONFIG_B64…" >&2
+    echo "WARN: Vultr API config fetch failed (HTTP ${CODE}) — falling back to KUBE_CONFIG_B64…" >&2
+    case "$CODE" in
+      401|403) echo "  -> VULTR_API_KEY is missing/expired, or the key's IP access control blocks GitHub runners. In the Vultr portal, allow the API from all IPs (or add the runner range), or use the KUBE_CONFIG_B64 fallback." >&2 ;;
+      404)     echo "  -> Cluster ${VKE_CLUSTER_ID} not found for this key. Set repo variable VKE_CLUSTER_ID to your real VKE cluster id." >&2 ;;
+      000)     echo "  -> Could not reach api.vultr.com (network/egress)." >&2 ;;
+    esac
   fi
 fi
 

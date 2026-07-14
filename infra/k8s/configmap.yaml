@@ -69,28 +69,10 @@ data:
   ADMIN_SECRET: "dev-admin-secret"
   IDENTITY_ORIGIN: "http://identity:8000"
   MEMORY_ORIGIN: "http://memory:8000"
----
-# Placeholder secret. Replace values via your cluster's secret manager / CI.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aoep-secrets
-  namespace: aoep
-type: Opaque
-stringData:
-  LIVEKIT_API_KEY: "__INJECT__"
-  LIVEKIT_API_SECRET: "__INJECT__"
-  OBJECT_STORE_ACCESS_KEY: "__INJECT__"
-  OBJECT_STORE_SECRET_KEY: "__INJECT__"
-  DATABASE_URL: "postgresql://aoep:__INJECT__@postgres.aoep.internal:5432/aoep"
-  PAYMENT_API_KEY: "__INJECT__"
-  # NVIDIA Nemotron / NIM key for the conversational agent (optional). Provide it
-  # and set LLM_PROVIDER=nemotron (aoep-config) to enable the Nemotron voice agent.
-  NEMOTRON_API_KEY: "__INJECT__"
-  # Bearer for a generic OpenAI-compatible LLM endpoint (optional).
-  LLM_API_KEY: "__INJECT__"
-  # Seed password for the default admin (identity). Demo default; ROTATE for prod
-  # (or set SEED_DEFAULT_ADMIN=0 in the ConfigMap and create the admin manually).
-  DEFAULT_ADMIN_PASSWORD: "88888888"
-  # Shared password for the three QA test accounts (qa-learner/parent/pro).
-  QA_ACCOUNTS_PASSWORD: "QaTest123"
+# NOTE: the `aoep-secrets` Secret is intentionally NOT defined in this (applied)
+# file anymore. It used to live here, which meant `kubectl apply -k` reset every
+# real secret value (LIVEKIT_API_*, DB, payments, ...) back to "__INJECT__" on
+# EVERY deploy — the recurring "LiveKit keeps breaking after I deploy" trap. The
+# Secret is now managed OUT OF BAND so applies can never clobber it: bootstrap it
+# once with `scripts/k8s_bootstrap_secrets.sh` (template + docs in
+# infra/k8s/aoep-secrets.example.yaml). `apply -k` no longer touches secrets.
