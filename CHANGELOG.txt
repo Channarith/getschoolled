@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.2 - LiveKit Cloud: point the deployed LIVEKIT_URL at the
+  managed LiveKit Cloud project (wss://salareen-q3lne5d9.livekit.cloud) instead of
+  the unused self-hosted wss://livekit.salareen.com. The orchestrator stamps
+  LIVEKIT_URL into every join token, so with the wrong URL clients dialed a dead
+  endpoint and video never connected. LIVEKIT_API_KEY/LIVEKIT_API_SECRET still come
+  from aoep-secrets and MUST be the same Cloud project's key/secret as this URL
+  (infra/k8s-vke/configmap-vke.yaml). The self-hosted livekit Deployment/ingress is
+  now unused on Cloud (safe to remove).
+
 - 2026-07-14 - v0.19.1 - Salareen live rooms + mobile reliability, plus a
   version-bump policy fix (this whole PR is one PATCH bump, not five minors).
   Backend: fixed the recurring "404 Not Found" entering a Salareen room
