@@ -17,7 +17,7 @@
 
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   LANGUAGE_LIST,
@@ -26,6 +26,7 @@ import {
   STRINGS,
   type Locale,
 } from "./i18n-strings";
+import { getMe, getToken, setAccountLanguage } from "./api";
 
 const DEFAULT_LOCALE: Locale = "en";
 const STORAGE_KEY = "aiclassroom.locale.v1";
@@ -95,6 +96,32 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Adopt the signed-in learner's saved language so their course/UI appears in
+  // their language on ANY device. An explicit on-device pick (localStorage) is
+  // respected; otherwise the account preference wins over the browser guess.
+  const adoptedRef = useRef(false);
+  useEffect(() => {
+    if (adoptedRef.current || typeof window === "undefined" || !getToken()) return;
+    adoptedRef.current = true;
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored && isSupported(stored)) return; // device pick wins
+    } catch {
+      /* ignore */
+    }
+    let alive = true;
+    void getMe()
+      .then((acct) => {
+        const pref = (acct.preferred_language || "").toLowerCase().split("-")[0];
+        if (alive && pref && isSupported(pref)) {
+          setLocaleState(pref);
+          try { window.localStorage.setItem(STORAGE_KEY, pref); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { /* signed out / offline: keep the device locale */ });
+    return () => { alive = false; };
+  }, []);
+
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.documentElement.lang = locale;
@@ -106,6 +133,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     if (!isSupported(next)) return;
     setLocaleState(next);
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch { /* ignore */ }
+    // Persist to the profile (best-effort) so the choice follows the learner to
+    // their other devices and the AI teacher answers in this language.
+    if (typeof window !== "undefined" && getToken()) {
+      adoptedRef.current = true; // our own pick — don't let the adopt effect fight it
+      void setAccountLanguage(next).catch(() => { /* offline / guest: keep local */ });
+    }
   }, []);
 
   const t = useCallback(

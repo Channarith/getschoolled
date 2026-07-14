@@ -210,6 +210,8 @@ class TeachingSessions:
 
     def _ask_prompt(self, session, question: str, language: str, dialect: str | None):
         """Shared retrieval + prompt build for ask() and ask_stream()."""
+        from aoep_shared.languages import language_name
+
         tone = tutor_tone_hint(dialect, language=language)
         # Understand culture-specific slang/idioms before retrieval/answering, so
         # "it's a piece of cake" is treated as "very easy".
@@ -217,15 +219,24 @@ class TeachingSessions:
         retrieved = self._index_for(session.lesson_id).retrieve(norm.plain, top_k=2)
         context = [r.document.text for r in retrieved]
         gloss = f"\nSTUDENT_SLANG: {'; '.join(norm.glossed)}" if norm.detections else ""
+        # Answer in the learner's own language (from their profile/device locale),
+        # so the class is delivered in the language they speak. English is the
+        # default and needs no instruction.
+        name = language_name(language)
+        lang_rule = (
+            f" Respond entirely in {name} — the student's language."
+            if name and name != "English"
+            else ""
+        )
         prompt = (
             "You are a patient teacher. Answer the student's question using only "
             "the lesson context. If the student used slang/idioms, interpret them "
             "by their meaning. Speak in a natural, colloquial register: "
-            f"{tone}\n"
+            f"{tone}{lang_rule}\n"
             f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
         messages = [
-            ChatMessage(role="system", content=f"You are a helpful teacher. {tone}"),
+            ChatMessage(role="system", content=f"You are a helpful teacher. {tone}{lang_rule}"),
             ChatMessage(role="user", content=prompt),
         ]
         return messages, context, norm, tone

@@ -13,6 +13,7 @@ import {
   LANGUAGES, RTL_LOCALES, type LocaleCode,
 } from "./languages";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
+import { getMe, setAccountLanguage } from "../api";
 
 type Vars = Record<string, string | number>;
 
@@ -81,9 +82,19 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const stored = await readStoredLocale();
-      if (stored) { setLocaleState(stored); return; }
-      const device = detectDeviceLocale();
-      setLocaleState(device);
+      if (stored) { setLocaleState(stored); return; } // explicit device pick wins
+      // Adopt the signed-in learner's saved language so the app + course appear
+      // in their language on this device; fall back to the device locale.
+      try {
+        const acct = await getMe();
+        const pref = (acct.preferred_language || "").toLowerCase().split("-")[0];
+        if (isSupportedLocale(pref)) {
+          setLocaleState(pref);
+          void writeStoredLocale(pref);
+          return;
+        }
+      } catch { /* signed out / offline: use the device locale */ }
+      setLocaleState(detectDeviceLocale());
     })();
   }, []);
 
@@ -91,6 +102,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     if (!isSupportedLocale(next)) return;
     setLocaleState(next);
     void writeStoredLocale(next);
+    // Persist to the profile so the choice follows the learner to their other
+    // devices and the AI teacher answers in this language (best-effort).
+    void setAccountLanguage(next).catch(() => { /* guest / offline */ });
   }, []);
 
   const t = useCallback(

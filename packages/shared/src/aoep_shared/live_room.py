@@ -200,6 +200,9 @@ class Participant:
     muted_by_host: bool = False
     hand_raised: bool = False
     can_publish: bool = True
+    # The learner's preferred language (ISO 639-1, from their profile/device), so
+    # the AI teacher answers this person in the language they speak.
+    language: str = ""
     joined_at: str = ""
     # The single class admin — the FIRST learner to join. Can start the class and
     # advance slides (holds moderator powers).
@@ -636,20 +639,30 @@ class LiveRoomStore:
         *,
         identity: str = "",
         account_id: str = "",
+        language: str = "",
     ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
             raise LiveRoomError("this room is not live")
         ident = (identity or "").strip() or f"learner-{uuid.uuid4().hex[:8]}"
         acct = (account_id or "").strip()
+        from .languages import normalize_language
+
+        lang = normalize_language(language)
         if room.is_banned(ident):
             banned = room.banned[ident]
             detail = banned.reason or "You have been removed from this class."
             raise BannedError(detail)
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
+                dirty = False
                 if acct:
                     p.account_id = acct
+                    dirty = True
+                if lang and p.language != lang:
+                    p.language = lang  # keep the language fresh on re-join
+                    dirty = True
+                if dirty:
                     self._commit(room)
                 return p
         if room.is_full:
@@ -660,6 +673,7 @@ class LiveRoomStore:
             role=LEARNER_ROLE,
             identity=ident,
             account_id=acct,
+            language=lang,
             # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
             # can't send audio/video until the host/AI grants them the floor
             # (which flips can_publish and lets the client fetch a publish token).

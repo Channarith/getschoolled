@@ -130,6 +130,10 @@ class Account(BaseModel):
     tier: PlanTier = PlanTier.FREE
     region: Region = Region.US
     membership_class: str = "standard"   # standard | vip (derived from tier)
+    # Preferred UI/content language (ISO 639-1, e.g. "es"). Blank = infer from the
+    # device. Persisted so a learner's language follows them across web + mobile,
+    # and so the AI teacher answers in the language they speak.
+    preferred_language: str = ""
     is_admin: bool = False
     created_at: float = Field(default_factory=lambda: time.time())
     # Subscription billing (Netflix-style calendar-day monthly).
@@ -168,6 +172,7 @@ class Account(BaseModel):
             "id": self.id, "email": self.email, "display_name": self.display_name,
             "tier": self.tier.value, "region": self.region.value,
             "membership_class": self.membership_class,
+            "preferred_language": self.preferred_language,
             "is_admin": self.is_admin,
             "created_at": self.created_at, "last_login_at": self.last_login_at,
             "login_count": self.login_count,

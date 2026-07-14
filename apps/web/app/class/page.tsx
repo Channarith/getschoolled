@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "../lib/i18n";
 import {
   advance,
   ask,
@@ -60,6 +61,7 @@ function difficultyStyle(d: string): { background: string; color: string; border
 
 export default function ClassPage() {
   const router = useRouter();
+  const { locale } = useT();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>("");
   const [classType, setClassType] = useState<string>("group");
@@ -441,6 +443,7 @@ export default function ClassPage() {
         if (speakAnswers) setSpeaking(true);
         let acc = "";
         a = await askStream(view.session.session_id, q, {
+          language: locale,
           onDelta: (chunk) => {
             acc += chunk;
             setChat((c) => {
@@ -477,7 +480,7 @@ export default function ClassPage() {
         }
       } catch {
         // Streaming unsupported/failed -> buffered ask.
-        const buffered: Answer = await ask(view.session.session_id, q);
+        const buffered: Answer = await ask(view.session.session_id, q, locale);
         a = buffered;
         speak(buffered.text);
         setChat((c) => [

@@ -215,6 +215,7 @@ export type Account = {
   tier: string;
   region: string;
   membership_class?: "standard" | "vip";
+  preferred_language?: string;
   subscription?: Subscription;
   is_admin?: boolean;
   onboarding_completed_at?: number | null;
@@ -431,6 +432,17 @@ export async function getMe(): Promise<Account> {
   // and nav click). Callers already treat a rejection as "signed out".
   if (!getToken()) throw new Error("401 Not authenticated");
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/me`, { headers: authHeaders(), cache: "no-store" }));
+}
+
+/** Persist the signed-in learner's preferred language so it follows them across
+ * devices and the AI teacher answers in it. Best-effort; safe to ignore errors. */
+export async function setAccountLanguage(language: string): Promise<{ preferred_language: string }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/account/language`, {
+      method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ language }),
+    })
+  );
 }
 
 export async function changePassword(current: string, next: string): Promise<{ changed: boolean }> {
@@ -1295,6 +1307,7 @@ export type LiveParticipant = {
   muted_by_host: boolean;
   hand_raised: boolean;
   can_publish: boolean;
+  language?: string;
   joined_at: string;
   is_admin?: boolean;
 };
@@ -1408,12 +1421,12 @@ export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Pro
   );
 }
 
-export async function joinLiveRoom(roomId: string, name: string, identity = ""): Promise<LiveRoomJoin> {
+export async function joinLiveRoom(roomId: string, name: string, identity = "", language = ""): Promise<LiveRoomJoin> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ name, identity }),
+      body: JSON.stringify({ name, identity, language }),
     })
   );
 }
@@ -1676,7 +1689,7 @@ export async function liveRoomAsk(
   roomId: string,
   participantId: string,
   question: string,
-  language = "en"
+  language = ""
 ): Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {

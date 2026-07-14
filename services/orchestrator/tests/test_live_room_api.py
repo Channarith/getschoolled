@@ -341,6 +341,27 @@ def test_advance_and_ask_in_room():
     assert asked.json()["host_message"]["from_name"].startswith("Theodore")
 
 
+def test_join_stores_learner_language_and_ask_defaults_to_it():
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ana", "identity": "ana-es", "language": "es-419"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+    # The learner's language is normalized and stored so the AI knows it.
+    assert joined.json()["participant"]["language"] == "es"
+
+    # Asking WITHOUT a language falls back to the learner's stored language.
+    asked = client.post(
+        f"/api/live-rooms/{room_id}/ask",
+        json={"participant_id": pid, "question": "What is this about?"},
+    )
+    assert asked.status_code == 200, asked.text
+    assert asked.json()["answer"]["text"]
+
+
 def test_start_solo_room_is_two_seat_and_uses_room_ui():
     # Solo 1:1 reuses the group classroom, just sized for the AI host + one
     # learner (room_size 2 -> exactly one learner seat).

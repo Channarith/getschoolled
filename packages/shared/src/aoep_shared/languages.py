@@ -29,8 +29,35 @@ TTS_NATIVE_LANGUAGES: frozenset[str] = frozenset(
 )
 
 
+# Human-readable English names for each supported code, used to instruct the
+# tutor LLM ("Respond entirely in Spanish.") and for logs/UI. Single source of
+# truth so backend prompts and clients agree on what a code means.
+LANGUAGE_NAMES: dict[str, str] = {
+    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+    "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "pl": "Polish",
+    "ru": "Russian", "uk": "Ukrainian", "tr": "Turkish", "ar": "Arabic",
+    "he": "Hebrew", "hi": "Hindi", "bn": "Bengali", "ur": "Urdu",
+    "fa": "Persian", "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
+    "vi": "Vietnamese", "th": "Thai", "id": "Indonesian", "sw": "Swahili",
+    "el": "Greek", "cs": "Czech", "km": "Khmer",
+}
+
+
 def is_supported(language: str) -> bool:
     return language in SUPPORTED_LANGUAGES
+
+
+def normalize_language(language: str) -> str:
+    """Coerce a client locale (e.g. 'es-419', 'ES') to a supported base code,
+    or '' when unsupported/blank. Keeps language handling forgiving of the
+    varied locale strings web/mobile devices report."""
+    code = (language or "").strip().lower().split("-")[0]
+    return code if code in SUPPORTED_LANGUAGES else ""
+
+
+def language_name(language: str) -> str:
+    """English display name for a code (e.g. 'es' -> 'Spanish'); '' if unknown."""
+    return LANGUAGE_NAMES.get(normalize_language(language), "")
 
 
 def tts_needs_fallback(language: str) -> bool:

@@ -997,6 +997,7 @@ def start_group_class(
 class LiveRoomJoinRequest(BaseModel):
     name: str
     identity: str = ""
+    language: str = ""
 
 
 class LiveRoomChatRequest(BaseModel):
@@ -1055,7 +1056,9 @@ class LiveRoomDismissReportRequest(BaseModel):
 class LiveRoomAskRequest(BaseModel):
     participant_id: str
     question: str
-    language: str = "en"
+    # Blank -> fall back to the learner's stored language (their profile/device),
+    # so the AI answers in the language they speak even if the client omits it.
+    language: str = ""
 
 
 class LiveRoomGiftRequest(BaseModel):
@@ -1301,6 +1304,7 @@ def join_live_room(
             req.name,
             identity=req.identity,
             account_id=account_id,
+            language=req.language,
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
@@ -1729,7 +1733,10 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
                 "room": store.require(room_id).to_dict(),
             }
         store.post_chat(room_id, req.participant_id, req.question)
-        answer = sessions.ask(room.session_id, req.question, language=req.language)
+        # Answer in the asker's language: explicit request wins, else the language
+        # they joined with (profile/device), else English.
+        lang = (req.language or "").strip() or learner.language or "en"
+        answer = sessions.ask(room.session_id, req.question, language=lang)
         host_msg = store.post_host_message(
             room_id,
             f"@{learner.name} {answer.text}",

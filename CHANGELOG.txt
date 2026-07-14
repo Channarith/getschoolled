@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.19 - Learner language now drives the AI and the class. The
+  account stores a persisted preferred_language (identity /account/language +
+  returned by /auth/me); web + mobile adopt it on any device (LocaleProvider) and
+  save the picker choice back to the profile, so a learner's language follows
+  them across devices. Live-room join carries the learner's language onto their
+  Participant, and the tutor now answers in that language ("Respond entirely in
+  <language>" prompt rule via aoep_shared.languages.language_name), with
+  live-room/class Q&A passing the device locale. The "Class complete" farewell
+  leads with the learner's own language. (aoep_shared/languages.py,
+  services/identity, services/orchestrator teaching + live-room ask/join,
+  packages/shared/live_room.py, apps/web + apps/mobile i18n/api/live-room).
+
 - 2026-07-14 - v0.19.18 - Group lessons auto-close when their allotted time
   expires: a live room now carries the class duration (duration_seconds from the
   group class), and the tick loop ends the class once it has been presenting for

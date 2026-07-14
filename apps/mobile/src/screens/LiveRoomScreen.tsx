@@ -12,6 +12,7 @@ import {
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { useT } from "../i18n";
 import GlassPanel from "../components/GlassPanel";
 import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
@@ -33,6 +34,7 @@ export default function LiveRoomScreen({
   moderatorKey?: string;
 }) {
   const { account } = useAuth();
+  const { locale } = useT();
   const [name, setName] = useState("");
   const [participantId, setParticipantId] = useState("");
   const [identity, setIdentity] = useState("");
@@ -97,7 +99,7 @@ export default function LiveRoomScreen({
         || (accountId ? `mobile-acct-${accountId}` : `mobile-${joinName.toLowerCase()}`);
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
-        joined = await joinLiveRoom(roomId, joinName, ident);
+        joined = await joinLiveRoom(roomId, joinName, ident, locale);
       } catch (joinErr) {
         // Room not open yet: for a group-class room (`class-<id>`) open it first
         // (idempotent server-side), then retry the join once so entering works.
@@ -106,7 +108,7 @@ export default function LiveRoomScreen({
         if (is404 && roomId.startsWith("class-")) {
           const geo = await getLiveRoomLocation();
           await startGroupClass(roomId.slice("class-".length), geo);
-          joined = await joinLiveRoom(roomId, joinName, ident);
+          joined = await joinLiveRoom(roomId, joinName, ident, locale);
         } else {
           throw joinErr;
         }
@@ -483,7 +485,7 @@ export default function LiveRoomScreen({
             if (!question.trim() || !participantId) return;
             setBusy(true);
             try {
-              const res = await liveRoomAsk(roomId, participantId, question.trim());
+              const res = await liveRoomAsk(roomId, participantId, question.trim(), locale);
               setRoom(res.room);
               if (res.queued) {
                 setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);

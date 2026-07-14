@@ -39,6 +39,7 @@ import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
+import { useT } from "../../lib/i18n";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
@@ -51,28 +52,42 @@ const CLASS_END_COUNTDOWN = 5;
 // A professional, courteous thank-you for attendance, shown when a group lesson
 // reaches the end of its allotted time. Rotated through several languages so the
 // farewell greets our international learners in their own tongue.
-const CLASS_COMPLETE_MESSAGES: { lang: string; text: string; rtl?: boolean }[] = [
-  { lang: "English", text: "Thank you for attending today's class. We hope you enjoyed learning with us, and we look forward to welcoming you back soon." },
-  { lang: "Español", text: "Gracias por asistir a la clase de hoy. Esperamos que haya disfrutado aprender con nosotros y deseamos verle de nuevo pronto." },
-  { lang: "Français", text: "Merci d'avoir assisté au cours d'aujourd'hui. Nous espérons que vous avez apprécié d'apprendre avec nous et avons hâte de vous revoir bientôt." },
-  { lang: "Deutsch", text: "Vielen Dank für Ihre Teilnahme am heutigen Kurs. Wir hoffen, dass Ihnen das Lernen mit uns gefallen hat, und freuen uns, Sie bald wiederzusehen." },
-  { lang: "Português", text: "Obrigado por participar da aula de hoje. Esperamos que tenha gostado de aprender conosco e esperamos vê-lo novamente em breve." },
-  { lang: "中文", text: "感谢您参加今天的课程。希望您在学习中收获满满，期待下次再会！" },
-  { lang: "日本語", text: "本日の授業にご参加いただき、誠にありがとうございました。またお会いできる日を楽しみにしております。" },
-  { lang: "한국어", text: "오늘 수업에 참여해 주셔서 감사합니다. 즐거운 배움의 시간이 되셨길 바라며, 다음에 또 뵙겠습니다." },
-  { lang: "العربية", text: "شكرًا لحضوركم درس اليوم. نتمنى أن تكونوا قد استمتعتم بالتعلّم معنا، ونتطلّع إلى رؤيتكم مجددًا قريبًا.", rtl: true },
-  { lang: "हिन्दी", text: "आज की कक्षा में शामिल होने के लिए धन्यवाद। हमें आशा है कि आपको हमारे साथ सीखना अच्छा लगा, और हम आपसे शीघ्र ही पुनः मिलने की आशा करते हैं।" },
-  { lang: "ភាសាខ្មែរ", text: "សូមអរគុណសម្រាប់ការចូលរួមថ្នាក់រៀនថ្ងៃនេះ។ សង្ឃឹមថាអ្នកបានរីករាយនឹងការសិក្សាជាមួយយើង ហើយសង្ឃឹមជួបអ្នកម្តងទៀតឆាប់ៗនេះ។" },
-  { lang: "Türkçe", text: "Bugünkü derse katıldığınız için teşekkür ederiz. Bizimle öğrenmekten keyif aldığınızı umuyor ve sizi yakında tekrar görmeyi dört gözle bekliyoruz." },
-  { lang: "Русский", text: "Спасибо за участие в сегодняшнем занятии. Надеемся, вам понравилось учиться с нами, и будем рады видеть вас снова." },
+const CLASS_COMPLETE_MESSAGES: { code: string; lang: string; text: string; rtl?: boolean }[] = [
+  { code: "en", lang: "English", text: "Thank you for attending today's class. We hope you enjoyed learning with us, and we look forward to welcoming you back soon." },
+  { code: "es", lang: "Español", text: "Gracias por asistir a la clase de hoy. Esperamos que haya disfrutado aprender con nosotros y deseamos verle de nuevo pronto." },
+  { code: "fr", lang: "Français", text: "Merci d'avoir assisté au cours d'aujourd'hui. Nous espérons que vous avez apprécié d'apprendre avec nous et avons hâte de vous revoir bientôt." },
+  { code: "de", lang: "Deutsch", text: "Vielen Dank für Ihre Teilnahme am heutigen Kurs. Wir hoffen, dass Ihnen das Lernen mit uns gefallen hat, und freuen uns, Sie bald wiederzusehen." },
+  { code: "pt", lang: "Português", text: "Obrigado por participar da aula de hoje. Esperamos que tenha gostado de aprender conosco e esperamos vê-lo novamente em breve." },
+  { code: "zh", lang: "中文", text: "感谢您参加今天的课程。希望您在学习中收获满满，期待下次再会！" },
+  { code: "ja", lang: "日本語", text: "本日の授業にご参加いただき、誠にありがとうございました。またお会いできる日を楽しみにしております。" },
+  { code: "ko", lang: "한국어", text: "오늘 수업에 참여해 주셔서 감사합니다. 즐거운 배움의 시간이 되셨길 바라며, 다음에 또 뵙겠습니다." },
+  { code: "ar", lang: "العربية", text: "شكرًا لحضوركم درس اليوم. نتمنى أن تكونوا قد استمتعتم بالتعلّم معنا، ونتطلّع إلى رؤيتكم مجددًا قريبًا.", rtl: true },
+  { code: "hi", lang: "हिन्दी", text: "आज की कक्षा में शामिल होने के लिए धन्यवाद। हमें आशा है कि आपको हमारे साथ सीखना अच्छा लगा, और हम आपसे शीघ्र ही पुनः मिलने की आशा करते हैं।" },
+  { code: "km", lang: "ភាសាខ្មែរ", text: "សូមអរគុណសម្រាប់ការចូលរួមថ្នាក់រៀនថ្ងៃនេះ។ សង្ឃឹមថាអ្នកបានរីករាយនឹងការសិក្សាជាមួយយើង ហើយសង្ឃឹមជួបអ្នកម្តងទៀតឆាប់ៗនេះ។" },
+  { code: "tr", lang: "Türkçe", text: "Bugünkü derse katıldığınız için teşekkür ederiz. Bizimle öğrenmekten keyif aldığınızı umuyor ve sizi yakında tekrar görmeyi dört gözle bekliyoruz." },
+  { code: "ru", lang: "Русский", text: "Спасибо за участие в сегодняшнем занятии. Надеемся, вам понравилось учиться с нами, и будем рады видеть вас снова." },
 ];
+
+// Show the learner's own language first, then the rest — a courteous farewell
+// that greets everyone but leads with the language they speak.
+function orderedFarewell(primaryLang?: string): typeof CLASS_COMPLETE_MESSAGES {
+  const code = (primaryLang || "").toLowerCase().split("-")[0];
+  const idx = CLASS_COMPLETE_MESSAGES.findIndex((m) => m.code === code);
+  if (idx <= 0) return CLASS_COMPLETE_MESSAGES;
+  return [
+    CLASS_COMPLETE_MESSAGES[idx],
+    ...CLASS_COMPLETE_MESSAGES.slice(0, idx),
+    ...CLASS_COMPLETE_MESSAGES.slice(idx + 1),
+  ];
+}
 
 /** Full-screen farewell shown when a group lesson's allotted time expires: a
  * courteous multilingual thank-you plus a short countdown, after which the
  * learner is excused (navigated out of the room). */
-function ClassCompleteOverlay({ onDone }: { onDone: () => void }) {
+function ClassCompleteOverlay({ onDone, primaryLang }: { onDone: () => void; primaryLang?: string }) {
   const [remaining, setRemaining] = useState(CLASS_END_COUNTDOWN);
   const [msgIdx, setMsgIdx] = useState(0);
+  const messages = useMemo(() => orderedFarewell(primaryLang), [primaryLang]);
 
   useEffect(() => {
     const tick = window.setInterval(() => {
@@ -90,13 +105,13 @@ function ClassCompleteOverlay({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     const rot = window.setInterval(
-      () => setMsgIdx((i) => (i + 1) % CLASS_COMPLETE_MESSAGES.length),
+      () => setMsgIdx((i) => (i + 1) % messages.length),
       1100,
     );
     return () => window.clearInterval(rot);
-  }, []);
+  }, [messages.length]);
 
-  const msg = CLASS_COMPLETE_MESSAGES[msgIdx];
+  const msg = messages[msgIdx] ?? messages[0];
 
   return (
     <div
@@ -342,6 +357,7 @@ function ParticipantTile({
 
 export default function LiveRoomPage({ params }: { params: { roomId: string } }) {
   const roomId = decodeURIComponent(params.roomId);
+  const { locale } = useT();
   const [displayName, setDisplayName] = useState("");
   const [joinInfo, setJoinInfo] = useState<LiveRoomJoin | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
@@ -512,7 +528,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const fallbackIdentity = accountId
         ? `web-acct-${accountId}`
         : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
-      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity);
+      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale);
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
@@ -612,7 +628,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me || !askDraft.trim()) return;
     setBusy(true);
     try {
-      const res = await liveRoomAsk(roomId, me.id, askDraft.trim());
+      const res = await liveRoomAsk(roomId, me.id, askDraft.trim(), locale);
       setRoom(res.room);
       if (res.queued) {
         setError(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
@@ -868,7 +884,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         padding: "12px 16px 24px",
       }}
     >
-      {room?.status === "ended" && <ClassCompleteOverlay onDone={excuseFromClass} />}
+      {room?.status === "ended" && (
+        <ClassCompleteOverlay onDone={excuseFromClass} primaryLang={me?.language || locale} />
+      )}
       <header
         style={{
           display: "flex",
