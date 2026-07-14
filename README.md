@@ -143,25 +143,28 @@ Additional screenshots live in `docs/screens/`.
 | Area | Status | Key surfaces |
 | --- | --- | --- |
 | Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue; Solo (1:1) opens the same Salareen live-room classroom as group classes, scaled to the AI host + one learner | `apps/web/app/class`, `apps/web/app/live-room`, `services/orchestrator` |
+| Live rooms & group classes | Salareen LiveKit rooms (participant grid, single-speaker Q&A mutex, gifts/reactions, moderation), scheduled group classes, auto start/advance and auto-end with a courteous multilingual "class complete" farewell | `services/orchestrator`, `apps/web/app/live-room`, `aoep_shared/live_room.py` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
-| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
+| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, live rooms, EAS profiles | `apps/mobile` |
 | Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |
 | Ads | Tier-gated web ad slots; house inventory locally; Google AdSense / Ad Manager / Meta via `AD_NETWORK` env | `aoep_shared/ad_networks.py`, `services/billing` |
 | Language learning | 27 supported language codes including Turkish and Khmer; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
+| Language delivery | Each learner's preferred language is stored on their account and follows them across web + mobile; the AI teacher answers in the language they speak | `services/identity`, `services/orchestrator`, `aoep_shared/languages.py` |
 | Careers | Job board, skill coverage, JD parsing, certification class matching | `/jobs`, curriculum jobs APIs |
 | Accounts | Signup/login, session tokens, students, portfolio, profile context sharing, rewards | `services/identity` |
-| Payments | 44 payment methods across 12 processors; sandbox/local and provider-routed cloud paths | `docs/payments.txt`, `services/billing` |
+| Payments | 50 payment methods across 13 processors; sandbox/local and provider-routed cloud paths | `docs/payments.txt`, `services/billing` |
 | Integrations | Signed webhooks, LMS/LTI/OneRoster/AGS, finance webhooks, cloud notify/calendar/SSO, API clients | `services/integrations` |
 | Ops | `/version`, `/__meta`, telemetry, metrics, flags, testsupport, rate limits, ETags, load tests | shared service middleware + `qa/` |
 | Compliance | Legal notices, disclaimer gate, privacy/DPA, consent, retention, regional policy, internal auth gates | `legal/`, `services/memory` |
 | Scale/hosting | Docker compose, k8s manifests, HPAs/PDBs/Ingress/Redis, Terraform skeletons, hosting plan | `infra/`, `docs/hosting.txt`, `docs/scalability.txt` |
 | Vultr VKE | Provider overlay for Vultr Container Registry, VKE ingress hosts, Vultr Object Storage, and VKE block-storage constraints | `infra/k8s-vke` |
 
-Known live-class gap: the current web example is interactive but not yet fully
-autonomous per-student live orchestration. The Director, TeachingBrain, Memory
-signals, HIL, and adaptive policy exist; the next implementation step is wiring
-those into a tick-by-tick live agent loop that changes pacing, reteaches, quizzes,
-and feedback per student during the same course.
+Known live-class frontier: Salareen live rooms (LiveKit grid, Q&A mutex, gifts,
+auto start/advance/end), group-class scheduling, the Director, TeachingBrain,
+Memory signals, HIL, adaptive policy, and the `apps/agent-runtime` LiveKit-agent
+scaffold all exist. The remaining step is wiring these into a fully autonomous,
+tick-by-tick per-student live loop that changes pacing, reteaches, quizzes, and
+gives feedback to each learner during the same course.
 
 ## Architecture
 
@@ -417,13 +420,12 @@ the whole chain runs in CI without keys, network, or ffmpeg.
 | Part | Module | Input → Output |
 | --- | --- | --- |
 | 1 — Harvest | `aoep_shared.harvest` | sources → scored, tagged `GeneratedCourse` → exported `.pptx` + `.course.json` |
-| 2 — Teach | `aoep_shared.teaching` | course → `LessonPlan` (offline builder, or delegate to the external `ppt_trainer` agent for an LLM script + audio/video) |
+| 2 — Teach | `aoep_shared.teaching` | course → `LessonPlan` (deterministic offline builder, or an LLM-scripted lesson when an LLM provider is configured) |
 | 3 — Present | `aoep_shared.meeting` | lesson → live meeting (Google Meet / Zoom / Teams, or an offline mock) presenting slide → speak → advance |
 
 The Part 1 → Part 2 hand-off is a real `.pptx` (the harvester narration rides in
-the slide speaker notes), so the standalone `ppt_trainer` reader consumes it with
-zero changes; the richer `.course.json` (composition matrix + PCS + tags) feeds
-the meeting layer.
+the slide speaker notes), so any slide reader consumes it with zero changes; the
+richer `.course.json` (composition matrix + PCS + tags) feeds the meeting layer.
 
 ```mermaid
 flowchart LR
@@ -433,7 +435,7 @@ flowchart LR
   end
   subgraph P2["Part 2 · teach"]
     TEACH["teach_course()<br/>LessonPlan"]
-    PPT["external ppt_trainer agent<br/>(LLM script · TTS · video)"]
+    PPT["LLM-scripted lesson<br/>(script · TTS · video, optional)"]
   end
   subgraph P3["Part 3 · present"]
     PLAN["build_presentation_plan()<br/>timed slide plan"]
@@ -480,6 +482,14 @@ transcript all run without it.
 | `services/billing` | Plans, entitlements, payment methods, checkout |
 | `services/speech` | Language coverage, TTS routing, translation, learning APIs |
 | `services/perception` | Face recognition and attention/engagement |
+| `services/harvester` | 24/7 crawl/generate/export CLI worker (no HTTP app); posts decks to curriculum |
+| `services/homework` | Offline homework generate / OCR scan / authorship / autograde CLI (HTTP mirror lives in curriculum `/homework/*`) |
+| `services/cosyvoice` | GPU CosyVoice 2 TTS sidecar (`POST /tts`, :9880) for cloud/self-hosted clone narration |
+| `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) — not an HTTP service |
+| `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
+| `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, pipeline validation, voice tools) |
+| `sample-curriculum` | Bundled offline lessons/decks used by the local teaching loop |
+| `qa` | Regression gate, stress, and load-test harnesses (`make qa`, `make stress`) |
 | `infra/compose` | Local Docker compose stack and scaling overlay |
 | `infra/k8s` | Kubernetes base manifests (kustomize): Deployments/Services, HPA/PDB, Ingress (+ per-service API routes), Redis, configmap |
 | `infra/k8s-vke` | Vultr VKE overlay: registry rewrite, salareen.com hosts, cert-manager TLS, object storage, runbook |
@@ -556,6 +566,13 @@ Then open `http://localhost:3000`, `http://localhost:3000/class`,
 `http://localhost:3000/drive`, `http://localhost:3000/jobs`, or
 `http://localhost:3000/backgrounds`.
 
+Other services load `config/local.env` (admin seed, QA accounts) via the helper
+script — `./scripts/run_local_service.sh <name>` (or `make run-identity` :8008,
+`make run-memory` :8004, `make run-orchestrator` :8000). For live-room WebRTC,
+run a local LiveKit server with `make run-livekit` (:7880); without it the
+teaching loop still works and rooms fall back gracefully. See `docs/run-local.txt`
+for the full local-dev guide and each service's `README.txt`.
+
 Full compose stack:
 
 ```bash
@@ -582,7 +599,7 @@ make scale-down
 ```
 
 Mobile (static export preview of the JS bundle; for the live app use
-`pnpm start` — see "Set up, run, and build the mobile app" under Mobile platform):
+`pnpm start` — see "Mobile app on macOS — setup, run, and debug" below):
 
 ```bash
 cd apps/mobile
@@ -627,13 +644,13 @@ use cases, and cost analysis) see:
 
 | Service | Important endpoints |
 | --- | --- |
-| orchestrator | `GET /api/lessons`, `POST /api/sessions`, `POST /api/sessions/{id}/advance`, `POST /api/sessions/{id}/ask`, `/director/plan`, `/assessment/quiz`, `/api/hil/*` |
+| orchestrator | `GET /api/lessons`, `POST /api/sessions`, `POST /api/sessions/{id}/advance`, `POST /api/sessions/{id}/ask`, `/api/live-rooms/*` (join/ask/tick/solo), `/api/group-classes/*`, `/api/training/*`, `/api/cognitive/*`, `/director/plan`, `/assessment/quiz`, `/api/hil/*` |
 | curriculum | `/courses/search`, `/home`, `/audio/courses`, `/jobs`, `/jobs/parse`, `/recommend`, `/homework/*`, `/catalog/export`, `/notifications/feed`, `/validate/*`, `/scenes/*` |
 | identity | `/auth/signup`, `/auth/login`, `/auth/login-history`, `/onboarding/*`, `/students`, `/profile-shares/context`, `/portfolio`, `/rewards`, `/games/*`, `/language/practice` |
 | memory | `/consent`, `/legal/notices`, `/legal/accept`, `/compliance/{region}`, `/retention/purge`, `/flags/*`, `/survey/*`, `/mastery`, `/behavior`, `/learner/{student}/{topic}` |
-| integrations | `/webhooks/subscriptions`, `/webhooks/emit`, `/webhooks/inbound/{provider}`, `/payments/webhook/{provider}`, `/lms/*`, `/notify`, `/calendar/schedule`, `/sso/oidc`, `/clients` |
-| billing | `/plans`, `/payment-methods`, `/payment-methods/by-country`, `/entitlements/can-start`, `/checkout`, `/ads/slot/{id}`, `/ads/networks` |
-| speech | `/languages`, `/tts/engine`, `/delivery/plan`, `/translate`, `/learn/*` |
+| integrations | `/webhooks/subscriptions`, `/webhooks/emit`, `/webhooks/inbound/{provider}`, `/payments/webhook/{provider}`, `/lms/*`, `/bridges/*` (Zoom/Teams/Meet), `/notify`, `/calendar/schedule`, `/sso/oidc`, `/finance/payout`, `/entitlements/{customer}`, `/clients` |
+| billing | `/plans`, `/payment-methods`, `/payment-methods/by-country`, `/entitlements/can-start`, `/checkout`, `/ads/slot/{id}`, `/ads/networks`, `/ads/revenue` |
+| speech | `/languages`, `/tts`, `/tts/engine`, `/tts/voices`, `/delivery/plan`, `/translate`, `/learn/*` |
 | perception | `/enroll/{student_id}`, `/identify`, `/analyze/consent-check`, `/gallery` |
 
 Every service created through `create_service()` also exposes `/health`,
@@ -718,7 +735,8 @@ The Expo app supports Android and iOS with:
 - Netflix-style home rails and category cards.
 - Continue Listening, My List, local progress, streaks, and saved settings.
 - Local notifications and alerts inbox.
-- Locale picker with 13 translated UI locales plus supported-language fallback.
+- Locale picker with 14 fully translated UI locales plus supported-language
+  fallback; the chosen language is saved to the account and follows the learner.
 - EAS build profiles for development, preview APK, and production app bundle/IPA.
 
 ### Mobile app on macOS — setup, run, and debug

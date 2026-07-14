@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.21 - Documentation refresh. Corrected stale facts in
+  README.md (payments 50 methods/13 processors, removed the non-existent
+  ppt_trainer references, completed the repository-layout table with harvester/
+  homework/cosyvoice/training/voices/scripts/qa, expanded the API map with
+  live-rooms/group-classes/training/cognitive/bridges, fixed a broken section
+  link, 14 translated UI locales, and run-command pointers to
+  scripts/run_local_service.sh + make run-livekit). Added per-component
+  README.txt for every backend service (orchestrator, speech, perception,
+  memory, curriculum, billing, integrations, identity, harvester, homework),
+  packages/shared, and apps (web, mobile, agent-runtime) so each service/subtool
+  is self-documenting.
+
 - 2026-07-14 - v0.19.20 - Mobile (iOS + Android) parity for live classes: the
   LiveRoomScreen now heartbeats the room clock (new liveRoomTick) so a
   mobile-only group class still auto-starts, auto-advances slides, and auto-ends
