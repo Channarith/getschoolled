@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.24 - Android "Unable to load script / index.android.bundle"
+  hardening. The plain `pnpm run android` (mobile-expo.sh run:android) path now
+  also runs `adb reverse tcp:8081` for every connected device (the debug bundle
+  loads from Metro; a USB device can't reach host localhost without the tunnel),
+  matching mobile-launch-android.sh. Added `pnpm run android:reverse`
+  (scripts/mobile-android-reverse.sh) — one-command recovery for an
+  already-installed debug app stuck on the red screen. Updated the
+  mobile-eas-build rule: the DISMISS/RELOAD dev overlay only appears in DEBUG
+  builds (so that red screen means a debug build expecting Metro, not a release
+  build with a missing bundle); for a self-contained install use
+  `pnpm run native:build:android:release` or an EAS preview/production build.
+
 - 2026-07-14 - v0.19.23 - Identity fix + login-outage runbook. The Redis snapshot
   now round-trips the account's preferred_language (persistence._deserialize_account
   was dropping the new field on reload); pre-change snapshots (no such key) still

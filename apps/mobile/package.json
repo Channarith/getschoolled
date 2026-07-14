@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.19.23",
+  "version": "0.19.24",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -33,6 +33,7 @@
     "start:android": "bash scripts/mobile-expo.sh start --android",
     "start:ios": "bash scripts/mobile-expo.sh start --ios",
     "android": "bash scripts/mobile-expo.sh run:android",
+    "android:reverse": "bash scripts/mobile-android-reverse.sh",
     "ios": "bash scripts/mobile-run-ios.sh",
     "ios:device": "bash scripts/mobile-run-ios.sh --physical",
     "android:debug": "EXPO_DEBUG=1 bash scripts/mobile-expo.sh run:android",

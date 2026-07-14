@@ -48,12 +48,19 @@ without the embedded bundle. Pick the build for the situation instead of retryin
   `assets/index.android.bundle`) or an EAS `preview`/`production` build. NEVER
   hand someone a debug/dev-client APK as a "standalone" build.
 - **Debug / dev-client on a device WITH Metro** (`npm run launch:android`,
-  `expo run:android`, EAS `development` profile): Metro must be running AND
-  reachable. Emulator → `10.0.2.2` (automatic). **USB physical device → needs
-  `adb reverse tcp:8081 tcp:8081`** (now done automatically for connected devices
-  in `scripts/mobile-launch-android.sh`). Wi‑Fi → same LAN + correct dev host.
+  `npm run android`, `expo run:android`, EAS `development` profile): Metro must be
+  running AND reachable. Emulator → `10.0.2.2` (automatic). **USB physical device →
+  needs `adb reverse tcp:8081 tcp:8081`** — now done automatically for every
+  connected device in BOTH `scripts/mobile-launch-android.sh` and the
+  `run:android` branch of `scripts/mobile-expo.sh`. Wi‑Fi → same LAN + dev host.
+- **Already-installed debug app showing the red screen?** One-command recovery:
+  `npm run android:reverse` (re-tunnels port 8081 for every connected device and
+  reminds you to `pnpm start` + tap Reload). See `scripts/mobile-android-reverse.sh`.
 - **EAS `development` profile = a dev client** (`developmentClient: true`) → it
   ALWAYS needs Metro. Use `preview`/`production` for a self-contained install.
+- The dev overlay (DISMISS/RELOAD buttons) on the red screen ONLY appears in
+  DEBUG builds — so if you see it, you have a debug build expecting Metro (not a
+  release build with a missing bundle).
 
 Guardrail: `scripts/mobile-build-release-android.sh` calls
 `scripts/mobile-verify-apk-bundle.sh <apk>`, which fails the build if the APK
