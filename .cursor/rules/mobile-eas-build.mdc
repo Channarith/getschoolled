@@ -35,9 +35,57 @@ their `require()`s and (b) call only APIs that actually exist — a wrong API th
 - Prefer official package config plugins (`react-native-google-mobile-ads`, `expo-build-properties`) over hand-rolled Podfile edits when possible.
 - iOS `UIBackgroundModes` in `app.json` — no duplicate entries (merge in plugin, don't repeat in static JSON).
 
+## Runtime: "Unable to load script / index.android.bundle" (recurring)
+
+This red-screen at launch — *"Unable to load script. Make sure you're either
+running Metro … or that your bundle 'index.android.bundle' is packaged correctly
+for release."* — is NOT a code bug. It means the running build has no JS to run:
+either it expects a Metro dev server it can't reach, or a "release" build shipped
+without the embedded bundle. Pick the build for the situation instead of retrying:
+
+- **Standalone on a real device / demo / no laptop → build a RELEASE APK.**
+  `npm run native:build:android:release` (runs `assembleRelease`, which embeds
+  `assets/index.android.bundle`) or an EAS `preview`/`production` build. NEVER
+  hand someone a debug/dev-client APK as a "standalone" build.
+- **Debug / dev-client on a device WITH Metro** (`npm run launch:android`,
+  `expo run:android`, EAS `development` profile): Metro must be running AND
+  reachable. Emulator → `10.0.2.2` (automatic). **USB physical device → needs
+  `adb reverse tcp:8081 tcp:8081`** (now done automatically for connected devices
+  in `scripts/mobile-launch-android.sh`). Wi‑Fi → same LAN + correct dev host.
+- **EAS `development` profile = a dev client** (`developmentClient: true`) → it
+  ALWAYS needs Metro. Use `preview`/`production` for a self-contained install.
+
+Guardrail: `scripts/mobile-build-release-android.sh` calls
+`scripts/mobile-verify-apk-bundle.sh <apk>`, which fails the build if the APK
+does not embed `assets/index.android.bundle` — so a broken "release" APK never
+ships. Run it on any APK to check: `bash scripts/mobile-verify-apk-bundle.sh path/to.apk`.
+
+## Runtime: iOS CoreLocation "Performance Diagnostics" FAULT
+
+Console shows a `CoreLocation` FAULT: *"This method can cause UI unresponsiveness
+if invoked on the main thread. Instead, consider waiting for the
+`-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus`
+first."* This is a **non-fatal** OS diagnostic (not a crash), emitted when
+authorization/location-services are probed synchronously — expo-location does this
+internally, and we amplify it by re-requesting on every call.
+
+- Do NOT call `requestForegroundPermissionsAsync()` directly. Go through
+  `src/locationPermission.ts::ensureForegroundLocationPermission()`, which checks
+  status first (`getForegroundPermissionsAsync`) and prompts only when
+  undetermined — Apple's "check `authorizationStatus` first" guidance. All
+  location entry points (`liveRoomLocation.ts`, `drivingDetection.ts`) use it.
+- Never gate first render on a location call, and never probe location services
+  synchronously on the main thread / at app launch.
+- The diagnostic is fully removed only by an expo-location / Expo SDK upgrade that
+  moves the native probe off the main thread — treat that as the definitive fix;
+  the helper above is the app-level mitigation. Don't re-debug it as a crash.
+
 ## Pre-merge checklist (mobile / EAS)
 
 1. `cd apps/mobile && pnpm install && node scripts/verify-expo-config-plugins.js`
 2. `bash scripts/mobile-typecheck.sh`
 3. Confirm `pnpm-lock.yaml` includes any new direct dependency
 4. Bump `VERSION` + mobile `app.json` / `version.ts` via `python3 scripts/bump_pr_version.py`
+5. For a device/standalone build, verify the bundle is embedded:
+   `bash scripts/mobile-verify-apk-bundle.sh <path-to-release.apk>` (a debug APK
+   on a device without Metro is the #1 "Unable to load script" cause).

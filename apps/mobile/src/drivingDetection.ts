@@ -3,6 +3,7 @@
 
 import type * as LocationTypes from "expo-location";
 
+import { ensureForegroundLocationPermission } from "./locationPermission";
 import { isExpoLocationAvailable, isExpoSensorsAvailable, tryRequireModule } from "./nativeModules";
 import type { Settings } from "./storage";
 
@@ -151,8 +152,8 @@ export async function requestDrivingPermissions(opts: {
   if (opts.location) {
     const Location = getLocation();
     if (Location) {
-      const { status: perm } = await Location.requestForegroundPermissionsAsync();
-      location = perm === "granted";
+      // Check status first, prompt only if undetermined (see locationPermission.ts).
+      location = await ensureForegroundLocationPermission(Location);
     }
   }
 
