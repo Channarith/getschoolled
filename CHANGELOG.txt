@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.12 - Live-room: hard media-layer mutex + AI auto-Q&A.
+  (1) HARD MUTEX: learners now join with can_publish=False, so their LiveKit token
+  physically cannot send audio/video. A new POST /api/live-rooms/{id}/media-token
+  issues a fresh token reflecting the participant's CURRENT publish right; web +
+  mobile re-fetch it and reconnect when the floor is granted (can publish) or
+  released (cannot) — so only the one floor holder can talk, enforced by LiveKit,
+  not just the client. (2) AI AUTO-Q&A: advancing a slide now auto-calls the next
+  raised hand when no one holds the floor (auto_call_next_if_waiting), so the AI
+  picks up questions mid-presentation. Tests: media-token publish-right flip,
+  advance auto-call-on. Note: enforcement is visible once the LiveKit Cloud
+  transport connects; revert is one line (learner can_publish default) if needed.
+
 - 2026-07-14 - v0.19.11 - Live-room speaking mutex: the host/AI can now give the
   floor to a SPECIFIC learner (not just FIFO). New LiveRoomStore.call_on() +
   POST /api/live-rooms/{id}/queue/call-on preempts the current speaker and grants

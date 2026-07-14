@@ -18,6 +18,7 @@ import {
   liveRoomRaiseHand,
   liveRoomCallNext,
   liveRoomCallOn,
+  liveRoomMediaToken,
   liveRoomFinishTurn,
   liveRoomLeaveQueue,
   liveRoomRecordStart,
@@ -221,8 +222,31 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [joinInfo, room]);
   const hasFloor = me?.id === room?.floor_participant_id;
 
+  // Hard mutex: learners join with a no-publish token. When the host/AI grants
+  // the floor (me.can_publish flips), re-fetch a fresh token that permits
+  // publishing and reconnect; when the floor is released, re-fetch a no-publish
+  // token so LiveKit itself refuses to publish. liveMedia overrides the join
+  // token once refreshed.
+  const [liveMedia, setLiveMedia] = useState<LiveRoomJoin["media"] | null>(null);
+  const publishRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!joinInfo) {
+      publishRef.current = null;
+      setLiveMedia(null);
+      return;
+    }
+    const cp = Boolean(me?.can_publish);
+    if (publishRef.current === cp) return;
+    publishRef.current = cp;
+    let alive = true;
+    void liveRoomMediaToken(roomId, joinInfo.participant.id)
+      .then((r) => { if (alive) setLiveMedia(r.media); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [me?.can_publish, joinInfo, roomId]);
+
   const { tiles: liveKitTiles, audioTracks, livekitAvailable } = useLiveKitRoom(
-    joinInfo?.media,
+    liveMedia ?? joinInfo?.media,
     room?.participants ?? joinInfo?.room.participants ?? [],
     Boolean(hasFloor && me?.can_publish),
   );

@@ -1281,6 +1281,33 @@ def join_live_room(
     }
 
 
+@app.post("/api/live-rooms/{room_id}/media-token")
+def live_room_media_token(room_id: str, req: LiveRoomHandRequest) -> dict:
+    """Issue a FRESH LiveKit token for a participant reflecting their CURRENT
+    publish right. The hard mutex hinges on this: learners join with can_publish
+    False, and when the host/AI grants them the floor the client re-fetches a
+    token here (now can_publish True) and reconnects to publish. On losing the
+    floor it re-fetches again (can_publish False) so LiveKit refuses to publish."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        p = room.get_participant(req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+    token = app.state.factory.media().issue_token(
+        room=room_id, identity=p.identity, can_publish=p.can_publish,
+    )
+    return {
+        "media": {
+            "room": token.room,
+            "identity": token.identity,
+            "token": token.token,
+            "url": token.url,
+        },
+        "can_publish": p.can_publish,
+    }
+
+
 @app.post("/api/live-rooms/{room_id}/leave")
 def leave_live_room(
     room_id: str,
@@ -1526,6 +1553,10 @@ def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
             room_id,
             f"📖 {slide.title} — {narration}",
         )
+    # AI auto-Q&A: at this natural break (new slide), if a learner is waiting in
+    # the Q&A queue and no one holds the floor, the AI calls on the next raised
+    # hand so questions get answered mid-presentation (single-speaker mutex kept).
+    auto_speaker = store.auto_call_next_if_waiting(room_id)
     slide_dict = store.require(room_id).slide.to_dict()
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_slide  # noqa: E402
@@ -1535,6 +1566,7 @@ def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
         "slide": slide_dict,
         "room": room_dict,
         "lesson_title": lesson.title,
+        "auto_called_on": auto_speaker.to_dict() if auto_speaker else None,
     }
 
 

@@ -1471,6 +1471,26 @@ export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promi
   return r.room;
 }
 
+export type LiveKitMediaToken = {
+  media: { room: string; identity: string; token: string; url: string };
+  can_publish: boolean;
+};
+
+/** Fetch a fresh LiveKit token reflecting the participant's CURRENT publish
+ * right (used to (re)gain publishing when granted the floor — the hard mutex). */
+export async function liveRoomMediaToken(
+  roomId: string,
+  participantId: string,
+): Promise<LiveKitMediaToken> {
+  return jsonOrThrow<LiveKitMediaToken>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/media-token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    })
+  );
+}
+
 export async function liveRoomCallOn(
   roomId: string,
   participantId: string,

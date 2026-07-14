@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
@@ -6,6 +6,7 @@ import {
 import {
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
+  liveRoomMediaToken,
   liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomUnban,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
@@ -135,6 +136,22 @@ export default function LiveRoomScreen({
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;
+
+  // Hard mutex: learners join without publish rights; when the host/AI grants
+  // the floor (me.can_publish flips) re-fetch a fresh token that permits
+  // publishing (and a no-publish one when the floor is released).
+  const publishRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!participantId) { publishRef.current = null; return; }
+    const cp = Boolean(me?.can_publish);
+    if (publishRef.current === cp) return;
+    publishRef.current = cp;
+    let alive = true;
+    void liveRoomMediaToken(roomId, participantId)
+      .then((r) => { if (alive) setMedia(r.media); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [me?.can_publish, participantId, roomId]);
   const inQueue = Boolean(room?.speaking_queue?.some(
     (e) => e.participant_id === participantId && (e.status === "waiting" || e.status === "speaking")
   ));

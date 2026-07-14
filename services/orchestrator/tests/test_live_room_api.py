@@ -238,6 +238,38 @@ def test_call_on_specific_participant_holds_the_mutex():
     assert r2.json()["room"]["floor_participant_id"] == a
 
 
+def test_media_token_reflects_publish_right():
+    # Hard mutex: a learner joins WITHOUT publish rights; a fresh media token
+    # only permits publishing once they hold the floor.
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    pid = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()["participant"]["id"]
+
+    before = client.post(f"/api/live-rooms/{room_id}/media-token", json={"participant_id": pid})
+    assert before.status_code == 200, before.text
+    assert before.json()["can_publish"] is False  # can't talk until called on
+
+    client.post(f"/api/live-rooms/{room_id}/queue/call-on", json={"participant_id": pid, "moderator_key": mod})
+    after = client.post(f"/api/live-rooms/{room_id}/media-token", json={"participant_id": pid})
+    assert after.json()["can_publish"] is True     # floor holder may publish
+    assert after.json()["media"]["token"].count(".") == 2
+
+
+def test_advance_auto_calls_next_raised_hand():
+    # AI auto-Q&A: advancing a slide with a waiting hand and no current speaker
+    # gives the floor to the next learner.
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()["participant"]["id"]
+    client.post(f"/api/live-rooms/{room_id}/queue/join", json={"participant_id": pid, "question": "Why?"})
+
+    adv = client.post(f"/api/live-rooms/{room_id}/advance")
+    assert adv.status_code == 200, adv.text
+    assert adv.json()["auto_called_on"] and adv.json()["auto_called_on"]["id"] == pid
+    assert adv.json()["room"]["floor_participant_id"] == pid
+
+
 def test_advance_and_ask_in_room():
     info = _start_salareen_class(6)
     room_id = info["room_id"]

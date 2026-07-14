@@ -613,6 +613,10 @@ class LiveRoomStore:
             role=LEARNER_ROLE,
             identity=ident,
             account_id=acct,
+            # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
+            # can't send audio/video until the host/AI grants them the floor
+            # (which flips can_publish and lets the client fetch a publish token).
+            can_publish=False,
         )
         room.participants[participant.id] = participant
         room.viewer_count = room.learner_count
@@ -859,6 +863,16 @@ class LiveRoomStore:
         room._reindex_waiting()
         self._commit(room)
         return speaker
+
+    def auto_call_next_if_waiting(self, room_id: str) -> Optional[Participant]:
+        """AI picks up the next raised hand at a natural break (e.g. between
+        slides) — only when no one currently holds the floor and someone is
+        waiting. Returns the new speaker, or None if nothing to do. Best-effort:
+        never raises for the 'empty queue / already speaking' cases."""
+        room = self.require(room_id)
+        if room.floor_participant_id or not room.waiting_queue():
+            return None
+        return self.call_next(room_id)
 
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
         """End the current speaker's turn and release the floor."""
