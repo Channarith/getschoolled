@@ -860,6 +860,17 @@ export async function liveRoomAsk(roomId: string, participantId: string, questio
     });
 }
 
+/** Heartbeat the room clock so a mobile-only group class still auto-starts (when
+ * full / past the scheduled time), auto-advances slides, and auto-ends when its
+ * allotted time is up. Idempotent server-side; any joined client may call it. */
+export async function liveRoomTick(roomId: string):
+  Promise<{ room: LiveRoomState; auto_started?: boolean; auto_ended?: boolean }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/tick`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+}
+
 export async function liveRoomBan(
   roomId: string,
   participantId: string,

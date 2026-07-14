@@ -7,7 +7,7 @@ import {
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
-  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomUnban,
+  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomTick, liveRoomUnban,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
@@ -23,6 +23,31 @@ import { theme } from "../theme";
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
 const MOD_STORAGE: Record<string, string> = {};
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
+
+const CLASS_END_COUNTDOWN = 5;
+
+// Courteous farewell shown when a group lesson's allotted time expires, keyed by
+// language so the learner is thanked in the language they speak (English fallback).
+const FAREWELL_BY_CODE: Record<string, string> = {
+  en: "Thank you for attending today's class. We hope you enjoyed learning with us, and we look forward to welcoming you back soon.",
+  es: "Gracias por asistir a la clase de hoy. Esperamos que haya disfrutado aprender con nosotros y deseamos verle de nuevo pronto.",
+  fr: "Merci d'avoir assisté au cours d'aujourd'hui. Nous espérons que vous avez apprécié d'apprendre avec nous et avons hâte de vous revoir bientôt.",
+  de: "Vielen Dank für Ihre Teilnahme am heutigen Kurs. Wir hoffen, dass Ihnen das Lernen mit uns gefallen hat, und freuen uns, Sie bald wiederzusehen.",
+  pt: "Obrigado por participar da aula de hoje. Esperamos que tenha gostado de aprender conosco e esperamos vê-lo novamente em breve.",
+  zh: "感谢您参加今天的课程。希望您在学习中收获满满，期待下次再会！",
+  ja: "本日の授業にご参加いただき、誠にありがとうございました。またお会いできる日を楽しみにしております。",
+  ko: "오늘 수업에 참여해 주셔서 감사합니다. 즐거운 배움의 시간이 되셨길 바라며, 다음에 또 뵙겠습니다.",
+  ar: "شكرًا لحضوركم درس اليوم. نتمنى أن تكونوا قد استمتعتم بالتعلّم معنا، ونتطلّع إلى رؤيتكم مجددًا قريبًا.",
+  hi: "आज की कक्षा में शामिल होने के लिए धन्यवाद। हमें आशा है कि आपको हमारे साथ सीखना अच्छा लगा।",
+  km: "សូមអរគុណសម្រាប់ការចូលរួមថ្នាក់រៀនថ្ងៃនេះ។ សង្ឃឹមថាអ្នកបានរីករាយនឹងការសិក្សាជាមួយយើង។",
+  tr: "Bugünkü derse katıldığınız için teşekkür ederiz. Bizimle öğrenmekten keyif aldığınızı umuyoruz.",
+  ru: "Спасибо за участие в сегодняшнем занятии. Надеемся, вам понравилось учиться с нами.",
+};
+
+function farewellFor(locale: string): string {
+  const code = (locale || "").toLowerCase().split("-")[0];
+  return FAREWELL_BY_CODE[code] || FAREWELL_BY_CODE.en;
+}
 
 export default function LiveRoomScreen({
   roomId,
@@ -50,7 +75,9 @@ export default function LiveRoomScreen({
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
   const [showGifts, setShowGifts] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
+  const [endLeft, setEndLeft] = useState(CLASS_END_COUNTDOWN);
   const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
+  const classEnded = room?.status === "ended";
 
   const socket = useLiveRoomSocket(roomId, Boolean(participantId), setRoom);
 
@@ -84,6 +111,17 @@ export default function LiveRoomScreen({
     const t = setInterval(() => void refresh(), 3000);
     return () => clearInterval(t);
   }, [participantId, roomId, socket.connected]);
+
+  // Heartbeat the room clock so a mobile-only group class still auto-starts,
+  // auto-advances slides, and auto-ends when its allotted time is up (parity with
+  // web). Idempotent server-side; harmless for open-ended rooms.
+  useEffect(() => {
+    if (!participantId) return;
+    const t = setInterval(() => {
+      void liveRoomTick(roomId).then((r) => setRoom(r.room)).catch(() => undefined);
+    }, 8000);
+    return () => clearInterval(t);
+  }, [participantId, roomId]);
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
     const joinName = (nameOverride ?? name).trim();
@@ -185,6 +223,33 @@ export default function LiveRoomScreen({
     }
     onBack();
   };
+
+  // When the class ends (its allotted time expired), count down and then excuse
+  // the learner back to the previous screen — mirrors the web farewell.
+  useEffect(() => {
+    if (!classEnded || !participantId) return;
+    setEndLeft(CLASS_END_COUNTDOWN);
+    const iv = setInterval(() => {
+      setEndLeft((n) => {
+        if (n <= 1) { clearInterval(iv); leaveAndBack(); return 0; }
+        return n - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classEnded, participantId]);
+
+  if (classEnded && participantId) {
+    return (
+      <View style={[styles.wrap, styles.endWrap]}>
+        <Text style={styles.endEmoji}>🎓</Text>
+        <Text style={styles.endTitle}>Class complete</Text>
+        <Text style={styles.endMsg}>{farewellFor(locale)}</Text>
+        <Text style={styles.meta}>Returning in {endLeft}s…</Text>
+        <PrimaryButton label="Leave now" onPress={leaveAndBack} />
+      </View>
+    );
+  }
 
   if (wasBlocked) {
     return (
@@ -550,6 +615,10 @@ export default function LiveRoomScreen({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 16, gap: 10 },
+  endWrap: { alignItems: "center", justifyContent: "center", gap: 14 },
+  endEmoji: { fontSize: 52 },
+  endTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "800" },
+  endMsg: { color: theme.colors.text, fontSize: 16, textAlign: "center", lineHeight: 24 },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", flex: 1 },
   meta: { color: theme.colors.muted, fontSize: 13 },

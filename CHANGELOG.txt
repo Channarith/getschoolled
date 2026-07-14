@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.20 - Mobile (iOS + Android) parity for live classes: the
+  LiveRoomScreen now heartbeats the room clock (new liveRoomTick) so a
+  mobile-only group class still auto-starts, auto-advances slides, and auto-ends
+  when its allotted time is up; and it shows a courteous "Class complete"
+  farewell in the learner's language with a countdown before excusing them. Solo
+  1:1 and group "Live Class" (LessonScreen) already answer in the learner's
+  language. Verified via mobile typecheck + jest (42) and the join(+language)/
+  tick/ask HTTP contracts (apps/mobile/src/screens/LiveRoomScreen.tsx,
+  apps/mobile/src/api.ts).
+
 - 2026-07-14 - v0.19.19 - Learner language now drives the AI and the class. The
   account stores a persisted preferred_language (identity /account/language +
   returned by /auth/me); web + mobile adopt it on any device (LocaleProvider) and
