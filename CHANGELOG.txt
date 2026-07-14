@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.0 - CI: fix pytest "import file mismatch" that interrupted
+  the whole suite. services/harvester/tests and services/homework/tests both had
+  a test_run.py; with pytest's default prepend import mode (no __init__.py) the
+  duplicate basename collided during collection. Renamed to test_harvester_run.py
+  and test_homework_run.py (unique basenames, per the pytest hint). Full command
+  now collects 1844 tests with no collision.
+
 - 2026-07-13 - v0.19.0 - LiveKit backend setup so Salareen video (tier 2) actually
   connects. Root cause: the key/secret the orchestrator SIGNS tokens with must
   match the LiveKit server's `keys:`, or the server 401s every token and video

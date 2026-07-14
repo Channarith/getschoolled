@@ -1,4 +1,4 @@
-"""CLI tests for the homework worker (mirrors services/harvester/tests/test_run.py)."""
+"""CLI tests for the homework worker (mirrors services/harvester/tests/test_harvester_run.py)."""
 
 import io
 import json
