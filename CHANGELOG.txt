@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.23 - Identity fix + login-outage runbook. The Redis snapshot
+  now round-trips the account's preferred_language (persistence._deserialize_account
+  was dropping the new field on reload); pre-change snapshots (no such key) still
+  load with a safe "" default and never raise, so identity keeps booting and login
+  keeps working across a deploy. Added a regression test. Documented a prioritized
+  "cloud unreachable at /identity" production runbook in services/identity/README.txt
+  (identity needs no secret to run — AUTH_SIGNING_KEY/DEFAULT_ADMIN_PASSWORD/
+  ADMIN_SECRET fall back — but the non-optional aoep-secrets envFrom blocks pod
+  startup if that secret is absent; check pods, the aoep-apis ingress that owns the
+  /identity route, TLS, and re-bootstrap aoep-secrets).
+
 - 2026-07-14 - v0.19.22 - Architecture document + diagrams. Added
   scripts/build_architecture_pdf.py which renders six code-grounded diagrams
   (system topology, network traffic flow, accounts/auth/language, data flow &
