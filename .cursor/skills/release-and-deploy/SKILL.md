@@ -33,8 +33,22 @@ description: How to ship a change — version bumping, branch/PR/auto-merge conv
   issue; it's a separate (non-CI-workflow) check and does not block auto-merge.
 
 ## Deploy to Vultr (VKE)
+- **One-command manual deploy (correct order):** `scripts/deploy_vke.sh` does
+  build → push → apply → restart, never clobbers secrets, and skips the unused
+  self-hosted LiveKit. Prefer it (or the `Deploy` GitHub workflow) over ad-hoc
+  `kubectl` sequences. Export `VULTR_REGISTRY_USERNAME/PASSWORD` (and, on a fresh
+  cluster, `LIVEKIT_API_KEY/SECRET`) first.
+- **Secrets are managed OUT OF BAND:** `aoep-secrets` is NOT in the applied
+  kustomization (so `apply -k` can't reset it to `__INJECT__`). Bootstrap once with
+  `scripts/k8s_bootstrap_secrets.sh` (create-if-missing); template in
+  `infra/k8s/aoep-secrets.example.yaml`. Rotate a single key with
+  `kubectl -n aoep patch secret aoep-secrets --type merge -p '{"stringData":{...}}'`.
+- **LiveKit is Cloud, not self-hosted:** `LIVEKIT_URL` in `configmap-vke.yaml`
+  points at the LiveKit Cloud project; the in-cluster `livekit` Deployment/ingress
+  is removed from the kustomization. `LIVEKIT_API_KEY/SECRET` (in `aoep-secrets`)
+  must match that Cloud project (secret >= 32 chars).
 - Manifests: `infra/k8s` (base) + `infra/k8s-vke` (overlay; images
-  `sjc.vultrcr.com/salareen/*`, `LIVEKIT_URL=wss://livekit.salareen.com`).
+  `sjc.vultrcr.com/salareen/*`, `LIVEKIT_URL` = the LiveKit Cloud project).
   Secrets/keys (`LIVEKIT_API_*`, `ADMIN_SECRET` overrides, `ELEVENLABS_API_KEY`,
   DB) are k8s Secrets; non-secret config is the `aoep-config` configmap.
 - **Stale-image trap (the #1 "still 404 / old version" cause):** a plain
