@@ -165,11 +165,18 @@ export default function GroupClassesPage() {
     setBusy(true);
     try {
       const res = await startGroupClass(gc.id);
-      setStarted(res);
       const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
       if (res.bridge.moderator_key) {
         sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
       }
+      // Salareen in-app room: "Start (AI presents)" should drop you straight into
+      // the room (it's now open on the server). Only the external bridges
+      // (Zoom/Teams/Meet) need the modal with the meeting link.
+      if (!res.bridge.needs_bridge) {
+        window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
+        return;
+      }
+      setStarted(res);
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));

@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.9 - Live-room bug fixes. (1) Web real-time socket: wsUrl/
+  liveRoomWsUrl mishandled the relative "/orchestrator" prefix and dialed
+  ws://orchestrator/... (failed -> fell back to polling); now resolves relative
+  prefixes against the page origin (apps/web/app/lib/liveRoomSocket.ts, lib/api.ts).
+  (2) Web "Start (AI presents)" on a Salareen class now drops you straight into the
+  room instead of only showing a modal; external Zoom/Teams/Meet bridges keep the
+  modal (apps/web/app/group-classes/page.tsx). (3) Mobile: fixed a false "You were
+  blocked from this live room" — it now triggers only on an actual ban (identity on
+  the room's banned list), not a transient room snapshot missing our participant
+  (apps/mobile/src/screens/LiveRoomScreen.tsx).
+
 - 2026-07-14 - v0.19.8 - Config: set the real Vultr Object Storage endpoint
   (https://sjc1.vultrobjects.com, Silicon Valley) in infra/k8s-vke/configmap-vke.yaml,
   replacing the "<vultr-region>" placeholder. Access key/secret stay in aoep-secrets

@@ -31,9 +31,18 @@ export type GiftOverlay = {
 
 function wsUrl(roomId: string): string {
   const base = ORCHESTRATOR_URL.replace(/\/$/, "");
-  const proto = base.startsWith("https") ? "wss" : "ws";
-  const host = base.replace(/^https?:\/\//, "");
-  return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  const path = `/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  // Absolute base (http(s)://host) -> swap scheme to ws(s).
+  if (/^https?:\/\//.test(base)) {
+    return `${base.startsWith("https") ? "wss" : "ws"}://${base.replace(/^https?:\/\//, "")}${path}`;
+  }
+  // Relative same-origin prefix (e.g. "/orchestrator"): a WebSocket needs an
+  // absolute URL, so resolve against the page origin. Without this, host became
+  // "/orchestrator" and the browser dialed ws://orchestrator/... (fails -> polling).
+  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+  const host = typeof window !== "undefined" ? window.location.host : "";
+  const prefix = base ? (base.startsWith("/") ? base : `/${base}`) : "";
+  return `${proto}://${host}${prefix}${path}`;
 }
 
 export function useLiveRoomSocket(

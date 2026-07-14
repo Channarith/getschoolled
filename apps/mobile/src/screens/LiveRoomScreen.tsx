@@ -125,10 +125,13 @@ export default function LiveRoomScreen({
   }
 
   useEffect(() => {
-    if (!participantId || !room) return;
-    const stillHere = room.participants.some((p) => p.id === participantId);
-    if (!stillHere) setWasBlocked(true);
-  }, [room, participantId]);
+    if (!identity || !room) return;
+    // Only show "blocked" for an ACTUAL ban (identity on the room's banned list).
+    // Previously any room snapshot that momentarily lacked our participant id
+    // (a stale poll/WS frame, prune, or replica lag) tripped a false "blocked".
+    const banned = (room.banned ?? []).some((b) => b.identity === identity);
+    if (banned) setWasBlocked(true);
+  }, [room, identity]);
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;

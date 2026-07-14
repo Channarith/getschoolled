@@ -1696,9 +1696,16 @@ export async function liveRoomFollowStatus(
 
 export function liveRoomWsUrl(roomId: string): string {
   const base = ORCHESTRATOR_URL.replace(/\/$/, "");
-  const proto = base.startsWith("https") ? "wss" : "ws";
-  const host = base.replace(/^https?:\/\//, "");
-  return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  const path = `/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  if (/^https?:\/\//.test(base)) {
+    return `${base.startsWith("https") ? "wss" : "ws"}://${base.replace(/^https?:\/\//, "")}${path}`;
+  }
+  // Relative same-origin prefix (e.g. "/orchestrator"): resolve against the page
+  // origin so we don't dial ws://orchestrator/... (which fails).
+  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+  const host = typeof window !== "undefined" ? window.location.host : "";
+  const prefix = base ? (base.startsWith("/") ? base : `/${base}`) : "";
+  return `${proto}://${host}${prefix}${path}`;
 }
 
 export async function advance(sessionId: string): Promise<Slide> {
