@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.6 - Deploy: one-command scripts/deploy_vke.sh that runs
+  build → push → apply → restart in the correct order (registry login from
+  VULTR_REGISTRY_* env, buildx push of all service+web images, create-if-missing
+  aoep-secrets, apply -k, then rollout restart/status + a LiveKit env sanity
+  print). Encodes the ordering so the manual sequence can't reset secrets or
+  redeploy the removed self-hosted LiveKit. Documented in the release-and-deploy
+  skill (deploy script + out-of-band secret model + LiveKit Cloud wiring).
+
 - 2026-07-14 - v0.19.5 - Deploy safety: stop `kubectl apply -k` from clobbering
   real secrets. The `aoep-secrets` Secret used to live in the applied
   infra/k8s/configmap.yaml with "__INJECT__" placeholders, so every deploy reset
