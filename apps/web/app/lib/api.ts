@@ -1394,6 +1394,18 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
   );
 }
 
+/** Open a private 1:1 (AI + you) Salareen live room for a lesson and return its
+ * id. Reuses the group-class live-room UI, just sized for two seats. */
+export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Promise<{ room_id: string }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/solo`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ lesson_id: lessonId, creator_name: creatorName }),
+    })
+  );
+}
+
 export async function joinLiveRoom(roomId: string, name: string, identity = ""): Promise<LiveRoomJoin> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {

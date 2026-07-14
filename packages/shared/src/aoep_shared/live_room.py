@@ -29,7 +29,8 @@ from .live_room_social import (
     gift_by_id,
 )
 
-ROOM_SIZES: tuple = (4, 6, 9)
+# 2 = solo 1:1 (AI host + one learner); 4/6/9 = small/medium/large group grids.
+ROOM_SIZES: tuple = (2, 4, 6, 9)
 AI_HOST_ID = "theodore-ai"
 AI_HOST_NAME = "Theodore (AI Host)"
 AI_HOST_ROLE = "host"

@@ -121,9 +121,9 @@ inline; matching `.mp4` files hold the full-quality recordings).
 
 ### Screenshots
 
-| Signed-out landing | Profile dropdown | Live class answer | Themes |
-| --- | --- | --- | --- |
-| <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
+| Signed-out landing | Profile dropdown | Live class answer | Solo (1:1) live room | Themes |
+| --- | --- | --- | --- | --- |
+| <img src="docs/screens/landing.webp" alt="Netflix-style signed-out landing" /> | <img src="docs/screens/profile_menu.webp" alt="Profile dropdown menu" /> | <img src="docs/screens/live_class_answer.webp" alt="Live class AI answer with grounding" /> | <img src="docs/screens/solo_live_room.webp" alt="Solo 1:1 Salareen live room — AI host slide tile plus one learner, chat and Q&A" /> | <img src="docs/screens/backgrounds_gallery.webp" alt="Theme wallpapers" /> |
 
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
@@ -142,7 +142,7 @@ Additional screenshots live in `docs/screens/`.
 
 | Area | Status | Key surfaces |
 | --- | --- | --- |
-| Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue | `apps/web/app/class`, `services/orchestrator` |
+| Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue; Solo (1:1) opens the same Salareen live-room classroom as group classes, scaled to the AI host + one learner | `apps/web/app/class`, `apps/web/app/live-room`, `services/orchestrator` |
 | Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
 | Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, EAS profiles | `apps/mobile` |
 | Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |

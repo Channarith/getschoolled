@@ -1080,6 +1080,12 @@ class CreateLiveRoomRequest(BaseModel):
     location: LiveRoomLocation = LiveRoomLocation()
 
 
+class StartSoloRoomRequest(BaseModel):
+    """Open a private 1:1 (AI + one learner) Salareen live room for a lesson."""
+    lesson_id: str
+    creator_name: str = ""
+
+
 def _live_room_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, KeyError):
         return HTTPException(status_code=404, detail="unknown live room")
@@ -1151,6 +1157,50 @@ def create_live_room(
     listing = room_listing_dict(room)
     listing["moderator_key"] = room.moderator_key
     return {"room": room.to_dict(), "listing": listing}
+
+
+@app.post("/api/live-rooms/solo")
+def start_solo_live_room(
+    req: StartSoloRoomRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    """Open a solo 1:1 live room — the SAME Salareen classroom UI as a group
+    class, but sized for the AI host plus a single learner (room_size=2). A fresh
+    teaching session backs it so the AI presents and auto-advances the lesson's
+    slides; because the single seat fills on join, the class auto-starts on the
+    first tick, just like a full group room."""
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    lesson_id = req.lesson_id.strip()
+    if not lesson_id:
+        raise HTTPException(status_code=400, detail="lesson_id is required")
+    sessions = get_sessions()
+    try:
+        state = sessions.start_session(lesson_id, "solo")
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    slide = sessions.current_slide(state.session_id)
+    lesson = sessions.lesson_for(state.session_id)
+    room_id = f"solo-{uuid.uuid4().hex[:12]}"
+    store = _live_rooms()
+    try:
+        room = store.open_room(
+            room_id=room_id,
+            class_id="",
+            session_id=state.session_id,
+            lesson_id=lesson_id,
+            title=f"1:1 · {lesson.title}",
+            room_size=2,
+            slide_title=slide.title,
+            slide_body=slide.body,
+            slide_narration=slide.narration,
+            creator_name=(req.creator_name or "").strip() or "You",
+            creator_account_id=account_id,
+        )
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    return {"room_id": room.room_id, "room": room.to_dict()}
 
 
 def _ensure_group_class_room(room_id: str):

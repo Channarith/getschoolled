@@ -46,6 +46,7 @@ const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
 
 function gridLayout(roomSize: number): { cols: number; rows: number } {
+  if (roomSize <= 2) return { cols: 2, rows: 1 }; // solo 1:1 — AI host + you side by side
   if (roomSize <= 4) return { cols: 2, rows: 2 };
   if (roomSize <= 6) return { cols: 3, rows: 2 };
   return { cols: 3, rows: 3 };
@@ -676,7 +677,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <main className="container" style={{ maxWidth: 480 }}>
         <h1>Salareen Live Room</h1>
         <p className="muted">
-          Join Theodore&apos;s multi-user class — up to {room?.room_size ?? 6} seats in the grid.
+          {(room?.room_size ?? 6) <= 2
+            ? "Your private 1:1 session with Theodore, your AI teacher."
+            : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>

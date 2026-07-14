@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.17 - Solo (1:1) Live Class now uses the SAME Salareen
+  classroom as group classes, just the AI host + one learner. New
+  POST /api/live-rooms/solo opens a two-seat room (room_size=2, learner_capacity
+  1) backed by a real teaching session; the single seat fills on join so the AI
+  auto-starts and auto-advances slides like a full group room. The web "Live
+  Class" page (/class) now routes the "Solo (1:1)" option into /live-room/<id>
+  instead of the old single-presenter view, and the grid renders a clean 1:1
+  side-by-side layout (services/orchestrator/src/orchestrator/main.py,
+  packages/shared/src/aoep_shared/live_room.py, apps/web/app/class/page.tsx,
+  apps/web/app/live-room/[roomId]/page.tsx, apps/web/app/lib/api.ts).
+
 - 2026-07-14 - v0.19.16 - Live-room viewing controls + instructor slide feed:
   (1) the AI host tile now renders the CURRENT SLIDE (title + narration) as its
   "video feed" instead of a graduation-cap emoji — the instructor visibly presents
