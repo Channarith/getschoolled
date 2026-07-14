@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.7 - Rules: added .cursor/rules/pull-requests.mdc (alwaysApply)
+  so every branch always gets a PR — create non-draft into main via
+  ManagePullRequest, keep it updated each turn, base main, fill from a template if
+  present. Documents that the "registered for user approval / not created
+  automatically" message is a Cloud-Agent ACCOUNT setting (not a repo/agent issue)
+  and where to re-enable auto-PR creation.
+
 - 2026-07-14 - v0.19.6 - Deploy: one-command scripts/deploy_vke.sh that runs
   build → push → apply → restart in the correct order (registry login from
   VULTR_REGISTRY_* env, buildx push of all service+web images, create-if-missing

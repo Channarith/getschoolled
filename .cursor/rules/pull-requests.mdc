@@ -1,0 +1,33 @@
+---
+description: Always open and maintain a pull request for branch work — never leave pushed commits without a PR.
+alwaysApply: true
+---
+
+# Pull requests — always create one
+
+Whenever you push commits to a `cursor/<desc>-<suffix>` (or any feature) branch,
+you MUST open a pull request for it. Never leave a pushed branch without a PR.
+
+- Use the **ManagePullRequest** tool with `action: create_pr` the FIRST time
+  (set `title`, `body`, `branch_name`, and `base_branch: main`). On later turns
+  use `action: update_pr` (same `branch_name`) to keep the title/body current.
+- Do this at the END of every turn in which you changed the branch, before the
+  final summary — and after committing + pushing.
+- Create the PR **non-draft** (`draft: false`) so the repo's auto-merge workflow
+  (`.github/workflows/automerge.yml`) can squash-merge once CI passes — a draft
+  blocks it. Only leave it a draft if the user explicitly asks.
+- Base is `main` unless the user says otherwise.
+- If a PR template exists (`.github/PULL_REQUEST_TEMPLATE*`), fill the body from it.
+- Do the push-to-main checklist first: a dated `CHANGELOG.txt` entry and a single
+  `python3 scripts/bump_pr_version.py` (patch by default) per PR.
+- Do NOT use the `gh` CLI to create/merge PRs — use ManagePullRequest.
+
+## If the tool says "registered", not "created"
+If ManagePullRequest reports *"registered for user approval / will not be created
+automatically based on the user's settings"*, that is a **Cloud-Agent ACCOUNT
+setting** (Cursor Dashboard → Cloud Agents → allow agents to open PRs / auto-PR),
+NOT a repo issue and NOT something this rule or the agent can override. The agent
+has still done its part. Do not loop-retry or treat it as a failure — state once
+that the branch is pushed and the PR is pending the user's approval/creation, and
+point them at that setting (or they can open the PR from the pushed branch on
+GitHub). Re-enabling that setting restores the "PR is always created" behavior.
