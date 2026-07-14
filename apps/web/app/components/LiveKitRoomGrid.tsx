@@ -30,12 +30,19 @@ function identityFor(participants: LiveParticipant[], identity: string): string 
   return p?.id ?? null;
 }
 
+export type AudioStream = { participantId: string; track: MediaStreamTrack };
+
 export function useLiveKitRoom(
   media: LiveKitMedia | null | undefined,
   participants: LiveParticipant[],
   canPublish: boolean,
 ) {
   const [tiles, setTiles] = useState<TileStream[]>([]);
+  // Remote audio tracks, played through hidden <audio> elements so you can HEAR
+  // other participants. (The video tiles stay muted; a muted <video> can't play
+  // sound, which is why audio was previously silent.) Local mic is never played
+  // back here — that would echo your own voice.
+  const [audioTracks, setAudioTracks] = useState<AudioStream[]>([]);
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
 
@@ -43,6 +50,7 @@ export function useLiveKitRoom(
     if (!media?.url || !media.token) {
       setConnected(false);
       setTiles([]);
+      setAudioTracks([]);
       return;
     }
 
@@ -63,6 +71,13 @@ export function useLiveKitRoom(
       });
     };
 
+    const upsertAudio = (participantId: string, track: MediaStreamTrack | null) => {
+      setAudioTracks((prev) => {
+        const rest = prev.filter((a) => a.participantId !== participantId);
+        return track ? [...rest, { participantId, track }] : rest;
+      });
+    };
+
     const attachParticipant = (
       p: RemoteParticipant | LocalParticipant,
       isLocal: boolean,
@@ -71,16 +86,22 @@ export function useLiveKitRoom(
       p.trackPublications.forEach((pub) => {
         if (pub.kind === Track.Kind.Video && pub.track) {
           upsert(pid, p.name || p.identity, isLocal, pub.track.mediaStreamTrack);
+        } else if (pub.kind === Track.Kind.Audio && pub.track && !isLocal) {
+          upsertAudio(pid, pub.track.mediaStreamTrack);
         }
       });
       p.on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === Track.Kind.Video) {
           upsert(pid, p.name || p.identity, isLocal, track.mediaStreamTrack);
+        } else if (track.kind === Track.Kind.Audio && !isLocal) {
+          upsertAudio(pid, track.mediaStreamTrack);
         }
       });
       p.on(RoomEvent.TrackUnsubscribed, (track) => {
         if (track.kind === Track.Kind.Video) {
           upsert(pid, p.name || p.identity, isLocal, null);
+        } else if (track.kind === Track.Kind.Audio) {
+          upsertAudio(pid, null);
         }
       });
     };
@@ -110,11 +131,24 @@ export function useLiveKitRoom(
       room.disconnect();
       roomRef.current = null;
       setTiles([]);
+      setAudioTracks([]);
       setConnected(false);
     };
   }, [media?.url, media?.token, media?.identity, canPublish, participants]);
 
-  return { tiles, connected, livekitAvailable: Boolean(media?.url && media?.token) };
+  return { tiles, audioTracks, connected, livekitAvailable: Boolean(media?.url && media?.token) };
+}
+
+/** Hidden audio sink for a remote participant's mic (autoplays, NOT muted). */
+export function LiveKitAudio({ track }: { track: MediaStreamTrack }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.srcObject = new MediaStream([track]);
+    void el.play().catch(() => undefined); // some browsers need a user gesture
+  }, [track]);
+  return <audio ref={ref} autoPlay style={{ display: "none" }} />;
 }
 
 export function LiveKitVideoTile({

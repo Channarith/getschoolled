@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.10 - Live-room in-room UX: (1) HEAR AUDIO — the LiveKit hook
+  only subscribed to video and every <video> was muted, so remote audio never
+  played; it now subscribes to remote audio tracks and plays them through hidden
+  <audio> sinks (local mic is never played back, to avoid echo)
+  (apps/web/app/components/LiveKitRoomGrid.tsx, live-room/[roomId]/page.tsx).
+  (2) MAXIMIZE / focus a window — each participant tile has a ⛶ fullscreen button
+  and double-click-to-fullscreen (Fullscreen API), so you can blow up any window.
+
 - 2026-07-14 - v0.19.9 - Live-room bug fixes. (1) Web real-time socket: wsUrl/
   liveRoomWsUrl mishandled the relative "/orchestrator" prefix and dialed
   ws://orchestrator/... (failed -> fell back to polling); now resolves relative

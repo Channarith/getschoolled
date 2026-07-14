@@ -30,7 +30,7 @@ import {
   type LiveRoomState,
 } from "../../lib/api";
 import { friendlyError } from "../../lib/errors";
-import { LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
+import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 
@@ -68,6 +68,7 @@ function ParticipantTile({
   hasFloor?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isHost = p.role === "host";
 
   useEffect(() => {
@@ -82,8 +83,17 @@ function ParticipantTile({
 
   const hasVideo = Boolean(liveKitTrack || localStream);
 
+  const toggleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    else void el.requestFullscreen?.().catch(() => undefined);
+  };
+
   return (
     <div
+      ref={containerRef}
+      onDoubleClick={toggleFullscreen}
       style={{
         position: "relative",
         borderRadius: large ? 16 : 12,
@@ -149,10 +159,23 @@ function ParticipantTile({
           {isHost ? "Host · " : ""}
           {p.name}
         </span>
-        <span style={{ display: "flex", gap: 4 }}>
+        <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {hasFloor && <span title="Speaking now">🎤</span>}
           {p.hand_raised && !hasFloor && <span title="In Q&A queue">✋</span>}
           {(p.muted || p.muted_by_host) && <span title="Muted">🔇</span>}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+            title="Maximize / fullscreen (double-click the tile)"
+            aria-label="Maximize"
+            style={{
+              background: "rgba(0,0,0,0.35)", color: "#fff", border: "none",
+              borderRadius: 6, cursor: "pointer", fontSize: 12, lineHeight: 1,
+              padding: "2px 5px",
+            }}
+          >
+            ⛶
+          </button>
         </span>
       </div>
     </div>
@@ -197,7 +220,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [joinInfo, room]);
   const hasFloor = me?.id === room?.floor_participant_id;
 
-  const { tiles: liveKitTiles, livekitAvailable } = useLiveKitRoom(
+  const { tiles: liveKitTiles, audioTracks, livekitAvailable } = useLiveKitRoom(
     joinInfo?.media,
     room?.participants ?? joinInfo?.room.participants ?? [],
     Boolean(hasFloor && me?.can_publish),
@@ -742,6 +765,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               marginBottom: 12,
             }}
           >
+            {/* Hidden audio sinks so you can HEAR remote participants (video tiles stay muted). */}
+            {audioTracks.map((a) => (
+              <LiveKitAudio key={a.participantId} track={a.track} />
+            ))}
             {host && (
               <div style={{ gridRow: `span ${layout.rows}`, minHeight: 220 }}>
                 <ParticipantTile
