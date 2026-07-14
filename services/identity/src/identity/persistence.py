@@ -78,6 +78,7 @@ def _deserialize_account(raw: dict) -> "Account":
         tier=PlanTier(raw.get("tier", PlanTier.FREE.value)),
         region=Region(raw.get("region", Region.US.value)),
         membership_class=raw.get("membership_class", "standard"),
+        preferred_language=raw.get("preferred_language", ""),
         is_admin=bool(raw.get("is_admin", False)),
         created_at=float(raw.get("created_at", 0)),
         subscription_started_at=raw.get("subscription_started_at"),
