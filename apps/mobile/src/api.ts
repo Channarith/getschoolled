@@ -528,7 +528,7 @@ export type LiveRoomState = {
   seats_left: number;
   status: string;
   host: { id: string; name: string; role: string };
-  participants: { id: string; name: string; role: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean }[];
+  participants: { id: string; name: string; role: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean; can_publish?: boolean }[];
   chat: { id: string; from_name: string; text: string }[];
   slide: { index: number; title: string; body: string; narration: string };
   recording: { status: string };
@@ -764,6 +764,17 @@ export async function joinLiveRoom(roomId: string, name: string, identity = ""):
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, identity }),
+  });
+}
+
+export async function liveRoomMediaToken(
+  roomId: string,
+  participantId: string,
+): Promise<{ media: LiveKitMedia; can_publish: boolean }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/media-token`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ participant_id: participantId }),
   });
 }
 

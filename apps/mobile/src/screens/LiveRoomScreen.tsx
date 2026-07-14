@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
@@ -6,10 +6,12 @@ import {
 import {
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
+  liveRoomMediaToken,
   liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomUnban,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
+import { useAuth } from "../auth/AuthContext";
 import GlassPanel from "../components/GlassPanel";
 import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
@@ -30,6 +32,7 @@ export default function LiveRoomScreen({
   onBack: () => void;
   moderatorKey?: string;
 }) {
+  const { account } = useAuth();
   const [name, setName] = useState("");
   const [participantId, setParticipantId] = useState("");
   const [identity, setIdentity] = useState("");
@@ -80,18 +83,21 @@ export default function LiveRoomScreen({
     return () => clearInterval(t);
   }, [participantId, roomId, socket.connected]);
 
-  async function handleJoin() {
-    if (!name.trim()) {
+  async function handleJoin(nameOverride?: string, accountId?: string) {
+    const joinName = (nameOverride ?? name).trim();
+    if (!joinName) {
       setError("Enter your name");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      const ident = STORAGE[roomId]?.identity || `mobile-${name.trim().toLowerCase()}`;
+      const ident =
+        STORAGE[roomId]?.identity
+        || (accountId ? `mobile-acct-${accountId}` : `mobile-${joinName.toLowerCase()}`);
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
-        joined = await joinLiveRoom(roomId, name.trim(), ident);
+        joined = await joinLiveRoom(roomId, joinName, ident);
       } catch (joinErr) {
         // Room not open yet: for a group-class room (`class-<id>`) open it first
         // (idempotent server-side), then retry the join once so entering works.
@@ -100,7 +106,7 @@ export default function LiveRoomScreen({
         if (is404 && roomId.startsWith("class-")) {
           const geo = await getLiveRoomLocation();
           await startGroupClass(roomId.slice("class-".length), geo);
-          joined = await joinLiveRoom(roomId, name.trim(), ident);
+          joined = await joinLiveRoom(roomId, joinName, ident);
         } else {
           throw joinErr;
         }
@@ -124,14 +130,46 @@ export default function LiveRoomScreen({
     }
   }
 
+  // Signed-in users don't type a name — derive it from their profile and join
+  // automatically. Guests still get the name prompt as a fallback.
+  const autoJoinedRef = useRef(false);
   useEffect(() => {
-    if (!participantId || !room) return;
-    const stillHere = room.participants.some((p) => p.id === participantId);
-    if (!stillHere) setWasBlocked(true);
-  }, [room, participantId]);
+    if (autoJoinedRef.current || participantId) return;
+    const profileName = (account?.display_name || "").trim();
+    if (!profileName) return;
+    autoJoinedRef.current = true;
+    setName(profileName);
+    void handleJoin(profileName, account?.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, participantId]);
+
+  useEffect(() => {
+    if (!identity || !room) return;
+    // Only show "blocked" for an ACTUAL ban (identity on the room's banned list).
+    // Previously any room snapshot that momentarily lacked our participant id
+    // (a stale poll/WS frame, prune, or replica lag) tripped a false "blocked".
+    const banned = (room.banned ?? []).some((b) => b.identity === identity);
+    if (banned) setWasBlocked(true);
+  }, [room, identity]);
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;
+
+  // Hard mutex: learners join without publish rights; when the host/AI grants
+  // the floor (me.can_publish flips) re-fetch a fresh token that permits
+  // publishing (and a no-publish one when the floor is released).
+  const publishRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!participantId) { publishRef.current = null; return; }
+    const cp = Boolean(me?.can_publish);
+    if (publishRef.current === cp) return;
+    publishRef.current = cp;
+    let alive = true;
+    void liveRoomMediaToken(roomId, participantId)
+      .then((r) => { if (alive) setMedia(r.media); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [me?.can_publish, participantId, roomId]);
   const inQueue = Boolean(room?.speaking_queue?.some(
     (e) => e.participant_id === participantId && (e.status === "waiting" || e.status === "speaking")
   ));

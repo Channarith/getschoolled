@@ -150,6 +150,16 @@ def _ts() -> str:
     return _now().isoformat()
 
 
+def _parse_ts(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def learner_capacity(room_size: int) -> int:
     """Learner seats = total room size minus the AI host."""
     return max(0, int(room_size) - 1)
@@ -190,6 +200,9 @@ class Participant:
     hand_raised: bool = False
     can_publish: bool = True
     joined_at: str = ""
+    # The single class admin — the FIRST learner to join. Can start the class and
+    # advance slides (holds moderator powers).
+    is_admin: bool = False
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -263,6 +276,16 @@ class LiveRoom:
     longitude: float = 0.0
     creator_name: str = ""
     creator_account_id: str = ""
+    # Presentation lifecycle: the room opens in a "waiting" state; the AI starts
+    # presenting when the room fills, 5 min after the scheduled time, or when the
+    # admin starts it. Then it auto-advances slides on a timer.
+    admin_participant_id: str = ""          # the single admin = first learner to join
+    presenting: bool = False                 # has the AI started the class?
+    scheduled_start: str = ""                # ISO of the class's scheduled time (5-min rule)
+    presentation_started_at: str = ""        # ISO when presenting began
+    slide_started_at: str = ""               # ISO when the current slide began (auto-advance)
+    auto_advance_seconds: int = 60           # per-slide dwell before auto-advancing
+    auto_start_grace_seconds: int = 300      # 5-minute rule after the scheduled time
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -383,6 +406,9 @@ class LiveRoom:
             "latitude": self.latitude,
             "longitude": self.longitude,
             "creator_name": self.creator_name,
+            "admin_participant_id": self.admin_participant_id,
+            "presenting": self.presenting,
+            "scheduled_start": self.scheduled_start,
         }
 
     def to_moderator_dict(self) -> dict:
@@ -453,9 +479,13 @@ class LiveRoomStore:
         longitude: float = 0.0,
         creator_name: str = "",
         creator_account_id: str = "",
+        scheduled_start: str = "",
     ) -> LiveRoom:
         existing = self._backend.get(room_id)
         if existing is not None:
+            if scheduled_start and not existing.scheduled_start:
+                existing.scheduled_start = scheduled_start
+                self._commit(existing)
             from .live_room_discovery import apply_location
 
             apply_location(
@@ -486,6 +516,7 @@ class LiveRoomStore:
             longitude=float(longitude or 0),
             creator_name=creator_name.strip(),
             creator_account_id=creator_account_id.strip(),
+            scheduled_start=(scheduled_start or "").strip(),
         )
         host = Participant(id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True)
         room.participants[host.id] = host
@@ -613,7 +644,18 @@ class LiveRoomStore:
             role=LEARNER_ROLE,
             identity=ident,
             account_id=acct,
+            # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
+            # can't send audio/video until the host/AI grants them the floor
+            # (which flips can_publish and lets the client fetch a publish token).
+            can_publish=False,
         )
+        # The FIRST learner to join becomes the single class admin (can start the
+        # class and advance slides). Only one admin; if the current admin left, the
+        # next joiner inherits it.
+        current_admin = room.participants.get(room.admin_participant_id)
+        if current_admin is None or current_admin.is_host:
+            room.admin_participant_id = participant.id
+            participant.is_admin = True
         room.participants[participant.id] = participant
         room.viewer_count = room.learner_count
         join_msg = ChatMessage(
@@ -807,6 +849,146 @@ class LiveRoomStore:
         )
         self._commit(room)
         return speaker
+
+    def call_on(
+        self,
+        room_id: str,
+        participant_id: str,
+        *,
+        moderator_key: str = "",
+    ) -> Participant:
+        """Give the floor to a SPECIFIC learner (host/AI picks who holds the mic),
+        jumping the FIFO queue. Any current speaker's turn is ended first, so the
+        single-speaker mutex (only one publisher/talker) is preserved — the AI can
+        switch who it's listening to mid-presentation."""
+        room = self.require(room_id)
+        if moderator_key:
+            room.verify_moderator(moderator_key)
+        target = room.get_participant(participant_id)  # KeyError -> unknown participant
+        if target.is_host:
+            raise LiveRoomError("the host already presents")
+        if room.is_banned(target.identity):
+            raise BannedError("that learner is blocked from this room")
+        # Preempt the current holder (mutex: exactly one speaker at a time).
+        if room.floor_participant_id and room.floor_participant_id != participant_id:
+            for entry in room.speaking_queue:
+                if (entry.participant_id == room.floor_participant_id
+                        and entry.status == QUEUE_SPEAKING):
+                    entry.status = QUEUE_DONE
+            room.floor_participant_id = ""
+        # Ensure the target has a queue entry so _grant_floor flips it to SPEAKING.
+        existing = room.queue_entry_for(participant_id)
+        if not (existing and existing.status in (QUEUE_WAITING, QUEUE_SPEAKING)):
+            room.speaking_queue.append(
+                QueueEntry(
+                    id=uuid.uuid4().hex[:10],
+                    participant_id=participant_id,
+                    name=target.name,
+                    question=(existing.question if existing else ""),
+                    status=QUEUE_WAITING,
+                    position=len(room.waiting_queue()) + 1,
+                )
+            )
+        speaker = self._grant_floor(room, participant_id)
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=f"🎤 {speaker.name}, the floor is yours — go ahead, we're listening.",
+            )
+        )
+        room._reindex_waiting()
+        self._commit(room)
+        return speaker
+
+    def start_presentation(
+        self,
+        room_id: str,
+        *,
+        participant_id: str = "",
+        moderator_key: str = "",
+        auto: bool = False,
+    ) -> LiveRoom:
+        """Begin the AI presentation. Authorized by the admin (participant_id) or
+        moderator_key; ``auto=True`` is the server's own auto-start. Idempotent."""
+        room = self.require(room_id)
+        if not auto:
+            if moderator_key:
+                room.verify_moderator(moderator_key)
+            elif participant_id:
+                p = room.get_participant(participant_id)
+                if not p.is_admin:
+                    raise LiveRoomError("only the class admin can start the class")
+            else:
+                raise LiveRoomError("not authorized to start the class")
+        if room.presenting:
+            return room
+        now = _ts()
+        room.presenting = True
+        room.presentation_started_at = now
+        room.slide_started_at = now
+        if auto:
+            note = "the room is full" if room.is_full else "we're at start time"
+            text = f"🎬 Class is starting automatically — {note}. Let's begin!"
+        else:
+            text = "🎬 Class is starting — let's begin!"
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=text,
+            )
+        )
+        self._commit(room)
+        return room
+
+    def should_auto_start(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
+        """True when the AI should auto-start: the room is full, or it's >=5 min
+        past the scheduled time with at least one learner present."""
+        from datetime import timedelta
+
+        room = self.require(room_id)
+        if room.presenting or room.learner_count < 1:
+            return False
+        if room.is_full:
+            return True
+        sched = _parse_ts(room.scheduled_start)
+        if sched is None:
+            return False
+        ref = now or _now()
+        return ref >= sched + timedelta(seconds=room.auto_start_grace_seconds)
+
+    def should_auto_advance(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
+        """True when the current slide has been up long enough to auto-advance —
+        but never while a learner holds the floor or is waiting to speak."""
+        from datetime import timedelta
+
+        room = self.require(room_id)
+        if not room.presenting or room.floor_participant_id or room.waiting_queue():
+            return False
+        started = _parse_ts(room.slide_started_at)
+        if started is None:
+            return False
+        ref = now or _now()
+        return ref >= started + timedelta(seconds=room.auto_advance_seconds)
+
+    def note_slide_started(self, room_id: str, *, now: Optional[datetime] = None) -> None:
+        """Reset the per-slide auto-advance timer (call after a slide change)."""
+        room = self.require(room_id)
+        room.slide_started_at = now.isoformat() if now else _ts()
+        self._commit(room)
+
+    def auto_call_next_if_waiting(self, room_id: str) -> Optional[Participant]:
+        """AI picks up the next raised hand at a natural break (e.g. between
+        slides) — only when no one currently holds the floor and someone is
+        waiting. Returns the new speaker, or None if nothing to do. Best-effort:
+        never raises for the 'empty queue / already speaking' cases."""
+        room = self.require(room_id)
+        if room.floor_participant_id or not room.waiting_queue():
+            return None
+        return self.call_next(room_id)
 
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
         """End the current speaker's turn and release the floor."""

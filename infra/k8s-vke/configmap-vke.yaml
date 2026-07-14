@@ -23,7 +23,7 @@ data:
   # Cloud project as LIVEKIT_API_KEY/LIVEKIT_API_SECRET in aoep-secrets, or tokens
   # 401 / video never connects. Not a secret (clients dial it directly).
   LIVEKIT_URL: "wss://salareen-q3lne5d9.livekit.cloud"
-  OBJECT_STORE_ENDPOINT: "https://<vultr-region>.vultrobjects.com"
+  OBJECT_STORE_ENDPOINT: "https://sjc1.vultrobjects.com"
   OBJECT_STORE_BUCKET: "salareen-prod"
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
   # Live rooms + group classes share Redis across orchestrator replicas (VKE HPA).

@@ -1296,6 +1296,7 @@ export type LiveParticipant = {
   hand_raised: boolean;
   can_publish: boolean;
   joined_at: string;
+  is_admin?: boolean;
 };
 
 export type LiveRoomChatMessage = {
@@ -1359,6 +1360,9 @@ export type LiveRoomState = {
   }[];
   reactions?: { id: string; emoji: string; participant_name: string; sent_at: string }[];
   viewer_count?: number;
+  admin_participant_id?: string;
+  presenting?: boolean;
+  scheduled_start?: string;
 };
 
 export type LiveGiftCatalogItem = {
@@ -1375,6 +1379,8 @@ export type LiveRoomJoin = {
   gift_balance?: number;
   host_follower_count?: number;
   following_host?: boolean;
+  is_admin?: boolean;
+  moderator_key?: string;
 };
 
 export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
@@ -1466,6 +1472,41 @@ export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promi
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export type LiveKitMediaToken = {
+  media: { room: string; identity: string; token: string; url: string };
+  can_publish: boolean;
+};
+
+/** Fetch a fresh LiveKit token reflecting the participant's CURRENT publish
+ * right (used to (re)gain publishing when granted the floor — the hard mutex). */
+export async function liveRoomMediaToken(
+  roomId: string,
+  participantId: string,
+): Promise<LiveKitMediaToken> {
+  return jsonOrThrow<LiveKitMediaToken>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/media-token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId }),
+    })
+  );
+}
+
+export async function liveRoomCallOn(
+  roomId: string,
+  participantId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-on`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
     })
   );
   return r.room;
@@ -1583,9 +1624,33 @@ export async function liveRoomDismissReport(
   return r.room;
 }
 
-export async function liveRoomAdvance(roomId: string): Promise<LiveRoomState> {
+export async function liveRoomAdvance(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/advance`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+export async function liveRoomStartPresentation(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/start-presentation`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
+/** Heartbeat the room clock (auto-start when full/5-min, auto-advance slides).
+ * Any client can call this on a timer; server-side it's idempotent. */
+export async function liveRoomTick(roomId: string): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick`, {
       method: "POST",
       headers: { "content-type": "application/json" },
     })
@@ -1696,9 +1761,16 @@ export async function liveRoomFollowStatus(
 
 export function liveRoomWsUrl(roomId: string): string {
   const base = ORCHESTRATOR_URL.replace(/\/$/, "");
-  const proto = base.startsWith("https") ? "wss" : "ws";
-  const host = base.replace(/^https?:\/\//, "");
-  return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  const path = `/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
+  if (/^https?:\/\//.test(base)) {
+    return `${base.startsWith("https") ? "wss" : "ws"}://${base.replace(/^https?:\/\//, "")}${path}`;
+  }
+  // Relative same-origin prefix (e.g. "/orchestrator"): resolve against the page
+  // origin so we don't dial ws://orchestrator/... (which fails).
+  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+  const host = typeof window !== "undefined" ? window.location.host : "";
+  const prefix = base ? (base.startsWith("/") ? base : `/${base}`) : "";
+  return `${proto}://${host}${prefix}${path}`;
 }
 
 export async function advance(sessionId: string): Promise<Slide> {

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getLiveRoom,
   getLiveGiftCatalog,
+  getMe,
+  getToken,
   joinLiveRoom,
   leaveLiveRoom,
   liveRoomBan,
@@ -12,11 +14,15 @@ import {
   liveRoomReport,
   liveRoomDismissReport,
   liveRoomAdvance,
+  liveRoomStartPresentation,
+  liveRoomTick,
   liveRoomAsk,
   liveRoomChat,
   liveRoomMute,
   liveRoomRaiseHand,
   liveRoomCallNext,
+  liveRoomCallOn,
+  liveRoomMediaToken,
   liveRoomFinishTurn,
   liveRoomLeaveQueue,
   liveRoomRecordStart,
@@ -30,7 +36,7 @@ import {
   type LiveRoomState,
 } from "../../lib/api";
 import { friendlyError } from "../../lib/errors";
-import { LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
+import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 
@@ -60,14 +66,17 @@ function ParticipantTile({
   localStream,
   liveKitTrack,
   hasFloor,
+  slide,
 }: {
   p: LiveParticipant;
   large?: boolean;
   localStream?: MediaStream | null;
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
+  slide?: { index: number; title: string; body: string; narration: string } | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isHost = p.role === "host";
 
   useEffect(() => {
@@ -82,20 +91,29 @@ function ParticipantTile({
 
   const hasVideo = Boolean(liveKitTrack || localStream);
 
+  const toggleFullscreen = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    else void el.requestFullscreen?.().catch(() => undefined);
+  };
+
   return (
     <div
+      ref={containerRef}
+      onDoubleClick={toggleFullscreen}
       style={{
         position: "relative",
         borderRadius: large ? 16 : 12,
         overflow: "hidden",
         background: isHost
-          ? "linear-gradient(145deg, #4c1d95 0%, #7c3aed 55%, #db2777 100%)"
-          : "linear-gradient(145deg, #1e1b4b 0%, #312e81 100%)",
+          ? "linear-gradient(145deg, var(--accent) 0%, var(--accent-2) 100%)"
+          : "color-mix(in srgb, var(--accent) 8%, var(--panel))",
         border: hasFloor
-          ? "2px solid #34d399"
+          ? "2px solid var(--accent-2)"
           : p.hand_raised
-            ? "2px solid #fbbf24"
-            : "1px solid rgba(255,255,255,0.12)",
+            ? "2px solid #d99a1c"
+            : "1px solid var(--border)",
         minHeight: large ? 220 : 110,
         display: "flex",
         flexDirection: "column",
@@ -117,6 +135,31 @@ function ParticipantTile({
             opacity: 0.85,
           }}
         />
+      ) : isHost && slide ? (
+        // The AI instructor has no camera — its "video feed" IS the current slide.
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: 10,
+            padding: large ? "28px 32px" : "14px 16px",
+            color: "#fff",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            🎓 Theodore · Slide {slide.index + 1}
+          </div>
+          <div style={{ fontSize: large ? 26 : 18, fontWeight: 800, lineHeight: 1.2 }}>
+            {slide.title}
+          </div>
+          <div style={{ fontSize: large ? 15 : 13, lineHeight: 1.5, opacity: 0.95, overflow: "hidden" }}>
+            {slide.narration || slide.body}
+          </div>
+        </div>
       ) : (
         <div
           style={{
@@ -127,7 +170,7 @@ function ParticipantTile({
             justifyContent: "center",
             fontSize: large ? 48 : 28,
             fontWeight: 700,
-            color: "rgba(255,255,255,0.9)",
+            color: isHost ? "rgba(255,255,255,0.95)" : "var(--muted)",
           }}
         >
           {isHost ? "🎓" : initials(p.name)}
@@ -149,10 +192,23 @@ function ParticipantTile({
           {isHost ? "Host · " : ""}
           {p.name}
         </span>
-        <span style={{ display: "flex", gap: 4 }}>
+        <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {hasFloor && <span title="Speaking now">🎤</span>}
           {p.hand_raised && !hasFloor && <span title="In Q&A queue">✋</span>}
           {(p.muted || p.muted_by_host) && <span title="Muted">🔇</span>}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+            title="Maximize / fullscreen (double-click the tile)"
+            aria-label="Maximize"
+            style={{
+              background: "rgba(0,0,0,0.35)", color: "#fff", border: "none",
+              borderRadius: 6, cursor: "pointer", fontSize: 12, lineHeight: 1,
+              padding: "2px 5px",
+            }}
+          >
+            ⛶
+          </button>
         </span>
       </div>
     </div>
@@ -174,6 +230,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
   const [showGifts, setShowGifts] = useState(false);
+  const [showChat, setShowChat] = useState(true);
+  const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const leftVoluntarily = useRef(false);
@@ -197,8 +255,31 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [joinInfo, room]);
   const hasFloor = me?.id === room?.floor_participant_id;
 
-  const { tiles: liveKitTiles, livekitAvailable } = useLiveKitRoom(
-    joinInfo?.media,
+  // Hard mutex: learners join with a no-publish token. When the host/AI grants
+  // the floor (me.can_publish flips), re-fetch a fresh token that permits
+  // publishing and reconnect; when the floor is released, re-fetch a no-publish
+  // token so LiveKit itself refuses to publish. liveMedia overrides the join
+  // token once refreshed.
+  const [liveMedia, setLiveMedia] = useState<LiveRoomJoin["media"] | null>(null);
+  const publishRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!joinInfo) {
+      publishRef.current = null;
+      setLiveMedia(null);
+      return;
+    }
+    const cp = Boolean(me?.can_publish);
+    if (publishRef.current === cp) return;
+    publishRef.current = cp;
+    let alive = true;
+    void liveRoomMediaToken(roomId, joinInfo.participant.id)
+      .then((r) => { if (alive) setLiveMedia(r.media); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [me?.can_publish, joinInfo, roomId]);
+
+  const { tiles: liveKitTiles, audioTracks, livekitAvailable } = useLiveKitRoom(
+    liveMedia ?? joinInfo?.media,
     room?.participants ?? joinInfo?.room.participants ?? [],
     Boolean(hasFloor && me?.can_publish),
   );
@@ -283,8 +364,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
-  async function handleJoin() {
-    const name = displayName.trim();
+  async function handleJoin(nameOverride?: string, accountId?: string) {
+    const name = (nameOverride ?? displayName).trim();
     if (!name) {
       setError("Enter your name to join.");
       return;
@@ -301,9 +382,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           identity = "";
         }
       }
-      const info = await joinLiveRoom(roomId, name, identity || `web-${name.toLowerCase().replace(/\s+/g, "-")}`);
+      // Prefer a stable identity tied to the signed-in account so re-joins are the
+      // same participant; fall back to a name slug for guests.
+      const fallbackIdentity = accountId
+        ? `web-acct-${accountId}`
+        : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
+      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity);
       setJoinInfo(info);
       setRoom(info.room);
+      // The admin (first joiner) receives the moderator key so their client can
+      // start the class and advance slides.
+      if (info.is_admin && info.moderator_key) setModeratorKey(info.moderator_key);
       setGiftBalance(info.gift_balance ?? 500);
       setFollowingHost(Boolean(info.following_host));
       setFollowerCount(info.host_follower_count ?? 0);
@@ -326,6 +415,29 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setBusy(false);
     }
   }
+
+  // Signed-in users don't type a name — it's derived from their profile and they
+  // join automatically. Guests (no session) still get the name prompt as a
+  // fallback.
+  const autoJoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoJoinedRef.current || joinInfo || !getToken()) return;
+    autoJoinedRef.current = true;
+    void getMe()
+      .then((acct) => {
+        const name = (acct.display_name || "").trim();
+        if (name) {
+          setDisplayName(name);
+          void handleJoin(name, acct.id);
+        } else {
+          autoJoinedRef.current = false; // no profile name -> show the prompt
+        }
+      })
+      .catch(() => {
+        autoJoinedRef.current = false; // not signed in / error -> show the prompt
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, joinInfo]);
 
   async function handleLeave() {
     if (!me) return;
@@ -404,6 +516,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
+  async function callOn(participantId: string) {
+    if (!moderatorKey) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomCallOn(roomId, participantId, moderatorKey));
+      setError("");
+    } catch (e) {
+      setError(friendlyError(e, "Could not give the floor"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function finishTurn() {
     setBusy(true);
     try {
@@ -431,13 +556,34 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   async function hostAdvance() {
     setBusy(true);
     try {
-      setRoom(await liveRoomAdvance(roomId));
+      setRoom(await liveRoomAdvance(roomId, moderatorKey));
     } catch (e) {
       setError(friendlyError(e, "Advance failed"));
     } finally {
       setBusy(false);
     }
   }
+
+  async function startPresentation() {
+    setBusy(true);
+    try {
+      setRoom(await liveRoomStartPresentation(roomId, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Could not start the class"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Heartbeat: drives AI auto-start (full / 5-min rule) and auto-advance. Any
+  // joined client ticks every 8s; the server makes it idempotent.
+  useEffect(() => {
+    if (!joinInfo) return;
+    const t = window.setInterval(() => {
+      void liveRoomTick(roomId).then((r) => applyRoom(r)).catch(() => undefined);
+    }, 8000);
+    return () => window.clearInterval(t);
+  }, [joinInfo, roomId, applyRoom]);
 
   async function toggleRecording() {
     setBusy(true);
@@ -555,7 +701,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <button
             onClick={() => void handleJoin()}
             disabled={busy}
-            style={{ marginTop: 12, background: "#7c3aed", color: "#fff", width: "100%" }}
+            style={{ marginTop: 12, background: "var(--accent)", color: "#fff", width: "100%" }}
           >
             {busy ? "Joining…" : "Enter live room"}
           </button>
@@ -572,8 +718,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #0f0720 0%, #1a0a2e 40%, #2d1b4e 100%)",
-        color: "#f8fafc",
+        // Match the site's light "warm campus" theme (globals.css tokens) so the
+        // classroom looks like the rest of the app, not a separate dark product.
+        background:
+          "linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 88%, var(--accent)) 100%)",
+        color: "var(--text)",
         padding: "12px 16px 24px",
       }}
     >
@@ -588,7 +737,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         }}
       >
         <div>
-          <div style={{ fontSize: 12, color: "#c4b5fd" }}>Salareen Live · {roomId}</div>
+          <div style={{ fontSize: 12, color: "var(--accent)" }}>Salareen Live · {roomId}</div>
           <h2 style={{ margin: "4px 0 0", fontSize: 20 }}>{room?.title ?? "Live class"}</h2>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
@@ -596,10 +745,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {room?.recording.status === "recording" && (
             <span style={{ color: "#fca5a5", fontWeight: 600 }}>● REC</span>
           )}
-          <span className="muted" style={{ color: "#ddd6fe" }}>
+          <span className="muted">
             👁 {socket.viewerCount || room?.viewer_count || room?.learner_count || 0}
           </span>
-          <span className="muted" style={{ color: "#ddd6fe" }}>
+          <span className="muted">
             ❤️ {socket.followerCount || followerCount} followers
           </span>
           {socket.connected ? (
@@ -628,9 +777,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 fontSize: 12,
                 padding: "4px 10px",
                 borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: followingHost ? "rgba(236,72,153,0.35)" : "transparent",
-                color: "#fce7f3",
+                border: "1px solid var(--border)",
+                background: followingHost ? "color-mix(in srgb, var(--accent) 15%, var(--panel))" : "var(--panel)",
+                color: "var(--text)",
                 cursor: "pointer",
               }}
             >
@@ -724,10 +873,40 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
+      {/* View toggles: focus the instructor (slide) and show/hide chat. */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setFocusInstructor((v) => !v)}
+          title={focusInstructor ? "Show everyone" : "Focus on the instructor / slides"}
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: focusInstructor ? "var(--accent)" : "var(--panel)",
+            color: focusInstructor ? "#fff" : "var(--text)",
+          }}
+        >
+          {focusInstructor ? "👥 Show everyone" : "🎓 Focus instructor"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowChat((v) => !v)}
+          title={showChat ? "Hide chat" : "Show chat"}
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: showChat ? "var(--panel)" : "var(--accent)",
+            color: showChat ? "var(--text)" : "#fff",
+          }}
+        >
+          {showChat ? "💬 Hide chat" : "💬 Show chat"}
+        </button>
+      </div>
+
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 1fr)",
+          gridTemplateColumns: showChat ? "minmax(0, 1.4fr) minmax(280px, 1fr)" : "1fr",
           gap: 14,
           alignItems: "start",
         }}
@@ -736,22 +915,27 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: largeHostColumn(layout.cols),
-              gridTemplateRows: `repeat(${layout.rows}, minmax(100px, 1fr))`,
+              gridTemplateColumns: focusInstructor ? "1fr" : largeHostColumn(layout.cols),
+              gridTemplateRows: focusInstructor ? "minmax(320px, 60vh)" : `repeat(${layout.rows}, minmax(100px, 1fr))`,
               gap: 8,
               marginBottom: 12,
             }}
           >
+            {/* Hidden audio sinks so you can HEAR remote participants (video tiles stay muted). */}
+            {audioTracks.map((a) => (
+              <LiveKitAudio key={a.participantId} track={a.track} />
+            ))}
             {host && (
-              <div style={{ gridRow: `span ${layout.rows}`, minHeight: 220 }}>
+              <div style={{ gridRow: focusInstructor ? "auto" : `span ${layout.rows}`, minHeight: 220 }}>
                 <ParticipantTile
                   p={host}
                   large
                   liveKitTrack={trackFor(host.id)}
+                  slide={room?.slide}
                 />
               </div>
             )}
-            {learners.map((p) => (
+            {!focusInstructor && learners.map((p) => (
               <div key={p.id} style={{ position: "relative" }}>
                 <ParticipantTile
                   p={p}
@@ -781,6 +965,28 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     Block
                   </button>
                 ) : null}
+                {moderatorKey && p.role !== "host" && p.id !== room?.floor_participant_id ? (
+                  <button
+                    type="button"
+                    onClick={() => void callOn(p.id)}
+                    disabled={busy}
+                    title={`Give ${p.name} the floor (only they can talk)`}
+                    style={{
+                      position: "absolute",
+                      bottom: 34,
+                      right: 6,
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "rgba(13,148,136,0.95)",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🎤 Call on
+                  </button>
+                ) : null}
                 {p.role !== "host" && p.id !== me?.id ? (
                   <button
                     type="button"
@@ -805,17 +1011,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
             ))}
-            {Array.from({ length: emptySlots }).map((_, i) => (
+            {!focusInstructor && Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
                 style={{
                   borderRadius: 12,
-                  border: "1px dashed rgba(255,255,255,0.15)",
+                  border: "1px dashed var(--border)",
                   minHeight: 110,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "rgba(255,255,255,0.35)",
+                  color: "var(--muted)",
                   fontSize: 12,
                 }}
               >
@@ -863,23 +1069,24 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {room?.slide && (
             <div
               style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
                 borderRadius: 12,
                 padding: 14,
               }}
             >
-              <div style={{ fontSize: 12, color: "#c4b5fd", marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4 }}>
                 Slide {room.slide.index + 1}
               </div>
               <strong>{room.slide.title}</strong>
-              <p style={{ margin: "8px 0 0", color: "#e9d5ff", fontSize: 14, lineHeight: 1.5 }}>
+              <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14, lineHeight: 1.5 }}>
                 {room.slide.narration || room.slide.body}
               </p>
             </div>
           )}
         </section>
 
+        {showChat && (
         <aside
           style={{
             display: "flex",
@@ -891,9 +1098,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <div
             style={{
               flex: 1,
-              background: "rgba(0,0,0,0.35)",
+              background: "var(--panel)",
               borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid var(--border)",
               padding: 10,
               overflowY: "auto",
               maxHeight: 320,
@@ -930,8 +1137,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   fontSize: 18,
                   padding: "4px 8px",
                   borderRadius: 8,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border)",
+                  background: "var(--panel)",
                   cursor: "pointer",
                 }}
               >
@@ -947,7 +1154,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 fontSize: 12,
                 padding: "6px 12px",
                 borderRadius: 8,
-                background: "#db2777",
+                background: "var(--accent-2)",
                 color: "#fff",
                 border: "none",
                 cursor: "pointer",
@@ -964,7 +1171,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                 gap: 6,
                 padding: 8,
-                background: "rgba(0,0,0,0.35)",
+                background: "color-mix(in srgb, var(--accent) 6%, var(--panel))",
                 borderRadius: 10,
               }}
             >
@@ -990,9 +1197,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   style={{
                     padding: 8,
                     borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "#fce7f3",
+                    border: "1px solid var(--border)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
                     cursor: "pointer",
                     fontSize: 12,
                   }}
@@ -1010,11 +1217,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               value={chatDraft}
               onChange={(e) => setChatDraft(e.target.value)}
               placeholder="Say something…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid #4c1d95", padding: "8px 10px", background: "#1e1033", color: "#fff" }}
+              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void sendChat()}
               disabled={busy || me?.muted || me?.muted_by_host}
             />
-            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "#7c3aed", color: "#fff" }}>
+            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "var(--accent)", color: "#fff" }}>
               Chat
             </button>
           </div>
@@ -1024,11 +1231,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
               placeholder="Ask Theodore a question…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid #4c1d95", padding: "8px 10px", background: "#1e1033", color: "#fff" }}
+              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
             />
-            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "#db2777", color: "#fff" }}>
+            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "var(--accent-2)", color: "#fff" }}>
               Ask
             </button>
           </div>
@@ -1061,9 +1268,22 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
-            <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (host)">
-              ▶ Next slide
-            </button>
+            {me?.is_admin || moderatorKey ? (
+              !room?.presenting ? (
+                <button
+                  onClick={() => void startPresentation()}
+                  disabled={busy}
+                  title="Start the class (admin)"
+                  style={{ background: "var(--accent-2)", color: "#fff" }}
+                >
+                  🎬 Start class
+                </button>
+              ) : (
+                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (admin only — the AI advances automatically)">
+                  ▶ Next slide
+                </button>
+              )
+            ) : null}
             <button onClick={() => void toggleRecording()} disabled={busy}>
               {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
             </button>
@@ -1141,6 +1361,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           ) : null}
         </aside>
+        )}
       </div>
     </main>
   );
