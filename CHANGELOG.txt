@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.26 - Fix false "APK does NOT embed index.android.bundle"
+  guardrail failure. mobile-verify-apk-bundle.sh used macOS Info-ZIP `unzip`,
+  which mis-parses signed APKs (v2/v3 signing block / zip64) and reported no
+  entries — failing an otherwise-successful assembleRelease that DID embed the
+  bundle. Now inspects the APK with Python's zipfile (reads the central directory
+  correctly), falls back to unzip/jar, and treats "can't read" as a non-fatal
+  WARN so a good build is never blocked by a tooling gap. Verified present/
+  absent/unreadable cases.
+
 - 2026-07-14 - v0.19.25 - Local production Android build hardening. Clarified the
   two commands: `pnpm run native:build:android` = DEBUG (assembleDebug, needs
   Metro) vs `pnpm run native:build:android:release` = PRODUCTION/standalone
