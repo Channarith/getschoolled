@@ -1363,6 +1363,8 @@ export type LiveRoomState = {
   admin_participant_id?: string;
   presenting?: boolean;
   scheduled_start?: string;
+  duration_seconds?: number;
+  ended_at?: string;
 };
 
 export type LiveGiftCatalogItem = {

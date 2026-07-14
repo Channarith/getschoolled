@@ -45,6 +45,130 @@ const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
 
+// Seconds the "class complete" farewell shows before learners are excused.
+const CLASS_END_COUNTDOWN = 5;
+
+// A professional, courteous thank-you for attendance, shown when a group lesson
+// reaches the end of its allotted time. Rotated through several languages so the
+// farewell greets our international learners in their own tongue.
+const CLASS_COMPLETE_MESSAGES: { lang: string; text: string; rtl?: boolean }[] = [
+  { lang: "English", text: "Thank you for attending today's class. We hope you enjoyed learning with us, and we look forward to welcoming you back soon." },
+  { lang: "Español", text: "Gracias por asistir a la clase de hoy. Esperamos que haya disfrutado aprender con nosotros y deseamos verle de nuevo pronto." },
+  { lang: "Français", text: "Merci d'avoir assisté au cours d'aujourd'hui. Nous espérons que vous avez apprécié d'apprendre avec nous et avons hâte de vous revoir bientôt." },
+  { lang: "Deutsch", text: "Vielen Dank für Ihre Teilnahme am heutigen Kurs. Wir hoffen, dass Ihnen das Lernen mit uns gefallen hat, und freuen uns, Sie bald wiederzusehen." },
+  { lang: "Português", text: "Obrigado por participar da aula de hoje. Esperamos que tenha gostado de aprender conosco e esperamos vê-lo novamente em breve." },
+  { lang: "中文", text: "感谢您参加今天的课程。希望您在学习中收获满满，期待下次再会！" },
+  { lang: "日本語", text: "本日の授業にご参加いただき、誠にありがとうございました。またお会いできる日を楽しみにしております。" },
+  { lang: "한국어", text: "오늘 수업에 참여해 주셔서 감사합니다. 즐거운 배움의 시간이 되셨길 바라며, 다음에 또 뵙겠습니다." },
+  { lang: "العربية", text: "شكرًا لحضوركم درس اليوم. نتمنى أن تكونوا قد استمتعتم بالتعلّم معنا، ونتطلّع إلى رؤيتكم مجددًا قريبًا.", rtl: true },
+  { lang: "हिन्दी", text: "आज की कक्षा में शामिल होने के लिए धन्यवाद। हमें आशा है कि आपको हमारे साथ सीखना अच्छा लगा, और हम आपसे शीघ्र ही पुनः मिलने की आशा करते हैं।" },
+  { lang: "ភាសាខ្មែរ", text: "សូមអរគុណសម្រាប់ការចូលរួមថ្នាក់រៀនថ្ងៃនេះ។ សង្ឃឹមថាអ្នកបានរីករាយនឹងការសិក្សាជាមួយយើង ហើយសង្ឃឹមជួបអ្នកម្តងទៀតឆាប់ៗនេះ។" },
+  { lang: "Türkçe", text: "Bugünkü derse katıldığınız için teşekkür ederiz. Bizimle öğrenmekten keyif aldığınızı umuyor ve sizi yakında tekrar görmeyi dört gözle bekliyoruz." },
+  { lang: "Русский", text: "Спасибо за участие в сегодняшнем занятии. Надеемся, вам понравилось учиться с нами, и будем рады видеть вас снова." },
+];
+
+/** Full-screen farewell shown when a group lesson's allotted time expires: a
+ * courteous multilingual thank-you plus a short countdown, after which the
+ * learner is excused (navigated out of the room). */
+function ClassCompleteOverlay({ onDone }: { onDone: () => void }) {
+  const [remaining, setRemaining] = useState(CLASS_END_COUNTDOWN);
+  const [msgIdx, setMsgIdx] = useState(0);
+
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      setRemaining((n) => {
+        if (n <= 1) {
+          window.clearInterval(tick);
+          onDone();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [onDone]);
+
+  useEffect(() => {
+    const rot = window.setInterval(
+      () => setMsgIdx((i) => (i + 1) % CLASS_COMPLETE_MESSAGES.length),
+      1100,
+    );
+    return () => window.clearInterval(rot);
+  }, []);
+
+  const msg = CLASS_COMPLETE_MESSAGES[msgIdx];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background:
+          "linear-gradient(160deg, var(--accent) 0%, var(--accent-2) 100%)",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: "24px",
+        gap: 18,
+      }}
+    >
+      <div style={{ fontSize: 56 }}>🎓</div>
+      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 800 }}>Class complete</h1>
+      <div
+        key={msgIdx}
+        dir={msg.rtl ? "rtl" : "ltr"}
+        style={{
+          maxWidth: 640,
+          fontSize: 20,
+          lineHeight: 1.6,
+          minHeight: 96,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          animation: "class-end-fade 1.1s ease-in-out",
+        }}
+      >
+        <span style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, opacity: 0.85 }}>
+          {msg.lang}
+        </span>
+        <span>{msg.text}</span>
+      </div>
+      <div style={{ fontSize: 15, opacity: 0.9 }}>
+        Returning to Group Classes in {remaining}s…
+      </div>
+      <button
+        type="button"
+        onClick={onDone}
+        style={{
+          marginTop: 4,
+          background: "rgba(255,255,255,0.16)",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,0.5)",
+          borderRadius: 999,
+          padding: "8px 22px",
+          cursor: "pointer",
+          fontSize: 14,
+        }}
+      >
+        Leave now
+      </button>
+      <style jsx global>{`
+        @keyframes class-end-fade {
+          0% { opacity: 0; transform: translateY(6px); }
+          20% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function gridLayout(roomSize: number): { cols: number; rows: number } {
   if (roomSize <= 2) return { cols: 2, rows: 1 }; // solo 1:1 — AI host + you side by side
   if (roomSize <= 4) return { cols: 2, rows: 2 };
@@ -440,6 +564,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, joinInfo]);
 
+  // The class hit the end of its allotted time. After the farewell countdown,
+  // excuse the learner: leave the room (best-effort) and return to the class list.
+  const excuseFromClass = useCallback(() => {
+    leftVoluntarily.current = true;
+    const pid = joinInfo?.participant.id;
+    localStream?.getTracks().forEach((t) => t.stop());
+    sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
+    const go = () => { window.location.href = "/group-classes"; };
+    if (pid) {
+      void leaveLiveRoom(roomId, pid).then(go).catch(go);
+    } else {
+      go();
+    }
+  }, [joinInfo, roomId, localStream]);
+
   async function handleLeave() {
     if (!me) return;
     leftVoluntarily.current = true;
@@ -729,6 +868,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         padding: "12px 16px 24px",
       }}
     >
+      {room?.status === "ended" && <ClassCompleteOverlay onDone={excuseFromClass} />}
       <header
         style={{
           display: "flex",

@@ -965,6 +965,7 @@ def start_group_class(
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
             scheduled_start=gc.start_time,
+            duration_seconds=int(gc.duration_min) * 60,
         )
         moderator_key = live.moderator_key
 
@@ -1263,6 +1264,7 @@ def _ensure_group_class_room(room_id: str):
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
         scheduled_start=gc.start_time,
+        duration_seconds=int(gc.duration_min) * 60,
     )
     _group_store().save(gc)
     return live
@@ -1681,20 +1683,27 @@ def live_room_tick(room_id: str, background: BackgroundTasks) -> dict:
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
     started = advanced = None
+    ended = False
     if store.should_auto_start(room_id):
         store.start_presentation(room_id, auto=True)
         started = True
-    if store.should_auto_advance(room_id):
+    # Auto-end takes priority over advancing: when the allotted class time is up,
+    # close the room so clients can show the "class complete" countdown + excuse.
+    if store.should_auto_end(room_id):
+        store.end_room(room_id, auto=True)
+        ended = True
+    elif store.should_auto_advance(room_id):
         advanced = _advance_room_slide(room_id, background)
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
-    if started and not advanced:
+    if (started or ended) and not advanced:
         _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
     return {
         "room": room_dict,
         "auto_started": bool(started),
         "auto_advanced": advanced["slide"] if advanced else None,
+        "auto_ended": ended,
     }
 
 

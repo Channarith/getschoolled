@@ -387,6 +387,54 @@ def test_solo_room_full_on_join_auto_starts_and_advances():
     assert t2.json()["auto_advanced"] is not None
 
 
+def test_tick_auto_ends_when_allotted_time_expires():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)  # default duration 60 min -> 3600s
+    room_id = info["room_id"]
+    for i in range(3):  # fill every learner seat so the class auto-starts
+        client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"end-{i}"})
+    assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
+
+    room = _app.state.live_rooms.require(room_id)
+    assert room.duration_seconds == 3600  # carried from the group class duration
+    # The class has now been presenting longer than its allotted time.
+    room.presentation_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+
+    ended = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert ended.status_code == 200, ended.text
+    assert ended.json()["auto_ended"] is True
+    body = ended.json()["room"]
+    assert body["status"] == "ended"
+    assert body["ended_at"]
+    assert body["presenting"] is False
+    assert any("Thank you" in m["text"] for m in body["chat"])  # courteous farewell
+
+    # Idempotent: a second tick from another client must not error or re-end.
+    again = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert again.status_code == 200
+    assert again.json()["auto_ended"] is False
+    assert again.json()["room"]["status"] == "ended"
+
+
+def test_solo_room_is_open_ended_and_never_auto_ends():
+    lid = _first_lesson()
+    room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
+    client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-open"})
+    client.post(f"/api/live-rooms/{room_id}/tick")  # full on join -> auto-starts
+
+    from orchestrator.main import app as _app
+
+    room = _app.state.live_rooms.require(room_id)
+    assert room.duration_seconds == 0  # open-ended (no scheduled allotment)
+    room.presentation_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+    t = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t.json()["auto_ended"] is False
+    assert t.json()["room"]["status"] == "live"
+
+
 def test_solo_room_requires_valid_lesson():
     missing = client.post("/api/live-rooms/solo", json={"lesson_id": "no-such-lesson"})
     assert missing.status_code == 404, missing.text
