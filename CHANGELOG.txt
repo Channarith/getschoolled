@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.21.0 - Mobile/iOS: quiet the recurring CoreLocation "Performance
+  Diagnostics" FAULT ("This method can cause UI unresponsiveness if invoked on the
+  main thread … check authorizationStatus first"). It is a non-fatal OS warning we
+  amplified by calling requestForegroundPermissionsAsync() on every location use.
+  New src/locationPermission.ts::ensureForegroundLocationPermission() checks status
+  first (getForegroundPermissionsAsync) and prompts only when undetermined —
+  Apple's recommended flow; wired into liveRoomLocation.ts and drivingDetection.ts.
+  Added unit tests (all permission paths) + updated the driving-detection test;
+  documented in .cursor/rules/mobile-eas-build.mdc (definitive fix = expo-location/
+  SDK upgrade that moves the native probe off the main thread).
+
 - 2026-07-14 - v0.20.0 - Mobile: stop the recurring Android "Unable to load script /
   index.android.bundle" red-screen. It is a build/packaging mismatch, not a code
   bug: a debug/dev-client build was run on a device with no reachable Metro, or a
