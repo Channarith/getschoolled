@@ -29,7 +29,8 @@ from .live_room_social import (
     gift_by_id,
 )
 
-ROOM_SIZES: tuple = (4, 6, 9)
+# 2 = solo 1:1 (AI host + one learner); 4/6/9 = small/medium/large group grids.
+ROOM_SIZES: tuple = (2, 4, 6, 9)
 AI_HOST_ID = "theodore-ai"
 AI_HOST_NAME = "Theodore (AI Host)"
 AI_HOST_ROLE = "host"
@@ -199,6 +200,9 @@ class Participant:
     muted_by_host: bool = False
     hand_raised: bool = False
     can_publish: bool = True
+    # The learner's preferred language (ISO 639-1, from their profile/device), so
+    # the AI teacher answers this person in the language they speak.
+    language: str = ""
     joined_at: str = ""
     # The single class admin — the FIRST learner to join. Can start the class and
     # advance slides (holds moderator powers).
@@ -286,6 +290,11 @@ class LiveRoom:
     slide_started_at: str = ""               # ISO when the current slide began (auto-advance)
     auto_advance_seconds: int = 60           # per-slide dwell before auto-advancing
     auto_start_grace_seconds: int = 300      # 5-minute rule after the scheduled time
+    # Auto-end: a group lesson runs for its allotted length. Once presenting for
+    # ``duration_seconds`` the class ends automatically (0 = open-ended, e.g. a
+    # solo 1:1 or instant room). ``ended_at`` marks when it closed.
+    duration_seconds: int = 0
+    ended_at: str = ""
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -409,6 +418,8 @@ class LiveRoom:
             "admin_participant_id": self.admin_participant_id,
             "presenting": self.presenting,
             "scheduled_start": self.scheduled_start,
+            "duration_seconds": self.duration_seconds,
+            "ended_at": self.ended_at,
         }
 
     def to_moderator_dict(self) -> dict:
@@ -480,11 +491,18 @@ class LiveRoomStore:
         creator_name: str = "",
         creator_account_id: str = "",
         scheduled_start: str = "",
+        duration_seconds: int = 0,
     ) -> LiveRoom:
         existing = self._backend.get(room_id)
         if existing is not None:
+            dirty = False
             if scheduled_start and not existing.scheduled_start:
                 existing.scheduled_start = scheduled_start
+                dirty = True
+            if duration_seconds and not existing.duration_seconds:
+                existing.duration_seconds = int(duration_seconds)
+                dirty = True
+            if dirty:
                 self._commit(existing)
             from .live_room_discovery import apply_location
 
@@ -517,6 +535,7 @@ class LiveRoomStore:
             creator_name=creator_name.strip(),
             creator_account_id=creator_account_id.strip(),
             scheduled_start=(scheduled_start or "").strip(),
+            duration_seconds=int(duration_seconds or 0),
         )
         host = Participant(id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True)
         room.participants[host.id] = host
@@ -620,20 +639,30 @@ class LiveRoomStore:
         *,
         identity: str = "",
         account_id: str = "",
+        language: str = "",
     ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
             raise LiveRoomError("this room is not live")
         ident = (identity or "").strip() or f"learner-{uuid.uuid4().hex[:8]}"
         acct = (account_id or "").strip()
+        from .languages import normalize_language
+
+        lang = normalize_language(language)
         if room.is_banned(ident):
             banned = room.banned[ident]
             detail = banned.reason or "You have been removed from this class."
             raise BannedError(detail)
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
+                dirty = False
                 if acct:
                     p.account_id = acct
+                    dirty = True
+                if lang and p.language != lang:
+                    p.language = lang  # keep the language fresh on re-join
+                    dirty = True
+                if dirty:
                     self._commit(room)
                 return p
         if room.is_full:
@@ -644,6 +673,7 @@ class LiveRoomStore:
             role=LEARNER_ROLE,
             identity=ident,
             account_id=acct,
+            language=lang,
             # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
             # can't send audio/video until the host/AI grants them the floor
             # (which flips can_publish and lets the client fetch a publish token).
@@ -950,7 +980,7 @@ class LiveRoomStore:
         from datetime import timedelta
 
         room = self.require(room_id)
-        if room.presenting or room.learner_count < 1:
+        if room.status != "live" or room.presenting or room.learner_count < 1:
             return False
         if room.is_full:
             return True
@@ -966,13 +996,28 @@ class LiveRoomStore:
         from datetime import timedelta
 
         room = self.require(room_id)
-        if not room.presenting or room.floor_participant_id or room.waiting_queue():
+        if room.status != "live" or not room.presenting or room.floor_participant_id or room.waiting_queue():
             return False
         started = _parse_ts(room.slide_started_at)
         if started is None:
             return False
         ref = now or _now()
         return ref >= started + timedelta(seconds=room.auto_advance_seconds)
+
+    def should_auto_end(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
+        """True when a presenting group lesson has used its whole allotted time
+        (``duration_seconds`` after the presentation began) and should close.
+        Open-ended rooms (duration_seconds == 0, e.g. solo 1:1) never auto-end."""
+        from datetime import timedelta
+
+        room = self.require(room_id)
+        if room.status != "live" or not room.presenting or room.duration_seconds <= 0:
+            return False
+        started = _parse_ts(room.presentation_started_at)
+        if started is None:
+            return False
+        ref = now or _now()
+        return ref >= started + timedelta(seconds=room.duration_seconds)
 
     def note_slide_started(self, room_id: str, *, now: Optional[datetime] = None) -> None:
         """Reset the per-slide auto-advance timer (call after a slide change)."""
@@ -1449,17 +1494,29 @@ class LiveRoomStore:
             room_id, room.host().id, follower_identity
         )
 
-    def end_room(self, room_id: str) -> LiveRoom:
+    def end_room(self, room_id: str, *, auto: bool = False) -> LiveRoom:
         room = self.require(room_id)
+        if room.status == "ended":
+            return room  # idempotent: a client tick may fire the auto-end twice
         if room.recording.status == RECORDING_ACTIVE:
             self.stop_recording(room_id)
         room.status = "ended"
+        room.presenting = False
+        room.floor_participant_id = ""
+        room.ended_at = _ts()
+        text = (
+            "🎓 That's our allotted time for today — the class is now complete. "
+            "Thank you so much for attending and for your wonderful participation. "
+            "It was a pleasure learning with you; see you in the next session!"
+            if auto
+            else "Class dismissed. Thank you for attending — see you next time!"
+        )
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
                 from_id=AI_HOST_ID,
                 from_name=AI_HOST_NAME,
-                text="Class dismissed. Great work today — see you next time!",
+                text=text,
             )
         )
         self._commit(room)

@@ -223,6 +223,25 @@ def me(acct=Depends(current_account)) -> dict:
     return acct.public()
 
 
+class LanguagePreference(BaseModel):
+    language: str
+
+
+@app.post("/account/language")
+def set_account_language(req: LanguagePreference, acct=Depends(current_account)) -> dict:
+    """Persist the learner's preferred UI/content language so it follows them
+    across devices and the AI teacher answers in the language they speak. Accepts
+    a locale like "es" or "es-419"; stores the supported base code (blank clears)."""
+    from aoep_shared.languages import normalize_language
+
+    raw = (req.language or "").strip()
+    code = normalize_language(raw)
+    if raw and not code:
+        raise HTTPException(status_code=400, detail=f"unsupported language {raw!r}")
+    updated = app.state.accounts.patch_account(acct.id, preferred_language=code)
+    return {"preferred_language": updated.preferred_language}
+
+
 @app.get("/admin/accounts")
 def admin_list_accounts(_acct=Depends(require_admin_account)) -> dict:
     """List every member account (operator admin UI)."""

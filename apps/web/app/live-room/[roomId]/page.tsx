@@ -39,13 +39,153 @@ import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
+import { useT } from "../../lib/i18n";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
 const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
 
+// Seconds the "class complete" farewell shows before learners are excused.
+const CLASS_END_COUNTDOWN = 5;
+
+// A professional, courteous thank-you for attendance, shown when a group lesson
+// reaches the end of its allotted time. Rotated through several languages so the
+// farewell greets our international learners in their own tongue.
+const CLASS_COMPLETE_MESSAGES: { code: string; lang: string; text: string; rtl?: boolean }[] = [
+  { code: "en", lang: "English", text: "Thank you for attending today's class. We hope you enjoyed learning with us, and we look forward to welcoming you back soon." },
+  { code: "es", lang: "Español", text: "Gracias por asistir a la clase de hoy. Esperamos que haya disfrutado aprender con nosotros y deseamos verle de nuevo pronto." },
+  { code: "fr", lang: "Français", text: "Merci d'avoir assisté au cours d'aujourd'hui. Nous espérons que vous avez apprécié d'apprendre avec nous et avons hâte de vous revoir bientôt." },
+  { code: "de", lang: "Deutsch", text: "Vielen Dank für Ihre Teilnahme am heutigen Kurs. Wir hoffen, dass Ihnen das Lernen mit uns gefallen hat, und freuen uns, Sie bald wiederzusehen." },
+  { code: "pt", lang: "Português", text: "Obrigado por participar da aula de hoje. Esperamos que tenha gostado de aprender conosco e esperamos vê-lo novamente em breve." },
+  { code: "zh", lang: "中文", text: "感谢您参加今天的课程。希望您在学习中收获满满，期待下次再会！" },
+  { code: "ja", lang: "日本語", text: "本日の授業にご参加いただき、誠にありがとうございました。またお会いできる日を楽しみにしております。" },
+  { code: "ko", lang: "한국어", text: "오늘 수업에 참여해 주셔서 감사합니다. 즐거운 배움의 시간이 되셨길 바라며, 다음에 또 뵙겠습니다." },
+  { code: "ar", lang: "العربية", text: "شكرًا لحضوركم درس اليوم. نتمنى أن تكونوا قد استمتعتم بالتعلّم معنا، ونتطلّع إلى رؤيتكم مجددًا قريبًا.", rtl: true },
+  { code: "hi", lang: "हिन्दी", text: "आज की कक्षा में शामिल होने के लिए धन्यवाद। हमें आशा है कि आपको हमारे साथ सीखना अच्छा लगा, और हम आपसे शीघ्र ही पुनः मिलने की आशा करते हैं।" },
+  { code: "km", lang: "ភាសាខ្មែរ", text: "សូមអរគុណសម្រាប់ការចូលរួមថ្នាក់រៀនថ្ងៃនេះ។ សង្ឃឹមថាអ្នកបានរីករាយនឹងការសិក្សាជាមួយយើង ហើយសង្ឃឹមជួបអ្នកម្តងទៀតឆាប់ៗនេះ។" },
+  { code: "tr", lang: "Türkçe", text: "Bugünkü derse katıldığınız için teşekkür ederiz. Bizimle öğrenmekten keyif aldığınızı umuyor ve sizi yakında tekrar görmeyi dört gözle bekliyoruz." },
+  { code: "ru", lang: "Русский", text: "Спасибо за участие в сегодняшнем занятии. Надеемся, вам понравилось учиться с нами, и будем рады видеть вас снова." },
+];
+
+// Show the learner's own language first, then the rest — a courteous farewell
+// that greets everyone but leads with the language they speak.
+function orderedFarewell(primaryLang?: string): typeof CLASS_COMPLETE_MESSAGES {
+  const code = (primaryLang || "").toLowerCase().split("-")[0];
+  const idx = CLASS_COMPLETE_MESSAGES.findIndex((m) => m.code === code);
+  if (idx <= 0) return CLASS_COMPLETE_MESSAGES;
+  return [
+    CLASS_COMPLETE_MESSAGES[idx],
+    ...CLASS_COMPLETE_MESSAGES.slice(0, idx),
+    ...CLASS_COMPLETE_MESSAGES.slice(idx + 1),
+  ];
+}
+
+/** Full-screen farewell shown when a group lesson's allotted time expires: a
+ * courteous multilingual thank-you plus a short countdown, after which the
+ * learner is excused (navigated out of the room). */
+function ClassCompleteOverlay({ onDone, primaryLang }: { onDone: () => void; primaryLang?: string }) {
+  const [remaining, setRemaining] = useState(CLASS_END_COUNTDOWN);
+  const [msgIdx, setMsgIdx] = useState(0);
+  const messages = useMemo(() => orderedFarewell(primaryLang), [primaryLang]);
+
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      setRemaining((n) => {
+        if (n <= 1) {
+          window.clearInterval(tick);
+          onDone();
+          return 0;
+        }
+        return n - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [onDone]);
+
+  useEffect(() => {
+    const rot = window.setInterval(
+      () => setMsgIdx((i) => (i + 1) % messages.length),
+      1100,
+    );
+    return () => window.clearInterval(rot);
+  }, [messages.length]);
+
+  const msg = messages[msgIdx] ?? messages[0];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background:
+          "linear-gradient(160deg, var(--accent) 0%, var(--accent-2) 100%)",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: "24px",
+        gap: 18,
+      }}
+    >
+      <div style={{ fontSize: 56 }}>🎓</div>
+      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 800 }}>Class complete</h1>
+      <div
+        key={msgIdx}
+        dir={msg.rtl ? "rtl" : "ltr"}
+        style={{
+          maxWidth: 640,
+          fontSize: 20,
+          lineHeight: 1.6,
+          minHeight: 96,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          animation: "class-end-fade 1.1s ease-in-out",
+        }}
+      >
+        <span style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 1, opacity: 0.85 }}>
+          {msg.lang}
+        </span>
+        <span>{msg.text}</span>
+      </div>
+      <div style={{ fontSize: 15, opacity: 0.9 }}>
+        Returning to Group Classes in {remaining}s…
+      </div>
+      <button
+        type="button"
+        onClick={onDone}
+        style={{
+          marginTop: 4,
+          background: "rgba(255,255,255,0.16)",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,0.5)",
+          borderRadius: 999,
+          padding: "8px 22px",
+          cursor: "pointer",
+          fontSize: 14,
+        }}
+      >
+        Leave now
+      </button>
+      <style jsx global>{`
+        @keyframes class-end-fade {
+          0% { opacity: 0; transform: translateY(6px); }
+          20% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function gridLayout(roomSize: number): { cols: number; rows: number } {
+  if (roomSize <= 2) return { cols: 2, rows: 1 }; // solo 1:1 — AI host + you side by side
   if (roomSize <= 4) return { cols: 2, rows: 2 };
   if (roomSize <= 6) return { cols: 3, rows: 2 };
   return { cols: 3, rows: 3 };
@@ -217,6 +357,7 @@ function ParticipantTile({
 
 export default function LiveRoomPage({ params }: { params: { roomId: string } }) {
   const roomId = decodeURIComponent(params.roomId);
+  const { locale } = useT();
   const [displayName, setDisplayName] = useState("");
   const [joinInfo, setJoinInfo] = useState<LiveRoomJoin | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
@@ -387,7 +528,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const fallbackIdentity = accountId
         ? `web-acct-${accountId}`
         : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
-      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity);
+      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale);
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
@@ -439,6 +580,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, joinInfo]);
 
+  // The class hit the end of its allotted time. After the farewell countdown,
+  // excuse the learner: leave the room (best-effort) and return to the class list.
+  const excuseFromClass = useCallback(() => {
+    leftVoluntarily.current = true;
+    const pid = joinInfo?.participant.id;
+    localStream?.getTracks().forEach((t) => t.stop());
+    sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
+    const go = () => { window.location.href = "/group-classes"; };
+    if (pid) {
+      void leaveLiveRoom(roomId, pid).then(go).catch(go);
+    } else {
+      go();
+    }
+  }, [joinInfo, roomId, localStream]);
+
   async function handleLeave() {
     if (!me) return;
     leftVoluntarily.current = true;
@@ -472,7 +628,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me || !askDraft.trim()) return;
     setBusy(true);
     try {
-      const res = await liveRoomAsk(roomId, me.id, askDraft.trim());
+      const res = await liveRoomAsk(roomId, me.id, askDraft.trim(), locale);
       setRoom(res.room);
       if (res.queued) {
         setError(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
@@ -676,7 +832,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <main className="container" style={{ maxWidth: 480 }}>
         <h1>Salareen Live Room</h1>
         <p className="muted">
-          Join Theodore&apos;s multi-user class — up to {room?.room_size ?? 6} seats in the grid.
+          {(room?.room_size ?? 6) <= 2
+            ? "Your private 1:1 session with Theodore, your AI teacher."
+            : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>
@@ -726,6 +884,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         padding: "12px 16px 24px",
       }}
     >
+      {room?.status === "ended" && (
+        <ClassCompleteOverlay onDone={excuseFromClass} primaryLang={me?.language || locale} />
+      )}
       <header
         style={{
           display: "flex",

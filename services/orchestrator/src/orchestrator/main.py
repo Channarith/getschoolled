@@ -965,6 +965,7 @@ def start_group_class(
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
             scheduled_start=gc.start_time,
+            duration_seconds=int(gc.duration_min) * 60,
         )
         moderator_key = live.moderator_key
 
@@ -996,6 +997,7 @@ def start_group_class(
 class LiveRoomJoinRequest(BaseModel):
     name: str
     identity: str = ""
+    language: str = ""
 
 
 class LiveRoomChatRequest(BaseModel):
@@ -1054,7 +1056,9 @@ class LiveRoomDismissReportRequest(BaseModel):
 class LiveRoomAskRequest(BaseModel):
     participant_id: str
     question: str
-    language: str = "en"
+    # Blank -> fall back to the learner's stored language (their profile/device),
+    # so the AI answers in the language they speak even if the client omits it.
+    language: str = ""
 
 
 class LiveRoomGiftRequest(BaseModel):
@@ -1078,6 +1082,12 @@ class CreateLiveRoomRequest(BaseModel):
     creator_name: str
     room_size: int = 6
     location: LiveRoomLocation = LiveRoomLocation()
+
+
+class StartSoloRoomRequest(BaseModel):
+    """Open a private 1:1 (AI + one learner) Salareen live room for a lesson."""
+    lesson_id: str
+    creator_name: str = ""
 
 
 def _live_room_http_error(exc: Exception) -> HTTPException:
@@ -1153,6 +1163,50 @@ def create_live_room(
     return {"room": room.to_dict(), "listing": listing}
 
 
+@app.post("/api/live-rooms/solo")
+def start_solo_live_room(
+    req: StartSoloRoomRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    """Open a solo 1:1 live room — the SAME Salareen classroom UI as a group
+    class, but sized for the AI host plus a single learner (room_size=2). A fresh
+    teaching session backs it so the AI presents and auto-advances the lesson's
+    slides; because the single seat fills on join, the class auto-starts on the
+    first tick, just like a full group room."""
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    lesson_id = req.lesson_id.strip()
+    if not lesson_id:
+        raise HTTPException(status_code=400, detail="lesson_id is required")
+    sessions = get_sessions()
+    try:
+        state = sessions.start_session(lesson_id, "solo")
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    slide = sessions.current_slide(state.session_id)
+    lesson = sessions.lesson_for(state.session_id)
+    room_id = f"solo-{uuid.uuid4().hex[:12]}"
+    store = _live_rooms()
+    try:
+        room = store.open_room(
+            room_id=room_id,
+            class_id="",
+            session_id=state.session_id,
+            lesson_id=lesson_id,
+            title=f"1:1 · {lesson.title}",
+            room_size=2,
+            slide_title=slide.title,
+            slide_body=slide.body,
+            slide_narration=slide.narration,
+            creator_name=(req.creator_name or "").strip() or "You",
+            creator_account_id=account_id,
+        )
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+    return {"room_id": room.room_id, "room": room.to_dict()}
+
+
 def _ensure_group_class_room(room_id: str):
     """Lazily open a Salareen live room for a group class.
 
@@ -1213,6 +1267,7 @@ def _ensure_group_class_room(room_id: str):
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
         scheduled_start=gc.start_time,
+        duration_seconds=int(gc.duration_min) * 60,
     )
     _group_store().save(gc)
     return live
@@ -1249,6 +1304,7 @@ def join_live_room(
             req.name,
             identity=req.identity,
             account_id=account_id,
+            language=req.language,
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
@@ -1631,20 +1687,27 @@ def live_room_tick(room_id: str, background: BackgroundTasks) -> dict:
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
     started = advanced = None
+    ended = False
     if store.should_auto_start(room_id):
         store.start_presentation(room_id, auto=True)
         started = True
-    if store.should_auto_advance(room_id):
+    # Auto-end takes priority over advancing: when the allotted class time is up,
+    # close the room so clients can show the "class complete" countdown + excuse.
+    if store.should_auto_end(room_id):
+        store.end_room(room_id, auto=True)
+        ended = True
+    elif store.should_auto_advance(room_id):
         advanced = _advance_room_slide(room_id, background)
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
-    if started and not advanced:
+    if (started or ended) and not advanced:
         _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
     return {
         "room": room_dict,
         "auto_started": bool(started),
         "auto_advanced": advanced["slide"] if advanced else None,
+        "auto_ended": ended,
     }
 
 
@@ -1670,7 +1733,10 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
                 "room": store.require(room_id).to_dict(),
             }
         store.post_chat(room_id, req.participant_id, req.question)
-        answer = sessions.ask(room.session_id, req.question, language=req.language)
+        # Answer in the asker's language: explicit request wins, else the language
+        # they joined with (profile/device), else English.
+        lang = (req.language or "").strip() or learner.language or "en"
+        answer = sessions.ask(room.session_id, req.question, language=lang)
         host_msg = store.post_host_message(
             room_id,
             f"@{learner.name} {answer.text}",

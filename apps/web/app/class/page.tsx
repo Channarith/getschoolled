@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useT } from "../lib/i18n";
 import {
   advance,
   ask,
@@ -22,6 +24,7 @@ import {
   reportIssue,
   setEnrollmentStatus,
   startSession,
+  startSoloLiveRoom,
   submitPostClassSurvey,
   type AdBreak,
   type Answer,
@@ -57,6 +60,8 @@ function difficultyStyle(d: string): { background: string; color: string; border
 }
 
 export default function ClassPage() {
+  const router = useRouter();
+  const { locale } = useT();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>("");
   const [classType, setClassType] = useState<string>("group");
@@ -209,6 +214,21 @@ export default function ClassPage() {
 
   async function onStart() {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only
+    // Solo (1:1) uses the SAME Salareen classroom as group classes — just the
+    // AI host and you. Open a two-seat live room and hand off to that UI.
+    if (classType === "solo") {
+      setError("");
+      setBusy(true);
+      try {
+        const { room_id } = await startSoloLiveRoom(lessonId);
+        router.push(`/live-room/${encodeURIComponent(room_id)}`);
+        return;
+      } catch (e) {
+        setError(String(e));
+        setBusy(false);
+        return;
+      }
+    }
     if (preroll) { runAd(preroll, doStart); return; }
     await doStart();
   }
@@ -423,6 +443,7 @@ export default function ClassPage() {
         if (speakAnswers) setSpeaking(true);
         let acc = "";
         a = await askStream(view.session.session_id, q, {
+          language: locale,
           onDelta: (chunk) => {
             acc += chunk;
             setChat((c) => {
@@ -459,7 +480,7 @@ export default function ClassPage() {
         }
       } catch {
         // Streaming unsupported/failed -> buffered ask.
-        const buffered: Answer = await ask(view.session.session_id, q);
+        const buffered: Answer = await ask(view.session.session_id, q, locale);
         a = buffered;
         speak(buffered.text);
         setChat((c) => [
@@ -567,7 +588,7 @@ export default function ClassPage() {
             </select>
             <select value={classType} onChange={(e) => setClassType(e.target.value)}>
               <option value="group">Group class</option>
-              <option value="solo">Solo (1:1)</option>
+              <option value="solo">Solo (1:1) — live room with the AI</option>
             </select>
             <button onClick={onStart} disabled={busy || !lessonId || !loggedIn}
               title={!loggedIn ? "Sign in to take classes" : undefined}>

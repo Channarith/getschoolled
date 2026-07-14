@@ -2,6 +2,64 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.21 - Documentation refresh. Corrected stale facts in
+  README.md (payments 50 methods/13 processors, removed the non-existent
+  ppt_trainer references, completed the repository-layout table with harvester/
+  homework/cosyvoice/training/voices/scripts/qa, expanded the API map with
+  live-rooms/group-classes/training/cognitive/bridges, fixed a broken section
+  link, 14 translated UI locales, and run-command pointers to
+  scripts/run_local_service.sh + make run-livekit). Added per-component
+  README.txt for every backend service (orchestrator, speech, perception,
+  memory, curriculum, billing, integrations, identity, harvester, homework),
+  packages/shared, and apps (web, mobile, agent-runtime) so each service/subtool
+  is self-documenting.
+
+- 2026-07-14 - v0.19.20 - Mobile (iOS + Android) parity for live classes: the
+  LiveRoomScreen now heartbeats the room clock (new liveRoomTick) so a
+  mobile-only group class still auto-starts, auto-advances slides, and auto-ends
+  when its allotted time is up; and it shows a courteous "Class complete"
+  farewell in the learner's language with a countdown before excusing them. Solo
+  1:1 and group "Live Class" (LessonScreen) already answer in the learner's
+  language. Verified via mobile typecheck + jest (42) and the join(+language)/
+  tick/ask HTTP contracts (apps/mobile/src/screens/LiveRoomScreen.tsx,
+  apps/mobile/src/api.ts).
+
+- 2026-07-14 - v0.19.19 - Learner language now drives the AI and the class. The
+  account stores a persisted preferred_language (identity /account/language +
+  returned by /auth/me); web + mobile adopt it on any device (LocaleProvider) and
+  save the picker choice back to the profile, so a learner's language follows
+  them across devices. Live-room join carries the learner's language onto their
+  Participant, and the tutor now answers in that language ("Respond entirely in
+  <language>" prompt rule via aoep_shared.languages.language_name), with
+  live-room/class Q&A passing the device locale. The "Class complete" farewell
+  leads with the learner's own language. (aoep_shared/languages.py,
+  services/identity, services/orchestrator teaching + live-room ask/join,
+  packages/shared/live_room.py, apps/web + apps/mobile i18n/api/live-room).
+
+- 2026-07-14 - v0.19.18 - Group lessons auto-close when their allotted time
+  expires: a live room now carries the class duration (duration_seconds from the
+  group class), and the tick loop ends the class once it has been presenting for
+  that long (LiveRoomStore.should_auto_end + end_room, status=ended, ended_at).
+  The web live room shows a full-screen "Class complete" farewell — a courteous,
+  professional thank-you rotated through 13 languages (English, Español,
+  Français, Deutsch, Português, 中文, 日本語, 한국어, العربية, हिन्दी, ភាសាខ្មែរ,
+  Türkçe, Русский) with a 5-second countdown, then excuses learners back to Group
+  Classes. Solo 1:1 rooms are open-ended (duration 0) and never auto-end
+  (packages/shared/src/aoep_shared/live_room.py,
+  services/orchestrator/src/orchestrator/main.py,
+  apps/web/app/live-room/[roomId]/page.tsx, apps/web/app/lib/api.ts).
+
+- 2026-07-14 - v0.19.17 - Solo (1:1) Live Class now uses the SAME Salareen
+  classroom as group classes, just the AI host + one learner. New
+  POST /api/live-rooms/solo opens a two-seat room (room_size=2, learner_capacity
+  1) backed by a real teaching session; the single seat fills on join so the AI
+  auto-starts and auto-advances slides like a full group room. The web "Live
+  Class" page (/class) now routes the "Solo (1:1)" option into /live-room/<id>
+  instead of the old single-presenter view, and the grid renders a clean 1:1
+  side-by-side layout (services/orchestrator/src/orchestrator/main.py,
+  packages/shared/src/aoep_shared/live_room.py, apps/web/app/class/page.tsx,
+  apps/web/app/live-room/[roomId]/page.tsx, apps/web/app/lib/api.ts).
+
 - 2026-07-14 - v0.19.16 - Live-room viewing controls + instructor slide feed:
   (1) the AI host tile now renders the CURRENT SLIDE (title + narration) as its
   "video feed" instead of a graduation-cap emoji — the instructor visibly presents

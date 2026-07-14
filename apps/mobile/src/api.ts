@@ -62,6 +62,7 @@ export type NotificationFeed = {
 export type Account = {
   id: string; email: string; display_name: string;
   tier: string; region: string; is_admin?: boolean;
+  preferred_language?: string;
 };
 
 export type StudentProfile = {
@@ -362,6 +363,16 @@ export async function getSecuritySummary(): Promise<{
 
 export async function getMe(): Promise<Account> {
   return get(IDENTITY_URL, "/auth/me", { headers: authHeaders() });
+}
+
+/** Persist the learner's preferred language so it follows them across devices
+ * and the AI teacher answers in it. Best-effort. */
+export async function setAccountLanguage(language: string): Promise<{ preferred_language: string }> {
+  return get(IDENTITY_URL, "/account/language", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ language }),
+  });
 }
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -751,7 +762,7 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}${q}`);
 }
 
-export async function joinLiveRoom(roomId: string, name: string, identity = ""):
+export async function joinLiveRoom(roomId: string, name: string, identity = "", language = ""):
   Promise<{
     participant: { id: string; name: string; identity: string };
     room: LiveRoomState;
@@ -763,7 +774,7 @@ export async function joinLiveRoom(roomId: string, name: string, identity = ""):
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ name, identity }),
+    body: JSON.stringify({ name, identity, language }),
   });
 }
 
@@ -839,14 +850,25 @@ export async function liveRoomLeaveQueue(roomId: string, participantId: string):
   return r.room;
 }
 
-export async function liveRoomAsk(roomId: string, participantId: string, question: string):
+export async function liveRoomAsk(roomId: string, participantId: string, question: string, language = ""):
   Promise<{ room: LiveRoomState; queued: boolean; queue_position?: number }> {
   return get(
     ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ participant_id: participantId, question }),
+      body: JSON.stringify({ participant_id: participantId, question, language }),
     });
+}
+
+/** Heartbeat the room clock so a mobile-only group class still auto-starts (when
+ * full / past the scheduled time), auto-advances slides, and auto-ends when its
+ * allotted time is up. Idempotent server-side; any joined client may call it. */
+export async function liveRoomTick(roomId: string):
+  Promise<{ room: LiveRoomState; auto_started?: boolean; auto_ended?: boolean }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/tick`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
 }
 
 export async function liveRoomBan(

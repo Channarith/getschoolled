@@ -341,6 +341,128 @@ def test_advance_and_ask_in_room():
     assert asked.json()["host_message"]["from_name"].startswith("Theodore")
 
 
+def test_join_stores_learner_language_and_ask_defaults_to_it():
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ana", "identity": "ana-es", "language": "es-419"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+    # The learner's language is normalized and stored so the AI knows it.
+    assert joined.json()["participant"]["language"] == "es"
+
+    # Asking WITHOUT a language falls back to the learner's stored language.
+    asked = client.post(
+        f"/api/live-rooms/{room_id}/ask",
+        json={"participant_id": pid, "question": "What is this about?"},
+    )
+    assert asked.status_code == 200, asked.text
+    assert asked.json()["answer"]["text"]
+
+
+def test_start_solo_room_is_two_seat_and_uses_room_ui():
+    # Solo 1:1 reuses the group classroom, just sized for the AI host + one
+    # learner (room_size 2 -> exactly one learner seat).
+    lid = _first_lesson()
+    res = client.post("/api/live-rooms/solo", json={"lesson_id": lid})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    room_id = body["room_id"]
+    assert room_id.startswith("solo-")
+    assert body["room"]["room_size"] == 2
+    assert body["room"]["learner_capacity"] == 1
+    assert body["room"]["host"]["name"].startswith("Theodore")
+    assert body["room"]["slide"]["title"]  # backed by a real teaching session
+
+    # The same live-room GET/join endpoints serve it.
+    got = client.get(f"/api/live-rooms/{room_id}")
+    assert got.status_code == 200, got.text
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ada", "identity": "ada-solo"},
+    )
+    assert joined.status_code == 200, joined.text
+    assert joined.json()["media"]["token"].count(".") == 2  # real LiveKit JWT
+    assert joined.json()["is_admin"] is True  # the sole learner is the admin
+
+
+def test_solo_room_full_on_join_auto_starts_and_advances():
+    lid = _first_lesson()
+    room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
+    # The single seat fills on join, so the room is full and the class
+    # auto-starts on the first tick (mirrors the full-group auto-start).
+    client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-solo2"})
+    t1 = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t1.status_code == 200, t1.text
+    assert t1.json()["auto_started"] is True
+    assert t1.json()["room"]["presenting"] is True
+
+    from orchestrator.main import app as _app
+
+    room = _app.state.live_rooms.require(room_id)
+    room.slide_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+    t2 = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t2.json()["auto_advanced"] is not None
+
+
+def test_tick_auto_ends_when_allotted_time_expires():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)  # default duration 60 min -> 3600s
+    room_id = info["room_id"]
+    for i in range(3):  # fill every learner seat so the class auto-starts
+        client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"end-{i}"})
+    assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
+
+    room = _app.state.live_rooms.require(room_id)
+    assert room.duration_seconds == 3600  # carried from the group class duration
+    # The class has now been presenting longer than its allotted time.
+    room.presentation_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+
+    ended = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert ended.status_code == 200, ended.text
+    assert ended.json()["auto_ended"] is True
+    body = ended.json()["room"]
+    assert body["status"] == "ended"
+    assert body["ended_at"]
+    assert body["presenting"] is False
+    assert any("Thank you" in m["text"] for m in body["chat"])  # courteous farewell
+
+    # Idempotent: a second tick from another client must not error or re-end.
+    again = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert again.status_code == 200
+    assert again.json()["auto_ended"] is False
+    assert again.json()["room"]["status"] == "ended"
+
+
+def test_solo_room_is_open_ended_and_never_auto_ends():
+    lid = _first_lesson()
+    room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
+    client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-open"})
+    client.post(f"/api/live-rooms/{room_id}/tick")  # full on join -> auto-starts
+
+    from orchestrator.main import app as _app
+
+    room = _app.state.live_rooms.require(room_id)
+    assert room.duration_seconds == 0  # open-ended (no scheduled allotment)
+    room.presentation_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+    t = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t.json()["auto_ended"] is False
+    assert t.json()["room"]["status"] == "live"
+
+
+def test_solo_room_requires_valid_lesson():
+    missing = client.post("/api/live-rooms/solo", json={"lesson_id": "no-such-lesson"})
+    assert missing.status_code == 404, missing.text
+    blank = client.post("/api/live-rooms/solo", json={"lesson_id": "  "})
+    assert blank.status_code == 400, blank.text
+
+
 def test_recording_endpoints():
     info = _start_salareen_class()
     room_id = info["room_id"]
