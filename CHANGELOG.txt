@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.20.0 - Mobile: stop the recurring Android "Unable to load script /
+  index.android.bundle" red-screen. It is a build/packaging mismatch, not a code
+  bug: a debug/dev-client build was run on a device with no reachable Metro, or a
+  "release" APK shipped without the embedded JS bundle. Guardrails added: (1) new
+  scripts/mobile-verify-apk-bundle.sh fails if an APK lacks assets/
+  index.android.bundle, wired into mobile-build-release-android.sh so a broken
+  release APK never ships; (2) mobile-launch-android.sh now runs
+  `adb reverse tcp:8081 tcp:8081` for every connected device so debug builds on a
+  USB phone can reach Metro; (3) .cursor/rules/mobile-eas-build.mdc documents the
+  decision tree (release APK vs dev-client-needs-Metro) + the verifier in the
+  pre-merge checklist.
+
 - 2026-07-14 - v0.19.0 - CI: fix pytest "import file mismatch" that interrupted
   the whole suite. services/harvester/tests and services/homework/tests both had
   a test_run.py; with pytest's default prepend import mode (no __init__.py) the
