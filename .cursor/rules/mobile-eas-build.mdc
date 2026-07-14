@@ -60,6 +60,26 @@ Guardrail: `scripts/mobile-build-release-android.sh` calls
 does not embed `assets/index.android.bundle` — so a broken "release" APK never
 ships. Run it on any APK to check: `bash scripts/mobile-verify-apk-bundle.sh path/to.apk`.
 
+## Runtime: iOS CoreLocation "Performance Diagnostics" FAULT
+
+Console shows a `CoreLocation` FAULT: *"This method can cause UI unresponsiveness
+if invoked on the main thread. Instead, consider waiting for the
+`-locationManagerDidChangeAuthorization:` callback and checking `authorizationStatus`
+first."* This is a **non-fatal** OS diagnostic (not a crash), emitted when
+authorization/location-services are probed synchronously — expo-location does this
+internally, and we amplify it by re-requesting on every call.
+
+- Do NOT call `requestForegroundPermissionsAsync()` directly. Go through
+  `src/locationPermission.ts::ensureForegroundLocationPermission()`, which checks
+  status first (`getForegroundPermissionsAsync`) and prompts only when
+  undetermined — Apple's "check `authorizationStatus` first" guidance. All
+  location entry points (`liveRoomLocation.ts`, `drivingDetection.ts`) use it.
+- Never gate first render on a location call, and never probe location services
+  synchronously on the main thread / at app launch.
+- The diagnostic is fully removed only by an expo-location / Expo SDK upgrade that
+  moves the native probe off the main thread — treat that as the definitive fix;
+  the helper above is the app-level mitigation. Don't re-debug it as a crash.
+
 ## Pre-merge checklist (mobile / EAS)
 
 1. `cd apps/mobile && pnpm install && node scripts/verify-expo-config-plugins.js`

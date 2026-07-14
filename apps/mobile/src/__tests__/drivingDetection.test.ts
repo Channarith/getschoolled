@@ -16,6 +16,9 @@
 const mockState: { speedCb?: (loc: { coords: { speed: number | null } }) => void } = {};
 const mockLocation = {
   Accuracy: { Balanced: 3 },
+  // Status-check-first flow (see locationPermission.ts): granted here so the
+  // helper resolves without prompting.
+  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: "granted", canAskAgain: true }),
   requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: "granted" }),
   watchPositionAsync: jest.fn(async (_opts: unknown, cb: (loc: { coords: { speed: number | null } }) => void) => {
     mockState.speedCb = cb;

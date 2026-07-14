@@ -1,6 +1,7 @@
 // Foreground location for Salareen live-room discovery (Bigo-style nearby browse).
 // Uses expo-location when available; callers may pass manual country/city fallback.
 
+import { ensureForegroundLocationPermission } from "./locationPermission";
 import { tryRequireModule } from "./nativeModules";
 
 export type LiveRoomGeo = {
@@ -24,8 +25,9 @@ export async function getLiveRoomLocation(): Promise<LiveRoomGeo> {
   if (!Location) return { ...EMPTY };
 
   try {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (perm.status !== "granted") return { ...EMPTY };
+    // Check authorization status first, prompt only if undetermined (see
+    // locationPermission.ts — avoids the CoreLocation main-thread diagnostic).
+    if (!(await ensureForegroundLocationPermission(Location))) return { ...EMPTY };
 
     const pos = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
