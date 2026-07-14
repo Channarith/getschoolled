@@ -1471,6 +1471,21 @@ export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promi
   return r.room;
 }
 
+export async function liveRoomCallOn(
+  roomId: string,
+  participantId: string,
+  moderatorKey = ""
+): Promise<LiveRoomState> {
+  const r = await jsonOrThrow<{ room: LiveRoomState }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-on`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
+    })
+  );
+  return r.room;
+}
+
 export async function liveRoomFinishTurn(
   roomId: string,
   participantId: string,

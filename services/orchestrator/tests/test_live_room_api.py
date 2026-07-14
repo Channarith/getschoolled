@@ -215,6 +215,29 @@ def test_ask_queues_when_someone_else_speaking():
     assert queued.json()["queue_position"] == 1
 
 
+def test_call_on_specific_participant_holds_the_mutex():
+    # Host/AI can pick a SPECIFIC learner (not just FIFO), and only one person
+    # holds the floor at a time (single-speaker mutex).
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    a = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()["participant"]["id"]
+    b = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bob", "identity": "b1"}).json()["participant"]["id"]
+
+    # Call on B directly (no queue needed) — B gets the floor.
+    r1 = client.post(f"/api/live-rooms/{room_id}/queue/call-on", json={"participant_id": b, "moderator_key": mod})
+    assert r1.status_code == 200, r1.text
+    room = r1.json()["room"]
+    assert room["floor_participant_id"] == b
+    # Exactly one floor holder.
+    assert r1.json()["speaker"]["id"] == b
+
+    # Call on A while B is speaking — preempts B, A now holds the floor (mutex).
+    r2 = client.post(f"/api/live-rooms/{room_id}/queue/call-on", json={"participant_id": a, "moderator_key": mod})
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["room"]["floor_participant_id"] == a
+
+
 def test_advance_and_ask_in_room():
     info = _start_salareen_class(6)
     room_id = info["room_id"]

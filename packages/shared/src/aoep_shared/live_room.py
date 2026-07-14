@@ -808,6 +808,58 @@ class LiveRoomStore:
         self._commit(room)
         return speaker
 
+    def call_on(
+        self,
+        room_id: str,
+        participant_id: str,
+        *,
+        moderator_key: str = "",
+    ) -> Participant:
+        """Give the floor to a SPECIFIC learner (host/AI picks who holds the mic),
+        jumping the FIFO queue. Any current speaker's turn is ended first, so the
+        single-speaker mutex (only one publisher/talker) is preserved — the AI can
+        switch who it's listening to mid-presentation."""
+        room = self.require(room_id)
+        if moderator_key:
+            room.verify_moderator(moderator_key)
+        target = room.get_participant(participant_id)  # KeyError -> unknown participant
+        if target.is_host:
+            raise LiveRoomError("the host already presents")
+        if room.is_banned(target.identity):
+            raise BannedError("that learner is blocked from this room")
+        # Preempt the current holder (mutex: exactly one speaker at a time).
+        if room.floor_participant_id and room.floor_participant_id != participant_id:
+            for entry in room.speaking_queue:
+                if (entry.participant_id == room.floor_participant_id
+                        and entry.status == QUEUE_SPEAKING):
+                    entry.status = QUEUE_DONE
+            room.floor_participant_id = ""
+        # Ensure the target has a queue entry so _grant_floor flips it to SPEAKING.
+        existing = room.queue_entry_for(participant_id)
+        if not (existing and existing.status in (QUEUE_WAITING, QUEUE_SPEAKING)):
+            room.speaking_queue.append(
+                QueueEntry(
+                    id=uuid.uuid4().hex[:10],
+                    participant_id=participant_id,
+                    name=target.name,
+                    question=(existing.question if existing else ""),
+                    status=QUEUE_WAITING,
+                    position=len(room.waiting_queue()) + 1,
+                )
+            )
+        speaker = self._grant_floor(room, participant_id)
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=f"🎤 {speaker.name}, the floor is yours — go ahead, we're listening.",
+            )
+        )
+        room._reindex_waiting()
+        self._commit(room)
+        return speaker
+
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
         """End the current speaker's turn and release the floor."""
         room = self.require(room_id)

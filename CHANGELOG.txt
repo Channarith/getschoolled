@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.11 - Live-room speaking mutex: the host/AI can now give the
+  floor to a SPECIFIC learner (not just FIFO). New LiveRoomStore.call_on() +
+  POST /api/live-rooms/{id}/queue/call-on preempts the current speaker and grants
+  the floor to the chosen participant, preserving the single-speaker mutex
+  (only the floor holder is unmuted/can_publish; everyone else is muted). Web
+  exposes a moderator "🎤 Call on" button per learner tile (liveRoomCallOn).
+  Existing model already enforces one talker: raise hand (Join Q&A queue) ->
+  host/AI Call next/Call on grants the floor -> only that person publishes ->
+  Done speaking releases it. Added a call-on regression test.
+
 - 2026-07-14 - v0.19.10 - Live-room in-room UX: (1) HEAR AUDIO — the LiveKit hook
   only subscribed to video and every <video> was muted, so remote audio never
   played; it now subscribes to remote audio tracks and plays them through hidden

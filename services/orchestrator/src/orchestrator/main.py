@@ -1383,6 +1383,26 @@ def live_room_call_next(
     }
 
 
+@app.post("/api/live-rooms/{room_id}/queue/call-on")
+def live_room_call_on(
+    room_id: str,
+    req: LiveRoomTurnRequest,
+    background: BackgroundTasks,
+) -> dict:
+    """Host/AI gives the floor to a SPECIFIC learner (picks who holds the mic),
+    preempting the current speaker. Preserves the single-speaker mutex."""
+    store = _live_rooms()
+    try:
+        speaker = store.call_on(room_id, req.participant_id, moderator_key=req.moderator_key)
+    except (KeyError, LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room = store.require(room_id).to_dict()
+    from aoep_shared.live_room_ws import ws_queue  # noqa: E402
+
+    _schedule_live_broadcast(background, room_id, ws_queue(room, room_id=room_id))
+    return {"speaker": speaker.to_dict() if speaker else None, "room": room}
+
+
 @app.post("/api/live-rooms/{room_id}/queue/finish-turn")
 def live_room_finish_turn(room_id: str, req: LiveRoomTurnRequest) -> dict:
     store = _live_rooms()

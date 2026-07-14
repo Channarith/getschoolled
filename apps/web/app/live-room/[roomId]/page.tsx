@@ -17,6 +17,7 @@ import {
   liveRoomMute,
   liveRoomRaiseHand,
   liveRoomCallNext,
+  liveRoomCallOn,
   liveRoomFinishTurn,
   liveRoomLeaveQueue,
   liveRoomRecordStart,
@@ -427,6 +428,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
+  async function callOn(participantId: string) {
+    if (!moderatorKey) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomCallOn(roomId, participantId, moderatorKey));
+      setError("");
+    } catch (e) {
+      setError(friendlyError(e, "Could not give the floor"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function finishTurn() {
     setBusy(true);
     try {
@@ -806,6 +820,28 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     }}
                   >
                     Block
+                  </button>
+                ) : null}
+                {moderatorKey && p.role !== "host" && p.id !== room?.floor_participant_id ? (
+                  <button
+                    type="button"
+                    onClick={() => void callOn(p.id)}
+                    disabled={busy}
+                    title={`Give ${p.name} the floor (only they can talk)`}
+                    style={{
+                      position: "absolute",
+                      bottom: 34,
+                      right: 6,
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "rgba(13,148,136,0.95)",
+                      color: "#fff",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    🎤 Call on
                   </button>
                 ) : null}
                 {p.role !== "host" && p.id !== me?.id ? (
