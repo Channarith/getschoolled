@@ -11,6 +11,7 @@ import {
   startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
+import { useAuth } from "../auth/AuthContext";
 import GlassPanel from "../components/GlassPanel";
 import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
@@ -31,6 +32,7 @@ export default function LiveRoomScreen({
   onBack: () => void;
   moderatorKey?: string;
 }) {
+  const { account } = useAuth();
   const [name, setName] = useState("");
   const [participantId, setParticipantId] = useState("");
   const [identity, setIdentity] = useState("");
@@ -81,18 +83,21 @@ export default function LiveRoomScreen({
     return () => clearInterval(t);
   }, [participantId, roomId, socket.connected]);
 
-  async function handleJoin() {
-    if (!name.trim()) {
+  async function handleJoin(nameOverride?: string, accountId?: string) {
+    const joinName = (nameOverride ?? name).trim();
+    if (!joinName) {
       setError("Enter your name");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      const ident = STORAGE[roomId]?.identity || `mobile-${name.trim().toLowerCase()}`;
+      const ident =
+        STORAGE[roomId]?.identity
+        || (accountId ? `mobile-acct-${accountId}` : `mobile-${joinName.toLowerCase()}`);
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
-        joined = await joinLiveRoom(roomId, name.trim(), ident);
+        joined = await joinLiveRoom(roomId, joinName, ident);
       } catch (joinErr) {
         // Room not open yet: for a group-class room (`class-<id>`) open it first
         // (idempotent server-side), then retry the join once so entering works.
@@ -101,7 +106,7 @@ export default function LiveRoomScreen({
         if (is404 && roomId.startsWith("class-")) {
           const geo = await getLiveRoomLocation();
           await startGroupClass(roomId.slice("class-".length), geo);
-          joined = await joinLiveRoom(roomId, name.trim(), ident);
+          joined = await joinLiveRoom(roomId, joinName, ident);
         } else {
           throw joinErr;
         }
@@ -124,6 +129,19 @@ export default function LiveRoomScreen({
       setBusy(false);
     }
   }
+
+  // Signed-in users don't type a name — derive it from their profile and join
+  // automatically. Guests still get the name prompt as a fallback.
+  const autoJoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoJoinedRef.current || participantId) return;
+    const profileName = (account?.display_name || "").trim();
+    if (!profileName) return;
+    autoJoinedRef.current = true;
+    setName(profileName);
+    void handleJoin(profileName, account?.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, participantId]);
 
   useEffect(() => {
     if (!identity || !room) return;

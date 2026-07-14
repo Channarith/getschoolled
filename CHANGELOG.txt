@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.15 - Live-room: derive the attendee name from the signed-in
+  profile instead of prompting. Web + mobile now auto-join a room using the
+  account's display_name (and a stable per-account identity), so signed-in users
+  never type a name; guests (no session) still get the name field as a fallback
+  (apps/web/app/live-room/[roomId]/page.tsx, apps/mobile/src/screens/LiveRoomScreen.tsx).
+
 - 2026-07-14 - v0.19.14 - Live-room class lifecycle: (1) the FIRST learner to join
   is the single class ADMIN (gets moderator powers + key); (2) the AI AUTO-STARTS
   the class when the room fills OR 5 minutes past the scheduled time, and the admin

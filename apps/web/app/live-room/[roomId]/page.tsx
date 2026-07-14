@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getLiveRoom,
   getLiveGiftCatalog,
+  getMe,
+  getToken,
   joinLiveRoom,
   leaveLiveRoom,
   liveRoomBan,
@@ -333,8 +335,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
-  async function handleJoin() {
-    const name = displayName.trim();
+  async function handleJoin(nameOverride?: string, accountId?: string) {
+    const name = (nameOverride ?? displayName).trim();
     if (!name) {
       setError("Enter your name to join.");
       return;
@@ -351,7 +353,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           identity = "";
         }
       }
-      const info = await joinLiveRoom(roomId, name, identity || `web-${name.toLowerCase().replace(/\s+/g, "-")}`);
+      // Prefer a stable identity tied to the signed-in account so re-joins are the
+      // same participant; fall back to a name slug for guests.
+      const fallbackIdentity = accountId
+        ? `web-acct-${accountId}`
+        : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
+      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity);
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
@@ -379,6 +386,29 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setBusy(false);
     }
   }
+
+  // Signed-in users don't type a name — it's derived from their profile and they
+  // join automatically. Guests (no session) still get the name prompt as a
+  // fallback.
+  const autoJoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoJoinedRef.current || joinInfo || !getToken()) return;
+    autoJoinedRef.current = true;
+    void getMe()
+      .then((acct) => {
+        const name = (acct.display_name || "").trim();
+        if (name) {
+          setDisplayName(name);
+          void handleJoin(name, acct.id);
+        } else {
+          autoJoinedRef.current = false; // no profile name -> show the prompt
+        }
+      })
+      .catch(() => {
+        autoJoinedRef.current = false; // not signed in / error -> show the prompt
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, joinInfo]);
 
   async function handleLeave() {
     if (!me) return;
