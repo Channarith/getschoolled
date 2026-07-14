@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.22 - Architecture document + diagrams. Added
+  scripts/build_architecture_pdf.py which renders six code-grounded diagrams
+  (system topology, network traffic flow, accounts/auth/language, data flow &
+  stores, live-class lifecycle, VKE deployment) with matplotlib into
+  docs/diagrams/architecture/ and compiles them plus comprehensive prose into a
+  9-page docs/architecture.pdf with reportlab (deterministic, offline). Updated
+  docs/architecture.txt (live rooms/group classes/solo 1:1, auto-end, language
+  delivery, and pointers to the PDF) and README.md to reference the compiled
+  architecture doc. Build-time deps (not runtime): matplotlib==3.11.0,
+  reportlab==5.0.0 — imported only when the script runs.
+
 - 2026-07-14 - v0.19.21 - Documentation refresh. Corrected stale facts in
   README.md (payments 50 methods/13 processors, removed the non-existent
   ppt_trainer references, completed the repository-layout table with harvester/

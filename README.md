@@ -202,6 +202,11 @@ the Kubernetes cluster every service listens on **`:8000`** and is reached by it
 Service name (e.g. `http://curriculum:8000`); the browser reaches them through the
 Ingress (see below).
 
+For a compiled visual reference — frontend, backend, accounts, data flow, network
+traffic, live classes, and deployment — see **`docs/architecture.pdf`** (generated
+from code by `scripts/build_architecture_pdf.py`; source diagrams in
+`docs/diagrams/architecture/`). The canonical text is `docs/architecture.txt`.
+
 ### Kubernetes deployment (Vultr VKE)
 
 Manifests: `infra/k8s` (base, kustomize) + `infra/k8s-vke` (Vultr overlay: image
