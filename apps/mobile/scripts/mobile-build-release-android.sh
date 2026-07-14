@@ -28,6 +28,9 @@ npm run native:prebuild:android
 
 APK="$ROOT/android/app/build/outputs/apk/release/app-release.apk"
 if [[ -f "$APK" ]]; then
+  # Guardrail: a standalone APK MUST embed the JS bundle, or it crashes on a
+  # device with "Unable to load script". Fail loudly here instead of shipping it.
+  bash "$(dirname "$0")/mobile-verify-apk-bundle.sh" "$APK"
   echo ""
   echo "OK release APK: $APK"
   echo "Install on a connected device: adb install -r \"$APK\""

@@ -71,6 +71,17 @@ if [[ "$DEBUG" == "1" ]]; then
   echo "==> Verbose mode: EXPO_DEBUG=1 DEBUG=expo:*"
 fi
 
+# Metro reachability guard: a debug/dev build loads index.android.bundle from
+# Metro on the host. Emulators reach it via 10.0.2.2, but a USB-connected
+# PHYSICAL device needs a reverse tunnel or it crashes on launch with "Unable to
+# load script". Set it up for every connected device (harmless for emulators).
+# For a standalone device build with NO Metro, use: npm run native:build:android:release
+for _serial in $("$ADB" devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}'); do
+  if "$ADB" -s "$_serial" reverse "tcp:$RCT_METRO_PORT" "tcp:$RCT_METRO_PORT" >/dev/null 2>&1; then
+    echo "==> adb reverse tcp:$RCT_METRO_PORT set for $_serial (Metro reachable on device)"
+  fi
+done
+
 EXPO=(bash scripts/mobile-expo.sh)
 EXPO_START_FLAGS=(--port "$RCT_METRO_PORT")
 if [[ "$FRESH" == "1" ]]; then
