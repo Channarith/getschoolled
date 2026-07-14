@@ -17,7 +17,12 @@ data:
   VISION_BASE_URL: "http://perception:8000"
   # CosyVoice 2 GPU TTS (vLLM-accelerated) in-cluster; see infra/k8s/cosyvoice.yaml.
   COSYVOICE_URL: "http://cosyvoice:9880"
-  LIVEKIT_URL: "wss://livekit.salareen.com"
+  # LiveKit Cloud project URL (managed — NOT the self-hosted infra/k8s/livekit.yaml
+  # server, which is unused when on Cloud). The orchestrator stamps this URL into
+  # every join token, so clients connect here. It MUST belong to the same LiveKit
+  # Cloud project as LIVEKIT_API_KEY/LIVEKIT_API_SECRET in aoep-secrets, or tokens
+  # 401 / video never connects. Not a secret (clients dial it directly).
+  LIVEKIT_URL: "wss://salareen-q3lne5d9.livekit.cloud"
   OBJECT_STORE_ENDPOINT: "https://<vultr-region>.vultrobjects.com"
   OBJECT_STORE_BUCKET: "salareen-prod"
   REDIS_URL: "redis://redis.aoep.svc.cluster.local:6379/0"
