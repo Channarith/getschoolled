@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.14 - Live-room class lifecycle: (1) the FIRST learner to join
+  is the single class ADMIN (gets moderator powers + key); (2) the AI AUTO-STARTS
+  the class when the room fills OR 5 minutes past the scheduled time, and the admin
+  can start it manually (POST .../start-presentation); (3) removed the per-user
+  "Next slide" button — the AI AUTO-ADVANCES slides on a dwell timer (paused while
+  someone holds the Q&A floor), and only the admin can manually advance; (4) new
+  POST .../tick heartbeat drives auto-start/auto-advance (web calls it every 8s).
+  New room state: admin_participant_id, presenting, scheduled_start, slide timing.
+  Backend tests for admin=first-joiner, admin-gated start/advance, and tick
+  auto-start-when-full + auto-advance. (Mobile lifecycle wiring is a follow-up.)
+
 - 2026-07-14 - v0.19.13 - Live-room theme: the in-room classroom now uses the
   site's light "warm campus" palette (globals.css tokens --bg/--panel/--text/
   --accent/--accent-2/--border) instead of the old dark-purple gradients, so it

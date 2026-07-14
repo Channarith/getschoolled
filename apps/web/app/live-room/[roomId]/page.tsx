@@ -12,6 +12,8 @@ import {
   liveRoomReport,
   liveRoomDismissReport,
   liveRoomAdvance,
+  liveRoomStartPresentation,
+  liveRoomTick,
   liveRoomAsk,
   liveRoomChat,
   liveRoomMute,
@@ -352,6 +354,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const info = await joinLiveRoom(roomId, name, identity || `web-${name.toLowerCase().replace(/\s+/g, "-")}`);
       setJoinInfo(info);
       setRoom(info.room);
+      // The admin (first joiner) receives the moderator key so their client can
+      // start the class and advance slides.
+      if (info.is_admin && info.moderator_key) setModeratorKey(info.moderator_key);
       setGiftBalance(info.gift_balance ?? 500);
       setFollowingHost(Boolean(info.following_host));
       setFollowerCount(info.host_follower_count ?? 0);
@@ -492,13 +497,34 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   async function hostAdvance() {
     setBusy(true);
     try {
-      setRoom(await liveRoomAdvance(roomId));
+      setRoom(await liveRoomAdvance(roomId, moderatorKey));
     } catch (e) {
       setError(friendlyError(e, "Advance failed"));
     } finally {
       setBusy(false);
     }
   }
+
+  async function startPresentation() {
+    setBusy(true);
+    try {
+      setRoom(await liveRoomStartPresentation(roomId, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Could not start the class"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Heartbeat: drives AI auto-start (full / 5-min rule) and auto-advance. Any
+  // joined client ticks every 8s; the server makes it idempotent.
+  useEffect(() => {
+    if (!joinInfo) return;
+    const t = window.setInterval(() => {
+      void liveRoomTick(roomId).then((r) => applyRoom(r)).catch(() => undefined);
+    }, 8000);
+    return () => window.clearInterval(t);
+  }, [joinInfo, roomId, applyRoom]);
 
   async function toggleRecording() {
     setBusy(true);
@@ -1151,9 +1177,22 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
-            <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (host)">
-              ▶ Next slide
-            </button>
+            {me?.is_admin || moderatorKey ? (
+              !room?.presenting ? (
+                <button
+                  onClick={() => void startPresentation()}
+                  disabled={busy}
+                  title="Start the class (admin)"
+                  style={{ background: "var(--accent-2)", color: "#fff" }}
+                >
+                  🎬 Start class
+                </button>
+              ) : (
+                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (admin only — the AI advances automatically)">
+                  ▶ Next slide
+                </button>
+              )
+            ) : null}
             <button onClick={() => void toggleRecording()} disabled={busy}>
               {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
             </button>

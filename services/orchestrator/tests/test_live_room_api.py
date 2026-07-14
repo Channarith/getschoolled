@@ -261,24 +261,73 @@ def test_advance_auto_calls_next_raised_hand():
     # gives the floor to the next learner.
     info = _start_salareen_class(6)
     room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
     pid = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()["participant"]["id"]
     client.post(f"/api/live-rooms/{room_id}/queue/join", json={"participant_id": pid, "question": "Why?"})
 
-    adv = client.post(f"/api/live-rooms/{room_id}/advance")
+    adv = client.post(f"/api/live-rooms/{room_id}/advance", json={"moderator_key": mod})
     assert adv.status_code == 200, adv.text
     assert adv.json()["auto_called_on"] and adv.json()["auto_called_on"]["id"] == pid
     assert adv.json()["room"]["floor_participant_id"] == pid
 
 
+def test_first_joiner_is_admin_and_gets_moderator_key():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    first = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()
+    second = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bob", "identity": "b1"}).json()
+    assert first["is_admin"] is True and first["moderator_key"]      # admin gets the key
+    assert first["participant"]["is_admin"] is True
+    assert second["is_admin"] is False and second["moderator_key"] == ""
+
+
+def test_advance_and_start_require_admin():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    first = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()
+    admin_id = first["participant"]["id"]
+    second_id = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bob", "identity": "b1"}).json()["participant"]["id"]
+
+    # non-admin cannot start or advance (LiveRoomError -> 400)
+    assert client.post(f"/api/live-rooms/{room_id}/start-presentation", json={"participant_id": second_id}).status_code == 400
+    assert client.post(f"/api/live-rooms/{room_id}/advance", json={"participant_id": second_id}).status_code == 400
+    # admin can
+    started = client.post(f"/api/live-rooms/{room_id}/start-presentation", json={"participant_id": admin_id})
+    assert started.status_code == 200 and started.json()["presenting"] is True
+
+
+def test_tick_auto_starts_when_full_then_auto_advances():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)  # room_size 4 -> 3 learner seats
+    room_id = info["room_id"]
+    for i in range(3):  # fill every seat
+        client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"id-{i}"})
+
+    # Full room -> tick auto-starts the presentation.
+    t1 = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t1.status_code == 200, t1.text
+    assert t1.json()["auto_started"] is True
+    assert t1.json()["room"]["presenting"] is True
+
+    # Force the slide dwell into the past -> next tick auto-advances.
+    room = _app.state.live_rooms.require(room_id)
+    room.slide_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+    t2 = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert t2.json()["auto_advanced"] is not None
+
+
 def test_advance_and_ask_in_room():
     info = _start_salareen_class(6)
     room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
     pid = client.post(
         f"/api/live-rooms/{room_id}/join",
         json={"name": "Student", "identity": "student-1"},
     ).json()["participant"]["id"]
 
-    advanced = client.post(f"/api/live-rooms/{room_id}/advance")
+    advanced = client.post(f"/api/live-rooms/{room_id}/advance", json={"moderator_key": mod})
     assert advanced.status_code == 200, advanced.text
     assert advanced.json()["slide"]["title"]
 

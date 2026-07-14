@@ -964,6 +964,7 @@ def start_group_class(
             latitude=req.latitude,
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
+            scheduled_start=gc.start_time,
         )
         moderator_key = live.moderator_key
 
@@ -1211,6 +1212,7 @@ def _ensure_group_class_room(room_id: str):
         slide_body=slide.body,
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
+        scheduled_start=gc.start_time,
     )
     _group_store().save(gc)
     return live
@@ -1278,6 +1280,10 @@ def join_live_room(
         "gift_balance": store.gift_balance_for(participant, authorization),
         "host_follower_count": store.host_follower_count(resolved_room_id),
         "following_host": store.is_following_host(resolved_room_id, participant.identity),
+        # The admin (first joiner) gets moderator powers: hand them the key so
+        # their client can start the class / advance slides / moderate.
+        "is_admin": participant.is_admin,
+        "moderator_key": room.moderator_key if participant.is_admin else "",
     }
 
 
@@ -1525,14 +1531,23 @@ def live_room_dismiss_report(room_id: str, req: LiveRoomDismissReportRequest) ->
     }
 
 
-@app.post("/api/live-rooms/{room_id}/advance")
-def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
-    """AI host advances the lesson slide for all participants."""
+def _authorize_room_admin(room, req: "LiveRoomTurnRequest") -> None:
+    """Allow the class admin (first joiner) OR a moderator_key holder."""
+    if req.moderator_key:
+        room.verify_moderator(req.moderator_key)
+        return
+    if req.participant_id:
+        p = room.get_participant(req.participant_id)
+        if p.is_admin:
+            return
+    raise LiveRoomError("only the class admin can do that")
+
+
+def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
+    """Advance the lesson one slide (shared by the admin endpoint + auto-advance).
+    Resets the per-slide timer and picks up any waiting Q&A hand."""
     store = _live_rooms()
-    try:
-        room = store.require(room_id)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="unknown live room")
+    room = store.require(room_id)
     sessions = get_sessions()
     try:
         slide = sessions.advance(room.session_id)
@@ -1548,14 +1563,9 @@ def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
         body=slide.body,
         narration=slide.narration,
     )
+    store.note_slide_started(room_id)  # reset the auto-advance dwell timer
     if narration:
-        store.post_host_message(
-            room_id,
-            f"📖 {slide.title} — {narration}",
-        )
-    # AI auto-Q&A: at this natural break (new slide), if a learner is waiting in
-    # the Q&A queue and no one holds the floor, the AI calls on the next raised
-    # hand so questions get answered mid-presentation (single-speaker mutex kept).
+        store.post_host_message(room_id, f"📖 {slide.title} — {narration}")
     auto_speaker = store.auto_call_next_if_waiting(room_id)
     slide_dict = store.require(room_id).slide.to_dict()
     room_dict = store.require(room_id).to_dict()
@@ -1567,6 +1577,74 @@ def live_room_advance(room_id: str, background: BackgroundTasks) -> dict:
         "room": room_dict,
         "lesson_title": lesson.title,
         "auto_called_on": auto_speaker.to_dict() if auto_speaker else None,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/advance")
+def live_room_advance(
+    room_id: str,
+    background: BackgroundTasks,
+    req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
+) -> dict:
+    """Advance the slide — admin/moderator only (the AI auto-advances otherwise)."""
+    store = _live_rooms()
+    try:
+        _authorize_room_admin(store.require(room_id), req)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    except (LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    return _advance_room_slide(room_id, background)
+
+
+@app.post("/api/live-rooms/{room_id}/start-presentation")
+def live_room_start_presentation(
+    room_id: str,
+    background: BackgroundTasks,
+    req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
+) -> dict:
+    """Admin (or moderator) manually starts the class presentation."""
+    store = _live_rooms()
+    try:
+        room = store.start_presentation(
+            room_id, participant_id=req.participant_id, moderator_key=req.moderator_key,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    except (LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    room_dict = room.to_dict()
+    from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+
+    _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
+    return {"room": room_dict, "presenting": room.presenting}
+
+
+@app.post("/api/live-rooms/{room_id}/tick")
+def live_room_tick(room_id: str, background: BackgroundTasks) -> dict:
+    """Heartbeat the room clock: auto-start the class (full or 5 min past the
+    scheduled time) and auto-advance slides on the dwell timer. Any client may
+    call this periodically; all actions are idempotent/rate-guarded server-side."""
+    store = _live_rooms()
+    try:
+        store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    started = advanced = None
+    if store.should_auto_start(room_id):
+        store.start_presentation(room_id, auto=True)
+        started = True
+    if store.should_auto_advance(room_id):
+        advanced = _advance_room_slide(room_id, background)
+    room_dict = store.require(room_id).to_dict()
+    from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+
+    if started and not advanced:
+        _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
+    return {
+        "room": room_dict,
+        "auto_started": bool(started),
+        "auto_advanced": advanced["slide"] if advanced else None,
     }
 
 
