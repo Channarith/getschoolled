@@ -66,12 +66,14 @@ function ParticipantTile({
   localStream,
   liveKitTrack,
   hasFloor,
+  slide,
 }: {
   p: LiveParticipant;
   large?: boolean;
   localStream?: MediaStream | null;
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
+  slide?: { index: number; title: string; body: string; narration: string } | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,31 @@ function ParticipantTile({
             opacity: 0.85,
           }}
         />
+      ) : isHost && slide ? (
+        // The AI instructor has no camera — its "video feed" IS the current slide.
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            gap: 10,
+            padding: large ? "28px 32px" : "14px 16px",
+            color: "#fff",
+            textAlign: "left",
+          }}
+        >
+          <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            🎓 Theodore · Slide {slide.index + 1}
+          </div>
+          <div style={{ fontSize: large ? 26 : 18, fontWeight: 800, lineHeight: 1.2 }}>
+            {slide.title}
+          </div>
+          <div style={{ fontSize: large ? 15 : 13, lineHeight: 1.5, opacity: 0.95, overflow: "hidden" }}>
+            {slide.narration || slide.body}
+          </div>
+        </div>
       ) : (
         <div
           style={{
@@ -203,6 +230,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
   const [showGifts, setShowGifts] = useState(false);
+  const [showChat, setShowChat] = useState(true);
+  const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const leftVoluntarily = useRef(false);
@@ -844,10 +873,40 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
+      {/* View toggles: focus the instructor (slide) and show/hide chat. */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setFocusInstructor((v) => !v)}
+          title={focusInstructor ? "Show everyone" : "Focus on the instructor / slides"}
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: focusInstructor ? "var(--accent)" : "var(--panel)",
+            color: focusInstructor ? "#fff" : "var(--text)",
+          }}
+        >
+          {focusInstructor ? "👥 Show everyone" : "🎓 Focus instructor"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowChat((v) => !v)}
+          title={showChat ? "Hide chat" : "Show chat"}
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: showChat ? "var(--panel)" : "var(--accent)",
+            color: showChat ? "var(--text)" : "#fff",
+          }}
+        >
+          {showChat ? "💬 Hide chat" : "💬 Show chat"}
+        </button>
+      </div>
+
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 1fr)",
+          gridTemplateColumns: showChat ? "minmax(0, 1.4fr) minmax(280px, 1fr)" : "1fr",
           gap: 14,
           alignItems: "start",
         }}
@@ -856,8 +915,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: largeHostColumn(layout.cols),
-              gridTemplateRows: `repeat(${layout.rows}, minmax(100px, 1fr))`,
+              gridTemplateColumns: focusInstructor ? "1fr" : largeHostColumn(layout.cols),
+              gridTemplateRows: focusInstructor ? "minmax(320px, 60vh)" : `repeat(${layout.rows}, minmax(100px, 1fr))`,
               gap: 8,
               marginBottom: 12,
             }}
@@ -867,15 +926,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               <LiveKitAudio key={a.participantId} track={a.track} />
             ))}
             {host && (
-              <div style={{ gridRow: `span ${layout.rows}`, minHeight: 220 }}>
+              <div style={{ gridRow: focusInstructor ? "auto" : `span ${layout.rows}`, minHeight: 220 }}>
                 <ParticipantTile
                   p={host}
                   large
                   liveKitTrack={trackFor(host.id)}
+                  slide={room?.slide}
                 />
               </div>
             )}
-            {learners.map((p) => (
+            {!focusInstructor && learners.map((p) => (
               <div key={p.id} style={{ position: "relative" }}>
                 <ParticipantTile
                   p={p}
@@ -951,7 +1011,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
             ))}
-            {Array.from({ length: emptySlots }).map((_, i) => (
+            {!focusInstructor && Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
                 style={{
@@ -1026,6 +1086,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           )}
         </section>
 
+        {showChat && (
         <aside
           style={{
             display: "flex",
@@ -1300,6 +1361,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           ) : null}
         </aside>
+        )}
       </div>
     </main>
   );

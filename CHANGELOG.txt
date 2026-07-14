@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.16 - Live-room viewing controls + instructor slide feed:
+  (1) the AI host tile now renders the CURRENT SLIDE (title + narration) as its
+  "video feed" instead of a graduation-cap emoji — the instructor visibly presents
+  the slides; (2) a "🎓 Focus instructor" toggle enlarges the instructor/slide and
+  hides the learner tiles; (3) a "💬 Hide/Show chat" toggle collapses the chat
+  panel so you can just watch the people/instructor. Verified in-browser
+  (apps/web/app/live-room/[roomId]/page.tsx).
+
 - 2026-07-14 - v0.19.15 - Live-room: derive the attendee name from the signed-in
   profile instead of prompting. Web + mobile now auto-join a room using the
   account's display_name (and a stable per-account identity), so signed-in users
