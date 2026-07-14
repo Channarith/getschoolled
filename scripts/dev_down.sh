@@ -20,7 +20,7 @@ for pidf in "$LOGS"/*.pid; do
 done
 # Fallback: services can outlive their PID files (crashed dev_up run, manual
 # starts). Sweep the stack's well-known ports so dev-down always means down.
-PORTS=(8000 8002 8003 8004 8005 8006 8007 8008 3000)
+PORTS=(8000 8002 8003 8004 8005 8006 8007 8008 3000 7880)
 for port in "${PORTS[@]}"; do
   for pid in $(lsof -ti tcp:"$port" 2>/dev/null || true); do
     kill "$pid" 2>/dev/null || true

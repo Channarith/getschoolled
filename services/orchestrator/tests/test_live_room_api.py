@@ -114,6 +114,42 @@ def test_unknown_room_still_404s():
     assert r2.status_code == 404
 
 
+def _standard_salareen_class_id() -> str:
+    """A deterministic-id standard Salareen class (seeded on list)."""
+    classes = client.get("/api/group-classes?upcoming=true").json()["classes"]
+    salareen = [c for c in classes if c["platform"] == "salareen"]
+    assert salareen, "expected seeded standard Salareen classes"
+    return salareen[0]["id"]
+
+
+def _wipe_group_class_store() -> None:
+    from orchestrator.main import app as _app
+
+    backend = _app.state.group_classes._backend
+    for cid in list(backend.list_ids()):
+        backend.delete(cid)
+
+
+def test_join_lazy_opens_after_class_evicted_from_store():
+    # A fresh replica / post-restart / evicted-entry store no longer holds the
+    # standard class the client is joining. Because standard-class ids are
+    # deterministic, lazy-open must SEED-ON-MISS and reopen the room instead of
+    # 404ing (the recurring "Still with 404 errors" report).
+    cid = _standard_salareen_class_id()
+    _wipe_group_class_store()
+
+    got = client.get(f"/api/live-rooms/class-{cid}")
+    assert got.status_code == 200, got.text
+
+    _wipe_group_class_store()
+    joined = client.post(
+        f"/api/live-rooms/class-{cid}/join",
+        json={"name": "Krisna", "identity": "mobile-krisna"},
+    )
+    assert joined.status_code == 200, joined.text
+    assert joined.json()["media"]["token"].count(".") == 2  # real LiveKit JWT
+
+
 def test_join_chat_and_queue_flow():
     info = _start_salareen_class(4)
     joined = client.post(

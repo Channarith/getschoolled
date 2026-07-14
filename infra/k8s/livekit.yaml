@@ -4,15 +4,17 @@ metadata:
   name: livekit-config
   namespace: aoep
 data:
-  # Keys must match aoep-secrets LIVEKIT_API_KEY / LIVEKIT_API_SECRET.
-  # Dev defaults work for smoke tests; rotate in production.
+  # API key/secret are NOT hardcoded here. They come from LIVEKIT_KEYS in the
+  # Deployment below, built from the SAME aoep-secrets LIVEKIT_API_KEY/SECRET the
+  # orchestrator signs tokens with, so the two can never drift. A mismatch makes
+  # the server reject every minted token with 401 and video never connects.
+  # Use a secret >= 32 chars in production (LiveKit rejects shorter secrets
+  # outside --dev mode).
   livekit.yaml: |
     port: 7880
     rtc:
       tcp_port: 7881
       use_external_ip: true
-    keys:
-      devkey: devsecret
     logging:
       level: info
 ---
@@ -37,6 +39,23 @@ spec:
         - name: livekit
           image: livekit/livekit-server:v1.8.0
           args: ["--config", "/etc/livekit/livekit.yaml"]
+          env:
+            # Single source of truth: LiveKit's keys are derived from the same
+            # secret the orchestrator uses. LIVEKIT_KEYS ("key: secret") is
+            # assembled via Kubernetes dependent env-var expansion, so the media
+            # server and token issuer always agree.
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: LIVEKIT_API_SECRET
+            - name: LIVEKIT_KEYS
+              value: "$(LIVEKIT_API_KEY): $(LIVEKIT_API_SECRET)"
           ports:
             - name: signal
               containerPort: 7880

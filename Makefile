@@ -12,7 +12,7 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
-	run-identity run-memory run-orchestrator validate-pipeline dev-all dev-down dev-status
+	run-identity run-memory run-orchestrator run-livekit validate-pipeline dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -40,6 +40,7 @@ help:
 	@echo "  run-identity   Start identity on :8008 (loads config/local.env)"
 	@echo "  run-memory     Start memory on :8004 (loads config/local.env)"
 	@echo "  run-orchestrator Start orchestrator on :8000 (loads config/local.env)"
+	@echo "  run-livekit    Start LiveKit WebRTC server on :7880 (Salareen video)"
 	@echo "  dev-all        Start ALL services + web locally (background) and wire them"
 	@echo "  dev-status     Health of the local stack"
 	@echo "  dev-down       Stop the local stack started by dev-all"
@@ -257,6 +258,11 @@ run-memory:
 
 run-orchestrator:
 	./scripts/run_local_service.sh orchestrator
+
+# LiveKit WebRTC server for native dev (Salareen live-room video / tier 2).
+# Downloads the pinned binary once; keys match the orchestrator's LIVEKIT_* env.
+run-livekit:
+	./scripts/run_livekit.sh
 
 # Start / stop / inspect the WHOLE local stack (all services + web) in the
 # background, wired together, with live keys from .env.local.
