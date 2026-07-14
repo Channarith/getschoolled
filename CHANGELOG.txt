@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.28 - Reduce the iOS CoreLocation "Performance Diagnostics"
+  FAULT recurrence. ensureForegroundLocationPermission() now caches a granted
+  result for the session, so re-mounting the live-room browse / group-classes
+  screens and restarting driving detection no longer re-probe CoreLocation every
+  time (the recurrence the diagnostic flags) — it probes at most once per session,
+  and still only prompts when status is undetermined. Non-fatal OS diagnostic;
+  definitive removal is an expo-location/SDK upgrade. Added a cache regression
+  test (apps/mobile/src/locationPermission.ts).
+
 - 2026-07-14 - v0.19.27 - Mobile live room: readable presenter + AI teacher audio.
   The AI host tile is now a large "presenter" hero showing the current slide
   (Slide N, big title + narration) instead of a tiny square, so the topic is easy

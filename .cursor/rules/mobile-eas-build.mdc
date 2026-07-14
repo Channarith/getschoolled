@@ -77,10 +77,15 @@ authorization/location-services are probed synchronously — expo-location does 
 internally, and we amplify it by re-requesting on every call.
 
 - Do NOT call `requestForegroundPermissionsAsync()` directly. Go through
-  `src/locationPermission.ts::ensureForegroundLocationPermission()`, which checks
-  status first (`getForegroundPermissionsAsync`) and prompts only when
-  undetermined — Apple's "check `authorizationStatus` first" guidance. All
-  location entry points (`liveRoomLocation.ts`, `drivingDetection.ts`) use it.
+  `src/locationPermission.ts::ensureForegroundLocationPermission()`, which (a)
+  CACHES a granted result for the session so re-mounts (live-room browse,
+  group-classes) and driving-detection restarts don't re-probe CoreLocation —
+  this stops the diagnostic from RECURRING — and (b) checks status first
+  (`getForegroundPermissionsAsync`) and prompts only when undetermined (Apple's
+  "check `authorizationStatus` first" guidance). All location entry points
+  (`liveRoomLocation.ts`, `drivingDetection.ts`) use it. Don't add an
+  `InteractionManager`/timer deferral inside the helper — it breaks the
+  timing-sensitive driving-detection flow/tests.
 - Never gate first render on a location call, and never probe location services
   synchronously on the main thread / at app launch.
 - The diagnostic is fully removed only by an expo-location / Expo SDK upgrade that
