@@ -1,11 +1,14 @@
 AOEP - DESIGN & ARCHITECTURE
 ============================
 Agentic Online Education Platform. This is the text source-of-truth for the
-system design; GitHub-facing rendered diagrams live in the README as mermaid.
-No generated diagram/image assets are currently checked in.
+system design; GitHub-facing rendered diagrams live in the README as mermaid,
+and a compiled visual reference lives in docs/architecture.pdf (frontend,
+backend, accounts, data flow, network traffic, live classes, deployment).
 
 No-markdown house rule: this file is plain text on purpose. Diagrams here are
-ASCII; the README keeps the rendered GitHub version.
+ASCII; the README keeps the rendered GitHub version; the PDF and its PNGs under
+docs/diagrams/architecture/ are generated from code by
+scripts/build_architecture_pdf.py (re-run it after any architecture change).
 
 -----------------------------------------------------------------------------
 1. SYSTEM CONTEXT (who uses it)
@@ -54,7 +57,10 @@ ASCII; the README keeps the rendered GitHub version.
 3. SERVICES (FastAPI; all via create_service -> /health, /version, /__meta)
 -----------------------------------------------------------------------------
   orchestrator 8000  Teaching Director: lessons, sessions, slides, RAG Q&A,
-                     groundedness, HIL gating, disclosure, embodiment
+                     groundedness, HIL gating, disclosure, embodiment;
+                     Salareen live rooms + group classes + solo 1:1 (LiveKit
+                     grid, Q&A speaking mutex, auto start/advance/end),
+                     training/cognitive agent APIs, assessment
   speech       8002  language coverage/routing, ASR/translation/TTS
   perception   8003  consent-gated face recognition + attention/engagement
   memory       8004  profiles, consent, legal acceptance, compliance, retention,
@@ -65,7 +71,9 @@ ASCII; the README keeps the rendered GitHub version.
   billing      8006  plans, entitlements, checkout (sandbox/Stripe)
   integrations 8007  signed webhooks, API clients, LMS/LTI, finance, cloud/SSO
   identity     8008  accounts, auth (PBKDF2 + HMAC tokens), membership tier,
-                     learner sub-profiles, portfolio, rewards/points
+                     learner sub-profiles, portfolio, rewards/points,
+                     preferred_language (POST /account/language; follows the
+                     learner across devices)
 
 -----------------------------------------------------------------------------
 4. KEY DATA FLOWS
@@ -113,6 +121,23 @@ ASCII; the README keeps the rendered GitHub version.
     curriculum POST /recommend(student profile) -> Foresight engine
          (attention, multimodal fuse, router, pattern attention, multi-head)
          -> ranked recommendations + skill gaps + adapted difficulty
+
+4f. Live class (group / solo 1:1) lifecycle
+    web/mobile -> orchestrator /api/live-rooms/{id}/join (carries the learner's
+         language) -> mint LiveKit no-publish token (single-speaker mutex);
+         first learner = admin. Room state persists to Redis so every replica
+         agrees. A tick loop (any client, 8s) auto-starts when the room is full
+         or 5 min past the scheduled time, auto-advances slides on a dwell timer,
+         and AUTO-ENDS at the allotted time with a courteous multilingual "class
+         complete" farewell + countdown. Q&A: raise hand -> host/AI grants the
+         floor -> publish token issued (one speaker at a time). Solo 1:1 is the
+         same room scaled to a single learner seat (open-ended, no auto-end).
+
+4g. Language follows the learner (course in their language)
+    identity persists preferred_language; GET /auth/me returns it. Web + mobile
+    LocaleProvider adopts it on any device and saves picker changes back
+    (POST /account/language). The Tutor answers each learner in that language
+    (aoep_shared.languages.language_name -> "Respond entirely in <language>").
 
 -----------------------------------------------------------------------------
 5. ADMIN / OPS SURFACE
@@ -187,5 +212,10 @@ ASCII; the README keeps the rendered GitHub version.
   README "Architecture" - logical service topology, the Kubernetes (VKE)
     deployment diagram, the in-cluster live-class request flow, the teaching-loop
     sequence, and the profile-sharing flow (all mermaid).
-  Generated screenshots, charts, demos, and logo files are intentionally not
-    referenced until real assets are committed.
+  docs/architecture.pdf - compiled visual reference (9 pages): overview + service
+    table, system topology, network traffic flow, accounts/auth/language, data
+    flow & stores, live-class lifecycle, and VKE deployment. Source PNGs in
+    docs/diagrams/architecture/. Rebuild both with:
+      pip install matplotlib==3.11.0 reportlab==5.0.0
+      python3 scripts/build_architecture_pdf.py
+  docs/diagrams/ also holds the analytics charts (latency, engagement, funnel).
