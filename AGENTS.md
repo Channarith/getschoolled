@@ -47,16 +47,23 @@ Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
    concurrent entries auto-combine - keep one bullet per change. Documenting the
    version (not just the date) is REQUIRED and CI-enforced (traceability).
 2. **Release version (REQUIRED on every PR - CI-enforced):** run
-   `python3 scripts/bump_pr_version.py` before merge. This advances `VERSION`,
-   `build-info.txt`, `apps/web/app/lib/version.ts`, `apps/mobile/src/version.ts`
-   (and the package/app manifests). Patch bump by default; auto-promotes to a
-   minor once >8 changes have accrued (tune via `AOEP_MINOR_BUMP_THRESHOLD`);
-   `--force-level minor|major` overrides. `scripts/check_pr_version_bump.sh` (the
-   `version-bump` CI job) fails the PR unless VERSION is strictly greater than the
-   branch's MERGE-BASE and the newest changelog entry names that version. It
-   compares against the fork point (not main's tip), so concurrent PRs don't
-   falsely collide, and the `maxver` merge driver keeps main moving forward. See
-   the `release-and-deploy` skill for the full flow.
+   `python3 scripts/bump_pr_version.py` **ONCE per PR** before merge (it is
+   idempotent-by-intent, not by run — re-running it every iteration stacks extra
+   bumps, which is how a small PR wrongly climbed several MINORs). It advances
+   `VERSION`, `build-info.txt`, `apps/web/app/lib/version.ts`,
+   `apps/mobile/src/version.ts` (and the package/app manifests). **PATCH by
+   default** (last number) — routine fixes/small changes are patch. Use
+   `--force-level minor` only to intentionally cut a feature release; do NOT let a
+   handful of small changes become a minor. Auto-minor triggers only when >8
+   bullets sit under the CHANGELOG `[unreleased]` block (`AOEP_MINOR_BUMP_THRESHOLD`);
+   GOTCHA: if that block is never rolled into a dated release, its stale bullets
+   pin every bump to MINOR — roll it (rename the `[unreleased]` header to a dated
+   `[X.Y.Z] - DATE`, or run the `build_release.py` refresh) so routine PRs stay
+   PATCH. `scripts/check_pr_version_bump.sh` (the `version-bump` CI job) fails the
+   PR unless VERSION is strictly greater than the branch's MERGE-BASE and the
+   newest changelog entry names that version. It compares against the fork point
+   (not main's tip), so concurrent PRs don't falsely collide, and the `maxver`
+   merge driver keeps main moving forward. See the `release-and-deploy` skill.
 3. README.md: review and clean it up - remove legacy/unsupported/redundant
    wording, fix stale references (ports, paths, removed features), and ensure
    there are NO duplicate sections (e.g. a single `## Brand`). The README must

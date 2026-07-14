@@ -2,60 +2,23 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-14 - v0.21.0 - Mobile/iOS: quiet the recurring CoreLocation "Performance
-  Diagnostics" FAULT ("This method can cause UI unresponsiveness if invoked on the
-  main thread … check authorizationStatus first"). It is a non-fatal OS warning we
-  amplified by calling requestForegroundPermissionsAsync() on every location use.
-  New src/locationPermission.ts::ensureForegroundLocationPermission() checks status
-  first (getForegroundPermissionsAsync) and prompts only when undetermined —
-  Apple's recommended flow; wired into liveRoomLocation.ts and drivingDetection.ts.
-  Added unit tests (all permission paths) + updated the driving-detection test;
-  documented in .cursor/rules/mobile-eas-build.mdc (definitive fix = expo-location/
-  SDK upgrade that moves the native probe off the main thread).
-
-- 2026-07-14 - v0.20.0 - Mobile: stop the recurring Android "Unable to load script /
-  index.android.bundle" red-screen. It is a build/packaging mismatch, not a code
-  bug: a debug/dev-client build was run on a device with no reachable Metro, or a
-  "release" APK shipped without the embedded JS bundle. Guardrails added: (1) new
-  scripts/mobile-verify-apk-bundle.sh fails if an APK lacks assets/
-  index.android.bundle, wired into mobile-build-release-android.sh so a broken
-  release APK never ships; (2) mobile-launch-android.sh now runs
-  `adb reverse tcp:8081 tcp:8081` for every connected device so debug builds on a
-  USB phone can reach Metro; (3) .cursor/rules/mobile-eas-build.mdc documents the
-  decision tree (release APK vs dev-client-needs-Metro) + the verifier in the
-  pre-merge checklist.
-
-- 2026-07-14 - v0.19.0 - CI: fix pytest "import file mismatch" that interrupted
-  the whole suite. services/harvester/tests and services/homework/tests both had
-  a test_run.py; with pytest's default prepend import mode (no __init__.py) the
-  duplicate basename collided during collection. Renamed to test_harvester_run.py
-  and test_homework_run.py (unique basenames, per the pytest hint). Full command
-  now collects 1844 tests with no collision.
-
-- 2026-07-13 - v0.19.0 - LiveKit backend setup so Salareen video (tier 2) actually
-  connects. Root cause: the key/secret the orchestrator SIGNS tokens with must
-  match the LiveKit server's `keys:`, or the server 401s every token and video
-  never connects. Fixes: (1) compose `livekit` used `--dev` (built-in placeholder
-  keys devkey:secret) which did NOT match the orchestrator (devkey:devsecret) —
-  now overrides via LIVEKIT_KEYS and pins the image to v1.8.0 (infra/compose/
-  docker-compose.yml); (2) config/local.env + cloud.env now set/ document
-  LIVEKIT_API_KEY/SECRET and the match requirement; (3) new scripts/run_livekit.sh
-  (+ `make run-livekit`) runs a matching LiveKit server for native dev, wired into
-  dev_up/dev_down/dev_status with a localhost URL rewrite; (4) infra/k8s/
-  livekit.yaml now derives LIVEKIT_KEYS from the same aoep-secrets the services
-  use (dependent env expansion) instead of a hardcoded key, so prod can't drift.
-  Verified end-to-end: a token minted by the running orchestrator is ACCEPTED
-  (HTTP 101, full ICE session) by a real livekit-server 1.8.0 with matching keys,
-  and REJECTED (401) with mismatched keys.
-
-- 2026-07-13 - v0.18.0 - Live rooms: fix recurring "404 Not Found" when entering a
-  Salareen group-class room. _ensure_group_class_room now SEEDS-ON-MISS (via
-  _find_group_class) instead of a bare store.get(), so GET/join lazily reopen a
-  standard class even on a fresh replica, after a restart, or when the store
-  entry was evicted — the deterministic class id is reproduced and the room is
-  reopened with a real LiveKit token. Added a regression test that wipes the
-  group-class store and asserts GET+join still lazy-open (200)
-  (services/orchestrator/src/orchestrator/main.py, tests/test_live_room_api.py).
+- 2026-07-14 - v0.19.1 - Salareen live rooms + mobile reliability, plus a
+  version-bump policy fix (this whole PR is one PATCH bump, not five minors).
+  Backend: fixed the recurring "404 Not Found" entering a Salareen room
+  (_ensure_group_class_room seeds-on-miss via _find_group_class; regression test),
+  and wired LiveKit so video (tier 2) connects — the token key/secret MUST match
+  the media server: compose overrides LIVEKIT_KEYS (pinned v1.8.0), config/*.env
+  document the match rule, scripts/run_livekit.sh (+ make run-livekit) runs a
+  matching server for native dev, and infra/k8s/livekit.yaml derives LIVEKIT_KEYS
+  from aoep-secrets so prod can't drift (verified 101 accept vs 401 reject against
+  a real livekit-server 1.8.0). Mobile: guardrails against the Android "Unable to
+  load script / index.android.bundle" red-screen (mobile-verify-apk-bundle.sh +
+  auto `adb reverse` in the launch script) and a fix for the iOS CoreLocation
+  main-thread FAULT (check authorizationStatus first via
+  ensureForegroundLocationPermission). CI: renamed duplicate test_run.py files that
+  broke pytest collection. Release tooling: rolled the stale CHANGELOG [unreleased]
+  block that had pinned bump_pr_version.py to MINOR on every run, so routine PRs
+  are PATCH bumps again.
 
 - 2026-07-13 - v0.16.3 - Web: synced the theme/logo branch onto upstream main
   (v0.16.2) and kept the light warm-campus theme, gold-S/bodhi-leaf emblem, and
@@ -1158,7 +1121,7 @@ Format: newest first. No markdown per project convention.
   services/identity/src/identity/persistence.py (duplicate membership_class kwarg)
   that prevented the identity service from starting. logs/ gitignored.
 
-[unreleased]
+[0.6.1] - 2026-06-25
 - 2026-06-23 - Offline meeting agents lab: scripts/meeting_agents_lab.py exercises
   harvest → teach → present → Zoom/Teams/Meet bridge simulation with five agents
   (teacher, chat tutor, perception, interrupt host, moderator). Regional dialect
