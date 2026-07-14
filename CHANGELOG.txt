@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.25 - Local production Android build hardening. Clarified the
+  two commands: `pnpm run native:build:android` = DEBUG (assembleDebug, needs
+  Metro) vs `pnpm run native:build:android:release` = PRODUCTION/standalone
+  (bundle embedded, no Metro). The release script now does a FRESH build
+  (`gradle clean assembleRelease`, no cached artifacts), stamps the version into
+  the filename, and publishes to a consistent folder:
+  dist/android/salareen-<version>-<versionCode>-release.apk (still guarded by
+  mobile-verify-apk-bundle.sh). Documented the distinction in the mobile README.
+
 - 2026-07-14 - v0.19.24 - Android "Unable to load script / index.android.bundle"
   hardening. The plain `pnpm run android` (mobile-expo.sh run:android) path now
   also runs `adb reverse tcp:8081` for every connected device (the debug bundle
