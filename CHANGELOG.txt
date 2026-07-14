@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-14 - v0.19.3 - Deploy: make the "Configure kubeconfig" failure
+  self-explanatory. The Vultr API kubeconfig fetch now reports the HTTP status
+  (401/403 = bad/expired VULTR_API_KEY or its IP access-control blocks GitHub
+  runners; 404 = wrong VKE_CLUSTER_ID; 000 = unreachable) instead of a generic
+  "fetch/parse failed", and points at the KUBE_CONFIG_B64 fallback
+  (scripts/github_configure_kubeconfig.sh). No behavior change on success.
+
 - 2026-07-14 - v0.19.2 - LiveKit Cloud: point the deployed LIVEKIT_URL at the
   managed LiveKit Cloud project (wss://salareen-q3lne5d9.livekit.cloud) instead of
   the unused self-hosted wss://livekit.salareen.com. The orchestrator stamps
