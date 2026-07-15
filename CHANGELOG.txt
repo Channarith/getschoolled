@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.52 - Made Corporate training immersive (parity with Live
+  Class). The shared ClassRoom (used by /corporate/learn) previously showed only
+  static slides with no presenter and only narrated "repeat-after-me" slides.
+  Now an animated AI presenter tile drives the class (mascot, LIVE badge, timer,
+  audio visualizer, live captions), every slide is narrated aloud as it appears,
+  and a "⛶ Fullscreen" button gives a Zoom-style immersive view. (Natural voice
+  still needs the neural TTS engine deployed — see v0.19.48.)
 - 2026-07-15 - v0.19.51 - The AI host now actually addresses the Q&A queue. When
   a learner joins the queue with a question, the class already paused (no
   auto-advance while the queue is busy) but nobody answered without a human
