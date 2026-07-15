@@ -18,7 +18,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Mapping, Optional, TYPE_CHECKING
+from typing import List, Mapping, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .group_class_backend import GroupClassBackend
@@ -237,21 +237,38 @@ class GroupClassStore:
         currently live). ``include_ended`` drops classes already marked ended.
         """
         ref = now or _now()
+        self.sweep_expired(now=ref)  # retire classes whose scheduled window has passed
         items = self._all_classes()
         if not include_ended:
             items = [c for c in items if c.status != STATUS_ENDED]
         if upcoming_only:
             def still_relevant(c: GroupClass) -> bool:
-                if c.status == STATUS_LIVE:
-                    return True
                 if c.status == STATUS_ENDED:
                     return False
-                # scheduled: keep until the class would have finished.
+                # Keep until the scheduled window (start + duration) has passed —
+                # this now applies to LIVE too, so a class that was started/lazy-
+                # opened but never closed doesn't show as joinable forever.
                 end = c.start_dt.timestamp() + c.duration_min * 60
                 return end >= ref.timestamp()
             items = [c for c in items if still_relevant(c)]
         items.sort(key=lambda c: c.start_dt)
         return items
+
+    def sweep_expired(self, *, now: Optional[datetime] = None) -> int:
+        """Mark any non-ended class whose scheduled window (start + duration) has
+        fully passed as ENDED, so stale 'LIVE' classes get cleaned up instead of
+        lingering as joinable. Returns how many were retired."""
+        ref = now or _now()
+        retired = 0
+        for c in self._all_classes():
+            if c.status == STATUS_ENDED:
+                continue
+            end = c.start_dt.timestamp() + c.duration_min * 60
+            if end < ref.timestamp():
+                c.status = STATUS_ENDED
+                self._commit(c)
+                retired += 1
+        return retired
 
     def register(self, class_id: str, name: str, email: str = "") -> Registration:
         gc = self.require(class_id)

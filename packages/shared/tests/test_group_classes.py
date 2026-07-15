@@ -121,6 +121,25 @@ def test_list_sorted_and_upcoming_filter():
     assert {soon.id, later.id} <= {c.id for c in upcoming}
 
 
+def test_live_class_past_window_is_retired():
+    # A class started 5h ago (60-min window) must not linger as LIVE/joinable.
+    store = GroupClassStore()
+    stale = store.schedule(title="Stale", lesson_id="a", start_time=_iso(-300), duration_min=60)
+    store.set_status(stale.id, "live")
+    # Listing sweeps expired classes: it's marked ended and dropped from upcoming.
+    upcoming = store.list(upcoming_only=True)
+    assert stale.id not in {c.id for c in upcoming}
+    assert store.require(stale.id).status == "ended"
+
+
+def test_sweep_expired_leaves_current_classes_alone():
+    store = GroupClassStore()
+    live_now = store.schedule(title="Now", lesson_id="a", start_time=_iso(-10), duration_min=60)
+    store.set_status(live_now.id, "live")   # started 10 min ago, still within the hour
+    assert store.sweep_expired() == 0
+    assert store.require(live_now.id).status == "live"
+
+
 def test_register_capacity_and_idempotency():
     store = GroupClassStore()
     gc = store.schedule(
