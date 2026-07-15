@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.47 - Fixed Drive Mode instructor/voice/accent controls that
+  "did nothing." They only affected the neural server-TTS path; on the browser
+  voice fallback (used whenever the speech service has no neural engine) the
+  selections were ignored. Now the chosen accent (voice BCP-47 locale), voice
+  gender, and instructor personality are threaded through speakNaturally into the
+  on-device voice: accent → picks a matching-locale browser voice, gender →
+  biases male/female voice selection, personality → prosody (child = higher/
+  faster, strict = lower/slower, energetic = livelier, calm/storyteller, …). The
+  neural path already honored these via edge-tts.
 - 2026-07-15 - v0.19.46 - Mobile live-room action bar now shows label-less icons
   for the obvious actions (💬 chat, 😀 react, 🎁 gift, ⋯ more) and keeps a short
   caption only where the glyph is ambiguous or stateful (❓ Ask, the ✋ raise-hand
