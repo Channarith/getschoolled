@@ -1132,6 +1132,72 @@ def list_live_rooms(
     return out
 
 
+def _livekit_health(config) -> dict:
+    """Inspect the configured LiveKit trio and flag obvious misconfigurations.
+
+    Declared before the ``{room_id}`` route so ``/livekit-status`` is not
+    swallowed as a room id.
+    """
+    url = (config.livekit_url or "").strip()
+    key = (config.livekit_api_key or "").strip()
+    secret = (config.livekit_api_secret or "").strip()
+
+    def _mask(value: str) -> str:
+        if not value:
+            return ""
+        if len(value) <= 8:
+            return "…"
+        return f"{value[:4]}…{value[-4:]}"
+
+    url_is_cloud = ".livekit.cloud" in url
+    dev_key = key in ("", "devkey")
+    dev_secret = secret in ("", "devsecret")
+    likely_misconfigured = url_is_cloud and (dev_key or dev_secret)
+    if likely_misconfigured:
+        hint = (
+            "LiveKit URL points at LiveKit Cloud but the API key/secret are still "
+            "dev defaults. Set LIVEKIT_API_KEY / LIVEKIT_API_SECRET to the "
+            "project's real credentials (aoep-secrets) and restart the orchestrator."
+        )
+    elif url_is_cloud:
+        hint = (
+            "Credentials look configured. If the browser still reports 'WebSocket "
+            "is closed before the connection is established', the secret does not "
+            "match this project's key — re-copy LIVEKIT_API_SECRET for this exact "
+            "key from the LiveKit Cloud dashboard. Add ?probe=1 to verify live."
+        )
+    else:
+        hint = "Using a self-hosted / local LiveKit endpoint."
+    return {
+        "url": url,
+        "url_is_cloud": url_is_cloud,
+        "api_key": _mask(key),
+        "api_key_configured": not dev_key,
+        "api_secret_configured": not dev_secret,
+        "using_dev_defaults": dev_key or dev_secret,
+        "likely_misconfigured": likely_misconfigured,
+        "hint": hint,
+    }
+
+
+@app.get("/api/live-rooms/livekit-status")
+def livekit_status(probe: int = 0) -> dict:
+    """Report the health of the LiveKit media backend (config + optional live probe).
+
+    The browser can only surface a rejected LiveKit token as the opaque
+    'WebSocket is closed before the connection is established'. This endpoint
+    turns that into an actionable verdict. ``?probe=1`` performs a server-side
+    ``ListRooms`` call to confirm the key/secret actually match the project.
+    """
+    health = _livekit_health(app.state.config)
+    if probe:
+        try:
+            health["probe"] = app.state.factory.media().verify_credentials()
+        except Exception as exc:  # noqa: BLE001
+            health["probe"] = {"status": "error", "detail": str(exc)}
+    return health
+
+
 @app.post("/api/live-rooms")
 def create_live_room(
     req: CreateLiveRoomRequest,

@@ -814,3 +814,46 @@ def test_create_user_live_room_with_geo():
         json={"name": "Bob", "identity": "bob-1"},
     )
     assert joined.status_code == 200, joined.text
+
+
+def test_livekit_status_route_resolves_and_reports_config():
+    # Static /livekit-status route must not be swallowed by /{room_id}.
+    resp = client.get("/api/live-rooms/livekit-status")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    for key in (
+        "url",
+        "url_is_cloud",
+        "api_key",
+        "api_key_configured",
+        "api_secret_configured",
+        "using_dev_defaults",
+        "likely_misconfigured",
+        "hint",
+    ):
+        assert key in body, f"missing {key}"
+    # The raw secret is never leaked; the key is masked (or empty).
+    assert "…" in body["api_key"] or body["api_key"] == ""
+    assert "probe" not in body  # no live probe unless ?probe=1
+
+
+def test_livekit_status_probe_returns_verdict():
+    resp = client.get("/api/live-rooms/livekit-status", params={"probe": 1})
+    assert resp.status_code == 200, resp.text
+    probe = resp.json()["probe"]
+    # In the test env LiveKit Cloud is unreachable; the verdict is structured.
+    assert probe["status"] in {"verified", "rejected", "unreachable", "error"}
+
+
+def test_livekit_health_flags_cloud_with_dev_secret():
+    from orchestrator.main import _livekit_health
+
+    class _Cfg:
+        livekit_url = "wss://demo.livekit.cloud"
+        livekit_api_key = "APIrealkey123"
+        livekit_api_secret = "devsecret"
+
+    health = _livekit_health(_Cfg())
+    assert health["url_is_cloud"] is True
+    assert health["likely_misconfigured"] is True
+    assert health["api_secret_configured"] is False

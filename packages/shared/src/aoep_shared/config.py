@@ -199,6 +199,23 @@ def load_config(
         value = source.get(key)
         return default if value is None or value == "" else value
 
+    def get_stripped(key: str, default: str) -> str:
+        """Like ``get`` but trims surrounding whitespace.
+
+        Secrets/URLs are frequently injected with a trailing newline (heredocs,
+        ``echo``, ``kubectl patch``/``create secret --from-literal``). For an
+        HMAC-signed LiveKit token a single stray ``\\n`` in the secret makes the
+        signature silently wrong, and LiveKit Cloud rejects the socket with the
+        opaque "WebSocket is closed before the connection is established". Trim it
+        so a copy-paste newline can't break signalling; fall back to the default
+        when only whitespace was provided.
+        """
+        value = source.get(key)
+        if value is None:
+            return default
+        cleaned = value.strip()
+        return cleaned if cleaned else default
+
     return AppConfig(
         deploy_mode=deploy_mode,
         component_modes=dict(component_modes),
@@ -229,9 +246,9 @@ def load_config(
         region=get("REGION", "us"),
         vision_match_threshold=float(get("VISION_MATCH_THRESHOLD", "0.363")),
         vision_gallery_path=get("VISION_GALLERY_PATH", ""),
-        livekit_url=get("LIVEKIT_URL", "ws://livekit:7880"),
-        livekit_api_key=get("LIVEKIT_API_KEY", "devkey"),
-        livekit_api_secret=get("LIVEKIT_API_SECRET", "devsecret"),
+        livekit_url=get_stripped("LIVEKIT_URL", "ws://livekit:7880"),
+        livekit_api_key=get_stripped("LIVEKIT_API_KEY", "devkey"),
+        livekit_api_secret=get_stripped("LIVEKIT_API_SECRET", "devsecret"),
         object_store_endpoint=get("OBJECT_STORE_ENDPOINT", "http://minio:9000"),
         object_store_bucket=get("OBJECT_STORE_BUCKET", "aoep"),
         object_store_access_key=get("OBJECT_STORE_ACCESS_KEY", "aoep"),

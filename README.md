@@ -575,8 +575,12 @@ Other services load `config/local.env` (admin seed, QA accounts) via the helper
 script — `./scripts/run_local_service.sh <name>` (or `make run-identity` :8008,
 `make run-memory` :8004, `make run-orchestrator` :8000). For live-room WebRTC,
 run a local LiveKit server with `make run-livekit` (:7880); without it the
-teaching loop still works and rooms fall back gracefully. See `docs/run-local.txt`
-for the full local-dev guide and each service's `README.txt`.
+teaching loop still works and rooms fall back gracefully. If the browser reports
+`WebSocket is closed before the connection is established`, LiveKit rejected the
+token — hit `GET /api/live-rooms/livekit-status` (add `?probe=1` for a live
+server-side check) for a verified/rejected/unreachable verdict instead of a
+mystery. See `docs/run-local.txt` for the full local-dev guide and each service's
+`README.txt`.
 
 Full compose stack:
 
