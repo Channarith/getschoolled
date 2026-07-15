@@ -212,7 +212,13 @@ moving tip, so concurrent PRs that land the same number never falsely collide
 
 Changelog entries must use:  - YYYY-MM-DD - vX.Y.Z - <what changed>
 
-Updates: VERSION, build-info.txt, apps/web/app/lib/version.ts, apps/web/package.json,
-apps/mobile/src/version.ts, apps/mobile/{package.json,app.json}.
-After merge, the Auto Push Build workflow refreshes build-info.txt only (no second
-bump). The Release workflow creates a GitHub Release tag when VERSION is new.
+Updates (tracked): VERSION, apps/web/app/lib/version.ts, apps/web/package.json,
+apps/mobile/src/version.ts, apps/mobile/{package.json,app.json}. It also writes
+build-info.txt, but that file is UNTRACKED (.gitignore) - it is auto-generated,
+nothing reads it at runtime (/version uses VERSION + AOEP_* env), and committing
+it per-PR/per-merge is what used to hard-conflict on GitHub (server-side merge
+ignores .gitattributes merge drivers). Regenerate it locally any time with
+`python3 scripts/build_release.py --refresh-only`.
+After merge, the Auto Push Build workflow syncs the web version metadata (it no
+longer commits build-info.txt). The Release workflow creates a GitHub Release tag
+when VERSION is new.

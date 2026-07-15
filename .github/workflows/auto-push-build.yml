@@ -1,10 +1,11 @@
 name: Auto Push Build
 
-# Auto-pushes build changes (build manifest refresh) back to the repo after a
-# fresh build. VERSION is bumped in each PR before merge (see scripts/bump_pr_version.py);
-# this workflow only refreshes build-info.txt and syncs web version metadata.
-# The auto-commit carries [skip ci] and is made with GITHUB_TOKEN, so it never
-# retriggers this workflow (no infinite loop).
+# Auto-pushes build changes back to the repo after a fresh build. VERSION is
+# bumped in each PR before merge (see scripts/bump_pr_version.py); this workflow
+# syncs the web version metadata. (build-info.txt is auto-generated but untracked
+# via .gitignore, so it is never committed - that per-merge rewrite is exactly
+# what used to hard-conflict across PRs.) The auto-commit carries [skip ci] and is
+# made with GITHUB_TOKEN, so it never retriggers this workflow (no infinite loop).
 on:
   push:
     branches:
@@ -99,7 +100,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          paths="VERSION CHANGELOG.txt build-info.txt apps/web/app/lib/version.ts apps/web/package.json"
+          # build-info.txt is intentionally NOT here: it is auto-generated and
+          # untracked (.gitignore). Committing it per-merge is what made it
+          # hard-conflict across PRs. Nothing reads it at runtime.
+          paths="VERSION CHANGELOG.txt apps/web/app/lib/version.ts apps/web/package.json"
           if git diff --quiet -- $paths; then
             echo "No build changes to push."
             exit 0
