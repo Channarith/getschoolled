@@ -38,6 +38,7 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import SignInToUse from "./SignInToUse";
+import AiPresenter from "./AiPresenter";
 import { useT } from "../lib/i18n";
 import { speakNaturally } from "../lib/tts";
 
@@ -117,6 +118,11 @@ export default function ClassRoom({
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+  // Immersive presenter: the text currently being narrated (for live captions)
+  // and a fullscreen "Zoom call" mode for the AI instructor + slide.
+  const [spokenText, setSpokenText] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const [slidesSinceQuiz, setSlidesSinceQuiz] = useState(0);
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
@@ -207,6 +213,7 @@ export default function ClassRoom({
   }
 
   function speak(text: string) {
+    setSpokenText(text || "");   // live caption, even if audio is muted/unavailable
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
     speakNaturally(text, {
@@ -216,6 +223,21 @@ export default function ClassRoom({
     setSpeaking(true);
   }
 
+  // Fullscreen "Zoom call" mode for the presenter + slide.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  function toggleFullscreen() {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) { void document.exitFullscreen().catch(() => undefined); return; }
+    const el = stageRef.current;
+    if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined);
+  }
+
   // On each slide change, reset any prior speaking-checkpoint result. For a
   // repeat-after-me slide, have the teacher say the phrase so the learner can
   // echo it (the class then pauses here until they speak or advance).
@@ -223,7 +245,13 @@ export default function ClassRoom({
     setHeard("");
     setPron(null);
     setListening(false);
-    if (slide?.say_aloud) speak(slide.narration || `Repeat after me: ${slide.say_aloud}`);
+    if (!slide) return;
+    // The AI instructor narrates EVERY slide as it appears (this is what makes it
+    // feel driven/immersive) — a repeat-after-me slide leads with its cue.
+    const line = slide.say_aloud
+      ? (slide.narration || `Repeat after me: ${slide.say_aloud}`)
+      : `${slide.title}. ${slide.narration || slide.body || ""}`.trim();
+    speak(line);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.index]);
 
@@ -798,6 +826,29 @@ export default function ClassRoom({
 
       {view && slide && (
         <>
+          <div
+            ref={stageRef}
+            style={
+              isFullscreen
+                ? { background: "#060a17", padding: 16, minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }
+                : { display: "flex", flexDirection: "column", gap: 12 }
+            }
+          >
+            <AiPresenter
+              speaking={speaking}
+              name="Salareen AI Instructor"
+              persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
+              caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+              live
+              muted={!speakAnswers}
+              onToggleMute={() => {
+                const next = !speakAnswers;
+                setSpeakAnswers(next);
+                if (!next) stopSpeaking();
+                else speak(`${slide.title}. ${slide.narration || slide.body}`);
+              }}
+              messages={chat}
+            />
           <div className="slide">
             <div className="muted">
               {view.lesson.title} · {t("class.slideOf", {
@@ -860,8 +911,14 @@ export default function ClassRoom({
                 style={{ background: "#111", color: "#fff" }}>
                 {t("class.finishClass")}
               </button>
+              <button type="button" onClick={toggleFullscreen}
+                style={{ background: "transparent", border: "1px solid var(--border)" }}
+                title="Fullscreen the presentation (Esc to exit)">
+                {isFullscreen ? "⛶ Exit fullscreen" : "⛶ Fullscreen"}
+              </button>
               <span className="muted">{t("class.session", { id: view.session.session_id })}</span>
             </div>
+          </div>
           </div>
 
           {showPulse && pulseTemplate && (
