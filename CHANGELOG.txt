@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.31 - Fix live-room 404s across replicas ("class could not
+  start", media-token/tick/mute 404). join/get reopened a group-class room on
+  miss, but tick, start-presentation, media-token, advance, call-next, call-on,
+  finish-turn, mute, ban, unban, dismiss, chat, ask, raise-hand, queue, and
+  reaction called store.require() directly — so when the load balancer routed a
+  POST to a replica that didn't hold the room, it 404'd and the class couldn't
+  start/advance/mute. Added _ensure_room_or_404() (lazy reopen / seed-on-miss)
+  and applied it to every room action, so they work on any replica. Regression
+  test evicts a room then confirms tick + admin start-presentation reopen it
+  instead of 404ing (services/orchestrator/src/orchestrator/main.py).
+
 - 2026-07-15 - v0.19.30 - Platform admin (admin@salareen.com) can moderate ANY
   live room without holding its moderator key: start/advance the class, mute
   learners, close the session (end), and DELETE it entirely (cleanup). The

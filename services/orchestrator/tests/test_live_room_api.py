@@ -502,6 +502,35 @@ def test_solo_room_requires_valid_lesson():
     assert blank.status_code == 400, blank.text
 
 
+def test_room_actions_reopen_on_a_replica_that_lacks_the_room(monkeypatch):
+    # Reproduces the deployed multi-replica bug: a room opened on one replica is
+    # absent on the replica serving the next POST, so tick / start-presentation /
+    # media-token 404'd and the class "could not start". They must now REOPEN the
+    # room (seed-on-miss) on any replica instead of 404ing.
+    import orchestrator.main as m
+
+    monkeypatch.setattr(m, "_request_is_admin", lambda auth: auth == "Bearer admin-token")
+    cid = _standard_salareen_class_id()
+    room_id = f"class-{cid}"
+    client.get(f"/api/live-rooms/{room_id}")  # open the room on "this" replica
+
+    # Evict it — as if the next request is routed to a replica that never saw it.
+    m.app.state.live_rooms._backend.delete(room_id)
+    assert m.app.state.live_rooms.get(room_id) is None
+    # tick used to 404; now it reopens the room -> 200.
+    assert client.post(f"/api/live-rooms/{room_id}/tick").status_code == 200
+
+    m.app.state.live_rooms._backend.delete(room_id)
+    # admin start-presentation used to 404; now reopens + starts -> 200.
+    st = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={},
+        headers={"authorization": "Bearer admin-token"},
+    )
+    assert st.status_code == 200, st.text
+    assert st.json()["presenting"] is True
+
+
 def test_platform_admin_moderates_any_room_without_moderator_key(monkeypatch):
     # admin@salareen.com can start / mute / close / delete ANY room by Bearer
     # token, even though they never joined it and hold no moderator key.

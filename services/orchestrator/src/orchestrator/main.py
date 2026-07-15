@@ -1273,6 +1273,20 @@ def _ensure_group_class_room(room_id: str):
     return live
 
 
+def _ensure_room_or_404(room_id: str):
+    """Return the room, LAZILY REOPENING a group-class room that this replica
+    doesn't hold. Behind the load balancer a room opened on replica A can be
+    absent on replica B, so endpoints that call store.require() directly (tick,
+    start-presentation, media-token, call-next, mute, …) 404'd and the class
+    couldn't start / mute / advance. Reopening from the (Redis-backed) group
+    class record on-miss makes EVERY room action work on any replica. Non-class
+    rooms (solo/instant) that are genuinely gone still 404."""
+    room = _ensure_group_class_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    return room
+
+
 @app.get("/api/live-rooms/{room_id}")
 def get_live_room(room_id: str, moderator_key: str = "") -> dict:
     room = _ensure_group_class_room(room_id)
@@ -1355,9 +1369,8 @@ def live_room_media_token(room_id: str, req: LiveRoomHandRequest) -> dict:
     False, and when the host/AI grants them the floor the client re-fetches a
     token here (now can_publish True) and reconnects to publish. On losing the
     floor it re-fetches again (can_publish False) so LiveKit refuses to publish."""
-    store = _live_rooms()
     try:
-        room = store.require(room_id)
+        room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
         p = room.get_participant(req.participant_id)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1410,6 +1423,7 @@ def live_room_chat(
 ) -> dict:
     store = _live_rooms()
     try:
+        _ensure_room_or_404(room_id)
         msg = store.post_chat(room_id, req.participant_id, req.text)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1426,6 +1440,7 @@ def live_room_chat(
 @app.post("/api/live-rooms/{room_id}/raise-hand")
 def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
     try:
+        _ensure_room_or_404(room_id)
         p = _live_rooms().toggle_hand(room_id, req.participant_id, question=req.question)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
@@ -1440,6 +1455,7 @@ def live_room_raise_hand(room_id: str, req: LiveRoomHandRequest) -> dict:
 @app.post("/api/live-rooms/{room_id}/queue/join")
 def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
     try:
+        _ensure_room_or_404(room_id)
         entry = _live_rooms().join_queue(room_id, req.participant_id, question=req.question)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
@@ -1450,6 +1466,7 @@ def live_room_queue_join(room_id: str, req: LiveRoomQueueRequest) -> dict:
 @app.post("/api/live-rooms/{room_id}/queue/leave")
 def live_room_queue_leave(room_id: str, req: LiveRoomHandRequest) -> dict:
     try:
+        _ensure_room_or_404(room_id)
         _live_rooms().leave_queue(room_id, req.participant_id)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1465,7 +1482,7 @@ def live_room_call_next(
 ) -> dict:
     store = _live_rooms()
     try:
-        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        mod = _mod_key_for(_ensure_room_or_404(room_id), req.moderator_key, authorization)
         speaker = store.call_next(room_id, moderator_key=mod)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1490,7 +1507,7 @@ def live_room_call_on(
     preempting the current speaker. Preserves the single-speaker mutex."""
     store = _live_rooms()
     try:
-        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        mod = _mod_key_for(_ensure_room_or_404(room_id), req.moderator_key, authorization)
         speaker = store.call_on(room_id, req.participant_id, moderator_key=mod)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
@@ -1509,7 +1526,7 @@ def live_room_finish_turn(
 ) -> dict:
     store = _live_rooms()
     try:
-        room = store.require(room_id)
+        room = _ensure_room_or_404(room_id)
         pid = req.participant_id or room.floor_participant_id
         if not pid:
             raise LiveRoomError("no one has the floor")
@@ -1528,7 +1545,7 @@ def live_room_mute(
 ) -> dict:
     store = _live_rooms()
     try:
-        room = store.require(room_id)
+        room = _ensure_room_or_404(room_id)
         mod = _mod_key_for(room, req.moderator_key, authorization)
         # The platform admin muting a learner acts as host (by_host) even without
         # the room's key; a learner without rights can still only mute themselves.
@@ -1554,7 +1571,7 @@ def live_room_ban(
 ) -> dict:
     store = _live_rooms()
     try:
-        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        mod = _mod_key_for(_ensure_room_or_404(room_id), req.moderator_key, authorization)
         banned = store.ban_participant(
             room_id,
             req.participant_id,
@@ -1575,7 +1592,7 @@ def live_room_unban(
 ) -> dict:
     store = _live_rooms()
     try:
-        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        mod = _mod_key_for(_ensure_room_or_404(room_id), req.moderator_key, authorization)
         store.unban(
             room_id,
             req.identity,
@@ -1615,7 +1632,7 @@ def live_room_dismiss_report(
     """Moderator dismisses a user report without banning."""
     store = _live_rooms()
     try:
-        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        mod = _mod_key_for(_ensure_room_or_404(room_id), req.moderator_key, authorization)
         report = store.dismiss_report(
             room_id,
             req.report_id,
@@ -1710,11 +1727,8 @@ def live_room_advance(
 ) -> dict:
     """Advance the slide — class admin, moderator, or platform admin only (the AI
     auto-advances otherwise)."""
-    store = _live_rooms()
     try:
-        _authorize_room_admin(store.require(room_id), req, authorization)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="unknown live room")
+        _authorize_room_admin(_ensure_room_or_404(room_id), req, authorization)
     except (LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
     return _advance_room_slide(room_id, background)
@@ -1731,7 +1745,7 @@ def live_room_start_presentation(
     or the platform admin (admin@salareen.com) on ANY room."""
     store = _live_rooms()
     try:
-        room = store.require(room_id)
+        room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
         mod = _mod_key_for(room, req.moderator_key, authorization)
         room = store.start_presentation(
             room_id, participant_id=req.participant_id, moderator_key=mod,
@@ -1756,10 +1770,7 @@ def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> 
     when the allotted time is up. Any client may call this periodically; all
     actions are idempotent/rate-guarded server-side."""
     store = _live_rooms()
-    try:
-        store.require(room_id)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="unknown live room")
+    _ensure_room_or_404(room_id)  # reopen on this replica if the LB routed us elsewhere
     # Presence: mark the caller alive, then drop anyone whose heartbeat went stale.
     if pid:
         store.touch(room_id, pid)
@@ -1796,10 +1807,8 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
     """Learner asks a question; Theodore answers in the room chat."""
     store = _live_rooms()
     try:
-        room = store.require(room_id)
+        room = _ensure_room_or_404(room_id)
         learner = room.get_participant(req.participant_id)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="unknown live room")
     except LiveRoomError as exc:
         raise _live_room_http_error(exc)
     sessions = get_sessions()
@@ -1962,6 +1971,7 @@ def live_room_reaction(
 ) -> dict:
     store = _live_rooms()
     try:
+        _ensure_room_or_404(room_id)
         reaction = store.send_reaction(room_id, req.participant_id, emoji=req.emoji)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
