@@ -746,7 +746,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!joinInfo) return;
     const t = window.setInterval(() => {
       void liveRoomTick(roomId, joinInfo.participant.id).then((r) => applyRoom(r)).catch(() => undefined);
-    }, 8000);
+    }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);
 

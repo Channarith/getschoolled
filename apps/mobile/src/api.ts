@@ -762,6 +762,17 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}${q}`);
 }
 
+/** Open a private 1:1 (AI + you) Salareen live room for a lesson and return its
+ * id. Reuses the group-class live-room UI (video tiles, chat, Q&A), sized for two
+ * seats — so mobile Solo 1:1 has the same features as group lessons. */
+export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Promise<{ room_id: string }> {
+  return get(ORCHESTRATOR_URL, "/api/live-rooms/solo", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ lesson_id: lessonId, creator_name: creatorName }),
+  });
+}
+
 export async function joinLiveRoom(roomId: string, name: string, identity = "", language = ""):
   Promise<{
     participant: { id: string; name: string; identity: string };

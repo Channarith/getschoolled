@@ -294,7 +294,7 @@ class LiveRoom:
     scheduled_start: str = ""                # ISO of the class's scheduled time (5-min rule)
     presentation_started_at: str = ""        # ISO when presenting began
     slide_started_at: str = ""               # ISO when the current slide began (auto-advance)
-    auto_advance_seconds: int = 60           # per-slide dwell before auto-advancing
+    auto_advance_seconds: int = 5            # per-slide dwell before auto-advancing (5s for now)
     auto_start_grace_seconds: int = 300      # 5-minute rule after the scheduled time
     # Auto-end: a group lesson runs for its allotted length. Once presenting for
     # ``duration_seconds`` the class ends automatically (0 = open-ended, e.g. a

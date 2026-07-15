@@ -408,6 +408,35 @@ def test_solo_room_full_on_join_auto_starts_and_advances():
     assert t2.json()["auto_advanced"] is not None
 
 
+def test_auto_advance_uses_a_five_second_dwell():
+    import datetime
+
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)  # 3 learner seats
+    room_id = info["room_id"]
+    for i in range(3):
+        client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"adv-{i}"})
+    assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
+
+    room = _app.state.live_rooms.require(room_id)
+    assert room.auto_advance_seconds == 5  # 5s per-slide dwell
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    # A slide that just started must NOT advance yet (don't blow through slides).
+    room.slide_started_at = now.isoformat()
+    _app.state.live_rooms._backend.save(room)
+    assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_advanced"] is None
+
+    # After the 5s dwell, the next tick advances and updates the slide.
+    room = _app.state.live_rooms.require(room_id)
+    room.slide_started_at = (now - datetime.timedelta(seconds=6)).isoformat()
+    _app.state.live_rooms._backend.save(room)
+    advanced = client.post(f"/api/live-rooms/{room_id}/tick").json()
+    assert advanced["auto_advanced"] is not None
+    assert advanced["room"]["slide"]["title"]
+
+
 def test_tick_auto_ends_when_allotted_time_expires():
     from orchestrator.main import app as _app
 

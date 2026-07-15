@@ -57,7 +57,19 @@ description: How to ship a change — version bumping, branch/PR/auto-merge conv
   the Vultr registry, rolls the deployments). Needs `VULTR_REGISTRY_USERNAME`,
   `VULTR_REGISTRY_PASSWORD`, `KUBE_CONFIG_B64`. Symptoms of a stale image: 404 on
   newer routes (e.g. `/identity/games/submit`, `/api/live-rooms/*`), nav shows an
-  old `vX.Y.Z`.
+  old `vX.Y.Z`. **Build FRESH — no layer cache:** `deploy_vke.sh` now builds with
+  `--no-cache --pull` by default (a cache-hit once shipped an OLD orchestrator
+  while the web updated → `/api/live-rooms/*` `start-presentation`/`media-token`/
+  `tick` 404/405'd). After a deploy, CONFIRM the API updated: the script prints
+  the orchestrator `/version` — it must equal the checkout's `VERSION`. If web
+  shows a new version but the API 404/405s, the orchestrator image is stale.
+- **`/orchestrator` etc. routing (405/404 on API POSTs):** the web calls
+  same-origin `/orchestrator`, `/identity`, `/curriculum` … which the **`aoep-apis`
+  Ingress** rewrites to each service. If `aoep-apis` is missing, those calls fall
+  through to the web app (Next.js) → **405 Method Not Allowed** on POST (page is
+  GET-only) or 404. Verify with `kubectl -n aoep get ingress aoep aoep-apis`;
+  `deploy_vke.sh` now warns when it's absent. Re-`apply -k infra/k8s-vke` to
+  restore it.
 - Durable data: Redis must be durable (PV + AOF + volatile-lru, `infra/k8s/redis.yaml`)
   or identity accounts/points reset on restart. Reseed accounts after a fresh
   cluster/restart: `scripts/k8s_reseed_accounts.sh` (see identity-rewards-durability).

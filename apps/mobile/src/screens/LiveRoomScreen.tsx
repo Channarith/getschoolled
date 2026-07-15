@@ -121,7 +121,7 @@ export default function LiveRoomScreen({
     if (!participantId) return;
     const t = setInterval(() => {
       void liveRoomTick(roomId, participantId).then((r) => setRoom(r.room)).catch(() => undefined);
-    }, 8000);
+    }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => clearInterval(t);
   }, [participantId, roomId]);
 

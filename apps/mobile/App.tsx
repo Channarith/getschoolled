@@ -43,7 +43,7 @@ import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
-import { createStudent, getMe, getNotificationsFeed, listStudents } from "./src/api";
+import { createStudent, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom } from "./src/api";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
 import { setSettings } from "./src/storage";
@@ -368,7 +368,20 @@ function AppInner() {
   } else if (showLiveClass) {
     screen = (
       <LiveClassScreen
-        onStart={(id, title, classType) => {
+        onStart={async (id, title, classType) => {
+          // Solo 1:1 opens the SAME Salareen live room as group classes (video
+          // tiles, chat, Q&A, narration), just sized for the AI host + you.
+          if (classType === "solo") {
+            try {
+              const { room_id } = await startSoloLiveRoom(id);
+              setLiveModeratorKey("");
+              setShowLiveClass(false);
+              setLiveRoomId(room_id);
+              return;
+            } catch {
+              // Room couldn't open (offline) — fall back to the lesson presenter.
+            }
+          }
           setShowLiveClass(false);
           setActiveLesson({ id, title, classType });
         }}
