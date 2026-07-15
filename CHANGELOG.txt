@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.44 - Made the solo Live Class "Speak now" (repeat-after-me)
+  mic robust and self-explanatory. It now proactively requests microphone
+  permission (so the browser prompts), and surfaces clear, actionable errors
+  instead of failing silently: a secure-context check tells users the mic needs
+  https:// (the raw http:// server IP blocks it), and SpeechRecognition errors
+  map to helpful messages (blocked mic, no speech, no mic device). Root cause of
+  "nothing happens": browsers disable the microphone on insecure (http) origins —
+  serve the app over https (www.salareen.com) to enable voice.
 - 2026-07-15 - v0.19.43 - Fixed the live-room self mute/unmute button returning
   400 "learners can only mute themselves". The web client sends no actor_id, and
   the /mute endpoint defaulted the actor to the AI host, so a learner muting
