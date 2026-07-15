@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.54 - Added a "custom courses for your business" call-to-action
+  to the Corporate training page: a highlighted callout inviting companies to
+  consult courses@salareen.com for bespoke Agentic courses (custom classes +
+  materials, hosted privately for employees or downloadable). The email button
+  prefills a subject/body to gather company, topics, team size, and hosting pref.
 - 2026-07-15 - v0.19.53 - Retire stale scheduled classes and keep slides advancing.
   (1) A group class whose scheduled window (start + duration_min) has passed is
   now swept to ENDED and dropped from the listing — previously a "live" class was
