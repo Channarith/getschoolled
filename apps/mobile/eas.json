@@ -25,6 +25,10 @@
       "ios": { "simulator": true },
       "android": { "buildType": "apk" }
     },
+    "e2e": {
+      "extends": "preview",
+      "env": { "MOBILE_DEPLOY_MODE": "local" }
+    },
     "production": {
       "extends": "base",
       "autoIncrement": true,
