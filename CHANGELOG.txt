@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.46 - Mobile live-room action bar now shows label-less icons
+  for the obvious actions (💬 chat, 😀 react, 🎁 gift, ⋯ more) and keeps a short
+  caption only where the glyph is ambiguous or stateful (❓ Ask, the ✋ raise-hand
+  toggle). Accessibility labels are retained for screen readers.
 - 2026-07-15 - v0.19.45 - Redesigned the mobile live-room screen for small phones.
   Instead of stacking the presenter, participant grid, reactions, gifts, chat log,
   chat/ask inputs and moderator buttons all down the screen, the presenter/slide
