@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.32 - Live class now auto-advances slides (~5s). Reduced the
+  per-slide dwell auto_advance_seconds from 60s to 5s, and the web + mobile live-
+  room tick interval from 8s to 3s so a presenting class transitions to the next
+  slide about every 5 seconds; the presenter tile ("video output") and slide card
+  update to the new slide on each tick. Verified in-browser (Slide 1 -> 3 -> 5 ->
+  7 -> 9 advancing hands-free) (packages/shared/src/aoep_shared/live_room.py,
+  apps/web live-room page, apps/mobile LiveRoomScreen).
+
 - 2026-07-15 - v0.19.31 - Fix live-room 404s across replicas ("class could not
   start", media-token/tick/mute 404). join/get reopened a group-class room on
   miss, but tick, start-presentation, media-token, advance, call-next, call-on,
