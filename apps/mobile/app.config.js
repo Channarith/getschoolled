@@ -70,11 +70,37 @@ module.exports = ({ config }) => {
     process.env.ADMOB_ANDROID_APP_ID || "ca-app-pub-3940256099942544~3347511713";
   const admobIosAppId =
     process.env.ADMOB_IOS_APP_ID || "ca-app-pub-3940256099942544~1458002511";
-  if (!plugins.some((entry) => (Array.isArray(entry) ? entry[0] : entry) === "react-native-google-mobile-ads")) {
+  // Only register the AdMob config plugin when the module is actually installed.
+  // Otherwise prebuild hard-fails with "Failed to resolve plugin for module
+  // react-native-google-mobile-ads" on a machine whose node_modules is stale/
+  // incomplete. It's a declared dependency — the real fix is `pnpm install` — but
+  // we degrade gracefully (ads no-op at runtime via guarded require) instead of
+  // crashing the whole build.
+  let adsPluginInstalled = false;
+  try {
+    require.resolve("react-native-google-mobile-ads/app.plugin.js");
+    adsPluginInstalled = true;
+  } catch {
+    try {
+      require.resolve("react-native-google-mobile-ads");
+      adsPluginInstalled = true;
+    } catch {
+      adsPluginInstalled = false;
+    }
+  }
+  const adsAlreadyRegistered = plugins.some(
+    (entry) => (Array.isArray(entry) ? entry[0] : entry) === "react-native-google-mobile-ads",
+  );
+  if (adsPluginInstalled && !adsAlreadyRegistered) {
     plugins.push([
       "react-native-google-mobile-ads",
       { androidAppId: admobAndroidAppId, iosAppId: admobIosAppId },
     ]);
+  } else if (!adsPluginInstalled) {
+    console.warn(
+      "[app.config] react-native-google-mobile-ads is not installed — skipping the " +
+      "AdMob config plugin (ads will be disabled). Run `pnpm install` in apps/mobile to enable it.",
+    );
   }
 
   return {
