@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.38 - Web live rooms now have an AI teacher voice and clearer
+  speaking controls. Theodore narrates each slide out loud (neural TTS via the
+  speech service, on-device fallback) starting when "Start class" is pressed and
+  on every auto/manual advance - the web room previously had no audio at all
+  (only unreachable LiveKit tracks), so it looked like the class never started.
+  Added a "🔊 AI voice" mute toggle, and renamed the per-tile "Call on" moderator
+  action to "Request to speak".
 - 2026-07-15 - v0.19.37 - Stop the recurring build-info.txt merge conflict by
   untracking it (.gitignore). It is auto-generated on every bump/build and nothing
   reads it at runtime (/version uses the VERSION file + AOEP_* env), so committing
