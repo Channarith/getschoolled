@@ -145,6 +145,66 @@ def test_leaving_clears_rate_window():
     assert store.post_chat("class-lc", rejoined.id, "back").text == "back"
 
 
+def test_reserved_and_overlong_display_names_rejected():
+    store = LiveRoomStore()
+    store.open_room(
+        room_id="class-names", class_id="n", session_id="s1",
+        lesson_id="lesson", title="Names", room_size=6,
+    )
+    for bad in ("Theodore", "administrator", "AI Host", "Salareen AI", "System"):
+        with pytest.raises(LiveRoomError):
+            store.join("class-names", bad)
+    with pytest.raises(LiveRoomError):
+        store.join("class-names", "x" * 41)
+    # A normal name still works.
+    assert store.join("class-names", "Theodora B.").name == "Theodora B."
+
+
+def test_self_gift_is_blocked():
+    store = LiveRoomStore()
+    store.open_room(
+        room_id="class-gift", class_id="g", session_id="s1",
+        lesson_id="lesson", title="Gift", room_size=6,
+    )
+    p = store.join("class-gift", "Giver")
+    with pytest.raises(LiveRoomError):
+        store.send_gift("class-gift", p.id, gift_id="rose", recipient_participant_id=p.id)
+
+
+def test_reaction_rate_limit():
+    store, pid = _spam_store()
+    from aoep_shared.live_room import REACT_RATE_MAX
+
+    for _ in range(REACT_RATE_MAX):
+        store.send_reaction("class-spam", pid, emoji="👍")
+    with pytest.raises(RateLimitedError):
+        store.send_reaction("class-spam", pid, emoji="👍")
+
+
+def test_report_rate_limit():
+    store, reporter = _spam_store()
+    target = store.join("class-spam", "Target").id
+    from aoep_shared.live_room import REPORT_RATE_MAX
+
+    # Rate is checked before dedup, so repeated reports of the same target count.
+    for _ in range(REPORT_RATE_MAX):
+        store.report_participant("class-spam", reporter, target, reason="bad", category="spam")
+    with pytest.raises(RateLimitedError):
+        store.report_participant("class-spam", reporter, target, reason="bad", category="spam")
+
+
+def test_queue_join_rate_limit():
+    store, pid = _spam_store()
+    from aoep_shared.live_room import QUEUE_RATE_MAX
+
+    # Toggle join/leave to make each a NEW join (idempotent re-join wouldn't count).
+    for _ in range(QUEUE_RATE_MAX):
+        store.join_queue("class-spam", pid, question="?")
+        store.leave_queue("class-spam", pid)
+    with pytest.raises(RateLimitedError):
+        store.join_queue("class-spam", pid, question="?")
+
+
 def test_speaking_queue_turn_taking():
     store = LiveRoomStore()
     room = store.open_room(
