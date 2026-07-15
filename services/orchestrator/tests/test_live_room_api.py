@@ -861,6 +861,33 @@ def test_ask_flood_returns_429():
     assert blocked.status_code == 429, blocked.text
 
 
+def test_tick_ai_answers_queued_question():
+    # A learner joins the Q&A queue with a typed question while the class is
+    # presenting; a tick should have the AI host pause and answer it in chat,
+    # then clear it from the queue (no human moderator needed).
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    client.post(f"/api/live-rooms/{room_id}/start-presentation", json={"moderator_key": mod})
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Curious", "identity": "curious-1"},
+    ).json()["participant"]["id"]
+    # Raise hand WITH a question -> goes to the waiting queue.
+    client.post(f"/api/live-rooms/{room_id}/queue/join", json={"participant_id": pid, "question": "What is a fraction?"})
+    before = client.get(f"/api/live-rooms/{room_id}").json()
+    assert any(e["status"] == "waiting" for e in before["speaking_queue"])
+    # Tick as the learner -> AI addresses the queue.
+    r = client.post(f"/api/live-rooms/{room_id}/tick", params={"pid": pid})
+    assert r.status_code == 200, r.text
+    assert r.json()["addressed_queue"] is not None
+    room = client.get(f"/api/live-rooms/{room_id}").json()
+    # The question is no longer waiting, and Theodore replied in chat.
+    assert not any(e["status"] == "waiting" for e in room["speaking_queue"])
+    host_msgs = [m for m in room["chat"] if "Theodore" in m["from_name"]]
+    assert any("Curious" in m["text"] for m in host_msgs)
+
+
 def test_self_mute_and_unmute_without_actor_id():
     # Regression: the web client sends no actor_id; the endpoint must treat that
     # as a self-mute (not default the actor to the AI host, which 400'd with
