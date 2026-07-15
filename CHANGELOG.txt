@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.29 - Live-room lifecycle + presence robustness. (1) Expired
+  classes no longer linger as "live": rooms now lazily close when their allotted
+  window lapses even with NO client ticking — on discovery (list_live), on GET,
+  and on tick (LiveRoomStore.should_expire; open-ended solo/instant rooms never
+  expire). (2) Ghost participants who close the browser/app without leaving are
+  pruned: each client tick carries its participant id as a presence heartbeat
+  (?pid=), and stale learners (no heartbeat past a TTL) are removed, releasing
+  their floor/queue. Web + mobile tick loops now send the participant id. Added
+  prune + lazy-expire regression tests (packages/shared/src/aoep_shared/
+  live_room.py, services/orchestrator/src/orchestrator/main.py, apps/web, apps/mobile).
+
 - 2026-07-14 - v0.19.28 - Reduce the iOS CoreLocation "Performance Diagnostics"
   FAULT recurrence. ensureForegroundLocationPermission() now caches a granted
   result for the session, so re-mounting the live-room browse / group-classes

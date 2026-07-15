@@ -1278,6 +1278,11 @@ def get_live_room(room_id: str, moderator_key: str = "") -> dict:
     room = _ensure_group_class_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="unknown live room")
+    store = _live_rooms()
+    # Lazily close a room that outlived its allotted window even if no client was
+    # ticking, so a GET never reports an expired class as still "live".
+    if store.should_expire(room_id):
+        room = store.end_room(room_id, auto=True)
     if moderator_key and moderator_key == room.moderator_key:
         return room.to_moderator_dict()
     return room.to_dict()
@@ -1677,23 +1682,31 @@ def live_room_start_presentation(
 
 
 @app.post("/api/live-rooms/{room_id}/tick")
-def live_room_tick(room_id: str, background: BackgroundTasks) -> dict:
-    """Heartbeat the room clock: auto-start the class (full or 5 min past the
-    scheduled time) and auto-advance slides on the dwell timer. Any client may
-    call this periodically; all actions are idempotent/rate-guarded server-side."""
+def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> dict:
+    """Heartbeat the room clock AND presence. ``pid`` is the caller's participant
+    id: it refreshes their presence heartbeat and prunes learners who went stale
+    (closed the browser/app without leaving). Also auto-starts the class (full or
+    5 min past the scheduled time), auto-advances slides, and auto-ends/expires
+    when the allotted time is up. Any client may call this periodically; all
+    actions are idempotent/rate-guarded server-side."""
     store = _live_rooms()
     try:
         store.require(room_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
+    # Presence: mark the caller alive, then drop anyone whose heartbeat went stale.
+    if pid:
+        store.touch(room_id, pid)
+    pruned = store.prune_stale(room_id)
     started = advanced = None
     ended = False
     if store.should_auto_start(room_id):
         store.start_presentation(room_id, auto=True)
         started = True
-    # Auto-end takes priority over advancing: when the allotted class time is up,
-    # close the room so clients can show the "class complete" countdown + excuse.
-    if store.should_auto_end(room_id):
+    # Auto-end takes priority over advancing: when the allotted class time is up
+    # (presenting past its duration, or a scheduled room whose window fully
+    # lapsed), close the room so clients show the "class complete" excuse.
+    if store.should_auto_end(room_id) or store.should_expire(room_id):
         store.end_room(room_id, auto=True)
         ended = True
     elif store.should_auto_advance(room_id):
@@ -1701,13 +1714,14 @@ def live_room_tick(room_id: str, background: BackgroundTasks) -> dict:
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
-    if (started or ended) and not advanced:
+    if (started or ended or pruned) and not advanced:
         _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
     return {
         "room": room_dict,
         "auto_started": bool(started),
         "auto_advanced": advanced["slide"] if advanced else None,
         "auto_ended": ended,
+        "pruned": pruned,
     }
 
 

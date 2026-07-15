@@ -439,6 +439,45 @@ def test_tick_auto_ends_when_allotted_time_expires():
     assert again.json()["room"]["status"] == "ended"
 
 
+def test_tick_prunes_a_participant_who_left_without_leaving():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    a = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-ghost"}).json()["participant"]["id"]
+    b = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bo", "identity": "bo-live"}).json()["participant"]["id"]
+
+    # Ada closed her browser (no leave call): backdate her presence heartbeat.
+    room = _app.state.live_rooms.require(room_id)
+    room.participants[a].last_seen = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
+
+    # Bo's tick (carrying his id) refreshes Bo and prunes the stale Ada.
+    t = client.post(f"/api/live-rooms/{room_id}/tick?pid={b}")
+    assert t.status_code == 200, t.text
+    assert "Ada" in t.json()["pruned"]
+    ids = [p["id"] for p in t.json()["room"]["participants"]]
+    assert a not in ids and b in ids
+
+
+def test_get_and_tick_close_an_expired_abandoned_room():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    # Simulate a scheduled class whose whole allotted window lapsed with nobody
+    # ticking (abandoned): it must NOT still read as "live".
+    room = _app.state.live_rooms.require(room_id)
+    room.duration_seconds = 3600
+    room.scheduled_start = "2000-01-01T00:00:00+00:00"
+    room.presentation_started_at = ""
+    _app.state.live_rooms._backend.save(room)
+
+    got = client.get(f"/api/live-rooms/{room_id}")
+    assert got.status_code == 200, got.text
+    assert got.json()["status"] == "ended"  # lazily closed on read, no client tick needed
+
+
 def test_solo_room_is_open_ended_and_never_auto_ends():
     lid = _first_lesson()
     room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]

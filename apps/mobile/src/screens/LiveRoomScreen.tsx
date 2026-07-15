@@ -120,7 +120,7 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!participantId) return;
     const t = setInterval(() => {
-      void liveRoomTick(roomId).then((r) => setRoom(r.room)).catch(() => undefined);
+      void liveRoomTick(roomId, participantId).then((r) => setRoom(r.room)).catch(() => undefined);
     }, 8000);
     return () => clearInterval(t);
   }, [participantId, roomId]);

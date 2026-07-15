@@ -736,7 +736,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => {
     if (!joinInfo) return;
     const t = window.setInterval(() => {
-      void liveRoomTick(roomId).then((r) => applyRoom(r)).catch(() => undefined);
+      void liveRoomTick(roomId, joinInfo.participant.id).then((r) => applyRoom(r)).catch(() => undefined);
     }, 8000);
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);

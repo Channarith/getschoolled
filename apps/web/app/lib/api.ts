@@ -1673,11 +1673,13 @@ export async function liveRoomStartPresentation(roomId: string, moderatorKey = "
   return r.room;
 }
 
-/** Heartbeat the room clock (auto-start when full/5-min, auto-advance slides).
- * Any client can call this on a timer; server-side it's idempotent. */
-export async function liveRoomTick(roomId: string): Promise<LiveRoomState> {
+/** Heartbeat the room clock + presence (auto-start/advance/end, and prune
+ * learners who closed the tab without leaving). Pass the caller's participantId
+ * so their presence stays fresh; any client can call this on a timer. */
+export async function liveRoomTick(roomId: string, participantId = ""): Promise<LiveRoomState> {
+  const q = participantId ? `?pid=${encodeURIComponent(participantId)}` : "";
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
-    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick`, {
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick${q}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
     })
