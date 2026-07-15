@@ -715,7 +715,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me) return;
     setBusy(true);
     try {
-      setRoom(await liveRoomMute(roomId, me.id, !me.muted));
+      // Toggle against the effective muted state (self-mute OR host mute) so the
+      // button's label ("Mute"/"Unmute") always matches what it does.
+      const currentlyMuted = Boolean(me.muted || me.muted_by_host);
+      setRoom(await liveRoomMute(roomId, me.id, !currentlyMuted, false, "", me.id));
     } catch (e) {
       setError(friendlyError(e, "Could not toggle mute"));
     } finally {
@@ -1496,7 +1499,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </>
             ) : null}
-            <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
+            <button
+              onClick={() => void toggleMute()}
+              disabled={busy || (!hasFloor && inQueue)}
+              title="Mute or unmute your own microphone. You're only heard once the host gives you the floor (raise your hand)."
+            >
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
             <button

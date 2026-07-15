@@ -1619,12 +1619,16 @@ def live_room_mute(
         # The platform admin muting a learner acts as host (by_host) even without
         # the room's key; a learner without rights can still only mute themselves.
         by_host = req.by_host or (mod == room.moderator_key and mod != "" and req.participant_id != req.actor_id)
+        # A self-mute (no explicit actor) has the participant as its own actor; a
+        # host/moderator mute defaults the actor to the AI host. Defaulting to the
+        # host for BOTH made self-mute fail with "learners can only mute themselves".
+        actor_id = req.actor_id or (AI_HOST_ID if by_host else req.participant_id)
         p = store.set_mute(
             room_id,
             req.participant_id,
             muted=req.muted,
             by_host=by_host,
-            actor_id=req.actor_id or AI_HOST_ID,
+            actor_id=actor_id,
             moderator_key=mod,
         )
     except (KeyError, LiveRoomError) as exc:

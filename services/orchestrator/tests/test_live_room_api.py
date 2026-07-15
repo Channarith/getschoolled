@@ -861,6 +861,44 @@ def test_ask_flood_returns_429():
     assert blocked.status_code == 429, blocked.text
 
 
+def test_self_mute_and_unmute_without_actor_id():
+    # Regression: the web client sends no actor_id; the endpoint must treat that
+    # as a self-mute (not default the actor to the AI host, which 400'd with
+    # "learners can only mute themselves").
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Lena", "identity": "lena-1"},
+    ).json()["participant"]["id"]
+    muted = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": pid, "muted": True},
+    )
+    assert muted.status_code == 200, muted.text
+    assert muted.json()["participant"]["muted"] is True
+    unmuted = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": pid, "muted": False},
+    )
+    assert unmuted.status_code == 200, unmuted.text
+    assert unmuted.json()["participant"]["muted"] is False
+
+
+def test_learner_cannot_mute_another_learner():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    a = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Aa", "identity": "aa"}).json()["participant"]["id"]
+    b = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bb", "identity": "bb"}).json()["participant"]["id"]
+    # A (actor) tries to mute B (target) with no moderator rights -> rejected.
+    r = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": b, "muted": True, "actor_id": a},
+    )
+    assert r.status_code == 400
+    assert "themselves" in r.json()["detail"].lower()
+
+
 def test_livekit_status_route_resolves_and_reports_config():
     # Static /livekit-status route must not be swallowed by /{room_id}.
     resp = client.get("/api/live-rooms/livekit-status")

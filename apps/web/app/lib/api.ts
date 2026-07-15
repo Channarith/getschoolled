@@ -1559,7 +1559,10 @@ export async function liveRoomMute(
   participantId: string,
   muted: boolean,
   byHost = false,
-  moderatorKey = ""
+  moderatorKey = "",
+  // Who is performing the mute. For a self-mute this is the participant
+  // themselves; the server rejects a learner muting a *different* participant.
+  actorId = participantId
 ): Promise<LiveRoomState> {
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/mute`, {
@@ -1570,6 +1573,7 @@ export async function liveRoomMute(
         muted,
         by_host: byHost,
         moderator_key: moderatorKey,
+        actor_id: actorId,
       }),
     })
   );
