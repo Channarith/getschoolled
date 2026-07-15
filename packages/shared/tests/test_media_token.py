@@ -34,3 +34,17 @@ def test_token_signature_verifies_with_secret():
     expected = hmac.new(b"topsecret", signing_input.encode(), hashlib.sha256).digest()
     padding = "=" * (-len(sig_seg) % 4)
     assert base64.urlsafe_b64decode(sig_seg + padding) == expected
+
+
+def test_http_base_maps_ws_urls_to_https():
+    from aoep_shared.providers.media import _BaseMediaProvider
+
+    assert _BaseMediaProvider._http_base("wss://x.livekit.cloud") == "https://x.livekit.cloud"
+    assert _BaseMediaProvider._http_base("ws://livekit:7880/") == "http://livekit:7880"
+    assert _BaseMediaProvider._http_base("https://x.livekit.cloud/") == "https://x.livekit.cloud"
+
+
+def test_verify_credentials_unreachable_without_url():
+    cfg = load_config(env={"LIVEKIT_URL": ""})
+    result = build_factory(cfg).media().verify_credentials(timeout=0.1)
+    assert result["status"] == "unreachable"
