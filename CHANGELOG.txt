@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.41 - Added anti-spam guardrails to live-room chat and the
+  "Ask Theodore" feature. Server-side, per-participant sliding-window limits (5
+  chat messages / 10s, 3 questions / 30s) return HTTP 429 with a friendly "slow
+  down" message; chat is capped at 500 chars and questions at 600. The ask check
+  runs before the LLM call, so floods can't burn tokens. Enforced authoritatively
+  in the LiveRoomStore (new RateLimitedError); windows reset when a participant
+  leaves.
 - 2026-07-15 - v0.19.40 - Live-room host controls (Start class / Next slide,
   Record, Call next, Close session) are now shown only to the Administrator or
   the first-seat class admin (canModerate); regular seat users no longer see
