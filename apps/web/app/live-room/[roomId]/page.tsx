@@ -15,6 +15,8 @@ import {
   liveRoomDismissReport,
   liveRoomAdvance,
   liveRoomStartPresentation,
+  liveRoomEnd,
+  deleteLiveRoom,
   liveRoomTick,
   liveRoomAsk,
   liveRoomChat,
@@ -367,6 +369,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [askDraft, setAskDraft] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [moderatorKey, setModeratorKey] = useState("");
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+  // Can this viewer moderate the room? The room's first-joiner admin (has the
+  // moderator key) OR the platform admin (admin@salareen.com), who moderates any
+  // room via their Bearer token — the moderator endpoints accept either.
+  const canModerate = Boolean(moderatorKey) || isPlatformAdmin;
   const [wasRemoved, setWasRemoved] = useState(false);
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
@@ -566,6 +573,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     autoJoinedRef.current = true;
     void getMe()
       .then((acct) => {
+        // Platform admin (admin@salareen.com) can moderate/close/delete ANY room.
+        if (acct.is_admin) setIsPlatformAdmin(true);
         const name = (acct.display_name || "").trim();
         if (name) {
           setDisplayName(name);
@@ -660,7 +669,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }
 
   async function callNext() {
-    if (!moderatorKey) return;
+    if (!canModerate) return;
     setBusy(true);
     try {
       setRoom(await liveRoomCallNext(roomId, moderatorKey));
@@ -673,7 +682,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }
 
   async function callOn(participantId: string) {
-    if (!moderatorKey) return;
+    if (!canModerate) return;
     setBusy(true);
     try {
       setRoom(await liveRoomCallOn(roomId, participantId, moderatorKey));
@@ -736,7 +745,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => {
     if (!joinInfo) return;
     const t = window.setInterval(() => {
-      void liveRoomTick(roomId).then((r) => applyRoom(r)).catch(() => undefined);
+      void liveRoomTick(roomId, joinInfo.participant.id).then((r) => applyRoom(r)).catch(() => undefined);
     }, 8000);
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);
@@ -757,7 +766,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }
 
   async function banLearner(participantId: string, name: string) {
-    if (!moderatorKey) return;
+    if (!canModerate) return;
     const reason = window.prompt(`Block ${name}? Optional reason:`) ?? "";
     if (reason === null) return;
     setBusy(true);
@@ -771,7 +780,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }
 
   async function unbanLearner(identity: string) {
-    if (!moderatorKey) return;
+    if (!canModerate) return;
     setBusy(true);
     try {
       setRoom(await liveRoomUnban(roomId, identity, moderatorKey));
@@ -803,8 +812,36 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
+  // Admin/moderator: close this session for everyone (status -> ended).
+  async function closeSession() {
+    if (!canModerate) return;
+    if (typeof window !== "undefined" && !window.confirm("Close this session for everyone?")) return;
+    setBusy(true);
+    try {
+      setRoom(await liveRoomEnd(roomId, moderatorKey));
+    } catch (e) {
+      setError(friendlyError(e, "Could not close session"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Platform admin: delete this session permanently (cleanup), then leave.
+  async function deleteSession() {
+    if (!isPlatformAdmin) return;
+    if (typeof window !== "undefined" && !window.confirm("Delete this session permanently?")) return;
+    setBusy(true);
+    try {
+      await deleteLiveRoom(roomId);
+      window.location.href = "/group-classes";
+    } catch (e) {
+      setError(friendlyError(e, "Could not delete session"));
+      setBusy(false);
+    }
+  }
+
   async function dismissReport(reportId: string) {
-    if (!moderatorKey) return;
+    if (!canModerate) return;
     setBusy(true);
     try {
       setRoom(await liveRoomDismissReport(roomId, reportId, moderatorKey));
@@ -1104,7 +1141,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   liveKitTrack={trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                 />
-                {moderatorKey && p.id !== me?.id ? (
+                {canModerate && p.id !== me?.id ? (
                   <button
                     type="button"
                     onClick={() => void banLearner(p.id, p.name)}
@@ -1126,7 +1163,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     Block
                   </button>
                 ) : null}
-                {moderatorKey && p.role !== "host" && p.id !== room?.floor_participant_id ? (
+                {canModerate && p.role !== "host" && p.id !== room?.floor_participant_id ? (
                   <button
                     type="button"
                     onClick={() => void callOn(p.id)}
@@ -1414,7 +1451,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 Done speaking
               </button>
             ) : null}
-            {moderatorKey ? (
+            {canModerate ? (
               <>
                 <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
                   Call next
@@ -1429,18 +1466,18 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
-            {me?.is_admin || moderatorKey ? (
+            {me?.is_admin || canModerate ? (
               !room?.presenting ? (
                 <button
                   onClick={() => void startPresentation()}
                   disabled={busy}
-                  title="Start the class (admin)"
+                  title="Start the class"
                   style={{ background: "var(--accent-2)", color: "#fff" }}
                 >
                   🎬 Start class
                 </button>
               ) : (
-                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (admin only — the AI advances automatically)">
+                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)">
                   ▶ Next slide
                 </button>
               )
@@ -1448,12 +1485,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button onClick={() => void toggleRecording()} disabled={busy}>
               {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
             </button>
+            {canModerate ? (
+              <button
+                onClick={() => void closeSession()}
+                disabled={busy}
+                title="Close this session for everyone"
+                style={{ background: "#b45309", color: "#fff" }}
+              >
+                ⛔ Close session
+              </button>
+            ) : null}
+            {isPlatformAdmin ? (
+              <button
+                onClick={() => void deleteSession()}
+                disabled={busy}
+                title="Delete this session permanently (admin cleanup)"
+                style={{ background: "#b91c1c", color: "#fff" }}
+              >
+                🗑 Delete
+              </button>
+            ) : null}
             <button onClick={() => void handleLeave()} disabled={busy} style={{ marginLeft: "auto" }}>
               Leave
             </button>
           </div>
 
-          {moderatorKey && (room?.reports?.length ?? 0) > 0 ? (
+          {canModerate && (room?.reports?.length ?? 0) > 0 ? (
             <div
               style={{
                 marginTop: 8,
@@ -1499,7 +1556,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           ) : null}
 
-          {moderatorKey && (room?.banned?.length ?? 0) > 0 ? (
+          {canModerate && (room?.banned?.length ?? 0) > 0 ? (
             <div
               style={{
                 marginTop: 8,

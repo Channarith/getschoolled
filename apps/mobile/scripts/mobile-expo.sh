@@ -22,6 +22,24 @@ if [[ "${1:-}" == "run:android" ]] && [[ -d android ]]; then
   node scripts/patch-gradle-wrapper.js
 fi
 
+# Metro reachability guard for run:android. A debug build loads
+# index.android.bundle from Metro; a USB-connected PHYSICAL device can't reach
+# the host's localhost:8081 without a reverse tunnel and crashes on launch with
+# "Unable to load script". `expo run:android` sets this during its own launch,
+# but we also set it here for every connected device (idempotent, harmless for
+# emulators) so reopening the installed app / reconnecting keeps Metro reachable.
+# For a self-contained install that needs NO Metro use native:build:android:release.
+if [[ "${1:-}" == "run:android" ]]; then
+  _adb="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/platform-tools/adb"
+  command -v adb >/dev/null 2>&1 && _adb="adb"
+  if [[ -x "$_adb" ]] || command -v "$_adb" >/dev/null 2>&1; then
+    for _s in $("$_adb" devices 2>/dev/null | awk 'NR>1 && $2=="device"{print $1}'); do
+      "$_adb" -s "$_s" reverse "tcp:${RCT_METRO_PORT:-8081}" "tcp:${RCT_METRO_PORT:-8081}" >/dev/null 2>&1 \
+        && echo "==> adb reverse tcp:${RCT_METRO_PORT:-8081} set for $_s (Metro reachable on device)" || true
+    done
+  fi
+fi
+
 if [[ "${1:-}" == "run:ios" ]] && [[ -d ios ]]; then
   bash scripts/mobile-ios-pod-refresh.sh
 fi

@@ -204,6 +204,10 @@ class Participant:
     # the AI teacher answers this person in the language they speak.
     language: str = ""
     joined_at: str = ""
+    # Presence heartbeat: refreshed by the client's tick. If a learner closes the
+    # browser/app without leaving, their heartbeat stops and the server prunes
+    # them once last_seen goes stale (see LiveRoomStore.prune_stale).
+    last_seen: str = ""
     # The single class admin — the FIRST learner to join. Can start the class and
     # advance slides (holds moderator powers).
     is_admin: bool = False
@@ -218,6 +222,8 @@ class Participant:
             self.identity = self.id
         if not self.joined_at:
             self.joined_at = _ts()
+        if not self.last_seen:
+            self.last_seen = self.joined_at
 
     @property
     def is_host(self) -> bool:
@@ -556,6 +562,10 @@ class LiveRoomStore:
     def get(self, room_id: str) -> Optional[LiveRoom]:
         return self._backend.get(room_id)
 
+    def delete(self, room_id: str) -> None:
+        """Remove a room entirely (admin cleanup). Idempotent."""
+        self._backend.delete(room_id)
+
     def list_live(
         self,
         *,
@@ -572,6 +582,12 @@ class LiveRoomStore:
         for rid in self._backend.list_live_ids():
             room = self._backend.get(rid)
             if room is None or room.status != "live":
+                continue
+            # Lazily close a room that outlived its allotted window even if no
+            # client was ticking (abandoned/empty), so discovery never shows an
+            # expired class as still "live".
+            if self.should_expire(rid):
+                self.end_room(rid, auto=True)
                 continue
             if country and (room.country or "").lower() != country.strip().lower():
                 continue
@@ -655,15 +671,12 @@ class LiveRoomStore:
             raise BannedError(detail)
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
-                dirty = False
                 if acct:
                     p.account_id = acct
-                    dirty = True
                 if lang and p.language != lang:
                     p.language = lang  # keep the language fresh on re-join
-                    dirty = True
-                if dirty:
-                    self._commit(room)
+                p.last_seen = _ts()   # re-join counts as presence
+                self._commit(room)
                 return p
         if room.is_full:
             raise RoomFullError("this live room is full")
@@ -1018,6 +1031,82 @@ class LiveRoomStore:
             return False
         ref = now or _now()
         return ref >= started + timedelta(seconds=room.duration_seconds)
+
+    def should_expire(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
+        """True when a scheduled group lesson has outlived its allotted window and
+        should be closed even if NO client is ticking (an abandoned/empty room).
+        Presenting rooms expire ``duration_seconds`` after they started; a room
+        that never started expires once its scheduled window + grace fully lapses.
+        Open-ended rooms (duration_seconds == 0, e.g. solo 1:1 / instant) never
+        expire on the clock."""
+        from datetime import timedelta
+
+        room = self.require(room_id)
+        if room.status != "live" or room.duration_seconds <= 0:
+            return False
+        ref = now or _now()
+        started = _parse_ts(room.presentation_started_at)
+        if started is not None:
+            return ref >= started + timedelta(seconds=room.duration_seconds)
+        sched = _parse_ts(room.scheduled_start)
+        if sched is not None:
+            return ref >= sched + timedelta(
+                seconds=room.duration_seconds + room.auto_start_grace_seconds
+            )
+        return False
+
+    def touch(self, room_id: str, participant_id: str, *, now: Optional[datetime] = None) -> None:
+        """Refresh a learner's presence heartbeat (called on the client tick)."""
+        room = self.require(room_id)
+        p = room.participants.get(participant_id)
+        if p is None or p.is_host:
+            return
+        p.last_seen = now.isoformat() if now else _ts()
+        self._commit(room)
+
+    def prune_stale(
+        self,
+        room_id: str,
+        *,
+        ttl_seconds: int = 45,
+        now: Optional[datetime] = None,
+    ) -> List[str]:
+        """Remove learners whose presence heartbeat went stale — i.e. they closed
+        the browser/app (or lost connection) without leaving. Releases the floor
+        and clears their Q&A queue entries. Returns the removed display names."""
+        room = self.require(room_id)
+        ref = now or _now()
+        removed: List[str] = []
+        for pid, p in list(room.participants.items()):
+            if p.is_host:
+                continue
+            seen = _parse_ts(p.last_seen or p.joined_at)
+            if seen is None:
+                continue
+            if (ref - seen).total_seconds() <= ttl_seconds:
+                continue
+            # Stale: drop them and clean up any floor/queue state they held.
+            if room.floor_participant_id == pid:
+                room.floor_participant_id = ""
+            room.speaking_queue = [
+                e for e in room.speaking_queue
+                if e.participant_id != pid or e.status == QUEUE_DONE
+            ]
+            room.participants.pop(pid, None)
+            removed.append(p.name)
+        if removed:
+            room._reindex_waiting()
+            room.viewer_count = room.learner_count
+            room.chat.append(
+                ChatMessage(
+                    id=uuid.uuid4().hex[:10],
+                    from_id="system",
+                    from_name="Room",
+                    text=f"{', '.join(removed)} left the class.",
+                )
+            )
+            self._commit(room)
+        return removed
 
     def note_slide_started(self, room_id: str, *, now: Optional[datetime] = None) -> None:
         """Reset the per-slide auto-advance timer (call after a slide change)."""

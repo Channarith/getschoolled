@@ -24,8 +24,17 @@ Checks
   pnpm run export         # static JS bundle export (make mobile-build)
 
 Native / EAS builds
-  Android native: pnpm run native:prebuild:android && pnpm run native:build:android
-  EAS profiles: development, preview (APK), production (app bundle / IPA).
+  Android DEBUG (dev): pnpm run native:build:android  -> assembleDebug. Needs a
+    reachable Metro (dev server); a standalone install shows the red "Unable to
+    load script / index.android.bundle" screen. Use for live-reload development.
+  Android PRODUCTION/RELEASE (standalone, local): pnpm run native:build:android:release
+    -> fresh `gradle clean assembleRelease` with the JS bundle EMBEDDED (no Metro,
+    backend pinned to cloud), verified by mobile-verify-apk-bundle.sh, published to
+    dist/android/salareen-<version>-<versionCode>-release.apk. This is the
+    "just works on any device" build (the Android equivalent of the iOS TestFlight
+    build). Install: adb install -r dist/android/salareen-*-release.apk
+  EAS profiles: development (dev client, needs Metro), preview (release APK,
+    standalone), production (app bundle / IPA).
 
 See also: apps/mobile/RUN.txt (full setup/run/debug), README.md
 ("Mobile app on macOS"), .cursor/rules/mobile-eas-build.mdc.

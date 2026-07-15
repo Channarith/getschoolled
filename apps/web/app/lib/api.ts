@@ -1497,7 +1497,7 @@ export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promi
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-next`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ moderator_key: moderatorKey }),
     })
   );
@@ -1532,7 +1532,7 @@ export async function liveRoomCallOn(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-on`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
     })
   );
@@ -1547,7 +1547,7 @@ export async function liveRoomFinishTurn(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/queue/finish-turn`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey }),
     })
   );
@@ -1564,7 +1564,7 @@ export async function liveRoomMute(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/mute`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         participant_id: participantId,
         muted,
@@ -1585,7 +1585,7 @@ export async function liveRoomBan(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ban`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         participant_id: participantId,
         reason,
@@ -1604,7 +1604,7 @@ export async function liveRoomUnban(
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/unban`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ identity, moderator_key: moderatorKey }),
     })
   );
@@ -1643,7 +1643,7 @@ export async function liveRoomDismissReport(
       `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/reports/dismiss`,
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...authHeaders() },
         body: JSON.stringify({ report_id: reportId, moderator_key: moderatorKey }),
       }
     )
@@ -1655,7 +1655,7 @@ export async function liveRoomAdvance(roomId: string, moderatorKey = ""): Promis
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/advance`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ moderator_key: moderatorKey }),
     })
   );
@@ -1666,18 +1666,41 @@ export async function liveRoomStartPresentation(roomId: string, moderatorKey = "
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/start-presentation`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ moderator_key: moderatorKey }),
     })
   );
   return r.room;
 }
 
-/** Heartbeat the room clock (auto-start when full/5-min, auto-advance slides).
- * Any client can call this on a timer; server-side it's idempotent. */
-export async function liveRoomTick(roomId: string): Promise<LiveRoomState> {
+/** Close a live session (status=ended). Moderator-key holder or platform admin. */
+export async function liveRoomEnd(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  return jsonOrThrow<LiveRoomState>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/end`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    })
+  );
+}
+
+/** Delete a live session entirely (platform admin only — admin@salareen.com). */
+export async function deleteLiveRoom(roomId: string): Promise<{ deleted: boolean; room_id: string }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json", ...authHeaders() },
+    })
+  );
+}
+
+/** Heartbeat the room clock + presence (auto-start/advance/end, and prune
+ * learners who closed the tab without leaving). Pass the caller's participantId
+ * so their presence stays fresh; any client can call this on a timer. */
+export async function liveRoomTick(roomId: string, participantId = ""): Promise<LiveRoomState> {
+  const q = participantId ? `?pid=${encodeURIComponent(participantId)}` : "";
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
-    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick`, {
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick${q}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
     })

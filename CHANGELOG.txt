@@ -2,6 +2,80 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.30 - Platform admin (admin@salareen.com) can moderate ANY
+  live room without holding its moderator key: start/advance the class, mute
+  learners, close the session (end), and DELETE it entirely (cleanup). The
+  orchestrator recognizes the admin from their Bearer token via identity
+  /auth/me (is_admin) and overrides the per-room moderator key on every
+  moderation endpoint; added DELETE /api/live-rooms/{id} (admin-only, ends then
+  removes). Web live room shows the moderation controls (Start, Mute, Call next,
+  Close session, Delete) for the platform admin even when they aren't the room's
+  first joiner, sending the admin JWT. Added admin-authorization tests. Note:
+  standard group-class rooms re-seed on miss, so "delete" permanently removes
+  only non-class (solo/instant/user) rooms; class rooms are cleaned up by Close.
+  (packages/shared live_room.py + live_room_rewards.py, services/orchestrator
+  main.py, apps/web live-room page + api.ts).
+
+- 2026-07-15 - v0.19.29 - Live-room lifecycle + presence robustness. (1) Expired
+  classes no longer linger as "live": rooms now lazily close when their allotted
+  window lapses even with NO client ticking — on discovery (list_live), on GET,
+  and on tick (LiveRoomStore.should_expire; open-ended solo/instant rooms never
+  expire). (2) Ghost participants who close the browser/app without leaving are
+  pruned: each client tick carries its participant id as a presence heartbeat
+  (?pid=), and stale learners (no heartbeat past a TTL) are removed, releasing
+  their floor/queue. Web + mobile tick loops now send the participant id. Added
+  prune + lazy-expire regression tests (packages/shared/src/aoep_shared/
+  live_room.py, services/orchestrator/src/orchestrator/main.py, apps/web, apps/mobile).
+
+- 2026-07-14 - v0.19.28 - Reduce the iOS CoreLocation "Performance Diagnostics"
+  FAULT recurrence. ensureForegroundLocationPermission() now caches a granted
+  result for the session, so re-mounting the live-room browse / group-classes
+  screens and restarting driving detection no longer re-probe CoreLocation every
+  time (the recurrence the diagnostic flags) — it probes at most once per session,
+  and still only prompts when status is undetermined. Non-fatal OS diagnostic;
+  definitive removal is an expo-location/SDK upgrade. Added a cache regression
+  test (apps/mobile/src/locationPermission.ts).
+
+- 2026-07-14 - v0.19.27 - Mobile live room: readable presenter + AI teacher audio.
+  The AI host tile is now a large "presenter" hero showing the current slide
+  (Slide N, big title + narration) instead of a tiny square, so the topic is easy
+  to read on a phone; learners move to a compact strip below. Added the AI
+  teacher's VOICE: the host has no camera, so the room now narrates the current
+  slide and speaks Theodore's Q&A answers/announcements via expo-speech
+  (speakNatural, in the learner's language), with a 🔊/🔇 mute toggle — fixing
+  "no audio comes out". Narration stops on leave (apps/mobile/src/screens/
+  LiveRoomScreen.tsx, apps/mobile/src/tts.ts).
+
+- 2026-07-14 - v0.19.26 - Fix false "APK does NOT embed index.android.bundle"
+  guardrail failure. mobile-verify-apk-bundle.sh used macOS Info-ZIP `unzip`,
+  which mis-parses signed APKs (v2/v3 signing block / zip64) and reported no
+  entries — failing an otherwise-successful assembleRelease that DID embed the
+  bundle. Now inspects the APK with Python's zipfile (reads the central directory
+  correctly), falls back to unzip/jar, and treats "can't read" as a non-fatal
+  WARN so a good build is never blocked by a tooling gap. Verified present/
+  absent/unreadable cases.
+
+- 2026-07-14 - v0.19.25 - Local production Android build hardening. Clarified the
+  two commands: `pnpm run native:build:android` = DEBUG (assembleDebug, needs
+  Metro) vs `pnpm run native:build:android:release` = PRODUCTION/standalone
+  (bundle embedded, no Metro). The release script now does a FRESH build
+  (`gradle clean assembleRelease`, no cached artifacts), stamps the version into
+  the filename, and publishes to a consistent folder:
+  dist/android/salareen-<version>-<versionCode>-release.apk (still guarded by
+  mobile-verify-apk-bundle.sh). Documented the distinction in the mobile README.
+
+- 2026-07-14 - v0.19.24 - Android "Unable to load script / index.android.bundle"
+  hardening. The plain `pnpm run android` (mobile-expo.sh run:android) path now
+  also runs `adb reverse tcp:8081` for every connected device (the debug bundle
+  loads from Metro; a USB device can't reach host localhost without the tunnel),
+  matching mobile-launch-android.sh. Added `pnpm run android:reverse`
+  (scripts/mobile-android-reverse.sh) — one-command recovery for an
+  already-installed debug app stuck on the red screen. Updated the
+  mobile-eas-build rule: the DISMISS/RELOAD dev overlay only appears in DEBUG
+  builds (so that red screen means a debug build expecting Metro, not a release
+  build with a missing bundle); for a self-contained install use
+  `pnpm run native:build:android:release` or an EAS preview/production build.
+
 - 2026-07-14 - v0.19.23 - Identity fix + login-outage runbook. The Redis snapshot
   now round-trips the account's preferred_language (persistence._deserialize_account
   was dropping the new field on reload); pre-change snapshots (no such key) still

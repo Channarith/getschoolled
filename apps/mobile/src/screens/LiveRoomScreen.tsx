@@ -13,6 +13,7 @@ import {
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
+import { speakNatural, stopSpeech } from "../tts";
 import GlassPanel from "../components/GlassPanel";
 import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
 import PrimaryButton from "../components/PrimaryButton";
@@ -76,6 +77,7 @@ export default function LiveRoomScreen({
   const [showGifts, setShowGifts] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [endLeft, setEndLeft] = useState(CLASS_END_COUNTDOWN);
+  const [muted, setMuted] = useState(false);
   const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
   const classEnded = room?.status === "ended";
 
@@ -118,10 +120,59 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!participantId) return;
     const t = setInterval(() => {
-      void liveRoomTick(roomId).then((r) => setRoom(r.room)).catch(() => undefined);
+      void liveRoomTick(roomId, participantId).then((r) => setRoom(r.room)).catch(() => undefined);
     }, 8000);
     return () => clearInterval(t);
   }, [participantId, roomId]);
+
+  // Audio: the AI host (Theodore) has no camera, so its "voice" is TTS. Speak the
+  // current slide (title + narration) whenever it changes, and speak Theodore's
+  // Q&A answers / announcements as they arrive — in the learner's language. This
+  // is why "no audio comes out" otherwise: nobody publishes host audio to LiveKit.
+  const spokenSlideRef = useRef<number>(-1);
+  const spokenChatRef = useRef<string>("");
+  const didInitChatRef = useRef(false);
+
+  useEffect(() => {
+    if (!participantId || muted) return;
+    const s = room?.slide;
+    if (!s || spokenSlideRef.current === s.index) return;
+    spokenSlideRef.current = s.index;
+    const text = `${s.title}. ${s.narration || s.body || ""}`.trim();
+    if (text) speakNatural(text, { locale });
+  }, [room?.slide?.index, participantId, muted, locale]);
+
+  useEffect(() => {
+    if (!participantId) return;
+    const chat = room?.chat ?? [];
+    // Newest message spoken BY Theodore that isn't the slide-narration echo
+    // ("📖 …", already spoken via the slide effect) or a system "Room" note.
+    let latest: { id: string; from_name: string; text: string } | undefined;
+    for (let i = chat.length - 1; i >= 0; i--) {
+      const m = chat[i];
+      if (m.from_name.includes("Theodore") && !m.text.startsWith("📖")) { latest = m; break; }
+    }
+    if (!latest) return;
+    // Don't replay history on join: seed the marker to the newest on first sight.
+    if (!didInitChatRef.current) {
+      didInitChatRef.current = true;
+      spokenChatRef.current = latest.id;
+      return;
+    }
+    if (spokenChatRef.current === latest.id) return;
+    spokenChatRef.current = latest.id;
+    if (!muted) speakNatural(latest.text, { locale });
+  }, [room?.chat, participantId, muted, locale]);
+
+  useEffect(() => () => stopSpeech(), []);  // stop narration when leaving the screen
+
+  const toggleMute = () => {
+    setMuted((m) => {
+      const next = !m;
+      if (next) stopSpeech();
+      return next;
+    });
+  };
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
     const joinName = (nameOverride ?? name).trim();
@@ -218,6 +269,7 @@ export default function LiveRoomScreen({
   )?.position ?? 0;
 
   const leaveAndBack = () => {
+    stopSpeech();
     if (participantId) {
       void leaveLiveRoom(roomId, participantId).catch(() => undefined);
     }
@@ -331,16 +383,29 @@ export default function LiveRoomScreen({
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <GlassPanel style={styles.slide}>
-        <Text style={styles.meta}>Slide {(room?.slide.index ?? 0) + 1}</Text>
-        <Text style={styles.cardTitle}>{room?.slide.title}</Text>
-        <Text style={styles.meta}>{room?.slide.narration || room?.slide.body}</Text>
+      {/* Presenter hero: the AI host has no camera, so its tile IS the current
+          slide — large title + narration so it's easy to see/read on a phone. */}
+      <GlassPanel style={styles.presenter}>
+        <View style={styles.presenterHead}>
+          <Text style={styles.presenterHost} numberOfLines={1}>
+            🎓 {room?.host?.name ?? "Theodore (AI Host)"} · Slide {(room?.slide.index ?? 0) + 1}
+          </Text>
+          <Pressable onPress={toggleMute} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.muteBtn}>{muted ? "🔇" : "🔊"}</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.presenterTitle}>{room?.slide.title}</Text>
+        <Text style={styles.presenterBody}>{room?.slide.narration || room?.slide.body}</Text>
+        {muted ? <Text style={styles.mutedHint}>Audio muted — tap 🔇 to hear the teacher</Text> : null}
       </GlassPanel>
 
+      {(room?.participants ?? []).some((p) => p.role !== "host") ? (
+        <Text style={styles.stripLabel}>In the room</Text>
+      ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridScroll}>
-        {(room?.participants ?? []).map((p) => {
+        {(room?.participants ?? []).filter((p) => p.role !== "host").map((p) => {
           const isMe = p.id === participantId;
-          const emoji = p.role === "host" ? "🎓" : p.id === room?.floor_participant_id ? "🎤" : "👤";
+          const emoji = p.id === room?.floor_participant_id ? "🎤" : "👤";
           if (isMe && hasFloor && media) {
             return (
               <LiveKitParticipantTile
@@ -633,6 +698,14 @@ const styles = StyleSheet.create({
   },
   slide: { gap: 6 },
   cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
+  presenter: { gap: 8 },
+  presenterHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600", flex: 1 },
+  presenterTitle: { color: theme.colors.text, fontSize: 23, fontWeight: "800", lineHeight: 29 },
+  presenterBody: { color: theme.colors.text, fontSize: 16, lineHeight: 23, opacity: 0.92 },
+  mutedHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
+  muteBtn: { fontSize: 24 },
+  stripLabel: { color: theme.colors.muted, fontSize: 12, marginTop: 2 },
   gridScroll: { maxHeight: 190 },
   tile: {
     width: 88,
