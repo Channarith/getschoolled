@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.53 - Retire stale scheduled classes and keep slides advancing.
+  (1) A group class whose scheduled window (start + duration_min) has passed is
+  now swept to ENDED and dropped from the listing — previously a "live" class was
+  kept/joinable forever (e.g. a 7:20am 60-min class still LIVE at noon). Room
+  auto-end/expire on tick also syncs the group-class status to ended. (2) Slide
+  auto-advance is resilient to a lost teaching session (orchestrator restart): the
+  session is re-created bound to the room's lesson and resumed at the current
+  slide, so the class no longer gets stuck on slide 1; a transient advance error
+  can't break the tick.
 - 2026-07-15 - v0.19.52 - Made Corporate training immersive (parity with Live
   Class). The shared ClassRoom (used by /corporate/learn) previously showed only
   static slides with no presenter and only narrated "repeat-after-me" slides.
