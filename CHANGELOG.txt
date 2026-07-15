@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.51 - The AI host now actually addresses the Q&A queue. When
+  a learner joins the queue with a question, the class already paused (no
+  auto-advance while the queue is busy) but nobody answered without a human
+  moderator. On each tick Theodore now pauses and answers the next queued
+  question himself (grounded in the lesson), clears it, and moves on — draining
+  the queue quickly, one question per tick; raised hands without a question are
+  called to the floor as before.
 - 2026-07-15 - v0.19.50 - Added a simple "💬 Hide chat" toggle to the solo Live
   Class (/class) "Ask the AI teacher" card, so learners can collapse the chat
   transcript to focus on the slide (the Ask input stays visible). The group live
