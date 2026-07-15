@@ -45,6 +45,16 @@ export function useLiveKitRoom(
   const [audioTracks, setAudioTracks] = useState<AudioStream[]>([]);
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
+  // Keep the latest participant roster in a ref. It is only used to map a
+  // LiveKit identity to our internal participant id (for the display tile). We
+  // deliberately DO NOT put ``participants`` in the connect effect's deps: that
+  // array gets a fresh reference on every ~3s poll, which would tear down and
+  // reconnect the LiveKit room on every tick (a new session each time), causing
+  // an endless "disconnect from room / abort connection attempt" storm.
+  const participantsRef = useRef<LiveParticipant[]>(participants);
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
 
   useEffect(() => {
     if (!media?.url || !media.token) {
@@ -82,7 +92,7 @@ export function useLiveKitRoom(
       p: RemoteParticipant | LocalParticipant,
       isLocal: boolean,
     ) => {
-      const pid = identityFor(participants, p.identity) ?? p.identity;
+      const pid = identityFor(participantsRef.current, p.identity) ?? p.identity;
       p.trackPublications.forEach((pub) => {
         if (pub.kind === Track.Kind.Video && pub.track) {
           upsert(pid, p.name || p.identity, isLocal, pub.track.mediaStreamTrack);
@@ -134,7 +144,7 @@ export function useLiveKitRoom(
       setAudioTracks([]);
       setConnected(false);
     };
-  }, [media?.url, media?.token, media?.identity, canPublish, participants]);
+  }, [media?.url, media?.token, media?.identity, canPublish]);
 
   return { tiles, audioTracks, connected, livekitAvailable: Boolean(media?.url && media?.token) };
 }
