@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.33 - Mobile Solo (1:1) now uses the SAME Salareen live room
+  as group classes instead of the slide-only lesson presenter — so it has the
+  video feed (LiveKit tiles), chat, Q&A, narration, and auto-advancing slides,
+  scaled to the AI host + you. The mobile "Live Class" Start button routes the
+  Solo option through POST /api/live-rooms/solo -> LiveRoomScreen (matching web);
+  Group still uses the lesson presenter. Verified the solo room opens (2 seats)
+  and join returns a real LiveKit media token/url (apps/mobile/App.tsx,
+  apps/mobile/src/api.ts, apps/mobile/src/screens/LiveClassScreen.tsx).
+
 - 2026-07-15 - v0.19.32 - Live class now auto-advances slides (~5s). Reduced the
   per-slide dwell auto_advance_seconds from 60s to 5s, and the web + mobile live-
   room tick interval from 8s to 3s so a presenting class transitions to the next
