@@ -88,6 +88,7 @@ export default function ClassPage() {
     { kind: "earned" | "complete" | "guest"; earned?: number; balance?: number } | null
   >(null);
   const [speakAnswers, setSpeakAnswers] = useState(true);
+  const [showChat, setShowChat] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const [spokenText, setSpokenText] = useState("");   // live caption for the presenter
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
@@ -734,20 +735,35 @@ export default function ClassPage() {
           </div>
 
           <div className="card">
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <h3 style={{ margin: 0 }}>Ask the AI teacher</h3>
-              <label className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={speakAnswers}
-                  onChange={(e) => {
-                    setSpeakAnswers(e.target.checked);
-                    if (!e.target.checked) stopSpeaking();
+              <div className="row" style={{ gap: 12, alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowChat((v) => !v)}
+                  title={showChat ? "Hide the chat transcript" : "Show the chat transcript"}
+                  style={{
+                    fontSize: 13, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                    border: "1px solid #cbd5e1", background: showChat ? "#fff" : "#eef2ff",
+                    color: "#334155",
                   }}
-                />
-                Speak answers
-              </label>
+                >
+                  {showChat ? "💬 Hide chat" : "💬 Show chat"}
+                </button>
+                <label className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={speakAnswers}
+                    onChange={(e) => {
+                      setSpeakAnswers(e.target.checked);
+                      if (!e.target.checked) stopSpeaking();
+                    }}
+                  />
+                  Speak answers
+                </label>
+              </div>
             </div>
+            {showChat && (
             <div className="chat">
               {chat.map((m, i) => (
                 <div key={i} className={`bubble ${m.role}`}
@@ -819,6 +835,7 @@ export default function ClassPage() {
                 </div>
               ))}
             </div>
+            )}
             <div className="row" style={{ marginTop: 12 }}>
               <input
                 style={{ flex: 1, minWidth: 240 }}
