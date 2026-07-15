@@ -52,14 +52,21 @@ if [ -n "${VULTR_REGISTRY_USERNAME:-}" ] && [ -n "${VULTR_REGISTRY_PASSWORD:-}" 
   printf '%s' "$VULTR_REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" -u "$VULTR_REGISTRY_USERNAME" --password-stdin
 fi
 
-# 2) Build + push all images for the cluster arch.
+# 2) Build + push all images for the cluster arch. ALWAYS a FRESH build
+# (--no-cache --pull): a cached layer once shipped a stale orchestrator while the
+# web image updated, so /api routes 404'd/405'd against old code. Fresh is the
+# rule. Set BUILD_CACHE=1 to opt back into the layer cache for a fast iteration.
+BUILD_FLAGS=(--platform "$PLATFORM")
+if [ "${BUILD_CACHE:-0}" != "1" ]; then
+  BUILD_FLAGS+=(--no-cache --pull)
+fi
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
   for svc in "${SERVICES[@]}"; do
-    say "build+push $svc"
-    docker buildx build --platform "$PLATFORM" -t "${REGISTRY}/${svc}:${TAG}" -f "services/${svc}/Dockerfile" --push .
+    say "build+push $svc (fresh)"
+    docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/${svc}:${TAG}" -f "services/${svc}/Dockerfile" --push .
   done
-  say "build+push web"
-  docker buildx build --platform "$PLATFORM" -t "${REGISTRY}/web:${TAG}" -f "apps/web/Dockerfile" --push .
+  say "build+push web (fresh)"
+  docker buildx build "${BUILD_FLAGS[@]}" -t "${REGISTRY}/web:${TAG}" -f "apps/web/Dockerfile" --push .
 else
   warn "SKIP_BUILD=1 — not building/pushing images."
 fi
@@ -90,6 +97,16 @@ else
   warn "SKIP_APPLY=1 — not running apply -k (image-only redeploy)."
 fi
 
+# 5b) The web calls same-origin /orchestrator, /identity, /curriculum … which the
+# 'aoep-apis' Ingress rewrites to each service. If it's missing, those POSTs fall
+# through to the web app (Next.js) and return 404/405 — the exact "live class
+# failures". Verify it exists.
+if kubectl -n "$NS" get ingress aoep-apis >/dev/null 2>&1; then
+  say "ingress aoep-apis present (/orchestrator, /identity, … routing OK)"
+else
+  warn "ingress 'aoep-apis' MISSING — /orchestrator API calls will 404/405. Re-run apply -k."
+fi
+
 # 6) Roll the deployments to the freshly pushed images.
 if [ "$TAG" = "latest" ]; then
   # kustomize pins :latest + imagePullPolicy: Always, so a restart re-pulls it.
@@ -110,5 +127,14 @@ done
 
 say "orchestrator LiveKit env (should be your Cloud project):"
 kubectl -n "$NS" exec "deploy/orchestrator" -- printenv LIVEKIT_URL LIVEKIT_API_KEY 2>/dev/null || warn "could not read orchestrator env"
+
+# Confirm the orchestrator is actually running the freshly built code (catches a
+# stale image / cache-hit where the web updated but the API didn't).
+say "deployed orchestrator /version (confirm it matches this checkout ${SHA}):"
+kubectl -n "$NS" exec "deploy/orchestrator" -- \
+  python3 -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8000/version', timeout=5).read().decode())" \
+  2>/dev/null || warn "could not read orchestrator /version"
+LOCAL_VER="$(cat "$ROOT/VERSION" 2>/dev/null || echo '?')"
+say "this checkout VERSION: ${LOCAL_VER} — the line above should report the same version."
 
 say "Deploy complete: ${REGISTRY}/*:${TAG} rolled to namespace ${NS}."

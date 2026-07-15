@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.34 - Deploy hardening for the live-class API failures. The
+  deployed cluster showed /api/live-rooms/* start-presentation 405 and
+  media-token/tick 404 because (a) the orchestrator image was STALE (web updated,
+  API didn't) and (b) the same-origin /orchestrator API calls fell through to the
+  web app. scripts/deploy_vke.sh now builds FRESH by default (--no-cache --pull;
+  BUILD_CACHE=1 to opt out), verifies the aoep-apis Ingress exists (the
+  /orchestrator,/identity,/curriculum rewrites — missing => 405/404), and prints
+  the deployed orchestrator /version so a stale image is caught. Documented both
+  traps in the release-and-deploy skill. (No app-code change — the live-room
+  reopen/admin/5s-advance/solo fixes are already on this branch; this makes a
+  deploy actually ship them.)
+
 - 2026-07-15 - v0.19.33 - Mobile Solo (1:1) now uses the SAME Salareen live room
   as group classes instead of the slide-only lesson presenter — so it has the
   video feed (LiveKit tiles), chat, Q&A, narration, and auto-advancing slides,
