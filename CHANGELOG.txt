@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.43 - Fixed the live-room self mute/unmute button returning
+  400 "learners can only mute themselves". The web client sends no actor_id, and
+  the /mute endpoint defaulted the actor to the AI host, so a learner muting
+  themselves looked like muting someone else. The actor now defaults to the
+  participant for self-mutes (host default only for by_host actions); the client
+  also sends actor_id explicitly and toggles against the effective muted state so
+  the button label matches its action.
 - 2026-07-15 - v0.19.42 - Hardened live rooms against student abuse: a
   display-name policy (max 40 chars + reserved-name blocklist so learners can't
   impersonate "Theodore"/"Administrator"/"AI Host"/etc.), a self-gift block, and
