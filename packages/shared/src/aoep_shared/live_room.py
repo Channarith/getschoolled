@@ -1227,6 +1227,13 @@ class LiveRoomStore:
         room.slide_started_at = now.isoformat() if now else _ts()
         self._commit(room)
 
+    def rebind_session(self, room_id: str, session_id: str) -> None:
+        """Point the room at a new teaching session id — used to recover after the
+        orchestrator lost in-memory sessions (restart) so slides can advance again."""
+        room = self.require(room_id)
+        room.session_id = session_id
+        self._commit(room)
+
     def auto_call_next_if_waiting(self, room_id: str) -> Optional[Participant]:
         """AI picks up the next raised hand at a natural break (e.g. between
         slides) — only when no one currently holds the floor and someone is

@@ -17,6 +17,7 @@ export default function SiteFooter() {
       <span>· {t("footer.disclaimer")}</span>
       <Link href="/transparency">{t("footer.transparency")}</Link>
       <Link href="/consent">{t("footer.consent")}</Link>
+      <Link href="/contact">Contact</Link>
       <Link href="/download">{t("footer.getApp")}</Link>
       <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
         {t("footer.language")}: <LanguagePicker compact />

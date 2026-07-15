@@ -2,14 +2,40 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-15 - v0.19.52 - Mobile E2E Android build via EAS: the android-maestro
-  job builds the APK in Expo's cloud (new eas.json `e2e` profile = preview +
-  MOBILE_DEPLOY_MODE=local) instead of on the runner, sidestepping the JDK /
-  Android SDK / pnpm-hoisting toolchain issues (R10). Runs pnpm install so
-  eas-cli can resolve app.config plugins, builds via EAS, downloads the APK,
-  stands up the seeded local backend, and runs Maestro against it (app resolves
-  to 10.0.2.2, never prod). Non-blocking nightly. NOTE: the EAS build is still
-  blocked on the cvanthin978 Expo account's build quota/billing.
+- 2026-07-15 - v0.19.56 - Fixed platform-admin live-room actions 403'ing on the
+  cluster (e.g. DELETE a live room). Root cause: identity_base_url() read only
+  IDENTITY_URL, but the k8s config set IDENTITY_ORIGIN — so the orchestrator fell
+  back to localhost, couldn't reach identity /auth/me, and the admin check failed
+  closed. identity_base_url() now accepts IDENTITY_URL OR IDENTITY_ORIGIN, and
+  IDENTITY_URL/MEMORY_URL were added to both configmaps. (Redeploy the
+  orchestrator to apply.)
+- 2026-07-15 - v0.19.55 - Added a Contact hub. New /contact page with direct
+  email routes — support@salareen.com (support), business@salareen.com (work /
+  business / partnerships), jobs@salareen.com (careers), and courses@salareen.com
+  (custom courses) — each a prefilled mailto. Linked "Contact" in the site footer
+  (every page), and added a "Want to work at Salareen? jobs@salareen.com" CTA to
+  the Careers page.
+- 2026-07-15 - v0.19.54 - Added a "custom courses for your business" call-to-action
+  to the Corporate training page: a highlighted callout inviting companies to
+  consult courses@salareen.com for bespoke Agentic courses (custom classes +
+  materials, hosted privately for employees or downloadable). The email button
+  prefills a subject/body to gather company, topics, team size, and hosting pref.
+- 2026-07-15 - v0.19.53 - Retire stale scheduled classes and keep slides advancing.
+  (1) A group class whose scheduled window (start + duration_min) has passed is
+  now swept to ENDED and dropped from the listing — previously a "live" class was
+  kept/joinable forever (e.g. a 7:20am 60-min class still LIVE at noon). Room
+  auto-end/expire on tick also syncs the group-class status to ended. (2) Slide
+  auto-advance is resilient to a lost teaching session (orchestrator restart): the
+  session is re-created bound to the room's lesson and resumed at the current
+  slide, so the class no longer gets stuck on slide 1; a transient advance error
+  can't break the tick.
+- 2026-07-15 - v0.19.52 - Made Corporate training immersive (parity with Live
+  Class). The shared ClassRoom (used by /corporate/learn) previously showed only
+  static slides with no presenter and only narrated "repeat-after-me" slides.
+  Now an animated AI presenter tile drives the class (mascot, LIVE badge, timer,
+  audio visualizer, live captions), every slide is narrated aloud as it appears,
+  and a "⛶ Fullscreen" button gives a Zoom-style immersive view. (Natural voice
+  still needs the neural TTS engine deployed — see v0.19.48.)
 - 2026-07-15 - v0.19.51 - The AI host now actually addresses the Q&A queue. When
   a learner joins the queue with a question, the class already paused (no
   auto-advance while the queue is busy) but nobody answered without a human

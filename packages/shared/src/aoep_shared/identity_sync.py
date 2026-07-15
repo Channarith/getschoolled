@@ -9,7 +9,15 @@ import urllib.request
 
 
 def identity_base_url() -> str:
-    return (os.environ.get("IDENTITY_URL") or "http://localhost:8008").rstrip("/")
+    # Accept IDENTITY_ORIGIN as a fallback: the k8s config historically set that
+    # name for the in-cluster identity Service, but this helper only read
+    # IDENTITY_URL — so server-to-server calls (admin check via /auth/me, rewards)
+    # silently fell back to localhost and failed closed (e.g. admin actions 403'd).
+    return (
+        os.environ.get("IDENTITY_URL")
+        or os.environ.get("IDENTITY_ORIGIN")
+        or "http://localhost:8008"
+    ).rstrip("/")
 
 
 def internal_token() -> str:

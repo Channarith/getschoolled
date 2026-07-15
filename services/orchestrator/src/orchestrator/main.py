@@ -1760,12 +1760,26 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
     store = _live_rooms()
     room = store.require(room_id)
     sessions = get_sessions()
+    sid = room.session_id
     try:
-        slide = sessions.advance(room.session_id)
-        lesson = sessions.lesson_for(room.session_id)
-        session = sessions.get_session(room.session_id)
+        slide = sessions.advance(sid)
+        lesson = sessions.lesson_for(sid)
+        session = sessions.get_session(sid)
     except KeyError:
-        raise HTTPException(status_code=404, detail="teaching session not found")
+        # The teaching session was lost (e.g. the orchestrator restarted while the
+        # room persisted in Redis). Re-create a session bound to the room's lesson,
+        # resume at the current slide, and advance — so the class keeps moving
+        # instead of getting stuck on slide 1.
+        if sessions.curriculum.get(room.lesson_id) is None:
+            raise HTTPException(status_code=404, detail="teaching session not found")
+        recovered = sessions.start_session(room.lesson_id, "group")
+        sid = recovered.session_id
+        for _ in range(max(0, room.slide.index if room.slide else 0)):
+            sessions.advance(sid)
+        store.rebind_session(room_id, sid)
+        slide = sessions.advance(sid)
+        lesson = sessions.lesson_for(sid)
+        session = sessions.get_session(sid)
     narration = " ".join((slide.narration or slide.body or slide.title).split())[:500]
     store.update_slide(
         room_id,
@@ -1905,15 +1919,23 @@ def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> 
     # (presenting past its duration, or a scheduled room whose window fully
     # lapsed), close the room so clients show the "class complete" excuse.
     if store.should_auto_end(room_id) or store.should_expire(room_id):
-        store.end_room(room_id, auto=True)
+        ended_room = store.end_room(room_id, auto=True)
         ended = True
+        # Keep the group-class record in sync so the scheduled class stops showing
+        # as LIVE/joinable in the listing once its room has ended.
+        gc = _group_store().get(ended_room.class_id) if ended_room.class_id else None
+        if gc is not None:
+            _group_store().set_status(gc.id, "ended")
     else:
         # Address the Q&A queue FIRST (Theodore pauses to answer a queued
         # question / call on a raised hand); only auto-advance when the queue is
         # clear (should_auto_advance is already false while the queue is busy).
         addressed = _address_queue(room_id, background)
         if not addressed and store.should_auto_advance(room_id):
-            advanced = _advance_room_slide(room_id, background)
+            try:
+                advanced = _advance_room_slide(room_id, background)
+            except HTTPException:
+                advanced = None  # never let a transient advance failure break the tick
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 

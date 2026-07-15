@@ -105,6 +105,37 @@ export default function CorporatePage() {
       <h1>{t("corporate.title")}</h1>
       <p className="muted">{t("corporate.intro")}</p>
 
+      {/* Custom / bespoke Agentic courses for a specific company. */}
+      <div
+        className="card"
+        style={{
+          borderColor: "#6366f1",
+          background: "linear-gradient(135deg, rgba(99,102,241,0.10), rgba(56,189,248,0.08))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ margin: 0 }}>Need a custom course for your business?</h2>
+          <span className="pill" style={{ color: "#4338ca" }}>Bespoke &amp; private</span>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          We build custom Agentic courses tailored to your company&apos;s tools, workflows, and topics —
+          complete with classes and materials made for your teams. Have them{" "}
+          <strong>hosted privately</strong> for your employees or{" "}
+          <strong>download</strong> them to run on your own systems.
+        </p>
+        <div className="row" style={{ marginTop: 6, gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <a href="mailto:courses@salareen.com?subject=Custom%20Agentic%20course%20for%20our%20business&body=Hi%20Salareen%20team%2C%0A%0AWe%27d%20like%20a%20custom%20Agentic%20course%20for%20our%20company.%0A%0ACompany%3A%20%0ATopics%2Fgoals%3A%20%0AApprox.%20number%20of%20employees%3A%20%0APrivate%20hosting%20or%20download%3A%20%0A%0AThanks%21">
+            <button style={{ background: "#4f46e5", color: "#fff" }}>✉️ Consult us: courses@salareen.com</button>
+          </a>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Tell us your topics and team size — we&apos;ll design classes and materials for your organization.
+          </span>
+        </div>
+      </div>
+
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
       {corpLessons.length > 0 && (
