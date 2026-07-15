@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.57 - Mobile prebuild no longer hard-fails with "Failed to
+  resolve plugin for module react-native-google-mobile-ads" when node_modules is
+  stale/incomplete. app.config.js now registers the AdMob config plugin only when
+  the module resolves (require.resolve), warning to run `pnpm install` otherwise;
+  ads already no-op at runtime via guarded require. The real fix for a missing
+  package is still `pnpm install` in apps/mobile.
 - 2026-07-15 - v0.19.56 - Fixed platform-admin live-room actions 403'ing on the
   cluster (e.g. DELETE a live room). Root cause: identity_base_url() read only
   IDENTITY_URL, but the k8s config set IDENTITY_ORIGIN — so the orchestrator fell
