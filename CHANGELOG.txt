@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.52 - Mobile E2E Android build via EAS: the android-maestro
+  job builds the APK in Expo's cloud (new eas.json `e2e` profile = preview +
+  MOBILE_DEPLOY_MODE=local) instead of on the runner, sidestepping the JDK /
+  Android SDK / pnpm-hoisting toolchain issues (R10). Runs pnpm install so
+  eas-cli can resolve app.config plugins, builds via EAS, downloads the APK,
+  stands up the seeded local backend, and runs Maestro against it (app resolves
+  to 10.0.2.2, never prod). Non-blocking nightly. NOTE: the EAS build is still
+  blocked on the cvanthin978 Expo account's build quota/billing.
 - 2026-07-15 - v0.19.51 - The AI host now actually addresses the Q&A queue. When
   a learner joins the queue with a question, the class already paused (no
   auto-advance while the queue is busy) but nobody answered without a human
