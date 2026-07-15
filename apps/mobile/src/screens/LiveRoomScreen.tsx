@@ -60,7 +60,10 @@ function IconTab({
   icon, label, onPress, active, badge, disabled,
 }: {
   icon: string;
-  label: string;
+  // Omit the label for obvious icons (chat, gift, react, more) — the glyph alone
+  // is enough and keeps the phone bar clean. Provide it only when the icon is
+  // ambiguous or stateful (e.g. Ask, or the raise-hand toggle).
+  label?: string;
   onPress: () => void;
   active?: boolean;
   badge?: number;
@@ -70,8 +73,9 @@ function IconTab({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityLabel={label || icon}
       style={({ pressed }) => [styles.iconTab, pressed && styles.iconTabPressed, disabled && { opacity: 0.4 }]}
-      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
     >
       <View>
         <Text style={[styles.iconGlyph, active && styles.iconGlyphActive]}>{icon}</Text>
@@ -81,7 +85,9 @@ function IconTab({
           </View>
         ) : null}
       </View>
-      <Text style={[styles.iconLabel, active && styles.iconLabelActive]} numberOfLines={1}>{label}</Text>
+      {label ? (
+        <Text style={[styles.iconLabel, active && styles.iconLabelActive]} numberOfLines={1}>{label}</Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -503,7 +509,9 @@ export default function LiveRoomScreen({
 
       {/* Bottom action bar — icons reveal chat / ask / react / gifts / more. */}
       <View style={styles.actionBar}>
-        <IconTab icon="💬" label="Chat" badge={unread || undefined} onPress={openChat} />
+        {/* Obvious icons go label-less; Ask and the raise-hand toggle keep a
+            short caption because the glyph alone is ambiguous / stateful. */}
+        <IconTab icon="💬" badge={unread || undefined} onPress={openChat} />
         <IconTab icon="❓" label="Ask" onPress={() => setSheet("ask")} />
         <IconTab
           icon="✋"
@@ -513,9 +521,9 @@ export default function LiveRoomScreen({
           disabled={hasFloor}
           onPress={() => void toggleHand()}
         />
-        <IconTab icon="😀" label="React" onPress={() => setSheet("react")} />
-        <IconTab icon="🎁" label="Gift" onPress={() => setSheet("gifts")} />
-        <IconTab icon="⋯" label="More" onPress={() => setSheet("more")} />
+        <IconTab icon="😀" onPress={() => setSheet("react")} />
+        <IconTab icon="🎁" onPress={() => setSheet("gifts")} />
+        <IconTab icon="⋯" onPress={() => setSheet("more")} />
       </View>
 
       {/* ---- Chat ---- */}
@@ -820,13 +828,13 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    paddingTop: 8,
-    paddingBottom: 4,
+    alignItems: "flex-start",
+    paddingTop: 10,
+    paddingBottom: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
   },
-  iconTab: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 4 },
+  iconTab: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 2 },
   iconTabPressed: { opacity: 0.5 },
   iconGlyph: { fontSize: 24, textAlign: "center" },
   iconGlyphActive: { transform: [{ scale: 1.1 }] },
