@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.37 - Stop the recurring build-info.txt merge conflict by
+  untracking it (.gitignore). It is auto-generated on every bump/build and nothing
+  reads it at runtime (/version uses the VERSION file + AOEP_* env), so committing
+  it per-PR/per-merge only made it hard-conflict on GitHub (whose server-side merge
+  ignores the .gitattributes union driver). The Auto Push Build workflow no longer
+  commits it; regenerate locally with `python3 scripts/build_release.py --refresh-only`.
 - 2026-07-15 - v0.19.36 - Harden LiveKit config against copy-paste whitespace.
   LIVEKIT_URL/API_KEY/API_SECRET are now stripped when loaded: a trailing newline
   (from kubectl patch / --from-literal / heredoc / echo) in the secret silently
