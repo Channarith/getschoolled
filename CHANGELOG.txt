@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.45 - Redesigned the mobile live-room screen for small phones.
+  Instead of stacking the presenter, participant grid, reactions, gifts, chat log,
+  chat/ask inputs and moderator buttons all down the screen, the presenter/slide
+  is now a full-height hero and everything else lives behind a compact bottom
+  icon bar (💬 Chat · ❓ Ask · ✋ Hand · 😀 React · 🎁 Gift · ⋯ More) that opens
+  tap-to-reveal bottom sheets. Chat shows an unread badge; the raised-hand tab
+  shows your queue position; the floor holder's camera appears as a small PiP;
+  people list, Q&A queue, follow, host controls and moderation moved into "More".
 - 2026-07-15 - v0.19.44 - Made the solo Live Class "Speak now" (repeat-after-me)
   mic robust and self-explanatory. It now proactively requests microphone
   permission (so the browser prompts), and surfaces clear, actionable errors
