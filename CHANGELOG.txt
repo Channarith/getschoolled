@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.55 - Added a Contact hub. New /contact page with direct
+  email routes — support@salareen.com (support), business@salareen.com (work /
+  business / partnerships), jobs@salareen.com (careers), and courses@salareen.com
+  (custom courses) — each a prefilled mailto. Linked "Contact" in the site footer
+  (every page), and added a "Want to work at Salareen? jobs@salareen.com" CTA to
+  the Careers page.
 - 2026-07-15 - v0.19.54 - Added a "custom courses for your business" call-to-action
   to the Corporate training page: a highlighted callout inviting companies to
   consult courses@salareen.com for bespoke Agentic courses (custom classes +
