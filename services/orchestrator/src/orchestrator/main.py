@@ -1791,6 +1791,53 @@ def _advance_room_slide(room_id: str, background: BackgroundTasks) -> dict:
     }
 
 
+def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
+    """AI host pauses the class to address the Q&A queue: answer the next typed
+    question itself (no human moderator needed), else call the next raised hand
+    to the floor. Returns a summary, or None when there's nothing to address.
+
+    This is what makes "join Q&A queue" get handled — the class already pauses
+    auto-advance while the queue is non-empty; here Theodore actually replies.
+    """
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+    except KeyError:
+        return None
+    if room.status != "live" or not room.presenting:
+        return None
+    from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+
+    entry = store.next_unanswered_question(room_id)
+    if entry is not None:
+        sessions = get_sessions()
+        try:
+            learner = room.get_participant(entry.participant_id)
+            name, lang = learner.name, (learner.language or "en")
+        except LiveRoomError:
+            name, lang = "there", "en"
+        try:
+            answer = sessions.ask(room.session_id, entry.question, language=lang)
+        except Exception:  # noqa: BLE001 - never let Q&A crash the tick
+            return None
+        # Theodore acknowledges the pause, answers, and clears the question.
+        store.post_host_message(room_id, f"🙋 Let's pause for a question from {name}: \u201c{entry.question}\u201d")
+        store.post_host_message(room_id, f"@{name} {answer.text}")
+        store.resolve_question(room_id, entry.id)
+        room_dict = store.require(room_id).to_dict()
+        _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
+        return {"answered_participant": entry.participant_id, "entry_id": entry.id}
+
+    # No typed questions left — give the next raised hand the floor so people who
+    # just want to speak are acknowledged too.
+    speaker = store.auto_call_next_if_waiting(room_id)
+    if speaker is not None:
+        room_dict = store.require(room_id).to_dict()
+        _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
+        return {"called_on": speaker.id}
+    return None
+
+
 @app.post("/api/live-rooms/{room_id}/advance")
 def live_room_advance(
     room_id: str,
@@ -1850,6 +1897,7 @@ def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> 
     pruned = store.prune_stale(room_id)
     started = advanced = None
     ended = False
+    addressed = None
     if store.should_auto_start(room_id):
         store.start_presentation(room_id, auto=True)
         started = True
@@ -1859,18 +1907,24 @@ def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> 
     if store.should_auto_end(room_id) or store.should_expire(room_id):
         store.end_room(room_id, auto=True)
         ended = True
-    elif store.should_auto_advance(room_id):
-        advanced = _advance_room_slide(room_id, background)
+    else:
+        # Address the Q&A queue FIRST (Theodore pauses to answer a queued
+        # question / call on a raised hand); only auto-advance when the queue is
+        # clear (should_auto_advance is already false while the queue is busy).
+        addressed = _address_queue(room_id, background)
+        if not addressed and store.should_auto_advance(room_id):
+            advanced = _advance_room_slide(room_id, background)
     room_dict = store.require(room_id).to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
-    if (started or ended or pruned) and not advanced:
+    if (started or ended or pruned) and not advanced and not addressed:
         _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
     return {
         "room": room_dict,
         "auto_started": bool(started),
         "auto_advanced": advanced["slide"] if advanced else None,
         "auto_ended": ended,
+        "addressed_queue": addressed,
         "pruned": pruned,
     }
 

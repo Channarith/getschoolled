@@ -2,6 +2,39 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.51 - The AI host now actually addresses the Q&A queue. When
+  a learner joins the queue with a question, the class already paused (no
+  auto-advance while the queue is busy) but nobody answered without a human
+  moderator. On each tick Theodore now pauses and answers the next queued
+  question himself (grounded in the lesson), clears it, and moves on — draining
+  the queue quickly, one question per tick; raised hands without a question are
+  called to the floor as before.
+- 2026-07-15 - v0.19.50 - Added a simple "💬 Hide chat" toggle to the solo Live
+  Class (/class) "Ask the AI teacher" card, so learners can collapse the chat
+  transcript to focus on the slide (the Ask input stays visible). The group live
+  room already had a chat toggle; this brings parity to the solo class.
+- 2026-07-15 - v0.19.49 - Added a discoverable "⛶ Fullscreen host" toggle to the
+  web live room's view-controls row (next to Focus instructor / chat). Fullscreen
+  was previously only a tiny ⛶ on each tile / double-click and was easy to miss.
+  It fullscreens the host/slide presenter and syncs with the native fullscreen
+  state (Esc exits, label flips to "Exit fullscreen").
+- 2026-07-15 - v0.19.48 - Fixed robotic narration by enabling neural TTS in the
+  speech image. Root cause: the Dockerfile installs aoep-shared WITHOUT the
+  [presenter] extra, so edge-tts was missing → no neural engine → /tts 501 →
+  clients fell back to the robotic on-device voice. Pinned edge-tts in
+  services/speech/requirements.txt (free neural voices; needs egress to the
+  edge-tts endpoint — set ELEVENLABS_API_KEY for the most natural voice), and
+  enriched GET /tts/status to report per-engine availability + a hint so "why is
+  it robotic?" is answerable. Rebuild/redeploy the speech image to take effect.
+- 2026-07-15 - v0.19.47 - Fixed Drive Mode instructor/voice/accent controls that
+  "did nothing." They only affected the neural server-TTS path; on the browser
+  voice fallback (used whenever the speech service has no neural engine) the
+  selections were ignored. Now the chosen accent (voice BCP-47 locale), voice
+  gender, and instructor personality are threaded through speakNaturally into the
+  on-device voice: accent → picks a matching-locale browser voice, gender →
+  biases male/female voice selection, personality → prosody (child = higher/
+  faster, strict = lower/slower, energetic = livelier, calm/storyteller, …). The
+  neural path already honored these via edge-tts.
 - 2026-07-15 - v0.19.46 - Mobile live-room action bar now shows label-less icons
   for the obvious actions (💬 chat, 😀 react, 🎁 gift, ⋯ more) and keeps a short
   caption only where the glyph is ambiguous or stateful (❓ Ask, the ✋ raise-hand

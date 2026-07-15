@@ -93,6 +93,11 @@ function DrivePageInner() {
   const currentNarrationRef = useRef("");      // text being spoken now (for echo filtering)
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
+  // Live mirrors of the chosen accent (BCP-47 of the selected voice) and
+  // instructor persona, so the browser-voice fallback can honor them too.
+  const voiceLocaleRef = useRef<string>("");
+  const voiceGenderRef = useRef<string>("");
+  const personaRef = useRef<string>("");
   // Live mirrors so callbacks/effects read current values without re-subscribing.
   const courseRef = useRef<AudioCourse | null>(null);
   const segRef = useRef(0);
@@ -148,9 +153,21 @@ function DrivePageInner() {
     void refreshVoiceStyle();
   }, [locale]);
 
+  // Keep the accent (voice locale) and persona mirrors current so speak() can
+  // pass them to the browser-voice fallback, not just the neural server path.
+  useEffect(() => {
+    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === serverVoice);
+    voiceLocaleRef.current = v?.locale || "";
+    voiceGenderRef.current = v?.gender || "";
+  }, [serverVoice, voiceGroups]);
+  useEffect(() => { personaRef.current = instructor; }, [instructor]);
+
   function chooseVoice(id: string) {
     setServerVoiceState(id);
     setServerVoice(id);
+    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
+    voiceLocaleRef.current = v?.locale || "";
+    voiceGenderRef.current = v?.gender || "";
     try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
     if (playingRef.current && courseRef.current) replayCurrentSegment();
   }
@@ -158,6 +175,7 @@ function DrivePageInner() {
   function chooseInstructor(id: string) {
     setInstructorState(id);
     setServerInstructor(id);
+    personaRef.current = id;
     try { localStorage.setItem("aoep_drive_instructor", id); } catch { /* */ }
     if (playingRef.current && courseRef.current) replayCurrentSegment();
   }
@@ -197,6 +215,9 @@ function DrivePageInner() {
         locale: speakLocale,
         voiceStyle: style,
         rate: base * rate,
+        voiceLocale: voiceLocaleRef.current || undefined,
+        voiceGender: voiceGenderRef.current || undefined,
+        persona: personaRef.current || undefined,
         onend: onEnd,
       });
     } catch { onEnd?.(); }

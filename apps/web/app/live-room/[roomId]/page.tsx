@@ -210,6 +210,7 @@ function ParticipantTile({
   liveKitTrack,
   hasFloor,
   slide,
+  onContainerRef,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -217,9 +218,11 @@ function ParticipantTile({
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
   slide?: { index: number; title: string; body: string; narration: string } | null;
+  // Lets the parent grab this tile's element (e.g. to fullscreen the host).
+  onContainerRef?: (el: HTMLDivElement | null) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const isHost = p.role === "host";
 
   useEffect(() => {
@@ -243,7 +246,7 @@ function ParticipantTile({
 
   return (
     <div
-      ref={containerRef}
+      ref={(el) => { containerRef.current = el; onContainerRef?.(el); }}
       onDoubleClick={toggleFullscreen}
       style={{
         position: "relative",
@@ -383,6 +386,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  // Fullscreen the host presenter (the slide fills the screen). Tracks the
+  // native fullscreen state so the toggle label/icon stays in sync (Esc exits).
+  const hostTileRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // AI teacher audio: Theodore narrates each slide out loud (neural TTS with an
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
@@ -390,6 +397,23 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const leftVoluntarily = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  const toggleHostFullscreen = () => {
+    if (typeof document === "undefined") return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    const el = hostTileRef.current;
+    if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined);
+  };
 
   const applyRoom = useCallback((next: LiveRoomState) => {
     setRoom(next);
@@ -1135,6 +1159,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         >
           {showChat ? "💬 Hide chat" : "💬 Show chat"}
         </button>
+        <button
+          type="button"
+          onClick={toggleHostFullscreen}
+          title="Fullscreen the host / slide (Esc to exit)"
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: isFullscreen ? "var(--accent)" : "var(--panel)",
+            color: isFullscreen ? "#fff" : "var(--text)",
+          }}
+        >
+          {isFullscreen ? "⛶ Exit fullscreen" : "⛶ Fullscreen host"}
+        </button>
       </div>
 
       <div
@@ -1166,6 +1203,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   large
                   liveKitTrack={trackFor(host.id)}
                   slide={room?.slide}
+                  onContainerRef={(el) => { hostTileRef.current = el; }}
                 />
               </div>
             )}

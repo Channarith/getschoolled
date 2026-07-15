@@ -1237,6 +1237,41 @@ class LiveRoomStore:
             return None
         return self.call_next(room_id)
 
+    def next_unanswered_question(self, room_id: str) -> Optional[QueueEntry]:
+        """The next waiting Q&A entry that carries a typed question, when nobody
+        currently holds the floor. Lets the AI host pause and answer queued
+        questions itself (no human moderator needed)."""
+        room = self.require(room_id)
+        if room.floor_participant_id:
+            return None
+        for entry in room.waiting_queue():
+            if (entry.question or "").strip():
+                return entry
+        return None
+
+    def resolve_question(self, room_id: str, entry_id: str) -> bool:
+        """Mark a queued question answered (DONE) and lower the asker's hand if
+        they have no other pending entry. Returns True if something changed."""
+        room = self.require(room_id)
+        pid = ""
+        for entry in room.speaking_queue:
+            if entry.id == entry_id and entry.status == QUEUE_WAITING:
+                entry.status = QUEUE_DONE
+                pid = entry.participant_id
+        if not pid:
+            return False
+        still_pending = any(
+            e.participant_id == pid and e.status in (QUEUE_WAITING, QUEUE_SPEAKING)
+            for e in room.speaking_queue
+        )
+        if not still_pending:
+            p = room.participants.get(pid)
+            if p:
+                p.hand_raised = False
+        room._reindex_waiting()
+        self._commit(room)
+        return True
+
     def finish_turn(self, room_id: str, participant_id: str, *, moderator_key: str = "") -> None:
         """End the current speaker's turn and release the floor."""
         room = self.require(room_id)

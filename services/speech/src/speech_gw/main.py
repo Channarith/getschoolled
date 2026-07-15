@@ -57,14 +57,45 @@ def _active_tts_engine() -> str:
 class TtsStatusResponse(BaseModel):
     available: bool
     engine: str
+    # Per-engine availability + a human hint, so "why is narration robotic?" is
+    # answerable without guesswork. Robotic audio == no neural engine here, so the
+    # client used the on-device (browser) voice.
+    engines: dict = {}
+    hint: str = ""
 
 
 @app.get("/tts/status", response_model=TtsStatusResponse)
 def tts_status() -> TtsStatusResponse:
     """Let web/mobile clients decide whether to fetch neural audio or fall back
-    to on-device speech synthesis (avoids a wasted round-trip per narration)."""
+    to on-device speech synthesis (avoids a wasted round-trip per narration).
+
+    Also reports which neural engines are configured so operators can see why
+    narration sounds robotic (= no neural engine, so the client used the
+    on-device voice)."""
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
+    from aoep_shared.meeting.natural_tts import _edge_tts_available
+
+    cfg = app.state.config
+    engines = {
+        "cosyvoice": cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", "")),
+        "elevenlabs": elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key),
+        "edge_tts": _edge_tts_available(),
+    }
     engine = _active_tts_engine()
-    return TtsStatusResponse(available=engine != "none", engine=engine)
+    if engine != "none":
+        hint = (
+            f"Neural TTS active via {engine}. If audio is still robotic, the client "
+            "may be on its on-device fallback — check the browser Network tab for a "
+            "successful POST /tts (200, X-TTS-Engine header)."
+        )
+    else:
+        hint = (
+            "No neural TTS engine is available, so clients fall back to the robotic "
+            "on-device voice. Enable one: install edge-tts (free; already pinned in "
+            "the speech image's requirements — redeploy) and allow egress to the "
+            "edge-tts endpoint, and/or set ELEVENLABS_API_KEY (most natural)."
+        )
+    return TtsStatusResponse(available=engine != "none", engine=engine, engines=engines, hint=hint)
 
 
 class TtsRequest(BaseModel):
