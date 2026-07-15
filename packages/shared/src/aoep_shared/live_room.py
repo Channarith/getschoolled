@@ -10,6 +10,7 @@ configured.
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -88,6 +89,21 @@ class NotInRoomError(LiveRoomError):
 
 class BannedError(LiveRoomError):
     """Identity is banned from this room."""
+
+
+class RateLimitedError(LiveRoomError):
+    """Participant is sending chat/questions too fast (maps to HTTP 429)."""
+
+
+# Anti-spam guardrails for the live-room chat and "Ask Theodore" features. These
+# are enforced server-side (authoritative) as a per-participant sliding window,
+# so a client can't bypass them. Kept intentionally lenient for normal use.
+CHAT_MAX_CHARS = 500
+QUESTION_MAX_CHARS = 600
+CHAT_RATE_MAX = 5            # at most 5 chat messages ...
+CHAT_RATE_WINDOW_S = 10.0    # ... per rolling 10 seconds
+ASK_RATE_MAX = 3            # at most 3 questions ...
+ASK_RATE_WINDOW_S = 30.0    # ... per rolling 30 seconds
 
 
 @dataclass
@@ -469,6 +485,13 @@ class LiveRoomStore:
             follow_store = HostFollowStore()
         self._gift_ledger = gift_ledger
         self._follow_store = follow_store
+        # Anti-spam sliding-window timestamps, keyed by (room, participant, kind).
+        # In-memory + best-effort: it lives on this store instance rather than in
+        # the room snapshot (keeps chat/ask fast and avoids Redis churn). With
+        # ingress session affinity a participant's requests hit one replica, so
+        # the window is accurate; without it, limiting is per-replica but still
+        # curbs floods.
+        self._rate_events: dict[tuple[str, str, str], list[float]] = {}
 
     @property
     def backend_name(self) -> str:
@@ -476,6 +499,35 @@ class LiveRoomStore:
 
     def _commit(self, room: LiveRoom) -> None:
         self._backend.save(room)
+
+    def _enforce_rate(
+        self,
+        room_id: str,
+        participant_id: str,
+        kind: str,
+        *,
+        max_events: int,
+        window_s: float,
+        message: str,
+    ) -> None:
+        """Sliding-window rate limit for a participant action (chat/ask).
+
+        Raises ``RateLimitedError`` when more than ``max_events`` have occurred in
+        the last ``window_s`` seconds; otherwise records this event.
+        """
+        now = time.monotonic()
+        key = (room_id, participant_id, kind)
+        recent = [t for t in self._rate_events.get(key, []) if now - t < window_s]
+        if len(recent) >= max_events:
+            self._rate_events[key] = recent
+            raise RateLimitedError(message)
+        recent.append(now)
+        self._rate_events[key] = recent
+
+    def _clear_rate(self, room_id: str, participant_id: str) -> None:
+        """Drop a participant's rate-limit bookkeeping (on leave)."""
+        for kind in ("chat", "ask"):
+            self._rate_events.pop((room_id, participant_id, kind), None)
 
     def open_room(
         self,
@@ -718,6 +770,7 @@ class LiveRoomStore:
             raise LiveRoomError("the AI host cannot leave")
         name = p.name
         self._remove_from_queue(room_id, participant_id)
+        self._clear_rate(room_id, participant_id)
         del room.participants[participant_id]
         room.viewer_count = room.learner_count
         room.chat.append(
@@ -739,6 +792,18 @@ class LiveRoomStore:
             raise LiveRoomError("you are muted and cannot chat")
         if room.floor_participant_id and room.floor_participant_id != participant_id:
             raise LiveRoomError("wait for your turn to speak before chatting live")
+        clean = (text or "").strip()
+        if not clean:
+            raise LiveRoomError("message is empty")
+        if len(clean) > CHAT_MAX_CHARS:
+            raise LiveRoomError(f"message is too long (max {CHAT_MAX_CHARS} characters)")
+        # Anti-spam: cap the rate of chat messages per participant.
+        self._enforce_rate(
+            room_id, participant_id, "chat",
+            max_events=CHAT_RATE_MAX, window_s=CHAT_RATE_WINDOW_S,
+            message="you're sending messages too fast — please slow down",
+        )
+        text = clean
         msg = ChatMessage(
             id=uuid.uuid4().hex[:10],
             from_id=p.id,
@@ -1180,6 +1245,14 @@ class LiveRoomStore:
         q = (question or "").strip()
         if not q:
             raise LiveRoomError("question is required")
+        if len(q) > QUESTION_MAX_CHARS:
+            raise LiveRoomError(f"question is too long (max {QUESTION_MAX_CHARS} characters)")
+        # Anti-spam: cap how often a participant can fire questions at Theodore.
+        self._enforce_rate(
+            room_id, participant_id, "ask",
+            max_events=ASK_RATE_MAX, window_s=ASK_RATE_WINDOW_S,
+            message="you're asking questions too fast — please wait a moment",
+        )
         if room.floor_participant_id == participant_id:
             self._commit(room)
             return "answered", None

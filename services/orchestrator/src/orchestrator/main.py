@@ -762,6 +762,7 @@ from aoep_shared.live_room import (  # noqa: E402
     BannedError,
     LiveRoomError,
     LiveRoomStore,
+    RateLimitedError,
     RoomFullError,
 )
 
@@ -1097,6 +1098,8 @@ def _live_room_http_error(exc: Exception) -> HTTPException:
         return HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, BannedError):
         return HTTPException(status_code=403, detail=str(exc))
+    if isinstance(exc, RateLimitedError):
+        return HTTPException(status_code=429, detail=str(exc))
     if isinstance(exc, LiveRoomError):
         return HTTPException(status_code=400, detail=str(exc))
     raise exc

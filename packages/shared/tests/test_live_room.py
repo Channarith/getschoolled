@@ -6,9 +6,13 @@ import pytest
 
 from aoep_shared.live_room import (
     AI_HOST_ID,
+    ASK_RATE_MAX,
     BannedError,
+    CHAT_MAX_CHARS,
+    CHAT_RATE_MAX,
     LiveRoomError,
     LiveRoomStore,
+    RateLimitedError,
     RoomFullError,
     learner_capacity,
 )
@@ -72,6 +76,73 @@ def test_raise_hand_mute_and_chat():
     store.set_mute("class-1", learner.id, muted=False)
     msg = store.post_chat("class-1", learner.id, "Now I can speak")
     assert msg.text == "Now I can speak"
+
+
+def _spam_store() -> tuple[LiveRoomStore, str]:
+    store = LiveRoomStore()
+    store.open_room(
+        room_id="class-spam",
+        class_id="s",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Spam",
+        room_size=6,
+    )
+    learner = store.join("class-spam", "Spammer")
+    return store, learner.id
+
+
+def test_chat_rate_limit_blocks_flood():
+    store, pid = _spam_store()
+    for i in range(CHAT_RATE_MAX):
+        store.post_chat("class-spam", pid, f"msg {i}")
+    with pytest.raises(RateLimitedError):
+        store.post_chat("class-spam", pid, "one too many")
+
+
+def test_chat_rejects_overlong_message():
+    store, pid = _spam_store()
+    with pytest.raises(LiveRoomError):
+        store.post_chat("class-spam", pid, "x" * (CHAT_MAX_CHARS + 1))
+
+
+def test_ask_rate_limit_blocks_flood():
+    store, pid = _spam_store()
+    for i in range(ASK_RATE_MAX):
+        store.ask_when_ready("class-spam", pid, f"question {i}?")
+    with pytest.raises(RateLimitedError):
+        store.ask_when_ready("class-spam", pid, "spammy question?")
+
+
+def test_rate_limit_is_per_participant():
+    store, pid = _spam_store()
+    other = store.join("class-spam", "Calm")
+    for i in range(CHAT_RATE_MAX):
+        store.post_chat("class-spam", pid, f"msg {i}")
+    # A different participant is unaffected by the spammer's window.
+    msg = store.post_chat("class-spam", other.id, "hi there")
+    assert msg.text == "hi there"
+
+
+def test_leaving_clears_rate_window():
+    store = LiveRoomStore()
+    store.open_room(
+        room_id="class-lc",
+        class_id="lc",
+        session_id="s1",
+        lesson_id="lesson",
+        title="LC",
+        room_size=6,
+    )
+    p = store.join("class-lc", "Spammer", identity="spammer-1")
+    for i in range(CHAT_RATE_MAX):
+        store.post_chat("class-lc", p.id, f"msg {i}")
+    with pytest.raises(RateLimitedError):
+        store.post_chat("class-lc", p.id, "blocked")
+    store.leave("class-lc", p.id)
+    rejoined = store.join("class-lc", "Spammer", identity="spammer-1")
+    # Fresh window after rejoining (leave cleared the bookkeeping).
+    assert store.post_chat("class-lc", rejoined.id, "back").text == "back"
 
 
 def test_speaking_queue_turn_taking():
