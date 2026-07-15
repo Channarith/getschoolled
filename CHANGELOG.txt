@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.57 - Added docs/qa-farm-status.md: a living status table for
+  the QA/test-automation farm (web Playwright, mobile jest/contract/Maestro) with
+  columns for status, when it runs, whether it gates PRs, what to promote next, and
+  automated-test counts (~144 cases + 2 Maestro flows), plus the gating model,
+  promotion roadmap, and the two open items (Android Expo quota, iOS backend).
 - 2026-07-15 - v0.19.56 - Fixed platform-admin live-room actions 403'ing on the
   cluster (e.g. DELETE a live room). Root cause: identity_base_url() read only
   IDENTITY_URL, but the k8s config set IDENTITY_ORIGIN — so the orchestrator fell
