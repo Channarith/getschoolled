@@ -41,10 +41,14 @@ const ROBOTIC_VOICES =
 // Known high-quality, human-grade voice families.
 const PREMIUM_VOICES = /\b(natural|neural|wavenet|journey|studio|premium|enhanced)\b/;
 const GOOD_VOICES = /(google|online|siri|samantha|aria|jenny|guy|libby|sonia)/;
+// Heuristic gendered voice-name tokens so the male/female voice choice biases
+// the on-device voice too (browsers rarely expose a structured gender field).
+const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
+const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi)\b/;
 
 // Higher = more natural. Pure function so it can be unit-tested.
 export function scoreVoice(
-  v: VoiceLike, lang: string, style: NarrationVoiceStyle = "standard",
+  v: VoiceLike, lang: string, style: NarrationVoiceStyle = "standard", gender = "",
 ): number {
   const name = (v.name || "").toLowerCase();
   const vlang = (v.lang || "").toLowerCase();
@@ -57,13 +61,17 @@ export function scoreVoice(
   if (ROBOTIC_VOICES.test(name)) s -= 10;                 // never pick formant voices
   if (v.localService === false) s += 2;                   // cloud voices are higher quality
   if (v.default) s += 1;
+  const g = gender.toLowerCase();
+  if (g.startsWith("f")) { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 3; }
+  else if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
   s += voiceNameStyleBonus(style, v.name || "");
   return s;
 }
 
-// Pick the best voice matching the target language's primary subtag.
+// Pick the best voice matching the target language's primary subtag (and gender
+// when requested, so a male/female pick actually changes the on-device voice).
 export function pickVoice<T extends VoiceLike>(
-  voices: T[], lang: string, style: NarrationVoiceStyle = "standard",
+  voices: T[], lang: string, style: NarrationVoiceStyle = "standard", gender = "",
 ): T | undefined {
   if (!voices || !voices.length) return undefined;
   const primary = lang.split("-")[0].toLowerCase();
@@ -71,7 +79,7 @@ export function pickVoice<T extends VoiceLike>(
     (v) => (v.lang || "").toLowerCase().split("-")[0] === primary,
   );
   const pool = matches.length ? matches : voices;
-  return [...pool].sort((a, b) => scoreVoice(b, lang, style) - scoreVoice(a, lang, style))[0];
+  return [...pool].sort((a, b) => scoreVoice(b, lang, style, gender) - scoreVoice(a, lang, style, gender))[0];
 }
 
 // Voice lists load asynchronously; resolve once they're available (or after a
@@ -104,8 +112,35 @@ export type SpeakOptions = {
   voiceStyle?: NarrationVoiceStyle;
   rate?: number;
   pitch?: number;
+  // The chosen accent as a BCP-47 tag (e.g. "en-GB", "en-AU") — used to pick a
+  // matching on-device voice so the accent picker changes the BROWSER voice too,
+  // not only the neural server voice.
+  voiceLocale?: string;
+  // The chosen instructor personality id (kind/strict/child/energetic/…). On the
+  // browser voice we approximate the persona with prosody (pitch/rate) so the
+  // instructor selection is audible even without a neural engine.
+  persona?: string;
+  // The chosen voice's gender ("female"/"male") — biases on-device voice pick.
+  voiceGender?: string;
   onend?: () => void;
 };
+
+// Approximate an instructor personality with on-device prosody multipliers, so
+// picking "child"/"strict"/"energetic"/… audibly changes the browser voice.
+// Matched by keyword so it's robust to the exact catalog ids from /tts/instructors.
+export function personaProsody(persona?: string): { rate: number; pitch: number } {
+  const p = (persona || "").toLowerCase();
+  if (!p) return { rate: 1, pitch: 1 };
+  if (/child|kid|cartoon|young/.test(p)) return { rate: 1.05, pitch: 1.4 };
+  if (/strict|stern|drill|serious|firm/.test(p)) return { rate: 0.94, pitch: 0.82 };
+  if (/energet|hype|excite|coach|lively|upbeat/.test(p)) return { rate: 1.12, pitch: 1.12 };
+  if (/calm|gentle|kind|warm|sooth|friendly|patient/.test(p)) return { rate: 0.96, pitch: 1.03 };
+  if (/story|narrat|deep|documentary/.test(p)) return { rate: 0.9, pitch: 0.92 };
+  if (/robot|announcer|news/.test(p)) return { rate: 1.0, pitch: 0.9 };
+  return { rate: 1, pitch: 1 };
+}
+
+const _clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 // --------------------------------------------------------------------------- //
 // Server neural TTS (ElevenLabs -> edge-tts) with graceful browser fallback.
@@ -300,13 +335,15 @@ export async function synthChunk(text: string, opts: SpeakOptions): Promise<Play
   return {
     play: () => new Promise<void>((resolve) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
-      const lang = localeToBcp47(opts.locale);
+      const lang = opts.voiceLocale || localeToBcp47(opts.locale);
       const style = opts.voiceStyle ?? "standard";
+      const persona = personaProsody(opts.persona);
       const u = new SpeechSynthesisUtterance(t);
       u.lang = lang;
-      const voice = pickVoice(window.speechSynthesis.getVoices(), lang, style);
+      const voice = pickVoice(window.speechSynthesis.getVoices(), lang, style, opts.voiceGender);
       if (voice) u.voice = voice;
-      u.rate = opts.rate ?? prosodyForStyle(style).rate;
+      u.rate = _clamp((opts.rate ?? prosodyForStyle(style).rate) * persona.rate, 0.5, 2);
+      u.pitch = _clamp(prosodyForStyle(style).pitch * persona.pitch, 0, 2);
       u.onend = () => resolve();
       u.onerror = () => resolve();
       window.speechSynthesis.speak(u);
@@ -363,23 +400,28 @@ function speakBrowser(text: string, opts: SpeakOptions, done: () => void, myEpoc
   }
   if (_epoch !== myEpoch) return;   // cancelled between fetch fallback and here
   const synth = window.speechSynthesis;
-  const lang = localeToBcp47(opts.locale);
+  // Prefer the picked accent (voiceLocale) so the accent selector changes the
+  // on-device voice too; fall back to the content locale.
+  const lang = opts.voiceLocale || localeToBcp47(opts.locale);
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
-  const voice = pickVoice(synth.getVoices(), lang, style);
+  const persona = personaProsody(opts.persona);
+  const voice = pickVoice(synth.getVoices(), lang, style, opts.voiceGender);
   const chunks = splitForSpeech(text);
 
   if (!chunks.length) {
     done();
     return;
   }
+  // Persona shapes the delivery on top of the narration style's base prosody.
+  const rate = _clamp((opts.rate ?? prosody.rate) * persona.rate, 0.5, 2);
+  const pitch = _clamp((opts.pitch ?? prosody.pitch) * persona.pitch, 0, 2);
   chunks.forEach((chunk, i) => {
     const u = new SpeechSynthesisUtterance(chunk);
     u.lang = lang;
     if (voice) u.voice = voice;
-    // Style-specific prosody; explicit rate/pitch override when set.
-    u.rate = opts.rate ?? prosody.rate;
-    u.pitch = opts.pitch ?? prosody.pitch;
+    u.rate = rate;
+    u.pitch = pitch;
     if (i === chunks.length - 1) u.onend = done; // resolve after the last chunk
     u.onerror = done;                            // and on cancel/error (once)
     synth.speak(u);
