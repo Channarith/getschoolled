@@ -81,6 +81,20 @@ export default function JobsPage() {
       </p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
+      {/* Work AT Salareen (distinct from the external job board below). */}
+      <div className="card" style={{ borderColor: "#7c3aed", display: "flex", justifyContent: "space-between",
+        alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <strong>Want to work at Salareen?</strong>
+          <div className="muted" style={{ fontSize: 13 }}>
+            We&apos;re building the agentic education platform. Send your résumé and what you&apos;d love to build.
+          </div>
+        </div>
+        <a href="mailto:jobs@salareen.com?subject=Careers%20—%20I%27d%20like%20to%20join%20Salareen">
+          <button style={{ background: "#7c3aed", color: "#fff" }}>💼 jobs@salareen.com</button>
+        </a>
+      </div>
+
       {/* Job → courses match */}
       {match && (
         <div className="card" style={{ borderColor: "#0ea5e9" }}>
