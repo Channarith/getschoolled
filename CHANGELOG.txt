@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.58 - The AI presenter now teaches the WHOLE course end-to-end
+  and fullscreen text is legible. Corporate/live-class (ClassRoom) autoplay:
+  narrate each slide, then auto-advance through the entire deck (advance on
+  narration-end OR an estimated reading-time fallback so it never stalls if the
+  browser's speech onend doesn't fire); pause ~15s on repeat-after-me slides then
+  continue; and don't interrupt the lecture with pop quizzes/pulse surveys while
+  autoplaying (they resume when you pause). Added a ⏸ Pause autoplay / ▶ Autoplay
+  toggle. Fullscreen now scales the slide title/body up (clamp) on a dark stage,
+  keeps the presenter visible (top-aligned), so it reads like a real presentation.
 - 2026-07-15 - v0.19.57 - Mobile prebuild no longer hard-fails with "Failed to
   resolve plugin for module react-native-google-mobile-ads" when node_modules is
   stale/incomplete. app.config.js now registers the AdMob config plugin only when
