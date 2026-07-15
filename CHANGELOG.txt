@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.49 - Added a discoverable "⛶ Fullscreen host" toggle to the
+  web live room's view-controls row (next to Focus instructor / chat). Fullscreen
+  was previously only a tiny ⛶ on each tile / double-click and was easy to miss.
+  It fullscreens the host/slide presenter and syncs with the native fullscreen
+  state (Esc exits, label flips to "Exit fullscreen").
 - 2026-07-15 - v0.19.48 - Fixed robotic narration by enabling neural TTS in the
   speech image. Root cause: the Dockerfile installs aoep-shared WITHOUT the
   [presenter] extra, so edge-tts was missing → no neural engine → /tts 501 →
