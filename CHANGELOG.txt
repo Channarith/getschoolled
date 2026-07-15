@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.42 - Hardened live rooms against student abuse: a
+  display-name policy (max 40 chars + reserved-name blocklist so learners can't
+  impersonate "Theodore"/"Administrator"/"AI Host"/etc.), a self-gift block, and
+  per-participant rate limits extended to reactions (10/10s), gifts (8/60s),
+  reports (5/60s — anti-harassment), and raise-hand/queue joins (5/30s), plus a
+  length cap on queued questions. All over-limit actions return HTTP 429; over-
+  policy joins/gifts return 400.
 - 2026-07-15 - v0.19.41 - Added anti-spam guardrails to live-room chat and the
   "Ask Theodore" feature. Server-side, per-participant sliding-window limits (5
   chat messages / 10s, 3 questions / 30s) return HTTP 429 with a friendly "slow
