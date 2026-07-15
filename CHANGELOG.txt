@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.40 - Live-room host controls (Start class / Next slide,
+  Record, Call next, Close session) are now shown only to the Administrator or
+  the first-seat class admin (canModerate); regular seat users no longer see
+  them. Start class and Record were previously visible to everyone. Delete stays
+  platform-admin-only.
 - 2026-07-15 - v0.19.39 - Renamed the live-room "Join Q&A queue" control to
   "✋ Raise your hand" (and "Leave queue" to "Lower your hand") so the speaking
   request reads naturally.
