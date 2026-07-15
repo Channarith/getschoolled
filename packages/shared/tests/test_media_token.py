@@ -48,3 +48,23 @@ def test_verify_credentials_unreachable_without_url():
     cfg = load_config(env={"LIVEKIT_URL": ""})
     result = build_factory(cfg).media().verify_credentials(timeout=0.1)
     assert result["status"] == "unreachable"
+
+
+def test_livekit_secret_whitespace_is_trimmed():
+    # A trailing newline (common from kubectl/heredoc) must not change the token:
+    # otherwise the HMAC signature silently mismatches and LiveKit rejects the WS.
+    clean = load_config(env={"LIVEKIT_API_KEY": "APIabc", "LIVEKIT_API_SECRET": "s3cr3t"})
+    dirty = load_config(
+        env={"LIVEKIT_API_KEY": " APIabc\n", "LIVEKIT_API_SECRET": "s3cr3t\n"}
+    )
+    assert dirty.livekit_api_secret == "s3cr3t"
+    assert dirty.livekit_api_key == "APIabc"
+    tok_clean = build_factory(clean).media().issue_token(room="r", identity="i")
+    tok_dirty = build_factory(dirty).media().issue_token(room="r", identity="i")
+    # Same header+claims signing input -> identical signature once trimmed.
+    assert tok_clean.token.rsplit(".", 1)[1] == tok_dirty.token.rsplit(".", 1)[1]
+
+
+def test_livekit_whitespace_only_secret_falls_back_to_default():
+    cfg = load_config(env={"LIVEKIT_API_SECRET": "   \n"})
+    assert cfg.livekit_api_secret == "devsecret"
