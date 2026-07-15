@@ -562,6 +562,10 @@ class LiveRoomStore:
     def get(self, room_id: str) -> Optional[LiveRoom]:
         return self._backend.get(room_id)
 
+    def delete(self, room_id: str) -> None:
+        """Remove a room entirely (admin cleanup). Idempotent."""
+        self._backend.delete(room_id)
+
     def list_live(
         self,
         *,

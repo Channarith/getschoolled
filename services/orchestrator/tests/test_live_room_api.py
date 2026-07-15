@@ -502,6 +502,60 @@ def test_solo_room_requires_valid_lesson():
     assert blank.status_code == 400, blank.text
 
 
+def test_platform_admin_moderates_any_room_without_moderator_key(monkeypatch):
+    # admin@salareen.com can start / mute / close / delete ANY room by Bearer
+    # token, even though they never joined it and hold no moderator key.
+    import orchestrator.main as m
+
+    monkeypatch.setattr(m, "_request_is_admin", lambda auth: auth == "Bearer admin-token")
+    admin = {"authorization": "Bearer admin-token"}
+
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    learner = client.post(
+        f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-adm"}
+    ).json()["participant"]["id"]
+
+    # A NON-admin with no key cannot start the class.
+    assert client.post(f"/api/live-rooms/{room_id}/start-presentation", json={}).status_code == 400
+
+    # The platform admin can start it (no moderator_key, just the admin token).
+    started = client.post(f"/api/live-rooms/{room_id}/start-presentation", json={}, headers=admin)
+    assert started.status_code == 200 and started.json()["presenting"] is True
+
+    # Admin can mute a learner (acts as host).
+    muted = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": learner, "muted": True},
+        headers=admin,
+    )
+    assert muted.status_code == 200, muted.text
+    assert muted.json()["participant"]["muted"] is True
+
+    # Admin can close the session.
+    ended = client.post(f"/api/live-rooms/{room_id}/end", json={}, headers=admin)
+    assert ended.status_code == 200 and ended.json()["status"] == "ended"
+
+
+def test_platform_admin_can_delete_a_room_others_cannot(monkeypatch):
+    import orchestrator.main as m
+
+    monkeypatch.setattr(m, "_request_is_admin", lambda auth: auth == "Bearer admin-token")
+    # Use a solo room: group-class rooms deliberately re-seed on miss, so "delete"
+    # only permanently removes non-class (solo/instant/user) rooms; class rooms are
+    # cleaned up by closing (end). This asserts a true delete of a non-class room.
+    lid = _first_lesson()
+    room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
+
+    # A non-admin cannot delete.
+    assert client.delete(f"/api/live-rooms/{room_id}").status_code == 403
+
+    # The platform admin deletes it; a later GET 404s (genuinely gone).
+    deleted = client.delete(f"/api/live-rooms/{room_id}", headers={"authorization": "Bearer admin-token"})
+    assert deleted.status_code == 200 and deleted.json()["deleted"] is True
+    assert client.get(f"/api/live-rooms/{room_id}").status_code == 404
+
+
 def test_recording_endpoints():
     info = _start_salareen_class()
     room_id = info["room_id"]

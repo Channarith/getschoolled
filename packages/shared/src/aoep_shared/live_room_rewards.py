@@ -34,6 +34,24 @@ def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) ->
     return str(data.get("id") or "").strip() or None
 
 
+def is_admin_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> bool:
+    """True when the Bearer session token belongs to a platform admin account
+    (identity ``/auth/me`` -> is_admin). Lets admin@salareen.com moderate ANY
+    live room (start/mute/close/delete) without holding that room's moderator key.
+    Fails closed (False) if identity is unreachable or the token is invalid."""
+    auth = (authorization or "").strip()
+    if not auth.lower().startswith("bearer "):
+        return False
+    url = f"{identity_base_url()}/auth/me"
+    req = urllib.request.Request(url, headers={"Authorization": auth})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+        return False
+    return bool(data.get("is_admin", False))
+
+
 def rewards_balance_from_auth(authorization: str, *, timeout_s: float = 5.0) -> Optional[int]:
     """Return identity rewards balance for the bearer token, or None if unavailable."""
     auth = (authorization or "").strip()

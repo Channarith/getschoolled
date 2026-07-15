@@ -1461,10 +1461,12 @@ def live_room_call_next(
     room_id: str,
     req: LiveRoomTurnRequest,
     background: BackgroundTasks,
+    authorization: str = Header(default=""),
 ) -> dict:
     store = _live_rooms()
     try:
-        speaker = store.call_next(room_id, moderator_key=req.moderator_key)
+        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        speaker = store.call_next(room_id, moderator_key=mod)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
     room = store.require(room_id).to_dict()
@@ -1482,12 +1484,14 @@ def live_room_call_on(
     room_id: str,
     req: LiveRoomTurnRequest,
     background: BackgroundTasks,
+    authorization: str = Header(default=""),
 ) -> dict:
     """Host/AI gives the floor to a SPECIFIC learner (picks who holds the mic),
     preempting the current speaker. Preserves the single-speaker mutex."""
     store = _live_rooms()
     try:
-        speaker = store.call_on(room_id, req.participant_id, moderator_key=req.moderator_key)
+        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        speaker = store.call_on(room_id, req.participant_id, moderator_key=mod)
     except (KeyError, LiveRoomError, BannedError) as exc:
         raise _live_room_http_error(exc)
     room = store.require(room_id).to_dict()
@@ -1498,29 +1502,44 @@ def live_room_call_on(
 
 
 @app.post("/api/live-rooms/{room_id}/queue/finish-turn")
-def live_room_finish_turn(room_id: str, req: LiveRoomTurnRequest) -> dict:
+def live_room_finish_turn(
+    room_id: str,
+    req: LiveRoomTurnRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     store = _live_rooms()
     try:
         room = store.require(room_id)
         pid = req.participant_id or room.floor_participant_id
         if not pid:
             raise LiveRoomError("no one has the floor")
-        store.finish_turn(room_id, pid, moderator_key=req.moderator_key)
+        mod = _mod_key_for(room, req.moderator_key, authorization)
+        store.finish_turn(room_id, pid, moderator_key=mod)
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
     return {"room": store.require(room_id).to_dict()}
 
 
 @app.post("/api/live-rooms/{room_id}/mute")
-def live_room_mute(room_id: str, req: LiveRoomMuteRequest) -> dict:
+def live_room_mute(
+    room_id: str,
+    req: LiveRoomMuteRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
     try:
-        p = _live_rooms().set_mute(
+        room = store.require(room_id)
+        mod = _mod_key_for(room, req.moderator_key, authorization)
+        # The platform admin muting a learner acts as host (by_host) even without
+        # the room's key; a learner without rights can still only mute themselves.
+        by_host = req.by_host or (mod == room.moderator_key and mod != "" and req.participant_id != req.actor_id)
+        p = store.set_mute(
             room_id,
             req.participant_id,
             muted=req.muted,
-            by_host=req.by_host,
+            by_host=by_host,
             actor_id=req.actor_id or AI_HOST_ID,
-            moderator_key=req.moderator_key,
+            moderator_key=mod,
         )
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1528,14 +1547,20 @@ def live_room_mute(room_id: str, req: LiveRoomMuteRequest) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/ban")
-def live_room_ban(room_id: str, req: LiveRoomBanRequest) -> dict:
+def live_room_ban(
+    room_id: str,
+    req: LiveRoomBanRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
     try:
-        banned = _live_rooms().ban_participant(
+        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        banned = store.ban_participant(
             room_id,
             req.participant_id,
             actor_id=req.actor_id or AI_HOST_ID,
             reason=req.reason,
-            moderator_key=req.moderator_key,
+            moderator_key=mod,
         )
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1543,13 +1568,19 @@ def live_room_ban(room_id: str, req: LiveRoomBanRequest) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/unban")
-def live_room_unban(room_id: str, req: LiveRoomUnbanRequest) -> dict:
+def live_room_unban(
+    room_id: str,
+    req: LiveRoomUnbanRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    store = _live_rooms()
     try:
-        _live_rooms().unban(
+        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        store.unban(
             room_id,
             req.identity,
             actor_id=req.actor_id or AI_HOST_ID,
-            moderator_key=req.moderator_key,
+            moderator_key=mod,
         )
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1576,13 +1607,19 @@ def live_room_report(room_id: str, req: LiveRoomReportRequest) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/reports/dismiss")
-def live_room_dismiss_report(room_id: str, req: LiveRoomDismissReportRequest) -> dict:
+def live_room_dismiss_report(
+    room_id: str,
+    req: LiveRoomDismissReportRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     """Moderator dismisses a user report without banning."""
+    store = _live_rooms()
     try:
-        report = _live_rooms().dismiss_report(
+        mod = _mod_key_for(store.require(room_id), req.moderator_key, authorization)
+        report = store.dismiss_report(
             room_id,
             req.report_id,
-            moderator_key=req.moderator_key,
+            moderator_key=mod,
         )
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
@@ -1592,10 +1629,33 @@ def live_room_dismiss_report(room_id: str, req: LiveRoomDismissReportRequest) ->
     }
 
 
-def _authorize_room_admin(room, req: "LiveRoomTurnRequest") -> None:
-    """Allow the class admin (first joiner) OR a moderator_key holder."""
-    if req.moderator_key:
-        room.verify_moderator(req.moderator_key)
+def _request_is_admin(authorization: str) -> bool:
+    """True when the Bearer token is a platform admin (admin@salareen.com), who
+    may moderate ANY live room without holding that room's moderator key."""
+    if not authorization:
+        return False
+    from aoep_shared.live_room_rewards import is_admin_from_authorization  # noqa: E402
+
+    return is_admin_from_authorization(authorization)
+
+
+def _mod_key_for(room, provided_key: str, authorization: str) -> str:
+    """The moderator key to use for a request: the caller's own valid key, or the
+    room's real key when the request comes from the platform admin — so the admin
+    can start/mute/moderate/close any room without holding its key."""
+    if provided_key and provided_key == room.moderator_key:
+        return provided_key
+    if _request_is_admin(authorization):
+        return room.moderator_key
+    return provided_key
+
+
+def _authorize_room_admin(room, req: "LiveRoomTurnRequest", authorization: str = "") -> None:
+    """Allow the class admin (first joiner), a moderator_key holder, OR the
+    platform admin (admin@salareen.com, by Bearer token)."""
+    if req.moderator_key and req.moderator_key == room.moderator_key:
+        return
+    if _request_is_admin(authorization):
         return
     if req.participant_id:
         p = room.get_participant(req.participant_id)
@@ -1646,11 +1706,13 @@ def live_room_advance(
     room_id: str,
     background: BackgroundTasks,
     req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
+    authorization: str = Header(default=""),
 ) -> dict:
-    """Advance the slide — admin/moderator only (the AI auto-advances otherwise)."""
+    """Advance the slide — class admin, moderator, or platform admin only (the AI
+    auto-advances otherwise)."""
     store = _live_rooms()
     try:
-        _authorize_room_admin(store.require(room_id), req)
+        _authorize_room_admin(store.require(room_id), req, authorization)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
     except (LiveRoomError, BannedError) as exc:
@@ -1663,12 +1725,16 @@ def live_room_start_presentation(
     room_id: str,
     background: BackgroundTasks,
     req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
+    authorization: str = Header(default=""),
 ) -> dict:
-    """Admin (or moderator) manually starts the class presentation."""
+    """Start the class presentation — class admin (first joiner), moderator key,
+    or the platform admin (admin@salareen.com) on ANY room."""
     store = _live_rooms()
     try:
+        room = store.require(room_id)
+        mod = _mod_key_for(room, req.moderator_key, authorization)
         room = store.start_presentation(
-            room_id, participant_id=req.participant_id, moderator_key=req.moderator_key,
+            room_id, participant_id=req.participant_id, moderator_key=mod,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
@@ -1787,16 +1853,47 @@ def live_room_record_stop(room_id: str) -> dict:
 
 
 @app.post("/api/live-rooms/{room_id}/end")
-def live_room_end(room_id: str) -> dict:
+def live_room_end(
+    room_id: str,
+    req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
+    authorization: str = Header(default=""),
+) -> dict:
+    """Close a live session (status=ended). Allowed for the room's moderator-key
+    holder or the platform admin (admin@salareen.com) on ANY room."""
     store = _live_rooms()
     try:
-        room = store.end_room(room_id)
+        room = store.require(room_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown live room")
+    if _mod_key_for(room, req.moderator_key, authorization) != room.moderator_key:
+        raise HTTPException(status_code=403, detail="only a moderator or the platform admin can close this session")
+    room = store.end_room(room_id)
     gc = _group_store().get(room.class_id)
     if gc is not None:
         _group_store().set_status(gc.id, "ended")
     return room.to_dict()
+
+
+@app.delete("/api/live-rooms/{room_id}")
+def delete_live_room(room_id: str, authorization: str = Header(default="")) -> dict:
+    """Delete a live session entirely (admin cleanup). Platform admin only
+    (admin@salareen.com). Ends it first so any connected clients are excused,
+    then removes it from the store."""
+    store = _live_rooms()
+    if not _request_is_admin(authorization):
+        raise HTTPException(status_code=403, detail="platform admin only")
+    room = store.get(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    try:
+        store.end_room(room_id)  # flip to ended so any clients show the farewell/exit
+    except (KeyError, LiveRoomError):
+        pass
+    gc = _group_store().get(room.class_id)
+    if gc is not None:
+        _group_store().set_status(gc.id, "ended")
+    store.delete(room_id)
+    return {"deleted": True, "room_id": room_id}
 
 
 @app.get("/api/live-rooms/gifts/catalog")

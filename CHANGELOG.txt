@@ -2,6 +2,20 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.30 - Platform admin (admin@salareen.com) can moderate ANY
+  live room without holding its moderator key: start/advance the class, mute
+  learners, close the session (end), and DELETE it entirely (cleanup). The
+  orchestrator recognizes the admin from their Bearer token via identity
+  /auth/me (is_admin) and overrides the per-room moderator key on every
+  moderation endpoint; added DELETE /api/live-rooms/{id} (admin-only, ends then
+  removes). Web live room shows the moderation controls (Start, Mute, Call next,
+  Close session, Delete) for the platform admin even when they aren't the room's
+  first joiner, sending the admin JWT. Added admin-authorization tests. Note:
+  standard group-class rooms re-seed on miss, so "delete" permanently removes
+  only non-class (solo/instant/user) rooms; class rooms are cleaned up by Close.
+  (packages/shared live_room.py + live_room_rewards.py, services/orchestrator
+  main.py, apps/web live-room page + api.ts).
+
 - 2026-07-15 - v0.19.29 - Live-room lifecycle + presence robustness. (1) Expired
   classes no longer linger as "live": rooms now lazily close when their allotted
   window lapses even with NO client ticking — on discovery (list_live), on GET,
