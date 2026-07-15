@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.48 - Fixed robotic narration by enabling neural TTS in the
+  speech image. Root cause: the Dockerfile installs aoep-shared WITHOUT the
+  [presenter] extra, so edge-tts was missing → no neural engine → /tts 501 →
+  clients fell back to the robotic on-device voice. Pinned edge-tts in
+  services/speech/requirements.txt (free neural voices; needs egress to the
+  edge-tts endpoint — set ELEVENLABS_API_KEY for the most natural voice), and
+  enriched GET /tts/status to report per-engine availability + a hint so "why is
+  it robotic?" is answerable. Rebuild/redeploy the speech image to take effect.
 - 2026-07-15 - v0.19.47 - Fixed Drive Mode instructor/voice/accent controls that
   "did nothing." They only affected the neural server-TTS path; on the browser
   voice fallback (used whenever the speech service has no neural engine) the
