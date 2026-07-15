@@ -1472,12 +1472,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button onClick={() => void toggleHand()} disabled={busy} title="Join or leave Q&A queue">
+            <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
               {hasFloor
                 ? "🎤 You're speaking"
                 : inQueue
-                  ? `✋ Leave queue (#${myQueuePos})`
-                  : "✋ Join Q&A queue"}
+                  ? `✋ Lower your hand (#${myQueuePos})`
+                  : "✋ Raise your hand"}
             </button>
             {hasFloor ? (
               <button onClick={() => void finishTurn()} disabled={busy} style={{ background: "#059669", color: "#fff" }}>
