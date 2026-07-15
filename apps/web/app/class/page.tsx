@@ -49,7 +49,7 @@ import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 type SpeechRec = {
   lang: string; interimResults: boolean; maxAlternatives: number;
   onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
-  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+  onerror: (e: { error?: string }) => void; onend: () => void; start: () => void; stop: () => void;
 };
 
 // Color the adaptive difficulty badge so the learner can see it shift.
@@ -149,27 +149,82 @@ export default function ClassPage() {
 
   // Repeat-after-me checkpoint: listen to the learner and score how closely they
   // said the target phrase (reuses the pronunciation endpoint).
-  function startRepeatAfterMe() {
+  async function startRepeatAfterMe() {
     const target = slide?.say_aloud;
     if (!target) return;
-    const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
+    setError("");
+    // Microphone + speech recognition require a SECURE context (https), except on
+    // localhost. On a plain http:// origin (e.g. the raw server IP) the browser
+    // blocks the mic outright, which is why the button appeared to do nothing.
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(
+        "Your mic needs a secure connection. Open Salareen over https:// " +
+        "(e.g. https://www.salareen.com) — the browser blocks the microphone on an insecure page."
+      );
+      return;
+    }
+    const w = window as unknown as {
+      webkitSpeechRecognition?: new () => SpeechRec;
+      SpeechRecognition?: new () => SpeechRec;
+    };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    if (!Ctor) {
+      setError("Speech recognition isn't available in this browser — try Chrome or Edge.");
+      return;
+    }
+    // Ask for mic permission up front so the browser shows its prompt and we can
+    // give a clear message if it's blocked (instead of failing silently).
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());  // only needed the grant
+      }
+    } catch {
+      setError(
+        "Microphone access is blocked. Click the site-settings icon in the address " +
+        "bar, allow the microphone, then tap 🎤 Speak now again."
+      );
+      return;
+    }
     stopSpeaking();
-    const rec = new Ctor();
+    let rec: SpeechRec;
+    try {
+      rec = new Ctor();
+    } catch {
+      setError("Couldn't start the microphone. Try Chrome over https://.");
+      return;
+    }
     rec.lang = "en-US";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     setPron(null);
+    setHeard("");
     setListening(true);
     rec.onresult = (e) => {
       const said = e.results[0][0].transcript;
       setHeard(said);
       pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = (e) => {
+      setListening(false);
+      const code = e?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setError("Microphone access is blocked — allow the mic for this site (address-bar icon). Voice also needs https://.");
+      } else if (code === "no-speech") {
+        setError("Didn't catch that — tap 🎤 Speak now and speak clearly.");
+      } else if (code === "audio-capture") {
+        setError("No microphone found — check your device's mic and try again.");
+      } else if (code) {
+        setError(`Microphone error (${code}). Try again, or use Chrome over https://.`);
+      }
+    };
     rec.onend = () => setListening(false);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setError("Couldn't start the microphone. Try again, or use Chrome over https://.");
+    }
   }
 
   // The AI presenter narrates each slide as it appears, so the video feed shows

@@ -10,6 +10,7 @@ configured.
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -88,6 +89,60 @@ class NotInRoomError(LiveRoomError):
 
 class BannedError(LiveRoomError):
     """Identity is banned from this room."""
+
+
+class RateLimitedError(LiveRoomError):
+    """Participant is sending chat/questions too fast (maps to HTTP 429)."""
+
+
+# Anti-spam guardrails for the live-room chat and "Ask Theodore" features. These
+# are enforced server-side (authoritative) as a per-participant sliding window,
+# so a client can't bypass them. Kept intentionally lenient for normal use.
+CHAT_MAX_CHARS = 500
+QUESTION_MAX_CHARS = 600
+CHAT_RATE_MAX = 5            # at most 5 chat messages ...
+CHAT_RATE_WINDOW_S = 10.0    # ... per rolling 10 seconds
+ASK_RATE_MAX = 3            # at most 3 questions ...
+ASK_RATE_WINDOW_S = 30.0    # ... per rolling 30 seconds
+REACT_RATE_MAX = 10         # emoji reactions ...
+REACT_RATE_WINDOW_S = 10.0  # ... per 10 seconds
+GIFT_RATE_MAX = 8           # gifts ...
+GIFT_RATE_WINDOW_S = 60.0   # ... per minute
+REPORT_RATE_MAX = 5         # reports ...
+REPORT_RATE_WINDOW_S = 60.0  # ... per minute
+QUEUE_RATE_MAX = 5          # raise-hand / queue joins ...
+QUEUE_RATE_WINDOW_S = 30.0  # ... per 30 seconds
+
+# Display-name policy for learners joining a room. Guards against impersonating
+# the AI teacher / staff / system, and against oversized names.
+DISPLAY_NAME_MAX_CHARS = 40
+_RESERVED_NAME_TOKENS = frozenset({
+    "theodore", "theodoreaihost", "aihost", "host", "salareen", "salareenai",
+    "administrator", "admin", "moderator", "mod", "system", "staff", "official",
+    "teacher", "instructor", "support", "room",
+})
+
+
+def _normalize_name(name: str) -> str:
+    """Lowercase + strip non-alphanumerics for reserved-name comparison."""
+    return "".join(ch for ch in (name or "").lower() if ch.isalnum())
+
+
+def validate_display_name(name: str) -> str:
+    """Return the trimmed name or raise ``LiveRoomError`` if it violates policy.
+
+    Rejects empty/oversized names and reserved names that would let a learner
+    impersonate the AI host, staff, or system messages (e.g. "Theodore",
+    "Administrator", "AI Host").
+    """
+    clean = (name or "").strip()
+    if not clean:
+        raise LiveRoomError("participant name is required")
+    if len(clean) > DISPLAY_NAME_MAX_CHARS:
+        raise LiveRoomError(f"name is too long (max {DISPLAY_NAME_MAX_CHARS} characters)")
+    if _normalize_name(clean) in _RESERVED_NAME_TOKENS:
+        raise LiveRoomError("that display name is reserved — please choose another")
+    return clean
 
 
 @dataclass
@@ -469,6 +524,13 @@ class LiveRoomStore:
             follow_store = HostFollowStore()
         self._gift_ledger = gift_ledger
         self._follow_store = follow_store
+        # Anti-spam sliding-window timestamps, keyed by (room, participant, kind).
+        # In-memory + best-effort: it lives on this store instance rather than in
+        # the room snapshot (keeps chat/ask fast and avoids Redis churn). With
+        # ingress session affinity a participant's requests hit one replica, so
+        # the window is accurate; without it, limiting is per-replica but still
+        # curbs floods.
+        self._rate_events: dict[tuple[str, str, str], list[float]] = {}
 
     @property
     def backend_name(self) -> str:
@@ -476,6 +538,35 @@ class LiveRoomStore:
 
     def _commit(self, room: LiveRoom) -> None:
         self._backend.save(room)
+
+    def _enforce_rate(
+        self,
+        room_id: str,
+        participant_id: str,
+        kind: str,
+        *,
+        max_events: int,
+        window_s: float,
+        message: str,
+    ) -> None:
+        """Sliding-window rate limit for a participant action (chat/ask).
+
+        Raises ``RateLimitedError`` when more than ``max_events`` have occurred in
+        the last ``window_s`` seconds; otherwise records this event.
+        """
+        now = time.monotonic()
+        key = (room_id, participant_id, kind)
+        recent = [t for t in self._rate_events.get(key, []) if now - t < window_s]
+        if len(recent) >= max_events:
+            self._rate_events[key] = recent
+            raise RateLimitedError(message)
+        recent.append(now)
+        self._rate_events[key] = recent
+
+    def _clear_rate(self, room_id: str, participant_id: str) -> None:
+        """Drop a participant's rate-limit bookkeeping (on leave)."""
+        for kind in ("chat", "ask", "queue", "report", "gift", "react"):
+            self._rate_events.pop((room_id, participant_id, kind), None)
 
     def open_room(
         self,
@@ -660,6 +751,7 @@ class LiveRoomStore:
         room = self.require(room_id)
         if room.status != "live":
             raise LiveRoomError("this room is not live")
+        name = validate_display_name(name)
         ident = (identity or "").strip() or f"learner-{uuid.uuid4().hex[:8]}"
         acct = (account_id or "").strip()
         from .languages import normalize_language
@@ -718,6 +810,7 @@ class LiveRoomStore:
             raise LiveRoomError("the AI host cannot leave")
         name = p.name
         self._remove_from_queue(room_id, participant_id)
+        self._clear_rate(room_id, participant_id)
         del room.participants[participant_id]
         room.viewer_count = room.learner_count
         room.chat.append(
@@ -739,6 +832,18 @@ class LiveRoomStore:
             raise LiveRoomError("you are muted and cannot chat")
         if room.floor_participant_id and room.floor_participant_id != participant_id:
             raise LiveRoomError("wait for your turn to speak before chatting live")
+        clean = (text or "").strip()
+        if not clean:
+            raise LiveRoomError("message is empty")
+        if len(clean) > CHAT_MAX_CHARS:
+            raise LiveRoomError(f"message is too long (max {CHAT_MAX_CHARS} characters)")
+        # Anti-spam: cap the rate of chat messages per participant.
+        self._enforce_rate(
+            room_id, participant_id, "chat",
+            max_events=CHAT_RATE_MAX, window_s=CHAT_RATE_WINDOW_S,
+            message="you're sending messages too fast — please slow down",
+        )
+        text = clean
         msg = ChatMessage(
             id=uuid.uuid4().hex[:10],
             from_id=p.id,
@@ -811,11 +916,19 @@ class LiveRoomStore:
             raise LiveRoomError("the host does not join the learner queue")
         if room.is_banned(p.identity):
             raise BannedError("you are blocked from this room")
+        if len((question or "").strip()) > QUESTION_MAX_CHARS:
+            raise LiveRoomError(f"question is too long (max {QUESTION_MAX_CHARS} characters)")
         existing = room.queue_entry_for(participant_id)
         if existing and existing.status in (QUEUE_WAITING, QUEUE_SPEAKING):
             if question.strip():
                 existing.question = question.strip()
             return existing
+        # Anti-spam: only NEW queue joins count (idempotent re-join above is free).
+        self._enforce_rate(
+            room_id, participant_id, "queue",
+            max_events=QUEUE_RATE_MAX, window_s=QUEUE_RATE_WINDOW_S,
+            message="you're raising your hand too fast — please wait a moment",
+        )
         entry = QueueEntry(
             id=uuid.uuid4().hex[:10],
             participant_id=participant_id,
@@ -1180,6 +1293,14 @@ class LiveRoomStore:
         q = (question or "").strip()
         if not q:
             raise LiveRoomError("question is required")
+        if len(q) > QUESTION_MAX_CHARS:
+            raise LiveRoomError(f"question is too long (max {QUESTION_MAX_CHARS} characters)")
+        # Anti-spam: cap how often a participant can fire questions at Theodore.
+        self._enforce_rate(
+            room_id, participant_id, "ask",
+            max_events=ASK_RATE_MAX, window_s=ASK_RATE_WINDOW_S,
+            message="you're asking questions too fast — please wait a moment",
+        )
         if room.floor_participant_id == participant_id:
             self._commit(room)
             return "answered", None
@@ -1224,6 +1345,12 @@ class LiveRoomStore:
             raise LiveRoomError("cannot report yourself")
         if room.is_banned(reporter.identity):
             raise BannedError("you are blocked from this room")
+        # Anti-abuse: cap how fast one learner can file reports (harassment guard).
+        self._enforce_rate(
+            room_id, reporter_participant_id, "report",
+            max_events=REPORT_RATE_MAX, window_s=REPORT_RATE_WINDOW_S,
+            message="you're filing reports too fast — please wait a moment",
+        )
         for existing in room.reports:
             if (
                 existing.status == REPORT_OPEN
@@ -1448,7 +1575,15 @@ class LiveRoomStore:
         if item is None:
             raise LiveRoomError("unknown gift")
         recipient_id = recipient_participant_id or AI_HOST_ID
+        if recipient_id == sender_participant_id:
+            raise LiveRoomError("you can't send a gift to yourself")
         recipient = room.get_participant(recipient_id)
+        # Anti-spam: cap gift frequency (points balance already gates volume).
+        self._enforce_rate(
+            room_id, sender_participant_id, "gift",
+            max_events=GIFT_RATE_MAX, window_s=GIFT_RATE_WINDOW_S,
+            message="you're sending gifts too fast — please slow down",
+        )
         credit_amount = max(1, item.cost_points // 2)
         auth = (authorization or "").strip()
         use_identity = bool(sender.account_id and auth)
@@ -1537,6 +1672,12 @@ class LiveRoomStore:
         p = room.get_participant(participant_id)
         if room.is_banned(p.identity):
             raise BannedError("you are blocked from this room")
+        # Anti-spam: cap reaction frequency (they broadcast to every client).
+        self._enforce_rate(
+            room_id, participant_id, "react",
+            max_events=REACT_RATE_MAX, window_s=REACT_RATE_WINDOW_S,
+            message="you're reacting too fast — please slow down",
+        )
         try:
             event = ReactionEvent(
                 id=uuid.uuid4().hex[:10],

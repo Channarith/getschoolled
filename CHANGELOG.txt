@@ -2,6 +2,68 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.46 - Mobile live-room action bar now shows label-less icons
+  for the obvious actions (💬 chat, 😀 react, 🎁 gift, ⋯ more) and keeps a short
+  caption only where the glyph is ambiguous or stateful (❓ Ask, the ✋ raise-hand
+  toggle). Accessibility labels are retained for screen readers.
+- 2026-07-15 - v0.19.45 - Redesigned the mobile live-room screen for small phones.
+  Instead of stacking the presenter, participant grid, reactions, gifts, chat log,
+  chat/ask inputs and moderator buttons all down the screen, the presenter/slide
+  is now a full-height hero and everything else lives behind a compact bottom
+  icon bar (💬 Chat · ❓ Ask · ✋ Hand · 😀 React · 🎁 Gift · ⋯ More) that opens
+  tap-to-reveal bottom sheets. Chat shows an unread badge; the raised-hand tab
+  shows your queue position; the floor holder's camera appears as a small PiP;
+  people list, Q&A queue, follow, host controls and moderation moved into "More".
+- 2026-07-15 - v0.19.44 - Made the solo Live Class "Speak now" (repeat-after-me)
+  mic robust and self-explanatory. It now proactively requests microphone
+  permission (so the browser prompts), and surfaces clear, actionable errors
+  instead of failing silently: a secure-context check tells users the mic needs
+  https:// (the raw http:// server IP blocks it), and SpeechRecognition errors
+  map to helpful messages (blocked mic, no speech, no mic device). Root cause of
+  "nothing happens": browsers disable the microphone on insecure (http) origins —
+  serve the app over https (www.salareen.com) to enable voice.
+- 2026-07-15 - v0.19.43 - Fixed the live-room self mute/unmute button returning
+  400 "learners can only mute themselves". The web client sends no actor_id, and
+  the /mute endpoint defaulted the actor to the AI host, so a learner muting
+  themselves looked like muting someone else. The actor now defaults to the
+  participant for self-mutes (host default only for by_host actions); the client
+  also sends actor_id explicitly and toggles against the effective muted state so
+  the button label matches its action.
+- 2026-07-15 - v0.19.42 - Hardened live rooms against student abuse: a
+  display-name policy (max 40 chars + reserved-name blocklist so learners can't
+  impersonate "Theodore"/"Administrator"/"AI Host"/etc.), a self-gift block, and
+  per-participant rate limits extended to reactions (10/10s), gifts (8/60s),
+  reports (5/60s — anti-harassment), and raise-hand/queue joins (5/30s), plus a
+  length cap on queued questions. All over-limit actions return HTTP 429; over-
+  policy joins/gifts return 400.
+- 2026-07-15 - v0.19.41 - Added anti-spam guardrails to live-room chat and the
+  "Ask Theodore" feature. Server-side, per-participant sliding-window limits (5
+  chat messages / 10s, 3 questions / 30s) return HTTP 429 with a friendly "slow
+  down" message; chat is capped at 500 chars and questions at 600. The ask check
+  runs before the LLM call, so floods can't burn tokens. Enforced authoritatively
+  in the LiveRoomStore (new RateLimitedError); windows reset when a participant
+  leaves.
+- 2026-07-15 - v0.19.40 - Live-room host controls (Start class / Next slide,
+  Record, Call next, Close session) are now shown only to the Administrator or
+  the first-seat class admin (canModerate); regular seat users no longer see
+  them. Start class and Record were previously visible to everyone. Delete stays
+  platform-admin-only.
+- 2026-07-15 - v0.19.39 - Renamed the live-room "Join Q&A queue" control to
+  "✋ Raise your hand" (and "Leave queue" to "Lower your hand") so the speaking
+  request reads naturally.
+- 2026-07-15 - v0.19.38 - Web live rooms now have an AI teacher voice and clearer
+  speaking controls. Theodore narrates each slide out loud (neural TTS via the
+  speech service, on-device fallback) starting when "Start class" is pressed and
+  on every auto/manual advance - the web room previously had no audio at all
+  (only unreachable LiveKit tracks), so it looked like the class never started.
+  Added a "🔊 AI voice" mute toggle, and renamed the per-tile "Call on" moderator
+  action to "Request to speak".
+- 2026-07-15 - v0.19.37 - Stop the recurring build-info.txt merge conflict by
+  untracking it (.gitignore). It is auto-generated on every bump/build and nothing
+  reads it at runtime (/version uses the VERSION file + AOEP_* env), so committing
+  it per-PR/per-merge only made it hard-conflict on GitHub (whose server-side merge
+  ignores the .gitattributes union driver). The Auto Push Build workflow no longer
+  commits it; regenerate locally with `python3 scripts/build_release.py --refresh-only`.
 - 2026-07-15 - v0.19.36 - Harden LiveKit config against copy-paste whitespace.
   LIVEKIT_URL/API_KEY/API_SECRET are now stripped when loaded: a trailing newline
   (from kubectl patch / --from-literal / heredoc / echo) in the secret silently

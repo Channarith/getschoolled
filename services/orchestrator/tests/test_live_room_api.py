@@ -816,6 +816,89 @@ def test_create_user_live_room_with_geo():
     assert joined.status_code == 200, joined.text
 
 
+def test_chat_flood_returns_429():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Spammer", "identity": "spam-1"},
+    ).json()["participant"]["id"]
+    # 5 messages allowed in the window, the 6th is rate-limited (429).
+    for i in range(5):
+        r = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": f"m{i}"})
+        assert r.status_code == 200, r.text
+    blocked = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": "flood"})
+    assert blocked.status_code == 429, blocked.text
+    assert "too fast" in blocked.json()["detail"].lower()
+
+
+def test_chat_rejects_overlong_message():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Verbose", "identity": "verbose-1"},
+    ).json()["participant"]["id"]
+    r = client.post(
+        f"/api/live-rooms/{room_id}/chat",
+        json={"participant_id": pid, "text": "x" * 5000},
+    )
+    assert r.status_code == 400
+    assert "too long" in r.json()["detail"].lower()
+
+
+def test_ask_flood_returns_429():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Asker", "identity": "asker-1"},
+    ).json()["participant"]["id"]
+    for i in range(3):
+        r = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": f"q{i}?"})
+        assert r.status_code == 200, r.text
+    blocked = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": "spam?"})
+    assert blocked.status_code == 429, blocked.text
+
+
+def test_self_mute_and_unmute_without_actor_id():
+    # Regression: the web client sends no actor_id; the endpoint must treat that
+    # as a self-mute (not default the actor to the AI host, which 400'd with
+    # "learners can only mute themselves").
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Lena", "identity": "lena-1"},
+    ).json()["participant"]["id"]
+    muted = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": pid, "muted": True},
+    )
+    assert muted.status_code == 200, muted.text
+    assert muted.json()["participant"]["muted"] is True
+    unmuted = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": pid, "muted": False},
+    )
+    assert unmuted.status_code == 200, unmuted.text
+    assert unmuted.json()["participant"]["muted"] is False
+
+
+def test_learner_cannot_mute_another_learner():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    a = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Aa", "identity": "aa"}).json()["participant"]["id"]
+    b = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bb", "identity": "bb"}).json()["participant"]["id"]
+    # A (actor) tries to mute B (target) with no moderator rights -> rejected.
+    r = client.post(
+        f"/api/live-rooms/{room_id}/mute",
+        json={"participant_id": b, "muted": True, "actor_id": a},
+    )
+    assert r.status_code == 400
+    assert "themselves" in r.json()["detail"].lower()
+
+
 def test_livekit_status_route_resolves_and_reports_config():
     # Static /livekit-status route must not be swallowed by /{room_id}.
     resp = client.get("/api/live-rooms/livekit-status")

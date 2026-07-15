@@ -6,11 +6,12 @@
 # producing merge conflicts. union is also honored by GitHub's server-side merge.
 CHANGELOG.txt merge=union
 #
-# build-info.txt is AUTO-GENERATED (scripts/bump_pr_version.py / build_release.py)
-# on every bump, so concurrent PRs always rewrote it and it hard-conflicted. It
-# carries no hand-authored content, so union never blocks and the next bump
-# regenerates it cleanly. Built-in + honored by GitHub's server-side merge.
-build-info.txt merge=union
+# build-info.txt is AUTO-GENERATED and no longer tracked (see .gitignore). It
+# used to hard-conflict on every PR because each bump rewrote its version/sha/
+# time lines, and GitHub's server-side merge does NOT run .gitattributes merge
+# drivers (union only helped local merges). Untracking it removes the conflict
+# entirely; nothing reads it at runtime (/version uses the VERSION file + env),
+# and `scripts/build_release.py --refresh-only` regenerates it locally.
 #
 # VERSION and the generated version.ts files auto-resolve to the HIGHER semantic
 # version via the custom `maxver` driver (scripts/merge-version.sh, wired by

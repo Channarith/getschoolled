@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import {
@@ -50,6 +50,78 @@ function farewellFor(locale: string): string {
   return FAREWELL_BY_CODE[code] || FAREWELL_BY_CODE.en;
 }
 
+// Which pop-up sheet (if any) is open. Everything except the presenter lives in a
+// sheet so the small phone screen stays focused on the teacher/slide.
+type SheetKind = null | "chat" | "ask" | "react" | "gifts" | "more";
+
+// A single tab in the bottom action bar: a large tappable icon + tiny caption,
+// with an optional unread/position badge and an active (highlighted) state.
+function IconTab({
+  icon, label, onPress, active, badge, disabled,
+}: {
+  icon: string;
+  // Omit the label for obvious icons (chat, gift, react, more) — the glyph alone
+  // is enough and keeps the phone bar clean. Provide it only when the icon is
+  // ambiguous or stateful (e.g. Ask, or the raise-hand toggle).
+  label?: string;
+  onPress: () => void;
+  active?: boolean;
+  badge?: number;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityLabel={label || icon}
+      style={({ pressed }) => [styles.iconTab, pressed && styles.iconTabPressed, disabled && { opacity: 0.4 }]}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+    >
+      <View>
+        <Text style={[styles.iconGlyph, active && styles.iconGlyphActive]}>{icon}</Text>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      {label ? (
+        <Text style={[styles.iconLabel, active && styles.iconLabelActive]} numberOfLines={1}>{label}</Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// A bottom sheet that slides up over the presenter. Tapping the dimmed backdrop
+// or the ✕ closes it. Content is scrollable and capped so it never covers the
+// whole screen.
+function BottomSheet({
+  visible, title, onClose, children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetRoot}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHead}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.sheetClose}>✕</Text>
+            </Pressable>
+          </View>
+          {children}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function LiveRoomScreen({
   roomId,
   onBack,
@@ -74,10 +146,12 @@ export default function LiveRoomScreen({
   const [wasBlocked, setWasBlocked] = useState(false);
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
-  const [showGifts, setShowGifts] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [endLeft, setEndLeft] = useState(CLASS_END_COUNTDOWN);
   const [muted, setMuted] = useState(false);
+  const [sheet, setSheet] = useState<SheetKind>(null);
+  const [chatSeen, setChatSeen] = useState(0);
+  const chatSeenInit = useRef(false);
   const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
   const classEnded = room?.status === "ended";
 
@@ -174,6 +248,23 @@ export default function LiveRoomScreen({
     });
   };
 
+  // Unread-chat badge: seed to the current length once (don't flag history as
+  // unread), keep it synced while the chat sheet is open, and count new messages
+  // that arrive while it's closed.
+  const chatLen = room?.chat?.length ?? 0;
+  useEffect(() => {
+    if (!chatSeenInit.current && chatLen > 0) {
+      chatSeenInit.current = true;
+      setChatSeen(chatLen);
+    }
+  }, [chatLen]);
+  useEffect(() => {
+    if (sheet === "chat") setChatSeen(chatLen);
+  }, [sheet, chatLen]);
+  const unread = Math.max(0, chatLen - chatSeen);
+
+  const openChat = () => { setChatSeen(chatLen); setSheet("chat"); };
+
   async function handleJoin(nameOverride?: string, accountId?: string) {
     const joinName = (nameOverride ?? name).trim();
     if (!joinName) {
@@ -268,6 +359,21 @@ export default function LiveRoomScreen({
     (e) => e.participant_id === participantId && e.status === "waiting"
   )?.position ?? 0;
 
+  // Raise your hand (join the Q&A queue) or lower it (leave). The AI/host calls
+  // on raised hands in turn; only the floor holder is actually heard.
+  const toggleHand = async () => {
+    if (!participantId || hasFloor) return;
+    try {
+      if (inQueue) {
+        setRoom(await liveRoomLeaveQueue(roomId, participantId));
+      } else {
+        setRoom(await liveRoomRaiseHand(roomId, participantId, question.trim()));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const leaveAndBack = () => {
     stopSpeech();
     if (participantId) {
@@ -359,134 +465,173 @@ export default function LiveRoomScreen({
       </View>
 
       <View style={styles.header}>
-        <PrimaryButton label="← Leave" onPress={leaveAndBack} variant="ghost" />
+        <Pressable onPress={leaveAndBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.leaveText}>← Leave</Text>
+        </Pressable>
         <Text style={styles.title} numberOfLines={1}>{room?.title ?? "Live class"}</Text>
+        <Pressable onPress={toggleMute} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.muteBtn}>{muted ? "🔇" : "🔊"}</Text>
+        </Pressable>
       </View>
-      <Text style={styles.meta}>
+      <Text style={styles.meta} numberOfLines={1}>
         👁 {socket.viewerCount || room?.viewer_count || room?.participants.length || 0}
-        {" · "}
-        ❤️ {socket.followerCount} followers
+        {" · ❤️ "}{socket.followerCount}
         {socket.connected ? " · live" : " · polling"}
       </Text>
-      <PrimaryButton
-        label={followingHost ? "Following host" : "Follow host"}
-        variant="ghost"
-        onPress={async () => {
-          try {
-            const r = await liveRoomFollowHost(roomId, identity, followingHost);
-            setFollowingHost(r.following);
-            socket.setFollowerCount(r.follower_count);
-          } catch (e) {
-            setError((e as Error).message);
-          }
-        }}
-      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {/* Presenter hero: the AI host has no camera, so its tile IS the current
-          slide — large title + narration so it's easy to see/read on a phone. */}
-      <GlassPanel style={styles.presenter}>
-        <View style={styles.presenterHead}>
-          <Text style={styles.presenterHost} numberOfLines={1}>
-            🎓 {room?.host?.name ?? "Theodore (AI Host)"} · Slide {(room?.slide.index ?? 0) + 1}
-          </Text>
-          <Pressable onPress={toggleMute} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.muteBtn}>{muted ? "🔇" : "🔊"}</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.presenterTitle}>{room?.slide.title}</Text>
-        <Text style={styles.presenterBody}>{room?.slide.narration || room?.slide.body}</Text>
-        {muted ? <Text style={styles.mutedHint}>Audio muted — tap 🔇 to hear the teacher</Text> : null}
+      {/* Presenter hero fills the screen; everything else opens from the bar. */}
+      <GlassPanel style={styles.hero}>
+        <Text style={styles.presenterHost} numberOfLines={1}>
+          🎓 {room?.host?.name ?? "Theodore (AI Host)"} · Slide {(room?.slide.index ?? 0) + 1}
+        </Text>
+        <ScrollView style={styles.heroScroll} contentContainerStyle={styles.heroContent}>
+          <Text style={styles.presenterTitle}>{room?.slide.title}</Text>
+          <Text style={styles.presenterBody}>{room?.slide.narration || room?.slide.body}</Text>
+        </ScrollView>
+        {muted ? <Text style={styles.mutedHint}>Audio muted — tap 🔊 up top to hear the teacher</Text> : null}
+        {hasFloor ? (
+          <Text style={styles.floorChip}>🎤 You&apos;re live — open &ldquo;More&rdquo; to finish your turn</Text>
+        ) : inQueue ? (
+          <Text style={styles.floorChip}>✋ You&apos;re #{myPos} in line</Text>
+        ) : null}
+        {hasFloor && media ? (
+          <View style={styles.pip}>
+            <LiveKitParticipantTile
+              media={media}
+              canPublish={hasFloor}
+              participantName={me?.name ?? "You"}
+              fallbackEmoji="🎤"
+            />
+          </View>
+        ) : null}
       </GlassPanel>
 
-      {(room?.participants ?? []).some((p) => p.role !== "host") ? (
-        <Text style={styles.stripLabel}>In the room</Text>
-      ) : null}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridScroll}>
-        {(room?.participants ?? []).filter((p) => p.role !== "host").map((p) => {
-          const isMe = p.id === participantId;
-          const emoji = p.id === room?.floor_participant_id ? "🎤" : "👤";
-          if (isMe && hasFloor && media) {
-            return (
-              <LiveKitParticipantTile
-                key={p.id}
-                media={media}
-                canPublish={hasFloor}
-                participantName={p.name}
-                fallbackEmoji={emoji}
-                large={p.role === "host"}
-              />
-            );
-          }
-          return (
-            <View key={p.id} style={[
-              styles.tile,
-              p.role === "host" && styles.hostTile,
-              p.id === room?.floor_participant_id && styles.speakingTile,
-            ]}>
-              <Text style={styles.tileEmoji}>{emoji}</Text>
-              <Text style={styles.tileName} numberOfLines={1}>{p.name}</Text>
-              {p.hand_raised && p.id !== room?.floor_participant_id ? <Text>✋</Text> : null}
-              {modKey && p.role !== "host" && p.id !== participantId ? (
-                <PrimaryButton
-                  label="Block"
-                  variant="ghost"
-                  onPress={async () => setRoom(await liveRoomBan(roomId, p.id, modKey))}
-                />
-              ) : null}
-              {p.role !== "host" && p.id !== participantId ? (
-                <PrimaryButton
-                  label="Report"
-                  variant="ghost"
-                  onPress={async () => {
-                    if (!participantId) return;
-                    setBusy(true);
-                    try {
-                      await liveRoomReport(roomId, participantId, p.id, "Reported from mobile", "other");
-                      setError("");
-                    } catch (e) {
-                      setError((e as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              ) : null}
-            </View>
-          );
-        })}
-      </ScrollView>
+      {/* Bottom action bar — icons reveal chat / ask / react / gifts / more. */}
+      <View style={styles.actionBar}>
+        {/* Obvious icons go label-less; Ask and the raise-hand toggle keep a
+            short caption because the glyph alone is ambiguous / stateful. */}
+        <IconTab icon="💬" badge={unread || undefined} onPress={openChat} />
+        <IconTab icon="❓" label="Ask" onPress={() => setSheet("ask")} />
+        <IconTab
+          icon="✋"
+          label={hasFloor ? "Live" : inQueue ? "Lower" : "Hand"}
+          active={inQueue || hasFloor}
+          badge={myPos || undefined}
+          disabled={hasFloor}
+          onPress={() => void toggleHand()}
+        />
+        <IconTab icon="😀" onPress={() => setSheet("react")} />
+        <IconTab icon="🎁" onPress={() => setSheet("gifts")} />
+        <IconTab icon="⋯" onPress={() => setSheet("more")} />
+      </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reactionRow}>
-        {REACTIONS.map((emoji) => (
-          <Pressable
-            key={emoji}
-            style={styles.reactionBtn}
+      {/* ---- Chat ---- */}
+      <BottomSheet visible={sheet === "chat"} title="Chat" onClose={() => setSheet(null)}>
+        <ScrollView style={styles.sheetScroll}>
+          {chatLen === 0 ? <Text style={styles.meta}>No messages yet — say hello 👋</Text> : null}
+          {(room?.chat ?? []).map((m) => (
+            <Text key={m.id} style={styles.chatLine}>
+              <Text style={styles.chatName}>{m.from_name}: </Text>{m.text}
+            </Text>
+          ))}
+        </ScrollView>
+        <View style={styles.controls}>
+          <TextInput
+            value={chat}
+            onChangeText={setChat}
+            placeholder="Chat…"
+            placeholderTextColor={theme.colors.muted}
+            style={[styles.input, { flex: 1 }]}
+          />
+          <PrimaryButton
+            label="Send"
+            loading={busy}
             onPress={async () => {
-              socket.pushReaction(emoji);
+              if (!chat.trim() || !participantId) return;
+              setBusy(true);
               try {
-                setRoom(await liveRoomReaction(roomId, participantId, emoji));
+                setRoom(await liveRoomChat(roomId, participantId, chat.trim()));
+                setChat("");
               } catch (e) {
                 setError((e as Error).message);
+              } finally {
+                setBusy(false);
               }
             }}
-          >
-            <Text style={styles.reactionEmoji}>{emoji}</Text>
-          </Pressable>
-        ))}
-        <PrimaryButton
-          label={`🎁 Gifts (${giftBalance})`}
-          variant="ghost"
-          onPress={() => setShowGifts((v) => !v)}
-        />
-      </ScrollView>
+          />
+        </View>
+      </BottomSheet>
 
-      {showGifts ? (
+      {/* ---- Ask Theodore ---- */}
+      <BottomSheet visible={sheet === "ask"} title="Ask Theodore" onClose={() => setSheet(null)}>
+        <Text style={styles.meta}>
+          Your question goes to the AI teacher. If someone&apos;s speaking, you&apos;ll join the Q&amp;A queue.
+        </Text>
+        <View style={styles.controls}>
+          <TextInput
+            value={question}
+            onChangeText={setQuestion}
+            placeholder="Ask Theodore…"
+            placeholderTextColor={theme.colors.muted}
+            style={[styles.input, { flex: 1 }]}
+          />
+          <PrimaryButton
+            label="Ask"
+            loading={busy}
+            onPress={async () => {
+              if (!question.trim() || !participantId) return;
+              setBusy(true);
+              try {
+                const res = await liveRoomAsk(roomId, participantId, question.trim(), locale);
+                setRoom(res.room);
+                if (res.queued) {
+                  setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
+                } else {
+                  setError("");
+                  setSheet(null);
+                }
+                setQuestion("");
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        </View>
+      </BottomSheet>
+
+      {/* ---- Reactions ---- */}
+      <BottomSheet visible={sheet === "react"} title="Send a reaction" onClose={() => setSheet(null)}>
+        <View style={styles.reactPicker}>
+          {REACTIONS.map((emoji) => (
+            <Pressable
+              key={emoji}
+              style={styles.reactPick}
+              onPress={async () => {
+                socket.pushReaction(emoji);
+                setSheet(null);
+                try {
+                  setRoom(await liveRoomReaction(roomId, participantId, emoji));
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <Text style={styles.reactPickEmoji}>{emoji}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </BottomSheet>
+
+      {/* ---- Gifts ---- */}
+      <BottomSheet visible={sheet === "gifts"} title={`Gifts · ${giftBalance} pts`} onClose={() => setSheet(null)}>
         <View style={styles.giftGrid}>
           {giftCatalog.map((g) => (
             <Pressable
               key={g.id}
-              style={styles.giftItem}
+              style={[styles.giftItem, (busy || giftBalance < g.cost_points) && { opacity: 0.4 }]}
               disabled={busy || giftBalance < g.cost_points}
               onPress={async () => {
                 setBusy(true);
@@ -494,7 +639,7 @@ export default function LiveRoomScreen({
                   const res = await liveRoomSendGift(roomId, participantId, g.id);
                   setRoom(res.room);
                   setGiftBalance(res.sender_balance);
-                  setShowGifts(false);
+                  setSheet(null);
                 } catch (e) {
                   setError((e as Error).message);
                 } finally {
@@ -508,183 +653,142 @@ export default function LiveRoomScreen({
             </Pressable>
           ))}
         </View>
-      ) : null}
+      </BottomSheet>
 
-      {(room?.speaking_queue?.length ?? 0) > 0 ? (
-        <GlassPanel style={styles.slide}>
-          <Text style={styles.cardTitle}>Q&A queue</Text>
-          {room?.floor_holder ? (
-            <Text style={styles.meta}>🎤 Now: {room.floor_holder.name}</Text>
-          ) : null}
-          {(room?.speaking_queue ?? []).filter((e) => e.status === "waiting").map((e) => (
-            <Text key={e.id} style={styles.meta}>
-              #{e.position} {e.name}{e.question ? ` — ${e.question}` : ""}
-            </Text>
-          ))}
-          {myPos > 0 && !hasFloor ? (
-            <Text style={styles.meta}>You are #{myPos} in line.</Text>
-          ) : null}
-        </GlassPanel>
-      ) : null}
-
-      {modKey && (room?.reports?.length ?? 0) > 0 ? (
-        <GlassPanel style={styles.slide}>
-          <Text style={styles.cardTitle}>User reports</Text>
-          {(room?.reports ?? []).map((rep) => (
-            <View key={rep.id} style={styles.controls}>
-              <Text style={styles.meta}>
-                {rep.reported_name} ({rep.category}) — {rep.reason}
-                {"\n"}from {rep.reporter_name}
-              </Text>
-              <PrimaryButton
-                label="Block"
-                variant="ghost"
-                onPress={async () => setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey))}
-              />
-              <PrimaryButton
-                label="Dismiss"
-                variant="ghost"
-                onPress={async () => setRoom(await liveRoomDismissReport(roomId, rep.id, modKey))}
-              />
-            </View>
-          ))}
-        </GlassPanel>
-      ) : null}
-
-      {modKey && (room?.banned?.length ?? 0) > 0 ? (
-        <GlassPanel style={styles.slide}>
-          <Text style={styles.cardTitle}>Blocked</Text>
-          {(room?.banned ?? []).map((b) => (
-            <View key={b.identity} style={styles.controls}>
-              <Text style={styles.meta}>{b.name}</Text>
-              <PrimaryButton
-                label="Unblock"
-                variant="ghost"
-                onPress={async () => setRoom(await liveRoomUnban(roomId, b.identity, modKey))}
-              />
-            </View>
-          ))}
-        </GlassPanel>
-      ) : null}
-
-      <ScrollView style={styles.chatBox}>
-        {(room?.chat ?? []).map((m) => (
-          <Text key={m.id} style={styles.chatLine}>
-            <Text style={styles.chatName}>{m.from_name}: </Text>
-            {m.text}
-          </Text>
-        ))}
-      </ScrollView>
-
-      <View style={styles.controls}>
-        <TextInput
-          value={chat}
-          onChangeText={setChat}
-          placeholder="Chat…"
-          placeholderTextColor={theme.colors.muted}
-          style={[styles.input, { flex: 1 }]}
-        />
-        <PrimaryButton
-          label="Send"
-          onPress={async () => {
-            if (!chat.trim() || !participantId) return;
-            setBusy(true);
-            try {
-              setRoom(await liveRoomChat(roomId, participantId, chat.trim()));
-              setChat("");
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-          loading={busy}
-        />
-      </View>
-      <View style={styles.controls}>
-        <TextInput
-          value={question}
-          onChangeText={setQuestion}
-          placeholder="Ask Theodore…"
-          placeholderTextColor={theme.colors.muted}
-          style={[styles.input, { flex: 1 }]}
-        />
-        <PrimaryButton
-          label="Ask"
-          onPress={async () => {
-            if (!question.trim() || !participantId) return;
-            setBusy(true);
-            try {
-              const res = await liveRoomAsk(roomId, participantId, question.trim(), locale);
-              setRoom(res.room);
-              if (res.queued) {
-                setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
-              } else {
-                setError("");
-              }
-              setQuestion("");
-            } catch (e) {
-              setError((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-          loading={busy}
-        />
-      </View>
-      <PrimaryButton
-        label={
-          hasFloor ? "You're speaking"
-            : inQueue ? `Leave queue (#${myPos})`
-            : "Join Q&A queue"
-        }
-        variant="ghost"
-        onPress={async () => {
-          if (!participantId) return;
-          if (inQueue && !hasFloor) {
-            setRoom(await liveRoomLeaveQueue(roomId, participantId));
-          } else {
-            setRoom(await liveRoomRaiseHand(roomId, participantId, question.trim()));
-          }
-        }}
-      />
-      {hasFloor ? (
-        <PrimaryButton
-          label="Done speaking"
-          onPress={async () => {
-            if (!participantId) return;
-            setRoom(await liveRoomFinishTurn(roomId, participantId, modKey));
-          }}
-        />
-      ) : null}
-      {modKey ? (
-        <View style={styles.controls}>
+      {/* ---- More: follow, people, Q&A, host controls, moderation ---- */}
+      <BottomSheet visible={sheet === "more"} title="Room" onClose={() => setSheet(null)}>
+        <ScrollView style={styles.sheetScroll}>
           <PrimaryButton
-            label="Call next"
-            onPress={async () => setRoom(await liveRoomCallNext(roomId, modKey))}
+            label={followingHost ? "✓ Following host" : "Follow host"}
+            variant="ghost"
+            onPress={async () => {
+              try {
+                const r = await liveRoomFollowHost(roomId, identity, followingHost);
+                setFollowingHost(r.following);
+                socket.setFollowerCount(r.follower_count);
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
           />
-          {room?.floor_participant_id ? (
+          {hasFloor ? (
             <PrimaryButton
-              label="End turn"
-              variant="ghost"
-              onPress={async () => setRoom(
-                await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey)
-              )}
+              label="Done speaking"
+              onPress={async () => {
+                if (!participantId) return;
+                setRoom(await liveRoomFinishTurn(roomId, participantId, modKey));
+                setSheet(null);
+              }}
             />
           ) : null}
-        </View>
-      ) : null}
+
+          {(room?.speaking_queue?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Q&amp;A queue</Text>
+              {room?.floor_holder ? <Text style={styles.meta}>🎤 Now: {room.floor_holder.name}</Text> : null}
+              {(room?.speaking_queue ?? []).filter((e) => e.status === "waiting").map((e) => (
+                <Text key={e.id} style={styles.meta}>#{e.position} {e.name}{e.question ? ` — ${e.question}` : ""}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.sheetSection}>
+            <Text style={styles.cardTitle}>In the room ({(room?.participants ?? []).length})</Text>
+            {(room?.participants ?? []).map((p) => (
+              <View key={p.id} style={styles.personRow}>
+                <Text style={styles.personName} numberOfLines={1}>
+                  {p.id === room?.floor_participant_id ? "🎤 " : p.role === "host" ? "🎓 " : "👤 "}
+                  {p.name}{p.id === participantId ? " (you)" : ""}
+                  {p.hand_raised && p.id !== room?.floor_participant_id ? " ✋" : ""}
+                </Text>
+                {p.role !== "host" && p.id !== participantId ? (
+                  <View style={styles.personActions}>
+                    {modKey ? (
+                      <Pressable onPress={async () => setRoom(await liveRoomBan(roomId, p.id, modKey))}>
+                        <Text style={styles.linkDanger}>Block</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={async () => {
+                        if (!participantId) return;
+                        try {
+                          await liveRoomReport(roomId, participantId, p.id, "Reported from mobile", "other");
+                          setError("");
+                        } catch (e) {
+                          setError((e as Error).message);
+                        }
+                      }}
+                    >
+                      <Text style={styles.linkMuted}>Report</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+
+          {modKey ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Host controls</Text>
+              <View style={styles.controls}>
+                <PrimaryButton label="Call next" onPress={async () => setRoom(await liveRoomCallNext(roomId, modKey))} />
+                {room?.floor_participant_id ? (
+                  <PrimaryButton
+                    label="End turn"
+                    variant="ghost"
+                    onPress={async () => setRoom(await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey))}
+                  />
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {modKey && (room?.reports?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>User reports</Text>
+              {(room?.reports ?? []).map((rep) => (
+                <View key={rep.id} style={styles.personRow}>
+                  <Text style={styles.meta} numberOfLines={2}>{rep.reported_name} ({rep.category}) — {rep.reason}</Text>
+                  <View style={styles.personActions}>
+                    <Pressable onPress={async () => setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey))}>
+                      <Text style={styles.linkDanger}>Block</Text>
+                    </Pressable>
+                    <Pressable onPress={async () => setRoom(await liveRoomDismissReport(roomId, rep.id, modKey))}>
+                      <Text style={styles.linkMuted}>Dismiss</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {modKey && (room?.banned?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Blocked</Text>
+              {(room?.banned ?? []).map((b) => (
+                <View key={b.identity} style={styles.personRow}>
+                  <Text style={styles.meta}>{b.name}</Text>
+                  <Pressable onPress={async () => setRoom(await liveRoomUnban(roomId, b.identity, modKey))}>
+                    <Text style={styles.linkMuted}>Unblock</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </ScrollView>
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: 16, gap: 10 },
+  wrap: { flex: 1, padding: 16, gap: 8 },
   endWrap: { alignItems: "center", justifyContent: "center", gap: 14 },
   endEmoji: { fontSize: 52 },
   endTitle: { color: theme.colors.text, fontSize: 24, fontWeight: "800" },
   endMsg: { color: theme.colors.text, fontSize: 16, textAlign: "center", lineHeight: 24 },
-  header: { flexDirection: "row", alignItems: "center", gap: 8 },
+  header: { flexDirection: "row", alignItems: "center", gap: 10 },
+  leaveText: { color: theme.colors.accent, fontSize: 15, fontWeight: "700" },
   title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", flex: 1 },
   meta: { color: theme.colors.muted, fontSize: 13 },
   joinCard: { gap: 10, marginTop: 12 },
@@ -696,79 +800,102 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     backgroundColor: "rgba(0,0,0,0.2)",
   },
-  slide: { gap: 6 },
-  cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
-  presenter: { gap: 8 },
-  presenterHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600", flex: 1 },
-  presenterTitle: { color: theme.colors.text, fontSize: 23, fontWeight: "800", lineHeight: 29 },
-  presenterBody: { color: theme.colors.text, fontSize: 16, lineHeight: 23, opacity: 0.92 },
-  mutedHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
+  cardTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", marginBottom: 4 },
   muteBtn: { fontSize: 24 },
-  stripLabel: { color: theme.colors.muted, fontSize: 12, marginTop: 2 },
-  gridScroll: { maxHeight: 190 },
-  tile: {
-    width: 88,
-    height: 88,
-    marginRight: 8,
-    borderRadius: 12,
-    backgroundColor: "rgba(99,102,241,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 6,
+  error: { color: "#f87171" },
+
+  // Presenter hero — takes all the vertical space between the meta row and the
+  // action bar so the teacher/slide is the clear focus on a phone.
+  hero: { flex: 1, gap: 8, position: "relative" },
+  presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },
+  heroScroll: { flex: 1 },
+  heroContent: { gap: 10, paddingBottom: 8 },
+  presenterTitle: { color: theme.colors.text, fontSize: 26, fontWeight: "800", lineHeight: 32 },
+  presenterBody: { color: theme.colors.text, fontSize: 17, lineHeight: 25, opacity: 0.94 },
+  mutedHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
+  floorChip: {
+    color: "#e9d5ff", fontSize: 13, fontWeight: "600",
+    backgroundColor: "rgba(124,58,237,0.35)",
+    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, overflow: "hidden",
+    alignSelf: "flex-start",
   },
-  hostTile: { backgroundColor: "rgba(124,58,237,0.5)", width: 100 },
-  speakingTile: { borderWidth: 2, borderColor: "#34d399" },
-  tileEmoji: { fontSize: 22 },
-  tileName: { color: theme.colors.text, fontSize: 11, marginTop: 4 },
-  reactionRow: { maxHeight: 44 },
-  reactionBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 6,
-    borderRadius: 8,
+  pip: {
+    position: "absolute", right: 10, bottom: 10, width: 96, height: 128,
+    borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+  },
+
+  // Bottom action bar of icon "tabs".
+  actionBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingTop: 10,
+    paddingBottom: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.border,
+  },
+  iconTab: { flex: 1, alignItems: "center", gap: 3, paddingVertical: 2 },
+  iconTabPressed: { opacity: 0.5 },
+  iconGlyph: { fontSize: 24, textAlign: "center" },
+  iconGlyphActive: { transform: [{ scale: 1.1 }] },
+  iconLabel: { color: theme.colors.muted, fontSize: 11 },
+  iconLabelActive: { color: theme.colors.accent, fontWeight: "700" },
+  badge: {
+    position: "absolute", top: -4, right: -10, minWidth: 16, height: 16, paddingHorizontal: 4,
+    borderRadius: 8, backgroundColor: "#ef4444", alignItems: "center", justifyContent: "center",
+  },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+
+  // Bottom sheets.
+  sheetRoot: { flex: 1, justifyContent: "flex-end" },
+  sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)" },
+  sheet: {
+    backgroundColor: "#160b2e",
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28,
+    maxHeight: "72%", gap: 10,
+  },
+  sheetHandle: { alignSelf: "center", width: 42, height: 5, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)", marginBottom: 6 },
+  sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sheetTitle: { color: theme.colors.text, fontSize: 17, fontWeight: "800", flex: 1 },
+  sheetClose: { color: theme.colors.muted, fontSize: 18, fontWeight: "700" },
+  sheetScroll: { maxHeight: 360 },
+  sheetSection: { marginTop: 12, gap: 4 },
+
+  reactPicker: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-around", gap: 8, paddingVertical: 6 },
+  reactPick: {
+    width: 60, height: 60, borderRadius: 14, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
   },
-  reactionEmoji: { fontSize: 20 },
+  reactPickEmoji: { fontSize: 30 },
+
   giftGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   giftItem: {
-    width: "30%",
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: "rgba(0,0,0,0.25)",
-    alignItems: "center",
+    width: "30%", padding: 8, borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.25)", alignItems: "center",
   },
   giftEmoji: { fontSize: 24 },
-  chatBox: { flex: 1, maxHeight: 160, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 10, padding: 8 },
-  chatLine: { color: theme.colors.text, fontSize: 13, marginBottom: 6 },
+
+  chatLine: { color: theme.colors.text, fontSize: 14, marginBottom: 8, lineHeight: 20 },
   chatName: { color: "#c4b5fd", fontWeight: "600" },
   controls: { flexDirection: "row", gap: 8, alignItems: "center" },
-  error: { color: "#f87171" },
+
+  personRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingVertical: 6 },
+  personName: { color: theme.colors.text, fontSize: 14, flex: 1 },
+  personActions: { flexDirection: "row", gap: 14, alignItems: "center" },
+  linkDanger: { color: "#f87171", fontSize: 13, fontWeight: "700" },
+  linkMuted: { color: theme.colors.muted, fontSize: 13, fontWeight: "600" },
+
+  // Overlays (kept).
   toast: {
-    position: "absolute",
-    top: 8,
-    alignSelf: "center",
-    zIndex: 20,
-    backgroundColor: "rgba(15,7,32,0.92)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
+    position: "absolute", top: 8, alignSelf: "center", zIndex: 20,
+    backgroundColor: "rgba(15,7,32,0.92)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
   },
   giftBanner: {
-    position: "absolute",
-    top: 48,
-    alignSelf: "center",
-    zIndex: 20,
-    backgroundColor: "rgba(219,39,119,0.85)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    position: "absolute", top: 48, alignSelf: "center", zIndex: 20,
+    backgroundColor: "rgba(219,39,119,0.85)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
   toastText: { color: "#fff", fontSize: 13 },
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 15 },
-  floatingReaction: {
-    position: "absolute",
-    bottom: 120,
-    fontSize: 28,
-  },
+  floatingReaction: { position: "absolute", bottom: 120, fontSize: 28 },
 });

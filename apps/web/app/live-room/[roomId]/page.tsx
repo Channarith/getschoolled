@@ -42,6 +42,7 @@ import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 import { useT } from "../../lib/i18n";
+import { speakNaturally, cancelSpeech } from "../../lib/tts";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
@@ -382,6 +383,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  // AI teacher audio: Theodore narrates each slide out loud (neural TTS with an
+  // on-device fallback) while presenting. On by default; a toggle lets you mute.
+  const [aiAudioOn, setAiAudioOn] = useState(true);
+  const spokenSlideRef = useRef<number | null>(null);
   const leftVoluntarily = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
@@ -710,7 +715,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me) return;
     setBusy(true);
     try {
-      setRoom(await liveRoomMute(roomId, me.id, !me.muted));
+      // Toggle against the effective muted state (self-mute OR host mute) so the
+      // button's label ("Mute"/"Unmute") always matches what it does.
+      const currentlyMuted = Boolean(me.muted || me.muted_by_host);
+      setRoom(await liveRoomMute(roomId, me.id, !currentlyMuted, false, "", me.id));
     } catch (e) {
       setError(friendlyError(e, "Could not toggle mute"));
     } finally {
@@ -749,6 +757,34 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);
+
+  // AI teacher voice: Theodore narrates each new slide out loud while presenting
+  // (neural TTS via the speech service, on-device fallback). Keyed on the slide
+  // index so each slide is spoken once — on Start class and on every auto/manual
+  // advance. Muting, the class ending, or leaving stops and resets it.
+  const classLive = Boolean(room?.presenting) && room?.status !== "ended";
+  const slideIdx = room?.slide?.index;
+  const slideTitle = room?.slide?.title;
+  const slideNarration = room?.slide?.narration;
+  const slideBody = room?.slide?.body;
+  const narrationLocale = me?.language || locale;
+  useEffect(() => {
+    if (!aiAudioOn || !classLive || slideIdx == null) {
+      cancelSpeech();
+      if (!classLive) spokenSlideRef.current = null;
+      return;
+    }
+    if (spokenSlideRef.current === slideIdx) return;
+    spokenSlideRef.current = slideIdx;
+    const text = `${slideTitle ? slideTitle + ". " : ""}${(slideNarration || slideBody || "").trim()}`.trim();
+    if (text) {
+      cancelSpeech();  // stop the previous slide's narration before the new one
+      speakNaturally(text, { locale: narrationLocale });
+    }
+  }, [aiAudioOn, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale]);
+
+  // Always stop narration when leaving the room.
+  useEffect(() => () => cancelSpeech(), []);
 
   async function toggleRecording() {
     setBusy(true);
@@ -1168,7 +1204,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     type="button"
                     onClick={() => void callOn(p.id)}
                     disabled={busy}
-                    title={`Give ${p.name} the floor (only they can talk)`}
+                    title={`Request ${p.name} to speak (give them the floor; only they can talk)`}
                     style={{
                       position: "absolute",
                       bottom: 34,
@@ -1182,7 +1218,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       cursor: "pointer",
                     }}
                   >
-                    🎤 Call on
+                    🎤 Request to speak
                   </button>
                 ) : null}
                 {p.role !== "host" && p.id !== me?.id ? (
@@ -1439,12 +1475,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button onClick={() => void toggleHand()} disabled={busy} title="Join or leave Q&A queue">
+            <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
               {hasFloor
                 ? "🎤 You're speaking"
                 : inQueue
-                  ? `✋ Leave queue (#${myQueuePos})`
-                  : "✋ Join Q&A queue"}
+                  ? `✋ Lower your hand (#${myQueuePos})`
+                  : "✋ Raise your hand"}
             </button>
             {hasFloor ? (
               <button onClick={() => void finishTurn()} disabled={busy} style={{ background: "#059669", color: "#fff" }}>
@@ -1463,10 +1499,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </>
             ) : null}
-            <button onClick={() => void toggleMute()} disabled={busy || (!hasFloor && inQueue)}>
+            <button
+              onClick={() => void toggleMute()}
+              disabled={busy || (!hasFloor && inQueue)}
+              title="Mute or unmute your own microphone. You're only heard once the host gives you the floor (raise your hand)."
+            >
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
-            {me?.is_admin || canModerate ? (
+            <button
+              onClick={() => setAiAudioOn((v) => { if (v) cancelSpeech(); return !v; })}
+              title={aiAudioOn ? "Mute the AI teacher's voice" : "Hear the AI teacher narrate the slides"}
+            >
+              {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}
+            </button>
+            {canModerate ? (
               !room?.presenting ? (
                 <button
                   onClick={() => void startPresentation()}
@@ -1482,9 +1528,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 </button>
               )
             ) : null}
-            <button onClick={() => void toggleRecording()} disabled={busy}>
-              {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
-            </button>
+            {canModerate ? (
+              <button onClick={() => void toggleRecording()} disabled={busy}>
+                {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
+              </button>
+            ) : null}
             {canModerate ? (
               <button
                 onClick={() => void closeSession()}
