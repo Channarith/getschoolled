@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.56 - Fixed platform-admin live-room actions 403'ing on the
+  cluster (e.g. DELETE a live room). Root cause: identity_base_url() read only
+  IDENTITY_URL, but the k8s config set IDENTITY_ORIGIN — so the orchestrator fell
+  back to localhost, couldn't reach identity /auth/me, and the admin check failed
+  closed. identity_base_url() now accepts IDENTITY_URL OR IDENTITY_ORIGIN, and
+  IDENTITY_URL/MEMORY_URL were added to both configmaps. (Redeploy the
+  orchestrator to apply.)
 - 2026-07-15 - v0.19.55 - Added a Contact hub. New /contact page with direct
   email routes — support@salareen.com (support), business@salareen.com (work /
   business / partnerships), jobs@salareen.com (careers), and courses@salareen.com
