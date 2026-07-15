@@ -1505,7 +1505,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             >
               {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}
             </button>
-            {me?.is_admin || canModerate ? (
+            {canModerate ? (
               !room?.presenting ? (
                 <button
                   onClick={() => void startPresentation()}
@@ -1521,9 +1521,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 </button>
               )
             ) : null}
-            <button onClick={() => void toggleRecording()} disabled={busy}>
-              {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
-            </button>
+            {canModerate ? (
+              <button onClick={() => void toggleRecording()} disabled={busy}>
+                {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
+              </button>
+            ) : null}
             {canModerate ? (
               <button
                 onClick={() => void closeSession()}
