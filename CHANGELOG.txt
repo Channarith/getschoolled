@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.50 - Added a simple "💬 Hide chat" toggle to the solo Live
+  Class (/class) "Ask the AI teacher" card, so learners can collapse the chat
+  transcript to focus on the slide (the Ask input stays visible). The group live
+  room already had a chat toggle; this brings parity to the solo class.
 - 2026-07-15 - v0.19.49 - Added a discoverable "⛶ Fullscreen host" toggle to the
   web live room's view-controls row (next to Focus instructor / chat). Fullscreen
   was previously only a tiny ⛶ on each tile / double-click and was easy to miss.
