@@ -50,6 +50,25 @@ def test_tts_status_reports_engine(monkeypatch):
     assert body["available"] is True and body["engine"] == "elevenlabs"
 
 
+def test_tts_status_diagnostic_when_no_engine(monkeypatch):
+    # Simulate the deployed image with no neural engine (no edge-tts, no keys):
+    # status must report unavailable with a per-engine breakdown + a hint on how
+    # to enable neural TTS (so "why is it robotic?" is answerable).
+    import speech_gw.main as m
+    from aoep_shared import cosyvoice_tts, elevenlabs_tts
+    from aoep_shared.meeting import natural_tts
+
+    monkeypatch.setattr(cosyvoice_tts, "cosyvoice_configured", lambda *a, **k: False)
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: False)
+    monkeypatch.setattr(natural_tts, "_edge_tts_available", lambda: False)
+    monkeypatch.setattr(m, "_active_tts_engine", lambda: "none")
+    body = client.get("/tts/status").json()
+    assert body["available"] is False and body["engine"] == "none"
+    assert set(body["engines"]) == {"cosyvoice", "elevenlabs", "edge_tts"}
+    assert body["engines"]["edge_tts"] is False
+    assert "edge-tts" in body["hint"] and "ELEVENLABS_API_KEY" in body["hint"]
+
+
 def test_tts_voices_catalog():
     r = client.get("/tts/voices")
     assert r.status_code == 200
