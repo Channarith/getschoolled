@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-15 - v0.19.36 - Harden LiveKit config against copy-paste whitespace.
+  LIVEKIT_URL/API_KEY/API_SECRET are now stripped when loaded: a trailing newline
+  (from kubectl patch / --from-literal / heredoc / echo) in the secret silently
+  breaks the HMAC signature, so LiveKit Cloud rejects the socket with the opaque
+  "WebSocket is closed before the connection is established". Whitespace-only
+  values fall back to the dev default so /api/live-rooms/livekit-status flags them.
 - 2026-07-15 - v0.19.35 - Fixed the Salareen live-room LiveKit reconnect storm
   and added a credential self-check. The web useLiveKitRoom hook had the polled
   participants array in its effect deps, so every 3s room refresh tore down and
