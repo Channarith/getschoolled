@@ -9,8 +9,17 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+MOBILE_ROOT="$ROOT"
 # shellcheck source=mobile-env.sh
 . "$(dirname "$0")/mobile-env.sh"
+# shellcheck source=mobile-deps.sh
+. "$(dirname "$0")/mobile-deps.sh"
+
+# Make sure the full native dependency tree is materialized BEFORE prebuild, so
+# the generated android/ can resolve react-native's Gradle version catalog
+# (a no-op `pnpm install` otherwise leaves node_modules incomplete and gradle
+# fails with "libs.versions.toml doesn't exist").
+mobile_deps_ensure_installed
 
 # Force cloud backend so the embedded bundle never points at localhost.
 export MOBILE_DEPLOY_MODE=cloud

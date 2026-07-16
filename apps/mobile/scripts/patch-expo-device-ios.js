@@ -5,14 +5,21 @@
 const fs = require("fs");
 const path = require("path");
 
-const swiftPath = path.join(
-  __dirname,
-  "..",
-  "node_modules",
-  "expo-device",
-  "ios",
-  "UIDevice.swift",
-);
+// Resolve expo-device wherever it actually lives (local copy, pnpm symlink, or
+// hoisted to the workspace root) rather than assuming apps/mobile/node_modules.
+function resolveExpoDeviceDir() {
+  try {
+    return path.dirname(
+      require.resolve("expo-device/package.json", { paths: [path.join(__dirname, "..")] }),
+    );
+  } catch {
+    const local = path.join(__dirname, "..", "node_modules", "expo-device");
+    return fs.existsSync(local) ? local : null;
+  }
+}
+
+const deviceDir = resolveExpoDeviceDir();
+const swiftPath = deviceDir ? path.join(deviceDir, "ios", "UIDevice.swift") : null;
 
 const MARKER = "#if targetEnvironment(simulator)";
 
@@ -42,9 +49,12 @@ function replacementForMatch(indent) {
 }
 
 function main() {
-  if (!fs.existsSync(swiftPath)) {
-    console.error("patch-expo-device-ios: expo-device not installed");
-    process.exit(1);
+  // expo-device is optional at patch time — if it isn't installed yet, skip
+  // cleanly (exit 0) instead of hard-failing the whole native build. The build
+  // scripts run mobile_deps_ensure_installed first, so a real build has it.
+  if (!swiftPath || !fs.existsSync(swiftPath)) {
+    console.log("patch-expo-device-ios: expo-device not installed — skip");
+    return;
   }
 
   let src = fs.readFileSync(swiftPath, "utf8");

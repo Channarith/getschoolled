@@ -32,10 +32,11 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-if ! mobile_deps_has_expo; then
-  echo "ERROR: expo missing — bash scripts/mobile-install.sh" >&2
-  exit 1
-fi
+# Make sure the full native dependency tree is materialized BEFORE prebuild.
+# Otherwise prebuild's native patches (expo-device, react-native, …) fail with
+# "not installed" when a bare `pnpm install` no-op'd and left node_modules
+# incomplete.
+mobile_deps_ensure_installed
 
 # Always regenerate the native iOS project from app.json so Info.plist
 # (privacy usage strings, version, build number) can never drift from the
