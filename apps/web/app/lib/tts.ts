@@ -252,7 +252,15 @@ async function playServerAudio(
       signal: ac.signal,
     });
     if (_epoch !== myEpoch) return true;    // cancelled during fetch: swallow
-    if (!resp.ok) return false;             // 501/4xx -> browser fallback
+    if (!resp.ok) {
+      // 501 = the server has no working neural engine (e.g. edge-tts installed
+      // but its endpoint is unreachable, so /tts/status reported "available"
+      // but synthesis fails). Downgrade for the rest of the session so we stop
+      // POSTing (and stop spamming the console with 501s) and use the on-device
+      // voice from here on.
+      if (resp.status === 501) _serverTtsReady = false;
+      return false;                         // -> browser fallback
+    }
     const blob = await resp.blob();
     _inflight = null;                       // fetch fully done; nothing to abort
     if (_epoch !== myEpoch) return true;    // cancelled while reading body
@@ -300,7 +308,12 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
         instructor: _serverInstructor,
       }),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      // See playServerAudio: a 501 means no working neural engine — stop trying
+      // for the rest of the session so we don't repeatedly POST /tts (501).
+      if (resp.status === 501) _serverTtsReady = false;
+      return null;
+    }
     const blob = await resp.blob();
     if (!blob.size) return null;
     const url = URL.createObjectURL(blob);
