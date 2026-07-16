@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  getMe,
   getToken,
   groupClassCalendarUrl,
   listGroupClasses,
@@ -61,6 +62,7 @@ export default function GroupClassesPage() {
   const [showForm, setShowForm] = useState(false);
   const [started, setStarted] = useState<GroupClassStart | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
+  const [isAdmin, setIsAdmin] = useState(false);    // platform admin can join a full class to monitor
 
   // schedule form
   const [title, setTitle] = useState("");
@@ -84,6 +86,9 @@ export default function GroupClassesPage() {
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
+    if (getToken()) {
+      void getMe().then((a) => setIsAdmin(Boolean(a.is_admin))).catch(() => setIsAdmin(false));
+    }
     refresh();
     listLessons()
       .then((ls) => {
@@ -331,8 +336,14 @@ export default function GroupClassesPage() {
                 <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
                   {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
                 </button>
-                <button onClick={() => onJoin(gc)} disabled={busy}>
-                  {t("group.join")}
+                {/* A full class is grayed out (not joinable) for everyone except
+                    the platform admin, who can still drop in to monitor it. */}
+                <button
+                  onClick={() => onJoin(gc)}
+                  disabled={busy || (gc.seats_left <= 0 && !isAdmin)}
+                  title={gc.seats_left <= 0 && !isAdmin ? t("group.full") : undefined}
+                >
+                  {gc.seats_left <= 0 && !isAdmin ? t("group.full") : t("group.join")}
                 </button>
                 <button onClick={() => onStart(gc)} disabled={busy}
                   title={t("group.startHint")}

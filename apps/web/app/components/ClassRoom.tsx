@@ -40,7 +40,7 @@ import {
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
 import { useT } from "../lib/i18n";
-import { speakNaturally } from "../lib/tts";
+import { cancelSpeech, speakNaturally } from "../lib/tts";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
 type SpeechRec = {
@@ -213,7 +213,13 @@ export default function ClassRoom({
   }, [locale]);
 
   function stopSpeaking() {
+    // cancelSpeech() stops BOTH the on-device voice AND the neural server audio
+    // (and aborts any in-flight fetch). Calling only speechSynthesis.cancel()
+    // left neural MP3 narration playing — which is why the class "couldn't be
+    // stopped". Also clear any pending auto-advance so it doesn't jump ahead.
+    cancelSpeech();
     try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
+    if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
     speechRef.current = null;
     setSpeaking(false);
   }
@@ -902,7 +908,6 @@ export default function ClassRoom({
                 name="Salareen AI Instructor"
                 persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
                 caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
-                live
                 muted={!speakAnswers}
                 onToggleMute={() => {
                   const next = !speakAnswers;
@@ -978,7 +983,9 @@ export default function ClassRoom({
                 onClick={() => {
                   setAutoplay((v) => {
                     const next = !v;
-                    if (!next && autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+                    // Pausing must actually stop the AI talking now (not just
+                    // prevent the next advance) — halt narration + pending timer.
+                    if (!next) stopSpeaking();
                     return next;
                   });
                 }}

@@ -787,9 +787,53 @@ def _seed_group_classes() -> None:
         logging.getLogger(__name__).warning("group class seed skipped (%s)", exc)
 
 
+def _cleanup_expired_classes() -> int:
+    """Delete group classes whose allotted time has fully finished, and end any
+    matching live room so it stops being joinable. Runs on a 60s cron (below) and
+    lazily on every listing, so a past class is removed within a minute even if
+    nobody loads the page."""
+    import logging
+    from datetime import datetime, timezone
+
+    store = _group_store()
+    ref = datetime.now(timezone.utc)
+    # End the live room of any class about to be purged (best-effort).
+    for c in list(store.list(upcoming_only=False, include_ended=True, now=ref)):
+        end = c.start_dt.timestamp() + c.duration_min * 60
+        if end < ref.timestamp() and c.live_room_id:
+            try:
+                if _live_rooms().get(c.live_room_id) is not None:
+                    _live_rooms().end_room(c.live_room_id, auto=True)
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).debug("room end skipped for %s", c.id, exc_info=True)
+    removed = store.purge_expired(now=ref)
+    if removed:
+        logging.getLogger(__name__).info("cleaned up %d expired group classes", removed)
+    return removed
+
+
+async def _class_cleanup_loop() -> None:
+    """Every 60 seconds, purge classes whose time is over (the cleanup cron)."""
+    import asyncio
+    import logging
+
+    while True:
+        try:
+            await asyncio.sleep(60)
+            _cleanup_expired_classes()
+        except asyncio.CancelledError:  # graceful shutdown
+            raise
+        except Exception:  # noqa: BLE001 - a cleanup hiccup must never crash the loop
+            logging.getLogger(__name__).debug("class cleanup tick failed", exc_info=True)
+
+
 @app.on_event("startup")
-def _orchestrator_startup() -> None:
+async def _orchestrator_startup() -> None:
+    import asyncio
+
     _seed_group_classes()
+    _cleanup_expired_classes()  # sweep once at boot
+    app.state._class_cleanup_task = asyncio.create_task(_class_cleanup_loop())
 
 
 def _group_store() -> GroupClassStore:

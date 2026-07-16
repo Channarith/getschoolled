@@ -2,6 +2,36 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.69 - Group/solo classes run with drop-in + full-class
+  gating. A class now auto-starts (audio + slide auto-advance) as soon as >=1
+  learner is present — instant/solo rooms start on the first learner, scheduled
+  ones at their start time — instead of only when full or 5 min late; this is
+  what makes group/solo classes actually run on mobile. Because the class
+  auto-advances and its position is tracked server-side, a learner can drop into
+  a session already in progress and pick up at the current slide. A full class
+  is grayed out (Join disabled, labeled "Full") for regular learners on web +
+  mobile, while the platform admin can still join to monitor it.
+
+- 2026-07-16 - v0.19.68 - Mobile sign-out now returns to the signed-out screen.
+  Previously it left the user on Settings (and, with guest-preview active, still
+  inside the app able to reach gated features). Sign-out now resets to the home
+  tab, closes every open feature screen/modal, and exits guest-preview so the
+  app drops back to the sign-in gate.
+
+- 2026-07-16 - v0.19.67 - Corporate/self-paced training is stoppable and no
+  longer mislabeled "LIVE". Stop/pause now halts BOTH the on-device voice and
+  the neural server audio (previously stopSpeaking only cancelled the browser
+  voice, so neural MP3 narration kept playing and the class "couldn't be
+  stopped"); pausing autoplay stops the current narration, not just the next
+  advance. The self-paced ClassRoom presenter no longer shows a LIVE badge.
+
+- 2026-07-16 - v0.19.66 - Auto-clean up expired classes. A group class whose
+  allotted time (start + duration) has finished is now deleted entirely instead
+  of lingering on the schedule as LIVE/joinable: listings purge past classes on
+  every load, and a 60-second background cron in the orchestrator ends the live
+  room and removes the class even when nobody has the page open (a short grace
+  lets a just-ended class show its farewell first).
+
 - 2026-07-16 - v0.19.65 - Class length + Drive + mobile intro. (1) Live/group
   classes now pace slide auto-advance to the narration's speaking time (not a
   fixed 5s) and web + mobile narrate the FULL slide body — so classes teach in
