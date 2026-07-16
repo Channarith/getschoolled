@@ -2,24 +2,96 @@ Cyber Incident Response Drills
 ==============================
 
 Containment without destruction — ransomware, breach, and insider scenarios.
-Use track_id ``cyber_ir`` or domain ``cybersecurity``.
+Use track_id ``cyber_ir`` or domain ``cybersecurity``. This drill follows the
+NIST incident-response lifecycle: preparation, detection and analysis,
+containment, eradication, recovery, and post-incident review.
 
-Module 1 — Isolate to slow spread
+Module 1 — Preparation before anything breaks
+----------------------------------------------
+The response you can execute is decided long before the alert fires. Keep an
+up-to-date asset inventory, an on-call rotation with clear roles, offline and
+tested backups, and a communication plan with pre-approved holding statements.
+Store the incident-response plan somewhere reachable even if the network is
+down, and rehearse it so muscle memory takes over under stress.
+
+Module 2 — Detection and triage
+-------------------------------
+Not every alert is an incident. Triage confirms whether something real is
+happening, how urgent it is, and which systems are affected. Correlate signals
+from endpoint detection, firewall and identity logs, and user reports; assign a
+severity; and open a timeline you will append to for the rest of the incident.
+Getting severity right routes the right people in without crying wolf.
+
+Module 3 — Isolate to slow the spread
+-------------------------------------
+Segment affected hosts to stop lateral movement — disable network access,
+revoke suspect credentials, and block command-and-control domains. Avoid wiping
+disks before evidence is preserved unless business survival requires it: a
+rebuilt machine is a destroyed witness. Prefer isolation over shutdown so
+volatile memory and live indicators remain available to investigators.
+
+Module 4 — Preserve evidence
+----------------------------
+Before you change a compromised system, capture what it can tell you: memory
+images, disk snapshots, and relevant logs, each with hashes and a chain of
+custody. Evidence supports eradication decisions, insurance and legal needs, and
+prosecution. Work from copies; never investigate on the only original.
+
+Module 5 — Verify before you trust
+----------------------------------
+CEO-fraud wire requests and polished phishing pages are engineered to feel
+urgent. Out-of-band verification — a call to a known number, not a reply to the
+email — is not optional. Assume attacker-controlled channels during an incident,
+and confirm identities and instructions through a second, independent path.
+
+Module 6 — Eradicate the root cause
+-----------------------------------
+Removing the malware is not the same as removing the way in. Identify and close
+the initial access vector — the unpatched service, the stolen credential, the
+malicious rule — and remove persistence mechanisms across every affected host.
+If you skip this, the attacker simply returns through the same door.
+
+Module 7 — Recover safely
+-------------------------
+Restore from known-good backups, rebuild rather than clean where trust is in
+doubt, and bring systems back in a monitored, staged way. Watch closely for
+re-infection, rotate all potentially exposed secrets, and only declare recovery
+once services are verified healthy and clean.
+
+Module 8 — Communicate facts only
 ---------------------------------
-Segment affected hosts; avoid wiping disks before evidence preservation unless
-business survival requires it.
+Leadership, customers, and PR will want answers immediately. Separate confirmed
+facts from hypotheses, give a single source of truth, and update on a cadence.
+Speculation in public becomes tomorrow's correction; say what you know, what you
+are doing, and when you will update next.
 
-Module 2 — Verify before trust
-------------------------------
-CEO fraud wires and phishing pages look urgent. Out-of-band verification is not
-optional.
+Module 9 — Legal and notification duties
+-----------------------------------------
+Many breaches carry deadlines — regulators, affected individuals, and partners
+may need timely notice, and some jurisdictions require it within days. Involve
+legal and privacy early, log every decision, and understand your obligations
+before the clock, not after. Missed notifications often cost more than the
+incident.
 
-Module 3 — Communicate facts only
----------------------------------
-PR and leadership will ask for answers. Separate confirmed facts from hypotheses.
+Module 10 — Foresight: what spreads in fifteen minutes
+------------------------------------------------------
+Map the likely lateral-movement paths before declaring containment complete.
+Ask what an attacker reaches next from the beachhead you found — shared
+credentials, trust relationships, backups — and cut those paths proactively
+rather than chasing the intrusion one host at a time.
 
-Module 4 — Foresight — what spreads in 15 minutes
--------------------------------------------------
-Map lateral movement paths before declaring containment complete.
+Module 11 — Post-incident review
+--------------------------------
+When the fire is out, run a blameless review while memory is fresh. What
+happened, what worked, what slowed you down, and which fixes prevent a repeat?
+Turn findings into concrete actions with owners and dates, and feed them back
+into preparation so the next response is faster.
+
+Module 12 — Tabletop drills
+---------------------------
+Practice on calm days. Walk the team through ransomware, data-breach, and
+insider scenarios; time your detection-to-containment; and surface the gaps —
+missing contacts, stale backups, unclear authority — before a real adversary
+does. Rehearsed teams recover measurably faster.
 
 Practice scenarios: cyber_* , telecom_* outage variants.

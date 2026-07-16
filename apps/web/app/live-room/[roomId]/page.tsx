@@ -446,7 +446,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined);
   };
 
+  // De-dupe room updates from the 3s tick + WebSocket: if nothing actually
+  // changed since the last snapshot, skip setState so we don't re-render the
+  // whole (large) live-room tree every 3 seconds for no reason. This is the main
+  // cause of "setInterval handler took Nms" — a full re-render on an idle tick.
+  const lastRoomSigRef = useRef("");
   const applyRoom = useCallback((next: LiveRoomState) => {
+    const sig = JSON.stringify(next);
+    if (sig === lastRoomSigRef.current) return;
+    lastRoomSigRef.current = sig;
     setRoom(next);
     if (typeof next.viewer_count === "number") {
       viewerSetterRef.current(next.viewer_count);
@@ -551,11 +559,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }, [room, joinInfo, roomId, localStream]);
 
-  useEffect(() => {
-    if (!joinInfo || socket.connected) return;
-    const timer = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(timer);
-  }, [joinInfo, refresh, socket.connected]);
+  // Note: we intentionally do NOT run a separate room-refresh poll here. The
+  // heartbeat tick below already returns the full room every 3s (and the socket
+  // pushes live updates), so a second interval calling getLiveRoom was redundant
+  // work — double the fetches + re-renders — which contributed to slow-timer
+  // ('setInterval handler took Nms') warnings. The one-time refresh on mount
+  // still primes the join screen.
 
   useEffect(() => {
     void getLiveGiftCatalog()

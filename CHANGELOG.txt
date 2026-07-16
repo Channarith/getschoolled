@@ -2,6 +2,29 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.80 - App-timer review + fix (web + mobile). The live room
+  re-rendered its whole tree on every 3s heartbeat even when nothing changed
+  (the main "setInterval handler took Nms" source); applyRoom now skips setState
+  when the room snapshot is unchanged, on both platforms, and mobile's redundant
+  3s refresh poll was removed (the tick already returns the full room). Reviewed
+  all other timers: light 1s UI counters, admin 4-5s polls, arcade game loops,
+  and event-driven voice timers are fine, and the live-room socket reconnect is
+  already exponential-backoff limited.
+
+- 2026-07-16 - v0.19.79 - Live room perf: removed a redundant 3s room-refresh
+  poll that ran on top of the heartbeat tick (which already returns the full
+  room), halving the per-interval fetch + re-render work that contributed to
+  "setInterval handler took Nms" slow-timer warnings. (The "message channel
+  closed before a response was received" console error is a browser-extension
+  message-port error, not app code — it disappears in an extension-free window.)
+
+- 2026-07-16 - v0.19.78 - Every lesson now carries a full deck (>=20 slides).
+  Reviewed all lessons: after the free-form parser fix every lesson had >=21
+  slides except cyber-incident-response (17, only 4 short modules). Expanded it
+  to the full NIST incident-response lifecycle (12 modules) -> 48 slides. A
+  regression test now requires >=20 slides per lesson so a group/solo class fills
+  a ~30-minute session and never stalls on 0-1 slides.
+
 - 2026-07-16 - v0.19.77 - Webcams turn on when attending a solo/group class.
   The LiveKit token now grants camera + screen_share to every participant (all
   webcams publish, so the class looks like a video call) while the microphone is
