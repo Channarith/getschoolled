@@ -234,7 +234,9 @@ export default function LiveRoomScreen({
     const s = room?.slide;
     if (!s || spokenSlideRef.current === s.index) return;
     spokenSlideRef.current = s.index;
-    const text = `${s.title}. ${s.narration || s.body || ""}`.trim();
+    // Narrate the full slide body (substantive lecture), not just the one-line
+    // script — the server paces auto-advance to this so it isn't cut off.
+    const text = `${s.title}. ${s.body || s.narration || ""}`.trim();
     if (text) speakNatural(text, { locale });
   }, [room?.slide?.index, participantId, muted, locale]);
 

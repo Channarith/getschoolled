@@ -950,7 +950,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
     if (spokenSlideRef.current === slideIdx) return;
     spokenSlideRef.current = slideIdx;
-    const text = `${slideTitle ? slideTitle + ". " : ""}${(slideNarration || slideBody || "").trim()}`.trim();
+    // Narrate the full slide body (a substantive mini-lecture), not just the
+    // terse one-line script — so the class actually teaches and runs for its
+    // natural length. The server paces auto-advance to this narration.
+    const text = `${slideTitle ? slideTitle + ". " : ""}${(slideBody || slideNarration || "").trim()}`.trim();
     if (text) {
       cancelSpeech();  // stop the previous slide's narration before the new one
       speakNaturally(text, { locale: narrationLocale });
