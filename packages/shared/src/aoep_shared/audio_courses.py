@@ -3,8 +3,10 @@
 Generates a large catalog of audio-first courses designed to be taken while
 driving (or commuting / exercising): every course is narration-only, marked
 ``visual_required=False`` and ``drive_safe=True``, with no images, video, or
-on-screen interaction required. Each segment is substantive authored content —
-no synthetic padding, recall prompts, intro wrappers, or repeated narration.
+on-screen interaction required. Knowledge lessons are framed with an
+advance-organizer Overview and an extractive Key-takeaways recap (built only
+from the lesson's own headings + lead sentences — no fabricated facts) so each
+lesson orients the learner and runs long enough to actually teach something.
 
 Two generators feed the catalog:
     - language audio lessons (reuses the 26-language phrasebook): "listen & repeat"
@@ -74,6 +76,56 @@ def _narration_words(segments: List[AudioSegment]) -> int:
 def _duration(segments: List[AudioSegment], *, min_minutes: int = MIN_AUDIO_MINUTES) -> int:
     words = _narration_words(segments)
     return max(min_minutes, round(words / WORDS_PER_MINUTE))
+
+
+def _oxford_join(items: List[str]) -> str:
+    items = [i for i in items if i]
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+
+def _first_sentence(text: str) -> str:
+    """The lead sentence of a section (sections are newline-separated sentences)."""
+    line = (text or "").strip().split("\n", 1)[0].strip()
+    return line
+
+
+def _deepen_en_segments(title: str, segs: List[AudioSegment]) -> List[AudioSegment]:
+    """Wrap an authored (English) knowledge lesson with an advance-organizer
+    Overview and an extractive Key-takeaways recap.
+
+    This adds genuine instructional structure — stating the learning objectives
+    up front and recapping them at the end aids comprehension and retention —
+    and gives each lesson enough runtime to actually teach something. It uses
+    ONLY the lesson's own section headings and lead sentences, so it introduces
+    no new (unverified) facts.
+    """
+    if not segs:
+        return segs
+    headings = [s.heading for s in segs]
+    overview = (
+        f"Welcome. In this lesson we explore {title}. "
+        f"We'll cover {len(segs)} parts: {_oxford_join(headings)}. "
+        "As you listen, notice how each part builds on the one before it — "
+        "you don't need to take notes, just follow along."
+    )
+    recap_lines = [f"{s.heading}. {_first_sentence(s.text)}" for s in segs]
+    takeaways = (
+        "Key takeaways. Let's recap the main points. "
+        + " ".join(recap_lines)
+        + " Keep these in mind, and you'll have a solid working grasp of "
+        f"{title}. That's the end of this lesson — thanks for listening."
+    )
+    return [
+        AudioSegment(heading="Overview", text=overview, kind="narration"),
+        *segs,
+        AudioSegment(heading="Key takeaways", text=takeaways, kind="narration"),
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -332,6 +384,10 @@ def _knowledge_course(
             for heading, body in TOPIC_SECTIONS[title]
         ]
         body_loc = "en"
+        # Frame the authored sections with an Overview + Key-takeaways recap so
+        # the lesson orients the learner and runs long enough to teach something
+        # (English bodies only; curated non-English fact sets stay verbatim).
+        segs = _deepen_en_segments(title, segs)
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
         id=f"audio-{slug}",

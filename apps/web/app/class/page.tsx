@@ -42,7 +42,7 @@ import SignInToUse from "../components/SignInToUse";
 import AiPresenter from "../components/AiPresenter";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
-import { synthChunk } from "../lib/tts";
+import { splitForSpeech, synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
@@ -139,13 +139,20 @@ export default function ClassPage() {
     setSpokenText(text);   // caption updates even when muted
     if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     stopSpeaking();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    speechRef.current = utterance;
+    // Chunk into sentences and queue them. Chrome cuts a single long utterance
+    // off after ~15s; short queued utterances play the whole narration without
+    // truncation (and pace more naturally).
+    const chunks = splitForSpeech(text);
+    if (!chunks.length) return;
     setSpeaking(true);
-    window.speechSynthesis.speak(utterance);
+    chunks.forEach((chunk, i) => {
+      const u = new SpeechSynthesisUtterance(chunk);
+      u.rate = 1;
+      if (i === 0) speechRef.current = u;
+      if (i === chunks.length - 1) u.onend = () => setSpeaking(false);
+      u.onerror = () => setSpeaking(false);
+      window.speechSynthesis.speak(u);
+    });
   }
 
   // Repeat-after-me checkpoint: listen to the learner and score how closely they

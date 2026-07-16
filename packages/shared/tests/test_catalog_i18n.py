@@ -97,9 +97,11 @@ def test_knowledge_course_keeps_title_but_localizes_category():
     assert "Ancient Egypt" in course.title
     # Category label is still localized for the browsing UI.
     assert course.category == "Historia"
-    # Authentic content only: the first segment is a substantive authored
-    # section (English narration pack), not a generic localized intro.
-    assert course.segments[0].heading == "The Nile's Annual Rhythm"
+    # English body is framed with an Overview + Key-takeaways recap; the
+    # authored sections (English narration pack) sit between them verbatim.
+    assert course.segments[0].heading == "Overview"
+    assert course.segments[-1].heading == "Key takeaways"
+    assert any(s.heading == "The Nile's Annual Rhythm" for s in course.segments)
     assert course.body_locale == "en"
 
 

@@ -27,6 +27,21 @@ export function localeToBcp47(locale: string): string {
   return LOCALE_TO_BCP47[locale] || locale || "en-US";
 }
 
+// Split narration into sentence/clause chunks. The on-device engine (Android
+// TextToSpeech in particular) truncates long input — Android's
+// getMaxSpeechInputLength caps a single utterance (~4000 chars) and long
+// utterances can be cut off mid-sentence. Queuing short chunks (expo-speech
+// plays queued calls sequentially) narrates the whole lesson without cutoff.
+export function splitForSpeech(text: string): string[] {
+  return (text || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?:;])\s+/)
+    .flatMap((s) => (s.length > 180 ? s.split(/(?<=,)\s+/) : [s]))
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // expo-speech (iOS AVSpeechSynthesizer) shares the app-wide AVAudioSession.
 // Without an explicit playback category iOS silences narration when the
 // hardware mute switch is on, and after LiveKit / the intro jingle grab and
@@ -198,14 +213,22 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
   const prosody = prosodyForStyle(style);
   const lang = localeToBcp47(opts.locale);
   const speakDevice = () => {
-    Speech.speak(text, {
-      language: lang,
-      voice: pickVoiceId(lang, style),
-      pitch: opts.pitch ?? prosody.pitch,
-      rate: opts.rate ?? prosody.rate,
-      onDone: opts.onDone,
-      onStopped: opts.onStopped,
-      onError: opts.onError,
+    const voice = pickVoiceId(lang, style);
+    // Queue sentence-sized chunks so long narration isn't truncated by the
+    // OS TTS input limit; fire onDone only after the final chunk.
+    const chunks = splitForSpeech(text);
+    if (!chunks.length) { opts.onDone?.(); return; }
+    chunks.forEach((chunk, i) => {
+      const last = i === chunks.length - 1;
+      Speech.speak(chunk, {
+        language: lang,
+        voice,
+        pitch: opts.pitch ?? prosody.pitch,
+        rate: opts.rate ?? prosody.rate,
+        onDone: last ? opts.onDone : undefined,
+        onStopped: last ? opts.onStopped : undefined,
+        onError: opts.onError,
+      });
     });
   };
   void (async () => {
