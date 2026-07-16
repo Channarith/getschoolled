@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.67 - Corporate/self-paced training is stoppable and no
+  longer mislabeled "LIVE". Stop/pause now halts BOTH the on-device voice and
+  the neural server audio (previously stopSpeaking only cancelled the browser
+  voice, so neural MP3 narration kept playing and the class "couldn't be
+  stopped"); pausing autoplay stops the current narration, not just the next
+  advance. The self-paced ClassRoom presenter no longer shows a LIVE badge.
+
 - 2026-07-16 - v0.19.66 - Auto-clean up expired classes. A group class whose
   allotted time (start + duration) has finished is now deleted entirely instead
   of lingering on the schedule as LIVE/joinable: listings purge past classes on
