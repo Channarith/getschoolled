@@ -116,6 +116,28 @@ function AppInner() {
     if (prevAuthStatusRef.current !== "authenticated" && authStatus === "authenticated") {
       setAuthEpoch((n) => n + 1);
     }
+    // On sign-out (authenticated -> unauthenticated) return to a clean signed-out
+    // state: reset to the home tab, close every open feature screen/modal, and
+    // exit guest-preview so the app drops back to the sign-in screen instead of
+    // leaving the user on Settings with access to gated features.
+    if (prevAuthStatusRef.current === "authenticated" && authStatus === "unauthenticated") {
+      setTab("home");
+      setOpenCourseId(null);
+      setShowGroupClasses(false);
+      setShowLiveClass(false);
+      setShowLiveRooms(false);
+      setLiveRoomId(null);
+      setLiveModeratorKey("");
+      setGameSubject(null);
+      setShowRewards(false);
+      setShowAccount(false);
+      setShowSecurity(false);
+      setShowBilling(false);
+      setShowLanguages(false);
+      setActiveLesson(null);
+      setPreviewModeState(false);
+      void setPreviewMode(false);
+    }
     prevAuthStatusRef.current = authStatus;
   }, [authStatus]);
 
