@@ -271,13 +271,16 @@ a {
   /* Single-row top bar on desktop: brand | links | actions.
      Upstream stacks the brand and the link menu on two rows; we flatten
      .nav-top (display:contents) so the brand, links, and actions all become
-     direct flex items of .nav and sit on one line, like the original design. */
+     direct flex items of .nav and sit on one line, like the original design.
+     The link count has grown (13-14 items), so we also widen the bar and
+     tighten the link spacing/size so they all fit on one line without wrapping. */
   .nav {
     flex-direction: row;
     align-items: center;
     flex-wrap: nowrap;
-    gap: 18px;
-    padding: 12px 16px;
+    gap: 16px;
+    padding: 12px 20px;
+    max-width: 1320px; /* wider than the 960px body cap so the full link row fits */
   }
 
   .nav-top {
@@ -293,6 +296,13 @@ a {
     margin: 0 auto 0 8px; /* auto-right margin pushes actions to the far edge */
     padding: 0;
     border-top: none;
+    flex-wrap: nowrap; /* keep every link on a single row */
+    gap: 10px 13px; /* tighter horizontal spacing so more links fit */
+    min-width: 0; /* allow the menu to shrink instead of forcing a wrap */
+  }
+
+  .nav-menu a {
+    font-size: 13px;
   }
 
   .nav-actions {
