@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.82 - Live Class page (/class) is now Solo (1:1) only.
+  Removed the "Group class / Solo (1:1)" mode dropdown and default the page to a
+  solo live room with the AI; group classes remain under their own "Group
+  Classes" section, so the two are no longer mixed on the Live Class page.
 - 2026-07-16 - v0.19.81 - Fix Android/iOS "prebuild --clean" failing with
   "ENOTEMPTY: directory not empty, rmdir '.../android/app'". Added
   apps/mobile/scripts/clean-native-dirs.js (recursive + retry removal) and run it
