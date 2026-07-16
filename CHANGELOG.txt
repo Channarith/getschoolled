@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.72 - Mobile live room now shows host controls to the admin.
+  Previously Start/Close-session were absent and moderator controls only showed
+  when the client held the room's moderator key, so a platform admin attending a
+  class saw nothing. Host controls (Start class, Call next, End turn, Close
+  session, Delete) now show for canModerate (moderator key OR platform admin),
+  and the moderation API calls send the auth token so the platform admin is
+  authorized without a per-room moderator key.
+
 - 2026-07-16 - v0.19.71 - Mobile group classroom shows a participant seats strip
   (AI host + each learner with mic/hand/mute state + your own seat + empty "Open
   seat" slots), so you can see who's in the room and where there's room to drop
