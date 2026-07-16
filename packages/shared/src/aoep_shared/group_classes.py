@@ -237,7 +237,10 @@ class GroupClassStore:
         currently live). ``include_ended`` drops classes already marked ended.
         """
         ref = now or _now()
-        self.sweep_expired(now=ref)  # retire classes whose scheduled window has passed
+        # Remove classes whose time is fully over (auto-delete), then retire any
+        # just-ended ones so nothing past its window lingers as joinable.
+        self.purge_expired(now=ref)
+        self.sweep_expired(now=ref)
         items = self._all_classes()
         if not include_ended:
             items = [c for c in items if c.status != STATUS_ENDED]
@@ -269,6 +272,25 @@ class GroupClassStore:
                 self._commit(c)
                 retired += 1
         return retired
+
+    def delete(self, class_id: str) -> None:
+        """Remove a class entirely from the store."""
+        self._backend.delete(class_id)
+
+    def purge_expired(self, *, grace_seconds: int = 120, now: Optional[datetime] = None) -> int:
+        """Delete classes whose scheduled window (start + duration) finished more
+        than ``grace_seconds`` ago, so past classes are removed entirely (not just
+        hidden) — the "auto-delete once the allotted time has finished" cleanup.
+        The short grace lets a just-ended class show its farewell first. Returns
+        how many were deleted."""
+        ref = now or _now()
+        removed = 0
+        for c in self._all_classes():
+            end = c.start_dt.timestamp() + c.duration_min * 60 + grace_seconds
+            if end < ref.timestamp():
+                self._backend.delete(c.id)
+                removed += 1
+        return removed
 
     def register(self, class_id: str, name: str, email: str = "") -> Registration:
         gc = self.require(class_id)

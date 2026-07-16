@@ -113,23 +113,36 @@ def test_list_sorted_and_upcoming_filter():
     soon = store.schedule(title="Soon", lesson_id="b", start_time=_iso(10))
     past = store.schedule(title="Past", lesson_id="c", start_time=_iso(-300))
 
+    # A long-past class is auto-deleted (its allotted time is over), so it no
+    # longer appears in ANY listing; the remaining classes sort soonest-first.
     ordered = store.list()
-    assert [c.id for c in ordered] == [past.id, soon.id, later.id]
+    assert [c.id for c in ordered] == [soon.id, later.id]
+    assert store.get(past.id) is None
 
     upcoming = store.list(upcoming_only=True)
     assert past.id not in {c.id for c in upcoming}
     assert {soon.id, later.id} <= {c.id for c in upcoming}
 
 
-def test_live_class_past_window_is_retired():
-    # A class started 5h ago (60-min window) must not linger as LIVE/joinable.
+def test_live_class_past_window_is_deleted():
+    # A class started 5h ago (60-min window) must not linger as LIVE/joinable —
+    # once its allotted time is over it is auto-deleted (removed entirely).
     store = GroupClassStore()
     stale = store.schedule(title="Stale", lesson_id="a", start_time=_iso(-300), duration_min=60)
     store.set_status(stale.id, "live")
-    # Listing sweeps expired classes: it's marked ended and dropped from upcoming.
     upcoming = store.list(upcoming_only=True)
     assert stale.id not in {c.id for c in upcoming}
-    assert store.require(stale.id).status == "ended"
+    assert store.get(stale.id) is None
+
+
+def test_purge_expired_keeps_just_ended_within_grace():
+    # A class that ended only ~1 min ago stays briefly (grace) so its farewell can
+    # show; it's dropped from the upcoming listing but not yet deleted.
+    store = GroupClassStore()
+    just = store.schedule(title="JustEnded", lesson_id="a", start_time=_iso(-61), duration_min=60)
+    assert store.purge_expired() == 0
+    assert store.get(just.id) is not None
+    assert just.id not in {c.id for c in store.list(upcoming_only=True)}
 
 
 def test_sweep_expired_leaves_current_classes_alone():
