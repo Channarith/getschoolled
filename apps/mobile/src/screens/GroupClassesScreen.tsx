@@ -245,6 +245,11 @@ export default function GroupClassesScreen({
         {rows.map((gc) => {
           const busy = busyId === gc.id;
           const platform = PLATFORM_LABEL[gc.platform] ?? gc.platform;
+          const isAdmin = Boolean(account?.is_admin);
+          // A full class is grayed out (not joinable) for everyone except the
+          // administrator, who can still drop in to monitor the session.
+          const full = gc.seats_left <= 0;
+          const joinBlocked = full && !isAdmin;
           return (
             <GlassPanel key={gc.id} style={styles.card}>
               <View style={styles.badgeRow}>
@@ -265,9 +270,9 @@ export default function GroupClassesScreen({
                   variant="ghost"
                 />
                 <PrimaryButton
-                  label={t("group.join")}
+                  label={joinBlocked ? t("group.full") : t("group.join")}
                   onPress={() => void handleJoin(gc)}
-                  disabled={busy}
+                  disabled={busy || joinBlocked}
                   variant="brand"
                 />
                 <PrimaryButton
