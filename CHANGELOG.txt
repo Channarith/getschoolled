@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.77 - Webcams turn on when attending a solo/group class.
+  The LiveKit token now grants camera + screen_share to every participant (all
+  webcams publish, so the class looks like a video call) while the microphone is
+  granted only to the current floor holder — the one-speaker audio mutex, now
+  enforced at the token level via canPublishSources. Web + mobile enable the
+  camera on connect and gate the mic to the floor; mobile shows a self-view tile
+  as soon as you attend. (Camera still needs a granted permission, and on web an
+  https origin; video is only relayed to others when LiveKit credentials connect.)
+
 - 2026-07-16 - v0.19.76 - Fix courses that had NO slides. Six lessons
   (intro-physics, cyber-incident-response, first-responder-essentials,
   aviation-emergency-basics, ifr-emergency-procedures, nursing-judgment) were
