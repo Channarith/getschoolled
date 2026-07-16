@@ -527,7 +527,9 @@ export default function DriveModeScreen({
                   style={[styles.langChip, voiceId === v.id && styles.langChipOn]}
                 >
                   <Text style={[styles.langChipText, voiceId === v.id && styles.langChipTextOn]}>
-                    {v.accent}
+                    {/* Disambiguate voices that share an accent (e.g. a male and
+                        female British voice) so they don't look like duplicates. */}
+                    {v.accent}{v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}
                   </Text>
                 </AnimatedPressable>
               ))}
