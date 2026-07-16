@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.78 - Every lesson now carries a full deck (>=20 slides).
+  Reviewed all lessons: after the free-form parser fix every lesson had >=21
+  slides except cyber-incident-response (17, only 4 short modules). Expanded it
+  to the full NIST incident-response lifecycle (12 modules) -> 48 slides. A
+  regression test now requires >=20 slides per lesson so a group/solo class fills
+  a ~30-minute session and never stalls on 0-1 slides.
+
 - 2026-07-16 - v0.19.77 - Webcams turn on when attending a solo/group class.
   The LiveKit token now grants camera + screen_share to every participant (all
   webcams publish, so the class looks like a video call) while the microphone is
