@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.63 - Audio no longer cuts off on long lessons. The solo
+  Live Class page (web) and mobile Drive Mode now split narration into sentence
+  chunks and queue them, so the whole lesson is spoken instead of being
+  truncated by Chrome's ~15s SpeechSynthesis limit or Android TextToSpeech's
+  single-utterance cap. Neural MP3 audio (one file per segment) was unaffected.
+
 - 2026-07-16 - v0.19.62 - Drive Mode voices + lesson depth, and quieter TTS
   fallback. Add a Female/Male/Any voice-gender control (biases the neural voice
   pick AND the on-device fallback, so a male voice is available even when the
