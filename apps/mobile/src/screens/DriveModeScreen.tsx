@@ -55,6 +55,11 @@ export default function DriveModeScreen({
   rateRef.current = rate;
   const segRef = useRef(0);
   const voiceStyleRef = useRef<NarrationVoiceStyle>("standard");
+  // Live mirrors of the chosen accent (BCP-47) / gender / instructor so the
+  // on-device voice fallback honors them too — not only the neural server path.
+  const voiceLocaleRef = useRef<string>("");
+  const voiceGenderRef = useRef<string>("");
+  const instructorRef = useRef<string>("");
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expectWakeRef = useRef(true);
   const autoListenRef = useRef(true);
@@ -83,12 +88,16 @@ export default function DriveModeScreen({
   function chooseVoice(id: string) {
     setVoiceId(id);
     setServerVoice(id);
+    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
+    voiceLocaleRef.current = v?.locale || "";
+    voiceGenderRef.current = v?.gender || "";
     if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
   }
 
   function chooseInstructor(id: string) {
     setInstructorId(id);
     setServerInstructor(id);
+    instructorRef.current = id;
     if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
   }
 
@@ -144,6 +153,9 @@ export default function DriveModeScreen({
       locale: speakLocale,
       voiceStyle: voiceStyleRef.current,
       rate: rateRef.current * prosodyForStyle(voiceStyleRef.current).rate,
+      voiceLocale: voiceLocaleRef.current || undefined,
+      voiceGender: voiceGenderRef.current || undefined,
+      persona: instructorRef.current || undefined,
       onDone: () => {
         if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
       },
