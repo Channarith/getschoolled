@@ -2,6 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.61 - Fix Android + iOS mobile builds failing when
+  node_modules is incomplete (a plain `pnpm install` can no-op, leaving
+  apps/mobile/node_modules unlinked). Android: patch-gradle-wrapper.js now
+  resolves React Native's Gradle version catalog by require.resolve (real
+  install location) instead of a hardcoded ../node_modules symlink path, so
+  Gradle no longer fails with "react-native/gradle/libs.versions.toml doesn't
+  exist"; added a fast preflight with a clear remediation message. Release
+  scripts (mobile-xcodebuild-release.sh, mobile-build-release-android.sh) now
+  run mobile_deps_ensure_installed to force a real dependency install before
+  prebuild. iOS: patch-expo-device-ios.js resolves expo-device robustly and
+  skips cleanly (exit 0) when absent instead of hard-failing the whole build.
+
 - 2026-07-16 - v0.19.60 - Live room "Request to speak" now captures the
   learner's voice and asks Theodore. When a learner is granted the floor, a
   "You have the floor" panel opens the microphone (Web Speech API) and shows a

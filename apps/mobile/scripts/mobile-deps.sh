@@ -34,6 +34,44 @@ mobile_deps_has_drive_mode_packages() {
   [ -d node_modules/expo-location ] && [ -d node_modules/expo-sensors ]
 }
 
+# True when the native build stack is actually materialized under
+# apps/mobile/node_modules. A bare `pnpm install` can report "Done in <1s"
+# without linking anything (pnpm v11 no-op), which leaves react-native / expo
+# modules absent — then Android prebuild fails with "libs.versions.toml doesn't
+# exist" and iOS patches fail with "<pkg> not installed".
+mobile_deps_has_native_stack() {
+  local root d
+  root="$(mobile_deps_root)"
+  [ -f "$root/node_modules/react-native/package.json" ] || return 1
+  [ -f "$root/node_modules/react-native/gradle/libs.versions.toml" ] || return 1
+  for d in expo-asset expo-device expo-localization; do
+    [ -d "$root/node_modules/$d" ] || return 1
+  done
+  return 0
+}
+
+# Guarantee the native dependency tree exists before a native build. If it's
+# missing/incomplete, run the robust installer (forces a real copy-linked
+# install, working around the pnpm no-op) and re-verify.
+mobile_deps_ensure_installed() {
+  local root
+  root="$(mobile_deps_root)"
+  if mobile_deps_has_native_stack; then
+    return 0
+  fi
+  echo "==> apps/mobile native dependencies are missing/incomplete."
+  echo "    (a plain 'pnpm install' can no-op without linking — running a forced install)"
+  bash "$root/scripts/mobile-install.sh"
+  if ! mobile_deps_has_native_stack; then
+    echo "ERROR: dependencies still incomplete after install." >&2
+    echo "       react-native / expo modules are not present under apps/mobile/node_modules." >&2
+    mobile_deps_print_status >&2
+    mobile_deps_install_hint
+    return 1
+  fi
+  return 0
+}
+
 mobile_deps_has_metro_local_node_modules() {
   local root
   root="$(mobile_deps_root)"

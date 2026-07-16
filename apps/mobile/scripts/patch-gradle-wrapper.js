@@ -9,6 +9,28 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
+
+/**
+ * Absolute path to React Native's Gradle version catalog
+ * (`react-native/gradle/libs.versions.toml`), resolved via Node's module
+ * resolution so it works regardless of where the package physically lives.
+ *
+ * In a pnpm monorepo `apps/mobile/node_modules/react-native` is a symlink into
+ * `.pnpm` (or the dependency may be hoisted to the workspace root). Hardcoding
+ * `../node_modules/react-native/gradle/libs.versions.toml` breaks when that
+ * exact symlink isn't present, producing Gradle's opaque "libs.versions.toml
+ * doesn't exist" catalog error. `require.resolve` follows the real install
+ * location, so we bake the resolved absolute path into settings.gradle instead.
+ */
+function reactNativeGradleTomlPath() {
+  try {
+    const pkg = require.resolve("react-native/package.json", { paths: [root] });
+    return path.join(path.dirname(pkg), "gradle", "libs.versions.toml");
+  } catch {
+    return null;
+  }
+}
+
 const wrapperPath = path.join(root, "android", "gradle", "wrapper", "gradle-wrapper.properties");
 const settingsPath = path.join(root, "android", "settings.gradle");
 const rootBuildPath = path.join(root, "android", "build.gradle");
@@ -60,9 +82,16 @@ function patchSettingsGradle() {
     `\nincludeBuild(${localGradlePlugin})\n`,
   );
 
+  // Point the version catalog at React Native's real resolved location. Prefer
+  // the absolute path (robust to pnpm symlinks / hoisting); fall back to the
+  // local relative path only if resolution fails.
+  const rnToml = reactNativeGradleTomlPath();
+  const tomlFileExpr = rnToml
+    ? `new File(${JSON.stringify(rnToml.split(path.sep).join("/"))})`
+    : 'new File(rootDir, "../node_modules/react-native/gradle/libs.versions.toml")';
   content = content.replace(
     /from\(files\(new File\(\["node", "--print", "require\.resolve\('react-native\/package\.json'\)"\]\.execute\(null, rootDir\)\.text\.trim\(\), "\.\.\/gradle\/libs\.versions\.toml"\)\)\)/,
-    'from(files(new File(rootDir, "../node_modules/react-native/gradle/libs.versions.toml")))',
+    `from(files(${tomlFileExpr}))`,
   );
 
   content = content.replace(
@@ -237,6 +266,33 @@ function patchReactNativeGradlePlugin() {
   console.log("React Native Foojay toolchain resolver plugin disabled for this build");
   return true;
 }
+
+/**
+ * Fail fast with an actionable message when React Native's Gradle catalog is
+ * missing. Otherwise Gradle surfaces the opaque "File
+ * '.../react-native/gradle/libs.versions.toml' doesn't exist" catalog error,
+ * which almost always means node_modules is missing/incomplete for this app.
+ */
+function verifyReactNativeInstalled() {
+  if (!fs.existsSync(path.join(root, "android"))) {
+    return; // no native project yet; the trailing prebuild hint handles this
+  }
+  const toml = reactNativeGradleTomlPath();
+  if (toml && fs.existsSync(toml)) {
+    return;
+  }
+  console.error(
+    "\nReact Native's Android Gradle files are missing:\n" +
+      `  expected: ${toml || "node_modules/react-native/gradle/libs.versions.toml"}\n\n` +
+      "This means node_modules is missing or incomplete for apps/mobile.\n" +
+      "Install dependencies, then rebuild:\n" +
+      "  cd apps/mobile && pnpm install        # or: npm run install:force\n" +
+      "(iOS pod builds fail for the same reason — installing deps fixes both.)\n",
+  );
+  process.exit(1);
+}
+
+verifyReactNativeInstalled();
 
 let patchedAny = false;
 patchedAny = patchSettingsGradle() || patchedAny;
