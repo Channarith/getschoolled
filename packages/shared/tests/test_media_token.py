@@ -26,6 +26,23 @@ def test_token_has_valid_structure_and_claims():
     assert claims["video"]["room"] == "class-1"
 
 
+def test_camera_always_allowed_mic_gated_by_floor():
+    media = build_factory(load_config(env={})).media()
+    # A regular attendee (no floor): camera + screen, but NOT microphone.
+    listener = _decode_segment(
+        media.issue_token(room="r", identity="a", can_publish=False).token.split(".")[1]
+    )["video"]
+    assert listener["canPublish"] is True
+    assert "camera" in listener["canPublishSources"]
+    assert "microphone" not in listener["canPublishSources"]
+    # The floor holder additionally gets the microphone (one-speaker audio mutex).
+    speaker = _decode_segment(
+        media.issue_token(room="r", identity="b", can_publish=True).token.split(".")[1]
+    )["video"]
+    assert "camera" in speaker["canPublishSources"]
+    assert "microphone" in speaker["canPublishSources"]
+
+
 def test_token_signature_verifies_with_secret():
     cfg = load_config(env={"LIVEKIT_API_SECRET": "topsecret"})
     factory = build_factory(cfg)

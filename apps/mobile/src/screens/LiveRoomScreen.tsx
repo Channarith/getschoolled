@@ -628,13 +628,15 @@ export default function LiveRoomScreen({
         ) : inQueue ? (
           <Text style={styles.floorChip}>✋ You&apos;re #{myPos} in line</Text>
         ) : null}
-        {hasFloor && media ? (
+        {media ? (
+          // Self-view: the camera turns on as soon as you attend; the mic only
+          // goes live when you hold the floor (audio mutex).
           <View style={styles.pip}>
             <LiveKitParticipantTile
               media={media}
               canPublish={hasFloor}
               participantName={me?.name ?? "You"}
-              fallbackEmoji="🎤"
+              fallbackEmoji={hasFloor ? "🎤" : "📹"}
             />
           </View>
         ) : null}
