@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.68 - Mobile sign-out now returns to the signed-out screen.
+  Previously it left the user on Settings (and, with guest-preview active, still
+  inside the app able to reach gated features). Sign-out now resets to the home
+  tab, closes every open feature screen/modal, and exits guest-preview so the
+  app drops back to the sign-in gate.
+
 - 2026-07-16 - v0.19.67 - Corporate/self-paced training is stoppable and no
   longer mislabeled "LIVE". Stop/pause now halts BOTH the on-device voice and
   the neural server audio (previously stopSpeaking only cancelled the browser
