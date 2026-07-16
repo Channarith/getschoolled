@@ -485,7 +485,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => { alive = false; };
   }, [me?.can_publish, joinInfo, roomId]);
 
-  const { tiles: liveKitTiles, audioTracks, livekitAvailable, connectFailed: liveKitFailed } =
+  const { tiles: liveKitTiles, audioTracks, connectFailed: liveKitFailed } =
     useLiveKitRoom(
       liveMedia ?? joinInfo?.media,
       room?.participants ?? joinInfo?.room.participants ?? [],
@@ -1404,7 +1404,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               <div key={p.id} style={{ position: "relative" }}>
                 <ParticipantTile
                   p={p}
-                  localStream={!livekitAvailable && p.id === me?.id ? localStream : null}
+                  localStream={p.id === me?.id ? localStream : null}
                   liveKitTrack={trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                 />

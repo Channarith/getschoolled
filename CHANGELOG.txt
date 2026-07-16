@@ -2,6 +2,22 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.71 - Mobile group classroom shows a participant seats strip
+  (AI host + each learner with mic/hand/mute state + your own seat + empty "Open
+  seat" slots), so you can see who's in the room and where there's room to drop
+  in — parity with the web grid. Also verified the class-cleanup service removes
+  finished classes: a scheduled OR live class whose date/time window has passed
+  is filtered from the upcoming listing (web + mobile) and deleted from the store
+  (on every list + a 60s cron), so finished classes are never shown.
+
+- 2026-07-16 - v0.19.70 - Live room now always shows your own webcam self-view.
+  Previously the local camera preview was hidden whenever LiveKit was available,
+  and since a learner only publishes after being given the floor, you never saw
+  your own video. The self-view now renders as soon as the camera is granted and
+  switches to the published track when you take the floor. (Camera/mic still
+  require an https origin on web and a granted permission; being seen/heard by
+  others also needs LiveKit credentials connected.)
+
 - 2026-07-16 - v0.19.69 - Group/solo classes run with drop-in + full-class
   gating. A class now auto-starts (audio + slide auto-advance) as soon as >=1
   learner is present — instant/solo rooms start on the first learner, scheduled
