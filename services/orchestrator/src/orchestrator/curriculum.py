@@ -91,6 +91,55 @@ def curriculum_root() -> str:
     return os.path.join(repo_root, "sample-curriculum")
 
 
+_UNDERLINE_RE = re.compile(r"^\s*[=_\-]{3,}\s*$")
+
+
+def _looks_like_heading(s: str) -> bool:
+    """A short, title-like line (not a full sentence) that starts a new section."""
+    s = s.strip()
+    if not s or len(s) > 70:
+        return False
+    if len(s.split()) > 9:
+        return False
+    # Sentence-ending punctuation means it's body text — except a trailing colon
+    # ("Example:", "Demo:") which reads as a heading.
+    return s[-1] not in ".!?,;"
+
+
+def _freeform_slides(content_lines: List[str]) -> List[Slide]:
+    """Fallback slide parser for lessons authored WITHOUT ``SLIDE N |`` markers
+    (free-form headings + paragraphs, or ``Module N — …`` with === / --- rules).
+    Each heading starts a slide; the following prose is its body/narration. This
+    keeps such lessons from loading with zero slides (a class with no slides can
+    never present or advance)."""
+    slides: List[Slide] = []
+    cur_title: Optional[str] = None
+    cur_body: List[str] = []
+
+    def flush() -> None:
+        nonlocal cur_title, cur_body
+        if cur_title is not None:
+            body = " ".join(" ".join(cur_body).split())
+            slides.append(Slide(index=len(slides), title=cur_title, body=body, narration=body))
+        cur_title = None
+        cur_body = []
+
+    for raw in content_lines:
+        s = raw.strip()
+        if not s or _UNDERLINE_RE.match(s):
+            continue
+        if _looks_like_heading(s):
+            flush()
+            cur_title = s
+        elif cur_title is None:
+            # Orphan prose before the first heading — seed a slide from it.
+            cur_title = s[:70]
+        else:
+            cur_body.append(s)
+    flush()
+    return slides
+
+
 def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     title = lesson_id
     language = "en"
@@ -103,6 +152,7 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
     cur_title = ""
     cur_body: List[str] = []
     cur_narration = ""
+    content_lines: List[str] = []  # non-tag lines, for the free-form fallback
 
     def flush() -> None:
         nonlocal cur_idx, cur_title, cur_body, cur_narration
@@ -151,6 +201,7 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
         if line.startswith("FACT:"):
             passages.append(line.split(":", 1)[1].strip())
             continue
+        content_lines.append(line)  # heading/body candidate for the fallback
         m = _SLIDE_RE.match(line)
         if m:
             flush()
@@ -160,6 +211,16 @@ def _parse_lesson(lesson_id: str, text: str) -> Tuple[Lesson, List[str]]:
         if cur_idx is not None:
             cur_body.append(line)
     flush()
+
+    # No SLIDE markers in this file → parse the free-form headings/paragraphs so
+    # the lesson still has slides (otherwise the class has nothing to present).
+    if not slides:
+        slides = _freeform_slides(content_lines)
+        for sl in slides:
+            if sl.body:
+                passages.append(f"{sl.title}: {sl.body}")
+        if title == lesson_id and slides:
+            title = slides[0].title  # use the first heading as the lesson title
 
     return (
         Lesson(

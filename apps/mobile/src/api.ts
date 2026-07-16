@@ -855,6 +855,17 @@ export async function liveRoomCallNext(roomId: string, moderatorKey = ""): Promi
   return r.room;
 }
 
+/** Advance to the next slide (moderator key or platform-admin token). */
+export async function liveRoomAdvance(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/advance`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    });
+  return r.room;
+}
+
 /** End the class for everyone (moderator key or platform-admin token). */
 export async function liveRoomEnd(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
   return get<LiveRoomState>(

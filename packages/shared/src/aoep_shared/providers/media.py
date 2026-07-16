@@ -94,6 +94,14 @@ class _BaseMediaProvider(MediaProvider):
         the client skips the WebRTC connection instead of looping on a failure.
         """
         now = int(time.time())
+        # Everyone can publish their CAMERA (so webcams turn on for all attendees
+        # and the class looks like a video call); only the current floor holder
+        # (``can_publish``) may publish their MICROPHONE — that's the one-speaker
+        # audio mutex, now enforced by LiveKit at the token level via
+        # canPublishSources rather than an all-or-nothing publish flag.
+        sources = ["camera", "screen_share"]
+        if can_publish:
+            sources.append("microphone")
         claims = {
             "iss": self._api_key,
             "sub": identity,
@@ -102,7 +110,8 @@ class _BaseMediaProvider(MediaProvider):
             "video": {
                 "room": room,
                 "roomJoin": True,
-                "canPublish": can_publish,
+                "canPublish": True,
+                "canPublishSources": sources,
                 "canSubscribe": True,
             },
         }

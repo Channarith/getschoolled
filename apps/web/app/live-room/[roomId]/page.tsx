@@ -412,6 +412,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
   const spokenSlideRef = useRef<number | null>(null);
+  // Always-fresh room snapshot for callbacks (e.g. narration onend) so they read
+  // current floor/queue state without re-subscribing the effect on every tick.
+  const roomRef = useRef<LiveRoomState | null>(null);
+  roomRef.current = room;
   // Floor mic: while this learner holds the floor we listen to their voice and
   // build a transcript, then send it to Theodore as a question when they tap
   // "Done speaking". `listening` drives the UI; `micNote` surfaces a clear
@@ -956,9 +960,31 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     const text = `${slideTitle ? slideTitle + ". " : ""}${(slideBody || slideNarration || "").trim()}`.trim();
     if (text) {
       cancelSpeech();  // stop the previous slide's narration before the new one
-      speakNaturally(text, { locale: narrationLocale });
+      const spokenFor = slideIdx;
+      speakNaturally(text, {
+        locale: narrationLocale,
+        // Advance the instant the AI finishes narrating this slide (not after a
+        // timed estimate). The moderator's client drives it; everyone else
+        // follows via the room state. Guarded so we don't skip past a learner
+        // who has (or is waiting for) the floor, and only while still on this
+        // slide. The server's timed dwell remains a fallback if audio is muted.
+        onend: () => {
+          const r = roomRef.current;
+          if (
+            canModerate &&
+            Boolean(r?.presenting) &&
+            r?.status !== "ended" &&
+            spokenSlideRef.current === spokenFor &&
+            !r?.floor_participant_id &&
+            !(r?.speaking_queue?.some((e) => e.status === "waiting"))
+          ) {
+            void liveRoomAdvance(roomId, moderatorKey).then((next) => setRoom(next)).catch(() => undefined);
+          }
+        },
+      });
     }
-  }, [aiAudioOn, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale]);
+  }, [aiAudioOn, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
+      canModerate, moderatorKey, roomId]);
 
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);

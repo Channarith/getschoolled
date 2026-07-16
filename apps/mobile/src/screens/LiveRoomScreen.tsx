@@ -4,7 +4,7 @@ import {
 } from "react-native";
 
 import {
-  deleteLiveRoom,
+  deleteLiveRoom, liveRoomAdvance,
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
@@ -281,6 +281,9 @@ export default function LiveRoomScreen({
   const spokenSlideRef = useRef<number>(-1);
   const spokenChatRef = useRef<string>("");
   const didInitChatRef = useRef(false);
+  // Always-fresh room for the narration onDone callback (floor/queue guards).
+  const roomRef = useRef<LiveRoomState | null>(null);
+  roomRef.current = room;
 
   useEffect(() => {
     if (!participantId || muted) return;
@@ -290,7 +293,28 @@ export default function LiveRoomScreen({
     // Narrate the full slide body (substantive lecture), not just the one-line
     // script — the server paces auto-advance to this so it isn't cut off.
     const text = `${s.title}. ${s.body || s.narration || ""}`.trim();
-    if (text) speakNatural(text, { locale });
+    const spokenFor = s.index;
+    if (text) {
+      speakNatural(text, {
+        locale,
+        // Advance the moment the AI finishes this slide (moderator/admin drives
+        // it; others follow the room state). Guarded so we never skip a learner
+        // who holds/awaits the floor. Server timed dwell remains the fallback.
+        onDone: () => {
+          const r = roomRef.current;
+          if (
+            canModerate &&
+            r?.presenting &&
+            r.status !== "ended" &&
+            spokenSlideRef.current === spokenFor &&
+            !r.floor_participant_id &&
+            !(r.speaking_queue?.some((e) => e.status === "waiting"))
+          ) {
+            void liveRoomAdvance(roomId, modKey).then((next) => setRoom(next)).catch(() => undefined);
+          }
+        },
+      });
+    }
   }, [room?.slide?.index, participantId, muted, locale]);
 
   useEffect(() => {
@@ -604,13 +628,15 @@ export default function LiveRoomScreen({
         ) : inQueue ? (
           <Text style={styles.floorChip}>✋ You&apos;re #{myPos} in line</Text>
         ) : null}
-        {hasFloor && media ? (
+        {media ? (
+          // Self-view: the camera turns on as soon as you attend; the mic only
+          // goes live when you hold the floor (audio mutex).
           <View style={styles.pip}>
             <LiveKitParticipantTile
               media={media}
               canPublish={hasFloor}
               participantName={me?.name ?? "You"}
-              fallbackEmoji="🎤"
+              fallbackEmoji={hasFloor ? "🎤" : "📹"}
             />
           </View>
         ) : null}

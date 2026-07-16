@@ -85,10 +85,15 @@ export default function LiveKitParticipantTile({
           room.disconnect();
           return;
         }
-        if (canPublish) {
+        // Everyone's camera turns on (video-call feel); the mic follows the
+        // one-speaker mutex (canPublish = you hold the floor). Best-effort so a
+        // denied/absent camera never breaks the tile.
+        try {
           await room.localParticipant.setCameraEnabled(true);
-          await room.localParticipant.setMicrophoneEnabled(true);
-        }
+        } catch { /* no camera / permission denied */ }
+        try {
+          await room.localParticipant.setMicrophoneEnabled(canPublish);
+        } catch { /* mic unavailable */ }
         const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
         if (pub?.track) {
           setTrack(pub.track);

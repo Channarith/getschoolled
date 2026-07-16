@@ -18,6 +18,15 @@ def test_loaded_lesson_has_enriched_slide_count():
     assert len(lesson.slides) >= 10
 
 
+def test_every_lesson_has_slides():
+    """No lesson may load with zero slides — a class with no slides can never
+    present or auto-advance. Free-form lessons (no SLIDE markers) must still
+    parse into slides via the fallback parser."""
+    store = CurriculumStore()
+    empty = [l.lesson_id for l in store.list_lessons() if len(l.slides) == 0]
+    assert not empty, f"lessons with no slides: {empty}"
+
+
 def test_loaded_lesson_meets_target_duration():
     store = CurriculumStore()
     lesson = store.get("intro-to-photosynthesis")

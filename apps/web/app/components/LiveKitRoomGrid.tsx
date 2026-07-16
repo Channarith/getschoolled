@@ -155,13 +155,15 @@ export function useLiveKitRoom(
         attachParticipant(room.localParticipant, true);
         room.remoteParticipants.forEach((p) => attachParticipant(p, false));
         room.on(RoomEvent.ParticipantConnected, (p) => attachParticipant(p, false));
-        if (canPublish) {
+        // Everyone's camera turns on (video-call feel); the mic is the one-speaker
+        // mutex — only enabled while you hold the floor (canPublish). Best-effort:
+        // a denied/absent camera must not break the room.
+        try {
           await room.localParticipant.setCameraEnabled(true);
-          await room.localParticipant.setMicrophoneEnabled(true);
-        } else {
-          await room.localParticipant.setCameraEnabled(false);
-          await room.localParticipant.setMicrophoneEnabled(false);
-        }
+        } catch { /* no camera / permission denied — stay audio-only */ }
+        try {
+          await room.localParticipant.setMicrophoneEnabled(canPublish);
+        } catch { /* mic unavailable */ }
       })
       .catch(() => {
         // Initial connect failed. Tear the room down so the SDK stops trying to

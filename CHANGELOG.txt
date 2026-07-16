@@ -2,13 +2,43 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-16 - v0.19.74 - Web: restored the single-row desktop top bar after the
-  nav link set grew to 13-14 items (Careers/Arcade/Watch/Live Class/Group Classes/
-  Homework) and started wrapping onto a second row. Widened the desktop nav
-  container (max-width 1320px), forced the link menu to stay on one line
-  (flex-wrap: nowrap) and tightened link spacing/size so every link fits without
-  stacking; mobile hamburger menu unchanged (apps/web/app/globals.css). Synced the
-  branch onto upstream main (v0.19.73). Web typecheck/lint/build green.
+- 2026-07-16 - v0.19.77 - Webcams turn on when attending a solo/group class.
+  The LiveKit token now grants camera + screen_share to every participant (all
+  webcams publish, so the class looks like a video call) while the microphone is
+  granted only to the current floor holder — the one-speaker audio mutex, now
+  enforced at the token level via canPublishSources. Web + mobile enable the
+  camera on connect and gate the mic to the floor; mobile shows a self-view tile
+  as soon as you attend. (Camera still needs a granted permission, and on web an
+  https origin; video is only relayed to others when LiveKit credentials connect.)
+
+- 2026-07-16 - v0.19.76 - Fix courses that had NO slides. Six lessons
+  (intro-physics, cyber-incident-response, first-responder-essentials,
+  aviation-emergency-basics, ifr-emergency-procedures, nursing-judgment) were
+  authored without "SLIDE N |" markers and loaded with zero slides, so a group
+  or solo class on them had nothing to present and never advanced. Added a
+  free-form fallback parser (headings + paragraphs, or "Module N —" with
+  === / --- rules) so every lesson has slides (now 17–25 each after depth
+  enrichment); a regression test asserts no lesson loads empty. Combined with
+  auto-advance-on-narration-complete (v0.19.74), group/solo classes now advance
+  through all their slides on web and mobile.
+
+- 2026-07-16 - v0.19.75 - Group classes now have a single Join button and no
+  registration step (web + mobile). "Join" and "Start (AI presents)" did the
+  same thing, so they're merged: the first person to join opens and hosts the
+  class (receives the moderator key); anyone joining an already-live class drops
+  straight into the running room. The Register button/flow is removed — first
+  join comes in. Full classes remain grayed out except for the platform admin.
+
+- 2026-07-16 - v0.19.74 - Live/group/solo classes now auto-advance the instant
+  the AI finishes narrating a slide (web + mobile), instead of waiting on a timed
+  estimate — the moderator/admin's client drives the advance on narration-end and
+  everyone else follows the room state (guarded so it never skips a learner who
+  holds/awaits the floor; the server dwell stays as a fallback when audio is
+  muted). Note on "cached audio": web content fetches are already no-store, the
+  speech service returns Cache-Control: no-store, and there is no service worker,
+  so there is no stale client cache — the new (deepened) course content appears
+  once the updated build is deployed (the curriculum server's in-process catalog
+  cache is cleared on restart/redeploy).
 
 - 2026-07-16 - v0.19.73 - Mobile Drive "Voice & accent" chips no longer look
   duplicated: a male and female voice of the same accent showed as identical
