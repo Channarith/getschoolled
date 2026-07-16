@@ -79,18 +79,45 @@ export async function warmVoices(): Promise<void> {
   }
 }
 
-function pickVoiceId(lang: string, style: NarrationVoiceStyle = "standard"): string | undefined {
+// Heuristic gendered voice-name tokens so a male/female choice biases the
+// on-device voice too (the OS voice list rarely exposes a structured gender).
+const FEMALE_VOICES = /\b(female|woman|aria|jenny|sonia|natasha|clara|leah|samantha|susan|zira|hazel|catherine|fiona|moira|tessa|karen|serena|allison|ava|joanna|emma|amy|libby|michelle|nova|elvira|dalia|elena|paloma|denise|sylvie|katja|elsa|francisca|raquel|nanami|sunhi|swara|xiaoxiao|hsiaochen|hiumaan|neerja|emily)\b/;
+const MALE_VOICES = /\b(male|man|guy|ryan|william|davis|george|mark|daniel|alex|fred|tom|oliver|james|brian|arthur|eric|conrad|alvaro|jorge|prabhat|yunxi|aaron|arthur)\b/;
+
+// Approximate an instructor personality with prosody multipliers so picking
+// child/strict/energetic/… audibly changes the on-device voice (mirrors web).
+export function personaProsody(persona?: string): { rate: number; pitch: number } {
+  const p = (persona || "").toLowerCase();
+  if (!p) return { rate: 1, pitch: 1 };
+  if (/child|kid|cartoon|young/.test(p)) return { rate: 1.05, pitch: 1.4 };
+  if (/strict|stern|drill|serious|firm/.test(p)) return { rate: 0.94, pitch: 0.82 };
+  if (/energet|hype|excite|coach|lively|upbeat/.test(p)) return { rate: 1.12, pitch: 1.12 };
+  if (/calm|gentle|kind|warm|sooth|friendly|patient/.test(p)) return { rate: 0.96, pitch: 1.03 };
+  if (/story|narrat|deep|documentary/.test(p)) return { rate: 0.9, pitch: 0.92 };
+  if (/robot|announcer|news/.test(p)) return { rate: 1.0, pitch: 0.9 };
+  return { rate: 1, pitch: 1 };
+}
+
+function pickVoiceId(
+  lang: string, style: NarrationVoiceStyle = "standard", gender = "",
+): string | undefined {
   if (!voicesCache || !voicesCache.length) return undefined;
   const primary = lang.split("-")[0].toLowerCase();
   const matches = voicesCache.filter(
     (v) => (v.language || "").toLowerCase().split("-")[0] === primary,
   );
   if (!matches.length) return undefined;
+  const g = gender.toLowerCase();
   const ranked = [...matches].sort((a, b) => {
-    const score = (v: Speech.Voice) =>
-      (v.quality === Speech.VoiceQuality.Enhanced ? 2 : 0) +
-      ((v.language || "").toLowerCase() === lang.toLowerCase() ? 1 : 0) +
-      voiceNameStyleBonus(style, v.name || "");
+    const score = (v: Speech.Voice) => {
+      const name = (v.name || "").toLowerCase();
+      let s = (v.quality === Speech.VoiceQuality.Enhanced ? 2 : 0)
+        + ((v.language || "").toLowerCase() === lang.toLowerCase() ? 1 : 0)
+        + voiceNameStyleBonus(style, v.name || "");
+      if (g.startsWith("f")) { if (FEMALE_VOICES.test(name)) s += 4; else if (MALE_VOICES.test(name)) s -= 3; }
+      else if (g.startsWith("m")) { if (MALE_VOICES.test(name)) s += 4; else if (FEMALE_VOICES.test(name)) s -= 3; }
+      return s;
+    };
     return score(b) - score(a);
   });
   return ranked[0].identifier;
@@ -101,6 +128,13 @@ export type SpeakOptions = {
   voiceStyle?: NarrationVoiceStyle;
   rate?: number;
   pitch?: number;
+  // The chosen accent as a BCP-47 tag (e.g. "en-GB") so the accent picker
+  // changes the on-device voice too, not only the neural server voice.
+  voiceLocale?: string;
+  // The chosen voice's gender ("female"/"male") — biases on-device voice pick.
+  voiceGender?: string;
+  // The chosen instructor personality id — approximated with prosody on-device.
+  persona?: string;
   onDone?: () => void;
   onStopped?: () => void;
   onError?: () => void;
@@ -211,9 +245,16 @@ async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolea
 export function speakNatural(text: string, opts: SpeakOptions): void {
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
-  const lang = localeToBcp47(opts.locale);
+  const persona = personaProsody(opts.persona);
+  // Prefer the picked accent (voiceLocale) so the accent selector changes the
+  // on-device voice too; fall back to the content locale.
+  const lang = opts.voiceLocale || localeToBcp47(opts.locale);
   const speakDevice = () => {
-    const voice = pickVoiceId(lang, style);
+    const voice = pickVoiceId(lang, style, opts.voiceGender);
+    // Persona shapes the delivery on top of the style's base prosody so the
+    // instructor selection is audible even on the device voice.
+    const rate = (opts.rate ?? prosody.rate) * persona.rate;
+    const pitch = (opts.pitch ?? prosody.pitch) * persona.pitch;
     // Queue sentence-sized chunks so long narration isn't truncated by the
     // OS TTS input limit; fire onDone only after the final chunk.
     const chunks = splitForSpeech(text);
@@ -223,8 +264,8 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
       Speech.speak(chunk, {
         language: lang,
         voice,
-        pitch: opts.pitch ?? prosody.pitch,
-        rate: opts.rate ?? prosody.rate,
+        pitch,
+        rate,
         onDone: last ? opts.onDone : undefined,
         onStopped: last ? opts.onStopped : undefined,
         onError: opts.onError,

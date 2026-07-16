@@ -408,9 +408,10 @@ def test_solo_room_full_on_join_auto_starts_and_advances():
     assert t2.json()["auto_advanced"] is not None
 
 
-def test_auto_advance_uses_a_five_second_dwell():
+def test_auto_advance_uses_a_content_proportional_dwell():
     import datetime
 
+    from aoep_shared.live_room import LiveRoomStore
     from orchestrator.main import app as _app
 
     info = _start_salareen_class(4)  # 3 learner seats
@@ -420,7 +421,10 @@ def test_auto_advance_uses_a_five_second_dwell():
     assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
 
     room = _app.state.live_rooms.require(room_id)
-    assert room.auto_advance_seconds == 5  # 5s per-slide dwell
+    # The dwell scales with how long the slide takes to speak (>= the 5s floor),
+    # so narration finishes before advancing and the class isn't over in seconds.
+    dwell = LiveRoomStore.slide_dwell_seconds(room)
+    assert dwell >= room.auto_advance_seconds
 
     now = datetime.datetime.now(datetime.timezone.utc)
     # A slide that just started must NOT advance yet (don't blow through slides).
@@ -428,9 +432,9 @@ def test_auto_advance_uses_a_five_second_dwell():
     _app.state.live_rooms._backend.save(room)
     assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_advanced"] is None
 
-    # After the 5s dwell, the next tick advances and updates the slide.
+    # Once the dwell has elapsed, the next tick advances and updates the slide.
     room = _app.state.live_rooms.require(room_id)
-    room.slide_started_at = (now - datetime.timedelta(seconds=6)).isoformat()
+    room.slide_started_at = (now - datetime.timedelta(seconds=dwell + 2)).isoformat()
     _app.state.live_rooms._backend.save(room)
     advanced = client.post(f"/api/live-rooms/{room_id}/tick").json()
     assert advanced["auto_advanced"] is not None

@@ -2,6 +2,26 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.65 - Class length + Drive + mobile intro. (1) Live/group
+  classes now pace slide auto-advance to the narration's speaking time (not a
+  fixed 5s) and web + mobile narrate the FULL slide body — so classes teach in
+  depth and run for their natural, content-proportional length instead of
+  racing by in ~2 min with cut-off audio; the self-paced library ClassRoom
+  narrates the full body too. (2) Mobile Drive Mode is now audio-only (no
+  live/interactive/game in the eyes-free tab). (3) Mobile gets random intro
+  animation variants (Disco/Neon/Aurora/Sunset/Confetti/Galaxy) with the same
+  jingle. Verified new-account creation works end-to-end on web + mobile
+  (signup -> token, login, duplicate/weak-password guarded).
+
+- 2026-07-16 - v0.19.64 - Mobile fixes: (1) group classes now auto-start so the
+  AI presentation advances through the whole course instead of being stuck on
+  slide 1 — the mobile Live Room captures the moderator key on join and starts
+  the presentation on entry (authorized by moderator key or the platform-admin
+  token), since server auto-start alone only fires for a full room / 5 min past
+  schedule. (2) The on-device voice fallback now honors the chosen accent,
+  gender, and instructor personality (previously those selections did nothing
+  and audio stayed generic when the neural engine was unavailable).
+
 - 2026-07-16 - v0.19.63 - Audio no longer cuts off on long lessons. The solo
   Live Class page (web) and mobile Drive Mode now split narration into sentence
   chunks and queue them, so the whole lesson is spoken instead of being

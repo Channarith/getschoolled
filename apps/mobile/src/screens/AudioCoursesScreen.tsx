@@ -19,8 +19,9 @@ import { categoryGradient, theme } from "../theme";
 
 type Props = {
   onOpen: (id: string) => void;
-  onOpenGame: (subject: string) => void;
-  onOpenLesson: (lessonId: string, title: string, preview?: string) => void;
+  // Kept for call-site compatibility; Drive Mode is audio-only so these are unused.
+  onOpenGame?: (subject: string) => void;
+  onOpenLesson?: (lessonId: string, title: string, preview?: string) => void;
   initialCategory?: string;
 };
 
@@ -33,24 +34,12 @@ const FORMAT_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   video: "play-circle",
 };
 
-const FORMAT_LABELS: Record<string, string> = {
-  audio: "Audio",
-  live_class: "Live",
-  interactive: "Interactive",
-  game: "Games",
-  program: "Programs",
-  video: "Video",
-  language: "Languages",
-};
-
-export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, initialCategory }: Props) {
+export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
   const { t, locale } = useT();
   const { account } = useAuth();
   const [rows, setRows] = useState<LearnableItem[]>([]);
   const [cats, setCats] = useState<string[]>([]);
-  const [formats, setFormats] = useState<string[]>([]);
   const [cat, setCat] = useState<string>(initialCategory || "");
-  const [format, setFormat] = useState<string>("");
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,26 +49,23 @@ export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, i
   useEffect(() => { setCat(initialCategory || ""); }, [initialCategory]);
   useEffect(() => {
     getLearnFacets()
-      .then((f) => {
-        setCats(f.categories || []);
-        setFormats(f.formats || []);
-      })
+      .then((f) => setCats(f.categories || []))
       .catch(() => {});
   }, []);
   useEffect(() => { void getMyList().then((ids) => setSavedSet(new Set(ids))); }, []);
 
   useEffect(() => {
     setLoading(true);
-    const params: Record<string, string> = { limit: "80" };
+    // Drive Mode is eyes-free: only audio courses (never live/interactive/game).
+    const params: Record<string, string> = { limit: "80", format: "audio" };
     if (cat) params.category = cat;
-    if (format) params.format = format;
     if (q) params.q = q;
     if (locale) params.locale = locale;
     searchLearnable(params)
       .then((r) => { setRows(r.items); setTotal(r.total); })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [cat, format, q, locale]);
+  }, [cat, q, locale]);
 
   const chips = useMemo(() => ["", ...cats], [cats]);
 
@@ -94,24 +80,15 @@ export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, i
 
   const openItem = (item: LearnableItem) => {
     void recordInterest(item.category);
-    if (item.format === "audio") {
-      onOpen(item.source_id);
-      return;
-    }
-    if (item.format === "game") {
-      onOpenGame(item.subject || item.source_id);
-      return;
-    }
-    // live_class + any other visual/interactive format opens the in-app lesson
-    // player (live teaching session), falling back to a readable content view.
-    onOpenLesson(item.source_id, item.title, item.preview);
+    // Audio-only Drive Mode: every result opens the eyes-free audio player.
+    onOpen(item.source_id);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.kicker}>{t("tab.drive")}</Text>
       <Text style={styles.h1}>{t("drive.title")}</Text>
-      <Text style={styles.sub}>Search live classes, audio, languages, and games</Text>
+      <Text style={styles.sub}>Eyes-free audio courses — hundreds of listen-anywhere lessons</Text>
       <GlassPanel style={styles.searchWrap} padded={false}>
         <Ionicons name="search" size={18} color={theme.colors.muted} style={styles.searchIcon} />
         <TextInput
@@ -122,28 +99,6 @@ export default function AudioCoursesScreen({ onOpen, onOpenGame, onOpenLesson, i
           onChangeText={setQ}
         />
       </GlassPanel>
-      <FlatList
-        horizontal showsHorizontalScrollIndicator={false} data={formats}
-        keyExtractor={(f) => f}
-        style={styles.chipRow}
-        contentContainerStyle={styles.chipRowContent}
-        renderItem={({ item }) => {
-          const on = format === item;
-          const icon = FORMAT_ICON[item] || "ellipse";
-          const label = FORMAT_LABELS[item] || item.replace(/_/g, " ");
-          return (
-            <AnimatedPressable
-              onPress={() => setFormat(format === item ? "" : item)}
-              style={[styles.formatChip, on && styles.formatChipOn]}
-            >
-              <Ionicons name={icon} size={16} color={on ? "#fff" : theme.colors.text} />
-              <Text style={[styles.formatChipText, on && styles.formatChipTextOn]} numberOfLines={1}>
-                {label}
-              </Text>
-            </AnimatedPressable>
-          );
-        }}
-      />
       <FlatList
         horizontal showsHorizontalScrollIndicator={false} data={chips}
         keyExtractor={(c) => c || "all"}
@@ -251,24 +206,6 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
   chipText: { color: "#f8fafc", fontWeight: "700", fontSize: 13 },
   chipTextOn: { color: "#fff", fontWeight: "800" },
-  formatChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderRadius: theme.radius.pill,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.4)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    minWidth: 72,
-    minHeight: 40,
-  },
-  formatChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
-  formatChipText: { color: "#f8fafc", fontWeight: "700", fontSize: 12, maxWidth: 88 },
-  formatChipTextOn: { color: "#fff", fontWeight: "800" },
   count: { color: theme.colors.muted, fontSize: 12, marginTop: 2, marginBottom: 10, paddingHorizontal: theme.spacing.screenX },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   thumb: {

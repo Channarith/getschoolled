@@ -269,9 +269,11 @@ export default function ClassRoom({
     // feel driven/immersive) — a repeat-after-me slide leads with its cue. When
     // the narration finishes, auto-advance so it teaches the whole course end to
     // end — pausing on repeat-after-me, quizzes, pulse checks, and the last slide.
+    // Narrate the full slide body (a substantive mini-lecture), not just the
+    // terse one-line script, so a self-paced course actually teaches in depth.
     const line = slide.say_aloud
       ? (slide.narration || `Repeat after me: ${slide.say_aloud}`)
-      : `${slide.title}. ${slide.narration || slide.body || ""}`.trim();
+      : `${slide.title}. ${slide.body || slide.narration || ""}`.trim();
     const isLast = slide.index >= view.lesson.slides.length - 1;
     let advanced = false;
     const goNext = () => {
@@ -906,7 +908,7 @@ export default function ClassRoom({
                   const next = !speakAnswers;
                   setSpeakAnswers(next);
                   if (!next) stopSpeaking();
-                  else speak(`${slide.title}. ${slide.narration || slide.body}`);
+                  else speak(`${slide.title}. ${slide.body || slide.narration}`);
                 }}
                 messages={chat}
               />

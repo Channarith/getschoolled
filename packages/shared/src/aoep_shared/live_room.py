@@ -1118,7 +1118,12 @@ class LiveRoomStore:
 
     def should_auto_advance(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
         """True when the current slide has been up long enough to auto-advance —
-        but never while a learner holds the floor or is waiting to speak."""
+        but never while a learner holds the floor or is waiting to speak.
+
+        The dwell is proportional to how long the slide's narration takes to
+        SPEAK (not a fixed 5s), so slides don't advance before the AI finishes
+        talking (which cut narration off) and a content-rich lesson runs for its
+        natural length instead of racing by in a couple of minutes."""
         from datetime import timedelta
 
         room = self.require(room_id)
@@ -1128,7 +1133,22 @@ class LiveRoomStore:
         if started is None:
             return False
         ref = now or _now()
-        return ref >= started + timedelta(seconds=room.auto_advance_seconds)
+        return ref >= started + timedelta(seconds=self.slide_dwell_seconds(room))
+
+    @staticmethod
+    def slide_dwell_seconds(room: LiveRoom) -> float:
+        """Estimated seconds to speak the current slide, used as the auto-advance
+        dwell. Clients narrate the slide title + body (falling back to the short
+        narration line), so we size the dwell to that at a clear ~140 wpm, with a
+        sensible floor/ceiling and a short buffer so narration always finishes."""
+        slide = room.slide
+        spoken = f"{slide.title}. {slide.body or slide.narration}".strip()
+        words = len(spoken.split())
+        # 140 wpm ≈ 2.33 words/sec (slightly slow so the estimate never trails the
+        # actual TTS and cuts narration off), + 4s to breathe between slides.
+        est = words / 2.33 + 4.0
+        floor = float(room.auto_advance_seconds)  # never faster than the base dwell
+        return max(floor, min(est, 150.0))
 
     def should_auto_end(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
         """True when a presenting group lesson has used its whole allotted time

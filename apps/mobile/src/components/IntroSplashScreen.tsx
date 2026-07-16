@@ -21,9 +21,51 @@ const BPM = 120;
 const BEAT_MS = Math.round(60_000 / BPM);
 
 const PARTY_COLORS = ["#e50914", "#6ea8fe", "#fbbf24", "#34d399", "#a78bfa", "#f472b6"];
-const NOTE_GLYPHS = ["🎵", "🎶", "⭐", "✨", "🔥", "🎈", "💫", "🎉"];
 const EQ_BARS = 7;
 const BAR_H = 46;
+
+// Random visual variants (like the web intro's 6 random animations): the beat
+// engine, mascot and jingle stay the same; each variant reskins the backdrop,
+// disco blobs, equalizer, floating notes and beat ring so every launch feels
+// fresh. One is chosen at random per play.
+type IntroVariant = {
+  id: string;
+  name: string;
+  bg: [string, string, string];
+  blobs: string[];
+  eq: string[];
+  notes: string[];
+  ring: string;
+};
+
+const INTRO_VARIANTS: IntroVariant[] = [
+  { id: "disco", name: "Disco", bg: ["#120a2e", "#0b0b16", "#05050b"],
+    blobs: ["#e50914", "#6ea8fe", "#a78bfa", "#34d399"], eq: PARTY_COLORS,
+    notes: ["🎵", "🎶", "⭐", "✨", "🔥", "🎈", "💫", "🎉"], ring: "#a78bfa" },
+  { id: "neon", name: "Neon", bg: ["#0a0f2e", "#0a1030", "#04040a"],
+    blobs: ["#22d3ee", "#f472b6", "#a78bfa", "#34d399"],
+    eq: ["#22d3ee", "#f472b6", "#a78bfa", "#facc15", "#34d399"],
+    notes: ["💠", "✨", "🎧", "🎶", "⚡", "🌟", "🔷", "💜"], ring: "#22d3ee" },
+  { id: "aurora", name: "Aurora", bg: ["#04121a", "#071a2b", "#03060a"],
+    blobs: ["#34d399", "#22d3ee", "#a78bfa", "#5eead4"],
+    eq: ["#34d399", "#22d3ee", "#5eead4", "#a78bfa", "#67e8f9"],
+    notes: ["🌌", "✨", "💫", "🎶", "🌠", "❄️", "🟢", "🔵"], ring: "#5eead4" },
+  { id: "sunset", name: "Sunset", bg: ["#2a0a1e", "#3b0a1a", "#0a0406"],
+    blobs: ["#f97316", "#f43f5e", "#fbbf24", "#fb7185"],
+    eq: ["#f97316", "#f43f5e", "#fbbf24", "#fb7185", "#f59e0b"],
+    notes: ["🔥", "🌅", "✨", "🎶", "🧡", "⭐", "🎉", "💥"], ring: "#fb7185" },
+  { id: "confetti", name: "Confetti Pop", bg: ["#12122e", "#0b0b16", "#05050b"],
+    blobs: ["#f472b6", "#facc15", "#34d399", "#6ea8fe"], eq: PARTY_COLORS,
+    notes: ["🎉", "🎊", "🎈", "✨", "⭐", "💥", "🥳", "🎇"], ring: "#facc15" },
+  { id: "galaxy", name: "Galaxy", bg: ["#0b0620", "#0a0a2a", "#03030a"],
+    blobs: ["#818cf8", "#c084fc", "#38bdf8", "#e879f9"],
+    eq: ["#818cf8", "#c084fc", "#38bdf8", "#e879f9", "#a5b4fc"],
+    notes: ["🌟", "✨", "💫", "🎶", "🪐", "⭐", "🌠", "💜"], ring: "#c084fc" },
+];
+
+export function pickIntroVariant(): IntroVariant {
+  return INTRO_VARIANTS[Math.floor(Math.random() * INTRO_VARIANTS.length)];
+}
 
 export type IntroSplashMode = "intro" | "full";
 
@@ -85,6 +127,8 @@ export default function IntroSplashScreen({ mode, onFinish }: Props) {
   const finishedRef = useRef(false);
   const [visible, setVisible] = useState(true);
   const [notes, setNotes] = useState<NoteState[]>([]);
+  // Pick one random visual variant per play (stable across re-renders).
+  const variant = useRef(pickIntroVariant()).current;
 
   // Entrance / exit.
   const enterScale = useRef(new Animated.Value(0.45)).current;
@@ -110,7 +154,7 @@ export default function IntroSplashScreen({ mode, onFinish }: Props) {
     const id = noteId.current;
     const note: NoteState = {
       id,
-      glyph: NOTE_GLYPHS[Math.floor(Math.random() * NOTE_GLYPHS.length)],
+      glyph: variant.notes[Math.floor(Math.random() * variant.notes.length)],
       startX: (Math.random() - 0.5) * 150,
       drift: (Math.random() - 0.5) * 90,
       dir: Math.random() > 0.5 ? 1 : -1,
@@ -308,7 +352,7 @@ export default function IntroSplashScreen({ mode, onFinish }: Props) {
   return (
     <Animated.View style={[styles.overlay, { opacity: scrimOpacity }]} pointerEvents="box-none">
       <LinearGradient
-        colors={["#120a2e", "#0b0b16", "#05050b"]}
+        colors={variant.bg}
         style={StyleSheet.absoluteFill}
       />
       <Pressable
@@ -319,17 +363,17 @@ export default function IntroSplashScreen({ mode, onFinish }: Props) {
       >
         {/* Disco blobs spinning behind the dancer. */}
         <Animated.View style={[styles.blobLayer, { transform: [{ rotate: spin }] }]}>
-          <View style={[styles.blob, { backgroundColor: "#e50914", top: -30, left: -40 }]} />
-          <View style={[styles.blob, { backgroundColor: "#6ea8fe", bottom: -20, right: -50 }]} />
+          <View style={[styles.blob, { backgroundColor: variant.blobs[0], top: -30, left: -40 }]} />
+          <View style={[styles.blob, { backgroundColor: variant.blobs[1], bottom: -20, right: -50 }]} />
         </Animated.View>
         <Animated.View style={[styles.blobLayer, { transform: [{ rotate: spinRev }] }]}>
-          <View style={[styles.blob, { backgroundColor: "#a78bfa", top: 10, right: -30, opacity: 0.7 }]} />
-          <View style={[styles.blob, { backgroundColor: "#34d399", bottom: 0, left: -30, opacity: 0.6 }]} />
+          <View style={[styles.blob, { backgroundColor: variant.blobs[2], top: 10, right: -30, opacity: 0.7 }]} />
+          <View style={[styles.blob, { backgroundColor: variant.blobs[3], bottom: 0, left: -30, opacity: 0.6 }]} />
         </Animated.View>
 
         {/* Beat ring that expands on every hit. */}
         <Animated.View
-          style={[styles.ring, { opacity: ringOpacity, transform: [{ scale: ringScale }] }]}
+          style={[styles.ring, { borderColor: variant.ring, opacity: ringOpacity, transform: [{ scale: ringScale }] }]}
         />
 
         {/* Floating music notes. */}
@@ -380,10 +424,10 @@ export default function IntroSplashScreen({ mode, onFinish }: Props) {
             return (
               <Animated.View
                 key={i}
-                style={[
+                  style={[
                   styles.eqBar,
                   {
-                    backgroundColor: PARTY_COLORS[i % PARTY_COLORS.length],
+                    backgroundColor: variant.eq[i % variant.eq.length],
                     transform: [{ translateY: barShift }, { scaleY: barScale }],
                   },
                 ]}
