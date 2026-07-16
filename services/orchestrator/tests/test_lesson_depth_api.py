@@ -18,13 +18,13 @@ def test_loaded_lesson_has_enriched_slide_count():
     assert len(lesson.slides) >= 10
 
 
-def test_every_lesson_has_slides():
-    """No lesson may load with zero slides — a class with no slides can never
-    present or auto-advance. Free-form lessons (no SLIDE markers) must still
-    parse into slides via the fallback parser."""
+def test_every_lesson_has_enough_slides_for_a_full_session():
+    """Every lesson must carry a substantial deck — at least 20 slides — so a
+    group/solo class fills a ~30-minute session and never stalls with 0-1 slides.
+    Free-form lessons (no SLIDE markers) must parse + enrich past this floor too."""
     store = CurriculumStore()
-    empty = [l.lesson_id for l in store.list_lessons() if len(l.slides) == 0]
-    assert not empty, f"lessons with no slides: {empty}"
+    thin = [(l.lesson_id, len(l.slides)) for l in store.list_lessons() if len(l.slides) < 20]
+    assert not thin, f"lessons with fewer than 20 slides: {thin}"
 
 
 def test_loaded_lesson_meets_target_duration():
