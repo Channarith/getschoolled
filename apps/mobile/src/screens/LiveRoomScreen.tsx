@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
@@ -213,7 +213,18 @@ export default function LiveRoomScreen({
   // moderator key) or the platform admin (admin@salareen.com, authorized by token).
   const canModerate = Boolean(modKey) || Boolean(account?.is_admin);
 
-  const socket = useLiveRoomSocket(roomId, Boolean(participantId), setRoom);
+  // De-dupe room updates from the 3s tick + WebSocket: skip setState when the
+  // snapshot is unchanged so we don't re-render the whole screen every 3s on an
+  // idle tick (a source of slow-timer jank).
+  const lastRoomSigRef = useRef("");
+  const applyRoom = useCallback((next: LiveRoomState) => {
+    const sig = JSON.stringify(next);
+    if (sig === lastRoomSigRef.current) return;
+    lastRoomSigRef.current = sig;
+    setRoom(next);
+  }, []);
+
+  const socket = useLiveRoomSocket(roomId, Boolean(participantId), applyRoom);
 
   const refresh = async () => {
     try {
@@ -240,22 +251,19 @@ export default function LiveRoomScreen({
       .catch(() => setGiftCatalog([]));
   }, [roomId]);
 
-  useEffect(() => {
-    if (!participantId || socket.connected) return;
-    const t = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(t);
-  }, [participantId, roomId, socket.connected]);
-
   // Heartbeat the room clock so a mobile-only group class still auto-starts,
   // auto-advances slides, and auto-ends when its allotted time is up (parity with
-  // web). Idempotent server-side; harmless for open-ended rooms.
+  // web). Idempotent server-side; harmless for open-ended rooms. The tick returns
+  // the full room, so it doubles as the poll — no separate refresh interval is
+  // needed (that was redundant work); applyRoom de-dupes so idle ticks don't
+  // re-render.
   useEffect(() => {
     if (!participantId) return;
     const t = setInterval(() => {
-      void liveRoomTick(roomId, participantId).then((r) => setRoom(r.room)).catch(() => undefined);
+      void liveRoomTick(roomId, participantId).then((r) => applyRoom(r.room)).catch(() => undefined);
     }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => clearInterval(t);
-  }, [participantId, roomId]);
+  }, [participantId, roomId, applyRoom]);
 
   // Kick off the AI presentation once the moderator/admin is in the room and it
   // isn't already presenting. Without this the class never enters "presenting",

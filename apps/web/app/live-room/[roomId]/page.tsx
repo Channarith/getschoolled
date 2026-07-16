@@ -446,7 +446,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (el?.requestFullscreen) void el.requestFullscreen().catch(() => undefined);
   };
 
+  // De-dupe room updates from the 3s tick + WebSocket: if nothing actually
+  // changed since the last snapshot, skip setState so we don't re-render the
+  // whole (large) live-room tree every 3 seconds for no reason. This is the main
+  // cause of "setInterval handler took Nms" — a full re-render on an idle tick.
+  const lastRoomSigRef = useRef("");
   const applyRoom = useCallback((next: LiveRoomState) => {
+    const sig = JSON.stringify(next);
+    if (sig === lastRoomSigRef.current) return;
+    lastRoomSigRef.current = sig;
     setRoom(next);
     if (typeof next.viewer_count === "number") {
       viewerSetterRef.current(next.viewer_count);
