@@ -40,9 +40,13 @@ def test_course_detail_localized_segments():
     assert body["category"] == "Histoire"
     assert body["level"] == "débutant"
     # Category/level localize for the UI; the body is the authentic English
-    # narration pack (no localized intro wrapper) for topics without a
-    # curated localized fact set.
-    assert body["segments"][0]["heading"] == "The Nile's Annual Rhythm"
+    # narration pack for topics without a curated localized fact set, framed
+    # with an Overview + Key-takeaways recap (built from the lesson's own
+    # content — no localized/fabricated intro facts).
+    headings = [s["heading"] for s in body["segments"]]
+    assert headings[0] == "Overview"
+    assert headings[-1] == "Key takeaways"
+    assert "The Nile's Annual Rhythm" in headings
 
 
 def test_filter_by_localized_category():
