@@ -44,6 +44,12 @@ export function useLiveKitRoom(
   // back here — that would echo your own voice.
   const [audioTracks, setAudioTracks] = useState<AudioStream[]>([]);
   const [connected, setConnected] = useState(false);
+  // True once an initial connect attempt has failed (bad/expired token, wrong
+  // LiveKit secret, endpoint unreachable). We surface this so the UI can show a
+  // calm "live A/V unavailable" note instead of a silent break, and we do NOT
+  // retry — retrying a doomed token is what produced the endless "WebSocket is
+  // closed / abort connection attempt / cannot send signal request" console storm.
+  const [connectFailed, setConnectFailed] = useState(false);
   const roomRef = useRef<Room | null>(null);
   // Keep the latest participant roster in a ref. It is only used to map a
   // LiveKit identity to our internal participant id (for the display tile). We
@@ -59,14 +65,39 @@ export function useLiveKitRoom(
   useEffect(() => {
     if (!media?.url || !media.token) {
       setConnected(false);
+      setConnectFailed(false);
       setTiles([]);
       setAudioTracks([]);
       return;
     }
 
     let cancelled = false;
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    setConnectFailed(false);
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      // Bound reconnection. livekit-client otherwise retries a dropped socket
+      // ~10 times with backoff — against a mis-keyed / unreachable LiveKit that
+      // becomes an endless "WebSocket closed → reconnecting → attempt N" storm
+      // in the console (the class runs fine over AI narration + polling). Allow
+      // a couple of quick retries to ride out a real network blip, then give up
+      // and surface the calm "unavailable" state instead of looping forever.
+      reconnectPolicy: {
+        nextRetryDelayInMs: (ctx) => (ctx.retryCount >= 2 ? null : 300 * (ctx.retryCount + 1)),
+      },
+    });
     roomRef.current = room;
+
+    // The socket dropped and reconnection was exhausted (or never succeeded).
+    // Mark the failure once and stop; don't tear down again if this is our own
+    // cleanup disconnect.
+    room.on(RoomEvent.Disconnected, () => {
+      if (cancelled) return;
+      setConnected(false);
+      setConnectFailed(true);
+      setTiles([]);
+      setAudioTracks([]);
+    });
 
     const upsert = (
       participantId: string,
@@ -133,12 +164,19 @@ export function useLiveKitRoom(
         }
       })
       .catch(() => {
-        if (!cancelled) setConnected(false);
+        // Initial connect failed. Tear the room down so the SDK stops trying to
+        // reconnect (which floods the console) and mark the failure once. The
+        // room keeps working over the AI-narration + polling path.
+        void room.disconnect().catch(() => undefined);
+        if (!cancelled) {
+          setConnected(false);
+          setConnectFailed(true);
+        }
       });
 
     return () => {
       cancelled = true;
-      room.disconnect();
+      void room.disconnect().catch(() => undefined);
       roomRef.current = null;
       setTiles([]);
       setAudioTracks([]);
@@ -146,7 +184,13 @@ export function useLiveKitRoom(
     };
   }, [media?.url, media?.token, media?.identity, canPublish]);
 
-  return { tiles, audioTracks, connected, livekitAvailable: Boolean(media?.url && media?.token) };
+  return {
+    tiles,
+    audioTracks,
+    connected,
+    connectFailed,
+    livekitAvailable: Boolean(media?.url && media?.token),
+  };
 }
 
 /** Hidden audio sink for a remote participant's mic (autoplays, NOT muted). */

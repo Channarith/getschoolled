@@ -68,3 +68,30 @@ def test_livekit_secret_whitespace_is_trimmed():
 def test_livekit_whitespace_only_secret_falls_back_to_default():
     cfg = load_config(env={"LIVEKIT_API_SECRET": "   \n"})
     assert cfg.livekit_api_secret == "devsecret"
+
+
+def test_self_hosted_dev_defaults_keep_url():
+    # A local ``--dev`` LiveKit container legitimately uses devkey/devsecret, so  # pragma: allowlist secret
+    # a self-hosted URL must still be handed to clients.
+    token = build_factory(load_config(env={})).media().issue_token(room="r", identity="i")
+    assert token.url == "ws://livekit:7880"
+
+
+def test_cloud_url_with_dev_creds_yields_no_url():
+    # Cloud endpoint but still on dev defaults -> Cloud will reject the token, so
+    # suppress the URL and let the client skip a doomed WebSocket connection.
+    cfg = load_config(env={"LIVEKIT_URL": "wss://demo.livekit.cloud"})
+    token = build_factory(cfg).media().issue_token(room="r", identity="i")
+    assert token.url == ""
+
+
+def test_cloud_url_with_real_creds_keeps_url():
+    cfg = load_config(
+        env={
+            "LIVEKIT_URL": "wss://demo.livekit.cloud",
+            "LIVEKIT_API_KEY": "APIrealkey",
+            "LIVEKIT_API_SECRET": "realsecretvalue",
+        }
+    )
+    token = build_factory(cfg).media().issue_token(room="r", identity="i")
+    assert token.url == "wss://demo.livekit.cloud"

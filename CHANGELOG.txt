@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.59 - Live rooms degrade gracefully when LiveKit can't
+  connect instead of flooding the console. Web: bounded the LiveKit reconnect
+  policy (a couple of quick retries, then stop) and handle Disconnected so a
+  mis-keyed/unreachable media backend no longer loops "WebSocket closed →
+  reconnecting → attempt N" forever; a calm "Live audio/video unavailable" note
+  now shows while AI narration, chat and Q&A keep working. Server: the media
+  provider now hands out no LiveKit URL when it can't work (no URL configured,
+  or a LiveKit Cloud URL still paired with dev-default key/secret), so clients
+  skip a doomed WebRTC connection entirely. Added media-token URL-gating tests.
+
 - 2026-07-15 - v0.19.58 - The AI presenter now teaches the WHOLE course end-to-end
   and fullscreen text is legible. Corporate/live-class (ClassRoom) autoplay:
   narrate each slide, then auto-advance through the entire deck (advance on

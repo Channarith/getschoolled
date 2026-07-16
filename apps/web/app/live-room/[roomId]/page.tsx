@@ -455,11 +455,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => { alive = false; };
   }, [me?.can_publish, joinInfo, roomId]);
 
-  const { tiles: liveKitTiles, audioTracks, livekitAvailable } = useLiveKitRoom(
-    liveMedia ?? joinInfo?.media,
-    room?.participants ?? joinInfo?.room.participants ?? [],
-    Boolean(hasFloor && me?.can_publish),
-  );
+  const { tiles: liveKitTiles, audioTracks, livekitAvailable, connectFailed: liveKitFailed } =
+    useLiveKitRoom(
+      liveMedia ?? joinInfo?.media,
+      room?.participants ?? joinInfo?.room.participants ?? [],
+      Boolean(hasFloor && me?.can_publish),
+    );
 
   const trackFor = useCallback(
     (participantId: string) =>
@@ -1128,6 +1129,27 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       {error && (
         <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", borderRadius: 8, padding: 8, marginBottom: 10 }}>
           {error}
+        </div>
+      )}
+
+      {/* LiveKit couldn't connect (e.g. media backend unreachable / mis-keyed).
+          The class still runs over the AI teacher's narration, chat and Q&A, so
+          we show a calm note rather than letting the console fill with failed
+          reconnect attempts. */}
+      {liveKitFailed && (
+        <div
+          style={{
+            background: "color-mix(in srgb, var(--accent) 8%, var(--panel))",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "8px 10px",
+            marginBottom: 10,
+            fontSize: 13,
+            color: "var(--muted)",
+          }}
+        >
+          🔇 Live audio/video for participants is unavailable right now — the AI
+          teacher’s narration, chat and Q&amp;A continue as normal.
         </div>
       )}
 
