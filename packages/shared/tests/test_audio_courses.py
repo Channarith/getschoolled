@@ -59,10 +59,15 @@ def test_knowledge_courses_match_topic_section_count():
             slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
             c = get_course(f"audio-{slug}")
             assert c is not None
-            expected = len(TOPIC_SECTIONS[title])
+            # English knowledge bodies are framed with an Overview + a
+            # Key-takeaways recap around the authored sections (+2 segments).
+            expected = len(TOPIC_SECTIONS[title]) + 2
             assert len(c.segments) == expected, (
-                f"audio-{slug}: expected {expected} substantive sections, got {len(c.segments)}"
+                f"audio-{slug}: expected {expected} segments "
+                f"(Overview + {len(TOPIC_SECTIONS[title])} sections + Key takeaways), got {len(c.segments)}"
             )
+            assert c.segments[0].heading == "Overview"
+            assert c.segments[-1].heading == "Key takeaways"
 
 
 def test_blockchain_course_has_substantive_content():
@@ -71,7 +76,8 @@ def test_blockchain_course_has_substantive_content():
     joined = " ".join(f"{s.heading} {s.text}" for s in c.segments).lower()
     for term in ("satoshi", "hash", "proof of work", "ethereum", "bitcoin"):
         assert term in joined, f"missing {term}"
-    assert len(c.segments) == 8
+    # 8 authored sections + Overview + Key-takeaways recap.
+    assert len(c.segments) == 10
 
 
 def test_language_courses_are_included():
