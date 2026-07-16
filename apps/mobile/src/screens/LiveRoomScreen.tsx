@@ -4,8 +4,9 @@ import {
 } from "react-native";
 
 import {
+  deleteLiveRoom,
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
-  liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
+  liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
   liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomStartPresentation,
   liveRoomTick, liveRoomUnban,
@@ -835,16 +836,44 @@ export default function LiveRoomScreen({
             ))}
           </View>
 
-          {modKey ? (
+          {canModerate ? (
             <View style={styles.sheetSection}>
               <Text style={styles.cardTitle}>Host controls</Text>
               <View style={styles.controls}>
+                {!room?.presenting ? (
+                  <PrimaryButton
+                    label="🎬 Start class"
+                    variant="netflix"
+                    onPress={async () => {
+                      try { setRoom(await liveRoomStartPresentation(roomId, modKey)); }
+                      catch (e) { setError((e as Error).message); }
+                    }}
+                  />
+                ) : null}
                 <PrimaryButton label="Call next" onPress={async () => setRoom(await liveRoomCallNext(roomId, modKey))} />
                 {room?.floor_participant_id ? (
                   <PrimaryButton
                     label="End turn"
                     variant="ghost"
                     onPress={async () => setRoom(await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey))}
+                  />
+                ) : null}
+                <PrimaryButton
+                  label="⛔ Close session"
+                  variant="ghost"
+                  onPress={async () => {
+                    try { setRoom(await liveRoomEnd(roomId, modKey)); setSheet(null); }
+                    catch (e) { setError((e as Error).message); }
+                  }}
+                />
+                {account?.is_admin ? (
+                  <PrimaryButton
+                    label="🗑 Delete session"
+                    variant="ghost"
+                    onPress={async () => {
+                      try { await deleteLiveRoom(roomId); leaveAndBack(); }
+                      catch (e) { setError((e as Error).message); }
+                    }}
                   />
                 ) : null}
               </View>
