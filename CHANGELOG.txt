@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.73 - Mobile Drive "Voice & accent" chips no longer look
+  duplicated: a male and female voice of the same accent showed as identical
+  labels (e.g. "British"/"British"); chips now append the gender ("British · F"
+  / "British · M") so every voice is distinct. Selecting a voice re-narrates
+  with that neural voice (or the matching on-device voice when neural is off).
+
 - 2026-07-16 - v0.19.72 - Mobile live room now shows host controls to the admin.
   Previously Start/Close-session were absent and moderator controls only showed
   when the client held the room's moderator key, so a platform admin attending a
