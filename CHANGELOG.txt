@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.74 - Web: restored the single-row desktop top bar after the
+  nav link set grew to 13-14 items (Careers/Arcade/Watch/Live Class/Group Classes/
+  Homework) and started wrapping onto a second row. Widened the desktop nav
+  container (max-width 1320px), forced the link menu to stay on one line
+  (flex-wrap: nowrap) and tightened link spacing/size so every link fits without
+  stacking; mobile hamburger menu unchanged (apps/web/app/globals.css). Synced the
+  branch onto upstream main (v0.19.73). Web typecheck/lint/build green.
+
 - 2026-07-16 - v0.19.73 - Mobile Drive "Voice & accent" chips no longer look
   duplicated: a male and female voice of the same accent showed as identical
   labels (e.g. "British"/"British"); chips now append the gender ("British · F"
