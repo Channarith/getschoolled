@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.79 - Live room perf: removed a redundant 3s room-refresh
+  poll that ran on top of the heartbeat tick (which already returns the full
+  room), halving the per-interval fetch + re-render work that contributed to
+  "setInterval handler took Nms" slow-timer warnings. (The "message channel
+  closed before a response was received" console error is a browser-extension
+  message-port error, not app code — it disappears in an extension-free window.)
+
 - 2026-07-16 - v0.19.78 - Every lesson now carries a full deck (>=20 slides).
   Reviewed all lessons: after the free-form parser fix every lesson had >=21
   slides except cyber-incident-response (17, only 4 short modules). Expanded it
