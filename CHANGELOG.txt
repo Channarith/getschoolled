@@ -2,6 +2,15 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.83 - Fix live-class narration cutting out after "Start
+  class" and the class never finishing. Chrome silently stops speechSynthesis
+  after ~15s of speaking (even with chunked utterances), which killed the AI
+  teacher's voice mid-slide and stalled auto-advance (the final utterance's onend
+  never fired). Added a pause()/resume() keep-alive in apps/web/app/lib/tts.ts
+  (startSpeechKeepAlive/stopSpeechKeepAlive) wired into every browser-voice path
+  (speakNaturally, synthChunk, and the solo class page) so a slide narrates fully
+  and the class advances all the way to the end. Also blur the "Start class"
+  button on click so it no longer looks stuck/depressed.
 - 2026-07-16 - v0.19.82 - Live Class page (/class) is now Solo (1:1) only.
   Removed the "Group class / Solo (1:1)" mode dropdown and default the page to a
   solo live room with the AI; group classes remain under their own "Group

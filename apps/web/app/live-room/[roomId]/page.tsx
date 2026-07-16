@@ -1855,7 +1855,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             {canModerate ? (
               !room?.presenting ? (
                 <button
-                  onClick={() => void startPresentation()}
+                  onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
                   disabled={busy}
                   title="Start the class"
                   style={{ background: "var(--accent-2)", color: "#fff" }}
