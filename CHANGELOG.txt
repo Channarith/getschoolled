@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.75 - Group classes now have a single Join button and no
+  registration step (web + mobile). "Join" and "Start (AI presents)" did the
+  same thing, so they're merged: the first person to join opens and hosts the
+  class (receives the moderator key); anyone joining an already-live class drops
+  straight into the running room. The Register button/flow is removed — first
+  join comes in. Full classes remain grayed out except for the platform admin.
+
 - 2026-07-16 - v0.19.74 - Live/group/solo classes now auto-advance the instant
   the AI finishes narrating a slide (web + mobile), instead of waiting on a timed
   estimate — the moderator/admin's client drives the advance on narration-end and
