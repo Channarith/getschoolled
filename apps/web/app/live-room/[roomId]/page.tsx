@@ -551,11 +551,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }, [room, joinInfo, roomId, localStream]);
 
-  useEffect(() => {
-    if (!joinInfo || socket.connected) return;
-    const timer = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(timer);
-  }, [joinInfo, refresh, socket.connected]);
+  // Note: we intentionally do NOT run a separate room-refresh poll here. The
+  // heartbeat tick below already returns the full room every 3s (and the socket
+  // pushes live updates), so a second interval calling getLiveRoom was redundant
+  // work — double the fetches + re-renders — which contributed to slow-timer
+  // ('setInterval handler took Nms') warnings. The one-time refresh on mount
+  // still primes the join screen.
 
   useEffect(() => {
     void getLiveGiftCatalog()
