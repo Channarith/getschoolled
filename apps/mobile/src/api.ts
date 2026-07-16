@@ -538,6 +538,7 @@ export type LiveRoomState = {
   learner_count: number;
   seats_left: number;
   status: string;
+  presenting?: boolean;
   host: { id: string; name: string; role: string };
   participants: { id: string; name: string; role: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean; can_publish?: boolean }[];
   chat: { id: string; from_name: string; text: string }[];
@@ -781,12 +782,27 @@ export async function joinLiveRoom(roomId: string, name: string, identity = "", 
     gift_balance?: number;
     host_follower_count?: number;
     following_host?: boolean;
+    is_admin?: boolean;
+    moderator_key?: string;
   }> {
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
     body: JSON.stringify({ name, identity, language }),
   });
+}
+
+/** Start the AI presentation (class admin / moderator key / platform admin via
+ * Bearer token). Idempotent server-side. Without this a group class never
+ * enters "presenting", so slides never auto-advance and it's stuck on slide 1. */
+export async function liveRoomStartPresentation(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/start-presentation`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ moderator_key: moderatorKey }),
+    });
+  return r.room;
 }
 
 export async function liveRoomMediaToken(

@@ -7,7 +7,8 @@ import {
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
-  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomTick, liveRoomUnban,
+  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomStartPresentation,
+  liveRoomTick, liveRoomUnban,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
 } from "../api";
@@ -152,8 +153,12 @@ export default function LiveRoomScreen({
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [chatSeen, setChatSeen] = useState(0);
   const chatSeenInit = useRef(false);
-  const modKey = moderatorKey || MOD_STORAGE[roomId] || "";
+  const [joinedModKey, setJoinedModKey] = useState("");
+  const modKey = moderatorKey || joinedModKey || MOD_STORAGE[roomId] || "";
   const classEnded = room?.status === "ended";
+  // Can this viewer start/drive the class? The room's first-seat admin (holds the
+  // moderator key) or the platform admin (admin@salareen.com, authorized by token).
+  const canModerate = Boolean(modKey) || Boolean(account?.is_admin);
 
   const socket = useLiveRoomSocket(roomId, Boolean(participantId), setRoom);
 
@@ -198,6 +203,23 @@ export default function LiveRoomScreen({
     }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => clearInterval(t);
   }, [participantId, roomId]);
+
+  // Kick off the AI presentation once the moderator/admin is in the room and it
+  // isn't already presenting. Without this the class never enters "presenting",
+  // so the server never auto-advances and it's stuck on slide 1. (Server-side
+  // auto-start only fires for a FULL room or 5 min past the scheduled time — a
+  // lone learner would otherwise wait forever.) Idempotent + authorized server-side.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    if (!participantId || !room || classEnded) return;
+    if (room.presenting) { autoStartedRef.current = true; return; }
+    if (!canModerate) return;
+    autoStartedRef.current = true;
+    void liveRoomStartPresentation(roomId, modKey)
+      .then((r) => setRoom(r))
+      .catch(() => { autoStartedRef.current = false; });   // allow a retry on transient failure
+  }, [participantId, room, classEnded, canModerate, modKey, roomId]);
 
   // Audio: the AI host (Theodore) has no camera, so its "voice" is TTS. Speak the
   // current slide (title + narration) whenever it changes, and speak Theodore's
@@ -295,6 +317,12 @@ export default function LiveRoomScreen({
       }
       setParticipantId(joined.participant.id);
       setIdentity(joined.participant.identity);
+      // The first-seat admin receives the moderator key so their client can
+      // start the class (and thus drive slide auto-advance).
+      if (joined.moderator_key) {
+        setJoinedModKey(joined.moderator_key);
+        MOD_STORAGE[roomId] = joined.moderator_key;
+      }
       setMedia(joined.media ?? null);
       setGiftBalance(joined.gift_balance ?? 500);
       setFollowingHost(Boolean(joined.following_host));
