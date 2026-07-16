@@ -116,7 +116,8 @@ export default function GroupClassesScreen({
           const res = await startGroupClass(gc.id, geo);
           const roomId = res.bridge.live_room_id || res.bridge.livekit_room || roomIdFor(gc);
           void load();
-          onOpenRoom(roomId, "");
+          // First person in opens + hosts the class (gets the moderator key).
+          onOpenRoom(roomId, res.bridge.moderator_key || "");
         } catch (e) {
           setError((e as Error).message);
         } finally {
@@ -263,24 +264,15 @@ export default function GroupClassesScreen({
                 {gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
               </Text>
               <View style={styles.actions}>
-                <PrimaryButton
-                  label={gc.seats_left <= 0 ? t("group.full") : t("group.register")}
-                  onPress={() => promptRegister(gc)}
-                  disabled={busy || gc.seats_left <= 0}
-                  variant="ghost"
-                />
+                {/* One button: first join opens + hosts the class; later joins
+                    drop into the running room. No separate register/start step.
+                    A full class is grayed out except for the admin (monitor). */}
                 <PrimaryButton
                   label={joinBlocked ? t("group.full") : t("group.join")}
                   onPress={() => void handleJoin(gc)}
+                  loading={busy}
                   disabled={busy || joinBlocked}
                   variant="brand"
-                />
-                <PrimaryButton
-                  label={t("group.start")}
-                  onPress={() => void handleStart(gc)}
-                  loading={busy}
-                  disabled={busy}
-                  variant="netflix"
                 />
               </View>
             </GlassPanel>

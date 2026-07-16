@@ -5,10 +5,8 @@ import { useEffect, useState } from "react";
 import {
   getMe,
   getToken,
-  groupClassCalendarUrl,
   listGroupClasses,
   listLessons,
-  registerGroupClass,
   scheduleGroupClass,
   startGroupClass,
   type GroupClass,
@@ -134,49 +132,26 @@ export default function GroupClassesPage() {
     }
   }
 
-  async function onRegister(gc: GroupClass) {
-    if (!requireAccount()) return;
-    const name = window.prompt(t("group.registerPrompt"));
-    if (!name) return;
-    const email = window.prompt("Email for calendar invite (optional):") || "";
-    setBusy(true);
-    try {
-      await registerGroupClass(gc.id, name, email);
-      const calUrl = groupClassCalendarUrl(gc.id, name, email);
-      if (window.confirm("Added to class! Download a calendar invite (.ics)?")) {
-        window.open(calUrl, "_blank", "noopener");
-      }
-      await refresh();
-    } catch (e) {
-      setError(friendlyError(e, offline));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function onJoin(gc: GroupClass) {
+  // One button does it all: the first person to join opens the class (and hosts
+  // it); anyone joining an already-live class just drops into the running room.
+  // No separate register/start step — first join comes in.
+  async function onJoin(gc: GroupClass) {
     if (!requireAccount()) return;
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
       return;
     }
-    const roomId = gc.live_room_id || `class-${gc.id}`;
-    window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
-  }
-
-  async function onStart(gc: GroupClass) {
-    if (!requireAccount()) return;
     setError("");
     setBusy(true);
     try {
-      const res = await startGroupClass(gc.id);
+      const wasLive = gc.status === "live" || Boolean(gc.live_room_id);
+      const res = await startGroupClass(gc.id);   // idempotent: opens the room
       const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
-      if (res.bridge.moderator_key) {
+      // Only the first joiner (class wasn't live yet) becomes the host/moderator;
+      // later arrivals join as learners.
+      if (!wasLive && res.bridge.moderator_key) {
         sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
       }
-      // Salareen in-app room: "Start (AI presents)" should drop you straight into
-      // the room (it's now open on the server). Only the external bridges
-      // (Zoom/Teams/Meet) need the modal with the meeting link.
       if (!res.bridge.needs_bridge) {
         window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
         return;
@@ -333,22 +308,16 @@ export default function GroupClassesPage() {
                 </div>
               </div>
               <div className="group-class-actions">
-                <button onClick={() => onRegister(gc)} disabled={busy || gc.seats_left <= 0}>
-                  {gc.seats_left <= 0 ? t("group.full") : t("group.register")}
-                </button>
-                {/* A full class is grayed out (not joinable) for everyone except
-                    the platform admin, who can still drop in to monitor it. */}
+                {/* One button: first join opens (and hosts) the class; later
+                    joins drop into the running room. A full class is grayed out
+                    for everyone except the platform admin (who can monitor). */}
                 <button
                   onClick={() => onJoin(gc)}
                   disabled={busy || (gc.seats_left <= 0 && !isAdmin)}
                   title={gc.seats_left <= 0 && !isAdmin ? t("group.full") : undefined}
+                  style={{ background: "#0ea5e9", color: "#fff" }}
                 >
                   {gc.seats_left <= 0 && !isAdmin ? t("group.full") : t("group.join")}
-                </button>
-                <button onClick={() => onStart(gc)} disabled={busy}
-                  title={t("group.startHint")}
-                  style={{ background: "#0ea5e9", color: "#fff" }}>
-                  {t("group.start")}
                 </button>
               </div>
             </div>
