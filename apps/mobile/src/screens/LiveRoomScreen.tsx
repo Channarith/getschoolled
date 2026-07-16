@@ -93,6 +93,58 @@ function IconTab({
   );
 }
 
+function initials(name: string): string {
+  return (name || "?")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// One seat in the classroom strip: the AI host, a learner (with mic/hand/mute
+// state), the current viewer, or an empty "Open seat" slot. Lets a phone user
+// see who's in the room and where there's room to drop in (parity with web).
+function SeatTile({
+  name, host, me, floor, hand, muted, open,
+}: {
+  name?: string;
+  host?: boolean;
+  me?: boolean;
+  floor?: boolean;
+  hand?: boolean;
+  muted?: boolean;
+  open?: boolean;
+}) {
+  if (open) {
+    return (
+      <View style={[styles.seat, styles.seatOpen]}>
+        <Text style={styles.seatOpenText}>Open{"\n"}seat</Text>
+      </View>
+    );
+  }
+  return (
+    <View
+      style={[
+        styles.seat,
+        host && styles.seatHost,
+        floor && styles.seatFloor,
+        me && !floor && styles.seatMe,
+      ]}
+    >
+      <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
+      <Text style={styles.seatName} numberOfLines={1}>
+        {host ? "Host" : me ? "You" : name}
+      </Text>
+      <View style={styles.seatBadges}>
+        {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
+        {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
+        {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
+      </View>
+    </View>
+  );
+}
+
 // A bottom sheet that slides up over the presenter. Tapping the dimmed backdrop
 // or the ✕ closes it. Content is scrollable and capped so it never covers the
 // whole screen.
@@ -510,6 +562,32 @@ export default function LiveRoomScreen({
       </Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      {/* Seats: the AI host + everyone in the room + open slots, so you can see
+          who's here and where there's room to drop in (like the web grid). */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.seatsRow}
+        contentContainerStyle={styles.seatsContent}
+      >
+        {room?.host ? <SeatTile name={room.host.name} host /> : null}
+        {(room?.participants ?? [])
+          .filter((p) => p.role !== "host")
+          .map((p) => (
+            <SeatTile
+              key={p.id}
+              name={p.name}
+              me={p.id === participantId}
+              floor={p.id === room?.floor_participant_id}
+              hand={p.hand_raised && p.id !== room?.floor_participant_id}
+              muted={p.muted || p.muted_by_host}
+            />
+          ))}
+        {Array.from({ length: Math.max(0, room?.seats_left ?? 0) }).map((_, i) => (
+          <SeatTile key={`open-${i}`} open />
+        ))}
+      </ScrollView>
+
       {/* Presenter hero fills the screen; everything else opens from the bar. */}
       <GlassPanel style={styles.hero}>
         <Text style={styles.presenterHost} numberOfLines={1}>
@@ -836,6 +914,26 @@ const styles = StyleSheet.create({
 
   // Presenter hero — takes all the vertical space between the meta row and the
   // action bar so the teacher/slide is the clear focus on a phone.
+  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 4 },
+  seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8 },
+  seat: {
+    width: 72, height: 72, borderRadius: 12,
+    backgroundColor: "rgba(30,27,75,0.9)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center", justifyContent: "center", gap: 2,
+  },
+  seatHost: { backgroundColor: "rgba(124,58,237,0.35)", borderColor: "#a78bfa" },
+  seatFloor: { borderColor: theme.colors.accent, borderWidth: 2 },
+  seatMe: { borderColor: theme.colors.success },
+  seatOpen: {
+    backgroundColor: "transparent",
+    borderStyle: "dashed", borderColor: "rgba(255,255,255,0.3)",
+  },
+  seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
+  seatAvatar: { color: theme.colors.text, fontSize: 22, fontWeight: "800" },
+  seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "600", maxWidth: 64 },
+  seatBadges: { flexDirection: "row", gap: 2, height: 14 },
+  seatBadge: { fontSize: 11 },
   hero: { flex: 1, gap: 8, position: "relative" },
   presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },
   heroScroll: { flex: 1 },
