@@ -1101,10 +1101,14 @@ class LiveRoomStore:
         return room
 
     def should_auto_start(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
-        """True when the AI should auto-start: the room is full, or it's >=5 min
-        past the scheduled time with at least one learner present."""
-        from datetime import timedelta
+        """True when the AI should begin presenting.
 
+        A class runs whenever at least one learner is present and it is either
+        full, has no scheduled time (instant / solo room — start on the first
+        learner), or has reached its scheduled start time. There's no wait for
+        the room to fill or for a grace period: the AI teaches as soon as someone
+        is there, and because the class then auto-advances and its position is
+        tracked server-side, anyone can drop in mid-session."""
         room = self.require(room_id)
         if room.status != "live" or room.presenting or room.learner_count < 1:
             return False
@@ -1112,9 +1116,9 @@ class LiveRoomStore:
             return True
         sched = _parse_ts(room.scheduled_start)
         if sched is None:
-            return False
+            return True  # instant / solo room — start as soon as a learner joins
         ref = now or _now()
-        return ref >= sched + timedelta(seconds=room.auto_start_grace_seconds)
+        return ref >= sched  # scheduled — start once the time arrives (a learner is present)
 
     def should_auto_advance(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
         """True when the current slide has been up long enough to auto-advance —
