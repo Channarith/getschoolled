@@ -46,6 +46,24 @@ import { speakNaturally, cancelSpeech } from "../../lib/tts";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
+// Minimal Web Speech API shape (Chrome/Edge expose webkitSpeechRecognition).
+// Used to capture a learner's spoken question while they hold the floor so it
+// can be sent to Theodore on "Done speaking".
+type SpeechRec = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  maxAlternatives: number;
+  onresult: (e: {
+    resultIndex: number;
+    results: { length: number; [i: number]: { isFinal: boolean; [j: number]: { transcript: string } } };
+  }) => void;
+  onerror: (e: { error?: string }) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
 const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
 
@@ -394,6 +412,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
   const spokenSlideRef = useRef<number | null>(null);
+  // Floor mic: while this learner holds the floor we listen to their voice and
+  // build a transcript, then send it to Theodore as a question when they tap
+  // "Done speaking". `listening` drives the UI; `micNote` surfaces a clear
+  // reason when the mic can't run (insecure origin, blocked, unsupported).
+  const [listening, setListening] = useState(false);
+  const [spokenText, setSpokenText] = useState("");
+  const [micNote, setMicNote] = useState("");
+  const recognitionRef = useRef<SpeechRec | null>(null);
+  const spokenFinalRef = useRef("");
   const leftVoluntarily = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
@@ -431,6 +458,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return room.participants.find((p) => p.id === id) ?? joinInfo.participant;
   }, [joinInfo, room]);
   const hasFloor = me?.id === room?.floor_participant_id;
+  // Language for narration + voice capture: the learner's profile/device
+  // language, falling back to the app locale.
+  const narrationLocale = me?.language || locale;
 
   // Hard mutex: learners join with a no-publish token. When the host/AI grants
   // the floor (me.can_publish flips), re-fetch a fresh token that permits
@@ -736,6 +766,126 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
+  // Stop the floor microphone (idempotent).
+  const stopListening = useCallback(() => {
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    setListening(false);
+    if (rec) {
+      try { rec.stop(); } catch { /* already stopped */ }
+    }
+  }, []);
+
+  // Start listening to the learner who holds the floor. Best-effort: mirrors the
+  // /class "Speak now" guards (secure context, permission, browser support) and
+  // falls back to typing when the mic can't run.
+  const startListening = useCallback(async () => {
+    if (recognitionRef.current) return; // already listening
+    setMicNote("");
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setMicNote(
+        "Your microphone needs a secure connection — open Salareen over https:// to speak, " +
+        "or type your question below and tap Ask."
+      );
+      return;
+    }
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRec;
+      webkitSpeechRecognition?: new () => SpeechRec;
+    };
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setMicNote("Voice input isn't supported in this browser — type your question below and tap Ask.");
+      return;
+    }
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop()); // only needed the grant
+      }
+    } catch {
+      setMicNote(
+        "Microphone access is blocked — allow the mic (address-bar icon), then tap 🎤 Speak. " +
+        "You can also type your question below."
+      );
+      return;
+    }
+    let rec: SpeechRec;
+    try {
+      rec = new Ctor();
+    } catch {
+      setMicNote("Couldn't start the microphone — type your question below and tap Ask.");
+      return;
+    }
+    rec.lang = narrationLocale || "en-US";
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.maxAlternatives = 1;
+    spokenFinalRef.current = "";
+    setSpokenText("");
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const txt = r[0]?.transcript ?? "";
+        if (r.isFinal) spokenFinalRef.current = `${spokenFinalRef.current} ${txt}`.trim();
+        else interim += txt;
+      }
+      setSpokenText(`${spokenFinalRef.current} ${interim}`.trim());
+    };
+    rec.onerror = (ev) => {
+      const code = ev?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setMicNote("Microphone is blocked — allow it (address-bar icon) and use https://. You can type instead.");
+        stopListening();
+      } else if (code === "audio-capture") {
+        setMicNote("No microphone found — check your device, or type your question below.");
+        stopListening();
+      }
+      // "no-speech"/"aborted" are transient; keep the session going.
+    };
+    rec.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = rec;
+    setListening(true);
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      recognitionRef.current = null;
+      setMicNote("Couldn't start the microphone — type your question below and tap Ask.");
+    }
+  }, [narrationLocale, stopListening]);
+
+  // Learner is done speaking: send whatever we heard (or typed) to Theodore as a
+  // question — the server answers a floor-holder immediately and releases the
+  // floor. With nothing captured, just hand the floor back.
+  async function doneSpeaking() {
+    if (!me) return;
+    const question = (spokenFinalRef.current || spokenText || askDraft).trim();
+    stopListening();
+    setBusy(true);
+    try {
+      if (question) {
+        const res = await liveRoomAsk(roomId, me.id, question, narrationLocale);
+        setRoom(res.room);
+        setAskDraft("");
+        setSpokenText("");
+        spokenFinalRef.current = "";
+        setError("");
+      } else {
+        const pid = room?.floor_participant_id || me.id;
+        setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
+      }
+    } catch (e) {
+      setError(friendlyError(e, "Couldn't send your question to Theodore"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleMute() {
     if (!me) return;
     setBusy(true);
@@ -792,7 +942,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const slideTitle = room?.slide?.title;
   const slideNarration = room?.slide?.narration;
   const slideBody = room?.slide?.body;
-  const narrationLocale = me?.language || locale;
   useEffect(() => {
     if (!aiAudioOn || !classLive || slideIdx == null) {
       cancelSpeech();
@@ -810,6 +959,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);
+
+  // When this learner is granted the floor, open the mic to capture their spoken
+  // question; when they lose it (or leave), stop listening and clear the draft.
+  useEffect(() => {
+    if (hasFloor) {
+      void startListening();
+    } else {
+      stopListening();
+      setSpokenText("");
+      spokenFinalRef.current = "";
+      setMicNote("");
+    }
+    return () => stopListening();
+  }, [hasFloor, startListening, stopListening]);
 
   async function toggleRecording() {
     setBusy(true);
@@ -1124,6 +1287,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             transform: translateY(-180px) scale(1.2);
           }
         }
+        @keyframes floor-mic-pulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(1.5); }
+          100% { opacity: 1; transform: scale(1); }
+        }
       `}</style>
 
       {error && (
@@ -1323,6 +1491,75 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             ))}
           </div>
+
+          {hasFloor && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 14,
+                borderRadius: 12,
+                background: "color-mix(in srgb, var(--accent-2) 12%, var(--panel))",
+                border: "2px solid var(--accent-2)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>
+                  {listening ? "🎙️ You have the floor — ask your question out loud" : "🎤 You have the floor"}
+                </span>
+                {listening ? (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 10, height: 10, borderRadius: "50%", background: "#ef4444",
+                      animation: "floor-mic-pulse 1.1s ease-in-out infinite",
+                    }}
+                  />
+                ) : null}
+              </div>
+              <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--muted)" }}>
+                Theodore is listening. Speak naturally, then tap “Done — ask Theodore”. You can also type it below.
+              </p>
+              <div
+                style={{
+                  minHeight: 44,
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  background: "var(--panel)",
+                  border: "1px solid var(--border)",
+                  fontSize: 14,
+                  color: spokenText ? "var(--text)" : "var(--muted)",
+                  fontStyle: spokenText ? "normal" : "italic",
+                }}
+              >
+                {spokenText || (listening ? "Listening…" : "Tap 🎤 Speak to start the mic.")}
+              </div>
+              {micNote ? (
+                <div style={{ marginTop: 8, fontSize: 12, color: "#b45309" }}>{micNote}</div>
+              ) : null}
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => (listening ? stopListening() : void startListening())}
+                  disabled={busy}
+                  style={{
+                    background: listening ? "var(--panel)" : "var(--accent)",
+                    color: listening ? "var(--text)" : "#fff",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {listening ? "⏸ Pause mic" : "🎤 Speak"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void doneSpeaking()}
+                  disabled={busy}
+                  style={{ background: "#059669", color: "#fff" }}
+                >
+                  Done — ask Theodore
+                </button>
+              </div>
+            </div>
+          )}
 
           {(room?.speaking_queue?.length ?? 0) > 0 && (
             <div
@@ -1543,8 +1780,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   : "✋ Raise your hand"}
             </button>
             {hasFloor ? (
-              <button onClick={() => void finishTurn()} disabled={busy} style={{ background: "#059669", color: "#fff" }}>
-                Done speaking
+              <button
+                onClick={() => void doneSpeaking()}
+                disabled={busy}
+                title="Send your spoken (or typed) question to Theodore and hand back the floor"
+                style={{ background: "#059669", color: "#fff" }}
+              >
+                Done — ask Theodore
               </button>
             ) : null}
             {canModerate ? (
