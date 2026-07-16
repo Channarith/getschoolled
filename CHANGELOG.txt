@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.62 - Drive Mode voices + lesson depth, and quieter TTS
+  fallback. Add a Female/Male/Any voice-gender control (biases the neural voice
+  pick AND the on-device fallback, so a male voice is available even when the
+  server neural engine is down). Deepen knowledge audio lessons with an
+  advance-organizer Overview and an extractive Key-takeaways recap (from the
+  lesson's own content — no fabricated facts) so they run long enough to teach
+  (knowledge-lesson median runtime ~doubles). Web TTS now downgrades to the
+  on-device voice after a 501 from /speech/tts, so it stops re-POSTing and
+  spamming the console with 501 errors.
+
 - 2026-07-16 - v0.19.61 - Fix Android + iOS mobile builds failing when
   node_modules is incomplete (a plain `pnpm install` can no-op, leaving
   apps/mobile/node_modules unlinked). Android: patch-gradle-wrapper.js now
