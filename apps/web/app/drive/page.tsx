@@ -75,6 +75,11 @@ function DrivePageInner() {
   const [serverVoice, setServerVoiceState] = useState("");
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
+  // Voice gender preference (Any / Female / Male). This biases BOTH the neural
+  // voice pick and the on-device fallback voice, so a male voice is available
+  // even when the server neural engine is down (browser voices are otherwise
+  // female by default).
+  const [genderPref, setGenderPref] = useState<"any" | "female" | "male">("any");
   const [loggedIn, setLoggedIn] = useState(false);
   const [tier, setTier] = useState("basic");
   const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
@@ -149,6 +154,8 @@ function DrivePageInner() {
       if (savedVoice) { setServerVoiceState(savedVoice); setServerVoice(savedVoice); }
       const savedInstr = localStorage.getItem("aoep_drive_instructor") || "";
       if (savedInstr) { setInstructorState(savedInstr); setServerInstructor(savedInstr); }
+      const savedGender = localStorage.getItem("aoep_drive_gender") || "";
+      if (savedGender === "male" || savedGender === "female") setGenderPref(savedGender);
     } catch { /* private mode */ }
     void refreshVoiceStyle();
   }, [locale]);
@@ -158,8 +165,10 @@ function DrivePageInner() {
   useEffect(() => {
     const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === serverVoice);
     voiceLocaleRef.current = v?.locale || "";
-    voiceGenderRef.current = v?.gender || "";
-  }, [serverVoice, voiceGroups]);
+    // An explicit gender preference wins over the selected voice's own gender so
+    // the on-device fallback honors "Male"/"Female" even with no neural engine.
+    voiceGenderRef.current = genderPref !== "any" ? genderPref : (v?.gender || "");
+  }, [serverVoice, voiceGroups, genderPref]);
   useEffect(() => { personaRef.current = instructor; }, [instructor]);
 
   function chooseVoice(id: string) {
@@ -167,8 +176,32 @@ function DrivePageInner() {
     setServerVoice(id);
     const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
     voiceLocaleRef.current = v?.locale || "";
-    voiceGenderRef.current = v?.gender || "";
+    voiceGenderRef.current = genderPref !== "any" ? genderPref : (v?.gender || "");
     try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
+    if (playingRef.current && courseRef.current) replayCurrentSegment();
+  }
+
+  // Pick a matching-gender neural voice for the current spoken language (so the
+  // neural path also switches to a male/female voice), then replay so the change
+  // is heard immediately.
+  function chooseGender(pref: "any" | "female" | "male") {
+    setGenderPref(pref);
+    try { localStorage.setItem("aoep_drive_gender", pref); } catch { /* */ }
+    if (pref !== "any") {
+      const lang = (courseRef.current?.body_locale || trainingLangRef.current || "en").split("-")[0];
+      const all = voiceGroups.flatMap((g) => g.voices);
+      const current = all.find((x) => x.id === serverVoice);
+      // Only auto-switch the neural voice if the current one doesn't already
+      // match the requested gender (respect an explicit accent choice otherwise).
+      if (!current || current.gender !== pref) {
+        const match = all.find((v) => v.language === lang && v.gender === pref)
+          || all.find((v) => v.gender === pref);
+        if (match) { setServerVoiceState(match.id); setServerVoice(match.id); voiceLocaleRef.current = match.locale || ""; }
+      }
+    }
+    voiceGenderRef.current = pref !== "any"
+      ? pref
+      : (voiceGroups.flatMap((g) => g.voices).find((x) => x.id === serverVoice)?.gender || "");
     if (playingRef.current && courseRef.current) replayCurrentSegment();
   }
 
@@ -674,6 +707,27 @@ function DrivePageInner() {
                 </select>
               </label>
             )}
+            <span style={{ display: "inline-flex", gap: 4, alignItems: "center", color: "#9aa6c2" }}>
+              {t("drive.voiceGender")}&nbsp;
+              {(["any", "female", "male"] as const).map((g) => {
+                const on = genderPref === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => chooseGender(g)}
+                    style={{
+                      padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                      border: on ? "1px solid #0ea5e9" : "1px solid #334155",
+                      background: on ? "#0ea5e9" : "transparent",
+                      color: on ? "#001022" : "#9aa6c2", cursor: "pointer",
+                    }}
+                  >
+                    {g === "any" ? t("drive.voiceGenderAny") : g === "female" ? t("drive.voiceGenderFemale") : t("drive.voiceGenderMale")}
+                  </button>
+                );
+              })}
+            </span>
             {voiceGroups.length > 0 && (
               <label style={{ marginLeft: instructors.length ? undefined : "auto", color: "#9aa6c2" }}>
                 {t("drive.voice")}&nbsp;
