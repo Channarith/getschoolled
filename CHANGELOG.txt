@@ -2,6 +2,17 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.74 - Live/group/solo classes now auto-advance the instant
+  the AI finishes narrating a slide (web + mobile), instead of waiting on a timed
+  estimate — the moderator/admin's client drives the advance on narration-end and
+  everyone else follows the room state (guarded so it never skips a learner who
+  holds/awaits the floor; the server dwell stays as a fallback when audio is
+  muted). Note on "cached audio": web content fetches are already no-store, the
+  speech service returns Cache-Control: no-store, and there is no service worker,
+  so there is no stale client cache — the new (deepened) course content appears
+  once the updated build is deployed (the curriculum server's in-process catalog
+  cache is cleared on restart/redeploy).
+
 - 2026-07-16 - v0.19.73 - Mobile Drive "Voice & accent" chips no longer look
   duplicated: a male and female voice of the same accent showed as identical
   labels (e.g. "British"/"British"); chips now append the gender ("British · F"
