@@ -123,6 +123,12 @@ export default function ClassRoom({
   const [spokenText, setSpokenText] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  // Autoplay: the AI presenter narrates a slide, then advances to the next so it
+  // teaches the whole course beginning-to-end (pauses on repeat-after-me slides,
+  // quizzes, pulse checks, and the last slide). A ref mirrors it for callbacks.
+  const [autoplay, setAutoplay] = useState(true);
+  const autoplayRef = useRef(true);
+  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // assume true until resolved (avoids flash)
   const [slidesSinceQuiz, setSlidesSinceQuiz] = useState(0);
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
@@ -212,15 +218,27 @@ export default function ClassRoom({
     setSpeaking(false);
   }
 
-  function speak(text: string) {
+  function speak(text: string, onDone?: () => void) {
     setSpokenText(text || "");   // live caption, even if audio is muted/unavailable
-    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!speakAnswers || typeof window === "undefined" || !("speechSynthesis" in window)) {
+      // No audio: don't auto-advance — the learner reads and taps Next.
+      return;
+    }
     stopSpeaking();
     speakNaturally(text, {
       locale,
-      onend: () => setSpeaking(false),
+      onend: () => { setSpeaking(false); onDone?.(); },
     });
     setSpeaking(true);
+  }
+
+  useEffect(() => { autoplayRef.current = autoplay; }, [autoplay]);
+
+  // Continue the lecture after a quiz / pulse check closes (autoplay only).
+  function resumeAutoplay() {
+    if (!autoplayRef.current || !speakAnswers) return;
+    if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+    autoAdvanceRef.current = setTimeout(() => { void onAdvance(); }, 400);
   }
 
   // Fullscreen "Zoom call" mode for the presenter + slide.
@@ -245,15 +263,48 @@ export default function ClassRoom({
     setHeard("");
     setPron(null);
     setListening(false);
-    if (!slide) return;
+    if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
+    if (!slide || !view) return;
     // The AI instructor narrates EVERY slide as it appears (this is what makes it
-    // feel driven/immersive) — a repeat-after-me slide leads with its cue.
+    // feel driven/immersive) — a repeat-after-me slide leads with its cue. When
+    // the narration finishes, auto-advance so it teaches the whole course end to
+    // end — pausing on repeat-after-me, quizzes, pulse checks, and the last slide.
     const line = slide.say_aloud
       ? (slide.narration || `Repeat after me: ${slide.say_aloud}`)
       : `${slide.title}. ${slide.narration || slide.body || ""}`.trim();
-    speak(line);
+    const isLast = slide.index >= view.lesson.slides.length - 1;
+    let advanced = false;
+    const goNext = () => {
+      if (advanced) return;
+      advanced = true;
+      if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
+      // Advance through EVERY slide (including repeat-after-me) so the AI teaches
+      // the whole course end-to-end; only stop on the final slide.
+      if (autoplayRef.current && !isLast) void onAdvance();
+    };
+    // Narrate the slide; for a normal slide, advance shortly after it finishes.
+    // For a repeat-after-me slide we DON'T advance on narration-end — the dwell
+    // timer below gives the learner a beat to speak, then continues.
+    speak(line, () => {
+      if (!slide.say_aloud) autoAdvanceRef.current = setTimeout(goNext, 500);
+    });
+    // Also advance after an estimated reading time, so the lecture never stalls
+    // even if the browser's speech `onend` doesn't fire (a known long-text quirk)
+    // and so repeat-after-me slides continue after a pause. Only when audio is on
+    // (muted = the learner reads and taps Next themselves).
+    if (autoplayRef.current && speakAnswers && !isLast) {
+      const words = line.split(/\s+/).filter(Boolean).length;
+      const dwellMs = slide.say_aloud
+        ? 15000  // repeat-after-me: give ~15s to echo the phrase, then move on
+        : Math.min(90000, Math.max(7000, words * 430));
+      autoAdvanceRef.current = setTimeout(goNext, dwellMs);
+    }
+    return () => { if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.index]);
+
+  // Stop any pending auto-advance when leaving the class.
+  useEffect(() => () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); }, []);
 
   // Listen to the learner and score how closely they said the target phrase.
   function startRepeatAfterMe() {
@@ -365,6 +416,11 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
+      // While autoplay is on, the AI teaches straight through — don't interrupt
+      // the lecture with pulse surveys or pop quizzes (they require interaction
+      // and would stall the "teach beginning to end" flow). They resume in
+      // self-paced mode when autoplay is paused.
+      if (autoplayRef.current) return;
       const interval = pulseTemplate?.interval_slides ?? 5;
       if (pulseEnabled && pulseTemplate && (s.index + 1) % interval === 0) {
         setPulseAnswers({});
@@ -436,6 +492,7 @@ export default function ClassRoom({
       }
       await refreshLxTick(slide?.index ?? 0, view.lesson.slides.length);
       setShowPulse(false);
+      resumeAutoplay();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -446,6 +503,7 @@ export default function ClassRoom({
   function skipPulse() {
     setShowPulse(false);
     setPulseAnswers({});
+    resumeAutoplay();
   }
 
   async function submitPopQuiz() {
@@ -480,12 +538,14 @@ export default function ClassRoom({
       setPopQuiz(null);
       setPopQuizAnswers({});
       setBusy(false);
+      resumeAutoplay();
     }
   }
 
   function dismissPopQuiz() {
     setPopQuiz(null);
     setPopQuizAnswers({});
+    resumeAutoplay();
   }
 
   // End the class: reward the completion (logged-in learners earn points), then
@@ -830,27 +890,34 @@ export default function ClassRoom({
             ref={stageRef}
             style={
               isFullscreen
-                ? { background: "#060a17", padding: 16, minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }
+                ? { background: "#060a17", padding: "24px 16px", minHeight: "100vh", overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, justifyContent: "flex-start" }
                 : { display: "flex", flexDirection: "column", gap: 12 }
             }
           >
-            <AiPresenter
-              speaking={speaking}
-              name="Salareen AI Instructor"
-              persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
-              caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
-              live
-              muted={!speakAnswers}
-              onToggleMute={() => {
-                const next = !speakAnswers;
-                setSpeakAnswers(next);
-                if (!next) stopSpeaking();
-                else speak(`${slide.title}. ${slide.narration || slide.body}`);
-              }}
-              messages={chat}
-            />
-          <div className="slide">
-            <div className="muted">
+            <div style={isFullscreen ? { width: "100%", maxWidth: 760, alignSelf: "center" } : undefined}>
+              <AiPresenter
+                speaking={speaking}
+                name="Salareen AI Instructor"
+                persona={disclosure?.line?.match(/persona:?\s*([a-z]+)/i)?.[1]}
+                caption={spokenText || `${slide.title}. ${slide.narration || slide.body}`}
+                live
+                muted={!speakAnswers}
+                onToggleMute={() => {
+                  const next = !speakAnswers;
+                  setSpeakAnswers(next);
+                  if (!next) stopSpeaking();
+                  else speak(`${slide.title}. ${slide.narration || slide.body}`);
+                }}
+                messages={chat}
+              />
+            </div>
+          <div
+            className="slide"
+            style={isFullscreen
+              ? { alignSelf: "center", width: "100%", maxWidth: 980, background: "transparent", border: "none", color: "#e8ecf6" }
+              : undefined}
+          >
+            <div className="muted" style={isFullscreen ? { fontSize: 15, color: "#c7d2fe" } : undefined}>
               {view.lesson.title} · {t("class.slideOf", {
                 current: slide.index + 1,
                 total: view.lesson.slides.length,
@@ -862,9 +929,9 @@ export default function ClassRoom({
                 </span>
               )}
             </div>
-            <h2>{slide.title}</h2>
-            <p>{slide.body}</p>
-            <p className="muted">🔊 {slide.narration}</p>
+            <h2 style={isFullscreen ? { fontSize: "clamp(30px, 4.2vw, 52px)", lineHeight: 1.15, color: "#fff", margin: "6px 0" } : undefined}>{slide.title}</h2>
+            <p style={isFullscreen ? { fontSize: "clamp(18px, 2.2vw, 26px)", lineHeight: 1.6, color: "#e8ecf6" } : undefined}>{slide.body}</p>
+            <p className="muted" style={isFullscreen ? { fontSize: 16, color: "#9fb4d8" } : undefined}>🔊 {slide.narration}</p>
 
             {slide.say_aloud && (
               <div className="card" style={{ borderColor: "#7c3aed", background: "rgba(124,58,237,0.08)", marginTop: 8 }}>
@@ -904,6 +971,20 @@ export default function ClassRoom({
             )}
 
             <div className="row">
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoplay((v) => {
+                    const next = !v;
+                    if (!next && autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
+                    return next;
+                  });
+                }}
+                title="Autoplay: the AI teaches the whole course and advances on its own"
+                style={{ background: autoplay ? "#4f46e5" : "transparent", color: autoplay ? "#fff" : "inherit", border: "1px solid var(--border)" }}
+              >
+                {autoplay ? "⏸ Pause autoplay" : "▶ Autoplay"}
+              </button>
               <button onClick={onAdvance} disabled={busy}>
                 {t("class.nextSlide")}
               </button>
