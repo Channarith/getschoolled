@@ -57,13 +57,41 @@ class _BaseMediaProvider(MediaProvider):
         ).digest()
         return signing_input + "." + _b64url(signature)
 
+    def _usable_url(self) -> str:
+        """The signalling URL to hand a client, or "" when a connection would be
+        doomed to fail.
+
+        Handing a token+URL to the browser for a LiveKit endpoint that cannot
+        accept it produces the opaque "WebSocket is closed before the connection
+        is established" error and a reconnect storm in the console. We suppress
+        that by returning no URL when the config obviously can't work, so the
+        client cleanly skips WebRTC and relies on the teaching loop (AI narration
+        + polling) instead:
+
+        - No URL configured at all -> unusable.
+        - A LiveKit *Cloud* URL still paired with the dev-default key/secret ->
+          unusable (Cloud will reject the token). A self-hosted URL keeps the
+          dev defaults, since a local ``--dev`` container legitimately uses them.
+        """
+        url = (self._url or "").strip()
+        if not url:
+            return ""
+        url_is_cloud = ".livekit.cloud" in url
+        dev_key = self._api_key in ("", "devkey")
+        dev_secret = self._api_secret in ("", "devsecret")  # pragma: allowlist secret
+        if url_is_cloud and (dev_key or dev_secret):
+            return ""
+        return url
+
     def issue_token(
         self, *, room: str, identity: str, can_publish: bool = True
     ) -> RoomToken:
         """Mint a LiveKit-style JWT (HS256) granting access to ``room``.
 
         This mirrors LiveKit's access-token claims so the same token works
-        against a local container or a cloud cluster.
+        against a local container or a cloud cluster. When LiveKit is not usably
+        configured (:meth:`_usable_url` returns ""), the returned URL is empty so
+        the client skips the WebRTC connection instead of looping on a failure.
         """
         now = int(time.time())
         claims = {
@@ -79,7 +107,7 @@ class _BaseMediaProvider(MediaProvider):
             },
         }
         token = self._sign(claims)
-        return RoomToken(room=room, identity=identity, token=token, url=self._url)
+        return RoomToken(room=room, identity=identity, token=token, url=self._usable_url())
 
     @staticmethod
     def _http_base(url: str) -> str:
