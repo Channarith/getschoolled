@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-16 - v0.19.69 - Group/solo classes run with drop-in + full-class
+  gating. A class now auto-starts (audio + slide auto-advance) as soon as >=1
+  learner is present — instant/solo rooms start on the first learner, scheduled
+  ones at their start time — instead of only when full or 5 min late; this is
+  what makes group/solo classes actually run on mobile. Because the class
+  auto-advances and its position is tracked server-side, a learner can drop into
+  a session already in progress and pick up at the current slide. A full class
+  is grayed out (Join disabled, labeled "Full") for regular learners on web +
+  mobile, while the platform admin can still join to monitor it.
+
 - 2026-07-16 - v0.19.68 - Mobile sign-out now returns to the signed-out screen.
   Previously it left the user on Settings (and, with guest-preview active, still
   inside the app able to reach gated features). Sign-out now resets to the home
