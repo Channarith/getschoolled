@@ -42,7 +42,7 @@ import SignInToUse from "../components/SignInToUse";
 import AiPresenter from "../components/AiPresenter";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
-import { splitForSpeech, synthChunk } from "../lib/tts";
+import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
@@ -64,7 +64,10 @@ export default function ClassPage() {
   const { locale } = useT();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>("");
-  const [classType, setClassType] = useState<string>("group");
+  // The Live Class page is always a Solo (1:1) live room with the AI. Group
+  // classes live under their own "Group Classes" section, so no mode selector
+  // is shown here.
+  const classType = "solo";
   const [view, setView] = useState<SessionView | null>(null);
   const [slide, setSlide] = useState<Slide | null>(null);
   const [question, setQuestion] = useState("");
@@ -128,7 +131,8 @@ export default function ClassPage() {
   }, []);
 
   function stopSpeaking() {
-    try { window.speechSynthesis.cancel(); } catch { /* no browser TTS */ }
+    stopSpeechKeepAlive();
+    try { window.speechSynthesis.cancel(); window.speechSynthesis.resume(); } catch { /* no browser TTS */ }
     try { voiceRef.current?.stop(); } catch { /* */ }
     voiceRef.current = null;
     speechRef.current = null;
@@ -145,14 +149,17 @@ export default function ClassPage() {
     const chunks = splitForSpeech(text);
     if (!chunks.length) return;
     setSpeaking(true);
+    const finish = () => { stopSpeechKeepAlive(); setSpeaking(false); };
     chunks.forEach((chunk, i) => {
       const u = new SpeechSynthesisUtterance(chunk);
       u.rate = 1;
       if (i === 0) speechRef.current = u;
-      if (i === chunks.length - 1) u.onend = () => setSpeaking(false);
-      u.onerror = () => setSpeaking(false);
+      if (i === chunks.length - 1) u.onend = finish;
+      u.onerror = finish;
       window.speechSynthesis.speak(u);
     });
+    // Defeat Chrome's ~15s speechSynthesis auto-stop so the whole answer is read.
+    startSpeechKeepAlive();
   }
 
   // Repeat-after-me checkpoint: listen to the learner and score how closely they
@@ -648,10 +655,6 @@ export default function ClassPage() {
                   {l.title}
                 </option>
               ))}
-            </select>
-            <select value={classType} onChange={(e) => setClassType(e.target.value)}>
-              <option value="group">Group class</option>
-              <option value="solo">Solo (1:1) — live room with the AI</option>
             </select>
             <button onClick={onStart} disabled={busy || !lessonId || !loggedIn}
               title={!loggedIn ? "Sign in to take classes" : undefined}>

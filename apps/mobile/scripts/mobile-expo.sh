@@ -15,6 +15,21 @@ mobile_deps_ensure_metro_local || exit 1
 # Stale Metro cache can 500 after materializing symlinked deps.
 rm -rf node_modules/.cache/metro .expo/metro 2>/dev/null || true
 
+# `expo prebuild --clean` deletes+regenerates native dirs, but its own rmdir can
+# fail with "ENOTEMPTY: directory not empty, rmdir '.../android/app'" when a
+# leftover build artifact blocks the non-recursive delete. Pre-clean the target
+# native dir(s) ourselves (recursive + retry) so prebuild starts fresh.
+if [[ "${1:-}" == "prebuild" ]] && printf '%s\n' "$@" | grep -qx -- "--clean"; then
+  _clean_targets=""
+  case " $* " in
+    *" --platform ios "*) _clean_targets="ios" ;;
+    *" --platform android "*) _clean_targets="android" ;;
+    *) _clean_targets="android ios" ;;
+  esac
+  # shellcheck disable=SC2086
+  node scripts/clean-native-dirs.js $_clean_targets || true
+fi
+
 # Native Android: patch settings.gradle before Gradle runs so @react-native/gradle-plugin
 # resolves only under apps/mobile/node_modules (avoids duplicate :gradle-plugin when
 # ~/node_modules/.pnpm also exists on the developer machine).
