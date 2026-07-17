@@ -163,6 +163,37 @@ let _serverInstructor = "";    // chosen instructor personality id
 let _epoch = 0;
 let _inflight: AbortController | null = null;
 
+// Chrome (and some Chromium browsers) silently STOP speechSynthesis after ~15s
+// of continuous speaking — even when the narration is split into many short
+// queued utterances. That cuts a slide's narration off mid-sentence AND stalls
+// the class, because the final utterance's `onend` never fires so the
+// auto-advance to the next slide never triggers. Toggling pause()+resume() on a
+// sub-15s interval resets that internal timer, so the full slide (and the whole
+// class) narrates to the end. The interval self-clears once nothing is speaking.
+let _speechKeepAlive: ReturnType<typeof setInterval> | null = null;
+
+export function stopSpeechKeepAlive(): void {
+  if (_speechKeepAlive != null) {
+    clearInterval(_speechKeepAlive);
+    _speechKeepAlive = null;
+  }
+}
+
+export function startSpeechKeepAlive(): void {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  stopSpeechKeepAlive();
+  _speechKeepAlive = setInterval(() => {
+    const s = window.speechSynthesis;
+    if (!s.speaking && !s.pending) {
+      stopSpeechKeepAlive();
+      return;
+    }
+    // pause()+resume() is a no-op to the listener but resets Chrome's ~15s
+    // auto-stop timer, keeping the utterance queue playing.
+    try { s.pause(); s.resume(); } catch { /* */ }
+  }, 10000);
+}
+
 export function configureServerTts(baseUrl: string): void {
   _speechBaseUrl = (baseUrl || "").replace(/\/$/, "");
 }
@@ -222,8 +253,11 @@ function stopServerAudio(): void {
 // invalidates any in-flight neural-audio fetch so it can't start after Stop.
 export function cancelSpeech(): void {
   _epoch++;
+  stopSpeechKeepAlive();
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try { window.speechSynthesis.cancel(); } catch { /* */ }
+    // cancel() clears the queue; resume() afterwards unsticks the engine in case
+    // the keep-alive left it paused, so the NEXT slide's narration can start.
+    try { window.speechSynthesis.cancel(); window.speechSynthesis.resume(); } catch { /* */ }
   }
   stopServerAudio();
 }
@@ -357,9 +391,11 @@ export async function synthChunk(text: string, opts: SpeakOptions): Promise<Play
       if (voice) u.voice = voice;
       u.rate = _clamp((opts.rate ?? prosodyForStyle(style).rate) * persona.rate, 0.5, 2);
       u.pitch = _clamp(prosodyForStyle(style).pitch * persona.pitch, 0, 2);
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
+      const fin = () => { stopSpeechKeepAlive(); resolve(); };
+      u.onend = fin;
+      u.onerror = fin;
       window.speechSynthesis.speak(u);
+      startSpeechKeepAlive();
     }),
     cancel: () => { try { window.speechSynthesis.cancel(); } catch { /* */ } },
   };
@@ -429,14 +465,17 @@ function speakBrowser(text: string, opts: SpeakOptions, done: () => void, myEpoc
   // Persona shapes the delivery on top of the narration style's base prosody.
   const rate = _clamp((opts.rate ?? prosody.rate) * persona.rate, 0.5, 2);
   const pitch = _clamp((opts.pitch ?? prosody.pitch) * persona.pitch, 0, 2);
+  const finish = () => { stopSpeechKeepAlive(); done(); };
   chunks.forEach((chunk, i) => {
     const u = new SpeechSynthesisUtterance(chunk);
     u.lang = lang;
     if (voice) u.voice = voice;
     u.rate = rate;
     u.pitch = pitch;
-    if (i === chunks.length - 1) u.onend = done; // resolve after the last chunk
-    u.onerror = done;                            // and on cancel/error (once)
+    if (i === chunks.length - 1) u.onend = finish; // resolve after the last chunk
+    u.onerror = finish;                            // and on cancel/error (once)
     synth.speak(u);
   });
+  // Keep the engine alive past Chrome's ~15s auto-stop for the full queue.
+  startSpeechKeepAlive();
 }

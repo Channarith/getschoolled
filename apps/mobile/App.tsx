@@ -6,6 +6,7 @@ import { Animated, I18nManager, SafeAreaView, StyleSheet, Text, View } from "rea
 import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
 import BottomTabs from "./src/components/BottomTabs";
+import ErrorBoundary from "./src/components/ErrorBoundary";
 import SwipeTabContainer from "./src/components/SwipeTabContainer";
 import { LocaleProvider, useT } from "./src/i18n";
 import { IntroSplashProvider } from "./src/introSplash";
@@ -534,7 +535,12 @@ function AppInner() {
             enabled={mainTabsVisible && !openCourseId}
             onChange={onTabChange}
           >
-            {screen}
+            <ErrorBoundary
+              resetKey={`${tab}:${liveRoomId ?? ""}:${activeLesson?.id ?? ""}:${openCourseId ?? ""}`}
+              onReset={() => onTabChange("home")}
+            >
+              {screen}
+            </ErrorBoundary>
           </SwipeTabContainer>
         </Animated.View>
         <LearningProfileSurvey

@@ -2,11 +2,38 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-17 - v0.19.81 - Mobile LiveKit Hermes crash: polyfill TextDecoder/TextEncoder
+- 2026-07-17 - v0.19.85 - Mobile LiveKit Hermes crash: polyfill TextDecoder/TextEncoder
   before lazy-loading @livekit/react-native (Hermes lacks the web API; livekit-client
   needs it at module-eval time, so registerGlobals() ran too late and Android crashed
   with "Property 'TextDecoder' doesn't exist" when opening a live room).
 
+- 2026-07-17 - v0.19.84 - Mobile crash debuggability: added a top-level
+  ErrorBoundary (apps/mobile/src/components/ErrorBoundary.tsx) around the screen
+  tree so a crashing screen (e.g. opening a group/solo live class) shows a
+  readable, dismissible message and logs the stack (visible in `adb logcat` under
+  ReactNativeJS) instead of silently white-screen crashing the whole app; it
+  auto-recovers when you navigate away. Added scripts/mobile-logcat-crash.sh
+  (npm run android:logcat) to capture a device crash (JS + native tombstone) in
+  one command. Covered by a new jest test (errorBoundary.test.tsx).
+- 2026-07-16 - v0.19.83 - Fix live-class narration cutting out after "Start
+  class" and the class never finishing. Chrome silently stops speechSynthesis
+  after ~15s of speaking (even with chunked utterances), which killed the AI
+  teacher's voice mid-slide and stalled auto-advance (the final utterance's onend
+  never fired). Added a pause()/resume() keep-alive in apps/web/app/lib/tts.ts
+  (startSpeechKeepAlive/stopSpeechKeepAlive) wired into every browser-voice path
+  (speakNaturally, synthChunk, and the solo class page) so a slide narrates fully
+  and the class advances all the way to the end. Also blur the "Start class"
+  button on click so it no longer looks stuck/depressed.
+- 2026-07-16 - v0.19.82 - Live Class page (/class) is now Solo (1:1) only.
+  Removed the "Group class / Solo (1:1)" mode dropdown and default the page to a
+  solo live room with the AI; group classes remain under their own "Group
+  Classes" section, so the two are no longer mixed on the Live Class page.
+- 2026-07-16 - v0.19.81 - Fix Android/iOS "prebuild --clean" failing with
+  "ENOTEMPTY: directory not empty, rmdir '.../android/app'". Added
+  apps/mobile/scripts/clean-native-dirs.js (recursive + retry removal) and run it
+  before every expo prebuild --clean (native:prebuild:android and the iOS release
+  flow via mobile-expo.sh) so a leftover build artifact can no longer block the
+  clean and abort the build.
 - 2026-07-16 - v0.19.80 - App-timer review + fix (web + mobile). The live room
   re-rendered its whole tree on every 3s heartbeat even when nothing changed
   (the main "setInterval handler took Nms" source); applyRoom now skips setState
