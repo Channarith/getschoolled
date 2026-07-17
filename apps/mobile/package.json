@@ -1,6 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-  "version": "0.19.83",
+  "version": "0.19.84",
   "private": true,
   "packageManager": "pnpm@11.8.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
@@ -43,6 +43,7 @@
     "xcode:release": "bash scripts/mobile-xcodebuild-release.sh",
     "ios:release": "bash scripts/mobile-xcodebuild-release.sh",
     "gradle:debug": "bash scripts/mobile-gradle-debug.sh",
+    "android:logcat": "bash scripts/mobile-logcat-crash.sh",
     "web": "bash scripts/mobile-expo.sh start --web",
     "typecheck": "bash scripts/mobile-typecheck.sh",
     "typecheck:verbose": "VERBOSE=1 bash scripts/mobile-typecheck.sh",

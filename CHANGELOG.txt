@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.84 - Mobile crash debuggability: added a top-level
+  ErrorBoundary (apps/mobile/src/components/ErrorBoundary.tsx) around the screen
+  tree so a crashing screen (e.g. opening a group/solo live class) shows a
+  readable, dismissible message and logs the stack (visible in `adb logcat` under
+  ReactNativeJS) instead of silently white-screen crashing the whole app; it
+  auto-recovers when you navigate away. Added scripts/mobile-logcat-crash.sh
+  (npm run android:logcat) to capture a device crash (JS + native tombstone) in
+  one command. Covered by a new jest test (errorBoundary.test.tsx).
 - 2026-07-16 - v0.19.83 - Fix live-class narration cutting out after "Start
   class" and the class never finishing. Chrome silently stops speechSynthesis
   after ~15s of speaking (even with chunked utterances), which killed the AI
