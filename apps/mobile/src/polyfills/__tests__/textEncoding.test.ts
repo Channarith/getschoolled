@@ -5,49 +5,49 @@ type TextEncodingHost = typeof globalThis & {
   TextEncoder?: new () => { encode(input: string): Uint8Array };
 };
 
-const host = () => globalThis as TextEncodingHost;
+const encodingHost = () => globalThis as TextEncodingHost;
 
 describe("ensureTextEncodingGlobals", () => {
-  const originalDecoder = host().TextDecoder;
-  const originalEncoder = host().TextEncoder;
+  const originalDecoder = encodingHost().TextDecoder;
+  const originalEncoder = encodingHost().TextEncoder;
 
   afterEach(() => {
     if (originalDecoder === undefined) {
-      delete host().TextDecoder;
+      delete encodingHost().TextDecoder;
     } else {
-      host().TextDecoder = originalDecoder;
+      encodingHost().TextDecoder = originalDecoder;
     }
     if (originalEncoder === undefined) {
-      delete host().TextEncoder;
+      delete encodingHost().TextEncoder;
     } else {
-      host().TextEncoder = originalEncoder;
+      encodingHost().TextEncoder = originalEncoder;
     }
     jest.resetModules();
   });
 
   it("installs TextDecoder and TextEncoder when missing", () => {
-    delete host().TextDecoder;
-    delete host().TextEncoder;
+    delete encodingHost().TextDecoder;
+    delete encodingHost().TextEncoder;
 
     const { ensureTextEncodingGlobals } = require("../textEncoding");
     ensureTextEncodingGlobals();
 
-    expect(typeof host().TextDecoder).toBe("function");
-    expect(typeof host().TextEncoder).toBe("function");
-    const Dec = host().TextDecoder!;
+    expect(typeof encodingHost().TextDecoder).toBe("function");
+    expect(typeof encodingHost().TextEncoder).toBe("function");
+    const Dec = encodingHost().TextDecoder!;
     expect(new Dec().decode(new Uint8Array([104, 105]))).toBe("hi");
   });
 
   it("is a no-op when globals already exist", () => {
     class ExistingDecoder {}
     class ExistingEncoder {}
-    host().TextDecoder = ExistingDecoder as unknown as TextEncodingHost["TextDecoder"];
-    host().TextEncoder = ExistingEncoder as unknown as TextEncodingHost["TextEncoder"];
+    encodingHost().TextDecoder = ExistingDecoder as unknown as TextEncodingHost["TextDecoder"];
+    encodingHost().TextEncoder = ExistingEncoder as unknown as TextEncodingHost["TextEncoder"];
 
     const { ensureTextEncodingGlobals } = require("../textEncoding");
     ensureTextEncodingGlobals();
 
-    expect(host().TextDecoder).toBe(ExistingDecoder);
-    expect(host().TextEncoder).toBe(ExistingEncoder);
+    expect(encodingHost().TextDecoder).toBe(ExistingDecoder);
+    expect(encodingHost().TextEncoder).toBe(ExistingEncoder);
   });
 });
