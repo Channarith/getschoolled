@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.86 - Web live room: fix Chrome AudioContext autoplay block.
+  LiveKit connect() ran in useEffect without a user gesture, so Chrome logged
+  "AudioContext was not allowed to start" and the room disconnected. Unlock a
+  shared AudioContext on join tap, defer LiveKit connect until gesture (overlay
+  for auto-joined users), pass the context into Room, and surface LiveKit's
+  startAudio banner when playback stays blocked.
+
 - 2026-07-17 - v0.19.85 - Mobile LiveKit Hermes crash: polyfill TextDecoder/TextEncoder
   before lazy-loading @livekit/react-native (Hermes lacks the web API; livekit-client
   needs it at module-eval time, so registerGlobals() ran too late and Android crashed
