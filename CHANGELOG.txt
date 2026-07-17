@@ -2,6 +2,16 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.88 - Deploy: fix the post-deploy SHA-match smoke gate that was
+  auto-rolling-back every HEALTHY VKE deploy (so the cluster stayed on old images —
+  e.g. mobile "insufficient permissions to publish" webcam because the deployed
+  LiveKit token logic lagged the repo). The old gate ran `kubectl exec -- curl
+  /version`, but the slim service containers ship no curl (and AOEP_GIT_SHA is not
+  stamped), so it reported every service "unreachable" and reverted the rollout.
+  post_deploy_smoke.sh now verifies each Deployment is on the deployed image tag and
+  is available (rollout status already proves readiness), needing nothing inside the
+  container.
+
 - 2026-07-17 - v0.19.87 - Mobile iOS archive: inline TextEncoder/TextDecoder polyfill
   instead of fast-text-encoding npm dep (Metro could not resolve the package during
   Xcode "Bundle React Native code" on some pnpm hoists; Hermes LiveKit fix unchanged).
