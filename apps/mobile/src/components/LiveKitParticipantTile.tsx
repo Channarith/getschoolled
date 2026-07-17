@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { ensureTextEncodingGlobals } from "../polyfills/textEncoding";
 import { theme } from "../theme";
 
 // Type-only imports are erased at build time (no runtime require), so they do NOT
@@ -38,6 +39,7 @@ let clientMod: LiveKitClient | null = null;
 function loadLiveKit(): { rn: LiveKitRN; client: LiveKitClient } | null {
   if (rnMod && clientMod) return { rn: rnMod, client: clientMod };
   try {
+    ensureTextEncodingGlobals();
     rnMod = require("@livekit/react-native") as LiveKitRN;
     clientMod = require("livekit-client") as LiveKitClient;
     return { rn: rnMod, client: clientMod };
