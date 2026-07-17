@@ -6,6 +6,11 @@ Format: newest first. No markdown per project convention.
   before lazy-loading @livekit/react-native (Hermes lacks the web API; livekit-client
   needs it at module-eval time, so registerGlobals() ran too late and Android crashed
   with "Property 'TextDecoder' doesn't exist" when opening a live room).
+- 2026-07-17 - v0.19.81 - Mobile LiveKit Hermes crash (iOS + Android): polyfill
+  TextDecoder/TextEncoder and DOMException before lazy-loading LiveKit; call
+  registerGlobals() synchronously before livekit-client evaluates; start/stop
+  iOS AudioSession around room connect (Hermes lacks the web APIs; livekit-client
+  needs them at module-eval time and webrtc-adapter throws DOMException at runtime).
 
 - 2026-07-17 - v0.19.84 - Mobile crash debuggability: added a top-level
   ErrorBoundary (apps/mobile/src/components/ErrorBoundary.tsx) around the screen

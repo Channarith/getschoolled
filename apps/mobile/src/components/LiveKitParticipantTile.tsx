@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
-import { ensureTextEncodingGlobals } from "../polyfills/textEncoding";
+import { ensureLiveKitGlobals } from "../polyfills/liveKitGlobals";
 import { theme } from "../theme";
 
 // Type-only imports are erased at build time (no runtime require), so they do NOT
@@ -39,8 +39,12 @@ let clientMod: LiveKitClient | null = null;
 function loadLiveKit(): { rn: LiveKitRN; client: LiveKitClient } | null {
   if (rnMod && clientMod) return { rn: rnMod, client: clientMod };
   try {
-    ensureTextEncodingGlobals();
+    // Hermes (iOS + Android) lacks TextEncoder/TextDecoder/DOMException at
+    // module-eval time; install them before any LiveKit require.
+    ensureLiveKitGlobals();
     rnMod = require("@livekit/react-native") as LiveKitRN;
+    // WebRTC globals + URL/streams shims must exist before livekit-client runs.
+    rnMod.registerGlobals();
     clientMod = require("livekit-client") as LiveKitClient;
     return { rn: rnMod, client: clientMod };
   } catch {
@@ -73,14 +77,20 @@ export default function LiveKitParticipantTile({
       setTrack(null);
       return;
     }
-    const { registerGlobals } = lk.rn;
+    const { AudioSession, registerGlobals } = lk.rn;
     const { Room, RoomEvent, Track } = lk.client;
 
     let cancelled = false;
     let room: LKRoom | null = null;
     void (async () => {
       try {
+        // registerGlobals() already ran synchronously in loadLiveKit(); repeat is
+        // harmless if a future caller skips that path.
         registerGlobals();
+        // LiveKit docs: iOS needs an active AVAudioSession before mic/camera.
+        if (Platform.OS === "ios") {
+          await AudioSession.startAudioSession();
+        }
         room = new Room();
         await room.connect(media.url, media.token, { autoSubscribe: true });
         if (cancelled) {
@@ -115,6 +125,9 @@ export default function LiveKitParticipantTile({
     return () => {
       cancelled = true;
       room?.disconnect();
+      if (Platform.OS === "ios") {
+        void AudioSession.stopAudioSession().catch(() => {});
+      }
     };
   }, [media?.url, media?.token, canPublish]);
 

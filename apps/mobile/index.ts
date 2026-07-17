@@ -1,9 +1,9 @@
 import { registerRootComponent } from "expo";
 
-import { ensureTextEncodingGlobals } from "./src/polyfills/textEncoding";
+import { ensureLiveKitGlobals } from "./src/polyfills/liveKitGlobals";
 
-// Install before any lazy LiveKit require; Hermes lacks TextDecoder globally.
-ensureTextEncodingGlobals();
+// Hermes (iOS + Android) lacks TextEncoder/TextDecoder before LiveKit loads.
+ensureLiveKitGlobals();
 
 import App from "./App";
 
