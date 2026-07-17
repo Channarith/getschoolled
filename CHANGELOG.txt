@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.89 - Live rooms: fix bogus "that display name is reserved" 400
+  when joining an online class. The reserved-name guard blocked generic role words
+  ("administrator", "admin", "teacher", "host", "support", ...) that are legitimate
+  real account names (the seeded account is literally "Administrator"). Narrowed the
+  reserved set to only AI-host / system-sender impersonation tokens (theodore,
+  aihost, salareen, system, room).
+
 - 2026-07-17 - v0.19.88 - Deploy: fix the post-deploy SHA-match smoke gate that was
   auto-rolling-back every HEALTHY VKE deploy (so the cluster stayed on old images —
   e.g. mobile "insufficient permissions to publish" webcam because the deployed

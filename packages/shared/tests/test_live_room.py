@@ -151,13 +151,17 @@ def test_reserved_and_overlong_display_names_rejected():
         room_id="class-names", class_id="n", session_id="s1",
         lesson_id="lesson", title="Names", room_size=6,
     )
-    for bad in ("Theodore", "administrator", "AI Host", "Salareen AI", "System"):
+    for bad in ("Theodore", "AI Host", "Salareen AI", "System", "Room"):
         with pytest.raises(LiveRoomError):
             store.join("class-names", bad)
     with pytest.raises(LiveRoomError):
         store.join("class-names", "x" * 41)
     # A normal name still works.
     assert store.join("class-names", "Theodora B.").name == "Theodora B."
+    # Real account/role names must NOT be falsely reserved (regression: the seeded
+    # "Administrator" account got a bogus 400 joining a class).
+    assert store.join("class-names", "Administrator").name == "Administrator"
+    assert store.join("class-names", "Teacher").name == "Teacher"
 
 
 def test_self_gift_is_blocked():

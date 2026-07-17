@@ -114,12 +114,15 @@ QUEUE_RATE_MAX = 5          # raise-hand / queue joins ...
 QUEUE_RATE_WINDOW_S = 30.0  # ... per 30 seconds
 
 # Display-name policy for learners joining a room. Guards against impersonating
-# the AI teacher / staff / system, and against oversized names.
+# the AI teacher (Theodore / Salareen) or the system-message sender ("Room"),
+# and against oversized names. Deliberately NARROW: generic role words like
+# "administrator"/"teacher"/"host"/"support" are legitimate real account names
+# (the seeded admin account is literally "Administrator"), so blocking them here
+# produced a bogus "display name is reserved" 400 when those users joined a class.
 DISPLAY_NAME_MAX_CHARS = 40
 _RESERVED_NAME_TOKENS = frozenset({
-    "theodore", "theodoreaihost", "aihost", "host", "salareen", "salareenai",
-    "administrator", "admin", "moderator", "mod", "system", "staff", "official",
-    "teacher", "instructor", "support", "room",
+    "theodore", "theodoreaihost", "aihost", "salareen", "salareenai",
+    "system", "room",
 })
 
 
