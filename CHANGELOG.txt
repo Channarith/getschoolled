@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.87 - Mobile iOS archive: inline TextEncoder/TextDecoder polyfill
+  instead of fast-text-encoding npm dep (Metro could not resolve the package during
+  Xcode "Bundle React Native code" on some pnpm hoists; Hermes LiveKit fix unchanged).
+
 - 2026-07-17 - v0.19.86 - Web live room: fix Chrome AudioContext autoplay block.
   LiveKit connect() ran in useEffect without a user gesture, so Chrome logged
   "AudioContext was not allowed to start" and the room disconnected. Unlock a
