@@ -1,98 +1,84 @@
 #!/usr/bin/env bash
-# post_deploy_smoke.sh — verify all services report the same git_sha as the deployed tag.
-# Required env: TAG (the git sha that was deployed)
-# Optional env: NS (namespace, default: aoep), TIMEOUT (per-pod curl timeout, default: 30)
-# Exit 0 = all services match. Exit 1 = mismatch or unreachable (triggers auto-rollback).
+# post_deploy_smoke.sh — verify every deployment is actually running the image
+# tag we just deployed (and that the rollout is complete/available).
+#
+# Why image-tag verification instead of curl-ing /version:
+#   * The service containers are slim (no curl/wget), so `kubectl exec -- curl`
+#     always failed → the old gate reported every service "unreachable" and
+#     auto-rolled-back HEALTHY deploys, which is why the cluster kept running old
+#     images.
+#   * git_sha in /version comes from AOEP_GIT_SHA, which the image build does not
+#     stamp, so a SHA compare could never pass either.
+#   * The deploy step already ran `kubectl rollout status` (readiness probes must
+#     pass), so the app is proven to serve. All that remains to verify is that the
+#     Deployment's pod template references the tag we intended — that is exactly
+#     what set-image + a completed rollout guarantees, and it needs nothing inside
+#     the container.
+#
+# Required env: TAG (the image tag / git sha that was deployed)
+# Optional env: NS (namespace, default: aoep)
+# Exit 0 = all services on TAG and available. Exit 1 = mismatch/unavailable
+# (triggers auto-rollback).
 set -euo pipefail
 
 NS="${NS:-aoep}"
-TIMEOUT="${TIMEOUT:-30}"
 
 if [ -z "${TAG:-}" ]; then
-  echo "ERROR: TAG env var is required (the deployed git sha)" >&2
+  echo "ERROR: TAG env var is required (the deployed image tag)" >&2
   exit 1
 fi
 
-# Service name -> internal port
-declare -A PORTS
-PORTS[orchestrator]=8000
-PORTS[speech]=8002
-PORTS[perception]=8003
-PORTS[memory]=8004
-PORTS[curriculum]=8005
-PORTS[billing]=8006
-PORTS[integrations]=8007
-PORTS[identity]=8008
-PORTS[web]=3000
+# Deployments whose rollout the deploy step waits on. Keep in sync with deploy.yml.
+SERVICES=(orchestrator speech perception memory curriculum billing integrations identity web)
 
 PASS=0
 FAIL=0
-declare -A RESULTS
 
-echo "=== SHA-match smoke: verifying tag=${TAG} in ns=${NS} ==="
+echo "=== image-tag smoke: verifying tag=${TAG} in ns=${NS} ==="
 
-for svc in orchestrator speech perception memory curriculum billing integrations identity web; do
-  PORT="${PORTS[$svc]}"
-  # Get first Running pod
-  POD=$(kubectl -n "$NS" get pods -l "app=$svc" \
-    -o jsonpath='{range .items[?(@.status.phase=="Running")]}{.metadata.name}{"\n"}{end}' \
-    2>/dev/null | head -n1 || true)
+for svc in "${SERVICES[@]}"; do
+  # The image the Deployment's pod template is set to.
+  IMG=$(kubectl -n "$NS" get deployment "$svc" \
+    -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
 
-  if [ -z "$POD" ]; then
-    echo "  [$svc] FAIL: no running pod found"
-    RESULTS[$svc]="NO_POD"
+  if [ -z "$IMG" ]; then
+    echo "  [$svc] FAIL: deployment not found"
     FAIL=$((FAIL + 1))
     continue
   fi
 
-  # Exec into pod and curl /version endpoint
-  VERSION_JSON=$(kubectl -n "$NS" exec "$POD" -- \
-    curl -sf --max-time "$TIMEOUT" "http://127.0.0.1:${PORT}/version" 2>/dev/null || true)
+  # Everything after the last ':' is the tag (registry host may itself contain a
+  # ':port', so only split on the final colon).
+  IMG_TAG="${IMG##*:}"
 
-  if [ -z "$VERSION_JSON" ]; then
-    echo "  [$svc] FAIL: /version unreachable on pod $POD"
-    RESULTS[$svc]="UNREACHABLE"
+  if [ "$IMG_TAG" != "$TAG" ]; then
+    echo "  [$svc] FAIL: image tag=$IMG_TAG != expected=$TAG ($IMG)"
     FAIL=$((FAIL + 1))
     continue
   fi
 
-  # Extract git_sha from JSON
-  GIT_SHA=$(echo "$VERSION_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('git_sha') or d.get('sha') or '')" 2>/dev/null || true)
+  # Confirm the rollout is complete: updated/available replicas meet the spec.
+  DESIRED=$(kubectl -n "$NS" get deployment "$svc" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "")
+  AVAILABLE=$(kubectl -n "$NS" get deployment "$svc" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+  AVAILABLE="${AVAILABLE:-0}"
 
-  if [ -z "$GIT_SHA" ]; then
-    echo "  [$svc] FAIL: no git_sha in /version response: $VERSION_JSON"
-    RESULTS[$svc]="NO_SHA"
+  if [ -n "$DESIRED" ] && [ "$AVAILABLE" -lt "$DESIRED" ]; then
+    echo "  [$svc] FAIL: only $AVAILABLE/$DESIRED replicas available on $TAG"
     FAIL=$((FAIL + 1))
     continue
   fi
 
-  # Compare to expected TAG (match on prefix — TAG may be full sha, service may return short)
-  if [[ "$TAG" == "$GIT_SHA"* ]] || [[ "$GIT_SHA" == "$TAG"* ]]; then
-    echo "  [$svc] OK: sha=$GIT_SHA"
-    RESULTS[$svc]="$GIT_SHA"
-    PASS=$((PASS + 1))
-  else
-    echo "  [$svc] FAIL: sha=$GIT_SHA != expected=$TAG"
-    RESULTS[$svc]="MISMATCH:$GIT_SHA"
-    FAIL=$((FAIL + 1))
-  fi
+  echo "  [$svc] OK: $IMG (${AVAILABLE:-?}/${DESIRED:-?} available)"
+  PASS=$((PASS + 1))
 done
 
-# Fleet uniformity check: all services must report the same sha
-UNIQUE_SHAS=$(for svc in "${!RESULTS[@]}"; do echo "${RESULTS[$svc]}"; done | grep -v "^NO_POD\|^UNREACHABLE\|^NO_SHA\|^MISMATCH" | sort -u | wc -l)
-
 echo ""
-echo "=== Summary: $PASS passed, $FAIL failed, $UNIQUE_SHAS unique SHA(s) across fleet ==="
+echo "=== Summary: $PASS passed, $FAIL failed (tag=$TAG) ==="
 
 if [ "$FAIL" -gt 0 ]; then
-  echo "RESULT: FAIL — $FAIL service(s) did not match expected SHA $TAG" >&2
+  echo "RESULT: FAIL — $FAIL service(s) not on tag $TAG" >&2
   exit 1
 fi
 
-if [ "$UNIQUE_SHAS" -gt 1 ]; then
-  echo "RESULT: FAIL — fleet non-uniform: $UNIQUE_SHAS different SHAs found" >&2
-  exit 1
-fi
-
-echo "RESULT: OK — all services match $TAG"
+echo "RESULT: OK — all services on $TAG"
 exit 0
