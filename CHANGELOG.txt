@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.81 - Mobile LiveKit Hermes crash: polyfill TextDecoder/TextEncoder
+  before lazy-loading @livekit/react-native (Hermes lacks the web API; livekit-client
+  needs it at module-eval time, so registerGlobals() ran too late and Android crashed
+  with "Property 'TextDecoder' doesn't exist" when opening a live room).
+
 - 2026-07-16 - v0.19.80 - App-timer review + fix (web + mobile). The live room
   re-rendered its whole tree on every 3s heartbeat even when nothing changed
   (the main "setInterval handler took Nms" source); applyRoom now skips setState
