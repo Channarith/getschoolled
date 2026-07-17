@@ -43,6 +43,7 @@ import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 import { useT } from "../../lib/i18n";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
+import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlock";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
@@ -404,6 +405,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  // Chrome blocks LiveKit's AudioContext until a user gesture. Manual join unlocks
+  // in the click handler; auto-joined signed-in users must tap once to connect A/V.
+  const [liveKitConnectEnabled, setLiveKitConnectEnabled] = useState(false);
   // Fullscreen the host presenter (the slide fills the screen). Tracks the
   // native fullscreen state so the toggle label/icon stays in sync (Esc exits).
   const hostTileRef = useRef<HTMLDivElement | null>(null);
@@ -497,11 +501,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => { alive = false; };
   }, [me?.can_publish, joinInfo, roomId]);
 
-  const { tiles: liveKitTiles, audioTracks, connectFailed: liveKitFailed } =
+  const { tiles: liveKitTiles, audioTracks, connectFailed: liveKitFailed, needsAudioUnlock, unlockPlayback } =
     useLiveKitRoom(
       liveMedia ?? joinInfo?.media,
       room?.participants ?? joinInfo?.room.participants ?? [],
       Boolean(hasFloor && me?.can_publish),
+      liveKitConnectEnabled,
     );
 
   const trackFor = useCallback(
@@ -661,6 +666,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, joinInfo]);
+
+  async function enableLiveKitAv() {
+    await resumeSharedAudioContext();
+    setLiveKitConnectEnabled(true);
+  }
 
   // The class hit the end of its allotted time. After the farewell countdown,
   // excuse the learner: leave the room (best-effort) and return to the class list.
@@ -1152,11 +1162,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Ada"
-              onKeyDown={(e) => e.key === "Enter" && void handleJoin()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  unlockWebAudio();
+                  setLiveKitConnectEnabled(true);
+                  void handleJoin();
+                }
+              }}
             />
           </label>
           <button
-            onClick={() => void handleJoin()}
+            onClick={() => {
+              unlockWebAudio();
+              setLiveKitConnectEnabled(true);
+              void handleJoin();
+            }}
             disabled={busy}
             style={{ marginTop: 12, background: "var(--accent)", color: "#fff", width: "100%" }}
           >
@@ -1356,6 +1376,68 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         >
           🔇 Live audio/video for participants is unavailable right now — the AI
           teacher’s narration, chat and Q&amp;A continue as normal.
+        </div>
+      )}
+
+      {needsAudioUnlock && !liveKitFailed && (
+        <div
+          style={{
+            background: "color-mix(in srgb, var(--accent) 12%, var(--panel))",
+            border: "1px solid var(--accent)",
+            borderRadius: 8,
+            padding: "8px 10px",
+            marginBottom: 10,
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span>🔊 Tap to enable live participant audio (browser autoplay policy).</span>
+          <button
+            type="button"
+            onClick={() => void unlockPlayback()}
+            style={{ background: "var(--accent)", color: "#fff", padding: "6px 12px", borderRadius: 8 }}
+          >
+            Enable audio
+          </button>
+        </div>
+      )}
+
+      {!liveKitConnectEnabled && joinInfo?.media?.url && (
+        <div
+          role="dialog"
+          aria-label="Enable live audio and video"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(15,23,42,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            className="card"
+            style={{ maxWidth: 420, textAlign: "center", padding: "24px 20px" }}
+          >
+            <h2 style={{ marginTop: 0 }}>Ready to join live audio &amp; video?</h2>
+            <p className="muted" style={{ marginBottom: 16 }}>
+              Your browser requires a tap before WebRTC audio can start. The AI teacher,
+              chat and slides are already running — tap below to hear other participants.
+            </p>
+            <button
+              type="button"
+              onClick={() => void enableLiveKitAv()}
+              style={{ background: "var(--accent)", color: "#fff", width: "100%", padding: "10px 16px" }}
+            >
+              Enable live audio &amp; video
+            </button>
+          </div>
         </div>
       )}
 

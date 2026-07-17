@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Room,
   RoomEvent,
@@ -10,6 +10,7 @@ import {
 } from "livekit-client";
 
 import type { LiveParticipant } from "../lib/api";
+import { getSharedAudioContext } from "../lib/webAudioUnlock";
 
 export type LiveKitMedia = {
   url: string;
@@ -36,6 +37,8 @@ export function useLiveKitRoom(
   media: LiveKitMedia | null | undefined,
   participants: LiveParticipant[],
   canPublish: boolean,
+  /** Wait until the learner has tapped/clicked (browser autoplay policy). */
+  connectEnabled = true,
 ) {
   const [tiles, setTiles] = useState<TileStream[]>([]);
   // Remote audio tracks, played through hidden <audio> elements so you can HEAR
@@ -44,6 +47,7 @@ export function useLiveKitRoom(
   // back here — that would echo your own voice.
   const [audioTracks, setAudioTracks] = useState<AudioStream[]>([]);
   const [connected, setConnected] = useState(false);
+  const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   // True once an initial connect attempt has failed (bad/expired token, wrong
   // LiveKit secret, endpoint unreachable). We surface this so the UI can show a
   // calm "live A/V unavailable" note instead of a silent break, and we do NOT
@@ -63,9 +67,10 @@ export function useLiveKitRoom(
   }, [participants]);
 
   useEffect(() => {
-    if (!media?.url || !media.token) {
+    if (!connectEnabled || !media?.url || !media.token) {
       setConnected(false);
       setConnectFailed(false);
+      setNeedsAudioUnlock(false);
       setTiles([]);
       setAudioTracks([]);
       return;
@@ -73,9 +78,14 @@ export function useLiveKitRoom(
 
     let cancelled = false;
     setConnectFailed(false);
+    setNeedsAudioUnlock(false);
+    const sharedCtx = getSharedAudioContext();
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      // Re-use a user-gesture-unlocked AudioContext so acquireAudioContext()
+      // during connect() does not hit Chrome's autoplay block.
+      ...(sharedCtx ? { webAudioMix: { audioContext: sharedCtx } } : {}),
       // Bound reconnection. livekit-client otherwise retries a dropped socket
       // ~10 times with backoff — against a mis-keyed / unreachable LiveKit that
       // becomes an endless "WebSocket closed → reconnecting → attempt N" storm
@@ -87,6 +97,10 @@ export function useLiveKitRoom(
       },
     });
     roomRef.current = room;
+
+    room.on(RoomEvent.AudioPlaybackStatusChanged, (canPlay) => {
+      if (!cancelled) setNeedsAudioUnlock(!canPlay);
+    });
 
     // The socket dropped and reconnection was exhausted (or never succeeded).
     // Mark the failure once and stop; don't tear down again if this is our own
@@ -184,13 +198,28 @@ export function useLiveKitRoom(
       setAudioTracks([]);
       setConnected(false);
     };
-  }, [media?.url, media?.token, media?.identity, canPublish]);
+  }, [connectEnabled, media?.url, media?.token, media?.identity, canPublish]);
+
+  const unlockPlayback = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return false;
+    try {
+      await room.startAudio();
+      setNeedsAudioUnlock(!room.canPlaybackAudio);
+      return room.canPlaybackAudio;
+    } catch {
+      setNeedsAudioUnlock(true);
+      return false;
+    }
+  }, []);
 
   return {
     tiles,
     audioTracks,
     connected,
     connectFailed,
+    needsAudioUnlock,
+    unlockPlayback,
     livekitAvailable: Boolean(media?.url && media?.token),
   };
 }
