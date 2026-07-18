@@ -12,6 +12,7 @@ import type { InterstitialAd } from "react-native-google-mobile-ads";
 
 import { interstitialUnitId, tierShowsAds } from "./config";
 import { recordAdImpression } from "./revenue";
+import { useFeatureFlag } from "../featureFlags";
 
 type AdsModule = typeof import("react-native-google-mobile-ads");
 
@@ -30,9 +31,12 @@ try {
 export function useInterstitial(tier?: string) {
   const adRef = useRef<InterstitialAd | null>(null);
   const [ready, setReady] = useState(false);
+  const adsEnabled = useFeatureFlag("monetization.video_ads", false);
 
   useEffect(() => {
-    if (!adsModule || !tierShowsAds(tier)) {
+    if (!adsEnabled || !adsModule || !tierShowsAds(tier)) {
+      setReady(false);
+      adRef.current = null;
       return;
     }
     const { InterstitialAd: Interstitial, AdEventType } = adsModule;
@@ -56,10 +60,10 @@ export function useInterstitial(tier?: string) {
 
     ad.load();
     return () => { offLoaded(); offOpened(); offClosed(); offError(); adRef.current = null; };
-  }, [tier]);
+  }, [adsEnabled, tier]);
 
   const show = useCallback((): boolean => {
-    if (adsModule && ready && adRef.current) {
+    if (adsEnabled && adsModule && ready && adRef.current) {
       try {
         adRef.current.show();
         return true;
@@ -68,7 +72,7 @@ export function useInterstitial(tier?: string) {
       }
     }
     return false;
-  }, [ready]);
+  }, [adsEnabled, ready]);
 
   return { ready, show };
 }

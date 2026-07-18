@@ -52,6 +52,8 @@ class PresentationStep:
     action: str = "speak"          # speak | summarize | skip | fast
     pace_multiplier: float = 1.0
     presenter_meta: str = ""
+    # Quiet beat after narration so the next idea doesn't rush in.
+    pause_after_seconds: float = 1.2
 
     def spoken_text(self) -> str:
         return (self.spoken_narration or self.narration or "").strip()
@@ -74,6 +76,8 @@ class PresentationStep:
             d["pace_multiplier"] = round(self.pace_multiplier, 2)
         if self.presenter_meta:
             d["presenter_meta"] = self.presenter_meta
+        if self.pause_after_seconds:
+            d["pause_after_seconds"] = round(self.pause_after_seconds, 2)
         return d
 
 
@@ -206,9 +210,16 @@ class MeetingProvider(abc.ABC):
                 step_seconds = step.est_seconds
                 if step.pace_multiplier > 1.0:
                     step_seconds = max(1.0, step_seconds)
-                if realtime and step_seconds > 0:
+                # Local TTS already blocks for spoken duration; realtime mode
+                # sleeps the full estimate. Always keep a human beat between
+                # slides so ideas can land before the next one starts.
+                human_pause = max(0.0, float(getattr(step, "pause_after_seconds", 0.0) or 0.0))
+                spoke_live = bool(getattr(self, "speak", False))
+                if realtime and step_seconds > 0 and not spoke_live:
                     time.sleep(step_seconds / max(step.pace_multiplier, 1.0))
-                clock += step_seconds
+                elif human_pause > 0 and (realtime or spoke_live):
+                    time.sleep(human_pause)
+                clock += step_seconds + (human_pause if (realtime or spoke_live) else 0.0)
                 steps_presented += 1
                 emit("advance", step.order)
         except KeyboardInterrupt:

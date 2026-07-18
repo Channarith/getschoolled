@@ -14,6 +14,8 @@ import os
 import re
 import time
 import uuid
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -69,6 +71,9 @@ class BugReport(BaseModel):
     snapshot: Dict[str, Any] = Field(default_factory=dict)
     logs: List[str] = Field(default_factory=list)
     attachments: List[str] = Field(default_factory=list)
+    destination: str = "qa-inbox"
+    external_url: str = ""
+    delivery_error: str = ""
 
 
 def _safe_filename(name: str) -> str:
@@ -97,6 +102,58 @@ def _trim_snapshot(data: Dict[str, Any]) -> Dict[str, Any]:
         "truncated": True,
         "preview": blob[: MAX_SNAPSHOT_BYTES // 2],
     }
+
+
+def _github_issue(report: BugReport) -> tuple[str, str]:
+    """Optionally mirror a report to GitHub Issues, without exposing credentials.
+
+    Configure both BUG_REPORT_GITHUB_REPO=owner/repo and
+    BUG_REPORT_GITHUB_TOKEN. The local QA inbox remains the durable source of
+    truth when GitHub is unavailable or intentionally not configured.
+    """
+    repo = os.environ.get("BUG_REPORT_GITHUB_REPO", "").strip().strip("/")
+    token = os.environ.get("BUG_REPORT_GITHUB_TOKEN", "").strip()
+    if not repo or not token:
+        return "", ""
+    title = f"[User QA] {report.platform} {report.app_version}: {report.description[:100]}"
+    diagnostics = {
+        "report_id": report.id,
+        "screen": report.screen,
+        "platform": report.platform,
+        "app_version": report.app_version,
+        "user_id": report.user_id,
+        "snapshot": report.snapshot,
+        "logs": report.logs[-100:],
+        "attachments_in_qa_inbox": report.attachments,
+    }
+    body = (
+        "Submitted by the in-app floating bug reporter.\n\n"
+        f"Description:\n{report.description}\n\n"
+        "Diagnostics (request bodies, auth headers, and URL query strings are not captured):\n"
+        f"```json\n{json.dumps(diagnostics, indent=2, default=str)[:55_000]}\n```"
+    )
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/issues",
+        data=payload,
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "salareen-bug-reporter",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310
+            result = json.loads(response.read().decode("utf-8"))
+        return str(result.get("html_url", "")), ""
+    except (OSError, ValueError, urllib.error.HTTPError) as exc:
+        return "", str(exc)[:500]
 
 
 @dataclass
@@ -165,6 +222,12 @@ class BugReportStore:
             logs=_trim_logs(list(req.logs or [])),
             attachments=attachments,
         )
+        external_url, delivery_error = _github_issue(report)
+        if external_url:
+            report.destination = "github"
+            report.external_url = external_url
+        elif delivery_error:
+            report.delivery_error = delivery_error
         self._append_index(report)
         return report
 

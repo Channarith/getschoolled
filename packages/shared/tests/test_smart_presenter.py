@@ -5,7 +5,11 @@ from aoep_shared.meeting import (
     build_smart_presentation_plan,
     summarize_narration,
 )
-from aoep_shared.meeting.smart_presenter import enrich_spoken_narration
+from aoep_shared.meeting.smart_presenter import (
+    enrich_spoken_narration,
+    humanize_delivery,
+    insert_idea_pauses,
+)
 from aoep_shared.teaching.lesson import LessonPlan, LessonStep
 
 
@@ -56,6 +60,25 @@ def test_enrich_spoken_does_not_stack_on_outro():
     assert "Now that we've set the stage" not in spoken
 
 
+def test_humanize_delivery_adds_pauses_and_examples():
+    spoken = humanize_delivery(
+        "Force equals mass times acceleration. "
+        "That relationship lets us predict motion from known mass and force.",
+        topic="Newton's second law",
+        heading="F = ma",
+        category="concept",
+    )
+    assert "..." in spoken
+    assert "example" in spoken.lower() or "friend" in spoken.lower()
+
+
+def test_insert_idea_pauses_breaks_dense_runs():
+    paced = insert_idea_pauses(
+        "First idea lands here. Second idea follows. Third idea closes the thought."
+    )
+    assert paced.count("...") >= 1
+
+
 def test_smart_plan_fits_time_budget():
     lesson = _long_lesson(14)
     lesson.steps.insert(5, LessonStep(5, "segment", "Try it: Topic 3",
@@ -76,3 +99,13 @@ def test_time_crunch_with_elapsed_min():
     )
     crunch = [s for s in smart.steps if s.presenter_meta == "time_crunch_warning"]
     assert crunch or smart.total_seconds < 600
+
+
+def test_estimate_seconds_includes_pause_overhead():
+    from aoep_shared.meeting.presenter import estimate_seconds
+    short = estimate_seconds("Hello world.")
+    long = estimate_seconds(
+        "Hello world. Next idea arrives. Then another idea settles. Finally we wrap up."
+    )
+    assert long > short
+    assert estimate_seconds("") >= 4.0

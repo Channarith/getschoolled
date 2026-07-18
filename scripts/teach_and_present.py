@@ -15,8 +15,9 @@ Examples:
       --meeting-provider zoom --teach-engine ppt_trainer
   echo "Intro\\nWelcome..." | python3 scripts/teach_and_present.py --subject demo
 
-Offline by default (deterministic lesson + mock meeting); add --realtime to play
-the presentation timeline in real wall-clock time.
+Offline by default (deterministic lesson + mock meeting). Presentation uses a
+human teaching pace (slower speech, idea pauses, summaries, examples). Add
+``--realtime`` to honor estimated wall-clock timing without live TTS.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ _REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO / "packages" / "shared" / "src"))
 
 from aoep_shared.harvest import CourseTags  # noqa: E402
+from aoep_shared.meeting.presenter import DEFAULT_TTS_RATE, DEFAULT_WPM  # noqa: E402
 from aoep_shared.teaching import run_end_to_end  # noqa: E402
 
 
@@ -47,16 +49,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--teach-engine", default="fallback",
                     choices=["fallback", "ppt_trainer"])
     ap.add_argument("--audience", default="curious beginners")
-    ap.add_argument("--meeting-provider", default="mock",
-                    help="mock|google_meet|zoom|teams")
+    ap.add_argument("--meeting-provider", default="local",
+                    help="local|mock|google_meet|zoom|teams (default: local TTS)")
     ap.add_argument("--no-present", action="store_true", help="plan only; don't present")
-    ap.add_argument("--realtime", action="store_true", help="present in real time")
+    ap.add_argument("--realtime", action="store_true",
+                    help="honor estimated timing when TTS is not speaking aloud")
     ap.add_argument("--start-iso", default="", help="ISO start time to schedule")
     ap.add_argument("--duration-min", type=int, default=None)
     ap.add_argument("--elapsed-min", type=float, default=0.0,
                     help="minutes already used (smart time-aware pacing)")
     ap.add_argument("--no-smart-present", action="store_true",
                     help="verbatim narration (disable smart presenter)")
+    ap.add_argument("--wpm", type=int, default=DEFAULT_WPM,
+                    help=f"spoken words/min for pacing estimates (default {DEFAULT_WPM})")
+    ap.add_argument("--tts-rate", default=DEFAULT_TTS_RATE,
+                    help=f"edge-tts rate, e.g. -12%% (default {DEFAULT_TTS_RATE})")
     ap.add_argument("--present-mode", default=None,
                     help="presentation matrix mode (lecture/workshop/drill/lewin/… or pipe string)")
     ap.add_argument("--persona", default=None,
@@ -105,6 +112,12 @@ def main(argv: list[str] | None = None) -> int:
     tags = CourseTags(access_tier=args.access_tier, price_usd=args.price,
                       career_path=args.career_path, linkedin_job_id=args.linkedin_job,
                       core_fundamental=args.core)
+
+    # Human-pace defaults flow through meeting factory WPM/TTS rate env overrides
+    # when present_with_provider is used; also stash on the process for local play.
+    import os
+    os.environ.setdefault("AOEP_PRESENT_WPM", str(max(80, args.wpm)))
+    os.environ.setdefault("AOEP_PRESENT_TTS_RATE", args.tts_rate)
 
     result = run_end_to_end(
         source=source, text=text, subject=args.subject, fmt=args.fmt, tags=tags,

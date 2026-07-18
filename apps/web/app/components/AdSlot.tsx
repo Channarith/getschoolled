@@ -60,7 +60,7 @@ function AdSenseUnit({ slot, slotId, className }: {
 /** Display ad slot for standard (non-VIP) members; VIP tiers see nothing.
  * Globally gated by the monetization.video_ads feature flag. */
 export default function AdSlot({ slotId, tier, className }: Props) {
-  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", false);
   const [slot, setSlot] = useState<AdSlotPayload | null>(null);
   const logged = useRef(false);
 

@@ -303,8 +303,13 @@ def test_tick_auto_starts_when_full_then_auto_advances():
     room_id = info["room_id"]
     for i in range(3):  # fill every seat
         client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"id-{i}"})
+    room = _app.state.live_rooms.require(room_id)
+    assert "artificial-intelligence" in room.welcome_message
+    assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is False
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
 
-    # Full room -> tick auto-starts the presentation.
+    # Full room starts only after Theodore's transparent-AI welcome.
     t1 = client.post(f"/api/live-rooms/{room_id}/tick")
     assert t1.status_code == 200, t1.text
     assert t1.json()["auto_started"] is True
@@ -389,17 +394,20 @@ def test_start_solo_room_is_two_seat_and_uses_room_ui():
 
 
 def test_solo_room_full_on_join_auto_starts_and_advances():
+    from orchestrator.main import app as _app
+
     lid = _first_lesson()
     room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
     # The single seat fills on join, so the room is full and the class
     # auto-starts on the first tick (mirrors the full-group auto-start).
     client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "ada-solo2"})
+    room = _app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
     t1 = client.post(f"/api/live-rooms/{room_id}/tick")
     assert t1.status_code == 200, t1.text
     assert t1.json()["auto_started"] is True
     assert t1.json()["room"]["presenting"] is True
-
-    from orchestrator.main import app as _app
 
     room = _app.state.live_rooms.require(room_id)
     room.slide_started_at = "2000-01-01T00:00:00+00:00"
@@ -418,6 +426,9 @@ def test_auto_advance_uses_a_content_proportional_dwell():
     room_id = info["room_id"]
     for i in range(3):
         client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"adv-{i}"})
+    room = _app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
     assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
 
     room = _app.state.live_rooms.require(room_id)
@@ -448,6 +459,9 @@ def test_tick_auto_ends_when_allotted_time_expires():
     room_id = info["room_id"]
     for i in range(3):  # fill every learner seat so the class auto-starts
         client.post(f"/api/live-rooms/{room_id}/join", json={"name": f"L{i}", "identity": f"end-{i}"})
+    room = _app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    _app.state.live_rooms._backend.save(room)
     assert client.post(f"/api/live-rooms/{room_id}/tick").json()["auto_started"] is True
 
     room = _app.state.live_rooms.require(room_id)
@@ -1041,3 +1055,65 @@ def test_ask_stream_queues_when_floor_taken():
     events = _parse_sse(resp.text)
     assert events and events[0]["type"] == "queued"
     assert events[0]["queue_position"] == 1
+
+
+def test_xr_lab_enable_and_complete_pass_needs_work():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={
+            "name": "XR Learner",
+            "identity": "xr1",
+            "student_id": "stu-xr",
+            "readiness_score": 70,
+            "readiness_band": "developing",
+        },
+    ).json()["participant"]["id"]
+
+    enabled = client.post(
+        f"/api/live-rooms/{room_id}/xr/enable",
+        json={"moderator_key": mod, "enabled": True, "title": "Demo lab"},
+    )
+    assert enabled.status_code == 200, enabled.text
+    assert enabled.json()["lab"]["lab_id"]
+    lab = client.get(f"/api/live-rooms/{room_id}/xr/lab").json()
+    assert lab["enabled"] is True
+
+    pass_body = {
+        "participant_id": pid,
+        "student_id": "stu-xr",
+        "client_kind": "webxr",
+        "observations": [
+            {"seq": 1, "action": "approach", "target_id": "station", "confidence": 0.95},
+            {"seq": 2, "action": "grab", "target_id": "tool", "confidence": 0.9, "hold_ms": 600},
+            {"seq": 3, "action": "confirm", "target_id": "finish", "confidence": 0.92},
+        ],
+    }
+    ok = client.post(f"/api/live-rooms/{room_id}/xr/complete", json=pass_body)
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["result"]["outcome"] == "pass"
+
+    unity_same = client.post(
+        f"/api/live-rooms/{room_id}/xr/complete",
+        json={**pass_body, "client_kind": "unity_openxr"},
+    )
+    assert unity_same.json()["result"]["outcome"] == "pass"
+    assert unity_same.json()["result"]["score"] == ok.json()["result"]["score"]
+
+    weak = client.post(
+        f"/api/live-rooms/{room_id}/xr/complete",
+        json={
+            "participant_id": pid,
+            "client_kind": "webxr",
+            "observations": [
+                {"seq": 1, "action": "approach", "target_id": "station", "confidence": 0.8},
+            ],
+        },
+    )
+    assert weak.json()["result"]["outcome"] == "needs_work"
+
+    aud = client.get(f"/api/live-rooms/{room_id}/audience-profile?refresh=true").json()
+    assert "audience_profile" in aud
+    assert "student_id" not in aud["audience_profile"]

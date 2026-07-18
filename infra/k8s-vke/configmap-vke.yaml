@@ -66,6 +66,8 @@ data:
   MEMORY_ORIGIN: "http://memory:8000"
   # Shared with memory admin routes (X-Admin-Secret) for operator recovery tools.
   ADMIN_SECRET: "dev-admin-secret"
+  # Default-on floating user QA button; set "0" when production is ready.
+  IN_APP_BUG_REPORTER_ENABLED: "1"
   # Mobile app download targets for /download (empty -> "Coming soon"). Set these
   # to the hosted APK + Play/App Store links once published; inlined at build.
   NEXT_PUBLIC_ANDROID_APK_URL: "https://api.salareen.com/downloads/salareen-android.apk"

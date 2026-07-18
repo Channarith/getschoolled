@@ -22,13 +22,20 @@ const CATEGORIES = [
 type Props = {
   screen?: string;
   onBack: () => void;
+  initialScreenshot?: BugScreenshotUpload | null;
 };
 
-export default function BugReportScreen({ screen = "settings", onBack }: Props) {
+export default function BugReportScreen({
+  screen = "settings",
+  onBack,
+  initialScreenshot = null,
+}: Props) {
   const { t } = useT();
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("bug");
-  const [shots, setShots] = useState<BugScreenshotUpload[]>([]);
+  const [shots, setShots] = useState<BugScreenshotUpload[]>(
+    initialScreenshot ? [initialScreenshot] : [],
+  );
   const [previewUris, setPreviewUris] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [doneId, setDoneId] = useState("");
@@ -109,6 +116,9 @@ export default function BugReportScreen({ screen = "settings", onBack }: Props) 
     <ScrollView style={styles.bg} contentContainerStyle={styles.pad}>
       <Text style={styles.title}>{t("bugReport.title")}</Text>
       <Text style={styles.sub}>{t("bugReport.sub")}</Text>
+      {initialScreenshot ? (
+        <Text style={styles.autoCapture}>{t("bugReport.autoCaptured")}</Text>
+      ) : null}
 
       <GlassPanel style={{ marginTop: 12 }}>
         <Text style={styles.label}>{t("bugReport.what")}</Text>
@@ -179,5 +189,6 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   hint: { color: theme.colors.muted, fontSize: 12 },
+  autoCapture: { color: theme.colors.success, fontSize: 12, marginTop: 7, fontWeight: "600" },
   thumb: { width: 88, height: 88, borderRadius: 8, marginRight: 8 },
 });

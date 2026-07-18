@@ -16,6 +16,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
 
   const [unlocked, setUnlocked] = useState(false);
   const [homeworkOn, setHomeworkOn] = useState(false);
+  const [watchOn, setWatchOn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -24,6 +25,9 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       getFlag("access.homework_grader")
         .then((v) => setHomeworkOn(Boolean(v)))
         .catch(() => setHomeworkOn(false));
+      getFlag("engagement.watch_window")
+        .then((v) => setWatchOn(Boolean(v)))
+        .catch(() => setWatchOn(false));
     };
     sync();
     window.addEventListener(AUTH_EVENT, sync);
@@ -53,7 +57,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/drive">{t("nav.drive")}</Link>
       <Link href="/jobs">{t("nav.careers")}</Link>
       <Link href="/arcade">{t("nav.arcade")}</Link>
-      <Link href="/watch">{t("nav.watch")}</Link>
+      {watchOn && <Link href="/watch">{t("nav.watch")}</Link>}
       <Link href="/class">{t("nav.liveClass")}</Link>
       <Link href="/group-classes">{t("nav.groupClasses")}</Link>
       {homeworkOn && <Link href="/homework">{t("nav.homework")}</Link>}

@@ -22,6 +22,13 @@ export type HostAnswer = {
   id: number;
 };
 
+export type GiftOverlay = {
+  id: string;
+  giftId: string;
+  emoji: string;
+  label: string;
+};
+
 export function useLiveRoomSocket(
   roomId: string,
   enabled: boolean,
@@ -30,7 +37,7 @@ export function useLiveRoomSocket(
   const [connected, setConnected] = useState(false);
   const [presenceToast, setPresenceToast] = useState<{ kind: string; name: string } | null>(null);
   const [floatingReactions, setFloatingReactions] = useState<{ id: string; emoji: string; left: number }[]>([]);
-  const [giftBanner, setGiftBanner] = useState<string>("");
+  const [giftOverlay, setGiftOverlay] = useState<GiftOverlay | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
   const [hostAnswer, setHostAnswer] = useState<HostAnswer | null>(null);
@@ -84,13 +91,24 @@ export function useLiveRoomSocket(
             const reaction = payload.reaction as { emoji?: string } | undefined;
             if (reaction?.emoji) pushReaction(reaction.emoji);
           } else if (msg.type === "gift") {
-            const gift = payload.gift as { emoji?: string; sender_name?: string; gift_name?: string } | undefined;
+            const gift = payload.gift as {
+              gift_id?: string;
+              emoji?: string;
+              sender_name?: string;
+              gift_name?: string;
+              recipient_name?: string;
+            } | undefined;
             if (gift?.emoji) {
-              setGiftBanner(
-                `${gift.emoji} ${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"}`,
-              );
-              setTimeout(() => setGiftBanner(""), 3000);
+              setGiftOverlay({
+                id: String(Date.now()),
+                giftId: gift.gift_id ?? "",
+                emoji: gift.emoji,
+                label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Theodore"}`,
+              });
+              setTimeout(() => setGiftOverlay(null), 4200);
             }
+          } else if (msg.type === "game" && payload.room) {
+            onRoomRef.current(payload.room as LiveRoomState);
           } else if (msg.type === "presence") {
             const toast = payload.toast as { kind?: string; name?: string } | undefined;
             if (toast?.name) {
@@ -143,7 +161,7 @@ export function useLiveRoomSocket(
     connected,
     presenceToast,
     floatingReactions,
-    giftBanner,
+    giftOverlay,
     viewerCount,
     setViewerCount,
     followerCount,

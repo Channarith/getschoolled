@@ -20,11 +20,17 @@ def test_catalog_is_comprehensive_and_well_formed():
     assert "engagement.post_class_survey" in CATALOG_BY_KEY
     assert "data.multidim_datamart" in CATALOG_BY_KEY
     assert "access.user_levels" in CATALOG_BY_KEY
+    assert "access.xr_immersive_class" in CATALOG_BY_KEY
+    assert "ai.physical_assessment" in CATALOG_BY_KEY
+    assert "ai.audience_profile_adaptation" in CATALOG_BY_KEY
 
 
 def test_default_resolution():
     s = FlagStore()
     assert s.resolve("engagement.post_class_survey") is False  # default off
+    assert s.resolve("engagement.in_app_bug_reporter") is True  # QA default on
+    assert s.resolve("engagement.watch_window") is False
+    assert s.resolve("monetization.video_ads") is False
     assert s.resolve("ai.hallucination_guard") is True          # default on
     assert s.resolve("access.user_levels") == "standard"
 

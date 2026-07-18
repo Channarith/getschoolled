@@ -3,6 +3,7 @@
 Goes beyond reading slide text verbatim:
   - Digresses with examples, real-world links, and optional RAG asides
   - Summarizes dense slides instead of reading every bullet
+  - Speaks at a human teaching pace with pauses between ideas
   - Tracks class time remaining and skips / compresses when behind schedule
 """
 
@@ -15,10 +16,12 @@ from ..presentation_skills import apply_technique
 from .base import PresentationPlan, PresentationStep
 from .presenter import DEFAULT_WPM, build_presentation_plan, estimate_seconds
 
-_MAX_WORDS_BEFORE_SUMMARY = 110
-_SUMMARY_TARGET_WORDS = 52
+_MAX_WORDS_BEFORE_SUMMARY = 90
+_SUMMARY_TARGET_WORDS = 48
 _SKIP_ANNOUNCE_SECONDS = 4.0
 _TIME_CRUNCH_WORDS = 28  # minimum words for a spoken time-warning
+_IDEA_PAUSE = "..."  # ellipsis gives TTS a natural breath without saying "pause"
+_DEFAULT_SLIDE_PAUSE_S = 1.4
 
 _CATEGORY_FROM_TITLE = (
     ("try it", "exercise"),
@@ -27,6 +30,13 @@ _CATEGORY_FROM_TITLE = (
     ("welcome", "introduction"),
     ("quick recap", "recap"),
     ("you did it", "summary"),
+)
+
+_BREATH_BRIDGES = (
+    "Alright —",
+    "So,",
+    "Here's the key:",
+    "Put simply,",
 )
 
 
@@ -47,14 +57,14 @@ def _guess_category(heading: str, kind: str) -> str:
 
 
 def summarize_narration(text: str, *, target_words: int = _SUMMARY_TARGET_WORDS) -> str:
-    """Compress long narration for spoken delivery."""
+    """Compress long narration for spoken delivery — keep meaning, drop laundry lists."""
     text = (text or "").strip()
     if _word_count(text) <= target_words:
         return text
     sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
     kept: List[str] = []
     count = 0
-    for s in sentences[:5]:
+    for s in sentences[:4]:
         w = _word_count(s)
         if count + w > target_words and kept:
             break
@@ -69,8 +79,72 @@ def summarize_narration(text: str, *, target_words: int = _SUMMARY_TARGET_WORDS)
         body = " ".join((text or "").split()[:target_words])
     return (
         f"{body} "
-        f"I'll keep the extra detail on the slide — scan it when you review."
+        f"I'll leave the finer detail on the slide for you to skim later."
     ).strip()
+
+
+def _needs_example(text: str, category: str) -> bool:
+    if category not in ("concept", "definition", "introduction", "history"):
+        return False
+    lowered = (text or "").lower()
+    if any(marker in lowered for marker in (
+        "for example", "for instance", "imagine", "picture", "like when",
+        "say you", "think of", "in practice",
+    )):
+        return False
+    return _word_count(text) >= 12
+
+
+def _example_aside(*, topic: str, heading: str) -> str:
+    point = heading or topic
+    return (
+        f"For example, think about {point} the way you'd explain it to a friend — "
+        f"one concrete situation, then the rule behind it."
+    )
+
+
+def insert_idea_pauses(text: str) -> str:
+    """Break dense runs into breathable spoken beats without sounding robotic."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    if len(sentences) <= 1:
+        return text
+    out: List[str] = []
+    for i, sentence in enumerate(sentences):
+        out.append(sentence)
+        if i >= len(sentences) - 1:
+            continue
+        # Pause after every idea; add a light bridge every other beat.
+        if i % 2 == 0 and _word_count(sentence) >= 8:
+            bridge = _BREATH_BRIDGES[i % len(_BREATH_BRIDGES)]
+            out.append(f"{_IDEA_PAUSE} {bridge}")
+        else:
+            out.append(_IDEA_PAUSE)
+    return " ".join(out)
+
+
+def humanize_delivery(
+    text: str,
+    *,
+    topic: str = "",
+    heading: str = "",
+    category: str = "concept",
+) -> str:
+    """Make spoken script feel like a careful human teacher, not a teleprompter."""
+    spoken = (text or "").strip()
+    if not spoken:
+        return ""
+    if _word_count(spoken) > _MAX_WORDS_BEFORE_SUMMARY:
+        spoken = summarize_narration(spoken)
+    if _needs_example(spoken, category):
+        spoken = f"{spoken} {_example_aside(topic=topic or 'this idea', heading=heading)}"
+    spoken = insert_idea_pauses(spoken)
+    # Soft landing so the slide doesn't end mid-rush.
+    if not spoken.endswith((".", "!", "?", "…")):
+        spoken = f"{spoken}."
+    return spoken
 
 
 def _is_script_final(kind: str, category: str, heading: str) -> bool:
@@ -127,12 +201,15 @@ def enrich_spoken_narration(
     rag_search: Optional[Callable[[str], Sequence]] = None,
     profile=None,
 ) -> str:
-    """Build realistic spoken script: optional digression/RAG on top of lesson narration."""
+    """Build realistic spoken script: digression/examples + human pacing."""
     text = (narration or "").strip()
     if not text:
         return ""
     cat = category or _guess_category(heading, kind)
     if _is_script_final(kind, cat, heading):
+        # Keep authored welcome/close intact unless it's too long to speak well.
+        if _word_count(text) > _MAX_WORDS_BEFORE_SUMMARY:
+            return humanize_delivery(text, topic=topic, heading=heading, category=cat)
         return text
 
     if profile is not None and getattr(profile, "arc", "") == "lewin":
@@ -163,9 +240,7 @@ def enrich_spoken_narration(
     if aside and aside not in base:
         parts.append(aside)
     spoken = " ".join(p for p in parts if p).strip()
-    if _word_count(spoken) > _MAX_WORDS_BEFORE_SUMMARY:
-        spoken = summarize_narration(spoken)
-    return spoken
+    return humanize_delivery(spoken, topic=topic, heading=heading, category=cat)
 
 
 def _time_warning(remaining_min: float, slides_left: int) -> str:
@@ -331,6 +406,7 @@ def build_smart_presentation_plan(
             action=action,
             pace_multiplier=1.0,
             presenter_meta=meta,
+            pause_after_seconds=_DEFAULT_SLIDE_PAUSE_S,
         ))
 
     time_on = enable_time_budget and prof.enable_time_budget

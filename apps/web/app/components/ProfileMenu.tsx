@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useFlag } from "../lib/flags";
 import LanguagePicker from "./LanguagePicker";
 
 // Netflix-style profile dropdown: a single avatar button on the right of the nav
@@ -16,6 +17,7 @@ export default function ProfileMenu() {
   const { t } = useT();
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  const bugReporterEnabled = useFlag<boolean>("engagement.in_app_bug_reporter", true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -90,14 +92,18 @@ export default function ProfileMenu() {
               <Link role="menuitem" href="/rewards" style={itemStyle}>⭐ {t("profile.rewards")}</Link>
               <Link role="menuitem" href="/backgrounds" style={itemStyle}>🎨 {t("profile.themes")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>
-              <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
+              {bugReporterEnabled ? (
+                <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
+              ) : null}
             </>
           ) : (
             <>
               <Link role="menuitem" href="/login" style={{ ...itemStyle, fontWeight: 700 }}>{t("profile.signIn")}</Link>
               <Link role="menuitem" href="/login" style={itemStyle}>{t("profile.createAccount")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>
-              <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
+              {bugReporterEnabled ? (
+                <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
+              ) : null}
             </>
           )}
 

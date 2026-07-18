@@ -1,0 +1,65 @@
+---
+description: Always run web/mobile typecheck before pushing a PR — catch recurring TS null/strict failures that keep failing CI and mobile-tests.
+alwaysApply: true
+---
+
+# CI typecheck before every PR push
+
+Web `ci` and `mobile` / `mobile-tests` fail constantly when agents skip local
+typecheck. **Do not push / open / update a PR until these are green locally.**
+
+## Required pre-push checks (every frontend-touching change)
+
+From repo root, after editing `apps/web` or `apps/mobile`:
+
+```bash
+# Web (matches CI `web` job — uses npm, not pnpm)
+cd apps/web && npm install && npm run typecheck
+
+# Mobile (matches CI `mobile` + `mobile-tests` typecheck step — uses pnpm)
+cd apps/mobile && pnpm install && bash scripts/mobile-typecheck.sh
+```
+
+If `node_modules` is missing or tsc can't resolve `next` / packages, install
+in that app dir first with the same package manager CI uses (web=`npm`,
+mobile=`pnpm`). Local stale/missing installs are not an excuse to skip.
+
+## Recurring failure pattern (fix this BEFORE inventing new theory)
+
+```
+error TS18047: 'room' is possibly 'null'.
+```
+
+Typical cause: optional chaining on `room?.x` then later `room.room_id` without
+narrowing. **Always early-return after a null guard**, then use definite fields:
+
+```typescript
+// BAD — CI fails: room still possibly null after room?.presenting
+const welcome = room?.welcome_message?.trim();
+if (!welcome || room?.presenting) return;
+spokenRef.current = room.room_id;  // TS18047
+
+// GOOD
+if (!room) return;
+const welcome = room.welcome_message?.trim();
+if (!welcome || room.presenting) return;
+spokenRef.current = room.room_id;
+```
+
+Same rule for any nullable state (`joinInfo`, `me`, `participant`, `slide`).
+
+## Other known gates (do not ignore)
+
+- **Web CI** runs `npm run typecheck` then `npm run build` in `apps/web`.
+- **Mobile CI** runs `bash scripts/mobile-typecheck.sh` (uses
+  `tsconfig.typecheck.json`, not a casual `tsc` with wrong cwd).
+- **mobile-tests** also runs typecheck first; a TS error fails the job before
+  Jest. Fix typecheck — do not treat mobile-tests as “Jest/Babel only.”
+- After a full pytest suite, mobile version files may be clobbered — restore
+  them before commit (see `run-and-test-locally` skill).
+
+## When CI is already red on a PR
+
+1. `gh pr checks` / `gh run view <id> --log-failed` — read the actual TS errors.
+2. Fix the reported lines; re-run the local typecheck commands above.
+3. Commit + push; do not open a second PR for the same branch.

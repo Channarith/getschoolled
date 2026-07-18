@@ -86,7 +86,7 @@ function DrivePageInner() {
   const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
   const afterAdRef = useRef<null | (() => void)>(null);
   const prerollShown = useRef(false);
-  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", false);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);

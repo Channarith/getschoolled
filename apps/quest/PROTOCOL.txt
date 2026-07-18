@@ -1,0 +1,29 @@
+Salareen Quest / Unity OpenXR client
+====================================
+
+Protocol version: aoep.xr.v1 (shared with WebXR)
+
+This folder holds the Meta Quest Unity OpenXR client that speaks the same
+backend contract as apps/web WebXR:
+
+  GET  /api/live-rooms/{roomId}/xr/lab
+  POST /api/live-rooms/{roomId}/xr/enable
+  POST /api/live-rooms/{roomId}/xr/complete
+
+Observations are normalized action samples only (action, target_id, hand,
+confidence, hold_ms, optional pose floats). Never upload raw video or full
+motion capture streams.
+
+Open in Unity (recommended 2022.3 LTS or newer):
+  1. Create a new 3D (URP) project named SalareenQuest.
+  2. Install OpenXR Plugin + Meta Quest Support via Package Manager.
+  3. Copy Assets/Scripts/Salareen into the Unity project's Assets tree.
+  4. Set XR Plug-in Management → OpenXR → Meta Quest feature group.
+  5. Build for Android (Quest) with Internet permission.
+
+Edit-mode / play-mode tests: open Assets/Scripts/Salareen/Editor when present.
+
+Feature flags (server):
+  access.xr_immersive_class
+  ai.physical_assessment
+  ai.audience_profile_adaptation

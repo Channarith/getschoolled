@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput,
+  useWindowDimensions, View,
 } from "react-native";
 
 import {
@@ -8,15 +9,17 @@ import {
   getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAskStream, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
-  liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomStartPresentation,
+  liveRoomPlayGame, liveRoomRaiseHand, liveRoomReaction, liveRoomReport,
+  liveRoomSendGift, liveRoomStartGame, liveRoomStartPresentation,
   liveRoomTick, liveRoomUnban,
   startGroupClass,
-  type LiveGiftCatalogItem, type LiveKitMedia, type LiveRoomState,
+  type LiveGiftCatalogItem, type LiveGroupGameType, type LiveKitMedia, type LiveRoomState,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
+import { startVoiceListening, stopVoiceListening } from "../voiceAssistant";
 import GlassPanel from "../components/GlassPanel";
 import { LiveKitVideoView } from "../components/liveKitRuntime";
 import { useLiveKitRoom } from "../components/useLiveKitRoom";
@@ -28,6 +31,22 @@ import { theme } from "../theme";
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
 const MOD_STORAGE: Record<string, string> = {};
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
+const GAME_LIBRARY: {
+  type: LiveGroupGameType; label: string; prompt: string; answer: string;
+}[] = [
+  { type: "quiz_race", label: "⚡ First answer race", prompt: "What does AI stand for?", answer: "artificial intelligence" },
+  { type: "tic_tac_toe", label: "⭕ Learning tic-tac-toe", prompt: "What does ML stand for?", answer: "machine learning" },
+  { type: "hangman", label: "🔤 Learning hangman", prompt: "An AI model learns from this", answer: "data" },
+  { type: "multiple_choice", label: "🔢 Multiple choice dash", prompt: "Which is AI? A) Neural network B) Hammer C) Bicycle", answer: "A" },
+  { type: "true_false", label: "✅ True or false", prompt: "AI systems learn patterns from data.", answer: "true" },
+  { type: "word_scramble", label: "🔀 Word scramble", prompt: "Unscramble this AI term", answer: "algorithm" },
+  { type: "fill_blank", label: "✍️ Fill the blank", prompt: "AI models learn from ____.", answer: "data" },
+  { type: "emoji_decode", label: "🧩 Emoji decode", prompt: "Decode: 🧠 + 💻", answer: "artificial intelligence" },
+  { type: "lightning_round", label: "🌩️ Lightning round", prompt: "Name the field that lets computers understand language.", answer: "natural language processing" },
+  { type: "team_buzzer", label: "🔔 Team buzzer", prompt: "Buzz in: What is a chatbot powered by?", answer: "artificial intelligence" },
+  { type: "hot_seat", label: "🔥 Hot seat", prompt: "Explain the abbreviation LLM.", answer: "large language model" },
+  { type: "jeopardy", label: "💎 Jeopardy challenge", prompt: "This AI system generates new text, images, or audio.", answer: "generative AI" },
+];
 
 const CLASS_END_COUNTDOWN = 5;
 
@@ -56,7 +75,7 @@ function farewellFor(locale: string): string {
 
 // Which pop-up sheet (if any) is open. Everything except the presenter lives in a
 // sheet so the small phone screen stays focused on the teacher/slide.
-type SheetKind = null | "chat" | "ask" | "react" | "gifts" | "more";
+type SheetKind = null | "chat" | "ask" | "react" | "gifts" | "games" | "more";
 
 // A single tab in the bottom action bar: a large tappable icon + tiny caption,
 // with an optional unread/position badge and an active (highlighted) state.
@@ -222,6 +241,13 @@ export default function LiveRoomScreen({
   onBack: () => void;
   moderatorKey?: string;
 }) {
+  const { width, height } = useWindowDimensions();
+  // The presenter is effectively the phone's fullscreen lecture view. Scale up
+  // aggressively on small phones while retaining comfortable line lengths on
+  // tablets and landscape screens.
+  const shortSide = Math.min(width, height);
+  const presenterTitleSize = Math.max(30, Math.min(46, shortSide * 0.09));
+  const presenterBodySize = Math.max(20, Math.min(30, shortSide * 0.058));
   const { account } = useAuth();
   const { locale } = useT();
   const [name, setName] = useState("");
@@ -233,10 +259,13 @@ export default function LiveRoomScreen({
   const [error, setError] = useState("");
   const [chat, setChat] = useState("");
   const [question, setQuestion] = useState("");
+  const [gameResponse, setGameResponse] = useState("");
+  const [voiceListening, setVoiceListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [wasBlocked, setWasBlocked] = useState(false);
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
+  const [giftRecipientId, setGiftRecipientId] = useState("");
   const [followingHost, setFollowingHost] = useState(false);
   const [endLeft, setEndLeft] = useState(CLASS_END_COUNTDOWN);
   const [muted, setMuted] = useState(false);
@@ -262,6 +291,26 @@ export default function LiveRoomScreen({
   }, []);
 
   const socket = useLiveRoomSocket(roomId, Boolean(participantId), applyRoom);
+  const giftAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!socket.giftOverlay) return;
+    giftAnimation.setValue(0);
+    Animated.sequence([
+      Animated.spring(giftAnimation, {
+        toValue: 1,
+        useNativeDriver: true,
+        friction: 4,
+        tension: 70,
+      }),
+      Animated.delay(2400),
+      Animated.timing(giftAnimation, {
+        toValue: 2,
+        duration: 900,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [giftAnimation, socket.giftOverlay]);
 
   const refresh = async () => {
     try {
@@ -302,28 +351,12 @@ export default function LiveRoomScreen({
     return () => clearInterval(t);
   }, [participantId, roomId, applyRoom]);
 
-  // Kick off the AI presentation once the moderator/admin is in the room and it
-  // isn't already presenting. Without this the class never enters "presenting",
-  // so the server never auto-advances and it's stuck on slide 1. (Server-side
-  // auto-start only fires for a FULL room or 5 min past the scheduled time — a
-  // lone learner would otherwise wait forever.) Idempotent + authorized server-side.
-  const autoStartedRef = useRef(false);
-  useEffect(() => {
-    if (autoStartedRef.current) return;
-    if (!participantId || !room || classEnded) return;
-    if (room.presenting) { autoStartedRef.current = true; return; }
-    if (!canModerate) return;
-    autoStartedRef.current = true;
-    void liveRoomStartPresentation(roomId, modKey)
-      .then((r) => setRoom(r))
-      .catch(() => { autoStartedRef.current = false; });   // allow a retry on transient failure
-  }, [participantId, room, classEnded, canModerate, modKey, roomId]);
-
   // Audio: the AI host (Theodore) has no camera, so its "voice" is TTS. Speak the
   // current slide (title + narration) whenever it changes, and speak Theodore's
   // Q&A answers / announcements as they arrive — in the learner's language. This
   // is why "no audio comes out" otherwise: nobody publishes host audio to LiveKit.
   const spokenSlideRef = useRef<number>(-1);
+  const spokenWelcomeRef = useRef<string>("");
   const spokenChatRef = useRef<string>("");
   const didInitChatRef = useRef(false);
   // Always-fresh room for the narration onDone callback (floor/queue guards).
@@ -331,7 +364,18 @@ export default function LiveRoomScreen({
   roomRef.current = room;
 
   useEffect(() => {
-    if (!participantId || muted) return;
+    if (!room) return;
+    const welcome = room.welcome_message?.trim();
+    if (!participantId || muted || room.presenting || !welcome) return;
+    if (spokenWelcomeRef.current === room.room_id) return;
+    spokenWelcomeRef.current = room.room_id;
+    void buildNarrationSpeakOptions(locale).then((base) => {
+      speakNatural(welcome, base);
+    });
+  }, [participantId, muted, room, locale]);
+
+  useEffect(() => {
+    if (!participantId || muted || !room?.presenting) return;
     const s = room?.slide;
     if (!s || spokenSlideRef.current === s.index) return;
     spokenSlideRef.current = s.index;
@@ -549,8 +593,63 @@ export default function LiveRoomScreen({
     }
   };
 
+  const startFullscreenVoiceQuestion = async () => {
+    if (!hasFloor) {
+      await toggleHand();
+      return;
+    }
+    stopSpeech();
+    setError("");
+    const started = await startVoiceListening({
+      locale,
+      continuous: true,
+      onResult: (transcript) => {
+        setQuestion((previous) => `${previous} ${transcript}`.trim());
+      },
+      onError: (code) => {
+        setVoiceListening(false);
+        setError(
+          code === "permission_denied"
+            ? "Microphone permission is required to ask by voice."
+            : "Voice input is unavailable. Check the microphone and try again.",
+        );
+      },
+      onEnd: () => setVoiceListening(false),
+    });
+    setVoiceListening(started);
+  };
+
+  const submitFullscreenVoiceQuestion = async () => {
+    if (!participantId || !question.trim()) return;
+    stopVoiceListening();
+    setVoiceListening(false);
+    setBusy(true);
+    try {
+      const res = await liveRoomAskStream(roomId, participantId, question.trim(), locale);
+      if (res.room) setRoom(res.room);
+      setQuestion("");
+      if (res.queued) {
+        setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!hasFloor && voiceListening) {
+      stopVoiceListening();
+      setVoiceListening(false);
+    }
+  }, [hasFloor, voiceListening]);
+
+  useEffect(() => () => stopVoiceListening(), []);
+
   const leaveAndBack = () => {
     stopSpeech();
+    stopVoiceListening();
     if (participantId) {
       void leaveLiveRoom(roomId, participantId).catch(() => undefined);
     }
@@ -626,10 +725,42 @@ export default function LiveRoomScreen({
           </Text>
         </View>
       ) : null}
-      {socket.giftBanner ? (
-        <View style={styles.giftBanner}>
-          <Text style={styles.toastText}>{socket.giftBanner}</Text>
-        </View>
+      {socket.giftOverlay ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.giftSpectacular,
+            {
+              opacity: giftAnimation.interpolate({
+                inputRange: [0, 0.15, 1, 2],
+                outputRange: [0, 1, 1, 0],
+              }),
+              transform: [
+                {
+                  scale: giftAnimation.interpolate({
+                    inputRange: [0, 1, 2],
+                    outputRange: [0.15, 1.1, 1.45],
+                  }),
+                },
+                {
+                  translateY: giftAnimation.interpolate({
+                    inputRange: [0, 1, 2],
+                    outputRange: [80, 0, -180],
+                  }),
+                },
+                {
+                  rotate: giftAnimation.interpolate({
+                    inputRange: [0, 0.6, 1, 2],
+                    outputRange: ["-12deg", "8deg", "0deg", "4deg"],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.giftSpectacularEmoji}>{socket.giftOverlay.emoji}</Text>
+          <Text style={styles.giftSpectacularLabel}>{socket.giftOverlay.label}</Text>
+        </Animated.View>
       ) : null}
       {socket.hostAnswer && (socket.hostAnswer.text || !socket.hostAnswer.done) ? (
         <View style={styles.hostAnswer}>
@@ -701,12 +832,112 @@ export default function LiveRoomScreen({
       {/* Presenter hero fills the screen; everything else opens from the bar. */}
       <GlassPanel style={styles.hero}>
         <Text style={styles.presenterHost} numberOfLines={1}>
-          🎓 {room?.host?.name ?? "Theodore (AI Host)"} · Slide {(room?.slide.index ?? 0) + 1}
+          🎓 {room?.host?.name ?? "Theodore (AI Host)"}
+          {room?.presenting ? ` · Slide ${(room?.slide.index ?? 0) + 1}` : " · Welcome"}
         </Text>
         <ScrollView style={styles.heroScroll} contentContainerStyle={styles.heroContent}>
-          <Text style={styles.presenterTitle}>{room?.slide.title}</Text>
-          <Text style={styles.presenterBody}>{room?.slide.narration || room?.slide.body}</Text>
+          <Text
+            style={[
+              styles.presenterTitle,
+              { fontSize: presenterTitleSize, lineHeight: presenterTitleSize * 1.18 },
+            ]}
+          >
+            {room?.presenting ? room?.slide.title : "Welcome to Transparent AI"}
+          </Text>
+          <Text
+            style={[
+              styles.presenterBody,
+              { fontSize: presenterBodySize, lineHeight: presenterBodySize * 1.45 },
+            ]}
+          >
+            {room?.presenting
+              ? (room?.slide.narration || room?.slide.body)
+              : room?.welcome_message}
+          </Text>
         </ScrollView>
+        {participantId ? (
+          <View style={styles.floatingVoice}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send an animated gift"
+              style={({ pressed }) => [
+                styles.floatingGiftBtn,
+                pressed && styles.hostBtnPressed,
+              ]}
+              onPress={() => setSheet("gifts")}
+            >
+              <Text style={styles.floatingVoiceIcon}>🎁</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Play a group learning game"
+              style={({ pressed }) => [
+                styles.floatingGameBtn,
+                pressed && styles.hostBtnPressed,
+              ]}
+              onPress={() => setSheet("games")}
+            >
+              <Text style={styles.floatingVoiceIcon}>🎮</Text>
+            </Pressable>
+            {hasFloor ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={voiceListening ? "Stop listening" : "Ask Theodore by voice"}
+                  style={({ pressed }) => [
+                    styles.floatingVoiceBtn,
+                    voiceListening && styles.floatingVoiceBtnListening,
+                    pressed && styles.hostBtnPressed,
+                  ]}
+                  onPress={() => {
+                    if (voiceListening) {
+                      stopVoiceListening();
+                      setVoiceListening(false);
+                    } else {
+                      void startFullscreenVoiceQuestion();
+                    }
+                  }}
+                >
+                  <Text style={styles.floatingVoiceIcon}>{voiceListening ? "🎙️" : "🎤"}</Text>
+                  <Text style={styles.floatingVoiceLabel}>
+                    {voiceListening ? "Listening…" : "Speak"}
+                  </Text>
+                </Pressable>
+                {question.trim() ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Send spoken question to Theodore"
+                    style={({ pressed }) => [
+                      styles.floatingAskBtn,
+                      pressed && styles.hostBtnPressed,
+                    ]}
+                    disabled={busy}
+                    onPress={() => void submitFullscreenVoiceQuestion()}
+                  >
+                    <Text style={styles.floatingVoiceLabel}>✓ Ask</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={inQueue ? "Lower your hand" : "Raise your hand to ask by voice"}
+                style={({ pressed }) => [
+                  styles.floatingVoiceBtn,
+                  inQueue && styles.floatingVoiceBtnQueued,
+                  pressed && styles.hostBtnPressed,
+                ]}
+                disabled={busy}
+                onPress={() => void toggleHand()}
+              >
+                <Text style={styles.floatingVoiceIcon}>✋</Text>
+                <Text style={styles.floatingVoiceLabel}>
+                  {inQueue ? `Queued #${myPos}` : "Ask"}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        ) : null}
         {muted ? <Text style={styles.mutedHint}>Audio muted — tap 🔊 up top to hear the teacher</Text> : null}
         {hasFloor ? (
           <Text style={styles.floorChip}>🎤 You&apos;re live — open &ldquo;More&rdquo; to finish your turn</Text>
@@ -830,6 +1061,7 @@ export default function LiveRoomScreen({
         />
         <IconTab icon="😀" onPress={() => setSheet("react")} />
         <IconTab icon="🎁" onPress={() => setSheet("gifts")} />
+        <IconTab icon="🎮" onPress={() => setSheet("games")} />
         <IconTab icon="⋯" onPress={() => setSheet("more")} />
       </View>
 
@@ -934,8 +1166,113 @@ export default function LiveRoomScreen({
         </View>
       </BottomSheet>
 
+      {/* ---- Group learning games ---- */}
+      <BottomSheet visible={sheet === "games"} title="Group learning game" onClose={() => setSheet(null)}>
+        {!room?.group_game ? (
+          canModerate ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.meta}>Start a synchronized game for everybody.</Text>
+              {GAME_LIBRARY.map((game) => (
+                <PrimaryButton
+                  key={game.type}
+                  label={game.label}
+                  onPress={() => void liveRoomStartGame(
+                    roomId, modKey, game.type, game.prompt, game.answer, 25,
+                  ).then((r) => setRoom(r.room))}
+                />
+              ))}
+            </View>
+          ) : <Text style={styles.meta}>Waiting for Theodore or the class admin to start a game.</Text>
+        ) : (
+          <View style={styles.sheetSection}>
+            <Text style={styles.gameKind}>
+              {room.group_game.type.replaceAll("_", " ")} · {room.group_game.points} points
+            </Text>
+            <Text style={styles.gamePrompt}>{room.group_game.prompt}</Text>
+            {room.group_game.masked ? <Text style={styles.gameMasked}>{room.group_game.masked}</Text> : null}
+            {room.group_game.scrambled ? <Text style={styles.gameMasked}>{room.group_game.scrambled}</Text> : null}
+            {room.group_game.type === "tic_tac_toe" ? (
+              <View style={styles.gameBoard}>
+                {(room.group_game.board ?? Array(9).fill("")).map((mark, i) => (
+                  <Pressable
+                    key={i}
+                    style={styles.gameCell}
+                    disabled={Boolean(mark) || room.group_game?.status !== "active" || busy}
+                    onPress={() => {
+                      if (!gameResponse.trim() || !participantId) return;
+                      void liveRoomPlayGame(roomId, participantId, {
+                        answer: gameResponse.trim(), cell: i,
+                      }).then((r) => { setRoom(r.room); setGameResponse(""); });
+                    }}
+                  >
+                    <Text style={styles.gameCellText}>{mark || "·"}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {room.group_game.status === "active" ? (
+              <View style={styles.controls}>
+                <TextInput
+                  value={gameResponse}
+                  onChangeText={setGameResponse}
+                  placeholder={room.group_game.type === "hangman" ? "One letter" : "Your answer"}
+                  placeholderTextColor={theme.colors.muted}
+                  maxLength={room.group_game.type === "hangman" ? 1 : 200}
+                  style={styles.input}
+                />
+                {room.group_game.type !== "tic_tac_toe" ? (
+                  <PrimaryButton
+                    label="Play"
+                    onPress={() => {
+                      if (!participantId || !gameResponse.trim()) return;
+                      const action = room.group_game?.type === "hangman"
+                        ? { letter: gameResponse.trim().slice(0, 1) }
+                        : { answer: gameResponse.trim() };
+                      void liveRoomPlayGame(roomId, participantId, action)
+                        .then((r) => { setRoom(r.room); setGameResponse(""); });
+                    }}
+                  />
+                ) : null}
+              </View>
+            ) : (
+              <Text style={styles.gameWinner}>
+                {room.group_game.status === "won" ? `🏆 ${room.group_game.winner_name} wins!` : "Game complete"}
+              </Text>
+            )}
+          </View>
+        )}
+      </BottomSheet>
+
       {/* ---- Gifts ---- */}
       <BottomSheet visible={sheet === "gifts"} title={`Gifts · ${giftBalance} pts`} onClose={() => setSheet(null)}>
+        <Text style={styles.cardTitle}>Send to</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftRecipients}>
+          {room?.host ? (
+            <Pressable
+              style={[
+                styles.giftRecipient,
+                (!giftRecipientId || giftRecipientId === room.host.id) && styles.giftRecipientActive,
+              ]}
+              onPress={() => setGiftRecipientId(room.host.id)}
+            >
+              <Text style={styles.giftRecipientText}>🎓 {room.host.name}</Text>
+            </Pressable>
+          ) : null}
+          {(room?.participants ?? [])
+            .filter((p) => p.role !== "host" && p.id !== participantId)
+            .map((p) => (
+              <Pressable
+                key={p.id}
+                style={[
+                  styles.giftRecipient,
+                  giftRecipientId === p.id && styles.giftRecipientActive,
+                ]}
+                onPress={() => setGiftRecipientId(p.id)}
+              >
+                <Text style={styles.giftRecipientText}>👤 {p.name}</Text>
+              </Pressable>
+            ))}
+        </ScrollView>
         <View style={styles.giftGrid}>
           {giftCatalog.map((g) => (
             <Pressable
@@ -945,7 +1282,12 @@ export default function LiveRoomScreen({
               onPress={async () => {
                 setBusy(true);
                 try {
-                  const res = await liveRoomSendGift(roomId, participantId, g.id);
+                  const res = await liveRoomSendGift(
+                    roomId,
+                    participantId,
+                    g.id,
+                    giftRecipientId || room?.host?.id || "",
+                  );
                   setRoom(res.room);
                   setGiftBalance(res.sender_balance);
                   setSheet(null);
@@ -1202,6 +1544,57 @@ const styles = StyleSheet.create({
   heroContent: { gap: 10, paddingBottom: 8 },
   presenterTitle: { color: theme.colors.text, fontSize: 26, fontWeight: "800", lineHeight: 32 },
   presenterBody: { color: theme.colors.text, fontSize: 17, lineHeight: 25, opacity: 0.94 },
+  floatingVoice: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 20,
+  },
+  floatingVoiceBtn: {
+    minWidth: 72,
+    minHeight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(124,58,237,0.94)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  floatingVoiceBtnQueued: { backgroundColor: "rgba(180,83,9,0.96)" },
+  floatingVoiceBtnListening: { backgroundColor: "rgba(220,38,38,0.96)" },
+  floatingGiftBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(190,24,93,0.96)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  floatingGameBtn: {
+    width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(109,40,217,0.96)", borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  floatingAskBtn: {
+    minHeight: 58,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(5,150,105,0.96)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  floatingVoiceIcon: { fontSize: 22 },
+  floatingVoiceLabel: { color: "#fff", fontSize: 12, fontWeight: "800" },
   mutedHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
   floorChip: {
     color: "#e9d5ff", fontSize: 13, fontWeight: "600",
@@ -1286,11 +1679,35 @@ const styles = StyleSheet.create({
   reactPickEmoji: { fontSize: 30 },
 
   giftGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  giftRecipients: { gap: 8, paddingBottom: 10 },
+  giftRecipient: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  giftRecipientActive: {
+    backgroundColor: "rgba(190,24,93,0.65)",
+    borderColor: "#f9a8d4",
+  },
+  giftRecipientText: { color: theme.colors.text, fontSize: 13, fontWeight: "700" },
   giftItem: {
     width: "30%", padding: 8, borderRadius: 10,
     backgroundColor: "rgba(0,0,0,0.25)", alignItems: "center",
   },
   giftEmoji: { fontSize: 24 },
+  gameKind: { color: "#c4b5fd", fontSize: 12, fontWeight: "800", textTransform: "uppercase" },
+  gamePrompt: { color: theme.colors.text, fontSize: 22, lineHeight: 28, fontWeight: "900", textAlign: "center" },
+  gameMasked: { color: "#fff", fontSize: 32, letterSpacing: 5, textAlign: "center", fontWeight: "800" },
+  gameBoard: { width: 270, alignSelf: "center", flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  gameCell: {
+    width: 86, height: 86, borderRadius: 12, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(124,58,237,.22)", borderWidth: 1, borderColor: "#8b5cf6",
+  },
+  gameCellText: { color: "#fff", fontSize: 34, fontWeight: "900" },
+  gameWinner: { color: "#fbbf24", fontSize: 24, fontWeight: "900", textAlign: "center" },
 
   chatLine: { color: theme.colors.text, fontSize: 14, marginBottom: 8, lineHeight: 20 },
   chatName: { color: "#c4b5fd", fontWeight: "600" },
@@ -1307,9 +1724,25 @@ const styles = StyleSheet.create({
     position: "absolute", top: 8, alignSelf: "center", zIndex: 20,
     backgroundColor: "rgba(15,7,32,0.92)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
   },
-  giftBanner: {
-    position: "absolute", top: 48, alignSelf: "center", zIndex: 20,
-    backgroundColor: "rgba(219,39,119,0.85)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
+  giftSpectacular: {
+    position: "absolute",
+    top: "32%",
+    alignSelf: "center",
+    zIndex: 100,
+    maxWidth: "88%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  giftSpectacularEmoji: { fontSize: 132 },
+  giftSpectacularLabel: {
+    color: "#fff",
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "900",
+    textAlign: "center",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   toastText: { color: "#fff", fontSize: 13 },
   hostAnswer: {

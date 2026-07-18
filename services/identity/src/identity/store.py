@@ -871,7 +871,27 @@ class AccountStore:
             if payload.get("timeline"):
                 prof.goal_timeline = str(payload["timeline"])
             adapt.profile_revision += 1
+        elif et == "readiness":
+            dims = payload.get("readiness_dimensions") or payload.get("lx_components")
+            if isinstance(dims, dict):
+                raw["readiness_dimensions"] = {
+                    k: float(v) for k, v in dims.items() if isinstance(v, (int, float))
+                }
+                raw["lx_components"] = dict(raw["readiness_dimensions"])
+            if "physical_skill" in payload:
+                raw["physical_skill"] = max(0.0, min(1.0, float(payload["physical_skill"])))
+            if "lx_score" in payload:
+                adapt.record_lx_sample(float(payload["lx_score"]))
         prof.adaptation = adapt.to_dict()
+        # Preserve readiness fields that the adaptation dataclass does not own.
+        if et == "readiness":
+            merged = dict(prof.adaptation or {})
+            if "readiness_dimensions" in raw:
+                merged["readiness_dimensions"] = raw["readiness_dimensions"]
+                merged["lx_components"] = raw.get("lx_components") or raw["readiness_dimensions"]
+            if "physical_skill" in raw:
+                merged["physical_skill"] = raw["physical_skill"]
+            prof.adaptation = merged
         self._persist()
         return prof
 

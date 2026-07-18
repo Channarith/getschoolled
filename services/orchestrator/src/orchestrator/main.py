@@ -1065,6 +1065,37 @@ class LiveRoomJoinRequest(BaseModel):
     name: str
     identity: str = ""
     language: str = ""
+    student_id: str = ""
+    readiness_score: float = 0.0
+    readiness_band: str = ""
+
+
+class XrLabEnableRequest(BaseModel):
+    moderator_key: str = ""
+    participant_id: str = ""
+    lesson_id: str = ""
+    course_id: str = ""
+    title: str = ""
+    enabled: bool = True
+
+
+class XrObservationItem(BaseModel):
+    seq: int = 0
+    action: str
+    target_id: str = ""
+    hand: str = ""
+    confidence: float = 1.0
+    hold_ms: int = 0
+    ts_ms: int = 0
+    pose: dict = {}
+
+
+class XrCompleteRequest(BaseModel):
+    participant_id: str
+    student_id: str = ""
+    client_kind: str = "webxr"
+    observations: list[XrObservationItem] = []
+    lab_id: str = ""
 
 
 class LiveRoomChatRequest(BaseModel):
@@ -1137,6 +1168,28 @@ class LiveRoomGiftRequest(BaseModel):
 class LiveRoomReactionRequest(BaseModel):
     participant_id: str
     emoji: str
+
+
+class GroupGameStartRequest(BaseModel):
+    moderator_key: str = ""
+    participant_id: str = ""
+    game_type: str = "quiz_race"
+    prompt: str
+    answer: str
+    points: int = 25
+
+
+class GroupGameActionRequest(BaseModel):
+    participant_id: str
+    answer: str = ""
+    cell: int = -1
+    letter: str = ""
+
+
+class MemoryAidRequest(BaseModel):
+    content: str
+    topic: str = "this lesson"
+    preferred_strategy: str = "auto"
 
 
 class LiveRoomFollowRequest(BaseModel):
@@ -1479,6 +1532,9 @@ def join_live_room(
             identity=req.identity,
             account_id=account_id,
             language=req.language,
+            student_id=req.student_id,
+            readiness_band=req.readiness_band,
+            readiness_score=req.readiness_score,
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
@@ -1515,6 +1571,189 @@ def join_live_room(
         "is_admin": participant.is_admin,
         "moderator_key": room.moderator_key if participant.is_admin else "",
     }
+
+
+def _refresh_audience_profile(room_id: str) -> dict:
+    """Rebuild privacy-safe audience aggregates from participant readiness fields."""
+    from aoep_shared.audience_profile import (
+        LearnerReadinessSnapshot,
+        aggregate_audience,
+    )
+
+    store = _live_rooms()
+    room = store.require(room_id)
+    snaps = []
+    for p in room.participants.values():
+        if p.is_host:
+            continue
+        if not p.readiness_score and not p.readiness_band:
+            continue
+        snaps.append(
+            LearnerReadinessSnapshot(
+                student_id=p.student_id,
+                account_id=p.account_id,
+                readiness_score=float(p.readiness_score or 0),
+                band=p.readiness_band or "developing",
+                preferred_language=p.language or "en",
+            )
+        )
+    profile = aggregate_audience(snaps).to_prompt_safe()
+    store.set_audience_profile(room_id, profile)
+    return profile
+
+
+@app.post("/api/live-rooms/{room_id}/xr/enable")
+def live_room_xr_enable(
+    room_id: str,
+    req: XrLabEnableRequest,
+    background: BackgroundTasks,
+) -> dict:
+    """Enable or disable the XR demonstration lab for a live room (host/admin)."""
+    from aoep_shared.xr import default_lab_for_lesson  # noqa: E402
+    from aoep_shared.live_room_ws import ws_lab  # noqa: E402
+
+    store = _live_rooms()
+    try:
+        room = _ensure_room_or_404(room_id)
+        if req.moderator_key:
+            room.verify_moderator(req.moderator_key)
+        elif req.participant_id:
+            actor = room.get_participant(req.participant_id)
+            if not actor.is_admin and not actor.is_host:
+                raise LiveRoomError("only the class admin can enable XR lab")
+        else:
+            raise LiveRoomError("moderator_key or admin participant_id required")
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+
+    lab = default_lab_for_lesson(
+        lesson_id=req.lesson_id or room.lesson_id,
+        course_id=req.course_id or room.class_id,
+        title=req.title or f"Lab: {room.title}",
+    )
+    store.enable_xr_lab(room_id, lab.to_dict() if req.enabled else {}, enabled=req.enabled)
+    room = store.require(room_id)
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_lab(lab.to_dict() if req.enabled else {}, room_id=room_id, enabled=req.enabled),
+    )
+    return {"room": room.to_dict(), "lab": lab.to_dict() if req.enabled else None}
+
+
+@app.get("/api/live-rooms/{room_id}/xr/lab")
+def live_room_xr_lab(room_id: str) -> dict:
+    room = _ensure_room_or_404(room_id)
+    return {
+        "enabled": bool(room.xr_lab_enabled),
+        "lab": room.xr_lab,
+        "protocol_version": (room.xr_lab or {}).get("protocol_version", "aoep.xr.v1"),
+        "attempts": room.xr_attempts,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/xr/complete")
+def live_room_xr_complete(
+    room_id: str,
+    req: XrCompleteRequest,
+    background: BackgroundTasks,
+) -> dict:
+    """Score a bounded observation batch against the room lab rubric (deterministic)."""
+    from aoep_shared.xr import (  # noqa: E402
+        XrLabDefinition,
+        XrRubricStep,
+        observation_from_dict,
+        score_attempt,
+        default_lab_for_lesson,
+    )
+    from aoep_shared.live_room_ws import ws_lab_score  # noqa: E402
+
+    if len(req.observations) > 120:
+        raise HTTPException(status_code=400, detail="too many observations (max 120)")
+
+    store = _live_rooms()
+    try:
+        room = _ensure_room_or_404(room_id)
+        participant = room.get_participant(req.participant_id)
+    except (KeyError, LiveRoomError) as exc:
+        raise _live_room_http_error(exc)
+
+    raw_lab = room.xr_lab
+    if not room.xr_lab_enabled or not raw_lab:
+        # Allow complete against default lab when physical assessment is used
+        # outside an explicitly enabled room (solo / fallback clients).
+        lab_def = default_lab_for_lesson(
+            lesson_id=room.lesson_id, course_id=room.class_id, title=room.title
+        )
+    else:
+        steps = [
+            XrRubricStep(**s) if isinstance(s, dict) else s
+            for s in (raw_lab.get("steps") or [])
+        ]
+        lab_def = XrLabDefinition(
+            lab_id=str(raw_lab.get("lab_id") or req.lab_id or "lab"),
+            title=str(raw_lab.get("title") or "XR Lab"),
+            course_id=str(raw_lab.get("course_id") or ""),
+            lesson_id=str(raw_lab.get("lesson_id") or room.lesson_id),
+            protocol_version=str(raw_lab.get("protocol_version") or "aoep.xr.v1"),
+            pass_threshold=float(raw_lab.get("pass_threshold") or 0.7),
+            provisional=bool(raw_lab.get("provisional", True)),
+            steps=steps,
+        )
+
+    observations = [observation_from_dict(o.model_dump()) for o in req.observations]
+    result = score_attempt(
+        lab_def,
+        observations,
+        student_id=req.student_id or participant.student_id,
+        room_id=room_id,
+        client_kind=req.client_kind,
+    )
+    summary = {
+        "outcome": result.outcome,
+        "score": result.score,
+        "provisional": result.provisional,
+        "client_kind": result.client_kind,
+        "completed_at": result.completed_at,
+        "attempt_id": result.attempt_id,
+        "lab_id": result.lab_id,
+        "evidence_summary": result.evidence_summary,
+    }
+    store.record_xr_attempt(room_id, req.participant_id, summary)
+    # Physical skill hint into participant readiness band (local cache only).
+    room = store.require(room_id)
+    participant = room.get_participant(req.participant_id)
+    if result.outcome == "pass":
+        participant.readiness_score = max(float(participant.readiness_score or 0), 80.0)
+        participant.readiness_band = "ready"
+    elif result.outcome == "needs_work":
+        if not participant.readiness_band:
+            participant.readiness_band = "needs_support"
+    store.set_audience_profile(room_id, dict(room.audience_profile or {}))
+    try:
+        _refresh_audience_profile(room_id)
+    except Exception:
+        pass
+    _schedule_live_broadcast(
+        background,
+        room_id,
+        ws_lab_score(summary, room_id=room_id, participant_id=req.participant_id),
+    )
+    return {
+        "result": result.to_dict(),
+        "room": store.require(room_id).to_dict(),
+    }
+
+
+@app.get("/api/live-rooms/{room_id}/audience-profile")
+def live_room_audience_profile(room_id: str, refresh: bool = False) -> dict:
+    """Privacy-safe audience readiness aggregates for Theodore / admins."""
+    room = _ensure_room_or_404(room_id)
+    if refresh or not room.audience_profile:
+        profile = _refresh_audience_profile(room_id)
+    else:
+        profile = dict(room.audience_profile)
+    return {"room_id": room_id, "audience_profile": profile}
 
 
 @app.post("/api/live-rooms/{room_id}/media-token")
@@ -2060,6 +2299,16 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
         # Answer in the asker's language: explicit request wins, else the language
         # they joined with (profile/device), else English.
         lang = (req.language or "").strip() or learner.language or "en"
+        # Attach privacy-safe audience profile to the teaching session for Theodore.
+        try:
+            session = sessions.store.get(room.session_id)
+            if session is not None:
+                session.audience_profile = dict(room.audience_profile or {})
+                if not session.audience_profile:
+                    session.audience_profile = _refresh_audience_profile(room_id)
+                sessions.store.save(session)
+        except Exception:
+            pass
         answer = sessions.ask(room.session_id, req.question, language=lang)
         host_msg = store.post_host_message(
             room_id,
@@ -2280,6 +2529,110 @@ def delete_live_room(room_id: str, authorization: str = Header(default="")) -> d
 @app.get("/api/live-rooms/gifts/catalog")
 def live_room_gift_catalog() -> dict:
     return {"gifts": _live_rooms().gift_catalog()}
+
+
+@app.get("/api/live-rooms/games/catalog")
+def live_room_game_catalog() -> dict:
+    from aoep_shared.live_room_games import GAME_LIBRARY
+
+    return {"games": list(GAME_LIBRARY)}
+
+
+@app.get("/api/teaching/memory-aids/catalog")
+def memory_aid_catalog() -> dict:
+    from aoep_shared.memory_teaching import MEMORY_STRATEGIES
+
+    return {"strategies": list(MEMORY_STRATEGIES)}
+
+
+@app.post("/api/teaching/memory-aids/generate")
+def generate_memory_aid(req: MemoryAidRequest) -> dict:
+    from aoep_shared.memory_teaching import build_memory_aid
+
+    try:
+        return build_memory_aid(
+            req.content,
+            topic=req.topic,
+            preferred=req.preferred_strategy,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/live-rooms/{room_id}/games/start")
+def live_room_game_start(
+    room_id: str,
+    req: GroupGameStartRequest,
+    background: BackgroundTasks,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_games import public_game
+    from aoep_shared.live_room_ws import ws_game
+
+    store = _live_rooms()
+    try:
+        room = _ensure_room_or_404(room_id)
+        if _request_is_admin(authorization):
+            pass
+        elif req.moderator_key:
+            room.verify_moderator(req.moderator_key)
+        elif req.participant_id:
+            actor = room.get_participant(req.participant_id)
+            if not actor.is_admin and not actor.is_host:
+                raise LiveRoomError("only the class host/admin can start games")
+        else:
+            raise LiveRoomError("moderator authorization required")
+        room = store.start_group_game(
+            room_id,
+            game_type=req.game_type,
+            prompt=req.prompt,
+            answer=req.answer,
+            points=req.points,
+        )
+    except (KeyError, LiveRoomError, ValueError) as exc:
+        raise _live_room_http_error(exc)
+    game = public_game(room.group_game) or {}
+    _schedule_live_broadcast(
+        background, room_id, ws_game(game, room_id=room_id, room=room.to_dict())
+    )
+    return {"game": game, "room": room.to_dict()}
+
+
+@app.post("/api/live-rooms/{room_id}/games/action")
+def live_room_game_action(
+    room_id: str,
+    req: GroupGameActionRequest,
+    background: BackgroundTasks,
+) -> dict:
+    from aoep_shared.live_room_games import public_game
+    from aoep_shared.live_room_rewards import earn_rewards_internal
+    from aoep_shared.live_room_ws import ws_game
+
+    store = _live_rooms()
+    try:
+        room, event = store.play_group_game(
+            room_id,
+            req.participant_id,
+            answer=req.answer,
+            cell=req.cell,
+            letter=req.letter,
+        )
+        participant = room.get_participant(req.participant_id)
+    except (KeyError, LiveRoomError, ValueError) as exc:
+        raise _live_room_http_error(exc)
+    if event.get("points") and participant.account_id:
+        earn_rewards_internal(
+            participant.account_id,
+            int(event["points"]),
+            reason=f"group_game:{(room.group_game or {}).get('type', 'game')}",
+            ref=room_id,
+        )
+    game = public_game(room.group_game) or {}
+    _schedule_live_broadcast(
+        background, room_id,
+        ws_game(game, room_id=room_id, event=event, room=room.to_dict())
+    )
+    return {"game": game, "event": event, "room": room.to_dict()}
 
 
 @app.get("/api/live-rooms/{room_id}/gift-balance")

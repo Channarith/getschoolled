@@ -67,3 +67,13 @@ def test_admin_requires_secret(tmp_path, monkeypatch):
     app.state.bug_reports = BugReportStore.open(tmp_path / "bugs2")
     client = TestClient(app)
     assert client.get("/admin/bugs").status_code == 401
+
+
+def test_submit_respects_feature_flag(tmp_path):
+    app.state.bug_reports = BugReportStore.open(tmp_path / "bugs3")
+    app.state.flags.set_flag("engagement.in_app_bug_reporter", value=False)
+    try:
+        response = TestClient(app).post("/bugs", json={"description": "hidden"})
+        assert response.status_code == 404
+    finally:
+        app.state.flags.set_flag("engagement.in_app_bug_reporter", value=True)

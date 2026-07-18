@@ -17,6 +17,10 @@ class LiveRoomWsEvent(str, Enum):
     FOLLOW = "follow"
     VIEWER_COUNT = "viewer_count"
     HOST_DELTA = "host_delta"
+    LAB = "lab"
+    LAB_SCORE = "lab_score"
+    AUDIENCE = "audience"
+    GAME = "game"
 
 
 def ws_event(kind: LiveRoomWsEvent, payload: Dict[str, Any], *, room_id: str = "") -> dict:
@@ -80,6 +84,37 @@ def ws_follow(following: bool, follower_count: int, *, room_id: str = "") -> dic
 
 def ws_viewer_count(count: int, *, room_id: str = "") -> dict:
     return ws_event(LiveRoomWsEvent.VIEWER_COUNT, {"viewer_count": count}, room_id=room_id)
+
+
+def ws_lab(lab: dict, *, room_id: str = "", enabled: bool = True) -> dict:
+    return ws_event(
+        LiveRoomWsEvent.LAB,
+        {"enabled": enabled, "lab": lab},
+        room_id=room_id,
+    )
+
+
+def ws_lab_score(summary: dict, *, room_id: str = "", participant_id: str = "") -> dict:
+    return ws_event(
+        LiveRoomWsEvent.LAB_SCORE,
+        {"participant_id": participant_id, "attempt": summary},
+        room_id=room_id,
+    )
+
+
+def ws_audience(profile: dict, *, room_id: str = "") -> dict:
+    return ws_event(LiveRoomWsEvent.AUDIENCE, {"audience_profile": profile}, room_id=room_id)
+
+
+def ws_game(
+    game: dict, *, room_id: str = "", event: Optional[dict] = None,
+    room: Optional[dict] = None,
+) -> dict:
+    return ws_event(
+        LiveRoomWsEvent.GAME,
+        {"game": game, "event": event or {}, "room": room},
+        room_id=room_id,
+    )
 
 
 def ws_host_delta(

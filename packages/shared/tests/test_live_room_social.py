@@ -35,6 +35,23 @@ def test_gift_catalog_and_send():
     assert any("🌹" in m.text for m in room.chat)
 
 
+def test_gift_can_target_another_student():
+    ledger = LiveRoomGiftLedger(default_balance=1000)
+    store = LiveRoomStore(gift_ledger=ledger)
+    room_id = _open_room(store)
+    sender = store.join(room_id, "Ada", identity="ada-target")
+    recipient = store.join(room_id, "Grace", identity="grace-target")
+    gift, _ = store.send_gift(
+        room_id,
+        sender.id,
+        gift_id="star",
+        recipient_participant_id=recipient.id,
+    )
+    assert gift.recipient_participant_id == recipient.id
+    assert gift.recipient_name == "Grace"
+    assert "to Grace" in store.require(room_id).chat[-1].text
+
+
 def test_gift_insufficient_points():
     ledger = LiveRoomGiftLedger(default_balance=5)
     store = LiveRoomStore(gift_ledger=ledger)

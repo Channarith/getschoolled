@@ -11,6 +11,7 @@ import {
 } from "../lib/bugReport";
 import { installClientLog } from "../lib/clientLog";
 import { friendlyError } from "../lib/errors";
+import { useFlag } from "../lib/flags";
 
 const CATEGORIES = [
   { id: "bug", label: "Something broke" },
@@ -20,6 +21,7 @@ const CATEGORIES = [
 ] as const;
 
 export default function ReportBugPage() {
+  const enabled = useFlag<boolean>("engagement.in_app_bug_reporter", true);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("bug");
   const [shots, setShots] = useState<BugScreenshotUpload[]>([]);
@@ -31,6 +33,16 @@ export default function ReportBugPage() {
   useEffect(() => {
     installClientLog();
   }, []);
+
+  if (!enabled) {
+    return (
+      <main className="container" style={{ maxWidth: 640 }}>
+        <h1>Bug reporting is unavailable</h1>
+        <p className="muted">Please use the Contact page if you still need help.</p>
+        <Link href="/contact">Contact support</Link>
+      </main>
+    );
+  }
 
   async function onPickFile(file: File | null) {
     if (!file) return;

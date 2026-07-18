@@ -60,6 +60,7 @@ scripts/build_architecture_pdf.py (re-run it after any architecture change).
                      groundedness, HIL gating, disclosure, embodiment;
                      Salareen live rooms + group classes + solo 1:1 (LiveKit
                      grid, Q&A speaking mutex, auto start/advance/end),
+                     XR lab assess (aoep.xr.v1) + audience readiness for Theodore,
                      training/cognitive agent APIs, assessment
   speech       8002  language coverage/routing, ASR/translation/TTS
   perception   8003  consent-gated face recognition + attention/engagement

@@ -46,7 +46,7 @@ mobile_deps_has_native_stack() {
   [ -f "$root/node_modules/react-native/gradle/libs.versions.toml" ] || return 1
   # expo-image-picker is an app.json config plugin — if package.json lists it but
   # node_modules is stale, `expo prebuild` fails with "Failed to resolve plugin".
-  for d in expo-asset expo-device expo-localization expo-image-picker; do
+  for d in expo-asset expo-device expo-localization expo-image-picker react-native-view-shot; do
     [ -d "$root/node_modules/$d" ] || return 1
   done
   return 0

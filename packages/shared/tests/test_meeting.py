@@ -31,8 +31,8 @@ def _lesson():
 
 
 def test_estimate_and_plan():
-    assert estimate_seconds("") >= 3.0
-    assert estimate_seconds("one two three four five", wpm=150) > 0
+    assert estimate_seconds("") >= 4.0
+    assert estimate_seconds("one two three four five", wpm=125) > 0
     plan = build_presentation_plan(_lesson())
     assert len(plan.steps) == 3
     assert plan.total_seconds > 0

@@ -58,6 +58,11 @@ export default function AdminPage() {
   const [errorsFor, setErrorsFor] = useState<string>("");
   const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [readinessSummary, setReadinessSummary] = useState<{
+    count?: number;
+    audience?: Record<string, unknown>;
+    learners?: Array<Record<string, unknown>>;
+  } | null>(null);
   const [adRevenue, setAdRevenue] = useState<AdRevenueReport | null>(null);
   const [bugReports, setBugReports] = useState<BugReportRow[] | null>(null);
 
@@ -137,9 +142,25 @@ export default function AdminPage() {
   async function loadBugReports() {
     try {
       const body = await adminListBugReports(secret, 40);
-      setBugReports(body.reports);
+      setBugReports(body.reports ?? []);
     } catch (e) {
       setError(`Could not load bug reports: ${String(e)}`);
+    }
+  }
+
+  async function loadReadiness() {
+    try {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (secret) headers["X-Admin-Secret"] = secret;
+      if (getToken()) headers.Authorization = `Bearer ${getToken()}`;
+      const res = await fetch(`${SERVICE_URLS.identity}/admin/readiness/summary`, {
+        headers,
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setReadinessSummary(await res.json());
+    } catch (e) {
+      setError(`Could not load readiness summary: ${String(e)}`);
     }
   }
 
@@ -218,6 +239,47 @@ export default function AdminPage() {
       {error && <p style={{ color: "#b00" }}>{error}</p>}
 
       <MascotPreviewPanel flags={flags} onPatch={patch} busy={busy} />
+
+      <section style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          <h2 style={{ fontSize: 18, margin: 0, flex: 1 }}>Audience readiness (XR / Theodore)</h2>
+          <button
+            type="button"
+            onClick={() => void loadReadiness()}
+            style={{ padding: "6px 12px", cursor: "pointer" }}
+          >
+            Refresh
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: "#666" }}>
+          Composite readiness + dimensions for learners Theodore adapts to. Peer scores stay
+          private; this view is admin-only.
+        </p>
+        {readinessSummary ? (
+          <div style={{ fontSize: 14 }}>
+            <p>
+              Learners: <strong>{readinessSummary.count ?? 0}</strong>
+              {readinessSummary.audience && (
+                <>
+                  {" "}· mean readiness{" "}
+                  <strong>{String((readinessSummary.audience as { mean_readiness?: number }).mean_readiness ?? "—")}</strong>
+                </>
+              )}
+            </p>
+            <pre style={{ background: "#f7f7f7", padding: 12, overflow: "auto", fontSize: 12 }}>
+              {JSON.stringify(readinessSummary.audience ?? {}, null, 2)}
+            </pre>
+            <details>
+              <summary>Per-learner snapshots (up to 100)</summary>
+              <pre style={{ background: "#f7f7f7", padding: 12, overflow: "auto", fontSize: 11 }}>
+                {JSON.stringify(readinessSummary.learners ?? [], null, 2)}
+              </pre>
+            </details>
+          </div>
+        ) : (
+          <p style={{ color: "#666", fontSize: 13 }}>Click Refresh to load readiness aggregates from identity.</p>
+        )}
+      </section>
 
       <section style={{ marginTop: 16 }}>
         <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
@@ -488,6 +550,7 @@ export default function AdminPage() {
                 <th style={{ padding: 6 }}>Description</th>
                 <th style={{ padding: 6 }}>Logs</th>
                 <th style={{ padding: 6 }}>Shots</th>
+                <th style={{ padding: 6 }}>Delivery</th>
               </tr>
             </thead>
             <tbody>
@@ -501,7 +564,18 @@ export default function AdminPage() {
                   <td style={{ padding: 6 }}><code>{r.screen || "—"}</code></td>
                   <td style={{ padding: 6 }}>{r.category}</td>
                   <td style={{ padding: 6, maxWidth: 280 }}>{r.description}</td>
-                  <td style={{ padding: 6 }}>{r.logs?.length ?? 0}</td>
+                  <td style={{ padding: 6, minWidth: 90 }}>
+                    <div>{r.logs?.length ?? 0} events</div>
+                    <details>
+                      <summary style={{ cursor: "pointer" }}>Diagnostics</summary>
+                      <pre style={{
+                        maxWidth: 520, maxHeight: 320, overflow: "auto",
+                        whiteSpace: "pre-wrap", fontSize: 11,
+                      }}>
+                        {JSON.stringify({ snapshot: r.snapshot, logs: r.logs }, null, 2)}
+                      </pre>
+                    </details>
+                  </td>
                   <td style={{ padding: 6 }}>
                     {(r.attachments ?? []).map((name) => (
                       <div key={name}>
@@ -528,10 +602,19 @@ export default function AdminPage() {
                       </div>
                     ))}
                   </td>
+                  <td style={{ padding: 6 }}>
+                    {r.external_url ? (
+                      <a href={r.external_url} target="_blank" rel="noreferrer">GitHub issue ↗</a>
+                    ) : r.delivery_error ? (
+                      <span title={r.delivery_error}>QA inbox (GitHub retry needed)</span>
+                    ) : (
+                      <span>{r.destination || "QA inbox"}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {bugReports.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 8, color: "#666" }}>No reports yet.</td></tr>
+                <tr><td colSpan={8} style={{ padding: 8, color: "#666" }}>No reports yet.</td></tr>
               )}
             </tbody>
           </table>

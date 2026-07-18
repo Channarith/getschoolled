@@ -14,11 +14,25 @@ type ErrorUtilsHost = {
   };
 };
 
+type FetchHost = typeof globalThis & {
+  fetch?: typeof fetch;
+};
+
 function push(line: string) {
   const s = line.trim();
   if (!s) return;
   buffer.push(s);
   if (buffer.length > MAX_LINES) buffer.splice(0, buffer.length - MAX_LINES);
+}
+
+function safeRequestLabel(input: RequestInfo): string {
+  const raw = typeof input === "string" ? input : input.url;
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return raw.split("?")[0]?.slice(0, 300) || "[request]";
+  }
 }
 
 export function installClientLog(): void {
@@ -42,9 +56,29 @@ export function installClientLog(): void {
   if (eu?.setGlobalHandler) {
     const prev = eu.getGlobalHandler?.();
     eu.setGlobalHandler((err: Error, isFatal?: boolean) => {
-      push(`fatal=${Boolean(isFatal)}: ${err?.message || String(err)}`);
+      push(`fatal=${Boolean(isFatal)}: ${err?.stack || err?.message || String(err)}`);
       prev?.(err, isFatal);
     });
+  }
+
+  // Record API status/latency without bodies, headers, tokens, or query strings.
+  const host = globalThis as FetchHost;
+  const originalFetch = host.fetch?.bind(globalThis);
+  if (originalFetch) {
+    host.fetch = async (input: RequestInfo, init?: RequestInit) => {
+      const started = Date.now();
+      const method = (init?.method || (typeof Request !== "undefined" && input instanceof Request
+        ? input.method : "GET")).toUpperCase();
+      const label = safeRequestLabel(input);
+      try {
+        const response = await originalFetch(input, init);
+        push(`api ${method} ${label} -> ${response.status} ${Date.now() - started}ms`);
+        return response;
+      } catch (error) {
+        push(`api ${method} ${label} -> network-error ${Date.now() - started}ms: ${String(error)}`);
+        throw error;
+      }
+    };
   }
 }
 

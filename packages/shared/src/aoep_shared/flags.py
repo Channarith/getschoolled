@@ -20,10 +20,18 @@ from __future__ import annotations
 import enum
 import hashlib
 import hmac
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw not in {"0", "false", "no", "off"}
 
 
 class FlagType(str, enum.Enum):
@@ -62,6 +70,13 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Periodic Net Promoter Score survey for the platform."),
     FlagSpec("engagement.in_class_polls", FlagType.BOOL, False, "engagement",
              "Live in-class polls/quizzes during a lesson."),
+    FlagSpec("engagement.group_learning_games", FlagType.BOOL, True, "engagement",
+             "Twelve synchronized educational game formats in group classes."),
+    FlagSpec("engagement.mnemonic_memory_aids", FlagType.BOOL, True, "engagement",
+             "Teach recall-heavy content with mnemonics, vivid associations, "
+             "chunking, and retrieval brainteasers instead of repetition alone."),
+    FlagSpec("engagement.watch_window", FlagType.BOOL, False, "engagement",
+             "Expose the experimental course watch window and navigation entry."),
     FlagSpec("engagement.pulse_survey", FlagType.BOOL, True, "engagement",
              "Short 2–3 question check-ins every few slides during a live class; "
              "feeds LX scoring and teaching-strategy adaptation."),
@@ -69,6 +84,10 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Learning streaks and achievement badges."),
     FlagSpec("engagement.certificates", FlagType.BOOL, True, "engagement",
              "Issue completion certificates."),
+    FlagSpec("engagement.in_app_bug_reporter", FlagType.BOOL,
+             _env_bool("IN_APP_BUG_REPORTER_ENABLED", True), "engagement",
+             "Show the discreet floating bug-report button across web and mobile. "
+             "Enabled by default for user-driven QA; disable for production when ready."),
 
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",
@@ -96,12 +115,15 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Parental controls + content maturity gating for minors."),
     FlagSpec("access.beta_program", FlagType.PERCENT, 0, "access",
              "Gradual rollout of beta features to a percentage of users."),
+    FlagSpec("access.xr_immersive_class", FlagType.PERCENT, 0, "access",
+             "Percent rollout for WebXR / Quest immersive lab entry in group classes."),
     FlagSpec("access.max_students_per_account", FlagType.INT, 5, "access",
              "Maximum learner sub-profiles per account."),
 
     # --- monetization -------------------------------------------------------- #
-    FlagSpec("monetization.video_ads", FlagType.BOOL, True, "monetization",
-             "Serve pre/mid-roll video ads to ad-supported tiers."),
+    FlagSpec("monetization.video_ads", FlagType.BOOL, False, "monetization",
+             "Serve display, pre-roll, mid-roll, and mobile ads to ad-supported "
+             "tiers after ad delivery has been tested."),
     FlagSpec("monetization.dynamic_pricing", FlagType.BOOL, False, "monetization",
              "Experiment with dynamic course pricing."),
     FlagSpec("monetization.referral_program", FlagType.BOOL, False, "monetization",
@@ -123,6 +145,10 @@ FLAG_CATALOG: List[FlagSpec] = [
              admin_only=True),
     FlagSpec("ai.proctoring", FlagType.BOOL, False, "ai",
              "AI proctoring for graded assessments."),
+    FlagSpec("ai.physical_assessment", FlagType.BOOL, False, "ai",
+             "Score XR/lab physical demonstrations (provisional pass/needs_work)."),
+    FlagSpec("ai.audience_profile_adaptation", FlagType.BOOL, False, "ai",
+             "Theodore adapts pacing from privacy-safe audience readiness aggregates."),
 
     # --- UX experiments ------------------------------------------------------ #
     FlagSpec("ux.dark_mode", FlagType.BOOL, True, "ux",

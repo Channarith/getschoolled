@@ -25,7 +25,7 @@ const TAG = "salareen-expo-configure-provenance-fix";
 
 // Minimum iOS version must stay in sync with expo-build-properties
 // (app.config.js → ios.deploymentTarget) and platform :ios above.
-const IOS_MIN = "13.4";
+const IOS_MIN = "15.1";
 
 const PODFILE_SNIPPET = [
   "",

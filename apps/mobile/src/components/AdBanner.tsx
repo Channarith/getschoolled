@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from "react-native";
 
 import { bannerUnitId, tierShowsAds } from "../ads/config";
 import { recordAdClick, recordAdImpression } from "../ads/revenue";
+import { useFeatureFlag } from "../featureFlags";
 
 type BannerModule = typeof import("react-native-google-mobile-ads");
 
@@ -23,9 +24,11 @@ type Props = {
  * impression/click beacons into the revenue ledger. */
 export default function AdBanner({ tier, placement = "mobile-banner" }: Props) {
   const [ready, setReady] = useState(false);
+  const adsEnabled = useFeatureFlag("monetization.video_ads", false);
 
   useEffect(() => {
-    if (!adsModule || !tierShowsAds(tier)) {
+    if (!adsEnabled || !adsModule || !tierShowsAds(tier)) {
+      setReady(false);
       return;
     }
     let cancelled = false;
@@ -34,9 +37,9 @@ export default function AdBanner({ tier, placement = "mobile-banner" }: Props) {
       .then(() => { if (!cancelled) setReady(true); })
       .catch(() => { /* simulator without Play Services */ });
     return () => { cancelled = true; };
-  }, [tier]);
+  }, [adsEnabled, tier]);
 
-  if (!adsModule || !tierShowsAds(tier) || !ready) {
+  if (!adsEnabled || !adsModule || !tierShowsAds(tier) || !ready) {
     return null;
   }
 

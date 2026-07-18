@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   getLiveRoom,
@@ -33,11 +33,16 @@ import {
   liveRoomReaction,
   liveRoomSendGift,
   liveRoomFollowHost,
+  liveRoomPlayGame,
+  liveRoomStartGame,
   type LiveGiftCatalogItem,
+  type LiveGroupGame,
   type LiveParticipant,
   type LiveRoomJoin,
   type LiveRoomState,
 } from "../../lib/api";
+import { useFlag } from "../../lib/flags";
+import Link from "next/link";
 import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import LocalRecorder from "../../components/LocalRecorder";
@@ -227,23 +232,29 @@ function initials(name: string): string {
 function ParticipantTile({
   p,
   large,
+  fullscreen,
   localStream,
   liveKitTrack,
   hasFloor,
   slide,
   onContainerRef,
+  fullscreenControls,
   isMe,
   cameraOn,
   onToggleCamera,
 }: {
   p: LiveParticipant;
   large?: boolean;
+  fullscreen?: boolean;
   localStream?: MediaStream | null;
   liveKitTrack?: MediaStreamTrack | null;
   hasFloor?: boolean;
   slide?: { index: number; title: string; body: string; narration: string } | null;
   // Lets the parent grab this tile's element (e.g. to fullscreen the host).
   onContainerRef?: (el: HTMLDivElement | null) => void;
+  // Native fullscreen only renders descendants of the fullscreen element, so
+  // Q&A controls must live inside the host tile to remain available.
+  fullscreenControls?: ReactNode;
   isMe?: boolean;
   cameraOn?: boolean;
   onToggleCamera?: () => void;
@@ -257,9 +268,14 @@ function ParticipantTile({
     if (!el) return;
     if (liveKitTrack) {
       el.srcObject = new MediaStream([liveKitTrack]);
+    } else if (localStream) {
+      el.srcObject = localStream;
+    } else {
       return;
     }
-    if (localStream) el.srcObject = localStream;
+    // autoPlay only fires when the element first mounts; explicitly call play()
+    // so video resumes whenever srcObject is swapped (e.g. camera toggle).
+    void el.play().catch(() => undefined);
   }, [localStream, liveKitTrack]);
 
   const hasVideo = Boolean(liveKitTrack || localStream);
@@ -317,19 +333,38 @@ function ParticipantTile({
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            gap: 10,
-            padding: large ? "28px 32px" : "14px 16px",
+            gap: fullscreen ? "clamp(18px, 3vh, 36px)" : 10,
+            padding: fullscreen
+              ? "clamp(24px, 7vw, 96px)"
+              : large ? "28px 32px" : "14px 16px",
             color: "#fff",
             textAlign: "left",
+            overflowY: "auto",
           }}
         >
-          <div style={{ fontSize: 12, opacity: 0.85, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div style={{
+            fontSize: fullscreen ? "clamp(16px, 2.5vw, 30px)" : 12,
+            opacity: 0.85,
+            textTransform: "uppercase",
+            letterSpacing: fullscreen ? 1 : 0.5,
+          }}>
             🎓 Theodore · Slide {slide.index + 1}
           </div>
-          <div style={{ fontSize: large ? 26 : 18, fontWeight: 800, lineHeight: 1.2 }}>
+          <div style={{
+            fontSize: fullscreen ? "clamp(32px, 7vw, 88px)" : large ? 26 : 18,
+            fontWeight: 800,
+            lineHeight: fullscreen ? 1.08 : 1.2,
+            textWrap: "balance",
+          }}>
             {slide.title}
           </div>
-          <div style={{ fontSize: large ? 15 : 13, lineHeight: 1.5, opacity: 0.95, overflow: "hidden" }}>
+          <div style={{
+            fontSize: fullscreen ? "clamp(21px, 3.8vw, 48px)" : large ? 15 : 13,
+            lineHeight: fullscreen ? 1.35 : 1.5,
+            opacity: 0.95,
+            overflow: fullscreen ? "visible" : "hidden",
+            maxWidth: fullscreen ? "30em" : undefined,
+          }}>
             {slide.narration || slide.body}
           </div>
         </div>
@@ -349,6 +384,7 @@ function ParticipantTile({
           {isHost ? "🎓" : initials(p.name)}
         </div>
       )}
+      {fullscreen && fullscreenControls ? fullscreenControls : null}
       <div
         style={{
           position: "relative",
@@ -424,10 +460,18 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // moderator key) OR the platform admin (admin@salareen.com), who moderates any
   // room via their Bearer token — the moderator endpoints accept either.
   const canModerate = Boolean(moderatorKey) || isPlatformAdmin;
+  const xrRollout = useFlag<number | boolean>("access.xr_immersive_class", 0);
+  const xrEnabled = xrRollout === true || (typeof xrRollout === "number" && Number(xrRollout) > 0);
   const [wasRemoved, setWasRemoved] = useState(false);
   const [giftBalance, setGiftBalance] = useState(0);
   const [giftCatalog, setGiftCatalog] = useState<LiveGiftCatalogItem[]>([]);
   const [showGifts, setShowGifts] = useState(false);
+  const [giftRecipientId, setGiftRecipientId] = useState("");
+  const [showGame, setShowGame] = useState(false);
+  const [gameType, setGameType] = useState<LiveGroupGame["type"]>("quiz_race");
+  const [gamePrompt, setGamePrompt] = useState("What does AI stand for?");
+  const [gameAnswer, setGameAnswer] = useState("artificial intelligence");
+  const [gameResponse, setGameResponse] = useState("");
   const [showChat, setShowChat] = useState(true);
   const [focusInstructor, setFocusInstructor] = useState(false);
   const [followingHost, setFollowingHost] = useState(false);
@@ -446,6 +490,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // unlocked so the slide effect can narrate; otherwise show a "Tap to hear" CTA.
   const [aiAudioUnlocked, setAiAudioUnlocked] = useState(false);
   const spokenSlideRef = useRef<number | null>(null);
+  const welcomeSpokenRef = useRef("");
   // Always-fresh room snapshot for callbacks (e.g. narration onend) so they read
   // current floor/queue state without re-subscribing the effect on every tick.
   const roomRef = useRef<LiveRoomState | null>(null);
@@ -660,17 +705,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
-  function stopCamera() {
+  async function stopCamera() {
+    // Disable LiveKit camera track before stopping the raw MediaStream so the SDK
+    // doesn't try to access tracks we've already torn down.
+    await setLiveKitCamera?.(false).catch(() => undefined);
     localStream?.getTracks().forEach((t) => t.stop());
     setLocalStream(null);
     setCameraOn(false);
-    void setLiveKitCamera?.(false);
   }
 
   async function toggleCamera() {
     const hasPreview = Boolean(localStream) || liveKitTiles.some((t) => t.isLocal);
     if (cameraOn && hasPreview) {
-      stopCamera();
+      await stopCamera();
       return;
     }
     await enableCamera();
@@ -803,6 +850,62 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setChatDraft("");
     } catch (e) {
       setError(friendlyError(e, "Chat failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendGift(gift: LiveGiftCatalogItem) {
+    if (!me) return;
+    setBusy(true);
+    try {
+      const res = await liveRoomSendGift(
+        roomId,
+        me.id,
+        gift.id,
+        giftRecipientId,
+      );
+      applyRoom(res.room);
+      setGiftBalance(res.sender_balance);
+      setShowGifts(false);
+    } catch (e) {
+      setError(friendlyError(e, "Gift failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startGroupGame() {
+    if (!canModerate || !gamePrompt.trim() || !gameAnswer.trim()) return;
+    setBusy(true);
+    try {
+      const res = await liveRoomStartGame(
+        roomId, moderatorKey, gameType, gamePrompt.trim(), gameAnswer.trim(), 25,
+      );
+      applyRoom(res.room);
+      setShowGame(true);
+      setGameResponse("");
+    } catch (e) {
+      setError(friendlyError(e, "Could not start group game"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function playGroupGame(cell = -1) {
+    if (!me || !room?.group_game) return;
+    setBusy(true);
+    try {
+      const game = room.group_game;
+      const action = game.type === "hangman"
+        ? { letter: gameResponse.trim().slice(0, 1) }
+        : { answer: gameResponse.trim(), cell };
+      const res = await liveRoomPlayGame(roomId, me.id, action);
+      applyRoom(res.room);
+      setGameResponse("");
+      if (res.event.points) setError(`Correct! You earned ${res.event.points} points.`);
+    } catch (e) {
+      setError(friendlyError(e, "Game action failed"));
     } finally {
       setBusy(false);
     }
@@ -1044,7 +1147,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       // Narrate the current slide immediately (don't wait for the effect).
       const s = next.slide;
       const text = `${s?.title ? s.title + ". " : ""}${(s?.body || s?.narration || "").trim()}`.trim();
-      if (text && next.presenting) {
+      if (text && next.presenting && s) {
         spokenSlideRef.current = s.index;
         cancelSpeech();
         void buildNarrationSpeakOptions(narrationLocale).then((base) => {
@@ -1082,6 +1185,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);
+
+  // Before the first slide, Theodore welcomes learners and explicitly identifies
+  // himself as an AI host. Joining is a user gesture, so audio is already unlocked.
+  useEffect(() => {
+    if (!room) return;
+    const welcome = room.welcome_message?.trim();
+    if (!welcome || room.presenting || !aiAudioOn || !aiAudioUnlocked) return;
+    if (welcomeSpokenRef.current === room.room_id) return;
+    welcomeSpokenRef.current = room.room_id;
+    void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+      cancelSpeech();
+      speakNaturally(welcome, base);
+    });
+  }, [room, aiAudioOn, aiAudioUnlocked, narrationLocale]);
 
   // AI teacher voice: Theodore narrates each new slide out loud while presenting
   // (neural TTS via the speech service, on-device fallback). Keyed on the slide
@@ -1336,6 +1453,105 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
+  const renderGamePanel = (fullscreen = false) => {
+    if (!showGame) return null;
+    const game = room?.group_game;
+    return (
+      <div style={{
+        position: fullscreen ? "absolute" : "fixed",
+        zIndex: fullscreen ? 24 : 65,
+        left: "50%",
+        top: fullscreen ? "48%" : "50%",
+        transform: "translate(-50%, -50%)",
+        width: "min(92vw, 620px)",
+        maxHeight: "78vh",
+        overflowY: "auto",
+        padding: 18,
+        borderRadius: 18,
+        background: "rgba(10,18,32,.96)",
+        border: "2px solid #7c3aed",
+        boxShadow: "0 20px 60px rgba(0,0,0,.65)",
+        color: "#fff",
+      }}>
+        <button
+          type="button"
+          onClick={() => setShowGame(false)}
+          style={{ position: "absolute", right: 10, top: 8, background: "transparent", color: "#fff", border: 0, fontSize: 22 }}
+        >×</button>
+        {!game ? (
+          canModerate ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <h2 style={{ margin: 0 }}>🎮 Start a learning game</h2>
+              <select value={gameType} onChange={(e) => setGameType(e.target.value as LiveGroupGame["type"])} style={{ padding: 10 }}>
+                <option value="quiz_race">⚡ First answer race</option>
+                <option value="tic_tac_toe">⭕ Learning tic-tac-toe</option>
+                <option value="hangman">🔤 Learning hangman</option>
+                <option value="multiple_choice">🔢 Multiple choice dash</option>
+                <option value="true_false">✅ True or false</option>
+                <option value="word_scramble">🔀 Word scramble</option>
+                <option value="fill_blank">✍️ Fill the blank</option>
+                <option value="emoji_decode">🧩 Emoji decode</option>
+                <option value="lightning_round">🌩️ Lightning round</option>
+                <option value="team_buzzer">🔔 Team buzzer</option>
+                <option value="hot_seat">🔥 Hot seat</option>
+                <option value="jeopardy">💎 Jeopardy challenge</option>
+              </select>
+              <input value={gamePrompt} onChange={(e) => setGamePrompt(e.target.value)} placeholder="Question or clue" style={{ padding: 10 }} />
+              <input value={gameAnswer} onChange={(e) => setGameAnswer(e.target.value)} placeholder="Correct answer" style={{ padding: 10 }} />
+              <button type="button" onClick={() => void startGroupGame()} disabled={busy} style={{ padding: 12, background: "#7c3aed", color: "#fff" }}>
+                Start for everyone · 25 points
+              </button>
+            </div>
+          ) : <p>Waiting for Theodore or the class admin to start a game.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 12, textAlign: "center" }}>
+            <div style={{ fontSize: 13, color: "#c4b5fd", textTransform: "uppercase" }}>
+              {game.type.replaceAll("_", " ")} · {game.points} points
+            </div>
+            <h2 style={{ margin: 0, fontSize: "clamp(22px,5vw,38px)" }}>{game.prompt}</h2>
+            {game.type === "hangman" ? (
+              <div style={{ fontSize: "clamp(26px,7vw,52px)", letterSpacing: 5 }}>{game.masked}</div>
+            ) : null}
+            {game.type === "word_scramble" ? (
+              <div style={{ fontSize: "clamp(26px,7vw,52px)", letterSpacing: 5, color: "#fbbf24" }}>
+                {game.scrambled}
+              </div>
+            ) : null}
+            {game.type === "tic_tac_toe" ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 7, maxWidth: 310, margin: "0 auto", width: "100%" }}>
+                {(game.board ?? Array(9).fill("")).map((mark, i) => (
+                  <button key={i} type="button" disabled={Boolean(mark) || game.status !== "active" || busy} onClick={() => void playGroupGame(i)}
+                    style={{ aspectRatio: "1", fontSize: 34, borderRadius: 10, background: "#1f2937", color: "#fff" }}>
+                    {mark || "·"}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {game.status === "active" ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={gameResponse}
+                  onChange={(e) => setGameResponse(e.target.value)}
+                  placeholder={game.type === "hangman" ? "Guess one letter" : "Answer correctly to play"}
+                  maxLength={game.type === "hangman" ? 1 : 200}
+                  style={{ flex: 1, padding: 12, borderRadius: 9 }}
+                  onKeyDown={(e) => e.key === "Enter" && game.type !== "tic_tac_toe" && void playGroupGame()}
+                />
+                {game.type !== "tic_tac_toe" ? (
+                  <button type="button" onClick={() => void playGroupGame()} disabled={!gameResponse.trim() || busy}
+                    style={{ padding: "10px 16px", background: "#059669", color: "#fff" }}>Play</button>
+                ) : null}
+              </div>
+            ) : (
+              <div style={{ fontSize: 24, fontWeight: 800 }}>
+                {game.status === "won" ? `🏆 ${game.winner_name} wins!` : "Game complete"}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <main
@@ -1437,23 +1653,44 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
       {socket.giftOverlay ? (
         <div
+          key={socket.giftOverlay.id}
           style={{
             position: "fixed",
-            top: "40%",
+            top: "45%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            fontSize: 64,
+            fontSize: "clamp(96px, 20vw, 220px)",
             zIndex: 60,
             textAlign: "center",
             pointerEvents: "none",
+            animation: "live-gift-spectacular 4.1s cubic-bezier(.2,.8,.2,1) forwards",
+            filter: "drop-shadow(0 18px 28px rgba(0,0,0,.55))",
           }}
         >
           <div>{socket.giftOverlay.emoji}</div>
-          <div style={{ fontSize: 14, marginTop: 8, color: "#fce7f3" }}>
+          <div style={{
+            fontSize: "clamp(16px, 3vw, 30px)",
+            marginTop: 8,
+            color: "#fff",
+            fontWeight: 800,
+            textShadow: "0 2px 8px #000",
+          }}>
             {socket.giftOverlay.label}
           </div>
         </div>
       ) : null}
+      <button
+        type="button"
+        onClick={() => setShowGame((v) => !v)}
+        style={{
+          position: "fixed", right: 18, bottom: 84, zIndex: 55,
+          width: 58, height: 58, borderRadius: 999, border: "2px solid #c4b5fd",
+          background: "#6d28d9", color: "#fff", fontSize: 27,
+          boxShadow: "0 10px 30px rgba(0,0,0,.4)",
+        }}
+        title="Play a group learning game"
+      >🎮</button>
+      {renderGamePanel(false)}
 
       <div
         style={{
@@ -1495,6 +1732,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           0% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.4; transform: scale(1.5); }
           100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes live-gift-spectacular {
+          0% { opacity: 0; transform: translate(-50%, -35%) scale(.15) rotate(-14deg); }
+          18% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(8deg); }
+          32% { transform: translate(-50%, -50%) scale(.92) rotate(-4deg); }
+          48% { transform: translate(-50%, -50%) scale(1.05) rotate(2deg); }
+          78% { opacity: 1; transform: translate(-50%, -55%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -90%) scale(1.35); }
         }
       `}</style>
 
@@ -1739,9 +1984,228 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 <ParticipantTile
                   p={host}
                   large
+                  fullscreen={isFullscreen}
                   liveKitTrack={trackFor(host.id)}
-                  slide={room?.slide}
+                  slide={!room?.presenting && room?.welcome_message ? {
+                    index: 0,
+                    title: "Welcome to Transparent AI",
+                    body: room.welcome_message,
+                    narration: room.welcome_message,
+                  } : room?.slide}
                   onContainerRef={(el) => { hostTileRef.current = el; }}
+                  fullscreenControls={
+                    <>
+                    <button
+                      type="button"
+                      onClick={() => setShowGame((v) => !v)}
+                      style={{
+                        position: "absolute", zIndex: 25, right: 18, top: 18,
+                        width: 58, height: 58, borderRadius: 999,
+                        border: "2px solid #c4b5fd", background: "#6d28d9",
+                        color: "#fff", fontSize: 27,
+                      }}
+                      title="Play a group learning game"
+                    >🎮</button>
+                    {renderGamePanel(true)}
+                    {socket.giftOverlay ? (
+                      <div
+                        key={`fs-${socket.giftOverlay.id}`}
+                        style={{
+                          position: "absolute",
+                          zIndex: 30,
+                          top: "45%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          fontSize: "clamp(110px, 24vw, 260px)",
+                          textAlign: "center",
+                          pointerEvents: "none",
+                          animation: "live-gift-spectacular 4.1s cubic-bezier(.2,.8,.2,1) forwards",
+                          filter: "drop-shadow(0 18px 30px rgba(0,0,0,.6))",
+                        }}
+                      >
+                        <div>{socket.giftOverlay.emoji}</div>
+                        <div style={{
+                          fontSize: "clamp(16px, 3vw, 30px)",
+                          fontWeight: 800,
+                          color: "#fff",
+                          textShadow: "0 2px 8px #000",
+                        }}>
+                          {socket.giftOverlay.label}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: "absolute",
+                        zIndex: 12,
+                        left: "50%",
+                        bottom: "clamp(64px, 9vh, 104px)",
+                        transform: "translateX(-50%)",
+                        width: "min(92vw, 680px)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "12px 16px",
+                        borderRadius: 18,
+                        background: "rgba(8, 15, 24, 0.88)",
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+                        backdropFilter: "blur(14px)",
+                      }}
+                    >
+                      {hasFloor ? (
+                        <>
+                          <div style={{ fontSize: "clamp(14px, 2.8vw, 20px)", fontWeight: 700, textAlign: "center" }}>
+                            {listening ? "🎙️ Listening — ask Theodore out loud" : "🎤 You have the floor"}
+                          </div>
+                          {spokenText ? (
+                            <div
+                              aria-live="polite"
+                              style={{
+                                maxHeight: "16vh",
+                                overflowY: "auto",
+                                fontSize: "clamp(14px, 2.5vw, 19px)",
+                                lineHeight: 1.4,
+                                textAlign: "center",
+                                opacity: 0.95,
+                              }}
+                            >
+                              “{spokenText}”
+                            </div>
+                          ) : null}
+                          {micNote ? (
+                            <div style={{ color: "#fbbf24", fontSize: 13, textAlign: "center" }}>{micNote}</div>
+                          ) : null}
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                            {!listening ? (
+                              <button
+                                type="button"
+                                onClick={() => void startListening()}
+                                disabled={busy}
+                                style={{
+                                  minHeight: 48, padding: "10px 18px", borderRadius: 999,
+                                  background: "#2563eb", color: "#fff", fontWeight: 800,
+                                }}
+                              >
+                                🎤 Start microphone
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => void doneSpeaking()}
+                              disabled={busy}
+                              style={{
+                                minHeight: 48, padding: "10px 18px", borderRadius: 999,
+                                background: "#059669", color: "#fff", fontWeight: 800,
+                              }}
+                            >
+                              ✓ Done — ask Theodore
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void toggleHand()}
+                            disabled={busy || !me}
+                            style={{
+                              minHeight: 52,
+                              padding: "12px 22px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(255,255,255,0.3)",
+                              background: inQueue ? "#b45309" : "#7c3aed",
+                              color: "#fff",
+                              fontSize: "clamp(15px, 3vw, 20px)",
+                              fontWeight: 800,
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+                            }}
+                          >
+                            {inQueue ? `✋ Lower hand · #${myQueuePos}` : "✋ Raise hand to ask by voice"}
+                          </button>
+                          {inQueue ? (
+                            <div style={{ fontSize: 13, opacity: 0.9, textAlign: "center" }}>
+                              Stay fullscreen. Your microphone opens when Theodore gives you the floor.
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowGifts((v) => !v)}
+                        disabled={busy || !me}
+                        style={{
+                          position: "absolute",
+                          right: 12,
+                          top: 12,
+                          minWidth: 48,
+                          minHeight: 44,
+                          borderRadius: 999,
+                          border: "1px solid rgba(255,255,255,.3)",
+                          background: "#be185d",
+                          color: "#fff",
+                          fontWeight: 800,
+                        }}
+                        title="Send an animated gift"
+                      >
+                        🎁
+                      </button>
+                      {showGifts ? (
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, minmax(72px, 1fr))",
+                          gap: 8,
+                          width: "100%",
+                          maxHeight: "32vh",
+                          overflowY: "auto",
+                          paddingTop: 8,
+                          borderTop: "1px solid rgba(255,255,255,.18)",
+                        }}>
+                          <select
+                            value={giftRecipientId || host.id}
+                            onChange={(e) => setGiftRecipientId(e.target.value)}
+                            style={{
+                              gridColumn: "1 / -1",
+                              padding: "9px 10px",
+                              borderRadius: 9,
+                              background: "#111827",
+                              color: "#fff",
+                              border: "1px solid rgba(255,255,255,.25)",
+                            }}
+                            aria-label="Gift recipient"
+                          >
+                            <option value={host.id}>🎓 {host.name}</option>
+                            {learners.filter((p) => p.id !== me?.id).map((p) => (
+                              <option key={p.id} value={p.id}>👤 {p.name}</option>
+                            ))}
+                          </select>
+                          {giftCatalog.map((g) => (
+                            <button
+                              key={`fs-gift-${g.id}`}
+                              type="button"
+                              disabled={busy || giftBalance < g.cost_points}
+                              onClick={() => void sendGift(g)}
+                              style={{
+                                padding: 8,
+                                borderRadius: 10,
+                                border: "1px solid rgba(255,255,255,.2)",
+                                background: "rgba(255,255,255,.1)",
+                                color: "#fff",
+                              }}
+                            >
+                              <div style={{ fontSize: 30 }}>{g.emoji}</div>
+                              <div style={{ fontSize: 11 }}>{g.name}</div>
+                              <div style={{ fontSize: 10 }}>{g.cost_points} pts</div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    </>
+                  }
                 />
               </div>
             )}
@@ -2057,25 +2521,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 borderRadius: 10,
               }}
             >
+              <label style={{ gridColumn: "1 / -1", display: "grid", gap: 4, fontSize: 12 }}>
+                Send to
+                <select
+                  value={giftRecipientId || host?.id || ""}
+                  onChange={(e) => setGiftRecipientId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--panel)",
+                    color: "var(--text)",
+                  }}
+                >
+                  {host ? <option value={host.id}>🎓 {host.name}</option> : null}
+                  {learners.filter((p) => p.id !== me?.id).map((p) => (
+                    <option key={p.id} value={p.id}>👤 {p.name}</option>
+                  ))}
+                </select>
+              </label>
               {giftCatalog.map((g) => (
                 <button
                   key={g.id}
                   type="button"
                   disabled={busy || !me || giftBalance < g.cost_points}
-                  onClick={async () => {
-                    if (!me) return;
-                    setBusy(true);
-                    try {
-                      const res = await liveRoomSendGift(roomId, me.id, g.id);
-                      applyRoom(res.room);
-                      setGiftBalance(res.sender_balance);
-                      setShowGifts(false);
-                    } catch (e) {
-                      setError(friendlyError(e, "Gift failed"));
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
+                  onClick={() => void sendGift(g)}
                   style={{
                     padding: 8,
                     borderRadius: 8,
@@ -2138,113 +2609,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             />
             <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "var(--accent-2)", color: "#fff" }}>
               Ask
-            </button>
-          </div>
-
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
-              {hasFloor
-                ? "🎤 You're speaking"
-                : inQueue
-                  ? `✋ Lower your hand (#${myQueuePos})`
-                  : "✋ Raise your hand"}
-            </button>
-            {hasFloor ? (
-              <button
-                onClick={() => void doneSpeaking()}
-                disabled={busy}
-                title="Send your spoken (or typed) question to Theodore and hand back the floor"
-                style={{ background: "#059669", color: "#fff" }}
-              >
-                Done — ask Theodore
-              </button>
-            ) : null}
-            {canModerate ? (
-              <>
-                <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
-                  Call next
-                </button>
-                {room?.floor_participant_id ? (
-                  <button onClick={() => void finishTurn()} disabled={busy}>
-                    End turn
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-            <button
-              onClick={() => void toggleMute()}
-              disabled={busy || (!hasFloor && inQueue)}
-              title="Mute or unmute your own microphone. You're only heard once the host gives you the floor (raise your hand)."
-            >
-              {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
-            </button>
-            <button
-              onClick={() => void toggleCamera()}
-              disabled={busy}
-              title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
-              style={cameraOn ? undefined : { opacity: 0.75 }}
-            >
-              {cameraOn ? "📹 Camera on" : "📷 Camera off"}
-            </button>
-            <button
-              onClick={() => {
-                unlockWebAudio();
-                setAiAudioOn((v) => {
-                  if (v) cancelSpeech();
-                  else {
-                    setAiAudioUnlocked(true);
-                    spokenSlideRef.current = null;
-                  }
-                  return !v;
-                });
-              }}
-              title={aiAudioOn ? "Mute the AI teacher's voice" : "Hear the AI teacher narrate the slides"}
-            >
-              {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}
-            </button>
-            {canModerate ? (
-              !room?.presenting ? (
-                <button
-                  onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
-                  disabled={busy}
-                  title="Start the class"
-                  style={{ background: "var(--accent-2)", color: "#fff" }}
-                >
-                  🎬 Start class
-                </button>
-              ) : (
-                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)">
-                  ▶ Next slide
-                </button>
-              )
-            ) : null}
-            {canModerate ? (
-              <button onClick={() => void toggleRecording()} disabled={busy}>
-                {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
-              </button>
-            ) : null}
-            {canModerate ? (
-              <button
-                onClick={() => void closeSession()}
-                disabled={busy}
-                title="Close this session for everyone"
-                style={{ background: "#b45309", color: "#fff" }}
-              >
-                ⛔ Close session
-              </button>
-            ) : null}
-            {isPlatformAdmin ? (
-              <button
-                onClick={() => void deleteSession()}
-                disabled={busy}
-                title="Delete this session permanently (admin cleanup)"
-                style={{ background: "#b91c1c", color: "#fff" }}
-              >
-                🗑 Delete
-              </button>
-            ) : null}
-            <button onClick={() => void handleLeave()} disabled={busy} style={{ marginLeft: "auto" }}>
-              Leave
             </button>
           </div>
 
@@ -2318,6 +2682,141 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           ) : null}
         </aside>
         )}
+      </div>
+
+      {/* Class controls — always visible regardless of chat panel state. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginTop: 12,
+          padding: "10px 4px",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
+          {hasFloor
+            ? "🎤 You're speaking"
+            : inQueue
+              ? `✋ Lower your hand (#${myQueuePos})`
+              : "✋ Raise your hand"}
+        </button>
+        {hasFloor ? (
+          <button
+            onClick={() => void doneSpeaking()}
+            disabled={busy}
+            title="Send your spoken (or typed) question to Theodore and hand back the floor"
+            style={{ background: "#059669", color: "#fff" }}
+          >
+            Done — ask Theodore
+          </button>
+        ) : null}
+        {canModerate ? (
+          <>
+            <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
+              Call next
+            </button>
+            {room?.floor_participant_id ? (
+              <button onClick={() => void finishTurn()} disabled={busy}>
+                End turn
+              </button>
+            ) : null}
+          </>
+        ) : null}
+        <button
+          onClick={() => void toggleMute()}
+          disabled={busy || (!hasFloor && inQueue)}
+          title="Mute or unmute your own microphone. You're only heard once the host gives you the floor (raise your hand)."
+        >
+          {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
+        </button>
+        <button
+          onClick={() => void toggleCamera()}
+          disabled={busy}
+          title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
+          style={cameraOn ? undefined : { opacity: 0.75 }}
+        >
+          {cameraOn ? "📹 Camera on" : "📷 Camera off"}
+        </button>
+        <button
+          onClick={() => {
+            unlockWebAudio();
+            setAiAudioOn((v) => {
+              if (v) cancelSpeech();
+              else {
+                setAiAudioUnlocked(true);
+                spokenSlideRef.current = null;
+              }
+              return !v;
+            });
+          }}
+          title={aiAudioOn ? "Mute the AI teacher's voice" : "Hear the AI teacher narrate the slides"}
+        >
+          {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}
+        </button>
+        {canModerate ? (
+          !room?.presenting ? (
+            <button
+              onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
+              disabled={busy}
+              title="Start the class"
+              style={{ background: "var(--accent-2)", color: "#fff" }}
+            >
+              🎬 Start class
+            </button>
+          ) : (
+            <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)">
+              ▶ Next slide
+            </button>
+          )
+        ) : null}
+        {canModerate ? (
+          <button onClick={() => void toggleRecording()} disabled={busy}>
+            {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
+          </button>
+        ) : null}
+        {canModerate ? (
+          <button
+            onClick={() => void closeSession()}
+            disabled={busy}
+            title="Close this session for everyone"
+            style={{ background: "#b45309", color: "#fff" }}
+          >
+            ⛔ Close session
+          </button>
+        ) : null}
+        {xrEnabled && joinInfo?.participant?.id ? (
+          <Link
+            href={`/xr/${encodeURIComponent(roomId)}?roomId=${encodeURIComponent(roomId)}&participantId=${encodeURIComponent(joinInfo.participant.id)}&moderatorKey=${encodeURIComponent(moderatorKey)}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#1d4e4a",
+              color: "#e8f1f4",
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+            title="Open the immersive XR demonstration lab"
+          >
+            Enter VR lab
+          </Link>
+        ) : null}
+        {isPlatformAdmin ? (
+          <button
+            onClick={() => void deleteSession()}
+            disabled={busy}
+            title="Delete this session permanently (admin cleanup)"
+            style={{ background: "#b91c1c", color: "#fff" }}
+          >
+            🗑 Delete
+          </button>
+        ) : null}
+        <button onClick={() => void handleLeave()} disabled={busy} style={{ marginLeft: "auto" }}>
+          Leave
+        </button>
       </div>
     </main>
   );

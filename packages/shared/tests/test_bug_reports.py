@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 
 import pytest
 
@@ -49,3 +50,27 @@ def test_submit_requires_description(tmp_path):
     store = BugReportStore.open(tmp_path / "bugs")
     with pytest.raises(ValueError, match="description"):
         store.submit(BugReportSubmit(description="   ", platform="ios"))
+
+
+def test_submit_optionally_routes_to_github(tmp_path, monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps({"html_url": "https://github.com/acme/app/issues/12"}).encode()
+
+    monkeypatch.setenv("BUG_REPORT_GITHUB_REPO", "acme/app")
+    monkeypatch.setenv("BUG_REPORT_GITHUB_TOKEN", "test-token")
+    monkeypatch.setattr(
+        "aoep_shared.bug_reports.urllib.request.urlopen",
+        lambda *_args, **_kwargs: FakeResponse(),
+    )
+    report = BugReportStore.open(tmp_path / "bugs").submit(
+        BugReportSubmit(description="Course screen froze", platform="android")
+    )
+    assert report.destination == "github"
+    assert report.external_url.endswith("/issues/12")

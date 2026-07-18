@@ -44,7 +44,9 @@ module.exports = ({ config }) => {
       "expo-build-properties",
       {
         ios: {
-          deploymentTarget: "13.4",
+          // react-native-view-shot 5.x (floating bug-report screenshots) requires
+          // iOS 15.1+; keep this in sync with withIosExpoConfigureFix IOS_MIN.
+          deploymentTarget: "15.1",
         },
         android: {
           // LiveKit (@livekit/react-native m137) requires Android minSdk 24;
