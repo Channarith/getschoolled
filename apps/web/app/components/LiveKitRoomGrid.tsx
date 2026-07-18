@@ -55,6 +55,8 @@ export function useLiveKitRoom(
   // closed / abort connection attempt / cannot send signal request" console storm.
   const [connectFailed, setConnectFailed] = useState(false);
   const roomRef = useRef<Room | null>(null);
+  const canPublishRef = useRef(canPublish);
+  canPublishRef.current = canPublish;
   // Keep the latest participant roster in a ref. It is only used to map a
   // LiveKit identity to our internal participant id (for the display tile). We
   // deliberately DO NOT put ``participants`` in the connect effect's deps: that
@@ -176,7 +178,7 @@ export function useLiveKitRoom(
           await room.localParticipant.setCameraEnabled(true);
         } catch { /* no camera / permission denied — stay audio-only */ }
         try {
-          await room.localParticipant.setMicrophoneEnabled(canPublish);
+          await room.localParticipant.setMicrophoneEnabled(canPublishRef.current);
         } catch { /* mic unavailable */ }
       })
       .catch(() => {
@@ -198,7 +200,27 @@ export function useLiveKitRoom(
       setAudioTracks([]);
       setConnected(false);
     };
-  }, [connectEnabled, media?.url, media?.token, media?.identity, canPublish]);
+    // Intentionally omit canPublish: flipping the floor used to tear down and
+    // reconnect the whole LiveKit session (camera flash / lost preview). Mic is
+    // toggled in a separate effect below.
+  }, [connectEnabled, media?.url, media?.token, media?.identity]);
+
+  useEffect(() => {
+    const room = roomRef.current;
+    if (!room || !connected) return;
+    void room.localParticipant.setMicrophoneEnabled(canPublish).catch(() => undefined);
+  }, [canPublish, connected]);
+
+  const setCameraEnabled = useCallback(async (enabled: boolean) => {
+    const room = roomRef.current;
+    if (!room) return false;
+    try {
+      await room.localParticipant.setCameraEnabled(enabled);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
 
   const unlockPlayback = useCallback(async () => {
     const room = roomRef.current;
@@ -220,6 +242,7 @@ export function useLiveKitRoom(
     connectFailed,
     needsAudioUnlock,
     unlockPlayback,
+    setCameraEnabled,
     livekitAvailable: Boolean(media?.url && media?.token),
   };
 }

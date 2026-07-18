@@ -2,6 +2,62 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-17 - v0.19.91 - Language practice pronunciation now actually records &
+  scores speech. Mobile "Check pronunciation" was text-only with no mic — added
+  a "Speak & check" button that records via native STT (Siri/Google, reusing the
+  Drive-Mode speech engine + existing mic/speech permissions), auto-scores the
+  transcript against the target, awards XP on a pass, and a "Listen" button that
+  speaks the phrase; typing stays as a fallback. Web "Speak" now does a
+  secure-context (https) check + mic-permission preflight with clear errors
+  (blocked mic, no speech, unsupported browser) so it no longer fails silently,
+  and typing is a collapsible fallback. Both feed the same /learn/pronounce
+  scorer.
+- 2026-07-17 - v0.19.91 - Unified narration voice: removed the separate "Narration
+  Voice" setting (mobile Settings + web Drive). Voice & accent and Instructor
+  personality are now the single source of truth — mobile Settings adds both
+  pickers; web keeps them on Drive (same localStorage keys). Prosody falls back
+  to the learning profile when no instructor is chosen (internal auto). Drive,
+  live rooms, lessons, and class narration all use the same voice/accent +
+  instructor everywhere.
+- 2026-07-17 - v0.19.91 - Mobile live room: each participant's camera renders in
+  THEIR OWN seat (under their name), not as a single PIP pinned to the host
+  panel. One shared LiveKit connection maps every published video track to the
+  matching roster tile — self-view under "You", each remote learner under their
+  name — so group classes show multiple simultaneous live feeds (parity with the
+  web grid). Tap your seat to toggle camera on/off.
+- 2026-07-17 - v0.19.91 - Live room: give the "Class is starting" announcement a
+  deterministic per-room message id so a duplicate that slips through a
+  cross-replica read-modify-write race collapses to a single chat line (web +
+  mobile key chat by id), hardening the existing start-announcement dedup that
+  stops the "Class is starting automatically…" spam loop.
+- 2026-07-17 - v0.19.91 - Web live room: webcam on/off control + Start class
+  actually narrates. (1) Camera on/off button beside Mute; clear note when the
+  page is on insecure http:// (browsers block getUserMedia on bare IP links —
+  use https://salareen.com). (2) Start class unlocks WebAudio inside the click
+  and narrates the current slide immediately; "Hear the teacher" CTA when the
+  browser blocked autoplay. (3) Persist moderator key on join; LiveKit no longer
+  reconnects (killing the camera) when the floor mic flips. (4) Server: don't
+  re-spam "Class is starting automatically" on concurrent ticks/reopens; resume
+  presenting when a mid-lesson room is rematerialized.
+- 2026-07-17 - v0.19.91 - Mobile iOS Archive: fix ExpoSpeechRecognition build
+  break from the allowBluetooth→allowBluetoothHFP quieting patch. The JS enum
+  case CategoryOptionsParam.allowBluetooth must stay; only the AVAudioSession
+  return/option usages map to .allowBluetoothHFP.
+
+- 2026-07-17 - v0.19.90 - Mobile iOS: quiet Xcode 26 archive warning flood.
+  (1) Podfile post_install inhibits third-party Pod C/ObjC/Swift warnings and
+  lifts IPHONEOS_DEPLOYMENT_TARGET to 13.4 (fixes AsyncStorage iOS 9.0 noise);
+  survives expo prebuild via withIosExpoConfigureFix. (2) Bump livekit-client
+  2.15.16→2.17.3 (Expo SDK 51-safe; RN stays 0.74.5 / LiveKit webrtc 137 so
+  CocoaPods need not re-resolve when the CDN is unreachable). (3) postinstall
+  patch renames deprecated .allowBluetooth → .allowBluetoothHFP in LiveKit +
+  expo-speech-recognition. (4) postinstall patch passes hermesc -w so
+  main.jsbundle undeclared-global warnings (fetch/setTimeout/TextDecoder/…) no
+  longer spam the Issue navigator.
+- 2026-07-17 - v0.19.90 - Mobile group class UX: schedule start time uses a
+  native date/time picker (no more typed ISO); live room surfaces Start class /
+  Next slide / Close / Delete (admin) in a host bar like the web app.
+
 - 2026-07-17 - v0.19.89 - Live rooms: fix bogus "that display name is reserved" 400
   when joining an online class. The reserved-name guard blocked generic role words
   ("administrator", "admin", "teacher", "host", "support", ...) that are legitimate

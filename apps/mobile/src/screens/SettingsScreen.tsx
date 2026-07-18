@@ -3,8 +3,9 @@ import {
   Alert, ScrollView, StyleSheet, Switch, Text, View,
 } from "react-native";
 
-import { CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, listStudents,
-  type StudentProfile,
+import {
+  CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getTtsInstructors, getTtsVoices,
+  listStudents, type Instructor, type StudentProfile, type VoiceGroup,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -24,9 +25,7 @@ import {
   type Settings, type TrainingLocale,
 } from "../storage";
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
-import {
-  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, type NarrationVoicePref,
-} from "../voiceProfiles";
+import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
 import { LANGUAGES, languageInfo, useT } from "../i18n";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
@@ -56,6 +55,8 @@ export default function SettingsScreen({
   const [scheduled, setScheduled] = useState<number>(0);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
+  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -84,17 +85,29 @@ export default function SettingsScreen({
   };
 
   useEffect(() => {
-    void getSettings().then(setS);
+    void getSettings().then((settings) => {
+      setS(settings);
+      applyVoicePrefsToTts(voicePrefsFromSettings(settings));
+    });
     void refreshScheduled();
     void refreshStudent();
     void refreshAccount();
     void probeIdentity();
+    void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
+    void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
   }, [refreshStudent, refreshAccount, probeIdentity]);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
       const next = { ...cur, ...patch };
       void setSettings(patch).then(async () => {
+        if ("voiceId" in patch || "instructorId" in patch || "voiceGender" in patch) {
+          applyVoicePrefsToTts({
+            voiceId: next.voiceId,
+            instructorId: next.instructorId,
+            voiceGender: next.voiceGender,
+          });
+        }
         if ("dailyReminder" in patch || "dailyReminderHour" in patch
             || "notificationsEnabled" in patch) {
           await rescheduleDailyReminder(next);
@@ -271,23 +284,66 @@ export default function SettingsScreen({
           </View>
       </Section>
 
-      <Section title={t("settings.sectionNarration")}>
-        <Text style={styles.desc}>{t("settings.narrationDesc")}</Text>
+      <Section title={t("settings.sectionVoice")}>
+        <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+          <View style={{ flexDirection: "row", gap: 8, paddingRight: 8 }}>
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: !s.voiceId }}
+              onPress={() => update({ voiceId: "" })}
+              style={[styles.langChip, !s.voiceId ? styles.langChipOn : styles.langChipOff]}
+            >
+              <Text style={[styles.langText, !s.voiceId && styles.langTextOn]}>
+                {t("settings.voiceDefault")}
+              </Text>
+            </AnimatedPressable>
+            {voiceGroups.flatMap((g) => g.voices).map((v) => {
+              const selected = s.voiceId === v.id;
+              return (
+                <AnimatedPressable
+                  key={v.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => update({ voiceId: v.id })}
+                  style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
+                >
+                  <Text style={[styles.langText, selected && styles.langTextOn]}>
+                    {v.accent}{v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}
+                  </Text>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </Section>
+
+      <Section title={t("settings.sectionInstructor")}>
+        <Text style={styles.desc}>{t("settings.instructorDesc")}</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-          {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((style) => {
-            const selected = s.narrationVoicePref === style;
-            const label = style === "auto"
-              ? t("settings.narrationAuto")
-              : NARRATION_VOICE_LABELS[style];
+          <AnimatedPressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: !s.instructorId }}
+            onPress={() => update({ instructorId: "" })}
+            style={[styles.langChip, !s.instructorId ? styles.langChipOn : styles.langChipOff]}
+          >
+            <Text style={[styles.langText, !s.instructorId && styles.langTextOn]}>
+              {t("settings.instructorAuto")}
+            </Text>
+          </AnimatedPressable>
+          {instructors.map((p) => {
+            const selected = s.instructorId === p.id;
             return (
               <AnimatedPressable
-                key={style}
+                key={p.id}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                onPress={() => update({ narrationVoicePref: style })}
+                onPress={() => update({ instructorId: p.id })}
                 style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
               >
-                <Text style={[styles.langText, selected && styles.langTextOn]}>{label}</Text>
+                <Text style={[styles.langText, selected && styles.langTextOn]}>
+                  {p.emoji} {p.label}
+                </Text>
               </AnimatedPressable>
             );
           })}

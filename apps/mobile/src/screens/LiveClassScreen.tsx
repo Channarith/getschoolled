@@ -21,7 +21,8 @@ export default function LiveClassScreen({ onStart, onBack }: Props) {
   const { t } = useT();
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [lessonId, setLessonId] = useState("");
-  const [classType, setClassType] = useState<LiveClassMode>("solo");
+  // Live Class is solo-only; the group option was removed from the UI.
+  const classType: LiveClassMode = "solo";
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -83,32 +84,6 @@ export default function LiveClassScreen({ onStart, onBack }: Props) {
         </GlassPanel>
       ) : (
         <>
-          <Text style={styles.section}>{t("liveClass.mode")}</Text>
-          <View style={styles.modeRow}>
-            <AnimatedPressable
-              onPress={() => setClassType("solo")}
-              style={[styles.modeChip, classType === "solo" && styles.modeChipOn]}
-            >
-              <Text style={[styles.modeText, classType === "solo" && styles.modeTextOn]}>
-                {t("liveClass.solo")}
-              </Text>
-              <Text style={[styles.modeHint, classType === "solo" && styles.modeHintOn]}>
-                {t("liveClass.soloHint")}
-              </Text>
-            </AnimatedPressable>
-            <AnimatedPressable
-              onPress={() => setClassType("group")}
-              style={[styles.modeChip, classType === "group" && styles.modeChipOn]}
-            >
-              <Text style={[styles.modeText, classType === "group" && styles.modeTextOn]}>
-                {t("liveClass.group")}
-              </Text>
-              <Text style={[styles.modeHint, classType === "group" && styles.modeHintOn]}>
-                {t("liveClass.groupHint")}
-              </Text>
-            </AnimatedPressable>
-          </View>
-
           <Text style={styles.section}>{t("liveClass.pickLesson")}</Text>
           {lessons.map((l) => {
             const on = l.lesson_id === lessonId;
@@ -128,7 +103,7 @@ export default function LiveClassScreen({ onStart, onBack }: Props) {
 
           <View style={{ marginTop: 20 }}>
             <PrimaryButton
-              label={classType === "solo" ? t("liveClass.startSolo") : t("liveClass.startGroup")}
+              label={t("liveClass.startSolo")}
               onPress={start}
               disabled={!lessonId}
               variant="netflix"
@@ -161,23 +136,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 10,
   },
-  modeRow: { flexDirection: "row", gap: 10 },
-  modeChip: {
-    flex: 1,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    padding: 14,
-  },
-  modeChipOn: {
-    borderColor: theme.colors.netflix,
-    backgroundColor: "rgba(229,9,20,0.12)",
-  },
-  modeText: { color: theme.colors.text, fontSize: 15, fontWeight: "800" },
-  modeTextOn: { color: "#fff" },
-  modeHint: { color: theme.colors.muted, fontSize: 11, marginTop: 4, lineHeight: 15 },
-  modeHintOn: { color: "rgba(255,255,255,0.75)" },
   lessonRow: {
     borderRadius: theme.radius.md,
     borderWidth: 1,

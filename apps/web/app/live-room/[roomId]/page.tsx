@@ -42,6 +42,7 @@ import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components
 import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 import { useT } from "../../lib/i18n";
+import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
 import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlock";
 
@@ -230,6 +231,9 @@ function ParticipantTile({
   hasFloor,
   slide,
   onContainerRef,
+  isMe,
+  cameraOn,
+  onToggleCamera,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -239,6 +243,9 @@ function ParticipantTile({
   slide?: { index: number; title: string; body: string; narration: string } | null;
   // Lets the parent grab this tile's element (e.g. to fullscreen the host).
   onContainerRef?: (el: HTMLDivElement | null) => void;
+  isMe?: boolean;
+  cameraOn?: boolean;
+  onToggleCamera?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -361,6 +368,22 @@ function ParticipantTile({
           {hasFloor && <span title="Speaking now">🎤</span>}
           {p.hand_raised && !hasFloor && <span title="In Q&A queue">✋</span>}
           {(p.muted || p.muted_by_host) && <span title="Muted">🔇</span>}
+          {isMe ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleCamera?.(); }}
+              title={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}
+              aria-label={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}
+              style={{
+                background: cameraOn && hasVideo ? "rgba(16,185,129,0.85)" : "rgba(239,68,68,0.85)",
+                color: "#fff", border: "none",
+                borderRadius: 6, cursor: "pointer", fontSize: 12, lineHeight: 1,
+                padding: "3px 7px", fontWeight: 700,
+              }}
+            >
+              {cameraOn && hasVideo ? "📹" : "📷"}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
@@ -391,6 +414,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [chatDraft, setChatDraft] = useState("");
   const [askDraft, setAskDraft] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [cameraNote, setCameraNote] = useState("");
+  const [insecureOrigin, setInsecureOrigin] = useState(false);
   const [moderatorKey, setModeratorKey] = useState("");
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   // Can this viewer moderate the room? The room's first-joiner admin (has the
@@ -415,6 +441,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // AI teacher audio: Theodore narrates each slide out loud (neural TTS with an
   // on-device fallback) while presenting. On by default; a toggle lets you mute.
   const [aiAudioOn, setAiAudioOn] = useState(true);
+  // Browsers often block TTS until a gesture. After Start / Enable audio we mark
+  // unlocked so the slide effect can narrate; otherwise show a "Tap to hear" CTA.
+  const [aiAudioUnlocked, setAiAudioUnlocked] = useState(false);
   const spokenSlideRef = useRef<number | null>(null);
   // Always-fresh room snapshot for callbacks (e.g. narration onend) so they read
   // current floor/queue state without re-subscribing the effect on every tick.
@@ -501,7 +530,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => { alive = false; };
   }, [me?.can_publish, joinInfo, roomId]);
 
-  const { tiles: liveKitTiles, audioTracks, connectFailed: liveKitFailed, needsAudioUnlock, unlockPlayback } =
+  const { tiles: liveKitTiles, audioTracks, connectFailed: liveKitFailed, needsAudioUnlock, unlockPlayback, setCameraEnabled: setLiveKitCamera } =
     useLiveKitRoom(
       liveMedia ?? joinInfo?.media,
       room?.participants ?? joinInfo?.room.participants ?? [],
@@ -578,16 +607,72 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.isSecureContext) {
+      setInsecureOrigin(true);
+      setCameraNote(
+        "Camera needs https://salareen.com (or localhost) — Chrome blocks the webcam on plain http:// IP links like this page.",
+      );
+      setCameraOn(false);
+    }
+  }, []);
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [room?.chat.length]);
 
   async function enableCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setLocalStream(stream);
-    } catch {
-      /* camera optional */
+    setCameraNote("");
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setCameraNote(
+        "Camera needs https://salareen.com (or localhost) — Chrome blocks the webcam on plain http:// IP links like this page.",
+      );
+      setCameraOn(false);
+      return false;
     }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraNote("This browser can't access the camera.");
+      setCameraOn(false);
+      return false;
+    }
+    try {
+      // Video-first for self-view; audio is optional (mic is gated by floor anyway).
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+      setLocalStream((prev) => {
+        prev?.getTracks().forEach((t) => t.stop());
+        return stream;
+      });
+      setCameraOn(true);
+      void setLiveKitCamera?.(true);
+      return true;
+    } catch {
+      setCameraNote(
+        "Camera access blocked — allow the camera (address-bar lock/camera icon), then tap 📹 Camera.",
+      );
+      setCameraOn(false);
+      return false;
+    }
+  }
+
+  function stopCamera() {
+    localStream?.getTracks().forEach((t) => t.stop());
+    setLocalStream(null);
+    setCameraOn(false);
+    void setLiveKitCamera?.(false);
+  }
+
+  async function toggleCamera() {
+    const hasPreview = Boolean(localStream) || liveKitTiles.some((t) => t.isLocal);
+    if (cameraOn && hasPreview) {
+      stopCamera();
+      return;
+    }
+    await enableCamera();
   }
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
@@ -618,7 +703,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
       // start the class and advance slides.
-      if (info.is_admin && info.moderator_key) setModeratorKey(info.moderator_key);
+      if (info.is_admin && info.moderator_key) {
+        setModeratorKey(info.moderator_key);
+        sessionStorage.setItem(`${MODERATOR_STORAGE_KEY}:${roomId}`, info.moderator_key);
+      }
       setGiftBalance(info.gift_balance ?? 500);
       setFollowingHost(Boolean(info.following_host));
       setFollowerCount(info.host_follower_count ?? 0);
@@ -668,8 +756,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [roomId, joinInfo]);
 
   async function enableLiveKitAv() {
+    unlockWebAudio();
     await resumeSharedAudioContext();
     setLiveKitConnectEnabled(true);
+    setAiAudioUnlocked(true);
+    if (cameraOn) void enableCamera();
   }
 
   // The class hit the end of its allotted time. After the farewell countdown,
@@ -936,9 +1027,42 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }
 
   async function startPresentation() {
+    // Unlock audio INSIDE the click gesture — otherwise speakNaturally (which
+    // runs after the await / in a useEffect) is blocked by autoplay policy and
+    // "Start class" looks like it did nothing.
+    unlockWebAudio();
+    setAiAudioUnlocked(true);
+    setAiAudioOn(true);
     setBusy(true);
     try {
-      setRoom(await liveRoomStartPresentation(roomId, moderatorKey));
+      const next = await liveRoomStartPresentation(roomId, moderatorKey);
+      setRoom(next);
+      lastRoomSigRef.current = JSON.stringify(next);
+      // Narrate the current slide immediately (don't wait for the effect).
+      const s = next.slide;
+      const text = `${s?.title ? s.title + ". " : ""}${(s?.body || s?.narration || "").trim()}`.trim();
+      if (text && next.presenting) {
+        spokenSlideRef.current = s.index;
+        cancelSpeech();
+        void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+          speakNaturally(text, {
+            ...base,
+            onend: () => {
+              const r = roomRef.current;
+              if (
+                canModerate &&
+                Boolean(r?.presenting) &&
+                r?.status !== "ended" &&
+                spokenSlideRef.current === s.index &&
+                !r?.floor_participant_id &&
+                !(r?.speaking_queue?.some((e) => e.status === "waiting"))
+              ) {
+                void liveRoomAdvance(roomId, moderatorKey).then((adv) => setRoom(adv)).catch(() => undefined);
+              }
+            },
+          });
+        });
+      }
     } catch (e) {
       setError(friendlyError(e, "Could not start the class"));
     } finally {
@@ -966,7 +1090,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const slideNarration = room?.slide?.narration;
   const slideBody = room?.slide?.body;
   useEffect(() => {
-    if (!aiAudioOn || !classLive || slideIdx == null) {
+    if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null) {
       cancelSpeech();
       if (!classLive) spokenSlideRef.current = null;
       return;
@@ -980,29 +1104,31 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (text) {
       cancelSpeech();  // stop the previous slide's narration before the new one
       const spokenFor = slideIdx;
-      speakNaturally(text, {
-        locale: narrationLocale,
-        // Advance the instant the AI finishes narrating this slide (not after a
-        // timed estimate). The moderator's client drives it; everyone else
-        // follows via the room state. Guarded so we don't skip past a learner
-        // who has (or is waiting for) the floor, and only while still on this
-        // slide. The server's timed dwell remains a fallback if audio is muted.
-        onend: () => {
-          const r = roomRef.current;
-          if (
-            canModerate &&
-            Boolean(r?.presenting) &&
-            r?.status !== "ended" &&
-            spokenSlideRef.current === spokenFor &&
-            !r?.floor_participant_id &&
-            !(r?.speaking_queue?.some((e) => e.status === "waiting"))
-          ) {
-            void liveRoomAdvance(roomId, moderatorKey).then((next) => setRoom(next)).catch(() => undefined);
-          }
-        },
+      void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+        speakNaturally(text, {
+          ...base,
+          // Advance the instant the AI finishes narrating this slide (not after a
+          // timed estimate). The moderator's client drives it; everyone else
+          // follows via the room state. Guarded so we don't skip past a learner
+          // who has (or is waiting for) the floor, and only while still on this
+          // slide. The server's timed dwell remains a fallback if audio is muted.
+          onend: () => {
+            const r = roomRef.current;
+            if (
+              canModerate &&
+              Boolean(r?.presenting) &&
+              r?.status !== "ended" &&
+              spokenSlideRef.current === spokenFor &&
+              !r?.floor_participant_id &&
+              !(r?.speaking_queue?.some((e) => e.status === "waiting"))
+            ) {
+              void liveRoomAdvance(roomId, moderatorKey).then((next) => setRoom(next)).catch(() => undefined);
+            }
+          },
+        });
       });
     }
-  }, [aiAudioOn, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
+  }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
       canModerate, moderatorKey, roomId]);
 
   // Always stop narration when leaving the room.
@@ -1406,6 +1532,73 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
+      {classLive && aiAudioOn && !aiAudioUnlocked && (
+        <div
+          style={{
+            background: "color-mix(in srgb, var(--accent-2) 18%, var(--panel))",
+            border: "1px solid var(--accent-2)",
+            borderRadius: 8,
+            padding: "8px 10px",
+            marginBottom: 10,
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span>🎓 Tap to hear Theodore narrate this slide (browser blocks autoplay until you interact).</span>
+          <button
+            type="button"
+            onClick={() => {
+              unlockWebAudio();
+              setAiAudioUnlocked(true);
+              spokenSlideRef.current = null; // force the narration effect to re-speak
+            }}
+            style={{ background: "var(--accent-2)", color: "#fff", padding: "6px 12px", borderRadius: 8 }}
+          >
+            Hear the teacher
+          </button>
+        </div>
+      )}
+
+      {insecureOrigin && joinInfo ? (
+        <div
+          style={{
+            background: "rgba(239,68,68,0.15)",
+            border: "1px solid #ef4444",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 10,
+            fontSize: 14,
+            color: "#fecaca",
+          }}
+        >
+          Webcam is blocked on this URL. Open the class at{" "}
+          <a href="https://salareen.com/group-classes" style={{ color: "#fff", fontWeight: 700 }}>
+            https://salareen.com
+          </a>{" "}
+          (HTTPS) — browsers refuse camera access on plain <code>http://</code> IP addresses.
+        </div>
+      ) : null}
+
+      {cameraNote ? (
+        <div
+          style={{
+            background: "rgba(245,158,11,0.12)",
+            border: "1px solid rgba(251,191,36,0.45)",
+            borderRadius: 8,
+            padding: "8px 10px",
+            marginBottom: 10,
+            fontSize: 13,
+            color: "#fcd34d",
+          }}
+        >
+          {cameraNote}
+        </div>
+      ) : null}
+
       {!liveKitConnectEnabled && joinInfo?.media?.url && (
         <div
           role="dialog"
@@ -1482,6 +1675,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         >
           {isFullscreen ? "⛶ Exit fullscreen" : "⛶ Fullscreen host"}
         </button>
+        <button
+          type="button"
+          onClick={() => void toggleCamera()}
+          disabled={busy}
+          title={cameraOn && localStream ? "Turn your webcam off" : "Turn your webcam on / show self-view"}
+          style={{
+            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+            border: "1px solid var(--border)",
+            background: cameraOn && localStream ? "#059669" : "#b91c1c",
+            color: "#fff",
+            fontWeight: 700,
+          }}
+        >
+          {cameraOn && localStream ? "📹 Camera on" : "📷 Camera off — tap to enable"}
+        </button>
       </div>
 
       <div
@@ -1521,9 +1729,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               <div key={p.id} style={{ position: "relative" }}>
                 <ParticipantTile
                   p={p}
-                  localStream={p.id === me?.id ? localStream : null}
-                  liveKitTrack={trackFor(p.id)}
+                  localStream={p.id === me?.id && cameraOn ? localStream : null}
+                  liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
+                  isMe={p.id === me?.id}
+                  cameraOn={p.id === me?.id ? cameraOn : undefined}
+                  onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
                 />
                 {canModerate && p.id !== me?.id ? (
                   <button
@@ -1929,7 +2140,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
             </button>
             <button
-              onClick={() => setAiAudioOn((v) => { if (v) cancelSpeech(); return !v; })}
+              onClick={() => void toggleCamera()}
+              disabled={busy}
+              title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
+              style={cameraOn ? undefined : { opacity: 0.75 }}
+            >
+              {cameraOn ? "📹 Camera on" : "📷 Camera off"}
+            </button>
+            <button
+              onClick={() => {
+                unlockWebAudio();
+                setAiAudioOn((v) => {
+                  if (v) cancelSpeech();
+                  else {
+                    setAiAudioUnlocked(true);
+                    spokenSlideRef.current = null;
+                  }
+                  return !v;
+                });
+              }}
               title={aiAudioOn ? "Mute the AI teacher's voice" : "Hear the AI teacher narrate the slides"}
             >
               {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}

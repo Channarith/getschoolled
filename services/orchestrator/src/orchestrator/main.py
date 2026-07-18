@@ -1382,6 +1382,26 @@ def _ensure_group_class_room(room_id: str):
         scheduled_start=gc.start_time,
         duration_seconds=int(gc.duration_min) * 60,
     )
+    # Replica reopen / Redis miss: the teaching session may already be mid-lesson
+    # (slide index > 0) while the freshly materialized room has presenting=False.
+    # Resume presenting silently so "Start class" isn't stuck and clients hear
+    # narration — without appending another "Class is starting" chat line.
+    if live is not None and not live.presenting and live.status == "live":
+        slide_idx = int(getattr(slide, "index", 0) or 0) if slide is not None else 0
+        if slide_idx > 0:
+            from datetime import datetime, timezone
+
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            live.presenting = True
+            if not live.presentation_started_at:
+                live.presentation_started_at = now
+                live.slide_started_at = now
+            if slide is not None:
+                live.slide.index = slide_idx
+                live.slide.title = slide.title
+                live.slide.body = slide.body
+                live.slide.narration = slide.narration
+            store._commit(live)  # noqa: SLF001 — resume flag on reopen
     _group_store().save(gc)
     return live
 

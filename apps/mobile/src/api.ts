@@ -540,7 +540,7 @@ export type LiveRoomState = {
   status: string;
   presenting?: boolean;
   host: { id: string; name: string; role: string };
-  participants: { id: string; name: string; role: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean; can_publish?: boolean }[];
+  participants: { id: string; name: string; role: string; identity?: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean; can_publish?: boolean }[];
   chat: { id: string; from_name: string; text: string }[];
   slide: { index: number; title: string; body: string; narration: string };
   recording: { status: string };

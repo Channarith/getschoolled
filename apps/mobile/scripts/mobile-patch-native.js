@@ -14,6 +14,9 @@ const PATCHES = [
   { script: "patch-react-native-runtimescheduler-ios.js", required: false },
   { script: "patch-react-native-jsinspector-ios.js", required: true },
   { script: "patch-ios-expo-configure-project.js", required: false },
+  // Xcode 26 noise: hermesc undeclared-global warnings + deprecated allowBluetooth.
+  { script: "patch-hermesc-quiet-warnings.js", required: false },
+  { script: "patch-allow-bluetooth-hfp-ios.js", required: false },
 ];
 
 function runPatch(script) {

@@ -20,6 +20,9 @@ import {
   subscribeDrivingStatus, type DrivingPhase, type DrivingStatus,
 } from "./src/drivingDetection";
 import {
+  applyVoicePrefsToTts, voicePrefsFromSettings,
+} from "./src/narrationTts";
+import {
   getMyList, getReadIds, getSettings, getPreviewMode, listContinue, setPreviewMode,
 } from "./src/storage";
 import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
@@ -240,6 +243,7 @@ function AppInner() {
     try {
       const granted = await ensurePermissions();
       const settings = await getSettings();
+      applyVoicePrefsToTts(voicePrefsFromSettings(settings));
       if (granted && settings.notificationsEnabled) {
         await rescheduleDailyReminder(settings);
       }

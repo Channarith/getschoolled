@@ -28,7 +28,7 @@ const BCP47: Record<string, string> = {
 type SpeechRec = {
   lang: string; interimResults: boolean; maxAlternatives: number;
   onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
-  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+  onerror: (e: { error?: string }) => void; onend: () => void; start: () => void; stop: () => void;
 };
 
 function speak(text: string, code: string) {
@@ -129,18 +129,72 @@ export default function LanguagesPage() {
     } catch (e) { setError(String(e)); }
   }
 
-  function startSpeaking() {
+  async function startSpeaking() {
+    if (!course) return;
+    setError("");
+    // Microphone + speech recognition require a SECURE context (https), except on
+    // localhost. On a plain http:// origin (e.g. the raw server IP) the browser
+    // blocks the mic outright, which is why "Speak" appeared to do nothing.
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(
+        "Your mic needs a secure connection. Open Salareen over https:// " +
+        "(e.g. https://www.salareen.com) — the browser blocks the microphone on an insecure page.",
+      );
+      return;
+    }
     const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor || !course) { setError(t("languages.speechUnavailable")); return; }
-    const rec = new Ctor();
+    if (!Ctor) { setError(t("languages.speechUnavailable")); return; }
+    // Ask for mic permission up front so the browser shows its prompt and we can
+    // give a clear message if it's blocked (instead of failing silently).
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((tr) => tr.stop());  // only needed the grant
+      }
+    } catch {
+      setError(
+        "Microphone access is blocked. Click the site-settings icon in the address " +
+        "bar, allow the microphone, then tap 🎤 Speak again.",
+      );
+      return;
+    }
+    let rec: SpeechRec;
+    try {
+      rec = new Ctor();
+    } catch {
+      setError("Couldn't start the microphone. Try Chrome or Edge over https://.");
+      return;
+    }
     rec.lang = BCP47[course.code] ?? course.code;
     rec.interimResults = false; rec.maxAlternatives = 1;
+    setPron(null);
+    setHeard("");
     setListening(true);
-    rec.onresult = (e) => { const t = e.results[0][0].transcript; setHeard(t); void checkPronunciation(t); };
-    rec.onerror = () => setListening(false);
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      setHeard(said);
+      void checkPronunciation(said);
+    };
+    rec.onerror = (ev) => {
+      setListening(false);
+      const code = (ev as { error?: string })?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setError(
+          "Microphone access is blocked. Allow the mic in your browser's site " +
+          "settings, then tap 🎤 Speak again.",
+        );
+      } else if (code === "no-speech") {
+        setError("I didn't hear anything — tap 🎤 Speak and say the phrase out loud.");
+      }
+    };
     rec.onend = () => setListening(false);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setError("Couldn't start the microphone. Try again.");
+    }
   }
 
   return (
@@ -224,19 +278,21 @@ export default function LanguagesPage() {
               </p>
               <div className="row" style={{ gap: 8 }}>
                 <button onClick={() => speak(ex.target!, course.code)}>🔊 Listen</button>
-                <button onClick={startSpeaking} disabled={listening}
+                <button onClick={() => void startSpeaking()} disabled={listening}
                   style={{ background: "#7c3aed", color: "#fff" }}>
-                  {listening ? "🎤 Listening…" : "🎤 Speak"}
+                  {listening ? "🎤 Listening… speak now" : "🎤 Speak & check"}
                 </button>
               </div>
-              <div className="row" style={{ marginTop: 8 }}>
-                <input placeholder="…or type what you said" value={heard}
-                  onChange={(e) => setHeard(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
-                <button onClick={() => checkPronunciation(heard)} disabled={!heard.trim()}>Check</button>
-              </div>
-              <p className="muted" style={{ fontSize: 12 }}>
-                Camera mouth-shape coaching is available via the perception service; the tip above is your cue.
-              </p>
+              <details style={{ marginTop: 8 }}>
+                <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>
+                  Can&apos;t use the mic? Type what you said
+                </summary>
+                <div className="row" style={{ marginTop: 8 }}>
+                  <input placeholder="…type what you said" value={heard}
+                    onChange={(e) => setHeard(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+                  <button onClick={() => checkPronunciation(heard)} disabled={!heard.trim()}>Check</button>
+                </div>
+              </details>
               {pron && (
                 <div className="card" style={{ borderColor: pron.passed ? "#16a34a" : "#f59e0b" }}>
                   <strong>{"⭐".repeat(pron.stars)}{"☆".repeat(3 - pron.stars)} {pron.score}%</strong>

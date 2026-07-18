@@ -46,7 +46,8 @@ export type StringKey =
   // Settings
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
-  | "settings.sectionNarration" | "settings.narrationDesc" | "settings.narrationAuto"
+  | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault"
+  | "settings.sectionInstructor" | "settings.instructorDesc" | "settings.instructorAuto"
   | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
   | "settings.sectionDrive"
   | "settings.sectionAbout"
@@ -108,6 +109,9 @@ export type StringKey =
   // Languages
   | "languages.back" | "languages.title" | "languages.sub" | "languages.grade"
   | "languages.heard" | "languages.check" | "languages.done" | "languages.pickLang"
+  | "languages.listen" | "languages.speak" | "languages.listening"
+  | "languages.typeInstead" | "languages.micDenied" | "languages.micUnavailable"
+  | "languages.micNoSpeech"
   // Settings extras
   | "settings.previewBadge" | "settings.openAccount" | "settings.openRewards"
   | "settings.openLanguages" | "settings.openBilling"
@@ -213,7 +217,7 @@ const EN: Record<StringKey, string> = {
   "group.scheduleCta": "Schedule a class",
   "group.scheduleTitle": "Class title (optional)",
   "group.scheduleMeeting": "Meeting URL (Zoom / Teams / Meet)",
-  "group.scheduleWhen": "Start time (ISO or leave blank for +1h)",
+  "group.scheduleWhen": "Start time",
   "group.scheduleDuration": "Duration (minutes)",
   "group.scheduleCapacity": "Capacity",
   "group.scheduleRoomSize": "Salareen room size",
@@ -393,9 +397,12 @@ const EN: Record<StringKey, string> = {
   "settings.signOut": "Sign out",
   "settings.backendUrls": "Backend: curriculum {curriculum} · identity {identity}",
 
-  "settings.sectionNarration": "NARRATION VOICE",
-  "settings.narrationDesc": "Drive Mode reads classes aloud. Auto picks child-friendly or slower voices from your learning profile.",
-  "settings.narrationAuto": "Auto (profile)",
+  "settings.sectionVoice": "VOICE & ACCENT",
+  "settings.voiceDesc": "Accent and neural voice for all spoken courses — Drive Mode, live classes, and lessons. Matches the Drive audio picker.",
+  "settings.voiceDefault": "Default",
+  "settings.sectionInstructor": "INSTRUCTOR PERSONALITY",
+  "settings.instructorDesc": "How the teacher sounds and delivers — kind, strict, kid-friendly, and more. Used everywhere audio plays.",
+  "settings.instructorAuto": "Auto (profile)",
   "settings.sectionTrainingLang": "LESSON LANGUAGE",
   "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
 
@@ -511,6 +518,13 @@ const EN: Record<StringKey, string> = {
   "languages.check": "Check pronunciation",
   "languages.done": "{correct}/{total} correct · +{xp} XP",
   "languages.pickLang": "← Pick another language",
+  "languages.listen": "🔊 Listen",
+  "languages.speak": "🎤 Speak & check",
+  "languages.listening": "🎤 Listening… speak now",
+  "languages.typeInstead": "Can't use the mic? Type what you said",
+  "languages.micDenied": "Microphone access is blocked. Enable the mic for Salareen in your phone Settings, then tap Speak again.",
+  "languages.micUnavailable": "Speech recognition isn't available on this device — type what you said instead.",
+  "languages.micNoSpeech": "I didn't hear anything — tap Speak and say the phrase out loud.",
 
   "settings.previewBadge": "Preview mode — browse the catalog. Sign in to play audio and save progress.",
   "settings.openAccount": "Manage account",

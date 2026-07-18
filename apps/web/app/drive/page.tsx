@@ -25,7 +25,8 @@ import { effectiveAdTier } from "../lib/useCourseAds";
 import { useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
-import { getNarrationVoicePref, setNarrationVoicePref } from "../lib/narrationPrefs";
+import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
+import { applyVoicePrefsToTts } from "../lib/narrationTts";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, setServerVoice, speakNaturally } from "../lib/tts";
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
@@ -33,8 +34,8 @@ import {
   TRAINING_LOCALES, type TrainingLocale,
 } from "../lib/trainingLocale";
 import {
-  NARRATION_VOICE_LABELS, NARRATION_VOICE_STYLES, prosodyForStyle, resolveVoiceStyle,
-  type NarrationVoicePref, type NarrationVoiceStyle,
+  prosodyForStyle, resolveEffectiveVoiceStyle,
+  type NarrationVoiceStyle,
 } from "../lib/voiceProfiles";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
@@ -86,7 +87,6 @@ function DrivePageInner() {
   const afterAdRef = useRef<null | (() => void)>(null);
   const prerollShown = useRef(false);
   const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
-  const [narrationPref, setNarrationPref] = useState<NarrationVoicePref>("auto");
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -120,12 +120,13 @@ function DrivePageInner() {
   autoListenRef.current = autoListen;
 
   async function refreshVoiceStyle() {
-    setNarrationPref(getNarrationVoicePref());
+    const prefs = getVoicePrefs();
     let student = null;
     try {
       student = (await listStudents()).students[0] ?? null;
     } catch { /* guest */ }
-    voiceStyleRef.current = resolveVoiceStyle(getNarrationVoicePref(), student);
+    voiceStyleRef.current = resolveEffectiveVoiceStyle(prefs.instructorId, student);
+    applyVoicePrefsToTts(prefs);
   }
 
   useEffect(() => {
@@ -149,14 +150,16 @@ function DrivePageInner() {
     // Load the accent/voice catalog + restore the saved choice.
     getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
     getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
-    try {
-      const savedVoice = localStorage.getItem("aoep_drive_voice") || "";
-      if (savedVoice) { setServerVoiceState(savedVoice); setServerVoice(savedVoice); }
-      const savedInstr = localStorage.getItem("aoep_drive_instructor") || "";
-      if (savedInstr) { setInstructorState(savedInstr); setServerInstructor(savedInstr); }
-      const savedGender = localStorage.getItem("aoep_drive_gender") || "";
-      if (savedGender === "male" || savedGender === "female") setGenderPref(savedGender);
-    } catch { /* private mode */ }
+    const prefs = getVoicePrefs();
+    if (prefs.voiceId) { setServerVoiceState(prefs.voiceId); setServerVoice(prefs.voiceId); }
+    if (prefs.instructorId) {
+      setInstructorState(prefs.instructorId);
+      setServerInstructor(prefs.instructorId);
+      personaRef.current = prefs.instructorId;
+    }
+    if (prefs.voiceGender === "male" || prefs.voiceGender === "female") {
+      setGenderPref(prefs.voiceGender);
+    }
     void refreshVoiceStyle();
   }, [locale]);
 
@@ -177,7 +180,7 @@ function DrivePageInner() {
     const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
     voiceLocaleRef.current = v?.locale || "";
     voiceGenderRef.current = genderPref !== "any" ? genderPref : (v?.gender || "");
-    try { localStorage.setItem("aoep_drive_voice", id); } catch { /* */ }
+    setVoicePrefs({ voiceId: id });
     if (playingRef.current && courseRef.current) replayCurrentSegment();
   }
 
@@ -186,7 +189,7 @@ function DrivePageInner() {
   // is heard immediately.
   function chooseGender(pref: "any" | "female" | "male") {
     setGenderPref(pref);
-    try { localStorage.setItem("aoep_drive_gender", pref); } catch { /* */ }
+    setVoicePrefs({ voiceGender: pref });
     if (pref !== "any") {
       const lang = (courseRef.current?.body_locale || trainingLangRef.current || "en").split("-")[0];
       const all = voiceGroups.flatMap((g) => g.voices);
@@ -196,7 +199,12 @@ function DrivePageInner() {
       if (!current || current.gender !== pref) {
         const match = all.find((v) => v.language === lang && v.gender === pref)
           || all.find((v) => v.gender === pref);
-        if (match) { setServerVoiceState(match.id); setServerVoice(match.id); voiceLocaleRef.current = match.locale || ""; }
+        if (match) {
+          setServerVoiceState(match.id);
+          setServerVoice(match.id);
+          voiceLocaleRef.current = match.locale || "";
+          setVoicePrefs({ voiceId: match.id });
+        }
       }
     }
     voiceGenderRef.current = pref !== "any"
@@ -209,8 +217,10 @@ function DrivePageInner() {
     setInstructorState(id);
     setServerInstructor(id);
     personaRef.current = id;
-    try { localStorage.setItem("aoep_drive_instructor", id); } catch { /* */ }
-    if (playingRef.current && courseRef.current) replayCurrentSegment();
+    setVoicePrefs({ instructorId: id });
+    void refreshVoiceStyle().then(() => {
+      if (playingRef.current && courseRef.current) replayCurrentSegment();
+    });
   }
   const refresh = useCallback(() => {
     if (!getToken()) return;
@@ -301,14 +311,21 @@ function DrivePageInner() {
   }, [locale, playSeg]);
 
   const prevRateRef = useRef(rate);
-  const prevNarrationPrefRef = useRef(narrationPref);
+  const prevVoiceRef = useRef(serverVoice);
+  const prevInstructorRef = useRef(instructor);
   useEffect(() => {
-    if (prevRateRef.current === rate && prevNarrationPrefRef.current === narrationPref) return;
+    if (
+      prevRateRef.current === rate &&
+      prevVoiceRef.current === serverVoice &&
+      prevInstructorRef.current === instructor
+    )
+      return;
     prevRateRef.current = rate;
-    prevNarrationPrefRef.current = narrationPref;
+    prevVoiceRef.current = serverVoice;
+    prevInstructorRef.current = instructor;
     if (!playing || !course) return;
     replayCurrentSegment();
-  }, [rate, narrationPref, playing, course, replayCurrentSegment]);
+  }, [rate, serverVoice, instructor, playing, course, replayCurrentSegment]);
 
   async function startCourse(id: string) {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
@@ -775,35 +792,6 @@ function DrivePageInner() {
                   }}
                 >
                   {TRAINING_LOCALE_LABELS[loc]}
-                </button>
-              );
-            })}
-          </div>
-          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="muted" style={{ fontSize: 13 }}>{t("drive.narrationVoice")}</span>
-            {(["auto", ...NARRATION_VOICE_STYLES] as NarrationVoicePref[]).map((pref) => {
-              const on = narrationPref === pref;
-              const label = pref === "auto" ? t("drive.autoProfile") : NARRATION_VOICE_LABELS[pref];
-              return (
-                <button
-                  key={pref}
-                  type="button"
-                  onClick={() => {
-                    setNarrationVoicePref(pref);
-                    setNarrationPref(pref);
-                    void refreshVoiceStyle();
-                  }}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    border: on ? "1px solid #0ea5e9" : "1px solid #334155",
-                    background: on ? "#0ea5e9" : "transparent",
-                    color: on ? "#001022" : "#9aa6c2",
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  {label}
                 </button>
               );
             })}
