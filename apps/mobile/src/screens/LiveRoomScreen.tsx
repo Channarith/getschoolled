@@ -6,12 +6,13 @@ import {
 
 import {
   deleteLiveRoom, liveRoomAdvance,
-  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAskStream, liveRoomBan, liveRoomCallNext,
+  getLiveRoom, getLiveGiftCatalog, getLearningExperience, joinLiveRoom, leaveLiveRoom, liveRoomAskStream, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
   liveRoomPlayGame, liveRoomRaiseHand, liveRoomReaction, liveRoomReport,
   liveRoomSendGift, liveRoomStartGame, liveRoomStartPresentation,
   liveRoomTick, liveRoomUnban,
+  listStudents,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveGroupGameType, type LiveKitMedia, type LiveRoomState,
 } from "../api";
@@ -483,9 +484,32 @@ export default function LiveRoomScreen({
       const ident =
         STORAGE[roomId]?.identity
         || (accountId ? `mobile-acct-${accountId}` : `mobile-${joinName.toLowerCase()}`);
+      let joinOpts: {
+        studentId?: string;
+        readinessScore?: number;
+        readinessBand?: string;
+        primaryStyle?: string;
+      } | undefined;
+      if (account) {
+        try {
+          const { students } = await listStudents();
+          const student = students[0];
+          if (student) {
+            const lx = await getLearningExperience(student.id);
+            joinOpts = {
+              studentId: student.id,
+              readinessScore: Number(lx.readiness_score ?? 0),
+              readinessBand: lx.readiness_band || "",
+              primaryStyle: lx.primary_style || student.primary_style || "mixed",
+            };
+          }
+        } catch {
+          joinOpts = undefined;
+        }
+      }
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
-        joined = await joinLiveRoom(roomId, joinName, ident, locale);
+        joined = await joinLiveRoom(roomId, joinName, ident, locale, joinOpts);
       } catch (joinErr) {
         // Room not open yet: for a group-class room (`class-<id>`) open it first
         // (idempotent server-side), then retry the join once so entering works.
@@ -494,7 +518,7 @@ export default function LiveRoomScreen({
         if (is404 && roomId.startsWith("class-")) {
           const geo = await getLiveRoomLocation();
           await startGroupClass(roomId.slice("class-".length), geo);
-          joined = await joinLiveRoom(roomId, joinName, ident, locale);
+          joined = await joinLiveRoom(roomId, joinName, ident, locale, joinOpts);
         } else {
           throw joinErr;
         }

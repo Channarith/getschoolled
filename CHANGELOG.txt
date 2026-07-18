@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.21.2 - Solo 1:1 live classes expose the learning-game launcher in the compact action bar; web/mobile now send learner profile readiness and learning style on join so Theodore receives audience_profile on blocking, streaming, and queued Q&A; solo UI shows a How you learn summary chip.
 - 2026-07-18 - v0.21.1 - Fix 8 audit bugs: missing ensureCameraPermission import
   (crashed all mobile live rooms), LiveKitAudio muted prop not synced to DOM
   (mute button inaudible on web), cameraOn false-fires before track arrives,

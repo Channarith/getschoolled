@@ -1430,7 +1430,12 @@ export async function joinLiveRoom(
   name: string,
   identity = "",
   language = "",
-  opts?: { studentId?: string; readinessScore?: number; readinessBand?: string },
+  opts?: {
+    studentId?: string;
+    readinessScore?: number;
+    readinessBand?: string;
+    primaryStyle?: string;
+  },
 ): Promise<LiveRoomJoin> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
@@ -1443,6 +1448,7 @@ export async function joinLiveRoom(
         student_id: opts?.studentId || "",
         readiness_score: opts?.readinessScore || 0,
         readiness_band: opts?.readinessBand || "",
+        primary_style: opts?.primaryStyle || "",
       }),
     })
   );
@@ -2098,6 +2104,11 @@ export async function getLearningExperience(studentId: string): Promise<{
   lx_trend: string;
   recent_samples: number[];
   wellness_state: string;
+  readiness_score?: number;
+  readiness_band?: string;
+  readiness_dimensions?: Record<string, number>;
+  primary_style?: string;
+  course_history_summary?: Record<string, unknown>;
 }> {
   return jsonOrThrow(
     await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/learning-experience`, {

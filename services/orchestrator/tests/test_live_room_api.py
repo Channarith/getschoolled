@@ -393,6 +393,27 @@ def test_start_solo_room_is_two_seat_and_uses_room_ui():
     assert joined.json()["is_admin"] is True  # the sole learner is the admin
 
 
+def test_join_with_readiness_refreshes_audience_profile():
+    lid = _first_lesson()
+    room_id = client.post("/api/live-rooms/solo", json={"lesson_id": lid}).json()["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={
+            "name": "Profile Learner",
+            "identity": "profile-1",
+            "student_id": "stu-profile",
+            "readiness_score": 72,
+            "readiness_band": "developing",
+            "primary_style": "visual",
+        },
+    )
+    assert joined.status_code == 200, joined.text
+    aud = client.get(f"/api/live-rooms/{room_id}/audience-profile").json()["audience_profile"]
+    assert aud["learner_count"] == 1
+    assert aud["mean_readiness"] == 72
+    assert "visual" in aud.get("dominant_styles", [])
+
+
 def test_solo_room_full_on_join_auto_starts_and_advances():
     from orchestrator.main import app as _app
 
