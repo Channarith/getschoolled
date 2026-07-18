@@ -832,12 +832,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     setBusy(true);
     try {
       await leaveLiveRoom(roomId, me.id);
-      sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
-      localStream?.getTracks().forEach((t) => t.stop());
       window.location.href = "/group-classes";
     } catch (e) {
       setError(friendlyError(e, "Could not leave"));
     } finally {
+      sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
+      localStream?.getTracks().forEach((t) => t.stop());
       setBusy(false);
     }
   }
@@ -1302,7 +1302,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   async function banLearner(participantId: string, name: string) {
     if (!canModerate) return;
-    const reason = window.prompt(`Block ${name}? Optional reason:`) ?? "";
+    const reason = window.prompt(`Block ${name}? Optional reason:`);
     if (reason === null) return;
     setBusy(true);
     try {

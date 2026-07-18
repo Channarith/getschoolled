@@ -1201,7 +1201,7 @@ export default function LiveRoomScreen({
                     style={styles.gameCell}
                     disabled={Boolean(mark) || room.group_game?.status !== "active" || busy}
                     onPress={() => {
-                      if (!gameResponse.trim() || !participantId) return;
+                      if (!participantId) return;
                       void liveRoomPlayGame(roomId, participantId, {
                         answer: gameResponse.trim(), cell: i,
                       }).then((r) => { setRoom(r.room); setGameResponse(""); });

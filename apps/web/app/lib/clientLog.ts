@@ -66,7 +66,9 @@ export function installClientLog(): void {
 }
 
 export function drainClientLogs(): string[] {
-  return [...buffer];
+  const logs = [...buffer];
+  buffer.length = 0;
+  return logs;
 }
 
 export function peekClientLogs(): string[] {

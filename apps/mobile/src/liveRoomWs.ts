@@ -44,6 +44,7 @@ export function useLiveRoomSocket(
   const hostBufRef = useRef("");
   const hostSeqRef = useRef(0);
   const hostClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const giftClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onRoomRef = useRef(onRoom);
   onRoomRef.current = onRoom;
 
@@ -105,7 +106,11 @@ export function useLiveRoomSocket(
                 emoji: gift.emoji,
                 label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Theodore"}`,
               });
-              setTimeout(() => setGiftOverlay(null), 4200);
+              if (giftClearTimer.current) clearTimeout(giftClearTimer.current);
+              giftClearTimer.current = setTimeout(() => {
+                setGiftOverlay(null);
+                giftClearTimer.current = null;
+              }, 4200);
             }
           } else if (msg.type === "game" && payload.room) {
             onRoomRef.current(payload.room as LiveRoomState);
