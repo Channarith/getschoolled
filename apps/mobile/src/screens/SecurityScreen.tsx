@@ -6,11 +6,13 @@ import {
 } from "../api";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
 
 export default function SecurityScreen({ onBack }: { onBack: () => void }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const [enabled, setEnabled] = useState(false);
   const [secret, setSecret] = useState("");
   const [code, setCode] = useState("");

@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.20.1",
+    "version": "0.20.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -66,7 +66,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.20.1"
+      "buildNumber": "0.20.2"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -83,7 +83,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 2001
+      "versionCode": 2002
     },
     "extra": {
       "deployMode": "cloud",

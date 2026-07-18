@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBack } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import PotionLab, { type PotionAgeKey } from "./PotionLab";
 import { theme } from "../theme";
@@ -48,6 +49,15 @@ export default function GameScreen({ subject, onBack }: Props) {
   const [potionActive, setPotionActive] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const startedAt = useRef(0);
+
+  useAndroidBack(() => {
+    if (potionActive) {
+      setPotionActive(false);
+      return true;
+    }
+    onBack();
+    return true;
+  });
 
   useEffect(() => {
     getGamesCatalog(locale).then(setCat).catch(() => {});

@@ -10,11 +10,13 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
 
 export default function RewardsScreen({ onBack }: { onBack: () => void }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const [summary, setSummary] = useState<RewardsSummary | null>(null);
   const [prizes, setPrizes] = useState<RewardPrize[]>([]);
   const [loading, setLoading] = useState(true);

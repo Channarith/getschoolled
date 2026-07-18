@@ -11,6 +11,7 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getLiveRoomLocation } from "../liveRoomLocation";
 import { theme } from "../theme";
@@ -28,6 +29,7 @@ export default function LiveRoomsScreen({
   onBack: () => void;
 }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const { account } = useAuth();
   const [browse, setBrowse] = useState<LiveRoomBrowse | null>(null);
   const [loading, setLoading] = useState(true);

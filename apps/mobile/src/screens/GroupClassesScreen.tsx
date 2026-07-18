@@ -13,6 +13,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import StartTimeField, { defaultStartDate } from "../components/StartTimeField";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getLiveRoomLocation } from "../liveRoomLocation";
 import { theme } from "../theme";
@@ -43,6 +44,7 @@ export default function GroupClassesScreen({
   onBack: () => void;
 }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const { account } = useAuth();
   const [rows, setRows] = useState<GroupClassRow[]>([]);
   const [loading, setLoading] = useState(true);

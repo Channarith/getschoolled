@@ -18,6 +18,7 @@ import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
 import { useInterstitial } from "../ads/interstitial";
 import { useAuth } from "../auth/AuthContext";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
@@ -42,6 +43,7 @@ export default function LessonScreen({
   lessonId, title, preview, classType = "group", onBack,
 }: Props) {
   const { t, locale } = useT();
+  useAndroidBackTo(() => { Speech.stop(); onBack(); });
   const { account } = useAuth();
   const [view, setView] = useState<LessonSessionView | null>(null);
   const [slide, setSlide] = useState<LessonSlide | null>(null);
