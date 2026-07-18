@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useT } from "../lib/i18n";
 
@@ -15,8 +15,25 @@ const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? "";
 const IOS_APP_URL = process.env.NEXT_PUBLIC_IOS_APP_URL ?? ""; // TestFlight / install
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? "";
 
-function StoreButton({ href, label, sublabel, bg }: {
-  href: string; label: string; sublabel: string; bg: string;
+/** Same-origin route that forces Content-Disposition: attachment for the APK. */
+const ANDROID_DOWNLOAD_HREF = ANDROID_APK_URL ? "/api/download/android" : "";
+
+function StoreButton({
+  href,
+  label,
+  sublabel,
+  bg,
+  download,
+  sameTab,
+}: {
+  href: string;
+  label: string;
+  sublabel: string;
+  bg: string;
+  /** Hint browsers to save rather than navigate (same-origin only). */
+  download?: string;
+  /** APK installs fail when opened in a new tab that tries to preview the file. */
+  sameTab?: boolean;
 }) {
   const enabled = Boolean(href);
   const style: React.CSSProperties = {
@@ -32,20 +49,44 @@ function StoreButton({ href, label, sublabel, bg }: {
       <span style={{ fontSize: 17, fontWeight: 700 }}>{label}</span>
     </>
   );
-  return enabled
-    ? <a href={href} style={style} target="_blank" rel="noopener noreferrer">{inner}</a>
-    : <span style={style} aria-disabled title="Coming soon">{inner}</span>;
+  if (!enabled) {
+    return <span style={style} aria-disabled title="Coming soon">{inner}</span>;
+  }
+  return (
+    <a
+      href={href}
+      style={style}
+      {...(sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+      {...(download ? { download } : {})}
+    >
+      {inner}
+    </a>
+  );
+}
+
+function apkFilename(url: string): string {
+  try {
+    const last = new URL(url).pathname.split("/").filter(Boolean).pop() || "";
+    if (last.toLowerCase().endsWith(".apk")) return last;
+  } catch {
+    /* ignore */
+  }
+  return "salareen.apk";
 }
 
 export default function DownloadPage() {
   const { t } = useT();
   const [qr, setQr] = useState("");
+  const [isAndroid, setIsAndroid] = useState(false);
+  const filename = useMemo(() => apkFilename(ANDROID_APK_URL), []);
 
-  // Build a QR (rendered client-side only) pointing at this page so a desktop
-  // visitor can scan it and open the download page on their phone.
+  // Build a QR pointing at THIS download page (not the raw Object Storage URL)
+  // so phone users get the install button with proper attachment headers.
   useEffect(() => {
-    const target = ANDROID_APK_URL || PLAY_STORE_URL || window.location.href;
-    setQr(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(target)}`);
+    setQr(
+      `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(window.location.href)}`,
+    );
+    setIsAndroid(/Android/i.test(navigator.userAgent));
   }, []);
 
   return (
@@ -59,11 +100,22 @@ export default function DownloadPage() {
           <h2 style={{ marginTop: 0 }}>🤖 {t("download.android")}</h2>
           <p className="muted">{t("download.androidNote")}</p>
           <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-            <StoreButton href={ANDROID_APK_URL} bg="#16a34a"
-              sublabel={t("download.directDownload")} label={t("download.apk")} />
+            <StoreButton
+              href={ANDROID_DOWNLOAD_HREF}
+              bg="#16a34a"
+              sublabel={t("download.directDownload")}
+              label={isAndroid ? t("download.apkInstall") : t("download.apk")}
+              download={filename}
+              sameTab
+            />
             <StoreButton href={PLAY_STORE_URL} bg="#000"
               sublabel={t("download.getItOn")} label="Google Play" />
           </div>
+          {isAndroid && ANDROID_DOWNLOAD_HREF ? (
+            <p className="muted" style={{ fontSize: 13, marginBottom: 0, marginTop: 12 }}>
+              {t("download.androidInstallHint")}
+            </p>
+          ) : null}
         </div>
 
         {/* iOS */}

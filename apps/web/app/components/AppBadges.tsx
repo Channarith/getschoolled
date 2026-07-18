@@ -6,10 +6,10 @@ import { useT } from "../lib/i18n";
 
 // Store-badge buttons (with icons) for the front page. Targets are configurable
 // via NEXT_PUBLIC_* (inlined at build); when a store URL isn't set yet the badge
-// links to the in-app /download page (which shows direct APK / TestFlight installs
-// and a "coming soon" state) - so the icons are never a dead end.
-const PLAY = process.env.NEXT_PUBLIC_PLAY_STORE_URL
-  || process.env.NEXT_PUBLIC_ANDROID_APK_URL || "/download";
+// links to the in-app /download page (which shows the same-origin APK install
+// route / TestFlight installs) - never a raw Object Storage URL that phones try
+// to preview as a web page.
+const PLAY = process.env.NEXT_PUBLIC_PLAY_STORE_URL || "/download";
 const APPSTORE = process.env.NEXT_PUBLIC_APP_STORE_URL
   || process.env.NEXT_PUBLIC_IOS_APP_URL || "/download";
 
