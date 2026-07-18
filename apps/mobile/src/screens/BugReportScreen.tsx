@@ -38,7 +38,11 @@ export default function BugReportScreen({
   const [shots, setShots] = useState<BugScreenshotUpload[]>(
     initialScreenshot ? [initialScreenshot] : [],
   );
-  const [previewUris, setPreviewUris] = useState<string[]>([]);
+  const [previewUris, setPreviewUris] = useState<string[]>(
+    initialScreenshot
+      ? [`data:${initialScreenshot.content_type};base64,${initialScreenshot.data_base64}`]
+      : [],
+  );
   const [busy, setBusy] = useState(false);
   const [doneId, setDoneId] = useState("");
 

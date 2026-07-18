@@ -49,7 +49,13 @@ export async function captureDisplayScreenshot(): Promise<BugScreenshotUpload | 
     const video = document.createElement("video");
     video.srcObject = stream;
     await video.play();
-    await new Promise((r) => setTimeout(r, 200));
+    // Wait for the first decoded frame before drawing — play() resolves when
+    // playback starts, not when a frame is available, so a fixed delay can race.
+    await new Promise<void>((resolve) => {
+      if (video.readyState >= 3) { resolve(); return; }
+      video.addEventListener("canplay", () => resolve(), { once: true });
+      setTimeout(resolve, 3000); // hard fallback
+    });
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;

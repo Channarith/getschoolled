@@ -48,6 +48,32 @@ spokenRef.current = room.room_id;
 
 Same rule for any nullable state (`joinInfo`, `me`, `participant`, `slide`).
 
+## Lockfile sync — always update pnpm-lock.yaml after touching package.json
+
+CI runs `pnpm install` with `--frozen-lockfile` (the default in CI environments).
+If `pnpm-lock.yaml` doesn't match `package.json` the job fails immediately with:
+
+```
+[ERR_PNPM_OUTDATED_LOCKFILE] Cannot install with "frozen-lockfile" because
+pnpm-lock.yaml is not up to date with package.json
+  Failure reason:
+  specifiers in the lockfile don't match specifiers in package.json:
+  - react-native-view-shot (lockfile: 5.1.1, manifest: 4.0.3)
+```
+
+**Rule: any time you edit `apps/mobile/package.json`, run this before committing:**
+
+```bash
+pnpm --dir apps/mobile install
+```
+
+Then stage the updated `pnpm-lock.yaml` alongside the `package.json` change in
+the same commit. Never commit a `package.json` version bump without the matching
+lockfile update — CI will reject it.
+
+Same applies to `apps/web/package.json` (uses `npm` — run `npm install` in that
+directory and stage the updated `package-lock.json`).
+
 ## Other known gates (do not ignore)
 
 - **Web CI** runs `npm run typecheck` then `npm run build` in `apps/web`.
