@@ -24,6 +24,9 @@ type Props = {
   large?: boolean;
 };
 
+/** Always use the front / selfie camera for live-class profile tiles. */
+const SELFIE_CAMERA = { facingMode: "user" as const };
+
 // `@livekit/react-native` runs polyfills + WebRTC global setup at IMPORT time and
 // pulls in a large native/web dependency graph. Importing it eagerly executes all
 // of that during app launch (via App -> LiveRoomScreen -> this tile), which can
@@ -91,7 +94,7 @@ export default function LiveKitParticipantTile({
         if (Platform.OS === "ios") {
           await AudioSession.startAudioSession();
         }
-        room = new Room();
+        room = new Room({ videoCaptureDefaults: SELFIE_CAMERA });
         await room.connect(media.url, media.token, { autoSubscribe: true });
         if (cancelled) {
           room.disconnect();
@@ -101,7 +104,7 @@ export default function LiveKitParticipantTile({
         // one-speaker mutex (canPublish = you hold the floor). Best-effort so a
         // denied/absent camera never breaks the tile.
         try {
-          await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setCameraEnabled(true, SELFIE_CAMERA);
         } catch { /* no camera / permission denied */ }
         try {
           await room.localParticipant.setMicrophoneEnabled(canPublish);

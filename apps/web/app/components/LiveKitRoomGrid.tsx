@@ -33,6 +33,9 @@ function identityFor(participants: LiveParticipant[], identity: string): string 
 
 export type AudioStream = { participantId: string; track: MediaStreamTrack };
 
+/** Always use the front / selfie camera for live-class profile tiles. */
+const SELFIE_CAMERA = { facingMode: "user" as const };
+
 export function useLiveKitRoom(
   media: LiveKitMedia | null | undefined,
   participants: LiveParticipant[],
@@ -85,6 +88,7 @@ export function useLiveKitRoom(
     const room = new Room({
       adaptiveStream: true,
       dynacast: true,
+      videoCaptureDefaults: SELFIE_CAMERA,
       // Re-use a user-gesture-unlocked AudioContext so acquireAudioContext()
       // during connect() does not hit Chrome's autoplay block.
       ...(sharedCtx ? { webAudioMix: { audioContext: sharedCtx } } : {}),
@@ -175,7 +179,7 @@ export function useLiveKitRoom(
         // mutex — only enabled while you hold the floor (canPublish). Best-effort:
         // a denied/absent camera must not break the room.
         try {
-          await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setCameraEnabled(true, SELFIE_CAMERA);
         } catch { /* no camera / permission denied — stay audio-only */ }
         try {
           await room.localParticipant.setMicrophoneEnabled(canPublishRef.current);
@@ -215,7 +219,10 @@ export function useLiveKitRoom(
     const room = roomRef.current;
     if (!room) return false;
     try {
-      await room.localParticipant.setCameraEnabled(enabled);
+      await room.localParticipant.setCameraEnabled(
+        enabled,
+        enabled ? SELFIE_CAMERA : undefined,
+      );
       return true;
     } catch {
       return false;

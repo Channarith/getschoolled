@@ -2,6 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.5 - Live-class cameras always open the front/selfie lens
+  (facingMode=user) on iOS, Android, and web instead of the rear camera.
 - 2026-07-18 - v0.20.4 - Live room: tap any seat tile to expand host or student
   video full-screen; overlays (gifts, reactions, toast, host answer) remain
   visible on top. Fix Android webcam not showing (transparent seatVideoWindow
