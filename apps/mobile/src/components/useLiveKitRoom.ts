@@ -7,6 +7,7 @@ import {
   beginLiveKitAudio,
   endLiveKitAudio,
 } from "./liveKitAudio";
+import { ensureCameraPermission } from "./cameraPermission";
 import { loadLiveKit } from "./liveKitRuntime";
 
 import type {

@@ -108,7 +108,7 @@ function orderedFarewell(primaryLang?: string): typeof CLASS_COMPLETE_MESSAGES {
 /** Full-screen farewell shown when a group lesson's allotted time expires: a
  * courteous multilingual thank-you plus a short countdown, after which the
  * learner is excused (navigated out of the room). */
-function ClassCompleteOverlay({ onDone, primaryLang }: { onDone: () => void; primaryLang?: string }) {
+function ClassCompleteOverlay({ onDone, primaryLang, exitLabel = "Group Classes" }: { onDone: () => void; primaryLang?: string; exitLabel?: string }) {
   const [remaining, setRemaining] = useState(CLASS_END_COUNTDOWN);
   const [msgIdx, setMsgIdx] = useState(0);
   const messages = useMemo(() => orderedFarewell(primaryLang), [primaryLang]);
@@ -179,7 +179,7 @@ function ClassCompleteOverlay({ onDone, primaryLang }: { onDone: () => void; pri
         <span>{msg.text}</span>
       </div>
       <div style={{ fontSize: 15, opacity: 0.9 }}>
-        Returning to Group Classes in {remaining}s…
+        Returning to {exitLabel} in {remaining}s…
       </div>
       <button
         type="button"
@@ -1475,22 +1475,30 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
   const toggleHostAudio = () => {
     if (!host) return;
-    const currentlyMuted = locallyMutedIds.has(host.id) || !aiAudioOn;
+    const hostId = host.id;
+    // Derive currentlyMuted inside the functional updater so rapid double-taps
+    // always see the real current set rather than the render-time snapshot.
     setLocallyMutedIds((current) => {
+      const currentlyMuted = current.has(hostId) || !aiAudioOn;
       const next = new Set(current);
-      if (currentlyMuted) next.delete(host.id);
-      else next.add(host.id);
+      if (currentlyMuted) {
+        next.delete(hostId);
+        // Unmute side-effects — schedule after state update settles.
+        setTimeout(() => {
+          unlockWebAudio();
+          setAiAudioUnlocked(true);
+          setAiAudioOn(true);
+          spokenSlideRef.current = null;
+        }, 0);
+      } else {
+        next.add(hostId);
+        setTimeout(() => {
+          setAiAudioOn(false);
+          cancelSpeech();
+        }, 0);
+      }
       return next;
     });
-    if (currentlyMuted) {
-      unlockWebAudio();
-      setAiAudioUnlocked(true);
-      setAiAudioOn(true);
-      spokenSlideRef.current = null;
-    } else {
-      setAiAudioOn(false);
-      cancelSpeech();
-    }
   };
   const renderGamePanel = (fullscreen = false) => {
     if (!showGame) return null;
@@ -1605,7 +1613,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       }}
     >
       {room?.status === "ended" && (
-        <ClassCompleteOverlay onDone={excuseFromClass} primaryLang={me?.language || locale} />
+        <ClassCompleteOverlay
+          onDone={excuseFromClass}
+          primaryLang={me?.language || locale}
+          exitLabel={isSolo ? "Live Class" : "Group Classes"}
+        />
       )}
       <header
         style={{

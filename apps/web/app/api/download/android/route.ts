@@ -15,11 +15,8 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEFAULT_ANDROID_APK_URL =
-  "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.20.4/salareen-v0.20.4.apk";
-
 function apkSourceUrl(): string {
-  return (process.env.NEXT_PUBLIC_ANDROID_APK_URL || DEFAULT_ANDROID_APK_URL).trim();
+  return (process.env.NEXT_PUBLIC_ANDROID_APK_URL || "").trim();
 }
 
 function filenameFromUrl(url: string): string {

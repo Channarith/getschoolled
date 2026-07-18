@@ -565,13 +565,17 @@ export default function LiveRoomScreen({
   const [focusedTile, setFocusedTile] = useState<FocusedTile | null>(null);
 
   // Keep the toggle state honest with the actual published local track.
+  // Only sync from myTrack changes — not from liveKitConnected — so we don't
+  // briefly set cameraOn=false the instant the room connects (camera enable is
+  // async and myTrack is still null at that point, which would invert the state
+  // and cause toggleCamera to capture a stale false and flip the camera off).
   const myIdentity = me?.identity;
   const myTrack = participantId
     ? trackFor(participantId, myIdentity)
     : null;
   useEffect(() => {
-    if (!participantId || !liveKitConnected) return;
-    setCameraOn(Boolean(myTrack));
+    if (!participantId || !liveKitConnected || myTrack === null) return;
+    setCameraOn(true);
   }, [participantId, liveKitConnected, myTrack]);
 
   const toggleCamera = useCallback(async () => {
