@@ -34,6 +34,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import MyListScreen from "./src/screens/MyListScreen";
 import NotificationsScreen from "./src/screens/NotificationsScreen";
 import SettingsScreen from "./src/screens/SettingsScreen";
+import BugReportScreen from "./src/screens/BugReportScreen";
 import GroupClassesScreen from "./src/screens/GroupClassesScreen";
 import LiveClassScreen from "./src/screens/LiveClassScreen";
 import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
@@ -48,6 +49,7 @@ import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import { createStudent, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom } from "./src/api";
+import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
 import { setSettings } from "./src/storage";
@@ -82,6 +84,7 @@ function AppInner() {
   const [showSecurity, setShowSecurity] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
   const [activeLesson, setActiveLesson] = useState<
     { id: string; title: string; preview?: string; classType?: "solo" | "group" } | null
@@ -93,6 +96,10 @@ function AppInner() {
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
   const inApp = authenticated || previewMode;
+
+  useEffect(() => {
+    installClientLog();
+  }, []);
 
   useEffect(() => {
     void getPreviewMode().then(setPreviewModeState);
@@ -138,6 +145,7 @@ function AppInner() {
       setShowSecurity(false);
       setShowBilling(false);
       setShowLanguages(false);
+      setShowBugReport(false);
       setActiveLesson(null);
       setPreviewModeState(false);
       void setPreviewMode(false);
@@ -158,7 +166,7 @@ function AppInner() {
       useNativeDriver: true,
     }).start();
   }, [tab, showGroupClasses, showLiveClass, showLiveRooms, liveRoomId, gameSubject,
-    activeLesson, showRewards, showAccount, showSecurity, showBilling, showLanguages, fade]);
+    activeLesson, showRewards, showAccount, showSecurity, showBilling, showLanguages, showBugReport, fade]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -334,16 +342,19 @@ function AppInner() {
     setShowSecurity(false);
     setShowBilling(false);
     setShowLanguages(false);
+    setShowBugReport(false);
     void refreshUnreadAndAlerts();
     setTab(id);
   };
 
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !gameSubject && !activeLesson
-    && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages;
+    && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages && !showBugReport;
 
   let screen: React.ReactNode = null;
-  if (showBilling) {
+  if (showBugReport) {
+    screen = <BugReportScreen screen={`tab:${tab}`} onBack={() => setShowBugReport(false)} />;
+  } else if (showBilling) {
     screen = <BillingScreen onBack={() => setShowBilling(false)} />;
   } else if (showSecurity) {
     screen = <SecurityScreen onBack={() => setShowSecurity(false)} />;
@@ -486,6 +497,7 @@ function AppInner() {
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenBilling={() => requireAuth(() => setShowBilling(true))}
+        onOpenBugReport={() => setShowBugReport(true)}
         onSignIn={() => void exitPreviewToAuth()}
       />
     );

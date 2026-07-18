@@ -105,9 +105,10 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-// One seat in the classroom strip: the AI host, a learner (with mic/hand/mute
-// state), the current viewer, or an empty "Open seat" slot. Lets a phone user
-// see who's in the room and where there's room to drop in (parity with web).
+// One seat / profile card in the classroom strip: the AI host, a learner (with
+// mic/hand/mute state), the current viewer, or an empty "Open seat" slot. Live
+// webcam goes in the TOP window of the card (never a floating PiP over the
+// slide) — parity with the web participant grid.
 function SeatTile({
   name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
 }: {
@@ -118,8 +119,7 @@ function SeatTile({
   hand?: boolean;
   muted?: boolean;
   open?: boolean;
-  // This participant's live camera track, if they're publishing video. Each seat
-  // renders ITS OWN person's feed under their name (multiple feeds per class).
+  // This participant's live camera track, if they're publishing video.
   track?: object | null;
   // Camera on/off is only shown/actionable for the local user ("You").
   cameraOn?: boolean;
@@ -128,37 +128,36 @@ function SeatTile({
   if (open) {
     return (
       <View style={[styles.seat, styles.seatOpen]}>
-        <Text style={styles.seatOpenText}>Open{"\n"}seat</Text>
+        <View style={styles.seatVideoWindow}>
+          <Text style={styles.seatOpenText}>Open{"\n"}seat</Text>
+        </View>
+        <View style={styles.seatFooter}>
+          <Text style={styles.seatNameMuted} numberOfLines={1}>—</Text>
+        </View>
       </View>
     );
   }
   const hasVideo = Boolean(track);
+  const label = host ? "Host" : me ? "You" : name;
   const body = (
     <>
-      {hasVideo ? (
-        <>
-          <LiveKitVideoView track={track ?? null} />
-          <View style={styles.seatNameScrim}>
-            <Text style={styles.seatNameOnVideo} numberOfLines={1}>
-              {me ? "You" : name}
-            </Text>
-          </View>
-        </>
-      ) : (
-        <>
+      <View style={styles.seatVideoWindow}>
+        {hasVideo ? (
+          <LiveKitVideoView track={track ?? null} mirror={Boolean(me)} />
+        ) : (
           <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
-          <Text style={styles.seatName} numberOfLines={1}>
-            {host ? "Host" : me ? "You" : name}
-          </Text>
-        </>
-      )}
-      <View style={styles.seatBadges}>
-        {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
-        {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
-        {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
-        {me && onToggleCamera ? (
-          <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
-        ) : null}
+        )}
+        <View style={styles.seatBadges}>
+          {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
+          {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
+          {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
+          {me && onToggleCamera ? (
+            <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.seatFooter}>
+        <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
       </View>
     </>
   );
@@ -688,7 +687,7 @@ export default function LiveRoomScreen({
                 floor={p.id === room?.floor_participant_id}
                 hand={p.hand_raised && p.id !== room?.floor_participant_id}
                 muted={p.muted || p.muted_by_host}
-                track={mine && !cameraOn ? null : trackFor(p.id)}
+                track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
                 cameraOn={mine ? cameraOn : undefined}
                 onToggleCamera={mine ? () => void toggleCamera() : undefined}
               />
@@ -716,7 +715,7 @@ export default function LiveRoomScreen({
         ) : null}
         {media ? (
           <Text style={styles.camHint}>
-            {cameraOn ? "📹 Your camera is on — tap your seat above to turn it off" : "📷 Camera off — tap your seat above to turn it on"}
+            {cameraOn ? "📹 Your camera is on — tap your profile card above to turn it off" : "📷 Camera off — tap your profile card above to turn it on"}
           </Text>
         ) : null}
       </GlassPanel>
@@ -1163,13 +1162,14 @@ const styles = StyleSheet.create({
 
   // Presenter hero — takes all the vertical space between the meta row and the
   // action bar so the teacher/slide is the clear focus on a phone.
-  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 4 },
-  seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8 },
+  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 4, maxHeight: 118 },
+  seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8, alignItems: "flex-start" },
+  // Profile card: webcam fills the TOP window; name strip sits below — never a
+  // floating PiP over the training slide.
   seat: {
-    width: 72, height: 72, borderRadius: 12, overflow: "hidden",
+    width: 88, height: 110, borderRadius: 12, overflow: "hidden",
     backgroundColor: "rgba(30,27,75,0.9)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
-    alignItems: "center", justifyContent: "center", gap: 2,
   },
   seatHost: { backgroundColor: "rgba(124,58,237,0.35)", borderColor: "#a78bfa" },
   seatFloor: { borderColor: theme.colors.accent, borderWidth: 2 },
@@ -1179,17 +1179,22 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderStyle: "dashed", borderColor: "rgba(255,255,255,0.3)",
   },
-  seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
-  seatAvatar: { color: theme.colors.text, fontSize: 22, fontWeight: "800" },
-  seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "600", maxWidth: 64 },
-  // Name overlaid on a live video seat — a dark scrim keeps it legible over the feed.
-  seatNameScrim: {
-    position: "absolute", left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 4, paddingVertical: 2,
-    backgroundColor: "rgba(0,0,0,0.5)",
+  seatVideoWindow: {
+    flex: 1, width: "100%",
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(15,12,40,0.85)",
+    overflow: "hidden",
   },
-  seatNameOnVideo: { color: "#fff", fontSize: 10, fontWeight: "700", textAlign: "center" },
-  seatBadges: { flexDirection: "row", gap: 2, height: 14, position: "absolute", top: 2, right: 4 },
+  seatFooter: {
+    height: 22, paddingHorizontal: 4,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
+  seatAvatar: { color: theme.colors.text, fontSize: 26, fontWeight: "800" },
+  seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "700", maxWidth: 80, textAlign: "center" },
+  seatNameMuted: { color: theme.colors.muted, fontSize: 11, fontWeight: "600" },
+  seatBadges: { flexDirection: "row", gap: 2, position: "absolute", top: 2, right: 4 },
   seatBadge: { fontSize: 11 },
   hero: { flex: 1, gap: 8, position: "relative" },
   presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },

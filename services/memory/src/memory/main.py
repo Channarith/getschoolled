@@ -25,7 +25,9 @@ from aoep_shared.pulse_survey import (
 )
 from aoep_shared.mascots import mascot_catalog_list, resolve_mascot
 from aoep_shared.testsupport import test_endpoints_enabled
+from aoep_shared.bug_reports import BugReportStore, BugReportSubmit
 from fastapi import Depends, Header, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from .store import MemoryStore
@@ -37,6 +39,14 @@ app.state.flags = FlagStore()
 app.state.surveys = SurveyStore()
 app.state.pulse_surveys = PulseSurveyStore()
 app.state.onboarding_surveys = OnboardingSurveyStore()
+
+
+def _bug_reports() -> BugReportStore:
+    store = getattr(app.state, "bug_reports", None)
+    if store is None:
+        store = BugReportStore.open()
+        app.state.bug_reports = store
+    return store
 
 
 def _admin_secret() -> str:
@@ -394,6 +404,50 @@ def survey_insights(_: str = Depends(require_admin_header)) -> dict:
     """
     mining_on = bool(app.state.flags.resolve("data.multidim_datamart"))
     return {"data_mining_enabled": mining_on, "datamart": app.state.surveys.datamart()}
+
+
+# --------------------------------------------------------------------------- #
+# In-app bug reports (user-driven QA: screenshots, logs, snapshots)
+# --------------------------------------------------------------------------- #
+@app.post("/bugs")
+def submit_bug_report(req: BugReportSubmit) -> dict:
+    """Learner-facing bug report inbox. Attach optional screenshots (base64),
+    client logs, and a redacted snapshot of where they were in the app."""
+    try:
+        report = _bug_reports().submit(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"ok": True, "id": report.id, "created_at": report.created_at}
+
+
+@app.get("/admin/bugs")
+def admin_list_bug_reports(
+    limit: int = 50,
+    _: str = Depends(require_admin_header),
+) -> dict:
+    rows = _bug_reports().list_reports(limit=limit)
+    return {"count": len(rows), "reports": [r.model_dump() for r in rows]}
+
+
+@app.get("/admin/bugs/{report_id}")
+def admin_get_bug_report(report_id: str, _: str = Depends(require_admin_header)) -> dict:
+    report = _bug_reports().get(report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="unknown bug report")
+    return report.model_dump()
+
+
+@app.get("/admin/bugs/{report_id}/attachments/{filename}")
+def admin_bug_attachment(
+    report_id: str,
+    filename: str,
+    _: str = Depends(require_admin_header),
+) -> Response:
+    try:
+        data, content_type = _bug_reports().attachment_bytes(report_id, filename)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return Response(content=data, media_type=content_type)
 
 
 # --------------------------------------------------------------------------- #

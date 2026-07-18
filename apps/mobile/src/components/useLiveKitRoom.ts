@@ -21,9 +21,8 @@ type TileTrack = { participantId: string; track: object };
  * Mirrors the web ``useLiveKitRoom``: it connects ONCE (not once-per-tile, which
  * spun up N rooms and showed an arbitrary track under the wrong seat) and keeps a
  * map of participant id -> their published video track. ``trackFor(id)`` then
- * lets every seat render ITS OWN person's camera — the local self-view under
- * "You" and each remote learner under their own name — so a group class shows
- * multiple live feeds instead of one PIP pinned to the host panel.
+ * lets every seat render ITS OWN person's camera in the top of their profile
+ * card — never as a floating PiP over the slide.
  */
 export function useLiveKitRoom(
   media: LiveKitMedia | null | undefined,
@@ -50,6 +49,30 @@ export function useLiveKitRoom(
     return p?.id ?? identity;
   }, []);
 
+  // When connect races ahead of the roster, tracks may be keyed by LiveKit
+  // identity. Remap them onto participant ids once the roster catches up so
+  // SeatTile's trackFor(p.id) resolves.
+  useEffect(() => {
+    if (!participants.length) return;
+    setTracks((prev) => {
+      let changed = false;
+      const byId = new Map<string, object>();
+      for (const t of prev) {
+        const match = participants.find(
+          (p) => p.id === t.participantId || p.identity === t.participantId,
+        );
+        const key = match?.id ?? t.participantId;
+        if (key !== t.participantId) changed = true;
+        byId.set(key, t.track);
+      }
+      if (!changed && byId.size === prev.length) return prev;
+      return Array.from(byId.entries()).map(([participantId, track]) => ({
+        participantId,
+        track,
+      }));
+    });
+  }, [participants]);
+
   useEffect(() => {
     if (!connectEnabled || !media?.url || !media.token) {
       setConnected(false);
@@ -63,7 +86,7 @@ export function useLiveKitRoom(
       return;
     }
     const { AudioSession } = lk.rn;
-    const { Room, RoomEvent, Track } = lk.client;
+    const { Room, RoomEvent, Track, ParticipantEvent } = lk.client;
 
     let cancelled = false;
     let room: LKRoom | null = null;
@@ -80,10 +103,14 @@ export function useLiveKitRoom(
       p.trackPublications.forEach((pub) => {
         if (pub.kind === Track.Kind.Video && pub.track) upsert(pid, pub.track);
       });
-      p.on(RoomEvent.TrackSubscribed, (t) => {
-        if (t.kind === Track.Kind.Video) upsert(idFor(p.identity), t);
+      // Participant-level events (RoomEvent string constants match, but prefer
+      // ParticipantEvent when available so we don't miss remote cameras).
+      const subEvt = ParticipantEvent?.TrackSubscribed ?? RoomEvent.TrackSubscribed;
+      const unsubEvt = ParticipantEvent?.TrackUnsubscribed ?? RoomEvent.TrackUnsubscribed;
+      p.on(subEvt, (t: { kind: string }) => {
+        if (t.kind === Track.Kind.Video) upsert(idFor(p.identity), t as object);
       });
-      p.on(RoomEvent.TrackUnsubscribed, (t) => {
+      p.on(unsubEvt, (t: { kind: string }) => {
         if (t.kind === Track.Kind.Video) upsert(idFor(p.identity), null);
       });
     };
@@ -166,8 +193,14 @@ export function useLiveKitRoom(
   }, []);
 
   const trackFor = useCallback(
-    (participantId: string): object | null =>
-      tracks.find((t) => t.participantId === participantId)?.track ?? null,
+    (participantId: string, identity?: string): object | null => {
+      const hit = tracks.find(
+        (t) =>
+          t.participantId === participantId
+          || (identity != null && identity !== "" && t.participantId === identity),
+      );
+      return hit?.track ?? null;
+    },
     [tracks],
   );
 

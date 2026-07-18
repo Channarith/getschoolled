@@ -18,7 +18,7 @@ const CARDS: ContactCard[] = [
   {
     icon: "🛟",
     title: "Support",
-    blurb: "Trouble with your account, a class, billing, or the app? We're here to help.",
+    blurb: "Trouble with your account, a class, billing, or the app? Report a bug with screenshots and logs, or email us.",
     email: "support@salareen.com",
     subject: "Support request",
     accent: "#0ea5e9",
@@ -76,6 +76,11 @@ export default function ContactPage() {
               {c.title}
             </h3>
             <p className="muted" style={{ margin: 0, flex: 1 }}>{c.blurb}</p>
+            {c.email === "support@salareen.com" && (
+              <Link href="/report-bug" style={{ fontSize: 14 }}>
+                Report a bug (screenshots + logs)
+              </Link>
+            )}
             <a href={`mailto:${c.email}?subject=${encodeURIComponent(c.subject)}`}>
               <button style={{ width: "100%", background: c.accent, color: "#fff" }}>
                 ✉️ {c.email}

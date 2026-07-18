@@ -90,12 +90,14 @@ export default function ProfileMenu() {
               <Link role="menuitem" href="/rewards" style={itemStyle}>⭐ {t("profile.rewards")}</Link>
               <Link role="menuitem" href="/backgrounds" style={itemStyle}>🎨 {t("profile.themes")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>
+              <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
             </>
           ) : (
             <>
               <Link role="menuitem" href="/login" style={{ ...itemStyle, fontWeight: 700 }}>{t("profile.signIn")}</Link>
               <Link role="menuitem" href="/login" style={itemStyle}>{t("profile.createAccount")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>
+              <Link role="menuitem" href="/report-bug" style={itemStyle}>🐛 Report a bug</Link>
             </>
           )}
 

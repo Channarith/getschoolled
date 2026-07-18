@@ -2404,6 +2404,60 @@ export async function adminSurveyInsights(secret: string): Promise<{
   );
 }
 
+export type BugScreenshotUpload = {
+  filename: string;
+  content_type: string;
+  data_base64: string;
+};
+
+export type BugReportRow = {
+  id: string;
+  created_at: number;
+  description: string;
+  category: string;
+  screen: string;
+  platform: string;
+  app_version: string;
+  user_id: string;
+  email: string;
+  snapshot: Record<string, unknown>;
+  logs: string[];
+  attachments: string[];
+};
+
+export async function submitBugReport(payload: {
+  description: string;
+  category?: string;
+  screen?: string;
+  platform?: string;
+  app_version?: string;
+  user_id?: string;
+  email?: string;
+  snapshot?: Record<string, unknown>;
+  logs?: string[];
+  screenshots?: BugScreenshotUpload[];
+}): Promise<{ ok: boolean; id: string; created_at: number }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/bugs`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function adminListBugReports(
+  secret: string,
+  limit = 50,
+): Promise<{ count: number; reports: BugReportRow[] }> {
+  return jsonOrThrow(
+    await fetch(`${MEMORY_URL}/admin/bugs?limit=${limit}`, {
+      cache: "no-store",
+      headers: { "X-Admin-Secret": secret },
+    }),
+  );
+}
+
 export async function recordConsent(args: {
   student_id: string;
   scope: string;
