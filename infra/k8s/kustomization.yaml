@@ -13,6 +13,7 @@ resources:
   - ingress.yaml
   - ingress-origin.yaml
   - llm-vllm.yaml
+  - nemotron-vllm.yaml
   - cosyvoice.yaml
   - harvester.yaml
   - retention-cronjob.yaml

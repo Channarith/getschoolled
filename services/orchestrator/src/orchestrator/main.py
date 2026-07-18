@@ -769,6 +769,8 @@ from aoep_shared.live_room import (  # noqa: E402
 app.state.group_classes = GroupClassStore()
 app.state.live_rooms = LiveRoomStore()
 
+from aoep_shared.live_room_ws import ws_host_delta, ws_room_snapshot  # noqa: E402
+
 from .live_room_hub import LiveRoomConnectionHub  # noqa: E402
 
 app.state.live_room_hub = LiveRoomConnectionHub()
@@ -831,6 +833,10 @@ async def _class_cleanup_loop() -> None:
 async def _orchestrator_startup() -> None:
     import asyncio
 
+    # Capture the running loop so background threads (e.g. the streamed AI-host
+    # answer, which runs a blocking LLM generator in a threadpool) can push
+    # WebSocket frames back onto it via run_coroutine_threadsafe.
+    app.state.loop = asyncio.get_running_loop()
     _seed_group_classes()
     _cleanup_expired_classes()  # sweep once at boot
     app.state._class_cleanup_task = asyncio.create_task(_class_cleanup_loop())
@@ -850,6 +856,22 @@ async def _broadcast_live_room(room_id: str, event: dict) -> None:
 
 def _schedule_live_broadcast(background: BackgroundTasks, room_id: str, event: dict) -> None:
     background.add_task(_broadcast_live_room, room_id, event)
+
+
+def _broadcast_threadsafe(room_id: str, event: dict) -> None:
+    """Broadcast a live-room WS event from a worker thread (e.g. the streamed
+    AI-host answer generator runs in Starlette's threadpool). Schedules the async
+    broadcast on the captured event loop; never raises into the caller."""
+    import asyncio
+
+    loop = getattr(app.state, "loop", None)
+    if loop is None or loop.is_closed() or not loop.is_running():
+        return
+    coro = app.state.live_room_hub.broadcast(room_id, event)
+    try:
+        asyncio.run_coroutine_threadsafe(coro, loop)
+    except Exception:  # noqa: BLE001 - a WS hiccup must never break the answer stream
+        coro.close()
 
 
 class ScheduleGroupClassRequest(BaseModel):
@@ -2054,6 +2076,143 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
         "host_message": asdict(host_msg),
         "room": store.require(room_id).to_dict(),
     }
+
+
+def _split_finished_sentences(buf: str) -> "tuple[list[str], str]":
+    """Split a streaming buffer into complete sentences + the trailing remainder.
+
+    Used to broadcast the AI host's answer to the room in speakable chunks (so
+    every participant's TTS can start on the first sentence) instead of one WS
+    frame per token."""
+    import re as _re
+
+    parts = _re.split(r"(?<=[.!?…])\s+", buf)
+    if len(parts) <= 1:
+        return [], buf
+    return [p for p in parts[:-1] if p.strip()], parts[-1]
+
+
+def _iter_host_answer(room_id: str, participant_id: str, question: str, language: str = ""):
+    """Stream Theodore's answer for a live-room question.
+
+    Yields SSE-friendly event dicts (``queued`` | ``delta`` | ``done``) for the
+    asker's HTTP stream AND broadcasts ``host_delta`` frames over the room's
+    WebSocket so every participant sees/hears the answer build in real time. The
+    LLM (Nemotron when configured) is consumed via the streaming ``ask_stream``
+    path; it falls back to the blocking grounded answer if streaming yields
+    nothing. Side effects mirror the blocking ``/ask``: post the learner's
+    question, post the final host message, and clear the turn.
+    """
+    store = _live_rooms()
+    room = store.require(room_id)
+    sessions = get_sessions()
+    learner = room.get_participant(participant_id)
+    name = learner.name
+    lang = (language or "").strip() or learner.language or "en"
+
+    mode, entry = store.ask_when_ready(room_id, participant_id, question)
+    if mode == "queued":
+        yield {
+            "type": "queued",
+            "queue_position": entry.position if entry else 0,
+            "entry": entry.to_dict() if entry else None,
+            "room": store.require(room_id).to_dict(),
+        }
+        return
+
+    store.post_chat(room_id, participant_id, question)
+    _broadcast_threadsafe(room_id, ws_host_delta(asker=name, text="", room_id=room_id))
+
+    streamed: list[str] = []
+    buf = ""
+    try:
+        for chunk in sessions.ask_stream(room.session_id, question, language=lang):
+            if not chunk:
+                continue
+            streamed.append(chunk)
+            yield {"type": "delta", "text": chunk}
+            buf += chunk
+            segments, buf = _split_finished_sentences(buf)
+            for seg in segments:
+                _broadcast_threadsafe(
+                    room_id, ws_host_delta(text=seg + " ", asker=name, room_id=room_id)
+                )
+    except Exception:  # noqa: BLE001 - never let a model hiccup crash the room
+        streamed = []
+
+    text = "".join(streamed).strip()
+    if not text:
+        # Streaming produced nothing (no model server / error) -> grounded blocking
+        # answer so the class still gets a real reply.
+        try:
+            text = sessions.ask(room.session_id, question, language=lang).text
+        except Exception:  # noqa: BLE001
+            text = ""
+        if text:
+            yield {"type": "delta", "text": text}
+            _broadcast_threadsafe(room_id, ws_host_delta(text=text, asker=name, room_id=room_id))
+    elif buf.strip():
+        _broadcast_threadsafe(room_id, ws_host_delta(text=buf.strip(), asker=name, room_id=room_id))
+
+    host_msg = store.post_host_message(room_id, f"@{name} {text}") if text else None
+    try:
+        store.finish_turn(room_id, participant_id)
+    except LiveRoomError:
+        pass
+    room_dict = store.require(room_id).to_dict()
+    _broadcast_threadsafe(
+        room_id,
+        ws_host_delta(
+            done=True,
+            message=asdict(host_msg) if host_msg else None,
+            asker=name,
+            room_id=room_id,
+        ),
+    )
+    _broadcast_threadsafe(room_id, ws_room_snapshot(room_dict, room_id=room_id))
+    yield {
+        "type": "done",
+        "text": text,
+        "host_message": asdict(host_msg) if host_msg else None,
+        "room": room_dict,
+    }
+
+
+@app.post("/api/live-rooms/{room_id}/ask-stream")
+def live_room_ask_stream(room_id: str, req: LiveRoomAskRequest):
+    """Streaming variant of ``/ask``: Server-Sent Events of Theodore's answer as
+    it is generated (real-time, low-latency voice), while also broadcasting
+    ``host_delta`` frames to the whole room over WebSocket. Each SSE frame is
+    ``data: {json}\\n\\n``; events are ``queued`` | ``delta`` | ``done``. Powered
+    by the Nemotron agent when configured. The blocking ``/ask`` remains for
+    clients that cannot read a stream."""
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    store = _live_rooms()
+    try:
+        _ensure_room_or_404(room_id)
+        store.require(room_id).get_participant(req.participant_id)
+    except LiveRoomError as exc:
+        raise _live_room_http_error(exc)
+
+    def _events():
+        try:
+            for event in _iter_host_answer(
+                room_id, req.participant_id, req.question, req.language
+            ):
+                yield f"data: {_json.dumps(event)}\n\n"
+        except KeyError:
+            yield f"data: {_json.dumps({'type': 'error', 'detail': 'teaching session not found'})}\n\n"
+        except LiveRoomError as exc:
+            yield f"data: {_json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        _events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/live-rooms/{room_id}/record/start")

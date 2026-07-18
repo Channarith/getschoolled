@@ -45,6 +45,13 @@ function wsUrl(roomId: string): string {
   return `${proto}://${host}${prefix}${path}`;
 }
 
+export type HostAnswer = {
+  text: string;
+  asker: string;
+  done: boolean;
+  id: number;
+};
+
 export function useLiveRoomSocket(
   roomId: string,
   enabled: boolean,
@@ -56,6 +63,10 @@ export function useLiveRoomSocket(
   const [giftOverlay, setGiftOverlay] = useState<GiftOverlay | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
   const [viewerCount, setViewerCount] = useState(0);
+  const [hostAnswer, setHostAnswer] = useState<HostAnswer | null>(null);
+  const hostBufRef = useRef("");
+  const hostSeqRef = useRef(0);
+  const hostClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onRoomRef = useRef(onRoom);
   onRoomRef.current = onRoom;
 
@@ -141,6 +152,34 @@ export function useLiveRoomSocket(
                 setViewerCount(payload.viewer_count as number);
               }
               break;
+            case "host_delta": {
+              const asker = (payload.asker as string) || "";
+              const chunk = (payload.text as string) || "";
+              const done = Boolean(payload.done);
+              if (hostClearTimer.current) {
+                clearTimeout(hostClearTimer.current);
+                hostClearTimer.current = null;
+              }
+              if (done) {
+                const msg = payload.message as { text?: string } | null | undefined;
+                // Prefer the finalized chat message (strip the "@Name " prefix).
+                const finalText = (msg?.text || hostBufRef.current || "")
+                  .replace(/^@\S+\s*/, "")
+                  .trim();
+                hostBufRef.current = "";
+                setHostAnswer({ text: finalText, asker, done: true, id: ++hostSeqRef.current });
+                // Fade the live bubble a few seconds after the answer completes.
+                hostClearTimer.current = setTimeout(() => setHostAnswer(null), 8000);
+              } else if (!chunk) {
+                // Start-of-answer marker: reset the buffer + show "answering…".
+                hostBufRef.current = "";
+                setHostAnswer({ text: "", asker, done: false, id: hostSeqRef.current + 1 });
+              } else {
+                hostBufRef.current += chunk;
+                setHostAnswer({ text: hostBufRef.current, asker, done: false, id: hostSeqRef.current + 1 });
+              }
+              break;
+            }
             case "queue":
             case "slide":
               break;
@@ -169,6 +208,7 @@ export function useLiveRoomSocket(
     setFollowerCount,
     viewerCount,
     setViewerCount,
+    hostAnswer,
     pushReaction,
   };
 }

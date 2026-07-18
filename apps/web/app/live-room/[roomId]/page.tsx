@@ -19,6 +19,7 @@ import {
   deleteLiveRoom,
   liveRoomTick,
   liveRoomAsk,
+  liveRoomAskStream,
   liveRoomChat,
   liveRoomMute,
   liveRoomRaiseHand,
@@ -811,8 +812,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!me || !askDraft.trim()) return;
     setBusy(true);
     try {
-      const res = await liveRoomAsk(roomId, me.id, askDraft.trim(), locale);
-      setRoom(res.room);
+      // Stream Theodore's answer (SSE) so the reply appears/plays live; other
+      // participants receive it over the room WebSocket (host_delta frames).
+      const res = await liveRoomAskStream(roomId, me.id, askDraft.trim(), { language: locale });
+      if (res.room) setRoom(res.room);
       if (res.queued) {
         setError(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
       } else {
@@ -983,8 +986,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     setBusy(true);
     try {
       if (question) {
-        const res = await liveRoomAsk(roomId, me.id, question, narrationLocale);
-        setRoom(res.room);
+        const res = await liveRoomAskStream(roomId, me.id, question, { language: narrationLocale });
+        if (res.room) setRoom(res.room);
         setAskDraft("");
         setSpokenText("");
         spokenFinalRef.current = "";
@@ -1130,6 +1133,23 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
       canModerate, moderatorKey, roomId]);
+
+  // Theodore's streamed answer (from the room WebSocket host_delta frames):
+  // speak it out loud once, when it finishes, for every participant (including
+  // the asker). Slide narration resumes afterward via its own effect.
+  const hostAnswer = socket.hostAnswer;
+  const spokenAnswerIdRef = useRef(0);
+  useEffect(() => {
+    if (!hostAnswer || !hostAnswer.done || !hostAnswer.text) return;
+    if (spokenAnswerIdRef.current === hostAnswer.id) return;
+    spokenAnswerIdRef.current = hostAnswer.id;
+    if (!aiAudioOn || !aiAudioUnlocked) return;
+    const text = hostAnswer.text;
+    void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+      cancelSpeech();
+      speakNaturally(text, base);
+    });
+  }, [hostAnswer, aiAudioOn, aiAudioUnlocked, narrationLocale]);
 
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);
@@ -2087,6 +2107,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               Chat
             </button>
           </div>
+
+          {hostAnswer && (hostAnswer.text || !hostAnswer.done) ? (
+            <div
+              style={{
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                background: "rgba(99,102,241,0.10)",
+                padding: "8px 10px",
+                fontSize: 13,
+                color: "var(--text)",
+              }}
+            >
+              <div style={{ fontWeight: 600, opacity: 0.8, marginBottom: 2 }}>
+                🎓 Theodore{hostAnswer.asker ? ` → ${hostAnswer.asker}` : ""}
+                {!hostAnswer.done ? " is answering…" : ""}
+              </div>
+              <div>{hostAnswer.text || "…"}</div>
+            </div>
+          ) : null}
 
           <div style={{ display: "flex", gap: 6 }}>
             <input

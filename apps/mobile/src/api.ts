@@ -917,6 +917,44 @@ export async function liveRoomAsk(roomId: string, participantId: string, questio
     });
 }
 
+/** Streaming ask: hits /ask-stream so the AI host (Theodore) answer streams to
+ * the whole room over the WebSocket (host_delta frames the screen renders +
+ * speaks live). React Native's fetch can't read the SSE body incrementally, so
+ * we await the full response and parse the final queued/done event for the
+ * result. Falls back to the blocking /ask on any error. */
+export async function liveRoomAskStream(
+  roomId: string, participantId: string, question: string, language = "",
+): Promise<{ room?: LiveRoomState; queued: boolean; queue_position?: number; text?: string }> {
+  try {
+    const resp = await fetch(
+      `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ask-stream`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ participant_id: participantId, question, language }),
+      },
+    );
+    if (!resp.ok) throw new Error(`ask-stream ${resp.status}`);
+    const body = await resp.text();
+    let out: { room?: LiveRoomState; queued: boolean; queue_position?: number; text?: string } = { queued: false };
+    for (const frame of body.split("\n\n")) {
+      const line = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev: { type?: string; text?: string; queue_position?: number; room?: LiveRoomState };
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === "queued") {
+        out = { queued: true, queue_position: ev.queue_position ?? 0, room: ev.room };
+      } else if (ev.type === "done") {
+        out = { queued: false, room: ev.room, text: ev.text ?? "" };
+      }
+    }
+    return out;
+  } catch {
+    const r = await liveRoomAsk(roomId, participantId, question, language);
+    return { room: r.room, queued: r.queued, queue_position: r.queue_position };
+  }
+}
+
 /** Heartbeat the room clock so a mobile-only group class still auto-starts (when
  * full / past the scheduled time), auto-advances slides, and auto-ends when its
  * allotted time is up. Idempotent server-side; any joined client may call it. */

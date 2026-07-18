@@ -2,7 +2,18 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-17 - v0.19.91 - Language practice pronunciation now actually records &
+- 2026-07-18 - v0.19.92 - Nemotron AI teacher + live streaming group-class host.
+  Enabled the NVIDIA Nemotron conversational agent (LLM_PROVIDER=nemotron) via a
+  self-hosted in-cluster vLLM (new infra/k8s/nemotron-vllm.yaml, Service
+  "nemotron"; NEMOTRON_BASE_URL=http://nemotron:8000/v1 in cloud.env + both
+  configmaps) so the 1:1 tutor, the group-class AI host (Theodore), and the voice
+  assistant all stream answers through Nemotron when reachable (grounded offline
+  fallback otherwise). Added a streaming group-class host: new
+  /api/live-rooms/{id}/ask-stream SSE endpoint that streams Theodore's answer and
+  broadcasts sentence-level host_delta frames over the room WebSocket, so every
+  participant (web + mobile) sees the reply build live and hears it as soon as it
+  finishes. Web asks via SSE (progressive text + voice); mobile renders the live
+  bubble over the WebSocket. The blocking /ask remains for backward compatibility.
   scores speech. Mobile "Check pronunciation" was text-only with no mic — added
   a "Speak & check" button that records via native STT (Siri/Google, reusing the
   Drive-Mode speech engine + existing mic/speech permissions), auto-scores the

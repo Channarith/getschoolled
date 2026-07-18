@@ -1727,6 +1727,75 @@ export async function liveRoomAsk(
   );
 }
 
+// Streaming variant of liveRoomAsk: the group-class AI host (Theodore) answers
+// via SSE so the asker sees/hears the reply build token-by-token. onDelta fires
+// per chunk; resolves with the final { room, host answer } (or a queued result).
+// Every other participant also receives the answer live via the room WebSocket
+// (host_delta frames). Falls back to the blocking /ask on any transport error.
+export type LiveRoomAskStreamResult = {
+  queued: boolean;
+  queue_position?: number;
+  room?: LiveRoomState;
+  text?: string;
+  host_message?: { text?: string } | null;
+};
+
+export async function liveRoomAskStream(
+  roomId: string,
+  participantId: string,
+  question: string,
+  opts: { language?: string; onDelta?: (chunk: string) => void } = {},
+): Promise<LiveRoomAskStreamResult> {
+  const resp = await fetch(
+    `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/ask-stream`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participant_id: participantId, question, language: opts.language ?? "" }),
+    },
+  );
+  if (!resp.ok || !resp.body) {
+    // Transport/endpoint unavailable -> blocking fallback so Q&A still works.
+    const r = await liveRoomAsk(roomId, participantId, question, opts.language ?? "");
+    return { queued: r.queued, queue_position: r.queue_position, room: r.room };
+  }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let result: LiveRoomAskStreamResult = { queued: false };
+  for (;;) {
+    const { value, done: fin } = await reader.read();
+    if (fin) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const line = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      let ev: { type?: string; text?: string; [k: string]: unknown };
+      try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (ev.type === "delta" && ev.text) {
+        opts.onDelta?.(ev.text);
+      } else if (ev.type === "queued") {
+        result = {
+          queued: true,
+          queue_position: (ev.queue_position as number) ?? 0,
+          room: ev.room as LiveRoomState | undefined,
+        };
+      } else if (ev.type === "done") {
+        result = {
+          queued: false,
+          room: ev.room as LiveRoomState | undefined,
+          text: (ev.text as string) ?? "",
+          host_message: (ev.host_message as { text?: string } | null) ?? null,
+        };
+      }
+    }
+  }
+  return result;
+}
+
 export async function liveRoomRecordStart(roomId: string): Promise<LiveRoomState> {
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/record/start`, {

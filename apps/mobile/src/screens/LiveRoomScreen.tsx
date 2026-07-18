@@ -5,7 +5,7 @@ import {
 
 import {
   deleteLiveRoom, liveRoomAdvance,
-  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAsk, liveRoomBan, liveRoomCallNext,
+  getLiveRoom, getLiveGiftCatalog, joinLiveRoom, leaveLiveRoom, liveRoomAskStream, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
   liveRoomRaiseHand, liveRoomReaction, liveRoomReport, liveRoomSendGift, liveRoomStartPresentation,
@@ -632,6 +632,17 @@ export default function LiveRoomScreen({
           <Text style={styles.toastText}>{socket.giftBanner}</Text>
         </View>
       ) : null}
+      {socket.hostAnswer && (socket.hostAnswer.text || !socket.hostAnswer.done) ? (
+        <View style={styles.hostAnswer}>
+          <Text style={styles.hostAnswerTitle}>
+            🎓 Theodore{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
+            {!socket.hostAnswer.done ? " is answering…" : ""}
+          </Text>
+          <Text style={styles.hostAnswerText} numberOfLines={4}>
+            {socket.hostAnswer.text || "…"}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.overlay} pointerEvents="none">
         {socket.floatingReactions.map((r) => (
           <Text key={r.id} style={[styles.floatingReaction, { left: `${r.left}%` }]}>
@@ -880,8 +891,10 @@ export default function LiveRoomScreen({
               if (!question.trim() || !participantId) return;
               setBusy(true);
               try {
-                const res = await liveRoomAsk(roomId, participantId, question.trim(), locale);
-                setRoom(res.room);
+                // Stream Theodore's answer: it renders live in the room (host_delta
+                // over the WebSocket) and is narrated when finalized.
+                const res = await liveRoomAskStream(roomId, participantId, question.trim(), locale);
+                if (res.room) setRoom(res.room);
                 if (res.queued) {
                   setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
                 } else {
@@ -1294,6 +1307,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(219,39,119,0.85)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12,
   },
   toastText: { color: "#fff", fontSize: 13 },
+  hostAnswer: {
+    marginHorizontal: 12, marginTop: 6, padding: 10, borderRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.16)",
+    borderWidth: 1, borderColor: "rgba(99,102,241,0.35)",
+  },
+  hostAnswerTitle: { color: theme.colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 2 },
+  hostAnswerText: { color: theme.colors.text, fontSize: 13 },
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 15 },
   floatingReaction: { position: "absolute", bottom: 120, fontSize: 28 },
 });
