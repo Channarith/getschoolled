@@ -14,7 +14,7 @@ import {
   captureDisplayScreenshot,
   fileToScreenshotUpload,
 } from "../lib/bugReport";
-import { friendlyError } from "../lib/errors";
+import { friendlyError, isBugScreenshotTooLargeError, isOfflineError } from "../lib/errors";
 import { useFlag } from "../lib/flags";
 
 /**
@@ -82,18 +82,33 @@ export default function FloatingBugReporter() {
         reporter: "floating_button",
         captured_before_dialog: Boolean(shot),
       });
-      const result = await submitBugReport({
+      const payload = {
         ...base,
         description: description.trim(),
         category: "bug",
         email,
         user_id: userId,
         screenshots: shot ? [shot] : [],
-      });
-      setDoneId(result.id);
-      setDescription("");
+      };
+      try {
+        const result = await submitBugReport(payload);
+        setDoneId(result.id);
+        setDescription("");
+      } catch (cause) {
+        // Large attachments (or flaky uploads of them) should not block the text
+        // report — retry once without the screenshot so QA still gets the signal.
+        if (shot && (isOfflineError(cause) || isBugScreenshotTooLargeError(cause))) {
+          const result = await submitBugReport({ ...payload, screenshots: [] });
+          setDoneId(result.id);
+          setDescription("");
+          setShot(null);
+          setCaptureNote("Sent without screenshot (attachment upload failed).");
+          return;
+        }
+        throw cause;
+      }
     } catch (cause) {
-      setError(friendlyError(cause, "Could not send the report"));
+      setError(friendlyError(cause, "Could not send the report — check network and try again."));
     } finally {
       setBusy(false);
     }

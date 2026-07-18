@@ -4,6 +4,10 @@ import { APP_VERSION } from "./version";
 import { drainClientLogs } from "./clientLog";
 import type { BugScreenshotUpload } from "./api";
 
+/** Server rejects decoded screenshots above 2_000_000 bytes. Stay under that. */
+export const BUG_SCREENSHOT_MAX_BYTES = 1_500_000;
+const BUG_SCREENSHOT_MAX_EDGE = 1600;
+
 export function buildBugSnapshot(extra: Record<string, unknown> = {}): Record<string, unknown> {
   if (typeof window === "undefined") return { ...extra };
   const contextStack = new Error("Bug report opened here").stack || "";
@@ -24,19 +28,101 @@ export function buildBugSnapshot(extra: Record<string, unknown> = {}): Record<st
   };
 }
 
-export async function fileToScreenshotUpload(file: File): Promise<BugScreenshotUpload> {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+function decodedByteLength(base64: string): number {
+  const padded = base64.replace(/=+$/, "");
+  return Math.floor((padded.length * 3) / 4);
+}
+
+function dataUrlToUpload(
+  dataUrl: string,
+  filename: string,
+): BugScreenshotUpload | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
   return {
-    filename: file.name || "screenshot.png",
-    content_type: file.type || "image/png",
-    data_base64: btoa(binary),
+    filename,
+    content_type: match[1] || "image/jpeg",
+    data_base64: match[2] || "",
   };
 }
 
-/** Ask the learner to share their screen/tab; returns one PNG frame as base64. */
+/**
+ * Downscale + JPEG-compress a canvas/image so the JSON POST to /memory/bugs
+ * stays under the server's 2 MB decoded-attachment limit. Uncompressed PNG
+ * captures of retina/desktop screens (and camera roll photos) were large enough
+ * to abort the request mid-flight ("network connection was lost").
+ */
+export async function compressScreenshotUpload(
+  source: CanvasImageSource,
+  opts: {
+    filename?: string;
+    sourceWidth: number;
+    sourceHeight: number;
+    maxBytes?: number;
+    maxEdge?: number;
+  },
+): Promise<BugScreenshotUpload | null> {
+  const maxBytes = opts.maxBytes ?? BUG_SCREENSHOT_MAX_BYTES;
+  const maxEdge = opts.maxEdge ?? BUG_SCREENSHOT_MAX_EDGE;
+  const srcW = Math.max(1, opts.sourceWidth | 0);
+  const srcH = Math.max(1, opts.sourceHeight | 0);
+  const scale = Math.min(1, maxEdge / Math.max(srcW, srcH));
+  const width = Math.max(1, Math.round(srcW * scale));
+  const height = Math.max(1, Math.round(srcH * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(source, 0, 0, width, height);
+
+  const filename = opts.filename || "screenshot.jpg";
+  for (const quality of [0.72, 0.58, 0.45, 0.32]) {
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    const upload = dataUrlToUpload(dataUrl, filename);
+    if (!upload?.data_base64) continue;
+    if (decodedByteLength(upload.data_base64) <= maxBytes) return upload;
+  }
+  // Last resort: shrink further and try once more.
+  canvas.width = Math.max(1, Math.round(width * 0.55));
+  canvas.height = Math.max(1, Math.round(height * 0.55));
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const fallback = dataUrlToUpload(canvas.toDataURL("image/jpeg", 0.4), filename);
+  if (!fallback?.data_base64) return null;
+  if (decodedByteLength(fallback.data_base64) > maxBytes) return null;
+  return fallback;
+}
+
+async function loadImageElement(src: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.decoding = "async";
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Could not decode that image"));
+    img.src = src;
+  });
+  return img;
+}
+
+export async function fileToScreenshotUpload(file: File): Promise<BugScreenshotUpload> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await loadImageElement(objectUrl);
+    const compressed = await compressScreenshotUpload(img, {
+      filename: (file.name || "screenshot").replace(/\.[^.]+$/, "") + ".jpg",
+      sourceWidth: img.naturalWidth || img.width,
+      sourceHeight: img.naturalHeight || img.height,
+    });
+    if (compressed) return compressed;
+    throw new Error(
+      "That screenshot is too large to send. Try a smaller crop, or send the report without a screenshot.",
+    );
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/** Ask the learner to share their screen/tab; returns one compressed JPEG frame. */
 export async function captureDisplayScreenshot(): Promise<BugScreenshotUpload | null> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) {
     return null;
@@ -56,19 +142,13 @@ export async function captureDisplayScreenshot(): Promise<BugScreenshotUpload | 
       video.addEventListener("canplay", () => resolve(), { once: true });
       setTimeout(resolve, 3000); // hard fallback
     });
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/png");
-    const base64 = dataUrl.split(",", 2)[1] || "";
-    return {
-      filename: "screen-capture.png",
-      content_type: "image/png",
-      data_base64: base64,
-    };
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    return await compressScreenshotUpload(video, {
+      filename: "screen-capture.jpg",
+      sourceWidth: width,
+      sourceHeight: height,
+    });
   } catch {
     return null;
   } finally {

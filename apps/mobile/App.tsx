@@ -395,12 +395,14 @@ function AppInner() {
     try {
       const dataUri = await captureRef(captureViewRef, {
         format: "jpg",
-        quality: 0.65,
+        quality: 0.5,
         result: "data-uri",
         handleGLSurfaceViewOnAndroid: true,
       });
       const dataBase64 = dataUri.split(",", 2)[1] || "";
-      if (dataBase64) {
+      // Drop oversized captures so /memory/bugs does not fail mid-upload.
+      const approxBytes = Math.floor((dataBase64.replace(/=+$/, "").length * 3) / 4);
+      if (dataBase64 && approxBytes <= 1_500_000) {
         screenshot = {
           filename: "app-screen.jpg",
           content_type: "image/jpeg",

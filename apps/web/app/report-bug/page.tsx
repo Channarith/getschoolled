@@ -10,7 +10,7 @@ import {
   fileToScreenshotUpload,
 } from "../lib/bugReport";
 import { installClientLog } from "../lib/clientLog";
-import { friendlyError } from "../lib/errors";
+import { friendlyError, isBugScreenshotTooLargeError, isOfflineError } from "../lib/errors";
 import { useFlag } from "../lib/flags";
 
 const CATEGORIES = [
@@ -91,19 +91,32 @@ export default function ReportBugPage() {
         }
       }
       const base = bugReportBase();
-      const res = await submitBugReport({
+      const payload = {
         ...base,
         description: description.trim(),
         category,
         email,
         user_id: userId,
         screenshots: shots,
-      });
-      setDoneId(res.id);
-      setDescription("");
-      setShots([]);
+      };
+      try {
+        const res = await submitBugReport(payload);
+        setDoneId(res.id);
+        setDescription("");
+        setShots([]);
+      } catch (e) {
+        if (shots.length && (isOfflineError(e) || isBugScreenshotTooLargeError(e))) {
+          const res = await submitBugReport({ ...payload, screenshots: [] });
+          setDoneId(res.id);
+          setDescription("");
+          setShots([]);
+          setNote("Sent without screenshot (attachment upload failed).");
+          return;
+        }
+        throw e;
+      }
     } catch (e) {
-      setError(friendlyError(e, "Could not send the report"));
+      setError(friendlyError(e, "Could not send the report — check network and try again."));
     } finally {
       setBusy(false);
     }

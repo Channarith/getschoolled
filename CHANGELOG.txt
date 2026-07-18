@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.6 - Fix bug-report screenshot uploads that failed with "network connection was lost" on /memory/bugs: compress/downscale web captures and chosen images to JPEG under 1.5 MB before POST, improve offline/size error messages, and retry once without the screenshot so the text report still lands.
 - 2026-07-18 - v0.20.5 - Live-class cameras always open the front/selfie lens
   (facingMode=user) on iOS, Android, and web instead of the rear camera.
 - 2026-07-18 - v0.20.4 - Live room: tap any seat tile to expand host or student

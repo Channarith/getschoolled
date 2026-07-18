@@ -7,6 +7,9 @@ import { APP_VERSION } from "./version";
 import { drainClientLogs } from "./clientLog";
 import type { BugScreenshotUpload } from "./api";
 
+/** Keep under the memory-service 2 MB decoded screenshot limit. */
+export const BUG_SCREENSHOT_MAX_BYTES = 1_500_000;
+
 export function buildBugSnapshot(screen: string, extra: Record<string, unknown> = {}) {
   return {
     screen,
@@ -30,10 +33,20 @@ export function bugReportBase(screen: string, extra: Record<string, unknown> = {
   };
 }
 
+function decodedByteLength(base64: string): number {
+  const padded = base64.replace(/=+$/, "");
+  return Math.floor((padded.length * 3) / 4);
+}
+
 export function imageAssetToUpload(
   asset: { uri?: string; fileName?: string | null; mimeType?: string | null; base64?: string | null },
 ): BugScreenshotUpload | null {
   if (!asset.base64) return null;
+  if (decodedByteLength(asset.base64) > BUG_SCREENSHOT_MAX_BYTES) {
+    // Picker quality should usually keep us under the limit; refuse oversized
+    // originals so /memory/bugs does not abort mid-upload on cellular.
+    return null;
+  }
   return {
     filename: asset.fileName || "screenshot.jpg",
     content_type: asset.mimeType || "image/jpeg",
