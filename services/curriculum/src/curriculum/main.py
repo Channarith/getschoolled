@@ -612,6 +612,119 @@ def audio_course(course_id: str, locale: str = "en",
     return out
 
 
+@app.post("/admin/harvest-drive-topic")
+def harvest_drive_topic(
+    topic: str,
+    force: bool = False,
+    no_llm: bool = False,
+    _auth: str | None = None,
+) -> dict:
+    """Harvest and cache rich audio content for one drive-mode topic.
+
+    Fetches the Wikipedia article for *topic*, synthesises ~28 audio segments
+    (≈30 min) via the LLM (unless ``no_llm=true``), and writes the result to
+    the drive content SQLite cache.  Subsequent calls to GET /audio/courses/*
+    will serve the enriched content instead of the 4-minute hardcoded fallback.
+
+    After harvesting, the catalog lru_cache is cleared so the next catalog
+    request re-builds with the new content.
+
+    Example:
+        POST /admin/harvest-drive-topic?topic=Ancient+Egypt
+    """
+    from aoep_shared.drive_topic_harvest import harvest_topic, get_cached_segments
+    from aoep_shared.audio_courses import build_catalog
+
+    llm = None if no_llm else getattr(app.state, "factory", None)
+    if llm is not None:
+        try:
+            llm = llm.llm()
+        except Exception:
+            llm = None
+
+    segs = harvest_topic(topic, llm=llm, force=force)
+    word_count = sum(len(t.split()) for _, t in segs)
+    duration_min = round(word_count / 120)
+
+    # Invalidate the lru_cache so the enriched content is served immediately.
+    build_catalog.cache_clear()
+
+    return {
+        "topic": topic,
+        "segments": len(segs),
+        "word_count": word_count,
+        "duration_min": duration_min,
+        "status": "harvested" if len(segs) >= 20 else "fallback",
+    }
+
+
+@app.post("/admin/harvest-drive-all")
+def harvest_drive_all(
+    no_llm: bool = False,
+    force: bool = False,
+) -> dict:
+    """Kick off a background job to harvest all 172 drive-mode topics.
+
+    Returns immediately; harvesting runs in a background thread.  Monitor
+    progress via GET /admin/harvest-drive-status.
+    """
+    import threading
+    from aoep_shared.drive_topic_harvest import harvest_topic, _all_topics
+    from aoep_shared.audio_courses import build_catalog
+
+    llm_factory = None if no_llm else getattr(app.state, "factory", None)
+    topics = _all_topics()
+
+    def _run_all() -> None:
+        for topic in topics:
+            llm = None
+            if llm_factory is not None:
+                try:
+                    llm = llm_factory.llm()
+                except Exception:
+                    pass
+            try:
+                harvest_topic(topic, llm=llm, force=force)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "harvest_drive_all: failed for %r: %s", topic, exc
+                )
+        build_catalog.cache_clear()
+
+    t = threading.Thread(target=_run_all, daemon=True, name="drive-harvest-all")
+    t.start()
+    return {"status": "started", "topics": len(topics)}
+
+
+@app.get("/admin/harvest-drive-status")
+def harvest_drive_status() -> dict:
+    """Return the harvest status (cached topics, word counts, durations)."""
+    from aoep_shared.drive_topic_harvest import _db, _all_topics, MIN_SEGMENTS_TO_ACCEPT
+    try:
+        con = _db()
+        rows = con.execute(
+            "SELECT topic, word_count FROM drive_segments ORDER BY topic"
+        ).fetchall()
+    except Exception:
+        rows = []
+
+    all_topics = set(_all_topics())
+    cached = {r[0]: r[1] for r in rows}
+    enriched = {t: wc for t, wc in cached.items() if t in all_topics}
+    pending = sorted(all_topics - set(enriched))
+
+    return {
+        "total_topics": len(all_topics),
+        "enriched": len(enriched),
+        "pending": len(pending),
+        "pending_topics": pending[:20],
+        "avg_duration_min": round(
+            sum(enriched.values()) / max(1, len(enriched)) / 120
+        ) if enriched else 0,
+    }
+
+
 @app.get("/home")
 def home_feed(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
     """Netflix-style home feed from the unified learnable index."""

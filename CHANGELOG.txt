@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.8 - Drive Mode content harvester: scrapes Wikipedia and
+  synthesises 28 rich audio segments per topic via LLM, expanding each course
+  from ~4 min (11 segments, 523 words) to ~30 min (30 segments, ~3700 words).
+  Adds POST /admin/harvest-drive-topic, POST /admin/harvest-drive-all, and
+  GET /admin/harvest-drive-status curriculum endpoints. Catalog lru_cache
+  is invalidated after each harvest so enriched content is served immediately.
+  CLI: python -m aoep_shared.drive_topic_harvest --all
 - 2026-07-18 - v0.20.7 - Mirror user bug reports to GitHub safely: full descriptions, diagnostics, and screenshots go to the private Channarith/salareen-bug-reports repository, while the public getschoolled issue contains metadata only. Admin now links both destinations; VKE configuration keeps the required GitHub token in aoep-secrets.
 - 2026-07-18 - v0.20.6 - Fix bug-report screenshot uploads that failed with "network connection was lost" on /memory/bugs: compress/downscale web captures and chosen images to JPEG under 1.5 MB before POST, improve offline/size error messages, and retry once without the screenshot so the text report still lands.
 - 2026-07-18 - v0.20.5 - Live-class cameras always open the front/selfie lens
