@@ -603,13 +603,30 @@ export default function AdminPage() {
                     ))}
                   </td>
                   <td style={{ padding: 6 }}>
-                    {r.external_url ? (
-                      <a href={r.external_url} target="_blank" rel="noreferrer">GitHub issue ↗</a>
-                    ) : r.delivery_error ? (
+                    {r.private_issue_url ? (
+                      <div>
+                        <a href={r.private_issue_url} target="_blank" rel="noreferrer">
+                          Private issue + evidence ↗
+                        </a>
+                      </div>
+                    ) : null}
+                    {r.public_issue_url ? (
+                      <div>
+                        <a href={r.public_issue_url} target="_blank" rel="noreferrer">
+                          Public redacted issue ↗
+                        </a>
+                      </div>
+                    ) : null}
+                    {!r.private_issue_url && !r.public_issue_url && r.external_url ? (
+                      <a href={r.external_url} target="_blank" rel="noreferrer">
+                        GitHub issue ↗
+                      </a>
+                    ) : null}
+                    {r.delivery_error ? (
                       <span title={r.delivery_error}>QA inbox (GitHub retry needed)</span>
-                    ) : (
+                    ) : !r.private_issue_url && !r.public_issue_url && !r.external_url ? (
                       <span>{r.destination || "QA inbox"}</span>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}
