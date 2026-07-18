@@ -15,6 +15,9 @@ type RosterEntry = { id: string; identity?: string };
 
 type TileTrack = { participantId: string; track: object };
 
+/** Always use the front / selfie camera for live-class profile tiles. */
+const SELFIE_CAMERA = { facingMode: "user" as const };
+
 /**
  * Single shared LiveKit connection for a mobile live room.
  *
@@ -119,7 +122,7 @@ export function useLiveKitRoom(
       try {
         // LiveKit docs: iOS needs an active AVAudioSession before mic/camera.
         if (Platform.OS === "ios") await AudioSession.startAudioSession();
-        room = new Room();
+        room = new Room({ videoCaptureDefaults: SELFIE_CAMERA });
         roomRef.current = room;
         // Reflect our own camera publish/unpublish into the self-view tile.
         room.on(RoomEvent.LocalTrackPublished, () => {
@@ -145,7 +148,7 @@ export function useLiveKitRoom(
         // one-speaker mutex. Best-effort so a denied/absent camera never breaks
         // the room.
         try {
-          await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setCameraEnabled(true, SELFIE_CAMERA);
         } catch {
           /* no camera / permission denied */
         }
@@ -185,7 +188,10 @@ export function useLiveKitRoom(
     const room = roomRef.current;
     if (!room) return false;
     try {
-      await room.localParticipant.setCameraEnabled(enabled);
+      await room.localParticipant.setCameraEnabled(
+        enabled,
+        enabled ? SELFIE_CAMERA : undefined,
+      );
       return true;
     } catch {
       return false;
