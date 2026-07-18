@@ -23,12 +23,25 @@ try {
 
 const TAG = "salareen-expo-configure-provenance-fix";
 
+// Minimum iOS version must stay in sync with expo-build-properties
+// (app.config.js → ios.deploymentTarget) and platform :ios above.
+const IOS_MIN = "13.4";
+
 const PODFILE_SNIPPET = [
   "",
-  "    # Xcode 15+/26: disable script sandboxing on Pod targets.",
+  "    # Quiet third-party Pod compile noise (RN/Expo/LiveKit/fmt/glog) under",
+  "    # Xcode 26 / iOS SDK 26 — none of it is Salareen app code. Also lift any",
+  "    # Pod (e.g. AsyncStorage resources) still declaring iOS 9.0 below our min.",
   "    installer.pods_project.targets.each do |target|",
   "      target.build_configurations.each do |config|",
+  "        config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'",
+  "        config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'",
+  "        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'",
   "        config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'",
+  "        dt = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']",
+  `        if dt.nil? || dt.to_f < ${IOS_MIN}.to_f`,
+  `          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '${IOS_MIN}'`,
+  "        end",
   "      end",
   "    end",
   "    installer.pods_project.save",

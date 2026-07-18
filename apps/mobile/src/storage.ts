@@ -6,6 +6,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NarrationVoicePref } from "./voiceProfiles";
 import { normalizeTrainingLocale, type TrainingLocale } from "./trainingLocale";
 
+export type VoiceGenderPref = "any" | "female" | "male";
+
 const KEYS = {
   continue: "@aic/continue.v1",     // { [courseId]: { id, title, segment, total, updatedAt } }
   myList: "@aic/mylist.v1",         // string[]
@@ -43,8 +45,14 @@ export type Settings = {
   driveAutoLaunch: boolean;
   /** Local alert when driving starts. */
   driveDrivingAlerts: boolean;
-  /** auto = infer from learning profile (child, accessibility, pace). */
+  /** @deprecated Internal only — always "auto"; prosody comes from instructor or profile. */
   narrationVoicePref: NarrationVoicePref;
+  /** Neural/OS accent id from /tts/voices (shared by Drive, live rooms, lessons). */
+  voiceId: string;
+  /** Instructor personality id from /tts/instructors. */
+  instructorId: string;
+  /** Gender bias when picking on-device / neural voices. */
+  voiceGender: VoiceGenderPref;
   /** Spoken lesson language for Drive Mode (en / es / zh). */
   trainingLocale: TrainingLocale;
   /** Play animated Salareen jingle on first app launch. */
@@ -68,6 +76,9 @@ export const DEFAULT_SETTINGS: Settings = {
   driveAutoLaunch: false,
   driveDrivingAlerts: true,
   narrationVoicePref: "auto",
+  voiceId: "",
+  instructorId: "",
+  voiceGender: "any",
   trainingLocale: "en",
   introSplashEnabled: true,
   introSplashSeen: false,

@@ -49,6 +49,37 @@ export function resolveVoiceStyle(
   return suggestVoiceStyleFromProfile(student);
 }
 
+/** Map a chosen instructor personality to a prosody style (server + on-device). */
+export function voiceStyleFromInstructorId(instructorId: string): NarrationVoiceStyle | null {
+  switch (instructorId) {
+    case "child":
+    case "cartoon":
+      return "child";
+    case "kind":
+    case "mentor":
+    case "chill":
+      return "calm";
+    case "strict":
+      return "clear";
+    default:
+      return instructorId ? "standard" : null;
+  }
+}
+
+/**
+ * Effective narration prosody: instructor personality wins when set; otherwise
+ * infer from the learning profile (internal "auto" — no separate UI control).
+ */
+export function resolveEffectiveVoiceStyle(
+  instructorId: string | undefined,
+  student?: Partial<StudentProfile> | null,
+): NarrationVoiceStyle {
+  if (instructorId) {
+    return voiceStyleFromInstructorId(instructorId) ?? "standard";
+  }
+  return resolveVoiceStyle("auto", student);
+}
+
 export function voiceNameStyleBonus(style: NarrationVoiceStyle, voiceName: string): number {
   const name = (voiceName || "").toLowerCase();
   if (style === "child") {

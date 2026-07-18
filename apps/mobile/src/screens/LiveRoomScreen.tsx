@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import {
@@ -16,8 +16,10 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
+import { buildNarrationSpeakOptions } from "../narrationTts";
 import GlassPanel from "../components/GlassPanel";
-import LiveKitParticipantTile from "../components/LiveKitParticipantTile";
+import { LiveKitVideoView } from "../components/liveKitRuntime";
+import { useLiveKitRoom } from "../components/useLiveKitRoom";
 import PrimaryButton from "../components/PrimaryButton";
 import { getLiveRoomLocation } from "../liveRoomLocation";
 import { useLiveRoomSocket } from "../liveRoomWs";
@@ -107,7 +109,7 @@ function initials(name: string): string {
 // state), the current viewer, or an empty "Open seat" slot. Lets a phone user
 // see who's in the room and where there's room to drop in (parity with web).
 function SeatTile({
-  name, host, me, floor, hand, muted, open,
+  name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
 }: {
   name?: string;
   host?: boolean;
@@ -116,6 +118,12 @@ function SeatTile({
   hand?: boolean;
   muted?: boolean;
   open?: boolean;
+  // This participant's live camera track, if they're publishing video. Each seat
+  // renders ITS OWN person's feed under their name (multiple feeds per class).
+  track?: object | null;
+  // Camera on/off is only shown/actionable for the local user ("You").
+  cameraOn?: boolean;
+  onToggleCamera?: () => void;
 }) {
   if (open) {
     return (
@@ -124,26 +132,56 @@ function SeatTile({
       </View>
     );
   }
-  return (
-    <View
-      style={[
-        styles.seat,
-        host && styles.seatHost,
-        floor && styles.seatFloor,
-        me && !floor && styles.seatMe,
-      ]}
-    >
-      <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
-      <Text style={styles.seatName} numberOfLines={1}>
-        {host ? "Host" : me ? "You" : name}
-      </Text>
+  const hasVideo = Boolean(track);
+  const body = (
+    <>
+      {hasVideo ? (
+        <>
+          <LiveKitVideoView track={track ?? null} />
+          <View style={styles.seatNameScrim}>
+            <Text style={styles.seatNameOnVideo} numberOfLines={1}>
+              {me ? "You" : name}
+            </Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
+          <Text style={styles.seatName} numberOfLines={1}>
+            {host ? "Host" : me ? "You" : name}
+          </Text>
+        </>
+      )}
       <View style={styles.seatBadges}>
         {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
         {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
         {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
+        {me && onToggleCamera ? (
+          <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
+        ) : null}
       </View>
-    </View>
+    </>
   );
+  const seatStyle = [
+    styles.seat,
+    host && styles.seatHost,
+    floor && styles.seatFloor,
+    me && !floor && styles.seatMe,
+  ];
+  // The local seat doubles as the camera on/off toggle (tap to switch).
+  if (me && onToggleCamera) {
+    return (
+      <Pressable
+        onPress={onToggleCamera}
+        accessibilityRole="button"
+        accessibilityLabel={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}
+        style={({ pressed }) => [...seatStyle, pressed && styles.seatPressed]}
+      >
+        {body}
+      </Pressable>
+    );
+  }
+  return <View style={seatStyle}>{body}</View>;
 }
 
 // A bottom sheet that slides up over the presenter. Tapping the dimmed backdrop
@@ -303,24 +341,26 @@ export default function LiveRoomScreen({
     const text = `${s.title}. ${s.body || s.narration || ""}`.trim();
     const spokenFor = s.index;
     if (text) {
-      speakNatural(text, {
-        locale,
-        // Advance the moment the AI finishes this slide (moderator/admin drives
-        // it; others follow the room state). Guarded so we never skip a learner
-        // who holds/awaits the floor. Server timed dwell remains the fallback.
-        onDone: () => {
-          const r = roomRef.current;
-          if (
-            canModerate &&
-            r?.presenting &&
-            r.status !== "ended" &&
-            spokenSlideRef.current === spokenFor &&
-            !r.floor_participant_id &&
-            !(r.speaking_queue?.some((e) => e.status === "waiting"))
-          ) {
-            void liveRoomAdvance(roomId, modKey).then((next) => setRoom(next)).catch(() => undefined);
-          }
-        },
+      void buildNarrationSpeakOptions(locale).then((base) => {
+        speakNatural(text, {
+          ...base,
+          // Advance the moment the AI finishes this slide (moderator/admin drives
+          // it; others follow the room state). Guarded so we never skip a learner
+          // who holds/awaits the floor. Server timed dwell remains the fallback.
+          onDone: () => {
+            const r = roomRef.current;
+            if (
+              canModerate &&
+              r?.presenting &&
+              r.status !== "ended" &&
+              spokenSlideRef.current === spokenFor &&
+              !r.floor_participant_id &&
+              !(r.speaking_queue?.some((e) => e.status === "waiting"))
+            ) {
+              void liveRoomAdvance(roomId, modKey).then((next) => setRoom(next)).catch(() => undefined);
+            }
+          },
+        });
       });
     }
   }, [room?.slide?.index, participantId, muted, locale]);
@@ -344,7 +384,12 @@ export default function LiveRoomScreen({
     }
     if (spokenChatRef.current === latest.id) return;
     spokenChatRef.current = latest.id;
-    if (!muted) speakNatural(latest.text, { locale });
+    const msg = latest;
+    if (!muted) {
+      void buildNarrationSpeakOptions(locale).then((base) => {
+        speakNatural(msg.text, base);
+      });
+    }
   }, [room?.chat, participantId, muted, locale]);
 
   useEffect(() => () => stopSpeech(), []);  // stop narration when leaving the screen
@@ -451,6 +496,22 @@ export default function LiveRoomScreen({
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;
+
+  // Single shared LiveKit connection for the whole room: one connection maps each
+  // participant's video track to their seat (self-view under "You", every remote
+  // learner under their own name), so a group class shows MULTIPLE live feeds.
+  const { trackFor, setCameraEnabled } = useLiveKitRoom(
+    media,
+    room?.participants ?? [],
+    hasFloor,
+    Boolean(participantId) && !classEnded,
+  );
+  const [cameraOn, setCameraOn] = useState(true);
+  const toggleCamera = useCallback(async () => {
+    const next = !cameraOn;
+    const ok = await setCameraEnabled(next);
+    if (ok) setCameraOn(next);
+  }, [cameraOn, setCameraEnabled]);
 
   // Hard mutex: learners join without publish rights; when the host/AI grants
   // the floor (me.can_publish flips) re-fetch a fresh token that permits
@@ -606,16 +667,22 @@ export default function LiveRoomScreen({
         {room?.host ? <SeatTile name={room.host.name} host /> : null}
         {(room?.participants ?? [])
           .filter((p) => p.role !== "host")
-          .map((p) => (
-            <SeatTile
-              key={p.id}
-              name={p.name}
-              me={p.id === participantId}
-              floor={p.id === room?.floor_participant_id}
-              hand={p.hand_raised && p.id !== room?.floor_participant_id}
-              muted={p.muted || p.muted_by_host}
-            />
-          ))}
+          .map((p) => {
+            const mine = p.id === participantId;
+            return (
+              <SeatTile
+                key={p.id}
+                name={p.name}
+                me={mine}
+                floor={p.id === room?.floor_participant_id}
+                hand={p.hand_raised && p.id !== room?.floor_participant_id}
+                muted={p.muted || p.muted_by_host}
+                track={mine && !cameraOn ? null : trackFor(p.id)}
+                cameraOn={mine ? cameraOn : undefined}
+                onToggleCamera={mine ? () => void toggleCamera() : undefined}
+              />
+            );
+          })}
         {Array.from({ length: Math.max(0, room?.seats_left ?? 0) }).map((_, i) => (
           <SeatTile key={`open-${i}`} open />
         ))}
@@ -637,18 +704,105 @@ export default function LiveRoomScreen({
           <Text style={styles.floorChip}>✋ You&apos;re #{myPos} in line</Text>
         ) : null}
         {media ? (
-          // Self-view: the camera turns on as soon as you attend; the mic only
-          // goes live when you hold the floor (audio mutex).
-          <View style={styles.pip}>
-            <LiveKitParticipantTile
-              media={media}
-              canPublish={hasFloor}
-              participantName={me?.name ?? "You"}
-              fallbackEmoji={hasFloor ? "🎤" : "📹"}
-            />
-          </View>
+          <Text style={styles.camHint}>
+            {cameraOn ? "📹 Your camera is on — tap your seat above to turn it off" : "📷 Camera off — tap your seat above to turn it on"}
+          </Text>
         ) : null}
       </GlassPanel>
+
+      {/* Host / admin bar — same controls as web (Start, Close, Delete), not buried in More. */}
+      {canModerate ? (
+        <View style={styles.hostBar}>
+          {!room?.presenting ? (
+            <Pressable
+              style={({ pressed }) => [styles.hostBtn, styles.hostBtnPrimary, pressed && styles.hostBtnPressed]}
+              onPress={() => {
+                void (async () => {
+                  try {
+                    setRoom(await liveRoomStartPresentation(roomId, modKey));
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                })();
+              }}
+            >
+              <Text style={styles.hostBtnText}>🎬 Start class</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.hostBtn, pressed && styles.hostBtnPressed]}
+              onPress={() => {
+                void (async () => {
+                  try {
+                    setRoom(await liveRoomAdvance(roomId, modKey));
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                })();
+              }}
+            >
+              <Text style={styles.hostBtnText}>▶ Next slide</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.hostBtn, styles.hostBtnWarn, pressed && styles.hostBtnPressed]}
+            onPress={() => {
+              Alert.alert(
+                "Close session",
+                "End this class for everyone?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Close",
+                    style: "destructive",
+                    onPress: () => {
+                      void (async () => {
+                        try {
+                          setRoom(await liveRoomEnd(roomId, modKey));
+                        } catch (e) {
+                          setError((e as Error).message);
+                        }
+                      })();
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Text style={styles.hostBtnText}>⛔ Close</Text>
+          </Pressable>
+          {account?.is_admin ? (
+            <Pressable
+              style={({ pressed }) => [styles.hostBtn, styles.hostBtnDanger, pressed && styles.hostBtnPressed]}
+              onPress={() => {
+                Alert.alert(
+                  "Delete session",
+                  "Delete this session permanently? This cannot be undone.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: () => {
+                        void (async () => {
+                          try {
+                            await deleteLiveRoom(roomId);
+                            leaveAndBack();
+                          } catch (e) {
+                            setError((e as Error).message);
+                          }
+                        })();
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={styles.hostBtnText}>🗑 Delete</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Bottom action bar — icons reveal chat / ask / react / gifts / more. */}
       <View style={styles.actionBar}>
@@ -904,9 +1058,28 @@ export default function LiveRoomScreen({
                   <PrimaryButton
                     label="🗑 Delete session"
                     variant="ghost"
-                    onPress={async () => {
-                      try { await deleteLiveRoom(roomId); leaveAndBack(); }
-                      catch (e) { setError((e as Error).message); }
+                    onPress={() => {
+                      Alert.alert(
+                        "Delete session",
+                        "Delete this session permanently? This cannot be undone.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => {
+                              void (async () => {
+                                try {
+                                  await deleteLiveRoom(roomId);
+                                  leaveAndBack();
+                                } catch (e) {
+                                  setError((e as Error).message);
+                                }
+                              })();
+                            },
+                          },
+                        ],
+                      );
                     }}
                   />
                 ) : null}
@@ -980,7 +1153,7 @@ const styles = StyleSheet.create({
   seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 4 },
   seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8 },
   seat: {
-    width: 72, height: 72, borderRadius: 12,
+    width: 72, height: 72, borderRadius: 12, overflow: "hidden",
     backgroundColor: "rgba(30,27,75,0.9)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center", justifyContent: "center", gap: 2,
@@ -988,6 +1161,7 @@ const styles = StyleSheet.create({
   seatHost: { backgroundColor: "rgba(124,58,237,0.35)", borderColor: "#a78bfa" },
   seatFloor: { borderColor: theme.colors.accent, borderWidth: 2 },
   seatMe: { borderColor: theme.colors.success },
+  seatPressed: { opacity: 0.75 },
   seatOpen: {
     backgroundColor: "transparent",
     borderStyle: "dashed", borderColor: "rgba(255,255,255,0.3)",
@@ -995,7 +1169,14 @@ const styles = StyleSheet.create({
   seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
   seatAvatar: { color: theme.colors.text, fontSize: 22, fontWeight: "800" },
   seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "600", maxWidth: 64 },
-  seatBadges: { flexDirection: "row", gap: 2, height: 14 },
+  // Name overlaid on a live video seat — a dark scrim keeps it legible over the feed.
+  seatNameScrim: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 4, paddingVertical: 2,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  seatNameOnVideo: { color: "#fff", fontSize: 10, fontWeight: "700", textAlign: "center" },
+  seatBadges: { flexDirection: "row", gap: 2, height: 14, position: "absolute", top: 2, right: 4 },
   seatBadge: { fontSize: 11 },
   hero: { flex: 1, gap: 8, position: "relative" },
   presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },
@@ -1010,12 +1191,38 @@ const styles = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, overflow: "hidden",
     alignSelf: "flex-start",
   },
-  pip: {
-    position: "absolute", right: 10, bottom: 10, width: 96, height: 128,
-    borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
-  },
+  camHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
 
   // Bottom action bar of icon "tabs".
+  hostBar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  hostBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  hostBtnPrimary: {
+    backgroundColor: "rgba(219,39,119,0.85)",
+    borderColor: "rgba(251,113,133,0.6)",
+  },
+  hostBtnWarn: {
+    backgroundColor: "rgba(180,83,9,0.85)",
+    borderColor: "rgba(251,191,36,0.45)",
+  },
+  hostBtnDanger: {
+    backgroundColor: "rgba(185,28,28,0.9)",
+    borderColor: "rgba(248,113,113,0.5)",
+  },
+  hostBtnPressed: { opacity: 0.7 },
+  hostBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   actionBar: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -12,6 +12,7 @@ import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import StartTimeField, { defaultStartDate } from "../components/StartTimeField";
 import { useT } from "../i18n";
 import { getLiveRoomLocation } from "../liveRoomLocation";
 import { theme } from "../theme";
@@ -58,7 +59,7 @@ export default function GroupClassesScreen({
   const [schedLessonId, setSchedLessonId] = useState("");
   const [schedPlatform, setSchedPlatform] = useState("salareen");
   const [schedMeetingUrl, setSchedMeetingUrl] = useState("");
-  const [schedStart, setSchedStart] = useState("");
+  const [schedStart, setSchedStart] = useState(() => defaultStartDate());
   const [schedDuration, setSchedDuration] = useState("45");
   const [schedCapacity, setSchedCapacity] = useState("12");
   const [schedRoomSize, setSchedRoomSize] = useState("6");
@@ -169,16 +170,13 @@ export default function GroupClassesScreen({
     setError("");
     try {
       const lesson = lessons.find((l) => l.lesson_id === schedLessonId);
-      const startIso = schedStart.trim()
-        ? new Date(schedStart).toISOString()
-        : new Date(Date.now() + 3600000).toISOString();
       const roomSize = Number(schedRoomSize) || 6;
       await scheduleGroupClass({
         title: schedTitle.trim() || lesson?.title || "Group class",
         lesson_id: schedLessonId,
         platform: schedPlatform,
         meeting_url: schedMeetingUrl.trim(),
-        start_time: startIso,
+        start_time: schedStart.toISOString(),
         duration_min: Number(schedDuration) || 45,
         capacity: schedPlatform === "salareen" ? roomSize - 1 : Number(schedCapacity) || 12,
         room_size: schedPlatform === "salareen" ? roomSize : undefined,
@@ -187,6 +185,7 @@ export default function GroupClassesScreen({
       setShowSchedule(false);
       setSchedTitle("");
       setSchedMeetingUrl("");
+      setSchedStart(defaultStartDate());
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -372,8 +371,11 @@ export default function GroupClassesScreen({
                 placeholderTextColor={theme.colors.muted} value={schedPlatform} onChangeText={setSchedPlatform} />
               <TextInput style={styles.input} placeholder={t("group.scheduleMeeting")}
                 placeholderTextColor={theme.colors.muted} value={schedMeetingUrl} onChangeText={setSchedMeetingUrl} />
-              <TextInput style={styles.input} placeholder={t("group.scheduleWhen")}
-                placeholderTextColor={theme.colors.muted} value={schedStart} onChangeText={setSchedStart} />
+              <StartTimeField
+                value={schedStart}
+                onChange={setSchedStart}
+                label={t("group.scheduleWhen")}
+              />
               <TextInput style={styles.input} placeholder={t("group.scheduleDuration")}
                 placeholderTextColor={theme.colors.muted} value={schedDuration} onChangeText={setSchedDuration}
                 keyboardType="number-pad" />

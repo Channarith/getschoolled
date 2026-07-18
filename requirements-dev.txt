@@ -18,7 +18,7 @@ PyYAML==6.0.2
 
 # Perception (face recognition) - CPU only; model weights downloaded at runtime.
 opencv-contrib-python-headless==4.10.0.84
-onnxruntime==1.18.1
+onnxruntime==1.27.0
 numpy==1.26.4
 
 # Content scraper (curriculum ingestion: textbooks / web / video transcripts).

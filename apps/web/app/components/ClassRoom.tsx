@@ -40,6 +40,7 @@ import {
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
 import { useT } from "../lib/i18n";
+import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, speakNaturally } from "../lib/tts";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
@@ -231,9 +232,11 @@ export default function ClassRoom({
       return;
     }
     stopSpeaking();
-    speakNaturally(text, {
-      locale,
-      onend: () => { setSpeaking(false); onDone?.(); },
+    void buildNarrationSpeakOptions(locale).then((base) => {
+      speakNaturally(text, {
+        ...base,
+        onend: () => { setSpeaking(false); onDone?.(); },
+      });
     });
     setSpeaking(true);
   }

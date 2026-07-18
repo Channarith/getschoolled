@@ -26,7 +26,9 @@ import {
   startAmbientListening, stopAmbientListening, isQuestion, isLikelyEcho,
   type VoiceEngineLabel,
 } from "../voiceAssistant";
-import { resolveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle } from "../voiceProfiles";
+import {
+  resolveEffectiveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle,
+} from "../voiceProfiles";
 import { categoryGradient, theme } from "../theme";
 
 export default function DriveModeScreen({
@@ -85,12 +87,16 @@ export default function DriveModeScreen({
       .catch(() => setVoiceEngine("System"));
   }, []);
 
+  useEffect(() => {
+    if (!voiceId || !voiceGroups.length) return;
+    syncVoiceRefsFromCatalog(voiceId);
+  }, [voiceId, voiceGroups]);
+
   function chooseVoice(id: string) {
     setVoiceId(id);
     setServerVoice(id);
-    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
-    voiceLocaleRef.current = v?.locale || "";
-    voiceGenderRef.current = v?.gender || "";
+    syncVoiceRefsFromCatalog(id);
+    void setSettings({ voiceId: id });
     if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
   }
 
@@ -98,7 +104,10 @@ export default function DriveModeScreen({
     setInstructorId(id);
     setServerInstructor(id);
     instructorRef.current = id;
-    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+    void setSettings({ instructorId: id });
+    void refreshVoiceStyle().then(() => {
+      if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
+    });
   }
 
   async function refreshVoiceStyle() {
@@ -107,13 +116,24 @@ export default function DriveModeScreen({
     try {
       student = (await listStudents()).students[0] ?? null;
     } catch { /* offline / guest */ }
-    voiceStyleRef.current = resolveVoiceStyle(settings.narrationVoicePref, student);
+    voiceStyleRef.current = resolveEffectiveVoiceStyle(settings.instructorId, student);
+  }
+
+  function syncVoiceRefsFromCatalog(vid: string) {
+    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === vid);
+    voiceLocaleRef.current = v?.locale || "";
+    voiceGenderRef.current = v?.gender || "";
   }
 
   useEffect(() => {
     void warmVoices();
     void refreshVoiceStyle();
     void getSettings().then((s) => {
+      setVoiceId(s.voiceId || "");
+      setServerVoice(s.voiceId || "");
+      setInstructorId(s.instructorId || "");
+      setServerInstructor(s.instructorId || "");
+      instructorRef.current = s.instructorId || "";
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
       setTrainingLang(tloc);
       getAudioCourse(courseId, locale, tloc)

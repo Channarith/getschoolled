@@ -22,6 +22,7 @@ import { useT } from "../i18n";
 import { getSettings } from "../storage";
 import { theme } from "../theme";
 import { speakNatural } from "../tts";
+import { buildNarrationSpeakOptions } from "../narrationTts";
 
 type Props = {
   lessonId: string;
@@ -104,11 +105,13 @@ export default function LessonScreen({
     const text = s.narration || s.body || s.title;
     if (!text) return;
     setNarrating(true);
-    speakNatural(text, {
-      locale,
-      onDone: () => setNarrating(false),
-      onStopped: () => setNarrating(false),
-      onError: () => setNarrating(false),
+    void buildNarrationSpeakOptions(locale).then((base) => {
+      speakNatural(text, {
+        ...base,
+        onDone: () => setNarrating(false),
+        onStopped: () => setNarrating(false),
+        onError: () => setNarrating(false),
+      });
     });
   }
 
@@ -165,7 +168,9 @@ export default function LessonScreen({
     setError("");
     try {
       const r = await reengageLessonSession(view.session.session_id);
-      speakNatural(r.text, { locale });
+      void buildNarrationSpeakOptions(locale).then((base) => {
+        speakNatural(r.text, base);
+      });
       if (r.prompt) setQuestion(r.prompt);
     } catch (e) {
       setError((e as Error).message);

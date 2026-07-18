@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
@@ -11,6 +11,8 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useT } from "../i18n";
+import { speakNatural, stopSpeech } from "../tts";
+import { startVoiceListening, stopVoiceListening } from "../voiceAssistant";
 import { theme } from "../theme";
 
 export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
@@ -23,8 +25,14 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [done, setDone] = useState<{ correct: number; total: number; xp?: number } | null>(null);
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [heard, setHeard] = useState("");
+  const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Latest passing target/course for the STT result callback (avoids stale closure).
+  const targetRef = useRef<string>("");
+  const codeRef = useRef<string>("");
+  targetRef.current = ex?.target ?? "";
+  codeRef.current = course?.code ?? "";
 
   useEffect(() => {
     void getLearnLanguages()
@@ -32,6 +40,9 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
+
+  // Stop mic + narration when leaving the screen.
+  useEffect(() => () => { stopVoiceListening(); stopSpeech(); }, []);
 
   const openCourse = useCallback(async (code: string) => {
     setError("");
@@ -74,14 +85,54 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     void finishExercise(correct, ex.items.length);
   }
 
-  async function checkPronunciation() {
-    if (!ex?.target) return;
+  async function checkPronunciation(said: string) {
+    const target = targetRef.current;
+    const text = (said || "").trim();
+    if (!target || !text) return;
     setError("");
     try {
-      setPron(await pronounce(ex.target, heard.trim()));
+      const r = await pronounce(target, text);
+      setPron(r);
+      if (r.passed && codeRef.current) {
+        try { await languagePractice(codeRef.current, "pronunciation", r.stars, 3); } catch { /* offline ok */ }
+      }
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+
+  // Speak the target phrase aloud so the learner can hear it before repeating.
+  function listenToTarget() {
+    const target = targetRef.current;
+    if (!target) return;
+    stopSpeech();
+    speakNatural(target, { locale: codeRef.current || "en" });
+  }
+
+  // Record the learner via native speech recognition (Siri/Google STT on device,
+  // Web Speech in Expo web), transcribe, then auto-score against the target.
+  async function startSpeaking() {
+    if (!targetRef.current) return;
+    setError("");
+    setPron(null);
+    setHeard("");
+    stopSpeech();
+    setListening(true);
+    const ok = await startVoiceListening({
+      locale: codeRef.current || "en",
+      onResult: (transcript) => {
+        setHeard(transcript);
+        void checkPronunciation(transcript);
+      },
+      onError: (code) => {
+        setListening(false);
+        if (code === "permission_denied") setError(t("languages.micDenied"));
+        else if (code === "unavailable") setError(t("languages.micUnavailable"));
+        else if (code === "no-speech") setError(t("languages.micNoSpeech"));
+      },
+      onEnd: () => setListening(false),
+    });
+    if (!ok) setListening(false);
   }
 
   return (
@@ -134,12 +185,32 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
             <GlassPanel style={styles.card}>
               <Text style={styles.prompt}>{ex.target}</Text>
               {ex.roman ? <Text style={styles.meta}>{ex.roman}</Text> : null}
-              <TextInput style={styles.input} value={heard} onChangeText={setHeard}
-                placeholder={t("languages.heard")} placeholderTextColor={theme.colors.muted} />
-              <PrimaryButton label={t("languages.check")} onPress={() => void checkPronunciation()} variant="brand" />
+              {ex.mouth_tip ? <Text style={styles.tip}>👄 {ex.mouth_tip}</Text> : null}
+              <View style={styles.row}>
+                <PrimaryButton label={t("languages.listen")} onPress={listenToTarget} variant="ghost" />
+                <PrimaryButton
+                  label={listening ? t("languages.listening") : t("languages.speak")}
+                  onPress={() => void startSpeaking()}
+                  variant="brand"
+                />
+              </View>
               {pron ? (
-                <Text style={styles.meta}>{pron.feedback} ({pron.score}%)</Text>
+                <Text style={styles.meta}>
+                  {"⭐".repeat(pron.stars)}{"☆".repeat(Math.max(0, 3 - pron.stars))} {pron.score}% — {pron.feedback}
+                </Text>
               ) : null}
+              <Text style={styles.fallbackLabel}>{t("languages.typeInstead")}</Text>
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={heard}
+                  onChangeText={setHeard}
+                  placeholder={t("languages.heard")}
+                  placeholderTextColor={theme.colors.muted}
+                  onSubmitEditing={() => void checkPronunciation(heard)}
+                />
+                <PrimaryButton label={t("languages.check")} onPress={() => void checkPronunciation(heard)} variant="netflix" />
+              </View>
             </GlassPanel>
           ) : null}
           {done ? (
@@ -170,6 +241,8 @@ const styles = StyleSheet.create({
   courseTitle: { color: theme.colors.text, fontSize: 20, fontWeight: "800" },
   tip: { color: theme.colors.muted, fontSize: 13, lineHeight: 18 },
   card: { gap: 10 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  fallbackLabel: { color: theme.colors.muted, fontSize: 12, marginTop: 4 },
   prompt: { color: theme.colors.text, fontSize: 15, fontWeight: "700" },
   opt: {
     borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, padding: 10,

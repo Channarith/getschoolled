@@ -1087,19 +1087,32 @@ class LiveRoomStore:
         room.presenting = True
         room.presentation_started_at = now
         room.slide_started_at = now
-        if auto:
-            note = "the room is full" if room.is_full else "we're at start time"
-            text = f"🎬 Class is starting automatically — {note}. Let's begin!"
-        else:
-            text = "🎬 Class is starting — let's begin!"
-        room.chat.append(
-            ChatMessage(
-                id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
-                text=text,
-            )
+        # Deduplicate start announcements — concurrent ticks / replica reopens
+        # used to flood chat with "Class is starting automatically…" every few
+        # seconds when presenting briefly reset or raced across writes. We use a
+        # DETERMINISTIC message id (one per room) so that even a duplicate that
+        # slips through a cross-replica read-modify-write race collapses to a
+        # single line client-side (both web + mobile key chat by message id).
+        start_msg_id = f"start-{room_id}"[:32]
+        already_announced = any(
+            m.id == start_msg_id
+            or (m.from_id == AI_HOST_ID and m.text.startswith("🎬 Class is starting"))
+            for m in room.chat[-30:]
         )
+        if not already_announced:
+            if auto:
+                note = "the room is full" if room.is_full else "we're at start time"
+                text = f"🎬 Class is starting automatically — {note}. Let's begin!"
+            else:
+                text = "🎬 Class is starting — let's begin!"
+            room.chat.append(
+                ChatMessage(
+                    id=start_msg_id,
+                    from_id=AI_HOST_ID,
+                    from_name=AI_HOST_NAME,
+                    text=text,
+                )
+            )
         self._commit(room)
         return room
 
