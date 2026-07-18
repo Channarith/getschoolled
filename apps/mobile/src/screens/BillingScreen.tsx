@@ -8,11 +8,13 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
 
 export default function BillingScreen({ onBack }: { onBack: () => void }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const { refreshAccount } = useAuth();
   const [plans, setPlans] = useState<Record<string, ConsumerPlan>>({});
   const [sub, setSub] = useState<Subscription | null>(null);

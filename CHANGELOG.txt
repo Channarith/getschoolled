@@ -2,6 +2,9 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.2 - Android hardware/gesture back navigates like the UI
+  back button across overlay screens (live room, drive mode, lessons, games,
+  account/settings stacks) and returns secondary tabs to Home before exiting.
 - 2026-07-18 - v0.20.1 - Fix live-room welcome TTS typecheck null narrowing
   (web + mobile) that failed CI/mobile-tests; add always-on Cursor rule
   `.cursor/rules/ci-typecheck-before-pr.mdc` so agents run web/mobile

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Animated, AppState, I18nManager, Pressable, SafeAreaView, StyleSheet, Text, View,
 } from "react-native";
+import { useAndroidBack, useAndroidBackTo } from "./src/hooks/useAndroidBack";
 import { captureRef } from "react-native-view-shot";
 
 import AmbientBackground from "./src/components/AmbientBackground";
@@ -420,6 +421,20 @@ function AppInner() {
     && !showLiveRooms && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages && !showBugReport;
 
+  // Android hardware / gesture back: when no overlay screen owns the handler,
+  // pop to Home from secondary tabs (standard Android tab UX). On Home, allow
+  // the default activity exit. Overlay screens wire this via useAndroidBackTo.
+  useAndroidBack(
+    () => {
+      if (tab !== "home") {
+        onTabChange("home");
+        return true;
+      }
+      return false;
+    },
+    inApp && mainTabsVisible && !openCourseId,
+  );
+
   let screen: React.ReactNode = null;
   if (showBugReport) {
     screen = (
@@ -704,6 +719,7 @@ function GuestFeatureGate({
   onSignIn: () => void;
 }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   return (
     <View style={{ flex: 1, paddingTop: 56, paddingHorizontal: theme.spacing.screenX }}>
       <PrimaryButton label={t("drive.back")} onPress={onBack} variant="ghost" />

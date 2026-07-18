@@ -7,6 +7,7 @@ import { listLessons, type LessonRow } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { theme } from "../theme";
 
@@ -19,6 +20,7 @@ type Props = {
 
 export default function LiveClassScreen({ onStart, onBack }: Props) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [lessonId, setLessonId] = useState("");
   // Live Class is solo-only; the group option was removed from the UI.

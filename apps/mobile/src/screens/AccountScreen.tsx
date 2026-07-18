@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getSettings, setSettings } from "../storage";
 import { theme } from "../theme";
@@ -22,6 +23,7 @@ export default function AccountScreen({
   onOpenBilling: () => void;
 }) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const { account, refreshAccount } = useAuth();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [students, setStudents] = useState<StudentProfile[]>([]);

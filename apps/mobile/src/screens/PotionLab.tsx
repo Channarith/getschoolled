@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import PrimaryButton from "../components/PrimaryButton";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { getPotionBest, setPotionBest } from "../storage";
 import { theme } from "../theme";
 
@@ -122,6 +123,7 @@ type Props = {
 
 export default function PotionLab({ age, onBack }: Props) {
   const prof = useMemo(() => PROFILES[age] ?? PROFILES.kids, [age]);
+  useAndroidBackTo(onBack);
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [cells, setCells] = useState<Cell[]>([]);

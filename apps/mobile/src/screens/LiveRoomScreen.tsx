@@ -16,6 +16,7 @@ import {
   type LiveGiftCatalogItem, type LiveGroupGameType, type LiveKitMedia, type LiveRoomState,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
@@ -655,6 +656,7 @@ export default function LiveRoomScreen({
     }
     onBack();
   };
+  useAndroidBackTo(leaveAndBack);
 
   // When the class ends (its allotted time expired), count down and then excuse
   // the learner back to the previous screen — mirrors the web farewell.
@@ -696,7 +698,7 @@ export default function LiveRoomScreen({
   if (!participantId) {
     return (
       <View style={styles.wrap}>
-        <PrimaryButton label="← Back" onPress={onBack} variant="ghost" />
+        <PrimaryButton label="← Back" onPress={leaveAndBack} variant="ghost" />
         <Text style={styles.title}>Salareen Live Room</Text>
         <Text style={styles.meta}>Theodore hosts · grid up to {room?.room_size ?? 6} seats</Text>
         {loading ? <ActivityIndicator color={theme.colors.accent} /> : null}

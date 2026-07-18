@@ -7,6 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { getMe, submitBugReport, type BugScreenshotUpload } from "../api";
 import { bugReportBase, imageAssetToUpload } from "../bugReport";
 import { installClientLog } from "../clientLog";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -31,6 +32,7 @@ export default function BugReportScreen({
   initialScreenshot = null,
 }: Props) {
   const { t } = useT();
+  useAndroidBackTo(onBack);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("bug");
   const [shots, setShots] = useState<BugScreenshotUpload[]>(

@@ -14,6 +14,7 @@ import {
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
+import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
 import {
@@ -35,6 +36,7 @@ export default function DriveModeScreen({
   courseId, isDriving = false, onBack,
 }: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
+  useAndroidBackTo(() => { stopAllTts(); onBack(); });
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
