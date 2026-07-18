@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.19.92",
+    "version": "0.19.94",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -42,6 +42,12 @@
             "com.google.android.tts"
           ]
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach screenshots when you report a bug so we can see what went wrong."
+        }
       ]
     ],
     "ios": {
@@ -56,11 +62,11 @@
         "NSSpeechRecognitionUsageDescription": "Salareen uses speech recognition so you can ask questions hands-free in Drive Mode.",
         "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free Drive Mode.",
         "NSMotionUsageDescription": "Use device motion to improve driving detection while Drive Mode is enabled.",
-        "NSPhotoLibraryUsageDescription": "Salareen only accesses your photo library if you choose to pick a profile or share image in a class activity.",
+        "NSPhotoLibraryUsageDescription": "Attach screenshots when you report a bug, or pick a profile image in class activities.",
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.19.92"
+      "buildNumber": "0.19.94"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -77,7 +83,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 1992
+      "versionCode": 1994
     },
     "extra": {
       "deployMode": "cloud",

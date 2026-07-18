@@ -435,6 +435,31 @@ export async function resolveMascot(locale: string): Promise<MascotResolve> {
   return get(MEMORY_URL, `/mascots/resolve?${qs.toString()}`);
 }
 
+export type BugScreenshotUpload = {
+  filename: string;
+  content_type: string;
+  data_base64: string;
+};
+
+export async function submitBugReport(payload: {
+  description: string;
+  category?: string;
+  screen?: string;
+  platform?: string;
+  app_version?: string;
+  user_id?: string;
+  email?: string;
+  snapshot?: Record<string, unknown>;
+  logs?: string[];
+  screenshots?: BugScreenshotUpload[];
+}): Promise<{ ok: boolean; id: string; created_at: number }> {
+  return get(MEMORY_URL, "/bugs", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 // --- Group classes + Salareen live room --- //
 export type LessonRow = {
   lesson_id: string;

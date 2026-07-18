@@ -80,6 +80,14 @@ export type StringKey =
   | "settings.driveNotDriving"
   | "settings.sectionIntro" | "settings.introSplash" | "settings.introSplashDesc"
   | "settings.playFullIntro" | "settings.playFullIntroDesc"
+  | "settings.openBugReport"
+  // Bug report
+  | "bugReport.title" | "bugReport.sub" | "bugReport.what" | "bugReport.placeholder"
+  | "bugReport.category" | "bugReport.catBug" | "bugReport.catCrash" | "bugReport.catUx"
+  | "bugReport.catOther" | "bugReport.attach" | "bugReport.attachHint" | "bugReport.send"
+  | "bugReport.sending" | "bugReport.cancel" | "bugReport.thanksTitle" | "bugReport.thanksBody"
+  | "bugReport.back" | "bugReport.permTitle" | "bugReport.permBody" | "bugReport.attachFail"
+  | "bugReport.needDesc" | "bugReport.failTitle"
   // Intro splash
   | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
@@ -431,6 +439,30 @@ const EN: Record<StringKey, string> = {
   "settings.introSplashDesc": "Animated Salareen jingle on first app open (1:32–1:39). Turn off to skip.",
   "settings.playFullIntro": "Play full theme",
   "settings.playFullIntroDesc": "Replay the full Salareen song with the animated splash.",
+  "settings.openBugReport": "Report a bug",
+
+  "bugReport.title": "Report a bug",
+  "bugReport.sub": "Describe what went wrong. We attach your screen, app version, and recent logs automatically — plus any screenshots you add.",
+  "bugReport.what": "What happened?",
+  "bugReport.placeholder": "Steps to reproduce, what you expected, what you saw…",
+  "bugReport.category": "Category",
+  "bugReport.catBug": "Something broke",
+  "bugReport.catCrash": "Crash / freeze",
+  "bugReport.catUx": "Confusing UX",
+  "bugReport.catOther": "Other",
+  "bugReport.attach": "Add screenshot",
+  "bugReport.attachHint": "{count}/3 screenshots attached",
+  "bugReport.send": "Send report",
+  "bugReport.sending": "Sending…",
+  "bugReport.cancel": "Cancel",
+  "bugReport.thanksTitle": "Thanks — we got it",
+  "bugReport.thanksBody": "Report {id} was saved with logs and screenshots. That helps us fix issues faster.",
+  "bugReport.back": "Back to settings",
+  "bugReport.permTitle": "Photos permission needed",
+  "bugReport.permBody": "Allow photo access so you can attach a screenshot.",
+  "bugReport.attachFail": "Could not read that image.",
+  "bugReport.needDesc": "Please describe what happened.",
+  "bugReport.failTitle": "Could not send report",
 
   "intro.tagline": "Thousands of classes. One AI campus.",
   "intro.fullTagline": "សាលារៀន — your learning home.",

@@ -45,17 +45,33 @@ export function liveKitLoaded(): boolean {
  * there is no track or the SDK failed to load, so callers can fall back to an
  * avatar/emoji. It does NOT own a room connection — the shared useLiveKitRoom
  * hook connects once and hands each tile its participant's track.
+ *
+ * Sized with flex:1 inside the seat's top video window (not a floating PiP).
+ * zOrder=0 keeps Android SurfaceView from punching through above the slide.
  */
-export function LiveKitVideoView({ track }: { track: object | null }) {
+export function LiveKitVideoView({
+  track,
+  mirror = false,
+}: {
+  track: object | null;
+  /** Mirror local self-view so it feels like a front camera. */
+  mirror?: boolean;
+}) {
   const VideoView: typeof LKVideoView | undefined = rnMod?.VideoView;
   if (!track || !VideoView) return null;
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={styles.surface} pointerEvents="none">
       <VideoView
-        style={StyleSheet.absoluteFillObject}
+        style={styles.surface}
         videoTrack={track as never}
         objectFit="cover"
+        mirror={mirror}
+        zOrder={0}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  surface: { flex: 1, width: "100%", height: "100%" },
+});

@@ -40,12 +40,14 @@ type Props = {
   onOpenRewards?: () => void;
   onOpenLanguages?: () => void;
   onOpenBilling?: () => void;
+  onOpenBugReport?: () => void;
   onSignIn?: () => void;
 };
 
 export default function SettingsScreen({
   onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
-  guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling, onSignIn,
+  guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling,
+  onOpenBugReport, onSignIn,
 }: Props) {
   const { t, locale, setLocale } = useT();
   const { playFullIntro } = useIntroSplash();
@@ -494,6 +496,13 @@ export default function SettingsScreen({
             <Text style={styles.btnText}>{t("settings.request")}</Text>
           </AnimatedPressable>
         </Row>
+        <View style={{ marginTop: 10 }}>
+          <PrimaryButton
+            label={t("settings.openBugReport")}
+            onPress={() => onOpenBugReport?.()}
+            variant="brand"
+          />
+        </View>
       </Section>
 
       <Section title={t("settings.sectionIntro")}>

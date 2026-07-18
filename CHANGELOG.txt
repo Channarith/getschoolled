@@ -2,6 +2,21 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.19.94 - Mobile live room: webcam sits in each profile card.
+  Webcam no longer floats as a bottom-right PiP over the training slide. Each
+  learner's camera fills the TOP window of their profile card in the seat strip
+  (name strip below), matching the web participant grid. Hardened LiveKit track
+  identity remapping so self-view resolves to the correct card, mirrored local
+  preview, and zOrder=0 so Android SurfaceView doesn't punch through the slide.
+- 2026-07-18 - v0.19.93 - In-app bug reports for free user QA.
+  Web and mobile learners can report bugs with a description, category, up to three
+  screenshots (file upload, screen capture on web, photo library on mobile), a
+  ring buffer of recent client logs, and a redacted app snapshot (route/screen,
+  version, device). Memory service stores reports on disk (JSONL index +
+  attachments under AOEP_BUG_REPORT_DIR) via POST /bugs; operators review them in
+  the web admin console (GET /admin/bugs + attachment download). Profile menu and
+  Contact → Support link to /report-bug; mobile Settings → Diagnostics opens the
+  same flow.
 - 2026-07-18 - v0.19.92 - Nemotron AI teacher + live streaming group-class host.
   Enabled the NVIDIA Nemotron conversational agent (LLM_PROVIDER=nemotron) via a
   self-hosted in-cluster vLLM (new infra/k8s/nemotron-vllm.yaml, Service

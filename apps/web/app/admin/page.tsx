@@ -7,6 +7,7 @@ import {
   adminSetFlag,
   adminSetFlagSession,
   adminSurveyInsights,
+  adminListBugReports,
   getAdRevenue,
   getAllTelemetry,
   getMe,
@@ -19,6 +20,7 @@ import {
   type ServiceVersion,
   type TelemetryError,
   type TelemetrySummary,
+  type BugReportRow,
 } from "../lib/api";
 import MascotPreviewPanel from "../components/MascotPreviewPanel";
 import { EyeIcon } from "../components/EyeIcon";
@@ -57,6 +59,7 @@ export default function AdminPage() {
   const [svcErrors, setSvcErrors] = useState<TelemetryError[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [adRevenue, setAdRevenue] = useState<AdRevenueReport | null>(null);
+  const [bugReports, setBugReports] = useState<BugReportRow[] | null>(null);
 
   // Logged-in operator admins skip the secret prompt (BFF uses server ADMIN_SECRET).
   useEffect(() => {
@@ -128,6 +131,15 @@ export default function AdminPage() {
       setInsights(await adminSurveyInsights(secret));
     } catch (e) {
       setError(`Could not load survey insights: ${String(e)}`);
+    }
+  }
+
+  async function loadBugReports() {
+    try {
+      const body = await adminListBugReports(secret, 40);
+      setBugReports(body.reports);
+    } catch (e) {
+      setError(`Could not load bug reports: ${String(e)}`);
     }
   }
 
@@ -452,6 +464,79 @@ export default function AdminPage() {
           ))}
         </section>
       ))}
+
+      <section style={{ marginTop: 32 }}>
+        <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          User bug reports (free QA)
+        </h2>
+        <p style={{ fontSize: 13, color: "#666" }}>
+          In-app submissions from web/mobile with screenshots, client logs, and a route snapshot.
+          Attachments are stored on the memory service under <code>AOEP_BUG_REPORT_DIR</code>.
+        </p>
+        <button onClick={() => void loadBugReports()}
+          style={{ padding: "6px 14px", marginTop: 8, cursor: "pointer" }}>
+          Load bug reports
+        </button>
+        {bugReports && (
+          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13, marginTop: 12 }}>
+            <thead>
+              <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+                <th style={{ padding: 6 }}>When</th>
+                <th style={{ padding: 6 }}>Platform</th>
+                <th style={{ padding: 6 }}>Screen</th>
+                <th style={{ padding: 6 }}>Category</th>
+                <th style={{ padding: 6 }}>Description</th>
+                <th style={{ padding: 6 }}>Logs</th>
+                <th style={{ padding: 6 }}>Shots</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bugReports.map((r) => (
+                <tr key={r.id} style={{ borderTop: "1px solid #eee", verticalAlign: "top" }}>
+                  <td style={{ padding: 6, whiteSpace: "nowrap" }}>
+                    {new Date(r.created_at * 1000).toLocaleString()}
+                    <div><code>{r.id}</code></div>
+                  </td>
+                  <td style={{ padding: 6 }}>{r.platform} v{r.app_version}</td>
+                  <td style={{ padding: 6 }}><code>{r.screen || "—"}</code></td>
+                  <td style={{ padding: 6 }}>{r.category}</td>
+                  <td style={{ padding: 6, maxWidth: 280 }}>{r.description}</td>
+                  <td style={{ padding: 6 }}>{r.logs?.length ?? 0}</td>
+                  <td style={{ padding: 6 }}>
+                    {(r.attachments ?? []).map((name) => (
+                      <div key={name}>
+                        <a
+                          href={`${SERVICE_URLS.memory}/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void fetch(
+                              `${SERVICE_URLS.memory}/admin/bugs/${encodeURIComponent(r.id)}/attachments/${encodeURIComponent(name)}`,
+                              { headers: { "X-Admin-Secret": secret } },
+                            )
+                              .then((resp) => resp.blob())
+                              .then((blob) => {
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, "_blank", "noopener,noreferrer");
+                              })
+                              .catch(() => undefined);
+                          }}
+                        >
+                          {name}
+                        </a>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+              {bugReports.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: 8, color: "#666" }}>No reports yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
