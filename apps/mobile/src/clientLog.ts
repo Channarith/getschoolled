@@ -5,6 +5,15 @@ const MAX_LINES = 120;
 let installed = false;
 const buffer: string[] = [];
 
+type ErrorHandler = (err: Error, isFatal?: boolean) => void;
+
+type ErrorUtilsHost = {
+  ErrorUtils?: {
+    setGlobalHandler?: (fn: ErrorHandler) => void;
+    getGlobalHandler?: () => ErrorHandler | undefined;
+  };
+};
+
 function push(line: string) {
   const s = line.trim();
   if (!s) return;
@@ -28,14 +37,11 @@ export function installClientLog(): void {
   };
 
   // React Native global error handler (if present).
-  const g = global as typeof global & {
-    ErrorUtils?: { setGlobalHandler?: (fn: (err: Error, isFatal?: boolean) => void) => void };
-  };
+  const g = globalThis as typeof globalThis & ErrorUtilsHost;
   const eu = g.ErrorUtils;
   if (eu?.setGlobalHandler) {
-    const prev = (eu as { getGlobalHandler?: () => (err: Error, isFatal?: boolean) => void })
-      .getGlobalHandler?.();
-    eu.setGlobalHandler((err, isFatal) => {
+    const prev = eu.getGlobalHandler?.();
+    eu.setGlobalHandler((err: Error, isFatal?: boolean) => {
       push(`fatal=${Boolean(isFatal)}: ${err?.message || String(err)}`);
       prev?.(err, isFatal);
     });
