@@ -1,0 +1,59 @@
+# Self-hosted NVIDIA Nemotron conversational agent (vLLM, OpenAI-compatible).
+# Powers the real-time tutor + the group-class AI host (Theodore) + the voice
+# assistant when LLM_PROVIDER=nemotron and NEMOTRON_BASE_URL=http://nemotron:8000/v1
+# (see infra/k8s/configmap.yaml). Streaming (SSE) is used so TTS can start on the
+# first tokens. Scheduled onto the GPU pool alongside the base education LLM.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nemotron
+  namespace: aoep
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: nemotron }
+  template:
+    metadata:
+      labels: { app: nemotron }
+    spec:
+      nodeSelector:
+        aoep.gpu/pool: "true"
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "$(NEMOTRON_MODEL_PATH)"
+            - "--served-model-name"
+            - "nvidia/llama-3.1-nemotron-70b-instruct"
+            - "--port"
+            - "8000"
+          env:
+            # Local weights mount (populated out-of-band onto the PVC). Point at a
+            # different path or an HF repo id if you serve a different Nemotron.
+            - name: NEMOTRON_MODEL_PATH
+              value: "/models/nemotron"
+          ports: [{ containerPort: 8000 }]
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: model-weights
+              mountPath: /models
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: aoep-model-weights
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nemotron
+  namespace: aoep
+spec:
+  selector: { app: nemotron }
+  ports: [{ port: 8000, targetPort: 8000 }]

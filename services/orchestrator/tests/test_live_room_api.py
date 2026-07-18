@@ -971,3 +971,73 @@ def test_livekit_health_flags_cloud_with_dev_secret():
     assert health["url_is_cloud"] is True
     assert health["likely_misconfigured"] is True
     assert health["api_secret_configured"] is False
+
+
+def _parse_sse(body: str) -> list[dict]:
+    import json
+
+    events: list[dict] = []
+    for frame in body.split("\n\n"):
+        for line in frame.splitlines():
+            if line.startswith("data:"):
+                try:
+                    events.append(json.loads(line[len("data:"):].strip()))
+                except json.JSONDecodeError:
+                    pass
+    return events
+
+
+def test_ask_stream_streams_host_answer_and_posts_chat():
+    # The group-class AI host (Theodore) answers via the streaming endpoint: SSE
+    # emits delta(s) then a done event carrying the finalized host chat message.
+    # Offline (no model server) it falls back to the grounded blocking answer, so
+    # this still produces real content in CI.
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    client.post(f"/api/live-rooms/{room_id}/start-presentation", json={})
+    pid = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ada", "identity": "ada-stream"},
+    ).json()["participant"]["id"]
+
+    resp = client.post(
+        f"/api/live-rooms/{room_id}/ask-stream",
+        json={"participant_id": pid, "question": "What is this lesson about?"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith("text/event-stream")
+
+    events = _parse_sse(resp.text)
+    types = [e.get("type") for e in events]
+    assert "done" in types, events
+    done = next(e for e in events if e.get("type") == "done")
+    assert done["text"].strip()
+    assert done["host_message"]["text"].startswith("@Ada")
+    # The finalized answer is also posted into the room chat for late joiners.
+    chat = [m["text"] for m in done["room"]["chat"]]
+    assert any(t.startswith("@Ada") for t in chat)
+
+
+def test_ask_stream_queues_when_floor_taken():
+    # Mirrors the blocking /ask queue behavior: if someone else holds the floor,
+    # the streaming endpoint emits a single queued event instead of an answer.
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    a = client.post(
+        f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}
+    ).json()["participant"]["id"]
+    b = client.post(
+        f"/api/live-rooms/{room_id}/join", json={"name": "Grace", "identity": "b1"}
+    ).json()["participant"]["id"]
+    client.post(f"/api/live-rooms/{room_id}/queue/join", json={"participant_id": a, "question": "Q1"})
+    client.post(f"/api/live-rooms/{room_id}/queue/call-next", json={"moderator_key": mod})
+
+    resp = client.post(
+        f"/api/live-rooms/{room_id}/ask-stream",
+        json={"participant_id": b, "question": "My turn?"},
+    )
+    assert resp.status_code == 200, resp.text
+    events = _parse_sse(resp.text)
+    assert events and events[0]["type"] == "queued"
+    assert events[0]["queue_position"] == 1

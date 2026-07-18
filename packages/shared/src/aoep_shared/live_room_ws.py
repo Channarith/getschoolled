@@ -16,6 +16,7 @@ class LiveRoomWsEvent(str, Enum):
     ROOM = "room"
     FOLLOW = "follow"
     VIEWER_COUNT = "viewer_count"
+    HOST_DELTA = "host_delta"
 
 
 def ws_event(kind: LiveRoomWsEvent, payload: Dict[str, Any], *, room_id: str = "") -> dict:
@@ -79,3 +80,25 @@ def ws_follow(following: bool, follower_count: int, *, room_id: str = "") -> dic
 
 def ws_viewer_count(count: int, *, room_id: str = "") -> dict:
     return ws_event(LiveRoomWsEvent.VIEWER_COUNT, {"viewer_count": count}, room_id=room_id)
+
+
+def ws_host_delta(
+    *,
+    text: str = "",
+    done: bool = False,
+    message: Optional[dict] = None,
+    asker: str = "",
+    room_id: str = "",
+) -> dict:
+    """Incremental AI-host (Theodore) answer streaming to the whole room.
+
+    ``text`` is the next chunk to append (a sentence-ish segment). ``done`` marks
+    the end of the answer and carries the final ``message`` (the posted host chat
+    message) so late/other participants render the same finalized answer. ``asker``
+    is the learner Theodore is answering, for a "answering @Name…" affordance.
+    """
+    return ws_event(
+        LiveRoomWsEvent.HOST_DELTA,
+        {"text": text, "done": done, "message": message, "asker": asker},
+        room_id=room_id,
+    )

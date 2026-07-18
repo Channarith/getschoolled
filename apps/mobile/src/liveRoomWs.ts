@@ -15,6 +15,13 @@ function wsUrl(roomId: string): string {
   return `${proto}://${host}/api/live-rooms/${encodeURIComponent(roomId)}/ws`;
 }
 
+export type HostAnswer = {
+  text: string;
+  asker: string;
+  done: boolean;
+  id: number;
+};
+
 export function useLiveRoomSocket(
   roomId: string,
   enabled: boolean,
@@ -26,6 +33,10 @@ export function useLiveRoomSocket(
   const [giftBanner, setGiftBanner] = useState<string>("");
   const [viewerCount, setViewerCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
+  const [hostAnswer, setHostAnswer] = useState<HostAnswer | null>(null);
+  const hostBufRef = useRef("");
+  const hostSeqRef = useRef(0);
+  const hostClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onRoomRef = useRef(onRoom);
   onRoomRef.current = onRoom;
 
@@ -91,6 +102,29 @@ export function useLiveRoomSocket(
             }
           } else if (msg.type === "follow" && typeof payload.follower_count === "number") {
             setFollowerCount(payload.follower_count as number);
+          } else if (msg.type === "host_delta") {
+            const asker = (payload.asker as string) || "";
+            const chunk = (payload.text as string) || "";
+            const done = Boolean(payload.done);
+            if (hostClearTimer.current) {
+              clearTimeout(hostClearTimer.current);
+              hostClearTimer.current = null;
+            }
+            if (done) {
+              const finalMsg = payload.message as { text?: string } | null | undefined;
+              const finalText = (finalMsg?.text || hostBufRef.current || "")
+                .replace(/^@\S+\s*/, "")
+                .trim();
+              hostBufRef.current = "";
+              setHostAnswer({ text: finalText, asker, done: true, id: ++hostSeqRef.current });
+              hostClearTimer.current = setTimeout(() => setHostAnswer(null), 8000);
+            } else if (!chunk) {
+              hostBufRef.current = "";
+              setHostAnswer({ text: "", asker, done: false, id: hostSeqRef.current + 1 });
+            } else {
+              hostBufRef.current += chunk;
+              setHostAnswer({ text: hostBufRef.current, asker, done: false, id: hostSeqRef.current + 1 });
+            }
           }
         } catch {
           /* ignore */
@@ -114,6 +148,7 @@ export function useLiveRoomSocket(
     setViewerCount,
     followerCount,
     setFollowerCount,
+    hostAnswer,
     pushReaction,
   };
 }
