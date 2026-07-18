@@ -48,6 +48,29 @@ spokenRef.current = room.room_id;
 
 Same rule for any nullable state (`joinInfo`, `me`, `participant`, `slide`).
 
+## Version bump — required on EVERY PR, no exceptions
+
+Every PR must:
+1. Advance the `VERSION` file (strictly greater than the fork-point version)
+2. Add a `CHANGELOG.txt` entry that names the new version: `- YYYY-MM-DD - vX.Y.Z - <what changed>`
+3. Keep `apps/web/app/lib/version.ts` and `apps/mobile/src/version.ts` in sync
+
+**Run this before committing on any PR:**
+
+```bash
+python3 scripts/bump_pr_version.py
+```
+
+The script auto-detects the bump level, writes all four files, and prints the
+new version. Commit those files alongside your actual changes. A PR that skips
+this fails the `version-bump` CI job immediately with:
+
+```
+::error::VERSION must be bumped on every PR (traceability).
+Fork point (abc1234) is 0.20.2; PR is 0.20.2.
+Run: python3 scripts/bump_pr_version.py
+```
+
 ## Lockfile sync — always update pnpm-lock.yaml after touching package.json
 
 CI runs `pnpm install` with `--frozen-lockfile` (the default in CI environments).
