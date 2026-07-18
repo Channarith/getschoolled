@@ -2,7 +2,8 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
-- 2026-07-18 - v0.20.10 - Mobile iOS live room: hear the AI teacher again — LiveKit now uses speaker-first playback while the mic is off (and playAndRecord + defaultToSpeaker when holding the floor), re-asserts the route after camera/mic publish and before every TTS utterance, and mixes with expo-av so slide narration is not silenced or stuck on the earpiece.
+- 2026-07-18 - v0.20.10 - VKE ingress: enable nginx ssl-redirect on aoep and aoep-apis so HTTP requests to salareen.com / www / api are forced to HTTPS (cert-manager TLS already issued).
+- 2026-07-18 - v0.20.9 - Mobile live room: show the user's webcam in their seat tile (transparent Android SurfaceView layer), request runtime camera permission before publish, and make the camera on/off control reliable with clear feedback when LiveKit or permissions block the toggle.
 - 2026-07-18 - v0.20.7 - Android APK download uses a same-origin /api/download/android route with Content-Disposition attachment so phones download/install instead of opening a broken browser preview, while desktop browsers save the file; QR codes now point at the download page.
 - 2026-07-18 - v0.20.6 - Fix bug-report screenshot uploads that failed with "network connection was lost" on /memory/bugs: compress/downscale web captures and chosen images to JPEG under 1.5 MB before POST, improve offline/size error messages, and retry once without the screenshot so the text report still lands.
 - 2026-07-18 - v0.20.5 - Live-class cameras always open the front/selfie lens
