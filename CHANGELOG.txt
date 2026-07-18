@@ -2,6 +2,12 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.19.95 - Mobile install: ensure expo-image-picker for prebuild.
+  Bug-report flow registered expo-image-picker as an app.json config plugin; a
+  stale/no-op pnpm install left it out of node_modules and broke iOS/Android
+  prebuild ("Failed to resolve plugin"). Native-stack check now requires the
+  package; mobile-install.sh always passes --ignore-workspace so home-dir
+  workspace traps cannot skip linking it.
 - 2026-07-18 - v0.19.94 - Mobile live room: webcam sits in each profile card.
   Webcam no longer floats as a bottom-right PiP over the training slide. Each
   learner's camera fills the TOP window of their profile card in the seat strip
