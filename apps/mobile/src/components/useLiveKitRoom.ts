@@ -159,9 +159,11 @@ export function useLiveKitRoom(
         room.remoteParticipants.forEach((p) => attach(p));
         // Everyone's camera turns on (video-call feel); the mic follows the
         // one-speaker mutex. Best-effort so a denied/absent camera never breaks
-        // the room.
+        // the room. Android must grant CAMERA at runtime first or publish fails.
         try {
-          await room.localParticipant.setCameraEnabled(true, SELFIE_CAMERA);
+          if (await ensureCameraPermission()) {
+            await room.localParticipant.setCameraEnabled(true, SELFIE_CAMERA);
+          }
         } catch {
           /* no camera / permission denied */
         }
@@ -209,16 +211,38 @@ export function useLiveKitRoom(
   const setCameraEnabled = useCallback(async (enabled: boolean): Promise<boolean> => {
     const room = roomRef.current;
     if (!room) return false;
+    const { Track } = loadLiveKit()?.client ?? {};
     try {
+      if (enabled) {
+        const allowed = await ensureCameraPermission();
+        if (!allowed) return false;
+      }
       await room.localParticipant.setCameraEnabled(
         enabled,
         enabled ? SELFIE_CAMERA : undefined,
       );
+      // Immediately refresh the local tile map — LocalTrackPublished can race
+      // the roster identity remap and leave the "You" seat without a track.
+      const pid = idFor(room.localParticipant.identity);
+      const cam = Track
+        ? room.localParticipant.getTrackPublication(Track.Source.Camera)
+        : undefined;
+      setTracks((prev) => {
+        const rest = prev.filter(
+          (t) =>
+            t.participantId !== pid
+            && t.participantId !== room.localParticipant.identity,
+        );
+        if (enabled && cam?.track) {
+          return [...rest, { participantId: pid, track: cam.track as object }];
+        }
+        return rest;
+      });
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [idFor]);
 
   const trackFor = useCallback(
     (participantId: string, identity?: string): object | null => {

@@ -164,39 +164,50 @@ function SeatTile({
     host && styles.seatHost,
     floor && styles.seatFloor,
     me && !floor && styles.seatMe,
+    // Android SurfaceView (zOrder=0) paints BELOW the RN layer. Any opaque seat
+    // background covers the camera feed — keep the card transparent while live.
+    hasVideo && styles.seatLive,
   ];
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label ?? "Seat"} — tap to expand`}
-      style={({ pressed }) => [...seatStyle, pressed && styles.seatPressed]}
-    >
-      {/* Transparent background when video is live so the SurfaceView shows through on Android. */}
-      <View style={[styles.seatVideoWindow, hasVideo && styles.seatVideoWindowLive]}>
-        {hasVideo ? (
-          <LiveKitVideoView track={track ?? null} mirror={Boolean(me)} />
-        ) : (
-          <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
-        )}
-        <View style={styles.seatBadges}>
-          {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
-          {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
-          {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
-          {/* Camera toggle is a nested Pressable so it fires independently of the
-              outer expand-to-fullscreen press — inner Pressable wins on Android/iOS. */}
-          {me && onToggleCamera ? (
-            <Pressable onPress={onToggleCamera} hitSlop={8} accessibilityRole="button"
-              accessibilityLabel={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}>
-              <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
-            </Pressable>
-          ) : null}
+    <View style={seatStyle}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${label ?? "Seat"} — tap to expand`}
+        style={({ pressed }) => [styles.seatPressTarget, pressed && styles.seatPressed]}
+      >
+        <View style={[styles.seatVideoWindow, hasVideo && styles.seatVideoWindowLive]}>
+          {hasVideo ? (
+            <LiveKitVideoView track={track ?? null} mirror={Boolean(me)} />
+          ) : (
+            <Text style={styles.seatAvatar}>{host ? "🎓" : initials(name || "")}</Text>
+          )}
+          <View style={styles.seatBadges} pointerEvents="none">
+            {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
+            {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
+            {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
+          </View>
         </View>
-      </View>
-      <View style={styles.seatFooter}>
-        <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
-      </View>
-    </Pressable>
+        <View style={styles.seatFooter}>
+          <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
+        </View>
+      </Pressable>
+      {/* Camera control sits OUTSIDE the expand Pressable — nested Pressables on
+          Android often swallow the toggle and look "broken". */}
+      {me && onToggleCamera ? (
+        <Pressable
+          onPress={onToggleCamera}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}
+          style={styles.seatCamBtn}
+        >
+          <Text style={styles.seatCamBtnText}>
+            {cameraOn && hasVideo ? "📹 On" : "📷 Off"}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -541,7 +552,7 @@ export default function LiveRoomScreen({
   // Single shared LiveKit connection for the whole room: one connection maps each
   // participant's video track to their seat (self-view under "You", every remote
   // learner under their own name), so a group class shows MULTIPLE live feeds.
-  const { trackFor, setCameraEnabled } = useLiveKitRoom(
+  const { trackFor, setCameraEnabled, connected: liveKitConnected } = useLiveKitRoom(
     media,
     room?.participants ?? [],
     hasFloor,
@@ -552,11 +563,36 @@ export default function LiveRoomScreen({
     | { kind: "host"; name: string }
     | { kind: "participant"; id: string; identity?: string; name: string; me: boolean };
   const [focusedTile, setFocusedTile] = useState<FocusedTile | null>(null);
+
+  // Keep the toggle state honest with the actual published local track.
+  const myIdentity = me?.identity;
+  const myTrack = participantId
+    ? trackFor(participantId, myIdentity)
+    : null;
+  useEffect(() => {
+    if (!participantId || !liveKitConnected) return;
+    setCameraOn(Boolean(myTrack));
+  }, [participantId, liveKitConnected, myTrack]);
+
   const toggleCamera = useCallback(async () => {
+    if (!liveKitConnected) {
+      Alert.alert(
+        "Camera unavailable",
+        "The live video connection is not ready yet. Wait a moment and try again.",
+      );
+      return;
+    }
     const next = !cameraOn;
     const ok = await setCameraEnabled(next);
-    if (ok) setCameraOn(next);
-  }, [cameraOn, setCameraEnabled]);
+    if (ok) {
+      setCameraOn(next);
+      return;
+    }
+    Alert.alert(
+      "Could not toggle camera",
+      "Allow camera access for Salareen in system Settings, then try again.",
+    );
+  }, [cameraOn, liveKitConnected, setCameraEnabled]);
 
   // Hard mutex: learners join without publish rights; when the host/AI grants
   // the floor (me.can_publish flips) re-fetch a fresh token that permits
@@ -1615,13 +1651,16 @@ const styles = StyleSheet.create({
   // floating PiP over the training slide.
   seat: {
     width: 88, height: 110, borderRadius: 12, overflow: "hidden",
+    position: "relative",
     backgroundColor: "rgba(30,27,75,0.9)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
+  seatLive: { backgroundColor: "transparent" },
   seatHost: { backgroundColor: "rgba(124,58,237,0.35)", borderColor: "#a78bfa" },
   seatFloor: { borderColor: theme.colors.accent, borderWidth: 2 },
   seatMe: { borderColor: theme.colors.success },
   seatPressed: { opacity: 0.75 },
+  seatPressTarget: { flex: 1, width: "100%" },
   seatOpen: {
     backgroundColor: "transparent",
     borderStyle: "dashed", borderColor: "rgba(255,255,255,0.3)",
@@ -1644,8 +1683,19 @@ const styles = StyleSheet.create({
   seatAvatar: { color: theme.colors.text, fontSize: 26, fontWeight: "800" },
   seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "700", maxWidth: 80, textAlign: "center" },
   seatNameMuted: { color: theme.colors.muted, fontSize: 11, fontWeight: "600" },
-  seatBadges: { flexDirection: "row", gap: 2, position: "absolute", top: 2, right: 4 },
+  seatBadges: { flexDirection: "row", gap: 2, position: "absolute", top: 2, left: 4 },
   seatBadge: { fontSize: 11 },
+  seatCamBtn: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    zIndex: 20,
+    backgroundColor: "rgba(0,0,0,0.62)",
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  seatCamBtnText: { fontSize: 9, color: "#fff", fontWeight: "700" },
   hero: { flex: 1, gap: 8, position: "relative" },
   presenterHost: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },
   heroScroll: { flex: 1 },
