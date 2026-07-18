@@ -1189,16 +1189,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // Before the first slide, Theodore welcomes learners and explicitly identifies
   // himself as an AI host. Joining is a user gesture, so audio is already unlocked.
   useEffect(() => {
-    const welcome = room?.welcome_message?.trim();
-    if (!welcome || room?.presenting || !aiAudioOn || !aiAudioUnlocked) return;
+    if (!room) return;
+    const welcome = room.welcome_message?.trim();
+    if (!welcome || room.presenting || !aiAudioOn || !aiAudioUnlocked) return;
     if (welcomeSpokenRef.current === room.room_id) return;
     welcomeSpokenRef.current = room.room_id;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
       cancelSpeech();
       speakNaturally(welcome, base);
     });
-  }, [room?.room_id, room?.welcome_message, room?.presenting, aiAudioOn,
-      aiAudioUnlocked, narrationLocale]);
+  }, [room, aiAudioOn, aiAudioUnlocked, narrationLocale]);
 
   // AI teacher voice: Theodore narrates each new slide out loud while presenting
   // (neural TTS via the speech service, on-device fallback). Keyed on the slide

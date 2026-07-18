@@ -2,6 +2,10 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.1 - Fix live-room welcome TTS typecheck null narrowing
+  (web + mobile) that failed CI/mobile-tests; add always-on Cursor rule
+  `.cursor/rules/ci-typecheck-before-pr.mdc` so agents run web/mobile
+  typecheck before every PR push.
 - 2026-07-18 - v0.20.1 - XR group-class labs + audience readiness for Theodore.
   Added shared aoep.xr.v1 assessment contract (WebXR + Unity OpenXR / Quest) with
   deterministic provisional pass/needs_work rubric scoring on bounded action

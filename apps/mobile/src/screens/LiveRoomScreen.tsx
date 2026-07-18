@@ -364,15 +364,15 @@ export default function LiveRoomScreen({
   roomRef.current = room;
 
   useEffect(() => {
-    const welcome = room?.welcome_message?.trim();
-    if (!participantId || muted || room?.presenting || !welcome) return;
+    if (!room) return;
+    const welcome = room.welcome_message?.trim();
+    if (!participantId || muted || room.presenting || !welcome) return;
     if (spokenWelcomeRef.current === room.room_id) return;
     spokenWelcomeRef.current = room.room_id;
     void buildNarrationSpeakOptions(locale).then((base) => {
       speakNatural(welcome, base);
     });
-  }, [participantId, muted, room?.room_id, room?.presenting,
-      room?.welcome_message, locale]);
+  }, [participantId, muted, room, locale]);
 
   useEffect(() => {
     if (!participantId || muted || !room?.presenting) return;
