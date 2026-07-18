@@ -311,14 +311,21 @@ function DrivePageInner() {
   }, [locale, playSeg]);
 
   const prevRateRef = useRef(rate);
-  const prevNarrationPrefRef = useRef(narrationPref);
+  const prevVoiceRef = useRef(serverVoice);
+  const prevInstructorRef = useRef(instructor);
   useEffect(() => {
-    if (prevRateRef.current === rate && prevNarrationPrefRef.current === narrationPref) return;
+    if (
+      prevRateRef.current === rate &&
+      prevVoiceRef.current === serverVoice &&
+      prevInstructorRef.current === instructor
+    )
+      return;
     prevRateRef.current = rate;
-    prevNarrationPrefRef.current = narrationPref;
+    prevVoiceRef.current = serverVoice;
+    prevInstructorRef.current = instructor;
     if (!playing || !course) return;
     replayCurrentSegment();
-  }, [rate, narrationPref, playing, course, replayCurrentSegment]);
+  }, [rate, serverVoice, instructor, playing, course, replayCurrentSegment]);
 
   async function startCourse(id: string) {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
