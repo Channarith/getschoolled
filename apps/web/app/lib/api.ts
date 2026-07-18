@@ -1378,6 +1378,10 @@ export type LiveRoomState = {
   scheduled_start?: string;
   duration_seconds?: number;
   ended_at?: string;
+  welcome_message?: string;
+  welcome_started_at?: string;
+  pre_class_welcome_seconds?: number;
+  group_game?: LiveGroupGame | null;
 };
 
 export type LiveGiftCatalogItem = {
@@ -1421,12 +1425,25 @@ export async function startSoloLiveRoom(lessonId: string, creatorName = ""): Pro
   );
 }
 
-export async function joinLiveRoom(roomId: string, name: string, identity = "", language = ""): Promise<LiveRoomJoin> {
+export async function joinLiveRoom(
+  roomId: string,
+  name: string,
+  identity = "",
+  language = "",
+  opts?: { studentId?: string; readinessScore?: number; readinessBand?: string },
+): Promise<LiveRoomJoin> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ name, identity, language }),
+      body: JSON.stringify({
+        name,
+        identity,
+        language,
+        student_id: opts?.studentId || "",
+        readiness_score: opts?.readinessScore || 0,
+        readiness_band: opts?.readinessBand || "",
+      }),
     })
   );
 }
@@ -1839,6 +1856,74 @@ export async function liveRoomSendGift(
       }),
     })
   );
+}
+
+export type LiveGroupGameType =
+  | "quiz_race" | "tic_tac_toe" | "hangman" | "multiple_choice"
+  | "true_false" | "word_scramble" | "fill_blank" | "emoji_decode"
+  | "lightning_round" | "team_buzzer" | "hot_seat" | "jeopardy";
+
+export type LiveGroupGame = {
+  id: string;
+  type: LiveGroupGameType;
+  prompt: string;
+  points: number;
+  status: string;
+  winner_name?: string;
+  board?: string[];
+  turn?: string;
+  masked?: string;
+  wrong?: number;
+  max_wrong?: number;
+  scrambled?: string;
+};
+
+export type LiveGroupGameCatalogItem = {
+  id: LiveGroupGameType; name: string; icon: string; description: string;
+};
+
+export async function liveRoomGameCatalog(): Promise<LiveGroupGameCatalogItem[]> {
+  const data = await jsonOrThrow<{ games: LiveGroupGameCatalogItem[] }>(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/games/catalog`, {
+      headers: authHeaders(),
+    }),
+  );
+  return data.games;
+}
+
+export async function liveRoomStartGame(
+  roomId: string,
+  moderatorKey: string,
+  gameType: LiveGroupGame["type"],
+  prompt: string,
+  answer: string,
+  points = 25,
+): Promise<{ room: LiveRoomState; game: LiveGroupGame }> {
+  return jsonOrThrow(await fetch(
+    `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/games/start`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        moderator_key: moderatorKey, game_type: gameType, prompt, answer, points,
+      }),
+    },
+  ));
+}
+
+export async function liveRoomPlayGame(
+  roomId: string,
+  participantId: string,
+  action: { answer?: string; cell?: number; letter?: string },
+): Promise<{ room: LiveRoomState; game: LiveGroupGame; event: { correct: boolean; points: number } }> {
+  return jsonOrThrow(await fetch(
+    `${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/games/action`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ participant_id: participantId, ...action }),
+    },
+  ));
 }
 
 export async function liveRoomReaction(
@@ -2423,6 +2508,9 @@ export type BugReportRow = {
   snapshot: Record<string, unknown>;
   logs: string[];
   attachments: string[];
+  destination?: string;
+  external_url?: string;
+  delivery_error?: string;
 };
 
 export async function submitBugReport(payload: {
@@ -2436,7 +2524,13 @@ export async function submitBugReport(payload: {
   snapshot?: Record<string, unknown>;
   logs?: string[];
   screenshots?: BugScreenshotUpload[];
-}): Promise<{ ok: boolean; id: string; created_at: number }> {
+}): Promise<{
+  ok: boolean;
+  id: string;
+  created_at: number;
+  destination?: string;
+  external_url?: string;
+}> {
   return jsonOrThrow(
     await fetch(`${MEMORY_URL}/bugs`, {
       method: "POST",

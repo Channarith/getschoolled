@@ -88,6 +88,7 @@ export type StringKey =
   | "bugReport.sending" | "bugReport.cancel" | "bugReport.thanksTitle" | "bugReport.thanksBody"
   | "bugReport.back" | "bugReport.permTitle" | "bugReport.permBody" | "bugReport.attachFail"
   | "bugReport.needDesc" | "bugReport.failTitle"
+  | "bugReport.autoCaptured"
   // Intro splash
   | "intro.tagline" | "intro.fullTagline" | "intro.skip"
   | "driving.bannerTitle" | "driving.bannerBody"
@@ -442,7 +443,7 @@ const EN: Record<StringKey, string> = {
   "settings.openBugReport": "Report a bug",
 
   "bugReport.title": "Report a bug",
-  "bugReport.sub": "Describe what went wrong. We attach your screen, app version, and recent logs automatically — plus any screenshots you add.",
+  "bugReport.sub": "Describe what went wrong. We attach a screen capture, app/device context, stack trace, recent errors, and API status breadcrumbs automatically.",
   "bugReport.what": "What happened?",
   "bugReport.placeholder": "Steps to reproduce, what you expected, what you saw…",
   "bugReport.category": "Category",
@@ -463,6 +464,7 @@ const EN: Record<StringKey, string> = {
   "bugReport.attachFail": "Could not read that image.",
   "bugReport.needDesc": "Please describe what happened.",
   "bugReport.failTitle": "Could not send report",
+  "bugReport.autoCaptured": "✓ Current screen captured automatically",
 
   "intro.tagline": "Thousands of classes. One AI campus.",
   "intro.fullTagline": "សាលារៀន — your learning home.",

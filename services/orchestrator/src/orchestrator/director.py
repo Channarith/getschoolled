@@ -35,6 +35,9 @@ class ClassContext:
     # Mean attention across recognized students, 0..1 (from Perception Agent).
     attention: float = 1.0
     slides_since_quiz: int = 0
+    # Privacy-safe audience readiness (optional; from live-room aggregates).
+    mean_readiness: float = 0.0
+    audience_needs_support: bool = False
 
 
 @dataclass
@@ -48,7 +51,12 @@ class Director:
     history: list[LessonState] = field(default_factory=list)
 
     def _quiz_cadence(self, ctx: ClassContext) -> int:
-        return 2 if ctx.class_type is ClassType.SOLO else self.quiz_every_n_slides
+        base = 2 if ctx.class_type is ClassType.SOLO else self.quiz_every_n_slides
+        if ctx.audience_needs_support or (ctx.mean_readiness and ctx.mean_readiness < 55):
+            return max(1, base - 1)
+        if ctx.mean_readiness >= 85:
+            return base + 1
+        return base
 
     def decide(self, ctx: ClassContext) -> LessonState:
         """Return the next state, highest-priority concern first."""

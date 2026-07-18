@@ -1,0 +1,31 @@
+XR immersive labs and audience readiness
+========================================
+
+Feature flags (default off / 0%):
+  access.xr_immersive_class      — percent rollout for Enter VR lab
+  ai.physical_assessment         — physical/XR demonstration scoring
+  ai.audience_profile_adaptation — Theodore uses audience aggregates
+
+Shared protocol: aoep.xr.v1 (packages/shared/src/aoep_shared/xr.py)
+  WebXR client: apps/web/app/xr/[sessionId] + apps/web/app/lib/xr.ts
+  Unity Quest:  apps/quest/ (OpenXR scripts + PROTOCOL.txt)
+
+Orchestrator routes:
+  POST /api/live-rooms/{id}/xr/enable
+  GET  /api/live-rooms/{id}/xr/lab
+  POST /api/live-rooms/{id}/xr/complete
+  GET  /api/live-rooms/{id}/audience-profile
+
+Identity:
+  GET  /students/{id}/learning-experience  (includes readiness_score + dimensions)
+  POST /students/{id}/readiness
+  GET  /admin/readiness/summary
+  GET  /admin/students/{id}/readiness
+
+Privacy:
+  ConsentScope.PHYSICAL_TRACKING for pose enrollment (future persistent pose).
+  Lab scoring accepts bounded observations only (no raw video).
+  Public room snapshots expose readiness_band, not peer scores.
+  Theodore prompts receive audience aggregates without learner names.
+
+Admin console: Audience readiness (XR / Theodore) panel on /admin.

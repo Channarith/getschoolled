@@ -413,11 +413,19 @@ def survey_insights(_: str = Depends(require_admin_header)) -> dict:
 def submit_bug_report(req: BugReportSubmit) -> dict:
     """Learner-facing bug report inbox. Attach optional screenshots (base64),
     client logs, and a redacted snapshot of where they were in the app."""
+    if not app.state.flags.resolve("engagement.in_app_bug_reporter"):
+        raise HTTPException(status_code=404, detail="bug reporting is disabled")
     try:
         report = _bug_reports().submit(req)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"ok": True, "id": report.id, "created_at": report.created_at}
+    return {
+        "ok": True,
+        "id": report.id,
+        "created_at": report.created_at,
+        "destination": report.destination,
+        "external_url": report.external_url,
+    }
 
 
 @app.get("/admin/bugs")

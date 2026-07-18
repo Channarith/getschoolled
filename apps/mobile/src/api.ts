@@ -452,7 +452,13 @@ export async function submitBugReport(payload: {
   snapshot?: Record<string, unknown>;
   logs?: string[];
   screenshots?: BugScreenshotUpload[];
-}): Promise<{ ok: boolean; id: string; created_at: number }> {
+}): Promise<{
+  ok: boolean;
+  id: string;
+  created_at: number;
+  destination?: string;
+  external_url?: string;
+}> {
   return get(MEMORY_URL, "/bugs", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -586,9 +592,22 @@ export type LiveRoomState = {
   }[];
   gift_feed?: { id: string; emoji: string; sender_name: string; gift_name: string; cost_points: number }[];
   viewer_count?: number;
+  welcome_message?: string;
+  welcome_started_at?: string;
+  pre_class_welcome_seconds?: number;
+  group_game?: LiveGroupGame | null;
 };
 
 export type LiveGiftCatalogItem = { id: string; name: string; emoji: string; cost_points: number };
+export type LiveGroupGameType =
+  | "quiz_race" | "tic_tac_toe" | "hangman" | "multiple_choice"
+  | "true_false" | "word_scramble" | "fill_blank" | "emoji_decode"
+  | "lightning_round" | "team_buzzer" | "hot_seat" | "jeopardy";
+export type LiveGroupGame = {
+  id: string; type: LiveGroupGameType; prompt: string;
+  points: number; status: string; winner_name?: string; board?: string[];
+  turn?: string; masked?: string; wrong?: number; max_wrong?: number; scrambled?: string;
+};
 
 export type LiveKitMedia = { room: string; identity: string; token: string; url: string };
 
@@ -1067,11 +1086,38 @@ export async function liveRoomSendGift(
   roomId: string,
   participantId: string,
   giftId: string,
+  recipientParticipantId = "",
 ): Promise<{ room: LiveRoomState; sender_balance: number }> {
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/gifts/send`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ participant_id: participantId, gift_id: giftId }),
+    body: JSON.stringify({
+      participant_id: participantId,
+      gift_id: giftId,
+      recipient_participant_id: recipientParticipantId,
+    }),
+  });
+}
+
+export async function liveRoomStartGame(
+  roomId: string, moderatorKey: string, gameType: LiveGroupGame["type"],
+  prompt: string, answer: string, points = 25,
+): Promise<{ room: LiveRoomState; game: LiveGroupGame }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/games/start`, {
+    method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      moderator_key: moderatorKey, game_type: gameType, prompt, answer, points,
+    }),
+  });
+}
+
+export async function liveRoomPlayGame(
+  roomId: string, participantId: string,
+  action: { answer?: string; cell?: number; letter?: string },
+): Promise<{ room: LiveRoomState; game: LiveGroupGame; event: { correct: boolean; points: number } }> {
+  return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/games/action`, {
+    method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ participant_id: participantId, ...action }),
   });
 }
 

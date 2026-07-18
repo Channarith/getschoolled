@@ -14,16 +14,31 @@ from .base import (
     PresentationStep,
 )
 
-DEFAULT_WPM = 150          # spoken words-per-minute used to estimate slide timing
-_MIN_STEP_SECONDS = 3.0
+DEFAULT_WPM = 125          # human teaching pace (not broadcast-news speed)
+DEFAULT_TTS_RATE = "-12%"  # slightly slower neural delivery; feels conversational
+_MIN_STEP_SECONDS = 4.0
+_PAUSE_PER_SENTENCE_S = 0.55
+_PAUSE_PER_COMMA_S = 0.12
+_BREATH_EVERY_N_WORDS = 28
+_BREATH_SECONDS = 0.35
 
 
 def estimate_seconds(text: str, *, wpm: int = DEFAULT_WPM) -> float:
-    """Estimate spoken duration of ``text`` at ``wpm`` words per minute."""
-    words = len(re.findall(r"\S+", text or ""))
+    """Estimate spoken duration at a human teaching pace, including idea pauses."""
+    raw = text or ""
+    words = len(re.findall(r"\S+", raw))
     if words == 0:
         return _MIN_STEP_SECONDS
-    return max(_MIN_STEP_SECONDS, round(words / wpm * 60.0, 2))
+    speech = words / max(wpm, 60) * 60.0
+    sentences = max(1, len(re.findall(r"[.!?]+", raw)))
+    commas = len(re.findall(r"[,;:]", raw))
+    breaths = words // _BREATH_EVERY_N_WORDS
+    pauses = (
+        (sentences - 1) * _PAUSE_PER_SENTENCE_S
+        + commas * _PAUSE_PER_COMMA_S
+        + breaths * _BREATH_SECONDS
+    )
+    return max(_MIN_STEP_SECONDS, round(speech + pauses, 2))
 
 
 def build_presentation_plan(lesson, *, wpm: int = DEFAULT_WPM) -> PresentationPlan:
@@ -51,9 +66,12 @@ def build_presentation_plan(lesson, *, wpm: int = DEFAULT_WPM) -> PresentationPl
 class MeetingPresenter:
     """Convenience: schedule a meeting and present a lesson end-to-end."""
 
-    def __init__(self, provider: MeetingProvider, *, wpm: int = DEFAULT_WPM):
+    def __init__(self, provider: MeetingProvider, *, wpm: Optional[int] = None):
         self.provider = provider
-        self.wpm = wpm
+        # Prefer the provider's teaching WPM (local/persona) when the caller
+        # does not override — otherwise default to a human lecture pace.
+        provider_wpm = getattr(provider, "wpm", None)
+        self.wpm = int(wpm if wpm is not None else (provider_wpm or DEFAULT_WPM))
 
     def present_lesson(
         self,

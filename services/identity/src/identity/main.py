@@ -589,6 +589,7 @@ def get_adaptation(student_id: str, acct=Depends(current_account)) -> dict:
 
 @app.get("/students/{student_id}/learning-experience")
 def get_learning_experience(student_id: str, acct=Depends(current_account)) -> dict:
+    from aoep_shared.audience_profile import snapshot_from_adaptation
     from aoep_shared.learning_experience import LX_TARGET
 
     prof = app.state.accounts.get_student(acct.id, student_id)
@@ -603,6 +604,19 @@ def get_learning_experience(student_id: str, acct=Depends(current_account)) -> d
             trend = "improving"
         elif samples[-1] < samples[-2] - 2:
             trend = "declining"
+    enrollments = [
+        e.model_dump() if hasattr(e, "model_dump") else dict(e)
+        for e in (acct.enrollments or {}).values()
+    ]
+    snap = snapshot_from_adaptation(
+        student_id=student_id,
+        account_id=acct.id,
+        adaptation=raw,
+        primary_style=prof.primary_style,
+        preferred_language=acct.preferred_language or "",
+        enrollments=enrollments,
+        physical_skill=float(raw.get("physical_skill", 0.5)),
+    )
     return {
         "student_id": student_id,
         "lx_score_ema": ema,
@@ -612,6 +626,112 @@ def get_learning_experience(student_id: str, acct=Depends(current_account)) -> d
         "strategy_bandit": raw.get("strategy_bandit", {}),
         "wellness_state": raw.get("wellness_state", "ok"),
         "observed_pace": raw.get("observed_pace", "moderate"),
+        "readiness_score": snap.readiness_score,
+        "readiness_dimensions": snap.dimensions,
+        "readiness_band": snap.band,
+        "physical_skill": snap.physical_skill,
+        "course_history_summary": snap.course_history_summary,
+        "primary_style": snap.primary_style,
+    }
+
+
+class ReadinessUpdate(BaseModel):
+    readiness_dimensions: dict = {}
+    physical_skill: float | None = None
+    lx_score: float | None = None
+    source: str = "session"
+
+
+@app.post("/students/{student_id}/readiness")
+def update_readiness(student_id: str, req: ReadinessUpdate, acct=Depends(current_account)) -> dict:
+    """Persist readiness dimensions / physical skill (owner only)."""
+    try:
+        hints = {"source": req.source}
+        if req.readiness_dimensions:
+            hints["readiness_dimensions"] = req.readiness_dimensions
+            hints["lx_components"] = req.readiness_dimensions
+        if req.physical_skill is not None:
+            hints["physical_skill"] = max(0.0, min(1.0, float(req.physical_skill)))
+        if req.lx_score is not None:
+            hints["lx_score"] = float(req.lx_score)
+        prof = app.state.accounts.record_adaptation_event(
+            acct.id, student_id, "readiness", hints,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return get_learning_experience(student_id, acct)
+
+
+@app.get("/admin/students/{student_id}/readiness")
+def admin_student_readiness(
+    student_id: str,
+    _acct=Depends(require_admin_account),
+) -> dict:
+    """Admin view of readiness + course history for any student id on any account."""
+    from aoep_shared.audience_profile import snapshot_from_adaptation
+
+    store = app.state.accounts
+    found = None
+    owner = None
+    for acct in store.list_accounts() if hasattr(store, "list_accounts") else []:
+        prof = acct.students.get(student_id) if hasattr(acct, "students") else None
+        if prof is not None:
+            found = prof
+            owner = acct
+            break
+    if found is None:
+        # Fallback: scan internal map
+        by_id = getattr(store, "_by_id", {}) or {}
+        for acct in by_id.values():
+            if student_id in (acct.students or {}):
+                found = acct.students[student_id]
+                owner = acct
+                break
+    if found is None or owner is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    enrollments = [e.model_dump() for e in (owner.enrollments or {}).values()]
+    snap = snapshot_from_adaptation(
+        student_id=student_id,
+        account_id=owner.id,
+        adaptation=dict(found.adaptation or {}),
+        primary_style=found.primary_style,
+        preferred_language=owner.preferred_language or "",
+        enrollments=enrollments,
+    )
+    return {
+        "account_id": owner.id,
+        "student": {"id": found.id, "display_name": found.display_name},
+        "readiness": snap.to_host_private(),
+        "enrollments": enrollments,
+    }
+
+
+@app.get("/admin/readiness/summary")
+def admin_readiness_summary(_acct=Depends(require_admin_account)) -> dict:
+    """Aggregate readiness across seeded/known students for the admin console."""
+    from aoep_shared.audience_profile import aggregate_audience, snapshot_from_adaptation
+
+    store = app.state.accounts
+    by_id = getattr(store, "_by_id", {}) or {}
+    snaps = []
+    for acct in by_id.values():
+        enrollments = [e.model_dump() for e in (acct.enrollments or {}).values()]
+        for sid, prof in (acct.students or {}).items():
+            snaps.append(
+                snapshot_from_adaptation(
+                    student_id=sid,
+                    account_id=acct.id,
+                    adaptation=dict(prof.adaptation or {}),
+                    primary_style=prof.primary_style,
+                    preferred_language=acct.preferred_language or "",
+                    enrollments=enrollments,
+                )
+            )
+    aud = aggregate_audience(snaps)
+    return {
+        "audience": aud.to_prompt_safe(),
+        "learners": [s.to_host_private() for s in snaps[:100]],
+        "count": len(snaps),
     }
 
 

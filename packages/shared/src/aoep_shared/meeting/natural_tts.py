@@ -204,7 +204,7 @@ def speak_natural_blocking(
     tts_engine: str = "auto",
     cache_dir: Optional[Path] = None,
     pace_multiplier: float = 1.0,
-    tts_rate: str = "+0%",
+    tts_rate: str = "-12%",
     voice_sample: Optional[str | Path] = None,
     repo_root: Optional[str | Path] = None,
     elevenlabs_voice_id: str = "",

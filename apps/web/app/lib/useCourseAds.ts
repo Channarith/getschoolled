@@ -27,7 +27,7 @@ export function effectiveAdTier(tier: string): string {
  * Drive Mode) can insert ad breaks at natural boundaries.
  */
 export function useCourseAds(courseId: string, tier: string) {
-  const enabled = useFlag<boolean>("monetization.video_ads", true);
+  const enabled = useFlag<boolean>("monetization.video_ads", false);
   const [plan, setPlan] = useState<AdPlan | null>(null);
   const played = useRef<Set<number>>(new Set());
 

@@ -496,13 +496,15 @@ export default function SettingsScreen({
             <Text style={styles.btnText}>{t("settings.request")}</Text>
           </AnimatedPressable>
         </Row>
-        <View style={{ marginTop: 10 }}>
-          <PrimaryButton
-            label={t("settings.openBugReport")}
-            onPress={() => onOpenBugReport?.()}
-            variant="brand"
-          />
-        </View>
+        {onOpenBugReport ? (
+          <View style={{ marginTop: 10 }}>
+            <PrimaryButton
+              label={t("settings.openBugReport")}
+              onPress={onOpenBugReport}
+              variant="brand"
+            />
+          </View>
+        ) : null}
       </Section>
 
       <Section title={t("settings.sectionIntro")}>

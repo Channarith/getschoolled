@@ -19,6 +19,7 @@ from .base import (
 )
 from .factory import build_meeting_provider, present_with_provider
 from .presenter import (
+    DEFAULT_TTS_RATE,
     DEFAULT_WPM,
     MeetingPresenter,
     build_presentation_plan,
@@ -37,6 +38,7 @@ from .smart_presenter import (
     build_smart_presentation_plan,
     corpus_rag_search,
     enrich_spoken_narration,
+    humanize_delivery,
     summarize_narration,
 )
 from .providers import (
@@ -57,11 +59,13 @@ __all__ = [
     "build_presentation_plan",
     "build_smart_presentation_plan",
     "enrich_spoken_narration",
+    "humanize_delivery",
     "summarize_narration",
     "corpus_rag_search",
     "estimate_seconds",
     "MeetingPresenter",
     "DEFAULT_WPM",
+    "DEFAULT_TTS_RATE",
     "MockMeetingProvider",
     "LocalPlayMeetingProvider",
     "GoogleMeetProvider",

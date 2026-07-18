@@ -2,6 +2,57 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.1 - XR group-class labs + audience readiness for Theodore.
+  Added shared aoep.xr.v1 assessment contract (WebXR + Unity OpenXR / Quest) with
+  deterministic provisional pass/needs_work rubric scoring on bounded action
+  observations (no raw video). Live rooms gain XR enable/lab/complete APIs,
+  lab WebSocket events, and privacy-safe audience readiness aggregates injected
+  into Theodore. Identity exposes readiness_score + dimensions + course history
+  summaries; admin console shows audience readiness. Feature flags (default
+  off): access.xr_immersive_class, ai.physical_assessment,
+  ai.audience_profile_adaptation. Web Enter VR lab page and apps/quest Unity
+  client scripts included. ConsentScope.PHYSICAL_TRACKING added for future pose
+  enrollment. Fullscreen host lectures now scale slide titles and body text to
+  the viewport, with larger responsive typography for small phones. Floating
+  fullscreen Q&A controls let learners raise/lower a hand, remain queued, capture
+  a spoken question, and send it to Theodore without exiting the lecture. Gifts
+  can now target Theodore or any other student and play as large animated
+  celebrations in fullscreen and standard web/mobile views. Added synchronized
+  group learning games during lectures: first-correct quiz races with durable
+  winner points, educational tic-tac-toe, and hangman, with animated web/mobile
+  overlays and host controls. Expanded the reusable game library to 12 formats,
+  adding multiple-choice, true/false, word scramble, fill-the-blank, emoji
+  decode, lightning round, team buzzer, hot seat, and Jeopardy-style challenges.
+  Added recall-aware teaching for Theodore: mnemonic acronyms/acrostics, chunking,
+  vivid story chains, memory-palace cues, visual analogies, rhythm, and retrieval
+  brainteasers now replace repetition-only instruction for facts, data, formulas,
+  vocabulary, dates, and ordered steps; memory-aid catalog/generation APIs expose
+  the same strategies to course clients.
+  teach_and_present / smart presenter now delivers at a human teaching pace:
+  ~125 WPM timing, slower default TTS (-12%), idea-level pauses and bridges,
+  summarization of dense slides, concrete examples when missing, and a quiet
+  beat between slides so the narration no longer races like a teleprompter.
+  Disabled the untested Watch window and all web/mobile advertising by default
+  through `engagement.watch_window` and `monetization.video_ads` feature flags;
+  Watch navigation is hidden and ad SDK loading/rendering fails closed until an
+  administrator explicitly enables the flags after testing.
+  Added Theodore's graceful pre-class Transparent AI welcome on web and mobile:
+  he clearly identifies himself as an AI host, invites questions/corrections,
+  displays and narrates the welcome before slide one, and preserves a short
+  welcome interval before automatic presentation begins.
+- 2026-07-18 - v0.19.96 - Default-on floating bug reporter across web and mobile.
+  Added a discreet always-on-top bug icon across login, app, course, and live-class
+  screens. One tap captures the current screen (native app snapshot on iOS/Android;
+  browser tab/window capture on web), then asks for a short description. Reports
+  include redacted route/device/app context, JS stack, recent errors/warnings, API
+  status/latency breadcrumbs, and screenshots; request bodies, auth headers, and
+  URL query strings are never captured. Reports remain in the admin QA inbox and
+  can optionally mirror to private GitHub Issues via BUG_REPORT_GITHUB_REPO/TOKEN.
+  Added engagement.in_app_bug_reporter (default on) to Feature Flags plus the
+  durable IN_APP_BUG_REPORTER_ENABLED deployment default so production can turn
+  the UI and submit endpoint off. Added react-native-view-shot 5.1.1 for automatic
+  mobile capture (requires iOS deployment target 15.1+) and expanded the admin
+  inbox to show full diagnostics/delivery.
 - 2026-07-18 - v0.19.95 - Mobile install: ensure expo-image-picker for prebuild.
   Bug-report flow registered expo-image-picker as an app.json config plugin; a
   stale/no-op pnpm install left it out of node_modules and broke iOS/Android

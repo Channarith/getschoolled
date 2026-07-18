@@ -37,6 +37,8 @@ class SessionState(BaseModel):
     lesson_id: str
     current_slide: int = 0
     history: List[ChatTurn] = Field(default_factory=list)
+    # Privacy-safe audience readiness aggregates for Theodore (no names).
+    audience_profile: Dict = Field(default_factory=dict)
 
 
 class Answer(BaseModel):
@@ -228,11 +230,28 @@ class TeachingSessions:
             if name and name != "English"
             else ""
         )
+        audience_blob = ""
+        aud = getattr(session, "audience_profile", None) or {}
+        if aud:
+            audience_blob = (
+                "\nAUDIENCE_PROFILE (privacy-safe aggregates only; no names): "
+                f"{aud}. Adapt pace, examples, and checks for understanding to "
+                "this audience. Prefer their dominant learning styles; scaffold "
+                "topics listed under course_struggle_titles."
+            )
+        memory_rule = (
+            "\nMEMORY_TEACHING: When the material contains facts, vocabulary, "
+            "dates, formulas, ordered steps, or other recall-heavy content, do "
+            "not merely ask the learner to repeat it. Create one meaningful "
+            "mnemonic, vivid story/visual association, chunking scheme, or "
+            "brainteaser; connect it to understanding; then ask a retrieval "
+            "question without showing the answer. Use spaced checks later."
+        )
         prompt = (
             "You are a patient teacher. Answer the student's question using only "
             "the lesson context. If the student used slang/idioms, interpret them "
             "by their meaning. Speak in a natural, colloquial register: "
-            f"{tone}{lang_rule}\n"
+            f"{tone}{lang_rule}{audience_blob}{memory_rule}\n"
             f"QUESTION: {question}{gloss}\nCONTEXT: {' '.join(context)}"
         )
         messages = [

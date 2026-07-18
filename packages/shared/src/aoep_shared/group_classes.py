@@ -100,6 +100,7 @@ class GroupClass:
     session_id: str = ""           # set when the class goes live
     bridge_session_id: str = ""    # set when the meeting bridge is connected
     live_room_id: str = ""         # Salareen room id (class-{id}) when live
+    xr_lab_enabled: bool = False   # optional XR demonstration lab for this class
 
     def __post_init__(self) -> None:
         self.title = (self.title or "").strip()

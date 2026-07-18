@@ -14,6 +14,8 @@ export function buildBugSnapshot(screen: string, extra: Record<string, unknown> 
     platform_version: String(Platform.Version),
     device_name: Constants.deviceName || "",
     expo_version: Constants.expoVersion || "",
+    execution_environment: Constants.executionEnvironment,
+    context_stack: (new Error("Bug report opened here").stack || "").slice(0, 8000),
     ...extra,
   };
 }

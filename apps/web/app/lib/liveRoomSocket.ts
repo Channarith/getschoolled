@@ -25,6 +25,7 @@ export type FloatingReaction = {
 
 export type GiftOverlay = {
   id: string;
+  giftId: string;
   emoji: string;
   label: string;
 };
@@ -120,17 +121,27 @@ export function useLiveRoomSocket(
               break;
             }
             case "gift": {
-              const gift = payload.gift as { emoji?: string; gift_name?: string; sender_name?: string } | undefined;
+              const gift = payload.gift as {
+                gift_id?: string;
+                emoji?: string;
+                gift_name?: string;
+                sender_name?: string;
+                recipient_name?: string;
+              } | undefined;
               if (gift?.emoji) {
                 setGiftOverlay({
                   id: `${Date.now()}`,
+                  giftId: gift.gift_id ?? "",
                   emoji: gift.emoji,
-                  label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"}`,
+                  label: `${gift.sender_name ?? "Someone"} sent ${gift.gift_name ?? "a gift"} to ${gift.recipient_name ?? "Theodore"}`,
                 });
-                window.setTimeout(() => setGiftOverlay(null), 3200);
+                window.setTimeout(() => setGiftOverlay(null), 4200);
               }
               break;
             }
+            case "game":
+              if (payload.room) onRoomRef.current(payload.room as LiveRoomState);
+              break;
             case "presence": {
               const toast = payload.toast as PresenceToast | undefined;
               if (toast?.name) {

@@ -6,6 +6,7 @@ import type { BugScreenshotUpload } from "./api";
 
 export function buildBugSnapshot(extra: Record<string, unknown> = {}): Record<string, unknown> {
   if (typeof window === "undefined") return { ...extra };
+  const contextStack = new Error("Bug report opened here").stack || "";
   return {
     route: window.location.pathname,
     search: window.location.search,
@@ -15,6 +16,10 @@ export function buildBugSnapshot(extra: Record<string, unknown> = {}): Record<st
     user_agent: navigator.userAgent,
     locale: navigator.language,
     online: navigator.onLine,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    memory_gb: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    cpu_threads: navigator.hardwareConcurrency,
+    context_stack: contextStack.slice(0, 8000),
     ...extra,
   };
 }

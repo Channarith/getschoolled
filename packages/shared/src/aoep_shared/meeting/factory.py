@@ -77,7 +77,7 @@ def present_with_provider(
     credentials (raises NotImplementedError) - so a demo/test always completes.
     Returns ``(provider_used, PresentationResult)``.
     """
-    from .presenter import MeetingPresenter
+    from .presenter import MeetingPresenter, DEFAULT_TTS_RATE, DEFAULT_WPM
     from .presentation_matrix import PresentationProfile
     from .presenter_personas import resolve_persona
 
@@ -87,16 +87,22 @@ def present_with_provider(
     profile = PresentationProfile.resolve(presentation_mode) if presentation_mode is not None else None
     voice_resolved = voice or (persona_obj.voice if persona_obj else "")
     language_resolved = language
-    tts_rate = "+0%"
-    wpm = 150
+    env_wpm = os.environ.get("AOEP_PRESENT_WPM", "").strip()
+    env_rate = os.environ.get("AOEP_PRESENT_TTS_RATE", "").strip()
+    tts_rate = env_rate or DEFAULT_TTS_RATE
+    try:
+        wpm = int(env_wpm) if env_wpm else DEFAULT_WPM
+    except ValueError:
+        wpm = DEFAULT_WPM
+    wpm = max(80, wpm)
     voice_sample_path: Optional[Path] = Path(voice_sample) if voice_sample else None
     elevenlabs_voice_id = ""
     if persona_obj:
         if not voice:
             voice_resolved = persona_obj.voice
         language_resolved = persona_obj.language or language
-        tts_rate = persona_obj.tts_rate
-        wpm = max(80, int(150 * persona_obj.wpm_factor))
+        tts_rate = persona_obj.tts_rate or DEFAULT_TTS_RATE
+        wpm = max(80, int(DEFAULT_WPM * persona_obj.wpm_factor))
         from .voice_profiles import get_voice_profile, parse_voice_token
 
         _hint, pid = parse_voice_token(persona_obj.voice)

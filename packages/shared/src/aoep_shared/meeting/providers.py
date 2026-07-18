@@ -17,6 +17,7 @@ from typing import List, Optional
 
 from .base import Meeting, MeetingProvider, PresentationPlan, PresentationResult, PresentationStep
 from .presentation_sync import SyncedSlideShow, open_meeting_url
+from .presenter import DEFAULT_TTS_RATE, DEFAULT_WPM
 
 
 # --------------------------------------------------------------------------- #
@@ -63,7 +64,7 @@ class LocalPlayMeetingProvider(MockMeetingProvider):
         *,
         speak: bool = True,
         voice: str = "",
-        wpm: int = 150,
+        wpm: int = DEFAULT_WPM,
         language: str = "en",
         tts_engine: str = "auto",
         sync_slides: bool = True,
@@ -74,7 +75,7 @@ class LocalPlayMeetingProvider(MockMeetingProvider):
         plan: Optional[PresentationPlan] = None,
         open_meeting: bool = False,
         slide_source: Optional[str | Path] = None,
-        tts_rate: str = "+0%",
+        tts_rate: str = DEFAULT_TTS_RATE,
         theme: Optional[dict] = None,
         course_dir: Optional[str | Path] = None,
         repo_root: Optional[str | Path] = None,
@@ -95,7 +96,7 @@ class LocalPlayMeetingProvider(MockMeetingProvider):
         self.plan = plan
         self.open_meeting = open_meeting
         self.slide_source = Path(slide_source) if slide_source else None
-        self.tts_rate = tts_rate or "+0%"
+        self.tts_rate = tts_rate or DEFAULT_TTS_RATE
         self.theme = theme
         self.course_dir = Path(course_dir) if course_dir else None
         self.repo_root = Path(repo_root) if repo_root else None

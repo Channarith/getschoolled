@@ -27,6 +27,7 @@ class ConsentScope(str, Enum):
     ATTENTION_TRACKING = "attention_tracking"
     RECORDING = "recording"
     CROSS_CLASS_MEMORY = "cross_class_memory"
+    PHYSICAL_TRACKING = "physical_tracking"  # XR/hand pose summaries for labs
 
 
 class Region(str, Enum):

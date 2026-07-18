@@ -14,7 +14,8 @@ const AD_FREE_TIERS = new Set(["pro", "premium"]);
 
 function WatchInner() {
   const { t } = useT();
-  const adsEnabled = useFlag<boolean>("monetization.video_ads", true);
+  const watchEnabled = useFlag<boolean>("engagement.watch_window", false);
+  const adsEnabled = useFlag<boolean>("monetization.video_ads", false);
   const params = useSearchParams();
   const [courses, setCourses] = useState<CatalogCourse[]>([]);
   const [courseId, setCourseId] = useState(params.get("course") ?? "");
@@ -32,11 +33,12 @@ function WatchInner() {
   const [, force] = useState(0);
 
   useEffect(() => {
+    if (!watchEnabled) return;
     searchCourses({}).then((c) => {
       setCourses(c);
       if (!courseId && c.length) setCourseId(c[0].course_id);
     }).catch((e) => setError(String(e)));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [watchEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!getToken()) {
@@ -111,6 +113,16 @@ function WatchInner() {
   }, [contentTime, plan, playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const adFree = AD_FREE_TIERS.has(tier);
+
+  if (!watchEnabled) {
+    return (
+      <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
+        <h1>Watch is temporarily unavailable</h1>
+        <p className="muted">This experimental window is disabled while testing is completed.</p>
+        <Link href="/browse">Browse courses</Link>
+      </main>
+    );
+  }
 
   return (
     <main style={{ maxWidth: 860, margin: "0 auto", padding: 24 }}>

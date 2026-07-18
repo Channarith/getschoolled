@@ -36,6 +36,14 @@ AI_HOST_ID = "theodore-ai"
 AI_HOST_NAME = "Theodore (AI Host)"
 AI_HOST_ROLE = "host"
 LEARNER_ROLE = "learner"
+PRE_CLASS_WELCOME = (
+    "Welcome, everyone. I'm Theodore, your AI host. Before we begin, I want to "
+    "be transparent: I am an artificial-intelligence teacher, not a human. "
+    "I'll guide today's lesson, explain my role clearly, and encourage you to "
+    "question both the course material and my answers. Your ideas, corrections, "
+    "and questions are always welcome. Please make yourself comfortable—we'll "
+    "begin learning together shortly."
+)
 
 RECORDING_IDLE = "idle"
 RECORDING_ACTIVE = "recording"
@@ -269,6 +277,11 @@ class Participant:
     # The single class admin — the FIRST learner to join. Can start the class and
     # advance slides (holds moderator powers).
     is_admin: bool = False
+    # Optional student profile id for readiness / XR lab scoring (not shown publicly).
+    student_id: str = ""
+    # Cached readiness band for host adaptation (no accommodations).
+    readiness_band: str = ""
+    readiness_score: float = 0.0
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -288,7 +301,29 @@ class Participant:
         return self.role == AI_HOST_ROLE
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {
+            "id": self.id,
+            "name": self.name,
+            "role": self.role,
+            "identity": self.identity,
+            "account_id": self.account_id,
+            "muted": self.muted,
+            "muted_by_host": self.muted_by_host,
+            "hand_raised": self.hand_raised,
+            "can_publish": self.can_publish,
+            "language": self.language,
+            "joined_at": self.joined_at,
+            "last_seen": self.last_seen,
+            "is_admin": self.is_admin,
+            # Band only in public presence — scores stay host/admin-side.
+            "readiness_band": self.readiness_band,
+        }
+
+    def to_host_dict(self) -> dict:
+        d = self.to_dict()
+        d["student_id"] = self.student_id
+        d["readiness_score"] = self.readiness_score
+        return d
 
 
 @dataclass
@@ -354,11 +389,22 @@ class LiveRoom:
     slide_started_at: str = ""               # ISO when the current slide began (auto-advance)
     auto_advance_seconds: int = 5            # per-slide dwell before auto-advancing (5s for now)
     auto_start_grace_seconds: int = 300      # 5-minute rule after the scheduled time
+    welcome_message: str = PRE_CLASS_WELCOME
+    welcome_started_at: str = ""
+    pre_class_welcome_seconds: int = 12
     # Auto-end: a group lesson runs for its allotted length. Once presenting for
     # ``duration_seconds`` the class ends automatically (0 = open-ended, e.g. a
     # solo 1:1 or instant room). ``ended_at`` marks when it closed.
     duration_seconds: int = 0
     ended_at: str = ""
+    # Optional XR lab mode (feature-flagged). Public snapshot omits raw observations.
+    xr_lab_enabled: bool = False
+    xr_lab: Optional[dict] = None
+    xr_attempts: Dict[str, dict] = field(default_factory=dict)
+    # Privacy-safe audience readiness snapshot for Theodore (no names).
+    audience_profile: Dict[str, object] = field(default_factory=dict)
+    # Synchronized educational mini-game (private answer is stripped publicly).
+    group_game: Optional[dict] = None
 
     def __post_init__(self) -> None:
         self.room_size = validate_room_size(self.room_size)
@@ -446,6 +492,8 @@ class LiveRoom:
         )
 
     def to_dict(self) -> dict:
+        from .live_room_games import public_game
+
         return {
             "room_id": self.room_id,
             "class_id": self.class_id,
@@ -484,6 +532,23 @@ class LiveRoom:
             "scheduled_start": self.scheduled_start,
             "duration_seconds": self.duration_seconds,
             "ended_at": self.ended_at,
+            "welcome_message": self.welcome_message,
+            "welcome_started_at": self.welcome_started_at,
+            "pre_class_welcome_seconds": self.pre_class_welcome_seconds,
+            "xr_lab_enabled": self.xr_lab_enabled,
+            "xr_lab": self.xr_lab,
+            "xr_attempts": {
+                pid: {
+                    "outcome": row.get("outcome"),
+                    "score": row.get("score"),
+                    "provisional": row.get("provisional", True),
+                    "client_kind": row.get("client_kind"),
+                    "completed_at": row.get("completed_at"),
+                }
+                for pid, row in (self.xr_attempts or {}).items()
+            },
+            "audience_profile": dict(self.audience_profile or {}),
+            "group_game": public_game(self.group_game),
         }
 
     def to_moderator_dict(self) -> dict:
@@ -643,15 +708,83 @@ class LiveRoomStore:
             id=uuid.uuid4().hex[:10],
             from_id=AI_HOST_ID,
             from_name=AI_HOST_NAME,
-            text=(
-                f"Welcome! I'm Theodore, your AI teacher. "
-                f"We have room for up to {learner_capacity(room_size)} learners today. "
-                "Tap Join Q&A queue when you have a question — I'll call on you in turn."
-            ),
+            text=PRE_CLASS_WELCOME,
         )
         room.chat.append(welcome)
         self._commit(room)
         return room
+
+    def enable_xr_lab(
+        self,
+        room_id: str,
+        lab: dict,
+        *,
+        enabled: bool = True,
+    ) -> LiveRoom:
+        room = self.require(room_id)
+        room.xr_lab_enabled = bool(enabled)
+        room.xr_lab = dict(lab) if lab else None
+        if not enabled:
+            room.xr_lab = None
+        self._commit(room)
+        return room
+
+    def record_xr_attempt(self, room_id: str, participant_id: str, summary: dict) -> LiveRoom:
+        room = self.require(room_id)
+        room.get_participant(participant_id)  # raises if unknown
+        attempts = dict(room.xr_attempts or {})
+        attempts[participant_id] = {
+            "outcome": summary.get("outcome"),
+            "score": summary.get("score"),
+            "provisional": summary.get("provisional", True),
+            "client_kind": summary.get("client_kind"),
+            "completed_at": summary.get("completed_at"),
+            "attempt_id": summary.get("attempt_id"),
+            "lab_id": summary.get("lab_id"),
+            "evidence_summary": summary.get("evidence_summary"),
+        }
+        room.xr_attempts = attempts
+        self._commit(room)
+        return room
+
+    def set_audience_profile(self, room_id: str, profile: dict) -> LiveRoom:
+        room = self.require(room_id)
+        room.audience_profile = dict(profile or {})
+        self._commit(room)
+        return room
+
+    def start_group_game(
+        self, room_id: str, *, game_type: str, prompt: str, answer: str, points: int = 25
+    ) -> LiveRoom:
+        from .live_room_games import start_game
+
+        room = self.require(room_id)
+        room.group_game = start_game(
+            game_type, prompt=prompt, answer=answer, points=points
+        )
+        self._commit(room)
+        return room
+
+    def play_group_game(
+        self, room_id: str, participant_id: str, *,
+        answer: str = "", cell: int = -1, letter: str = "",
+    ) -> tuple[LiveRoom, dict]:
+        from .live_room_games import apply_action
+
+        room = self.require(room_id)
+        participant = room.get_participant(participant_id)
+        if not room.group_game:
+            raise LiveRoomError("no group game is active")
+        event = apply_action(
+            room.group_game,
+            participant_id=participant.id,
+            participant_name=participant.name,
+            answer=answer,
+            cell=cell,
+            letter=letter,
+        )
+        self._commit(room)
+        return room, event
 
     def get(self, room_id: str) -> Optional[LiveRoom]:
         return self._backend.get(room_id)
@@ -750,6 +883,9 @@ class LiveRoomStore:
         identity: str = "",
         account_id: str = "",
         language: str = "",
+        student_id: str = "",
+        readiness_band: str = "",
+        readiness_score: float = 0.0,
     ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
@@ -760,6 +896,7 @@ class LiveRoomStore:
         from .languages import normalize_language
 
         lang = normalize_language(language)
+        sid = (student_id or "").strip()
         if room.is_banned(ident):
             banned = room.banned[ident]
             detail = banned.reason or "You have been removed from this class."
@@ -770,6 +907,11 @@ class LiveRoomStore:
                     p.account_id = acct
                 if lang and p.language != lang:
                     p.language = lang  # keep the language fresh on re-join
+                if sid:
+                    p.student_id = sid
+                if readiness_band:
+                    p.readiness_band = readiness_band
+                    p.readiness_score = float(readiness_score or 0.0)
                 p.last_seen = _ts()   # re-join counts as presence
                 self._commit(room)
                 return p
@@ -782,6 +924,9 @@ class LiveRoomStore:
             identity=ident,
             account_id=acct,
             language=lang,
+            student_id=sid,
+            readiness_band=(readiness_band or "").strip(),
+            readiness_score=float(readiness_score or 0.0),
             # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
             # can't send audio/video until the host/AI grants them the floor
             # (which flips can_publish and lets the client fetch a publish token).
@@ -795,6 +940,8 @@ class LiveRoomStore:
             room.admin_participant_id = participant.id
             participant.is_admin = True
         room.participants[participant.id] = participant
+        if not room.welcome_started_at:
+            room.welcome_started_at = _ts()
         room.viewer_count = room.learner_count
         join_msg = ChatMessage(
             id=uuid.uuid4().hex[:10],
@@ -1119,21 +1266,26 @@ class LiveRoomStore:
     def should_auto_start(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
         """True when the AI should begin presenting.
 
-        A class runs whenever at least one learner is present and it is either
-        full, has no scheduled time (instant / solo room — start on the first
-        learner), or has reached its scheduled start time. There's no wait for
-        the room to fill or for a grace period: the AI teaches as soon as someone
-        is there, and because the class then auto-advances and its position is
-        tracked server-side, anyone can drop in mid-session."""
+        Theodore first gets a short, guaranteed pre-class window to welcome the
+        audience and disclose clearly that he is an AI host. After that, a class
+        runs whenever at least one learner is present and it is full, instant,
+        or has reached its scheduled start time."""
+        from datetime import timedelta
+
         room = self.require(room_id)
         if room.status != "live" or room.presenting or room.learner_count < 1:
+            return False
+        welcome_started = _parse_ts(room.welcome_started_at)
+        ref = now or _now()
+        if welcome_started and ref < welcome_started + timedelta(
+            seconds=max(0, room.pre_class_welcome_seconds)
+        ):
             return False
         if room.is_full:
             return True
         sched = _parse_ts(room.scheduled_start)
         if sched is None:
-            return True  # instant / solo room — start as soon as a learner joins
-        ref = now or _now()
+            return True
         return ref >= sched  # scheduled — start once the time arrives (a learner is present)
 
     def should_auto_advance(self, room_id: str, *, now: Optional[datetime] = None) -> bool:

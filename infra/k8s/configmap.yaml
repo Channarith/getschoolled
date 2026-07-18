@@ -68,6 +68,8 @@ data:
   NEXT_PUBLIC_APP_STORE_URL: ""
   # Server-side BFF for operator admins (Next.js API routes proxy to memory/identity).
   ADMIN_SECRET: "dev-admin-secret"
+  # Durable default for the admin-controlled floating user QA button.
+  IN_APP_BUG_REPORTER_ENABLED: "1"
   # IDENTITY_URL is what the shared helpers read (admin /auth/me check, rewards);
   # IDENTITY_ORIGIN is kept as a fallback alias.
   IDENTITY_URL: "http://identity:8000"

@@ -1,7 +1,10 @@
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { Animated, I18nManager, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated, AppState, I18nManager, Pressable, SafeAreaView, StyleSheet, Text, View,
+} from "react-native";
+import { captureRef } from "react-native-view-shot";
 
 import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
@@ -48,7 +51,10 @@ import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
-import { createStudent, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom } from "./src/api";
+import {
+  createStudent, getFlag, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom,
+  type BugScreenshotUpload,
+} from "./src/api";
 import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
@@ -85,6 +91,9 @@ function AppInner() {
   const [showBilling, setShowBilling] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
+  const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
+  const [bugCapture, setBugCapture] = useState<BugScreenshotUpload | null>(null);
+  const [bugCaptureBusy, setBugCaptureBusy] = useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
   const [activeLesson, setActiveLesson] = useState<
     { id: string; title: string; preview?: string; classType?: "solo" | "group" } | null
@@ -96,10 +105,25 @@ function AppInner() {
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
   const inApp = authenticated || previewMode;
+  const captureViewRef = useRef<View>(null);
 
   useEffect(() => {
     installClientLog();
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => {
+      void getFlag("engagement.in_app_bug_reporter")
+        .then((value) => { if (alive) setBugReporterEnabled(value !== false); })
+        .catch(() => { /* Memory unavailable: default-on keeps QA accessible. */ });
+    };
+    refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
+    return () => { alive = false; sub.remove(); };
+  }, [authEpoch]);
 
   useEffect(() => {
     void getPreviewMode().then(setPreviewModeState);
@@ -347,13 +371,64 @@ function AppInner() {
     setTab(id);
   };
 
+  const bugContext = liveRoomId
+    ? `live-room:${liveRoomId}`
+    : activeLesson
+      ? `lesson:${activeLesson.id}`
+      : openCourseId
+        ? `course:${openCourseId}`
+        : showGroupClasses
+          ? "group-classes"
+          : showLiveClass
+            ? "live-class"
+            : showLiveRooms
+              ? "live-rooms"
+              : gameSubject
+                ? `game:${gameSubject}`
+                : `tab:${tab}`;
+
+  async function openBugReporter() {
+    if (bugCaptureBusy) return;
+    setBugCaptureBusy(true);
+    let screenshot: BugScreenshotUpload | null = null;
+    try {
+      const dataUri = await captureRef(captureViewRef, {
+        format: "jpg",
+        quality: 0.65,
+        result: "data-uri",
+        handleGLSurfaceViewOnAndroid: true,
+      });
+      const dataBase64 = dataUri.split(",", 2)[1] || "";
+      if (dataBase64) {
+        screenshot = {
+          filename: "app-screen.jpg",
+          content_type: "image/jpeg",
+          data_base64: dataBase64,
+        };
+      }
+    } catch {
+      // Some native surfaces (camera/video) cannot be snapshotted. The report
+      // still opens with logs, API traces, stack, and contextual metadata.
+    } finally {
+      setBugCapture(screenshot);
+      setShowBugReport(true);
+      setBugCaptureBusy(false);
+    }
+  }
+
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages && !showBugReport;
 
   let screen: React.ReactNode = null;
   if (showBugReport) {
-    screen = <BugReportScreen screen={`tab:${tab}`} onBack={() => setShowBugReport(false)} />;
+    screen = (
+      <BugReportScreen
+        screen={bugContext}
+        initialScreenshot={bugCapture}
+        onBack={() => { setShowBugReport(false); setBugCapture(null); }}
+      />
+    );
   } else if (showBilling) {
     screen = <BillingScreen onBack={() => setShowBilling(false)} />;
   } else if (showSecurity) {
@@ -497,7 +572,7 @@ function AppInner() {
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenBilling={() => requireAuth(() => setShowBilling(true))}
-        onOpenBugReport={() => setShowBugReport(true)}
+        onOpenBugReport={bugReporterEnabled ? () => void openBugReporter() : undefined}
         onSignIn={() => void exitPreviewToAuth()}
       />
     );
@@ -509,38 +584,57 @@ function AppInner() {
   // demos - we keep the in-app layout pragmatic and let native users restart.
   void I18nManager;
 
-  if (authStatus === "loading") {
+  const floatingBugButton = bugReporterEnabled && !showBugReport ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Report a bug"
+      disabled={bugCaptureBusy}
+      onPress={() => void openBugReporter()}
+      style={({ pressed }) => [
+        styles.floatingBug,
+        inApp && mainTabsVisible && styles.floatingBugAboveTabs,
+        pressed && styles.floatingBugPressed,
+      ]}
+    >
+      <Text style={styles.floatingBugIcon}>🐛</Text>
+    </Pressable>
+  ) : null;
+
+  if (authStatus === "loading" && !showBugReport) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthLoadingScreen />
+        {floatingBugButton}
       </SafeAreaView>
     );
   }
 
-  if (authStatus === "mfa_pending") {
+  if (authStatus === "mfa_pending" && !showBugReport) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
         <MfaAuthScreen />
+        {floatingBugButton}
       </SafeAreaView>
     );
   }
 
-  if (!inApp) {
+  if (!inApp && !showBugReport) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthScreen onBrowseGuest={() => void enterGuestBrowse()} />
+        {floatingBugButton}
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
       <StatusBar style="light" />
       <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
@@ -564,19 +658,43 @@ function AppInner() {
           manualOpenToken={surveyManualToken}
         />
       </View>
-      {mainTabsVisible ? (
+      {inApp && mainTabsVisible ? (
         <BottomTabs
           active={tab}
           onChange={onTabChange}
           unreadCount={unreadCount}
         />
       ) : null}
+      {floatingBugButton}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
+  floatingBug: {
+    position: "absolute",
+    right: 14,
+    bottom: 16,
+    zIndex: 1000,
+    elevation: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(30,27,75,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    shadowColor: "#000",
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    opacity: 0.82,
+  },
+  floatingBugAboveTabs: { bottom: 82 },
+  floatingBugPressed: { opacity: 0.55, transform: [{ scale: 0.94 }] },
+  floatingBugIcon: { fontSize: 19 },
 });
 
 function GuestFeatureGate({
