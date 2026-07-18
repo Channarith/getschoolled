@@ -270,6 +270,14 @@ export function LiveKitAudio({
     el.srcObject = new MediaStream([track]);
     void el.play().catch(() => undefined); // some browsers need a user gesture
   }, [track]);
+  // React does not sync `muted` attribute changes to the DOM .muted property
+  // after initial render — set it imperatively so the local-mute button works.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = muted;
+    if (!muted && el.paused) void el.play().catch(() => undefined);
+  }, [muted]);
   return <audio ref={ref} autoPlay muted={muted} style={{ display: "none" }} />;
 }
 

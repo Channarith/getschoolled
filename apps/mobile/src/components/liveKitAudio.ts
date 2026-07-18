@@ -75,6 +75,10 @@ const MEDIA_ANDROID_OPTS: Record<string, unknown> = {
 
 let session: LiveKitAudioSession | null = null;
 let micPublishing = false;
+// Generation counter: incremented by every beginLiveKitAudio call so that an
+// async continuation from a stale call can detect it has been superseded and
+// must not touch the current session (fixes the fast-re-join audio corruption).
+let sessionGen = 0;
 
 /** True while a live-room LiveKit audio session is owned by this bridge. */
 export function liveKitAudioActive(): boolean {
@@ -84,13 +88,21 @@ export function liveKitAudioActive(): boolean {
 /**
  * Configure + start LiveKit audio for speaker-first live class playback.
  * Call before `room.connect`. Safe to call on Android (configure only).
+ *
+ * Returns a `cancelled` check function — callers should call it after their
+ * own async gaps to detect whether a concurrent `endLiveKitAudio` / new
+ * `beginLiveKitAudio` has superseded this call.
  */
 export async function beginLiveKitAudio(
   audioSession: LiveKitAudioSession,
   opts?: { micEnabled?: boolean; androidMediaOptions?: Record<string, unknown> },
 ): Promise<void> {
+  const myGen = ++sessionGen;
   session = audioSession;
   micPublishing = Boolean(opts?.micEnabled);
+
+  const superseded = () => sessionGen !== myGen || session !== audioSession;
+
   try {
     await audioSession.configureAudio({
       ios: { defaultOutput: "speaker" },
@@ -102,6 +114,7 @@ export async function beginLiveKitAudio(
   } catch {
     /* configure is best-effort */
   }
+  if (superseded()) return;
   if (Platform.OS === "ios") {
     try {
       await audioSession.startAudioSession();
@@ -109,11 +122,13 @@ export async function beginLiveKitAudio(
       /* start is best-effort */
     }
   }
+  if (superseded()) return;
   await applyLiveKitAudioRoute(micPublishing);
 }
 
 /** Re-apply speaker/mic category after connect, mic toggles, or camera publish. */
 export async function applyLiveKitAudioRoute(micEnabled: boolean): Promise<void> {
+  _narrationRouteApplied = false; // route is changing — next narration must re-assert
   micPublishing = micEnabled;
   if (!session) return;
   if (Platform.OS === "ios") {
@@ -136,13 +151,26 @@ export async function applyLiveKitAudioRoute(micEnabled: boolean): Promise<void>
   }
 }
 
+// True while the narration audio route is already in the correct state, so
+// repeated calls from speakNatural don't each fire a native bridge round-trip.
+let _narrationRouteApplied = false;
+
+/** Reset the idempotency flag when the session or mic state changes. */
+function _invalidateNarrationRoute(): void {
+  _narrationRouteApplied = false;
+}
+
 /**
  * Called before teacher TTS so narration isn't left on the earpiece after
  * LiveKit/WebRTC grabbed the shared AVAudioSession.
+ * Idempotent — no-ops when the route is already correctly set, avoiding
+ * a native bridge call per slide in a live room.
  */
 export async function ensureLiveRoomNarrationRoute(): Promise<void> {
   if (!session) return;
+  if (_narrationRouteApplied) return;
   await applyLiveKitAudioRoute(micPublishing);
+  _narrationRouteApplied = true;
 }
 
 /** Tear down the LiveKit audio session when leaving the room. */
@@ -150,6 +178,7 @@ export async function endLiveKitAudio(): Promise<void> {
   const s = session;
   session = null;
   micPublishing = false;
+  _narrationRouteApplied = false;
   if (s && Platform.OS === "ios") {
     try {
       await s.stopAudioSession();
