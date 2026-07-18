@@ -58,9 +58,11 @@ export default function BugReportScreen({
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.75,
+      quality: 0.55,
       base64: true,
       allowsMultipleSelection: false,
+      // Prefer a smaller long-edge so cellular uploads to /memory/bugs succeed.
+      allowsEditing: false,
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
@@ -90,15 +92,29 @@ export default function BugReportScreen({
         /* optional */
       }
       const base = bugReportBase(screen, { tab: screen });
-      const res = await submitBugReport({
+      const payload = {
         ...base,
         description: description.trim(),
         category,
         email,
         user_id: userId,
         screenshots: shots,
-      });
-      setDoneId(res.id);
+      };
+      try {
+        const res = await submitBugReport(payload);
+        setDoneId(res.id);
+      } catch (e) {
+        const msg = (e as Error).message || String(e);
+        if (
+          shots.length
+          && /network|failed to connect|timed out|screenshot exceeds|too large|413\b/i.test(msg)
+        ) {
+          const res = await submitBugReport({ ...payload, screenshots: [] });
+          setDoneId(res.id);
+          return;
+        }
+        throw e;
+      }
     } catch (e) {
       Alert.alert(t("bugReport.failTitle"), (e as Error).message);
     } finally {
