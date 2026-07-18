@@ -16,20 +16,16 @@ import {
   liveRoomAdvance,
   liveRoomStartPresentation,
   liveRoomEnd,
-  deleteLiveRoom,
   liveRoomTick,
   liveRoomAsk,
   liveRoomAskStream,
   liveRoomChat,
-  liveRoomMute,
   liveRoomRaiseHand,
   liveRoomCallNext,
   liveRoomCallOn,
   liveRoomMediaToken,
   liveRoomFinishTurn,
   liveRoomLeaveQueue,
-  liveRoomRecordStart,
-  liveRoomRecordStop,
   liveRoomReaction,
   liveRoomSendGift,
   liveRoomFollowHost,
@@ -45,7 +41,6 @@ import { useFlag } from "../../lib/flags";
 import Link from "next/link";
 import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
-import LocalRecorder from "../../components/LocalRecorder";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
 import { useT } from "../../lib/i18n";
 import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
@@ -213,6 +208,17 @@ function ClassCompleteOverlay({ onDone, primaryLang }: { onDone: () => void; pri
   );
 }
 
+/** Solo 1:1 Salareen room (AI host + one learner). */
+function isSoloLiveRoom(roomId: string, room?: LiveRoomState | null): boolean {
+  if (roomId.startsWith("solo-")) return true;
+  if (!room) return false;
+  return room.room_size <= 2 || room.learner_capacity <= 1;
+}
+
+function soloExitHref(roomId: string, room?: LiveRoomState | null): string {
+  return isSoloLiveRoom(roomId, room) ? "/class" : "/group-classes";
+}
+
 function gridLayout(roomSize: number): { cols: number; rows: number } {
   if (roomSize <= 2) return { cols: 2, rows: 1 }; // solo 1:1 — AI host + you side by side
   if (roomSize <= 4) return { cols: 2, rows: 2 };
@@ -242,6 +248,9 @@ function ParticipantTile({
   isMe,
   cameraOn,
   onToggleCamera,
+  audioMuted,
+  onToggleAudio,
+  fill,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -258,6 +267,11 @@ function ParticipantTile({
   isMe?: boolean;
   cameraOn?: boolean;
   onToggleCamera?: () => void;
+  /** Local playback mute; does not affect anyone else in the room. */
+  audioMuted?: boolean;
+  onToggleAudio?: () => void;
+  /** Fill the grid cell vertically (used by the maximized solo layout). */
+  fill?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -303,7 +317,8 @@ function ParticipantTile({
           : p.hand_raised
             ? "2px solid #d99a1c"
             : "1px solid var(--border)",
-        minHeight: large ? 220 : 110,
+        minHeight: fill ? "100%" : large ? 220 : 110,
+        height: fill ? "100%" : undefined,
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
@@ -384,6 +399,31 @@ function ParticipantTile({
           {isHost ? "🎓" : initials(p.name)}
         </div>
       )}
+      {onToggleAudio ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleAudio(); }}
+          title={audioMuted ? `Hear ${p.name} on this device` : `Mute ${p.name} on this device`}
+          aria-label={audioMuted ? `Unmute ${p.name} locally` : `Mute ${p.name} locally`}
+          style={{
+            position: "absolute",
+            zIndex: 18,
+            top: 10,
+            right: fullscreen ? 88 : 10,
+            width: 36,
+            height: 36,
+            borderRadius: 999,
+            background: audioMuted ? "rgba(239,68,68,0.92)" : "rgba(0,0,0,0.58)",
+            color: "#fff",
+            border: "1px solid rgba(255,255,255,.45)",
+            cursor: "pointer",
+            fontSize: 16,
+            boxShadow: "0 4px 12px rgba(0,0,0,.28)",
+          }}
+        >
+          {audioMuted ? "🔇" : "🔊"}
+        </button>
+      ) : null}
       {fullscreen && fullscreenControls ? fullscreenControls : null}
       <div
         style={{
@@ -474,6 +514,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [gameResponse, setGameResponse] = useState("");
   const [showChat, setShowChat] = useState(true);
   const [focusInstructor, setFocusInstructor] = useState(false);
+  // Per-device playback mute. Unlike the old room-wide mute endpoint, this
+  // only changes what the current viewer hears.
+  const [locallyMutedIds, setLocallyMutedIds] = useState<Set<string>>(() => new Set());
   const [followingHost, setFollowingHost] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   // Chrome blocks LiveKit's AudioContext until a user gesture. Manual join unlocks
@@ -818,7 +861,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     const pid = joinInfo?.participant.id;
     localStream?.getTracks().forEach((t) => t.stop());
     sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
-    const go = () => { window.location.href = "/group-classes"; };
+    const go = () => { window.location.href = soloExitHref(roomId, roomRef.current); };
     if (pid) {
       void leaveLiveRoom(roomId, pid).then(go).catch(go);
     } else {
@@ -832,7 +875,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     setBusy(true);
     try {
       await leaveLiveRoom(roomId, me.id);
-      window.location.href = "/group-classes";
+      window.location.href = soloExitHref(roomId, room);
     } catch (e) {
       setError(friendlyError(e, "Could not leave"));
     } finally {
@@ -1106,20 +1149,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
-  async function toggleMute() {
-    if (!me) return;
-    setBusy(true);
-    try {
-      // Toggle against the effective muted state (self-mute OR host mute) so the
-      // button's label ("Mute"/"Unmute") always matches what it does.
-      const currentlyMuted = Boolean(me.muted || me.muted_by_host);
-      setRoom(await liveRoomMute(roomId, me.id, !currentlyMuted, false, "", me.id));
-    } catch (e) {
-      setError(friendlyError(e, "Could not toggle mute"));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const toggleLocalAudio = useCallback((participantId: string) => {
+    setLocallyMutedIds((current) => {
+      const next = new Set(current);
+      if (next.has(participantId)) next.delete(participantId);
+      else next.add(participantId);
+      return next;
+    });
+  }, []);
 
   async function hostAdvance() {
     setBusy(true);
@@ -1180,9 +1217,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // joined client ticks every 8s; the server makes it idempotent.
   useEffect(() => {
     if (!joinInfo) return;
-    const t = window.setInterval(() => {
+    const tick = () => {
       void liveRoomTick(roomId, joinInfo.participant.id).then((r) => applyRoom(r)).catch(() => undefined);
-    }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
+    };
+    // Tick immediately on entry. Solo rooms are full with one learner, so the
+    // server begins the class automatically as soon as its short AI-introduction
+    // window has elapsed — no Start/Call-next button is required.
+    tick();
+    const t = window.setInterval(tick, 3000);  // also drives auto-advance + presence
     return () => window.clearInterval(t);
   }, [joinInfo, roomId, applyRoom]);
 
@@ -1285,21 +1327,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     return () => stopListening();
   }, [hasFloor, startListening, stopListening]);
 
-  async function toggleRecording() {
-    setBusy(true);
-    try {
-      if (room?.recording.status === "recording") {
-        setRoom(await liveRoomRecordStop(roomId));
-      } else {
-        setRoom(await liveRoomRecordStart(roomId));
-      }
-    } catch (e) {
-      setError(friendlyError(e, "Recording failed"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function banLearner(participantId: string, name: string) {
     if (!canModerate) return;
     const reason = window.prompt(`Block ${name}? Optional reason:`);
@@ -1361,20 +1388,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
   }
 
-  // Platform admin: delete this session permanently (cleanup), then leave.
-  async function deleteSession() {
-    if (!isPlatformAdmin) return;
-    if (typeof window !== "undefined" && !window.confirm("Delete this session permanently?")) return;
-    setBusy(true);
-    try {
-      await deleteLiveRoom(roomId);
-      window.location.href = "/group-classes";
-    } catch (e) {
-      setError(friendlyError(e, "Could not delete session"));
-      setBusy(false);
-    }
-  }
-
   async function dismissReport(reportId: string) {
     if (!canModerate) return;
     setBusy(true);
@@ -1394,7 +1407,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         <p className="muted">
           You were blocked from this live room and cannot rejoin until a moderator lifts the ban.
         </p>
-        <button onClick={() => { window.location.href = "/group-classes"; }}>Back to Group Classes</button>
+        <button onClick={() => { window.location.href = soloExitHref(roomId, room); }}>
+          {isSoloLiveRoom(roomId, room) ? "Back to class" : "Back to Group Classes"}
+        </button>
       </main>
     );
   }
@@ -1404,16 +1419,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <main className="container" style={{ maxWidth: 480 }}>
         <h1>Salareen Live Room</h1>
         <p className="muted">
-          {(room?.room_size ?? 6) <= 2
-            ? "Your private 1:1 session with Theodore, your AI teacher."
+          {isSoloLiveRoom(roomId, room)
+            ? "Your private 1:1 session with Theodore. The class starts automatically once you enter."
             : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>
             <strong>{room.title}</strong>
-            <div className="muted">
-              {room.learner_count}/{room.learner_capacity} learners · {room.seats_left} seats left
-            </div>
+            {!isSoloLiveRoom(roomId, room) ? (
+              <div className="muted">
+                {room.learner_count}/{room.learner_capacity} learners · {room.seats_left} seats left
+              </div>
+            ) : (
+              <div className="muted">Just you and Theodore — camera and mic ready when you join.</div>
+            )}
           </div>
         )}
         {error && <div className="card" style={{ borderColor: "#ff6b6b", marginBottom: 12 }}>{error}</div>}
@@ -1452,7 +1471,27 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
+  const isSolo = isSoloLiveRoom(roomId, room);
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
+  const toggleHostAudio = () => {
+    if (!host) return;
+    const currentlyMuted = locallyMutedIds.has(host.id) || !aiAudioOn;
+    setLocallyMutedIds((current) => {
+      const next = new Set(current);
+      if (currentlyMuted) next.delete(host.id);
+      else next.add(host.id);
+      return next;
+    });
+    if (currentlyMuted) {
+      unlockWebAudio();
+      setAiAudioUnlocked(true);
+      setAiAudioOn(true);
+      spokenSlideRef.current = null;
+    } else {
+      setAiAudioOn(false);
+      cancelSpeech();
+    }
+  };
   const renderGamePanel = (fullscreen = false) => {
     if (!showGame) return null;
     const game = room?.group_game;
@@ -1583,22 +1622,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           <h2 style={{ margin: "4px 0 0", fontSize: 20 }}>{room?.title ?? "Live class"}</h2>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
-          <LocalRecorder roomId={roomId} title={room?.title ?? "Live class"} />
           {room?.recording.status === "recording" && (
             <span style={{ color: "#fca5a5", fontWeight: 600 }}>● REC</span>
           )}
-          <span className="muted">
-            👁 {socket.viewerCount || room?.viewer_count || room?.learner_count || 0}
-          </span>
-          <span className="muted">
-            ❤️ {socket.followerCount || followerCount} followers
-          </span>
+          {!isSolo ? (
+            <>
+              <span className="muted">
+                👁 {socket.viewerCount || room?.viewer_count || room?.learner_count || 0}
+              </span>
+              <span className="muted">
+                ❤️ {socket.followerCount || followerCount} followers
+              </span>
+            </>
+          ) : null}
           {socket.connected ? (
             <span style={{ color: "#34d399", fontSize: 11 }}>● live</span>
           ) : (
             <span style={{ color: "#fcd34d", fontSize: 11 }}>polling</span>
           )}
-          {me ? (
+          {me && !isSolo ? (
             <button
               type="button"
               onClick={async () => {
@@ -1679,7 +1721,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
         </div>
       ) : null}
-      <button
+      {!isSolo ? <button
         type="button"
         onClick={() => setShowGame((v) => !v)}
         style={{
@@ -1689,8 +1731,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           boxShadow: "0 10px 30px rgba(0,0,0,.4)",
         }}
         title="Play a group learning game"
-      >🎮</button>
-      {renderGamePanel(false)}
+      >🎮</button> : null}
+      {!isSolo ? renderGamePanel(false) : null}
 
       <div
         style={{
@@ -1718,6 +1760,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       </div>
 
       <style jsx global>{`
+        @media (max-width: 760px) {
+          .solo-live-video-grid {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: repeat(2, minmax(300px, 42vh)) !important;
+          }
+          .solo-live-video-grid > div {
+            min-height: 300px !important;
+          }
+        }
         @keyframes live-float-up {
           0% {
             opacity: 1;
@@ -1899,9 +1950,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
-      {/* View toggles: focus the instructor (slide) and show/hide chat. */}
+      {/* View toggles. Solo keeps both people visible and chat docked below. */}
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-        <button
+        {!isSolo ? <button
           type="button"
           onClick={() => setFocusInstructor((v) => !v)}
           title={focusInstructor ? "Show everyone" : "Focus on the instructor / slides"}
@@ -1913,8 +1964,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           }}
         >
           {focusInstructor ? "👥 Show everyone" : "🎓 Focus instructor"}
-        </button>
-        <button
+        </button> : null}
+        {!isSolo ? <button
           type="button"
           onClick={() => setShowChat((v) => !v)}
           title={showChat ? "Hide chat" : "Show chat"}
@@ -1926,7 +1977,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           }}
         >
           {showChat ? "💬 Hide chat" : "💬 Show chat"}
-        </button>
+        </button> : null}
         <button
           type="button"
           onClick={toggleHostFullscreen}
@@ -1960,30 +2011,45 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: showChat ? "minmax(0, 1.4fr) minmax(280px, 1fr)" : "1fr",
+          gridTemplateColumns: isSolo
+            ? "1fr"
+            : showChat ? "minmax(0, 1.4fr) minmax(280px, 1fr)" : "1fr",
           gap: 14,
           alignItems: "start",
         }}
       >
         <section>
           <div
+            className={isSolo ? "solo-live-video-grid" : undefined}
             style={{
               display: "grid",
-              gridTemplateColumns: focusInstructor ? "1fr" : largeHostColumn(layout.cols),
-              gridTemplateRows: focusInstructor ? "minmax(320px, 60vh)" : `repeat(${layout.rows}, minmax(100px, 1fr))`,
+              gridTemplateColumns: isSolo
+                ? "repeat(2, minmax(0, 1fr))"
+                : focusInstructor ? "1fr" : largeHostColumn(layout.cols),
+              gridTemplateRows: isSolo
+                ? "minmax(420px, calc(100vh - 285px))"
+                : focusInstructor ? "minmax(320px, 60vh)" : `repeat(${layout.rows}, minmax(100px, 1fr))`,
               gap: 8,
               marginBottom: 12,
             }}
           >
             {/* Hidden audio sinks so you can HEAR remote participants (video tiles stay muted). */}
             {audioTracks.map((a) => (
-              <LiveKitAudio key={a.participantId} track={a.track} />
+              <LiveKitAudio
+                key={a.participantId}
+                track={a.track}
+                muted={locallyMutedIds.has(a.participantId)}
+              />
             ))}
             {host && (
-              <div style={{ gridRow: focusInstructor ? "auto" : `span ${layout.rows}`, minHeight: 220 }}>
+              <div style={{
+                gridRow: isSolo || focusInstructor ? "auto" : `span ${layout.rows}`,
+                minHeight: isSolo ? 420 : 220,
+              }}>
                 <ParticipantTile
                   p={host}
                   large
+                  fill={isSolo}
                   fullscreen={isFullscreen}
                   liveKitTrack={trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
@@ -1992,6 +2058,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     body: room.welcome_message,
                     narration: room.welcome_message,
                   } : room?.slide}
+                  audioMuted={locallyMutedIds.has(host.id) || !aiAudioOn}
+                  onToggleAudio={toggleHostAudio}
                   onContainerRef={(el) => { hostTileRef.current = el; }}
                   fullscreenControls={
                     <>
@@ -2210,15 +2278,18 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             )}
             {!focusInstructor && learners.map((p) => (
-              <div key={p.id} style={{ position: "relative" }}>
+              <div key={p.id} style={{ position: "relative", minHeight: isSolo ? 420 : undefined }}>
                 <ParticipantTile
                   p={p}
+                  fill={isSolo}
                   localStream={p.id === me?.id && cameraOn ? localStream : null}
                   liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                   isMe={p.id === me?.id}
                   cameraOn={p.id === me?.id ? cameraOn : undefined}
                   onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
+                  audioMuted={locallyMutedIds.has(p.id)}
+                  onToggleAudio={p.id !== me?.id ? () => toggleLocalAudio(p.id) : undefined}
                 />
                 {canModerate && p.id !== me?.id ? (
                   <button
@@ -2288,7 +2359,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
             ))}
-            {!focusInstructor && Array.from({ length: emptySlots }).map((_, i) => (
+            {!isSolo && !focusInstructor && Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
                 style={{
@@ -2307,7 +2378,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             ))}
           </div>
 
-          {hasFloor && (
+          {!isSolo && hasFloor && (
             <div
               style={{
                 marginBottom: 12,
@@ -2376,7 +2447,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           )}
 
-          {(room?.speaking_queue?.length ?? 0) > 0 && (
+          {!isSolo && (room?.speaking_queue?.length ?? 0) > 0 && (
             <div
               style={{
                 marginBottom: 12,
@@ -2412,7 +2483,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           )}
 
-          {room?.slide && (
+          {!isSolo && room?.slide && (
             <div
               style={{
                 background: "var(--panel)",
@@ -2432,7 +2503,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           )}
         </section>
 
-        {showChat && (
+        {!isSolo && showChat && (
         <aside
           style={{
             display: "flex",
@@ -2684,15 +2755,154 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         )}
       </div>
 
-      {/* Class controls — always visible regardless of chat panel state. */}
+      {isSolo ? (
+        <aside
+          aria-label="Solo class chat and actions"
+          style={{
+            display: "grid",
+            gap: 8,
+            padding: 10,
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+            background: "var(--panel)",
+            boxShadow: "0 8px 24px rgba(0,0,0,.08)",
+          }}
+        >
+          {/* A short horizontal transcript preserves vertical space for video. */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              minHeight: 48,
+              maxHeight: 72,
+              overflowX: "auto",
+              overflowY: "hidden",
+              alignItems: "stretch",
+              scrollSnapType: "x proximity",
+            }}
+          >
+            {(room?.chat ?? []).length ? (room?.chat ?? []).slice(-8).map((m) => (
+              <div
+                key={`solo-${m.id}`}
+                style={{
+                  flex: "0 0 min(300px, 72vw)",
+                  scrollSnapAlign: "end",
+                  padding: "7px 10px",
+                  borderRadius: 9,
+                  border: "1px solid var(--border)",
+                  background: "color-mix(in srgb, var(--accent) 5%, var(--panel))",
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  overflow: "hidden",
+                }}
+              >
+                <strong style={{ color: "var(--accent)" }}>{m.from_name}:</strong>{" "}
+                <span>{m.text}</span>
+              </div>
+            )) : (
+              <span className="muted" style={{ alignSelf: "center", fontSize: 12 }}>
+                Chat and Theodore’s answers appear here.
+              </span>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {REACTIONS.map((emoji) => (
+              <button
+                key={`solo-${emoji}`}
+                type="button"
+                disabled={busy || !me}
+                onClick={async () => {
+                  if (!me) return;
+                  socket.pushReaction(emoji);
+                  try {
+                    applyRoom(await liveRoomReaction(roomId, me.id, emoji));
+                  } catch (e) {
+                    setError(friendlyError(e, "Reaction failed"));
+                  }
+                }}
+                style={{ padding: "5px 8px", minWidth: 34 }}
+              >
+                {emoji}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!me}
+              onClick={() => setShowGifts((v) => !v)}
+              title="Send a gift"
+              style={{ background: "#be185d", color: "#fff" }}
+            >
+              🎁 Gift
+            </button>
+            <input
+              value={chatDraft}
+              onChange={(e) => setChatDraft(e.target.value)}
+              placeholder="Chat…"
+              aria-label="Chat message"
+              onKeyDown={(e) => e.key === "Enter" && void sendChat()}
+              disabled={busy || me?.muted || me?.muted_by_host}
+              style={{ flex: "1 1 150px", minWidth: 120, padding: "7px 9px" }}
+            />
+            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "var(--accent)", color: "#fff" }}>
+              Send
+            </button>
+            <input
+              value={askDraft}
+              onChange={(e) => setAskDraft(e.target.value)}
+              placeholder="Ask Theodore…"
+              aria-label="Question for Theodore"
+              onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
+              disabled={busy}
+              style={{ flex: "1 1 180px", minWidth: 150, padding: "7px 9px" }}
+            />
+            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "var(--accent-2)", color: "#fff" }}>
+              Ask
+            </button>
+          </div>
+
+          {showGifts ? (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingTop: 6, borderTop: "1px solid var(--border)" }}>
+              {giftCatalog.map((g) => (
+                <button
+                  key={`solo-gift-${g.id}`}
+                  type="button"
+                  disabled={busy || !me || giftBalance < g.cost_points}
+                  onClick={() => void sendGift(g)}
+                  style={{ flex: "0 0 auto", padding: "6px 10px" }}
+                >
+                  {g.emoji} {g.name} · {g.cost_points}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {hostAnswer && (hostAnswer.text || !hostAnswer.done) ? (
+            <div style={{ fontSize: 12, padding: "6px 9px", borderRadius: 8, background: "rgba(99,102,241,.10)" }}>
+              <strong>🎓 Theodore{hostAnswer.asker ? ` → ${hostAnswer.asker}` : ""}:</strong>{" "}
+              {hostAnswer.text || "Answering…"}
+            </div>
+          ) : null}
+        </aside>
+      ) : null}
+
+      {/* Compact bottom navigation; solo omits queue-admin, presentation and recording controls. */}
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
           gap: 8,
           marginTop: 12,
-          padding: "10px 4px",
+          padding: "10px",
           borderTop: "1px solid var(--border)",
+          position: "sticky",
+          bottom: 0,
+          zIndex: 45,
+          background: "color-mix(in srgb, var(--panel) 94%, transparent)",
+          backdropFilter: "blur(14px)",
+          borderRadius: "12px 12px 0 0",
+          boxShadow: "0 -8px 24px rgba(0,0,0,.10)",
         }}
       >
         <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
@@ -2712,7 +2922,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             Done — ask Theodore
           </button>
         ) : null}
-        {canModerate ? (
+        {canModerate && !isSolo ? (
           <>
             <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
               Call next
@@ -2725,13 +2935,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </>
         ) : null}
         <button
-          onClick={() => void toggleMute()}
-          disabled={busy || (!hasFloor && inQueue)}
-          title="Mute or unmute your own microphone. You're only heard once the host gives you the floor (raise your hand)."
-        >
-          {me?.muted || me?.muted_by_host ? "🔊 Unmute" : "🔇 Mute"}
-        </button>
-        <button
           onClick={() => void toggleCamera()}
           disabled={busy}
           title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
@@ -2739,23 +2942,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         >
           {cameraOn ? "📹 Camera on" : "📷 Camera off"}
         </button>
-        <button
-          onClick={() => {
-            unlockWebAudio();
-            setAiAudioOn((v) => {
-              if (v) cancelSpeech();
-              else {
-                setAiAudioUnlocked(true);
-                spokenSlideRef.current = null;
-              }
-              return !v;
-            });
-          }}
-          title={aiAudioOn ? "Mute the AI teacher's voice" : "Hear the AI teacher narrate the slides"}
-        >
-          {aiAudioOn ? "🔊 AI voice" : "🔇 AI voice"}
-        </button>
-        {canModerate ? (
+        {canModerate && !isSolo ? (
           !room?.presenting ? (
             <button
               onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
@@ -2770,11 +2957,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               ▶ Next slide
             </button>
           )
-        ) : null}
-        {canModerate ? (
-          <button onClick={() => void toggleRecording()} disabled={busy}>
-            {room?.recording.status === "recording" ? "⏹ Stop REC" : "🔴 Record"}
-          </button>
         ) : null}
         {canModerate ? (
           <button
@@ -2803,16 +2985,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             Enter VR lab
           </Link>
-        ) : null}
-        {isPlatformAdmin ? (
-          <button
-            onClick={() => void deleteSession()}
-            disabled={busy}
-            title="Delete this session permanently (admin cleanup)"
-            style={{ background: "#b91c1c", color: "#fff" }}
-          >
-            🗑 Delete
-          </button>
         ) : null}
         <button onClick={() => void handleLeave()} disabled={busy} style={{ marginLeft: "auto" }}>
           Leave

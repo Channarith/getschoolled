@@ -254,8 +254,15 @@ export function useLiveKitRoom(
   };
 }
 
-/** Hidden audio sink for a remote participant's mic (autoplays, NOT muted). */
-export function LiveKitAudio({ track }: { track: MediaStreamTrack }) {
+/** Hidden audio sink for a remote participant's mic with per-device mute. */
+export function LiveKitAudio({
+  track,
+  muted = false,
+}: {
+  track: MediaStreamTrack;
+  /** Local playback only — never changes the participant's room-wide mute. */
+  muted?: boolean;
+}) {
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -263,7 +270,7 @@ export function LiveKitAudio({ track }: { track: MediaStreamTrack }) {
     el.srcObject = new MediaStream([track]);
     void el.play().catch(() => undefined); // some browsers need a user gesture
   }, [track]);
-  return <audio ref={ref} autoPlay style={{ display: "none" }} />;
+  return <audio ref={ref} autoPlay muted={muted} style={{ display: "none" }} />;
 }
 
 export function LiveKitVideoTile({
