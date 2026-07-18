@@ -8,6 +8,7 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import * as Speech from "expo-speech";
 
+import { ensureLiveRoomNarrationRoute, liveKitAudioActive } from "./components/liveKitAudio";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
@@ -47,6 +48,8 @@ export function splitForSpeech(text: string): string[] {
 // hardware mute switch is on, and after LiveKit / the intro jingle grab and
 // release the session it can be left ducked or routed so TTS is inaudible.
 // Re-assert a playback session before speaking so lesson audio always plays.
+// MixWithOthers (not DuckOthers) so live-room TTS can share the session with
+// LiveKit WebRTC instead of fighting it into silence.
 let audioSessionReady = false;
 
 export async function ensureSpeechAudioSession(): Promise<void> {
@@ -54,11 +57,16 @@ export async function ensureSpeechAudioSession(): Promise<void> {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
       staysActiveInBackground: true,
-      interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
       interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
       shouldDuckAndroid: true,
       playThroughEarpieceAndroid: false,
     });
+    // LiveKit owns AVAudioSession in a live room — re-assert speaker AFTER
+    // expo-av so teacher TTS isn't left on the earpiece / silent category.
+    if (liveKitAudioActive()) {
+      await ensureLiveRoomNarrationRoute();
+    }
     audioSessionReady = true;
   } catch {
     // Non-fatal: fall back to expo-speech's default audio session.

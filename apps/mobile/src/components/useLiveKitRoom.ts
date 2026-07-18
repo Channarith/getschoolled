@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
 
 import type { LiveKitMedia } from "../api";
-import { ensureCameraPermission } from "./cameraPermission";
+import {
+  applyLiveKitAudioRoute,
+  asLiveKitAudioSession,
+  beginLiveKitAudio,
+  endLiveKitAudio,
+} from "./liveKitAudio";
 import { loadLiveKit } from "./liveKitRuntime";
 
 import type {
@@ -121,8 +125,16 @@ export function useLiveKitRoom(
 
     void (async () => {
       try {
-        // LiveKit docs: iOS needs an active AVAudioSession before mic/camera.
-        if (Platform.OS === "ios") await AudioSession.startAudioSession();
+        // Speaker-first session BEFORE connect so iOS doesn't land on earpiece /
+        // soloAmbient (which silences AI teacher TTS). Learners keep playback
+        // category until they hold the floor.
+        const mediaPreset = (lk.rn as { AndroidAudioTypePresets?: { media?: Record<string, unknown> } })
+          .AndroidAudioTypePresets?.media;
+        await beginLiveKitAudio(asLiveKitAudioSession(AudioSession), {
+          micEnabled: canPublishRef.current,
+          androidMediaOptions: mediaPreset,
+        });
+        if (cancelled) return;
         room = new Room({ videoCaptureDefaults: SELFIE_CAMERA });
         roomRef.current = room;
         // Reflect our own camera publish/unpublish into the self-view tile.
@@ -160,6 +172,8 @@ export function useLiveKitRoom(
         } catch {
           /* mic unavailable */
         }
+        // Camera/mic getUserMedia can reset AVAudioSession — re-assert speaker.
+        await applyLiveKitAudioRoute(canPublishRef.current);
         const cam = room.localParticipant.getTrackPublication(Track.Source.Camera);
         if (cam?.track) upsert(idFor(room.localParticipant.identity), cam.track);
       } catch {
@@ -174,9 +188,7 @@ export function useLiveKitRoom(
       roomRef.current = null;
       setConnected(false);
       setTracks([]);
-      if (Platform.OS === "ios") {
-        void AudioSession.stopAudioSession().catch(() => {});
-      }
+      void endLiveKitAudio();
     };
   }, [connectEnabled, media?.url, media?.token, media?.identity, idFor]);
 
@@ -184,7 +196,16 @@ export function useLiveKitRoom(
   useEffect(() => {
     const room = roomRef.current;
     if (!room || !connected) return;
-    void room.localParticipant.setMicrophoneEnabled(canPublish).catch(() => undefined);
+    void (async () => {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(canPublish);
+      } catch {
+        /* mic unavailable */
+      }
+      // iosCategoryEnforce sets bare playAndRecord on getUserMedia(audio) —
+      // restore defaultToSpeaker / playback so teacher TTS stays audible.
+      await applyLiveKitAudioRoute(canPublish);
+    })();
   }, [canPublish, connected]);
 
   const setCameraEnabled = useCallback(async (enabled: boolean): Promise<boolean> => {
