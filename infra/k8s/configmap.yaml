@@ -70,6 +70,10 @@ data:
   ADMIN_SECRET: "dev-admin-secret"
   # Durable default for the admin-controlled floating user QA button.
   IN_APP_BUG_REPORTER_ENABLED: "1"
+  # Configure destinations per environment. Keep BUG_REPORT_GITHUB_TOKEN in the
+  # out-of-band aoep-secrets Secret, never in this ConfigMap.
+  BUG_REPORT_GITHUB_PRIVATE_REPO: ""
+  BUG_REPORT_GITHUB_PUBLIC_REPO: ""
   # IDENTITY_URL is what the shared helpers read (admin /auth/me check, rewards);
   # IDENTITY_ORIGIN is kept as a fallback alias.
   IDENTITY_URL: "http://identity:8000"

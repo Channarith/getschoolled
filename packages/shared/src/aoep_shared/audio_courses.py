@@ -359,9 +359,18 @@ def _knowledge_course(
     ``locale`` localizes category labels for the UI. ``training_locale``
     (en/es/zh) selects the spoken body: when a curated localized fact set
     exists for the topic it is used verbatim (authentic, non-English);
-    otherwise the rich English narration pack is used. Either way the lesson
-    contains only substantive authored segments - no intro/recap wrappers,
-    no padding, and no repeated narration.
+    otherwise the rich English narration pack is used.
+
+    Content priority for English body:
+      1. Harvested rich content from the drive_content_cache.db SQLite store
+         (28 segments × ~125 words ≈ 30 min — populated by the drive_topic_harvest
+         CLI or the POST /admin/harvest-drive-topic endpoint).
+      2. Hardcoded TOPIC_SECTIONS (9 sections × ~37 words ≈ 4 min — the
+         always-available fallback).
+
+    Either way the lesson is wrapped with an Overview + Key-takeaways by
+    ``_deepen_en_segments``, giving a minimum of 11 segments (fallback) or
+    30 segments (harvested).
     """
     tloc = normalize_training_locale(training_locale)
     display_title = localize_course_title(title, tloc)
@@ -379,14 +388,12 @@ def _knowledge_course(
             for i, p in enumerate(points, start=1)
         ]
     else:
-        segs = [
-            AudioSegment(heading=heading, text=body)
-            for heading, body in TOPIC_SECTIONS[title]
-        ]
+        # Check the harvest cache for rich content (28 segments, ~30 min).
+        # Falls back to the hardcoded 9-section pack when no harvest exists.
+        rich = _get_harvested_sections(title)
+        source = rich if rich else list(TOPIC_SECTIONS.get(title, []))
+        segs = [AudioSegment(heading=h, text=t) for h, t in source]
         body_loc = "en"
-        # Frame the authored sections with an Overview + Key-takeaways recap so
-        # the lesson orients the learner and runs long enough to teach something
-        # (English bodies only; curated non-English fact sets stay verbatim).
         segs = _deepen_en_segments(title, segs)
     slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
     return AudioCourse(
@@ -400,6 +407,18 @@ def _knowledge_course(
         segments=segs,
         body_locale=body_loc,
     )
+
+
+def _get_harvested_sections(title: str) -> Optional[List[tuple]]:
+    """Return cached harvested sections for *title*, or ``None`` on miss/error."""
+    try:
+        from .drive_topic_harvest import get_cached_segments, MIN_SEGMENTS_TO_ACCEPT
+        segs = get_cached_segments(title)
+        if segs and len(segs) >= MIN_SEGMENTS_TO_ACCEPT:
+            return segs
+    except Exception:
+        pass
+    return None
 
 
 @functools.lru_cache(maxsize=64)

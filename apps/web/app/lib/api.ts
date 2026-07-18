@@ -2510,6 +2510,8 @@ export type BugReportRow = {
   attachments: string[];
   destination?: string;
   external_url?: string;
+  private_issue_url?: string;
+  public_issue_url?: string;
   delivery_error?: string;
 };
 
