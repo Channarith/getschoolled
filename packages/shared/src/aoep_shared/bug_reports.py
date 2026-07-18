@@ -15,6 +15,7 @@ import re
 import time
 import uuid
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,6 +74,8 @@ class BugReport(BaseModel):
     attachments: List[str] = Field(default_factory=list)
     destination: str = "qa-inbox"
     external_url: str = ""
+    private_issue_url: str = ""
+    public_issue_url: str = ""
     delivery_error: str = ""
 
 
@@ -104,42 +107,16 @@ def _trim_snapshot(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _github_issue(report: BugReport) -> tuple[str, str]:
-    """Optionally mirror a report to GitHub Issues, without exposing credentials.
-
-    Configure both BUG_REPORT_GITHUB_REPO=owner/repo and
-    BUG_REPORT_GITHUB_TOKEN. The local QA inbox remains the durable source of
-    truth when GitHub is unavailable or intentionally not configured.
-    """
-    repo = os.environ.get("BUG_REPORT_GITHUB_REPO", "").strip().strip("/")
-    token = os.environ.get("BUG_REPORT_GITHUB_TOKEN", "").strip()
-    if not repo or not token:
-        return "", ""
-    title = f"[User QA] {report.platform} {report.app_version}: {report.description[:100]}"
-    diagnostics = {
-        "report_id": report.id,
-        "screen": report.screen,
-        "platform": report.platform,
-        "app_version": report.app_version,
-        "user_id": report.user_id,
-        "snapshot": report.snapshot,
-        "logs": report.logs[-100:],
-        "attachments_in_qa_inbox": report.attachments,
-    }
-    body = (
-        "Submitted by the in-app floating bug reporter.\n\n"
-        f"Description:\n{report.description}\n\n"
-        "Diagnostics (request bodies, auth headers, and URL query strings are not captured):\n"
-        f"```json\n{json.dumps(diagnostics, indent=2, default=str)[:55_000]}\n```"
-    )
-    payload = json.dumps({
-        "title": title,
-        "body": body,
-    }).encode("utf-8")
+def _github_json(
+    method: str,
+    url: str,
+    token: str,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
     request = urllib.request.Request(
-        f"https://api.github.com/repos/{repo}/issues",
-        data=payload,
-        method="POST",
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        method=method,
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -148,12 +125,157 @@ def _github_issue(report: BugReport) -> tuple[str, str]:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310
-            result = json.loads(response.read().decode("utf-8"))
-        return str(result.get("html_url", "")), ""
-    except (OSError, ValueError, urllib.error.HTTPError) as exc:
-        return "", str(exc)[:500]
+    with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+        return dict(json.loads(response.read().decode("utf-8")))
+
+
+def _create_github_issue(
+    repo: str,
+    token: str,
+    title: str,
+    body: str,
+) -> str:
+    result = _github_json(
+        "POST",
+        f"https://api.github.com/repos/{repo}/issues",
+        token,
+        {"title": title, "body": body},
+    )
+    return str(result.get("html_url", ""))
+
+
+def _upload_private_screenshots(
+    report: BugReport,
+    root: Path,
+    repo: str,
+    token: str,
+) -> tuple[List[str], List[str]]:
+    """Commit screenshots to the private QA repo and return operator-only links."""
+    links: List[str] = []
+    errors: List[str] = []
+    for filename in report.attachments:
+        path = root / report.id / filename
+        try:
+            data = path.read_bytes()
+            repo_path = f"bug-report-attachments/{report.id}/{filename}"
+            api_path = urllib.parse.quote(repo_path, safe="/")
+            result = _github_json(
+                "PUT",
+                f"https://api.github.com/repos/{repo}/contents/{api_path}",
+                token,
+                {
+                    "message": f"Add screenshot for {report.id}",
+                    "content": base64.b64encode(data).decode("ascii"),
+                },
+            )
+            content = result.get("content") or {}
+            url = str(content.get("html_url", ""))
+            if url:
+                links.append(f"- [{filename}]({url})")
+            else:
+                errors.append(f"{filename}: GitHub returned no attachment URL")
+        except (OSError, ValueError, urllib.error.HTTPError) as exc:
+            errors.append(f"{filename}: {str(exc)[:200]}")
+    return links, errors
+
+
+def _private_issue_body(
+    report: BugReport,
+    attachment_links: List[str],
+    attachment_errors: List[str],
+) -> str:
+    diagnostics = {
+        "report_id": report.id,
+        "screen": report.screen,
+        "platform": report.platform,
+        "app_version": report.app_version,
+        "user_id": report.user_id,
+        "email": report.email,
+        "snapshot": report.snapshot,
+        "logs": report.logs[-100:],
+    }
+    attachments = "\n".join(attachment_links) or "No screenshots attached."
+    if attachment_errors:
+        attachments += "\n\nUpload errors:\n" + "\n".join(
+            f"- {error}" for error in attachment_errors
+        )
+    return (
+        "Submitted by the in-app floating bug reporter.\n\n"
+        f"Description:\n{report.description}\n\n"
+        f"Screenshots (private repository):\n{attachments}\n\n"
+        "Diagnostics (request bodies, auth headers, and URL query strings are not captured):\n"
+        f"```json\n{json.dumps(diagnostics, indent=2, default=str)[:55_000]}\n```"
+    )
+
+
+def _public_issue_body(report: BugReport, private_url: str) -> str:
+    """Public mirror deliberately excludes free text, identities, logs and images."""
+    private_line = (
+        f"Operator evidence: {private_url}"
+        if private_url
+        else "Operator evidence is retained in the private QA inbox."
+    )
+    return (
+        "A redacted user QA report was received.\n\n"
+        f"- Report ID: `{report.id}`\n"
+        f"- Category: `{report.category}`\n"
+        f"- Platform: `{report.platform}`\n"
+        f"- App version: `{report.app_version}`\n"
+        f"- Screen: `{report.screen.split('?', 1)[0]}`\n"
+        f"- {private_line}\n\n"
+        "The user description, account identifiers, diagnostics, and screenshots "
+        "are intentionally excluded from this public issue."
+    )
+
+
+def _github_delivery(report: BugReport, root: Path) -> tuple[str, str, str]:
+    """Deliver full evidence privately and a metadata-only mirror publicly."""
+    private_repo = (
+        os.environ.get("BUG_REPORT_GITHUB_PRIVATE_REPO", "").strip().strip("/")
+        or os.environ.get("BUG_REPORT_GITHUB_REPO", "").strip().strip("/")
+    )
+    public_repo = os.environ.get("BUG_REPORT_GITHUB_PUBLIC_REPO", "").strip().strip("/")
+    token = os.environ.get("BUG_REPORT_GITHUB_TOKEN", "").strip()
+    if not private_repo and not public_repo:
+        return "", "", ""
+    if not token:
+        return "", "", "BUG_REPORT_GITHUB_TOKEN is not configured"
+
+    private_url = ""
+    public_url = ""
+    errors: List[str] = []
+    title = f"[User QA] {report.platform} {report.app_version}: {report.description[:100]}"
+
+    if private_repo:
+        links, upload_errors = _upload_private_screenshots(
+            report, root, private_repo, token
+        )
+        try:
+            private_url = _create_github_issue(
+                private_repo,
+                token,
+                title,
+                _private_issue_body(report, links, upload_errors),
+            )
+        except (OSError, ValueError, urllib.error.HTTPError) as exc:
+            errors.append(f"private issue: {str(exc)[:300]}")
+
+    if public_repo:
+        public_title = (
+            f"[User QA] {report.platform} {report.app_version} "
+            f"on {report.screen.split('?', 1)[0] or 'unknown screen'}"
+        )
+        try:
+            public_url = _create_github_issue(
+                public_repo,
+                token,
+                public_title[:150],
+                _public_issue_body(report, private_url),
+            )
+        except (OSError, ValueError, urllib.error.HTTPError) as exc:
+            errors.append(f"public issue: {str(exc)[:300]}")
+
+    return private_url, public_url, "; ".join(errors)
 
 
 @dataclass
@@ -222,11 +344,13 @@ class BugReportStore:
             logs=_trim_logs(list(req.logs or [])),
             attachments=attachments,
         )
-        external_url, delivery_error = _github_issue(report)
-        if external_url:
+        private_url, public_url, delivery_error = _github_delivery(report, self.root)
+        if private_url or public_url:
             report.destination = "github"
-            report.external_url = external_url
-        elif delivery_error:
+            report.private_issue_url = private_url
+            report.public_issue_url = public_url
+            report.external_url = private_url or public_url
+        if delivery_error:
             report.delivery_error = delivery_error
         self._append_index(report)
         return report
