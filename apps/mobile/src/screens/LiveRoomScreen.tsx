@@ -130,7 +130,7 @@ function initials(name: string): string {
 // webcam goes in the TOP window of the card (never a floating PiP over the
 // slide) — parity with the web participant grid.
 function SeatTile({
-  name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
+  name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera, onPress,
 }: {
   name?: string;
   host?: boolean;
@@ -139,11 +139,11 @@ function SeatTile({
   hand?: boolean;
   muted?: boolean;
   open?: boolean;
-  // This participant's live camera track, if they're publishing video.
   track?: object | null;
-  // Camera on/off is only shown/actionable for the local user ("You").
   cameraOn?: boolean;
   onToggleCamera?: () => void;
+  /** Tap to expand this tile to full-screen. */
+  onPress?: () => void;
 }) {
   if (open) {
     return (
@@ -159,9 +159,21 @@ function SeatTile({
   }
   const hasVideo = Boolean(track);
   const label = host ? "Host" : me ? "You" : name;
-  const body = (
-    <>
-      <View style={styles.seatVideoWindow}>
+  const seatStyle = [
+    styles.seat,
+    host && styles.seatHost,
+    floor && styles.seatFloor,
+    me && !floor && styles.seatMe,
+  ];
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label ?? "Seat"} — tap to expand`}
+      style={({ pressed }) => [...seatStyle, pressed && styles.seatPressed]}
+    >
+      {/* Transparent background when video is live so the SurfaceView shows through on Android. */}
+      <View style={[styles.seatVideoWindow, hasVideo && styles.seatVideoWindowLive]}>
         {hasVideo ? (
           <LiveKitVideoView track={track ?? null} mirror={Boolean(me)} />
         ) : (
@@ -171,36 +183,21 @@ function SeatTile({
           {floor ? <Text style={styles.seatBadge}>🎤</Text> : null}
           {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
           {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
+          {/* Camera toggle is a nested Pressable so it fires independently of the
+              outer expand-to-fullscreen press — inner Pressable wins on Android/iOS. */}
           {me && onToggleCamera ? (
-            <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
+            <Pressable onPress={onToggleCamera} hitSlop={8} accessibilityRole="button"
+              accessibilityLabel={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}>
+              <Text style={styles.seatBadge}>{cameraOn && hasVideo ? "📹" : "📷"}</Text>
+            </Pressable>
           ) : null}
         </View>
       </View>
       <View style={styles.seatFooter}>
         <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
       </View>
-    </>
+    </Pressable>
   );
-  const seatStyle = [
-    styles.seat,
-    host && styles.seatHost,
-    floor && styles.seatFloor,
-    me && !floor && styles.seatMe,
-  ];
-  // The local seat doubles as the camera on/off toggle (tap to switch).
-  if (me && onToggleCamera) {
-    return (
-      <Pressable
-        onPress={onToggleCamera}
-        accessibilityRole="button"
-        accessibilityLabel={cameraOn && hasVideo ? "Turn camera off" : "Turn camera on"}
-        style={({ pressed }) => [...seatStyle, pressed && styles.seatPressed]}
-      >
-        {body}
-      </Pressable>
-    );
-  }
-  return <View style={seatStyle}>{body}</View>;
 }
 
 // A bottom sheet that slides up over the presenter. Tapping the dimmed backdrop
@@ -551,6 +548,10 @@ export default function LiveRoomScreen({
     Boolean(participantId) && !classEnded,
   );
   const [cameraOn, setCameraOn] = useState(true);
+  type FocusedTile =
+    | { kind: "host"; name: string }
+    | { kind: "participant"; id: string; identity?: string; name: string; me: boolean };
+  const [focusedTile, setFocusedTile] = useState<FocusedTile | null>(null);
   const toggleCamera = useCallback(async () => {
     const next = !cameraOn;
     const ok = await setCameraEnabled(next);
@@ -807,7 +808,13 @@ export default function LiveRoomScreen({
         style={styles.seatsRow}
         contentContainerStyle={styles.seatsContent}
       >
-        {room?.host ? <SeatTile name={room.host.name} host /> : null}
+        {room?.host ? (
+          <SeatTile
+            name={room.host.name}
+            host
+            onPress={() => setFocusedTile({ kind: "host", name: room.host!.name })}
+          />
+        ) : null}
         {(room?.participants ?? [])
           .filter((p) => p.role !== "host")
           .map((p) => {
@@ -823,6 +830,13 @@ export default function LiveRoomScreen({
                 track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
                 cameraOn={mine ? cameraOn : undefined}
                 onToggleCamera={mine ? () => void toggleCamera() : undefined}
+                onPress={() => setFocusedTile({
+                  kind: "participant",
+                  id: p.id,
+                  identity: p.identity,
+                  name: p.name,
+                  me: mine,
+                })}
               />
             );
           })}
@@ -948,7 +962,7 @@ export default function LiveRoomScreen({
         ) : null}
         {media ? (
           <Text style={styles.camHint}>
-            {cameraOn ? "📹 Your camera is on — tap your profile card above to turn it off" : "📷 Camera off — tap your profile card above to turn it on"}
+            {cameraOn ? "📹 Your camera is on — tap 📹 on your card to turn it off" : "📷 Camera off — tap 📷 on your card to turn it on"}
           </Text>
         ) : null}
       </GlassPanel>
@@ -1477,6 +1491,95 @@ export default function LiveRoomScreen({
           ) : null}
         </ScrollView>
       </BottomSheet>
+
+      {/* ---- Full-screen tile overlay ----
+          Tapping any seat tile expands it to fill the screen. The overlay sits
+          at zIndex 150 so it covers the normal class UI but stays below the
+          live-event overlays (gift spectacular, reactions, toast) at zIndex 300,
+          which continue to float on top even in fullscreen mode. */}
+      {focusedTile && (() => {
+        const isHost = focusedTile.kind === "host";
+        const fsParticipant = focusedTile.kind === "participant" ? focusedTile : null;
+        const fsTrack = fsParticipant
+          ? (fsParticipant.me && !cameraOn ? null : trackFor(fsParticipant.id, fsParticipant.identity))
+          : null;
+        const fsName = isHost ? (focusedTile.name || "Theodore") : (fsParticipant?.name ?? "");
+        const fsMe = Boolean(fsParticipant?.me);
+        const fsFloor = !isHost && room?.floor_participant_id === fsParticipant?.id;
+        const fsMuted = !isHost && Boolean(
+          room?.participants.find((p) => p.id === fsParticipant?.id)?.muted,
+        );
+        return (
+          <Pressable
+            style={styles.fsOverlay}
+            onPress={() => setFocusedTile(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Close fullscreen"
+          >
+            {/* Video feed or slide/avatar fallback */}
+            <View style={styles.fsVideo} pointerEvents="none">
+              {fsTrack ? (
+                <LiveKitVideoView track={fsTrack} mirror={fsMe} zOrder={1} />
+              ) : isHost && room?.presenting && room?.slide ? (
+                <View style={styles.fsSlide}>
+                  <Text style={styles.fsSlideLabel}>
+                    🎓 {fsName} · Slide {(room.slide.index ?? 0) + 1}
+                  </Text>
+                  <Text style={styles.fsSlideTitle}>{room.slide.title}</Text>
+                  <Text style={styles.fsSlideBody}>
+                    {room.slide.narration || room.slide.body}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.fsAvatarWrap}>
+                  <Text style={styles.fsAvatar}>{isHost ? "🎓" : initials(fsName)}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Host answer bubble — repeated here so it stays visible in fullscreen */}
+            {socket.hostAnswer && (socket.hostAnswer.text || !socket.hostAnswer.done) ? (
+              <View style={styles.fsHostAnswer} pointerEvents="none">
+                <Text style={styles.hostAnswerTitle}>
+                  🎓 Theodore{socket.hostAnswer.asker ? ` → ${socket.hostAnswer.asker}` : ""}
+                  {!socket.hostAnswer.done ? " is answering…" : ""}
+                </Text>
+                <Text style={styles.hostAnswerText} numberOfLines={4}>
+                  {socket.hostAnswer.text || "…"}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Name + status bar at bottom */}
+            <View style={styles.fsInfo} pointerEvents="none">
+              <Text style={styles.fsInfoName}>{isHost ? "Host · " : ""}{fsName}</Text>
+              <View style={styles.fsInfoBadges}>
+                {fsFloor ? <Text style={styles.fsBadge}>🎤 Speaking</Text> : null}
+                {fsMuted ? <Text style={styles.fsBadge}>🔇</Text> : null}
+              </View>
+            </View>
+
+            {/* Camera toggle for local user */}
+            {fsMe ? (
+              <Pressable
+                style={styles.fsCamBtn}
+                onPress={(e) => { e.stopPropagation?.(); void toggleCamera(); }}
+                accessibilityRole="button"
+                accessibilityLabel={cameraOn && Boolean(fsTrack) ? "Turn camera off" : "Turn camera on"}
+              >
+                <Text style={styles.fsCamBtnText}>
+                  {cameraOn && Boolean(fsTrack) ? "📹" : "📷"}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {/* Close button */}
+            <View style={styles.fsClose} pointerEvents="none">
+              <Text style={styles.fsCloseText}>✕</Text>
+            </View>
+          </Pressable>
+        );
+      })()}
     </View>
   );
 }
@@ -1529,6 +1632,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,12,40,0.85)",
     overflow: "hidden",
   },
+  // When a live video track is present, the parent must be transparent so the
+  // Android SurfaceView (zOrder=0, rendered below the RN layer) shows through.
+  seatVideoWindowLive: { backgroundColor: "transparent" },
   seatFooter: {
     height: 22, paddingHorizontal: 4,
     alignItems: "center", justifyContent: "center",
@@ -1723,14 +1829,14 @@ const styles = StyleSheet.create({
 
   // Overlays (kept).
   toast: {
-    position: "absolute", top: 8, alignSelf: "center", zIndex: 20,
+    position: "absolute", top: 8, alignSelf: "center", zIndex: 300,
     backgroundColor: "rgba(15,7,32,0.92)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
   },
   giftSpectacular: {
     position: "absolute",
     top: "32%",
     alignSelf: "center",
-    zIndex: 100,
+    zIndex: 300,
     maxWidth: "88%",
     alignItems: "center",
     justifyContent: "center",
@@ -1754,6 +1860,52 @@ const styles = StyleSheet.create({
   },
   hostAnswerTitle: { color: theme.colors.muted, fontSize: 12, fontWeight: "700", marginBottom: 2 },
   hostAnswerText: { color: theme.colors.text, fontSize: 13 },
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 15 },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 300 },
   floatingReaction: { position: "absolute", bottom: 120, fontSize: 28 },
+
+  // Full-screen tile (tap any seat to expand).
+  fsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 150,
+    backgroundColor: "#000",
+    justifyContent: "flex-end",
+  },
+  fsVideo: { ...StyleSheet.absoluteFillObject },
+  fsSlide: {
+    flex: 1, padding: 28, justifyContent: "center", gap: 16,
+    backgroundColor: "linear-gradient(#0d0b1a, #1a0d2e)" as never,
+  },
+  fsSlideLabel: { color: "#c4b5fd", fontSize: 13, fontWeight: "600" },
+  fsSlideTitle: { color: "#fff", fontSize: 28, fontWeight: "800", lineHeight: 36 },
+  fsSlideBody: { color: "#e2e8f0", fontSize: 17, lineHeight: 26, opacity: 0.92 },
+  fsAvatarWrap: {
+    ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(20,10,50,0.95)",
+  },
+  fsAvatar: { fontSize: 96 },
+  fsInfo: {
+    paddingHorizontal: 18, paddingVertical: 14,
+    backgroundColor: "rgba(0,0,0,0.72)",
+    flexDirection: "row", alignItems: "center", gap: 10,
+  },
+  fsInfoName: { color: "#fff", fontSize: 18, fontWeight: "700", flex: 1 },
+  fsInfoBadges: { flexDirection: "row", gap: 8 },
+  fsBadge: { color: "#e9d5ff", fontSize: 14, fontWeight: "600" },
+  fsClose: {
+    position: "absolute", top: 16, right: 16,
+    backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999,
+    width: 36, height: 36, alignItems: "center", justifyContent: "center",
+  },
+  fsCloseText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  fsCamBtn: {
+    position: "absolute", top: 16, left: 16,
+    backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 999,
+    width: 44, height: 44, alignItems: "center", justifyContent: "center",
+  },
+  fsCamBtnText: { fontSize: 22 },
+  fsHostAnswer: {
+    marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.25)",
+    borderWidth: 1, borderColor: "rgba(99,102,241,0.5)",
+  },
 });

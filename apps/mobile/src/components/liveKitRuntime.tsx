@@ -52,10 +52,18 @@ export function liveKitLoaded(): boolean {
 export function LiveKitVideoView({
   track,
   mirror = false,
+  zOrder = 0,
 }: {
   track: object | null;
   /** Mirror local self-view so it feels like a front camera. */
   mirror?: boolean;
+  /**
+   * Android SurfaceView z-order. 0 = below RN layer (default for in-card
+   * tiles — parent must be backgroundColor:transparent for video to show
+   * through). 1 = above RN layer (use for full-screen tiles where the video
+   * is the sole content and no RN views need to overlay it).
+   */
+  zOrder?: number;
 }) {
   const VideoView: typeof LKVideoView | undefined = rnMod?.VideoView;
   if (!track || !VideoView) return null;
@@ -66,7 +74,7 @@ export function LiveKitVideoView({
         videoTrack={track as never}
         objectFit="cover"
         mirror={mirror}
-        zOrder={0}
+        zOrder={zOrder}
       />
     </View>
   );

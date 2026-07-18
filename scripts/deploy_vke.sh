@@ -90,9 +90,16 @@ if [ -n "${VULTR_REGISTRY_USERNAME:-}" ] && [ -n "${VULTR_REGISTRY_PASSWORD:-}" 
 fi
 
 # 5) Apply manifests (config + image tags). Does NOT touch aoep-secrets anymore.
+# Redis StatefulSet: Kubernetes forbids changing volumeClaimTemplates in place.
+# A mismatch must not abort the deploy (set -e) — otherwise images push but
+# web never rolls and the site stays on a stale build. Fix redis separately with:
+#   kubectl -n aoep delete statefulset redis --cascade=orphan && kubectl apply -k infra/k8s-vke
 if [ "${SKIP_APPLY:-0}" != "1" ]; then
   say "kubectl apply -k infra/k8s-vke"
-  kubectl apply -k "$ROOT/infra/k8s-vke"
+  if ! kubectl apply -k "$ROOT/infra/k8s-vke"; then
+    warn "apply -k reported errors (often redis StatefulSet volumeClaimTemplates)."
+    warn "Continuing with rollout — fix redis later via cascade=orphan if needed."
+  fi
 else
   warn "SKIP_APPLY=1 — not running apply -k (image-only redeploy)."
 fi

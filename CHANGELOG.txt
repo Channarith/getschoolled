@@ -2,6 +2,14 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.4 - Live room: tap any seat tile to expand host or student
+  video full-screen; overlays (gifts, reactions, toast, host answer) remain
+  visible on top. Fix Android webcam not showing (transparent seatVideoWindow
+  when track is live so SurfaceView shows through). Add zOrder prop to
+  LiveKitVideoView (1 for fullscreen, 0 for in-card tiles). Publish the signed
+  v0.20.4 Android APK to the versioned Vultr Object Storage release path and
+  make the web download page link directly to it. Keep VKE rollouts moving when
+  an immutable Redis StatefulSet field causes kubectl apply to warn.
 - 2026-07-18 - v0.20.3 - Fix 8 audit bugs: tic-tac-toe unplayable, ban-cancel
   guard bypassed, camera not torn down on leave failure, drainClientLogs not
   draining, screenshot thumbnail missing, gift overlay timer not cancelled,

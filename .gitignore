@@ -4,6 +4,7 @@ node_modules/
 .pnpm-home/
 .pnpm-tmp/
 .eas-npm-cache/
+.npm-cache/
 .next/
 out/
 .turbo/
