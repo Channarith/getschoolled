@@ -2,6 +2,11 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.20.3 - Fix 8 audit bugs: tic-tac-toe unplayable, ban-cancel
+  guard bypassed, camera not torn down on leave failure, drainClientLogs not
+  draining, screenshot thumbnail missing, gift overlay timer not cancelled,
+  screen-capture blank frame race, react-native-view-shot peer-dep downgrade
+  to 4.0.3 (was 5.1.1 which required RN>=0.76.0 against project's 0.74.5)
 - 2026-07-18 - v0.20.2 - Android hardware/gesture back navigates like the UI
   back button across overlay screens (live room, drive mode, lessons, games,
   account/settings stacks) and returns secondary tabs to Home before exiting.
