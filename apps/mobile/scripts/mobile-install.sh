@@ -35,7 +35,10 @@ fi
 
 # pnpm v11 optimisticRepeatInstall can print "Already up to date" without creating
 # node_modules after a deleted tree — force a real link pass.
+# --ignore-workspace: a home-dir ~/pnpm-workspace.yaml can make install a no-op
+# that leaves new deps (e.g. expo-image-picker) unlinked → Expo plugin resolve fails.
 PNPM_FLAGS=(
+  --ignore-workspace
   --force
   --config.optimistic-repeat-install=false
   --config.node-linker=hoisted
