@@ -150,6 +150,18 @@ export default function ArcadePage() {
                 ⚗️ Potion Lab · 2D (chemistry)
               </Link>
             )}
+            <Link href={`/arcade/geometry-tetris?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#f59e0b", color: "#fff", fontWeight: 600 }}>
+              📐 Geometry Tetris · quiz + puzzle
+            </Link>
+            <Link href="/arcade/stock-rush"
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0d9488", color: "#fff", fontWeight: 600 }}>
+              📈 Stock Rush · trading sim
+            </Link>
+            <Link href="/arcade/ai-duel"
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 600 }}>
+              ⚔️ Challenge the AI · duel quiz
+            </Link>
           </div>
         </div>
       )}
