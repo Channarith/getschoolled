@@ -53,3 +53,32 @@ def test_get_course_resolves_lesson_id():
     course = client.get(f"/courses/{lesson_id}").json()
     assert course["course_id"] == lesson_id
     assert course["deep_link"].startswith("/class")
+
+
+def test_profile_and_device_aware_catalog_selection():
+    _empty_catalog()
+    response = client.post("/learn/select", json={
+        "profile_score": "15115510",
+        "language": "en",
+        "device_mode": "class",
+        "network_quality": "standard",
+        "limit": 5,
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_budget_min"] == 10
+    assert body["items"]
+    assert all(
+        row["item"]["format"] in {"live_class", "interactive", "video"}
+        for row in body["items"]
+    )
+    assert body["privacy"]["mac_address_used"] is False
+
+
+def test_catalog_selection_rejects_network_fingerprints():
+    response = client.post("/learn/select", json={
+        "device_mode": "browse",
+        "ip_address": "203.0.113.10",
+        "mac_address": "00:11:22:33:44:55",
+    })
+    assert response.status_code == 422

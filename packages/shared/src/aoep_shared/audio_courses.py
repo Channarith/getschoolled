@@ -42,9 +42,10 @@ from .languages import SUPPORTED_LANGUAGES
 
 WORDS_PER_MINUTE = 120
 MIN_AUDIO_MINUTES = 1           # honest floor for very short audio snippets
-MIN_DRIVE_SEGMENTS = 30
+MIN_DRIVE_SEGMENTS = 31         # loop exits at == so threshold must be one above the claimed minimum
 MIN_DRIVE_MINUTES = 30
-MIN_DRIVE_WORDS = MIN_DRIVE_MINUTES * WORDS_PER_MINUTE
+# Half-minute buffer so round(words/WPM) always yields > MIN_DRIVE_MINUTES, not just ==
+MIN_DRIVE_WORDS = MIN_DRIVE_MINUTES * WORDS_PER_MINUTE + WORDS_PER_MINUTE // 2 + 1  # 3661
 
 
 class AudioSegment(BaseModel):

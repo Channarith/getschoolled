@@ -42,6 +42,8 @@ def test_submit_learning_profile_updates_student():
     assert body["learner_category"] == "hands_on_practice"
     prof = client.get(f"/students/{sid}", headers=h).json()
     assert prof["primary_style"] == "hands_on"
+    assert prof["profile_score"] == "75959570"
+    assert prof["profile_score_version"] == "1.0"
     assert prof["onboarding_completed_at"] is not None
     assert prof["onboarding_answers"]["primary_style"] == _answers()["primary_style"]
 

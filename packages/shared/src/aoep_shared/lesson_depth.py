@@ -21,6 +21,7 @@ from typing import Callable, List, Sequence, Tuple, TypeVar
 TARGET_MIN_MINUTES = 20
 TARGET_MAX_MINUTES = 30
 TEACHING_WPM = 120  # instructional pace (slower than catalog skim rate)
+DEFAULT_SLIDE_MINUTES = 1.25
 
 T = TypeVar("T")
 
@@ -100,6 +101,63 @@ def words_in_slides(slides: Sequence) -> int:
 def duration_minutes(slides: Sequence, *, wpm: int = TEACHING_WPM) -> int:
     words = words_in_slides(slides)
     return max(TARGET_MIN_MINUTES, min(TARGET_MAX_MINUTES, round(words / wpm)))
+
+
+def plan_slide_indices(
+    slides: Sequence,
+    target_min: int,
+    *,
+    minutes_per_slide: float = DEFAULT_SLIDE_MINUTES,
+) -> List[int]:
+    """Select an ordered path through one canonical lesson for a time budget.
+
+    Teaching slides are preserved before enrichment/check-in slides. When even
+    the core exceeds the budget, evenly spaced core slides retain coverage
+    across the whole lesson instead of cutting off the ending.
+    """
+    if not slides:
+        return []
+    budget = max(5, min(90, int(target_min)))
+    target_count = max(3, min(len(slides), round(budget / minutes_per_slide)))
+    if target_count >= len(slides):
+        return list(range(len(slides)))
+
+    core = [
+        index for index, slide in enumerate(slides)
+        if getattr(slide, "kind", "teach") == KIND_TEACH
+    ]
+    if not core:
+        core = list(range(len(slides)))
+
+    def spread(values: List[int], count: int) -> List[int]:
+        if count >= len(values):
+            return list(values)
+        if count <= 1:
+            return [values[0]]
+        picks = {
+            values[round(position * (len(values) - 1) / (count - 1))]
+            for position in range(count)
+        }
+        # Rounding can collapse adjacent positions; fill deterministically.
+        for value in values:
+            if len(picks) >= count:
+                break
+            picks.add(value)
+        return sorted(picks)
+
+    selected = set(spread(core, min(target_count, len(core))))
+    if len(selected) < target_count:
+        supplemental = [index for index in range(len(slides)) if index not in selected]
+        selected.update(spread(supplemental, target_count - len(selected)))
+    return sorted(selected)
+
+
+def planned_duration_minutes(
+    slide_count: int,
+    *,
+    minutes_per_slide: float = DEFAULT_SLIDE_MINUTES,
+) -> float:
+    return round(max(0, slide_count) * minutes_per_slide, 1)
 
 
 def _split_sentences(text: str) -> List[str]:

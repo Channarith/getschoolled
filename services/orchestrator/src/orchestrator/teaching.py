@@ -35,7 +35,11 @@ class SessionState(BaseModel):
     session_id: str
     class_type: str
     lesson_id: str
+    student_id: Optional[str] = None
     current_slide: int = 0
+    session_budget_min: Optional[int] = None
+    planned_duration_min: Optional[float] = None
+    slide_indices: List[int] = Field(default_factory=list)
     history: List[ChatTurn] = Field(default_factory=list)
     # Privacy-safe audience readiness aggregates for Theodore (no names).
     audience_profile: Dict = Field(default_factory=dict)
@@ -155,14 +159,33 @@ class TeachingSessions:
         return self.curriculum.list_lessons()
 
     def start_session(
-        self, lesson_id: str, class_type: str, student_id: Optional[str] = None
+        self,
+        lesson_id: str,
+        class_type: str,
+        student_id: Optional[str] = None,
+        session_budget_min: Optional[int] = None,
     ) -> SessionState:
-        if self.curriculum.get(lesson_id) is None:
+        lesson = self.curriculum.get(lesson_id)
+        if lesson is None:
             raise KeyError(lesson_id)
+        slide_indices: List[int] = []
+        planned_duration: Optional[float] = None
+        if session_budget_min is not None:
+            from aoep_shared.lesson_depth import (
+                plan_slide_indices,
+                planned_duration_minutes,
+            )
+
+            slide_indices = plan_slide_indices(lesson.slides, session_budget_min)
+            planned_duration = planned_duration_minutes(len(slide_indices))
         session = SessionState(
             session_id=uuid.uuid4().hex[:12],
             class_type=class_type,
             lesson_id=lesson_id,
+            student_id=student_id,
+            session_budget_min=session_budget_min,
+            planned_duration_min=planned_duration,
+            slide_indices=slide_indices,
         )
         self.store.save(session)
         # One persistent Director + counters per session (the live loop's state).
@@ -183,10 +206,24 @@ class TeachingSessions:
     def counters_for(self, session_id: str) -> SessionCounters:
         if self.store.get(session_id) is None:
             raise KeyError(session_id)
-        return self._counters.setdefault(session_id, SessionCounters())
+        session = self._require(session_id)
+        return self._counters.setdefault(
+            session_id, SessionCounters(student_id=session.student_id),
+        )
 
     def lesson_for(self, session_id: str) -> Lesson:
-        return self.curriculum.get(self._require(session_id).lesson_id)  # type: ignore[return-value]
+        session = self._require(session_id)
+        lesson = self.curriculum.get(session.lesson_id)
+        if lesson is None:
+            raise KeyError(session.lesson_id)
+        if not session.slide_indices:
+            return lesson
+        planned = lesson.model_copy(deep=True)
+        planned.slides = [
+            lesson.slides[index].model_copy(update={"index": position})
+            for position, index in enumerate(session.slide_indices)
+        ]
+        return planned
 
     def current_slide(self, session_id: str) -> Slide:
         session = self._require(session_id)
@@ -194,8 +231,8 @@ class TeachingSessions:
 
     def advance(self, session_id: str) -> Slide:
         session = self._require(session_id)
-        lesson = self.curriculum.get(session.lesson_id)
-        last = len(lesson.slides) - 1  # type: ignore[union-attr]
+        lesson = self.lesson_for(session_id)
+        last = len(lesson.slides) - 1
         session.current_slide = min(session.current_slide + 1, last)
         self.store.save(session)
         counters = self.counters_for(session_id)

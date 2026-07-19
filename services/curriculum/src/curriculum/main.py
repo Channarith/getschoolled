@@ -782,6 +782,51 @@ def learn_search(
     }
 
 
+class LearnSelectRequest(BaseModel):
+    """Privacy-safe context for catalog selection.
+
+    Account/student identity stays with the identity service. Network addresses
+    and hardware fingerprints are deliberately not accepted.
+    """
+
+    profile_score: str = ""
+    session_length: str = "medium"
+    session_budget_min: int | None = None
+    observed_pace: str = ""
+    primary_style: str = ""
+    group_preference: str = ""
+    language: str = "en"
+    locale: str = "en"
+    device_mode: str = "browse"
+    network_quality: str = "standard"
+    limit: int = 20
+
+    model_config = {"extra": "forbid"}
+
+
+@app.post("/learn/select")
+def learn_select(req: LearnSelectRequest) -> dict:
+    """Choose catalog items for a learner, session budget, and device context."""
+    from aoep_shared.catalog_selection import select_learnable
+
+    try:
+        return select_learnable(
+            _learnable_index(locale=req.locale),
+            profile_score=req.profile_score,
+            session_length=req.session_length,
+            session_budget_min=req.session_budget_min,
+            observed_pace=req.observed_pace,
+            primary_style=req.primary_style,
+            group_preference=req.group_preference,
+            language=req.language,
+            device_mode=req.device_mode,
+            network_quality=req.network_quality,
+            limit=req.limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
 @app.get("/learn/facets")
 def learn_facets() -> dict:
     from aoep_shared.learnable import learnable_facets

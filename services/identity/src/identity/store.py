@@ -93,9 +93,16 @@ class StudentProfile(BaseModel):
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
     learner_category: str = ""
+    # Versioned routing fingerprint derived from the survey. Structured fields
+    # remain authoritative; the score is for fast catalog/session decisions.
+    profile_score: str = ""
+    profile_score_version: str = ""
     onboarding_completed_at: Optional[float] = None
     # Raw survey answers for re-opening / editing the learning profile from Settings.
     onboarding_answers: Dict[str, object] = Field(default_factory=dict)
+    # Verified course decisions and delayed knowledge-retrieval checks.
+    assessment_attempts: List[dict] = Field(default_factory=list)
+    retention_checks: List[dict] = Field(default_factory=list)
     # Evolving adaptation (pace, goals, triggers, failed teaching approaches).
     learning_goals: List[str] = Field(default_factory=list)
     goal_timeline: str = ""
@@ -777,10 +784,136 @@ class AccountStore:
         prof.accessibility = dict(profile.accessibility)
         prof.accommodations_notes = profile.accommodations_notes
         prof.learner_category = profile.learner_category
+        prof.profile_score = profile.profile_score
+        prof.profile_score_version = profile.profile_score_version
         prof.onboarding_completed_at = profile.completed_at
         prof.onboarding_answers = dict(profile.raw_answers)
         self._persist()
         return prof
+
+    def record_verified_assessment_pass(
+        self,
+        account_id: str,
+        student_id: str,
+        *,
+        course_id: str,
+        score: float,
+        attempt_ids: List[str],
+        ksb_codes: List[str],
+    ) -> StudentProfile:
+        """Persist a signed summative decision and schedule retrieval checks."""
+        acct = self._by_id[account_id]
+        prof = acct.students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        source_attempt = attempt_ids[-1] if attempt_ids else ""
+        if not any(
+            row.get("course_id") == course_id
+            and source_attempt in row.get("attempt_ids", [])
+            for row in prof.assessment_attempts
+        ):
+            completed_at = time.time()
+            prof.assessment_attempts.append({
+                "course_id": course_id,
+                "stage": "summative",
+                "passed": True,
+                "score": max(0.0, min(1.0, float(score))),
+                "attempt_ids": list(attempt_ids),
+                "ksb_codes": list(ksb_codes),
+                "recorded_at": completed_at,
+            })
+            from aoep_shared.assessment_policy import schedule_retention_checks
+
+            existing_intervals = {
+                int(check.get("interval_days", -1))
+                for check in prof.retention_checks
+                if check.get("course_id") == course_id
+            }
+            for check in schedule_retention_checks(
+                student_id=student_id,
+                course_id=course_id,
+                completed_at=completed_at,
+                source_attempt_id=source_attempt,
+            ):
+                if check.interval_days not in existing_intervals:
+                    prof.retention_checks.append(check.model_dump())
+            if course_id not in prof.completed_course_ids:
+                prof.completed_course_ids.append(course_id)
+
+        if course_id not in acct.enrollments:
+            acct.enrollments[course_id] = Enrollment(
+                course_id=course_id,
+                title=course_id,
+            )
+        self.set_status(
+            account_id,
+            course_id,
+            EnrollmentStatus.PASSED,
+            score=max(0.0, min(1.0, float(score))),
+        )
+        self._persist()
+        return prof
+
+    def due_retention_checks(
+        self,
+        account_id: str,
+        student_id: str,
+        *,
+        now: float | None = None,
+    ) -> List[dict]:
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        at = time.time() if now is None else float(now)
+        return [
+            dict(check)
+            for check in prof.retention_checks
+            if check.get("status") == "pending"
+            and float(check.get("due_at", 0)) <= at
+        ]
+
+    def record_retention_result(
+        self,
+        account_id: str,
+        student_id: str,
+        *,
+        check_id: str,
+        course_id: str,
+        attempt_id: str,
+        score: float,
+        passed: bool,
+    ) -> dict:
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        check = next(
+            (
+                row for row in prof.retention_checks
+                if row.get("check_id") == check_id
+                and row.get("course_id") == course_id
+            ),
+            None,
+        )
+        if check is None:
+            raise KeyError(check_id)
+        if check.get("status") == "completed":
+            return dict(check)
+        check["status"] = "completed"
+        check["completed_attempt_id"] = attempt_id
+        check["score"] = max(0.0, min(1.0, float(score)))
+        check["passed"] = bool(passed)
+        check["completed_at"] = time.time()
+        prof.assessment_attempts.append({
+            "course_id": course_id,
+            "stage": "retention",
+            "passed": bool(passed),
+            "score": check["score"],
+            "attempt_ids": [attempt_id],
+            "retention_check_id": check_id,
+            "recorded_at": check["completed_at"],
+        })
+        self._persist()
+        return dict(check)
 
     def record_adaptation_event(
         self,
@@ -916,10 +1049,44 @@ class AccountStore:
         return self.add_student(account_id, name, age_band="adult")
 
     def list_students(self, account_id: str) -> List[StudentProfile]:
-        return list(self._by_id[account_id].students.values())
+        students = list(self._by_id[account_id].students.values())
+        changed = False
+        for prof in students:
+            changed = self._backfill_profile_score(prof) or changed
+        if changed:
+            self._persist()
+        return students
 
     def get_student(self, account_id: str, student_id: str) -> Optional[StudentProfile]:
-        return self._by_id[account_id].students.get(student_id)
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is not None and self._backfill_profile_score(prof):
+            self._persist()
+        return prof
+
+    @staticmethod
+    def _backfill_profile_score(prof: StudentProfile) -> bool:
+        """Lazily encode profiles loaded from snapshots created before v1."""
+        if prof.profile_score or prof.onboarding_completed_at is None:
+            return False
+        if prof.learner_category == "skipped":
+            return False
+        from aoep_shared.learning_profile import (
+            PROFILE_SCORE_SCHEMA_VERSION,
+            encode_profile_score,
+        )
+
+        prof.profile_score = encode_profile_score({
+            "primary_style": prof.primary_style,
+            "pace": prof.learning_pace,
+            "structure": prof.learning_structure,
+            "session_length": prof.session_length,
+            "group_preference": prof.group_preference,
+            "reading_level": prof.reading_level,
+            "motivation": prof.motivation,
+            "accessibility": prof.accessibility,
+        })
+        prof.profile_score_version = PROFILE_SCORE_SCHEMA_VERSION
+        return True
 
     def set_mastery(
         self, account_id: str, student_id: str, skill: str, value: float
@@ -1004,6 +1171,8 @@ class AccountStore:
         prof = acct.students.get(student_id)
         if prof is None:
             raise KeyError(student_id)
+        if self._backfill_profile_score(prof):
+            self._persist()
         wanted = set(scopes or [
             "profile", "interests", "mastery", "completions", "class_context",
             "learning_profile", "adaptation", "pace",
@@ -1012,12 +1181,25 @@ class AccountStore:
         if "interests" in wanted or "profile" in wanted:
             student["interests"] = list(prof.interests)
         if "learning_profile" in wanted or "profile" in wanted:
+            from aoep_shared.catalog_selection import resolve_session_budget
             from aoep_shared.content_access import needs_simplified_content
 
             student["learning_profile"] = {
                 "primary_style": prof.primary_style,
                 "learning_pace": prof.learning_pace,
+                "learning_structure": prof.learning_structure,
+                "session_length": prof.session_length,
+                "group_preference": prof.group_preference,
                 "reading_level": prof.reading_level,
+                "motivation": prof.motivation,
+                "profile_score": prof.profile_score,
+                "profile_score_version": prof.profile_score_version,
+                "session_budget_min": resolve_session_budget(
+                    prof.session_length,
+                    observed_pace=str(
+                        (prof.adaptation or {}).get("observed_pace", ""),
+                    ),
+                ),
                 "accessibility": dict(prof.accessibility),
                 "accommodations_notes": prof.accommodations_notes,
                 "learner_category": prof.learner_category,

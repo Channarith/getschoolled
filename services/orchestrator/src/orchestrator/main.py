@@ -17,6 +17,17 @@ from aoep_shared.assessment import (
     definition_items_from_passages,
     grade,
 )
+from aoep_shared.assessment_policy import (
+    AssessmentAttemptResult,
+    AssessmentFormat,
+    AssessmentStage,
+    CheckpointPolicy,
+    EvidenceDomain,
+    decide_course_pass,
+    evaluate_checkpoint,
+    present_item,
+    select_assessment_format,
+)
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
@@ -32,6 +43,8 @@ app = create_service("orchestrator")
 from aoep_shared.optimization import OptimizationLedger  # noqa: E402
 
 app.state.optimization = OptimizationLedger()
+app.state.assessment_runs = {}
+app.state.assessment_results = []
 
 import os  # noqa: E402
 
@@ -145,6 +158,21 @@ class StartSessionRequest(BaseModel):
     # When set, the live loop records per-student behavior/mastery to the memory
     # service so quizzes + pacing adapt to this learner.
     student_id: str | None = None
+    profile_score: str = ""
+    session_length: str = ""
+    session_budget_min: int | None = None
+    observed_pace: str = ""
+
+    model_config = {"extra": "forbid"}
+
+
+class LessonPlanRequest(BaseModel):
+    profile_score: str = ""
+    session_length: str = "medium"
+    session_budget_min: int | None = None
+    observed_pace: str = ""
+
+    model_config = {"extra": "forbid"}
 
 
 class AskRequest(BaseModel):
@@ -170,15 +198,80 @@ def api_lesson_ksb(lesson_id: str) -> CourseKSB:
     return ksb
 
 
+@app.post("/api/lessons/{lesson_id}/plan")
+def api_lesson_plan(lesson_id: str, req: LessonPlanRequest) -> dict:
+    """Build a shorter or deeper path through the same canonical lesson."""
+    from aoep_shared.catalog_selection import (
+        profile_dimensions,
+        resolve_session_budget,
+    )
+    from aoep_shared.lesson_depth import (
+        plan_slide_indices,
+        planned_duration_minutes,
+    )
+
+    lesson = get_sessions().curriculum.get(lesson_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    try:
+        dimensions = profile_dimensions(
+            req.profile_score, session_length=req.session_length,
+        )
+        budget = resolve_session_budget(
+            dimensions.get("session_length", req.session_length),
+            explicit_minutes=req.session_budget_min,
+            observed_pace=req.observed_pace,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    indices = plan_slide_indices(lesson.slides, budget)
+    slides = [
+        lesson.slides[index].model_copy(update={"index": position}).model_dump()
+        for position, index in enumerate(indices)
+    ]
+    return {
+        "lesson_id": lesson_id,
+        "title": lesson.title,
+        "profile_score": req.profile_score,
+        "session_budget_min": budget,
+        "estimated_duration_min": planned_duration_minutes(len(indices)),
+        "source_slide_count": len(lesson.slides),
+        "planned_slide_count": len(slides),
+        "source_slide_indices": indices,
+        "slides": slides,
+        "mastery_target": "unchanged",
+        "coverage_strategy": "evenly_spaced_teaching_slides",
+    }
+
+
 @app.post("/api/sessions", response_model=SessionView)
 def api_start_session(req: StartSessionRequest) -> SessionView:
     sessions = get_sessions()
     try:
+        budget = req.session_budget_min
+        if budget is None and (req.profile_score or req.session_length):
+            from aoep_shared.catalog_selection import (
+                profile_dimensions,
+                resolve_session_budget,
+            )
+
+            dimensions = profile_dimensions(
+                req.profile_score, session_length=req.session_length,
+            )
+            budget = resolve_session_budget(
+                dimensions.get("session_length", req.session_length or "medium"),
+                observed_pace=req.observed_pace,
+            )
         state = sessions.start_session(
-            req.lesson_id, req.class_type.value, student_id=req.student_id
+            req.lesson_id,
+            req.class_type.value,
+            student_id=req.student_id,
+            session_budget_min=budget,
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {req.lesson_id}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     return SessionView(
         session=state,
         lesson=sessions.lesson_for(state.session_id),
@@ -691,6 +784,282 @@ class GradeResponse(BaseModel):
     correct: bool
     mastery_target: float
     difficulty: Difficulty
+
+
+class PolicyAssessmentStartRequest(BaseModel):
+    student_id: str
+    session_id: str = ""
+    course_id: str = ""
+    checkpoint_id: str
+    retention_check_id: str = ""
+    stage: AssessmentStage = AssessmentStage.FORMATIVE
+    profile_score: str = ""
+    requested_format: str = "auto"
+    device_mode: str = "class"
+    needs_captions: bool = False
+    uses_assistive_tech: bool = False
+    max_items: int = 5
+
+    model_config = {"extra": "forbid"}
+
+
+class PolicyAssessmentSubmitRequest(BaseModel):
+    chosen_indices: list[int]
+
+    model_config = {"extra": "forbid"}
+
+
+def _checkpoint_policy(
+    checkpoint_id: str,
+    stage: AssessmentStage,
+) -> CheckpointPolicy:
+    if stage == AssessmentStage.SUMMATIVE:
+        return CheckpointPolicy(
+            checkpoint_id=checkpoint_id,
+            stage=stage,
+            pass_threshold=0.7,
+            min_items=4,
+            max_attempts=3,
+            ksb_coverage_min=0.6,
+        )
+    if stage == AssessmentStage.RETENTION:
+        return CheckpointPolicy(
+            checkpoint_id=checkpoint_id,
+            stage=stage,
+            pass_threshold=0.7,
+            min_items=3,
+            max_attempts=3,
+        )
+    return CheckpointPolicy(
+        checkpoint_id=checkpoint_id,
+        stage=stage,
+        pass_threshold=0.6,
+        min_items=2,
+        max_attempts=10,
+        required=False,
+    )
+
+
+def _assessment_ksb_maps(course_id: str, items: list[QuizItem]):
+    ksb = get_sessions().curriculum.ksb_for(course_id)
+    typed_codes: list[tuple[str, EvidenceDomain]] = []
+    if ksb is not None:
+        groups = [
+            (ksb.knowledge, EvidenceDomain.KNOWLEDGE),
+            (ksb.skills, EvidenceDomain.SKILL),
+            (ksb.behaviours, EvidenceDomain.BEHAVIOUR),
+        ]
+        width = max((len(group) for group, _ in groups), default=0)
+        for index in range(width):
+            for group, domain in groups:
+                if index < len(group):
+                    typed_codes.append((group[index].code, domain))
+    ksb_by_item: dict[str, list[str]] = {}
+    domain_by_item: dict[str, EvidenceDomain] = {}
+    for index, item in enumerate(items):
+        if typed_codes:
+            code, domain = typed_codes[index % len(typed_codes)]
+            ksb_by_item[item.item_id] = [code]
+            domain_by_item[item.item_id] = domain
+        else:
+            domain_by_item[item.item_id] = EvidenceDomain.KNOWLEDGE
+    return ksb_by_item, domain_by_item
+
+
+@app.get("/assessment/policy/{session_id}")
+def assessment_policy_for_session(session_id: str) -> dict:
+    """Return required assessment points for the current personalized lesson."""
+    sessions = get_sessions()
+    try:
+        lesson = sessions.lesson_for(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown session")
+    last = max(0, len(lesson.slides) - 1)
+    return {
+        "session_id": session_id,
+        "course_id": lesson.lesson_id,
+        "checkpoints": [
+            {"checkpoint_id": "progress-25", "stage": "formative", "after_slide_index": round(last * 0.25)},
+            {"checkpoint_id": "progress-50", "stage": "formative", "after_slide_index": round(last * 0.50)},
+            {"checkpoint_id": "progress-75", "stage": "formative", "after_slide_index": round(last * 0.75)},
+            {"checkpoint_id": "course-final", "stage": "summative", "after_slide_index": last},
+        ],
+        "retention_intervals_days": [0, 7, 30, 90],
+        "pass_rule": "passing summative assessment required",
+    }
+
+
+@app.post("/assessment/checkpoints/start")
+def assessment_checkpoint_start(req: PolicyAssessmentStartRequest) -> dict:
+    """Create a private answer-key run and return a profile-selected presentation."""
+    sessions = get_sessions()
+    session = None
+    course_id = req.course_id.strip()
+    if req.session_id:
+        try:
+            session = sessions.get_session(req.session_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="unknown session")
+        course_id = session.lesson_id
+    lesson = sessions.curriculum.get(course_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail=f"unknown course {course_id}")
+    if req.stage == AssessmentStage.SUMMATIVE:
+        if session is None:
+            raise HTTPException(status_code=422, detail="summative assessment requires a session")
+        planned = sessions.lesson_for(session.session_id)
+        if session.current_slide < len(planned.slides) - 1:
+            raise HTTPException(status_code=409, detail="course-final assessment is not due yet")
+    if req.stage == AssessmentStage.RETENTION and not req.retention_check_id:
+        raise HTTPException(status_code=422, detail="retention_check_id is required")
+
+    policy = _checkpoint_policy(req.checkpoint_id, req.stage)
+    max_items = max(policy.min_items, min(10, req.max_items))
+    difficulty = Difficulty.MEDIUM
+    if req.student_id:
+        signals = sessions.memory.learner_signals(req.student_id, course_id)
+        difficulty = AdaptivePolicy().plan(
+            signals,
+            class_type=ClassType(session.class_type) if session else ClassType.SOLO,
+        ).difficulty
+    items = definition_items_from_passages(
+        sessions.curriculum.passages_for(course_id),
+        course_id,
+        max_items=max_items,
+        difficulty=difficulty,
+    )
+    if len(items) < policy.min_items:
+        raise HTTPException(status_code=422, detail="course has too little assessable content")
+    try:
+        presentation_format = select_assessment_format(
+            req.profile_score,
+            requested=req.requested_format,
+            device_mode=req.device_mode,
+            needs_captions=req.needs_captions,
+            uses_assistive_tech=req.uses_assistive_tech,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    previous = [
+        result for result in app.state.assessment_results
+        if result.student_id == req.student_id
+        and result.course_id == course_id
+        and result.checkpoint_id == req.checkpoint_id
+    ]
+    attempt_number = len(previous) + 1
+    if attempt_number > policy.max_attempts:
+        raise HTTPException(status_code=409, detail="maximum checkpoint attempts exceeded")
+    run_id = f"assess-{uuid.uuid4().hex[:16]}"
+    ksb_by_item, domain_by_item = _assessment_ksb_maps(course_id, items)
+    if req.stage == AssessmentStage.SUMMATIVE:
+        policy.required_domains = sorted(
+            set(domain_by_item.values()),
+            key=lambda domain: domain.value,
+        )
+    app.state.assessment_runs[run_id] = {
+        "student_id": req.student_id,
+        "course_id": course_id,
+        "policy": policy,
+        "items": items,
+        "presentation_format": presentation_format,
+        "attempt_number": attempt_number,
+        "ksb_by_item": ksb_by_item,
+        "domain_by_item": domain_by_item,
+        "retention_check_id": req.retention_check_id,
+    }
+    return {
+        "run_id": run_id,
+        "student_id": req.student_id,
+        "course_id": course_id,
+        "checkpoint": policy.model_dump(mode="json"),
+        "attempt_number": attempt_number,
+        "presentation_format": presentation_format.value,
+        "items": [present_item(item, presentation_format) for item in items],
+        "answer_key_exposed": False,
+    }
+
+
+def _assessment_signing_key() -> bytes:
+    return os.environ.get(
+        "ASSESSMENT_SIGNING_KEY",
+        os.environ.get("AUTH_SIGNING_KEY", "dev-assessment-signing-key"),
+    ).encode()
+
+
+@app.post("/assessment/checkpoints/{run_id}/submit")
+def assessment_checkpoint_submit(
+    run_id: str,
+    req: PolicyAssessmentSubmitRequest,
+) -> dict:
+    """Grade against the server-held key and issue a signed pass decision."""
+    run = app.state.assessment_runs.pop(run_id, None)
+    if run is None:
+        raise HTTPException(status_code=404, detail="unknown or already submitted assessment run")
+    try:
+        result = evaluate_checkpoint(
+            student_id=run["student_id"],
+            course_id=run["course_id"],
+            policy=run["policy"],
+            items=run["items"],
+            chosen_indices=req.chosen_indices,
+            presentation_format=run["presentation_format"],
+            attempt_number=run["attempt_number"],
+            ksb_by_item=run["ksb_by_item"],
+            domain_by_item=run["domain_by_item"],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    app.state.assessment_results.append(result)
+    memory = get_sessions().memory
+    for evidence in result.item_evidence:
+        memory.record_behavior(
+            result.student_id,
+            result.course_id,
+            quiz_correct=evidence.correct,
+        )
+        memory.update_mastery(result.student_id, result.course_id, evidence.correct)
+
+    response = {"attempt": result.model_dump(mode="json"), "course_decision": None}
+    if result.stage == AssessmentStage.SUMMATIVE:
+        from aoep_shared.auth import sign_token
+
+        decision = decide_course_pass(
+            result.student_id,
+            result.course_id,
+            app.state.assessment_results,
+        )
+        response["course_decision"] = decision.model_dump(mode="json")
+        if decision.passed:
+            response["pass_decision_token"] = sign_token(
+                {
+                    "kind": "assessment_pass",
+                    "student_id": decision.student_id,
+                    "course_id": decision.course_id,
+                    "score": decision.score,
+                    "attempt_ids": decision.attempt_ids,
+                    "ksb_codes": decision.ksb_codes_evidenced,
+                },
+                _assessment_signing_key(),
+                ttl_s=3_600,
+            )
+    elif result.stage == AssessmentStage.RETENTION:
+        from aoep_shared.auth import sign_token
+
+        response["retention_result_token"] = sign_token(
+            {
+                "kind": "retention_result",
+                "student_id": result.student_id,
+                "course_id": result.course_id,
+                "check_id": run["retention_check_id"],
+                "attempt_id": result.attempt_id,
+                "score": result.score,
+                "passed": result.passed,
+            },
+            _assessment_signing_key(),
+            ttl_s=3_600,
+        )
+    return response
 
 
 @app.post("/assessment/quiz", response_model=QuizResponse)
@@ -1209,6 +1578,13 @@ class StartSoloRoomRequest(BaseModel):
     """Open a private 1:1 (AI + one learner) Salareen live room for a lesson."""
     lesson_id: str
     creator_name: str = ""
+    student_id: str | None = None
+    profile_score: str = ""
+    session_length: str = ""
+    session_budget_min: int | None = None
+    observed_pace: str = ""
+
+    model_config = {"extra": "forbid"}
 
 
 def _live_room_http_error(exc: Exception) -> HTTPException:
@@ -1370,9 +1746,30 @@ def start_solo_live_room(
         raise HTTPException(status_code=400, detail="lesson_id is required")
     sessions = get_sessions()
     try:
-        state = sessions.start_session(lesson_id, "solo")
+        budget = req.session_budget_min
+        if budget is None and (req.profile_score or req.session_length):
+            from aoep_shared.catalog_selection import (
+                profile_dimensions,
+                resolve_session_budget,
+            )
+
+            dimensions = profile_dimensions(
+                req.profile_score, session_length=req.session_length,
+            )
+            budget = resolve_session_budget(
+                dimensions.get("session_length", req.session_length or "medium"),
+                observed_pace=req.observed_pace,
+            )
+        state = sessions.start_session(
+            lesson_id,
+            "solo",
+            student_id=req.student_id,
+            session_budget_min=budget,
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown lesson {lesson_id}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     slide = sessions.current_slide(state.session_id)
     lesson = sessions.lesson_for(state.session_id)
     room_id = f"solo-{uuid.uuid4().hex[:12]}"

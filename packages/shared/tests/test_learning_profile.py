@@ -3,7 +3,10 @@
 import pytest
 
 from aoep_shared.learning_profile import (
+    PROFILE_SCORE_SCHEMA_VERSION,
+    decode_profile_score,
     derive_learning_profile,
+    encode_profile_score,
     onboarding_template,
     survey_answers_from_profile_fields,
     validate_onboarding_answers,
@@ -29,6 +32,8 @@ def test_onboarding_template_has_required_questions():
     assert t["title"]
     assert any(q["id"] == "primary_style" and q["required"] for q in t["questions"])
     assert "categories" in t
+    assert t["profile_score_schema"]["version"] == PROFILE_SCORE_SCHEMA_VERSION
+    assert t["profile_score_schema"]["semantics"] == "custom mapped values, not option positions"
 
 
 def test_survey_answers_from_profile_fields_roundtrip():
@@ -65,6 +70,7 @@ def test_accessibility_routes_to_supported_category():
     p = derive_learning_profile(_full_answers(needs_captions=True))
     assert p.learner_category == "accessibility_supported"
     assert p.accessibility["needs_captions"] is True
+    assert p.profile_score.endswith("3")
 
 
 def test_hands_on_practice_category():
@@ -74,6 +80,31 @@ def test_hands_on_practice_category():
     ))
     assert p.primary_style == "hands_on"
     assert p.learner_category == "hands_on_practice"
+
+
+def test_profile_score_roundtrip_uses_custom_mapped_values():
+    profile = derive_learning_profile(_full_answers(
+        primary_style="Hands-on — practice, labs, doing it yourself",
+        pace="Faster with less repetition",
+        structure="Short bursts with frequent practice",
+        session_length="About 10 minutes",
+        group_preference="Mostly on my own",
+        reading_level="Advanced — dense text is fine",
+        motivation="Personal curiosity",
+    ))
+    assert profile.profile_score == "78911870"
+    assert encode_profile_score(profile) == profile.profile_score
+    decoded = decode_profile_score(profile.profile_score)
+    assert decoded["primary_style"] == "hands_on"
+    assert decoded["session_length"] == "short"
+    assert decoded["group_preference"] == "solo"
+    assert decoded["accessibility_support"] == "none"
+
+
+@pytest.mark.parametrize("code", ["", "123", "1234567x", "99999999"])
+def test_profile_score_rejects_invalid_codes(code):
+    with pytest.raises(ValueError):
+        decode_profile_score(code)
 
 
 def test_adaptive_cold_start_from_profile():

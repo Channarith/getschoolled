@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from .survey import SurveyQuestion
 
 ONBOARDING_SURVEY_VERSION = "1.0"
+PROFILE_SCORE_SCHEMA_VERSION = "1.0"
 
 # Comprehensive one-time gauge shown after signup (kept focused for completion).
 ONBOARDING_LEARNING_SURVEY: List[SurveyQuestion] = [
@@ -152,6 +153,109 @@ _MOTIVATION_KEY = {
     "Other": "other",
 }
 
+# Stable custom 0–9 routing scores. These values identify answers; numeric
+# distance is not interpreted for nominal dimensions such as style/motivation.
+# Zero is reserved for unknown/unanswered values.
+PROFILE_SCORE_DIMENSIONS: Tuple[str, ...] = (
+    "primary_style",
+    "pace",
+    "structure",
+    "session_length",
+    "group_preference",
+    "reading_level",
+    "motivation",
+    "accessibility_support",
+)
+_PROFILE_SCORE_MAPS: Dict[str, Dict[str, int]] = {
+    "primary_style": {
+        "visual": 1, "auditory": 3, "reading_writing": 5, "hands_on": 7, "mixed": 9,
+    },
+    "pace": {"slow": 2, "moderate": 5, "fast": 8},
+    "structure": {
+        "step_by_step": 1, "examples_first": 4, "big_picture": 6, "practice_heavy": 9,
+    },
+    "session_length": {"short": 1, "medium": 5, "long": 9},
+    "group_preference": {"solo": 1, "group": 5, "either": 9},
+    "reading_level": {"beginner": 2, "intermediate": 5, "advanced": 8},
+    "motivation": {"career": 1, "school": 4, "personal": 7, "other": 9},
+}
+
+
+def accessibility_support_score(accessibility: Dict[str, bool]) -> int:
+    """Return a non-identifying support-intensity digit.
+
+    Exact accommodations remain in the protected structured profile; the score
+    only indicates whether the course assembler should load a support overlay.
+    """
+    count = sum(bool(accessibility.get(key)) for key in (
+        "needs_captions",
+        "needs_large_text",
+        "needs_extra_time",
+        "uses_assistive_tech",
+    ))
+    return (0, 3, 6, 9, 9)[count]
+
+
+def encode_profile_score(profile: Any) -> str:
+    """Encode the seven core survey dimensions plus accessibility intensity."""
+    def value(name: str, fallback: str) -> str:
+        if isinstance(profile, dict):
+            return str(profile.get(name, fallback))
+        return str(getattr(profile, name, fallback))
+
+    accessibility = (
+        dict(profile.get("accessibility") or {})
+        if isinstance(profile, dict)
+        else dict(getattr(profile, "accessibility", {}) or {})
+    )
+    digits = [
+        _PROFILE_SCORE_MAPS["primary_style"].get(value("primary_style", "mixed"), 0),
+        _PROFILE_SCORE_MAPS["pace"].get(value("pace", "moderate"), 0),
+        _PROFILE_SCORE_MAPS["structure"].get(value("structure", "step_by_step"), 0),
+        _PROFILE_SCORE_MAPS["session_length"].get(value("session_length", "medium"), 0),
+        _PROFILE_SCORE_MAPS["group_preference"].get(value("group_preference", "either"), 0),
+        _PROFILE_SCORE_MAPS["reading_level"].get(value("reading_level", "intermediate"), 0),
+        _PROFILE_SCORE_MAPS["motivation"].get(value("motivation", "personal"), 0),
+        accessibility_support_score(accessibility),
+    ]
+    return "".join(str(digit) for digit in digits)
+
+
+def decode_profile_score(code: str) -> Dict[str, Any]:
+    """Decode a v1 score into canonical routing values.
+
+    The accessibility digit decodes to support intensity, not private
+    accommodation details, which cannot be reconstructed from the score.
+    """
+    raw = str(code or "").strip()
+    if len(raw) != len(PROFILE_SCORE_DIMENSIONS) or not raw.isdigit():
+        raise ValueError("profile score must contain exactly 8 digits")
+    result: Dict[str, Any] = {}
+    for index, dimension in enumerate(PROFILE_SCORE_DIMENSIONS[:-1]):
+        reverse = {score: answer for answer, score in _PROFILE_SCORE_MAPS[dimension].items()}
+        digit = int(raw[index])
+        if digit not in reverse:
+            raise ValueError(f"invalid score {digit} for {dimension}")
+        result[dimension] = reverse[digit]
+    support_digit = int(raw[-1])
+    if support_digit not in (0, 3, 6, 9):
+        raise ValueError(f"invalid score {support_digit} for accessibility_support")
+    result["accessibility_support"] = {
+        0: "none", 3: "standard", 6: "enhanced", 9: "high",
+    }[support_digit]
+    return result
+
+
+def profile_score_schema() -> Dict[str, Any]:
+    """Public, versioned contract used by clients and catalog routing."""
+    return {
+        "version": PROFILE_SCORE_SCHEMA_VERSION,
+        "dimensions": list(PROFILE_SCORE_DIMENSIONS),
+        "range": [0, 9],
+        "semantics": "custom mapped values, not option positions",
+        "accessibility": "support intensity only; exact accommodations remain private",
+    }
+
 # Teaching cohort buckets used for grouping + adaptive cold-start.
 LEARNER_CATEGORIES: Tuple[str, ...] = (
     "visual_step_by_step",
@@ -179,6 +283,8 @@ class LearningProfile(BaseModel):
     accessibility: Dict[str, bool] = Field(default_factory=dict)
     accommodations_notes: str = ""
     learner_category: str = "mixed_balanced"
+    profile_score: str = ""
+    profile_score_version: str = PROFILE_SCORE_SCHEMA_VERSION
     raw_answers: Dict[str, Any] = Field(default_factory=dict)
     completed_at: float = Field(default_factory=lambda: time.time())
 
@@ -212,6 +318,7 @@ def onboarding_template() -> Dict:
             for q in ONBOARDING_LEARNING_SURVEY
         ],
         "categories": list(LEARNER_CATEGORIES),
+        "profile_score_schema": profile_score_schema(),
     }
 
 
@@ -248,7 +355,7 @@ def derive_learning_profile(answers: Dict[str, Any]) -> LearningProfile:
         accessibility=accessibility,
     )
 
-    return LearningProfile(
+    profile = LearningProfile(
         primary_style=primary,
         pace=pace,
         structure=structure,
@@ -261,6 +368,8 @@ def derive_learning_profile(answers: Dict[str, Any]) -> LearningProfile:
         learner_category=category,
         raw_answers=dict(answers),
     )
+    profile.profile_score = encode_profile_score(profile)
+    return profile
 
 
 def categorize_learner(

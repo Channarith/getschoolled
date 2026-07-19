@@ -56,6 +56,42 @@ def test_session_on_enriched_lesson_advances_many_slides():
         assert adv.status_code == 200
 
 
+def test_same_lesson_builds_different_paths_for_two_time_budgets():
+    short = client.post(
+        "/api/lessons/intro-to-photosynthesis/plan",
+        json={"session_budget_min": 10},
+    )
+    standard = client.post(
+        "/api/lessons/intro-to-photosynthesis/plan",
+        json={"session_budget_min": 30},
+    )
+    assert short.status_code == standard.status_code == 200
+    short_plan = short.json()
+    standard_plan = standard.json()
+    assert short_plan["lesson_id"] == standard_plan["lesson_id"]
+    assert short_plan["planned_slide_count"] < standard_plan["planned_slide_count"]
+    assert short_plan["source_slide_indices"][0] == 0
+    assert short_plan["mastery_target"] == "unchanged"
+
+
+def test_profile_score_duration_digit_controls_session_path():
+    # visual, moderate, step-by-step, short, group, intermediate, career, no access
+    start = client.post(
+        "/api/sessions",
+        json={
+            "lesson_id": "intro-to-photosynthesis",
+            "class_type": "solo",
+            "student_id": "person-a",
+            "profile_score": "15115510",
+        },
+    )
+    assert start.status_code == 200
+    body = start.json()
+    assert body["session"]["student_id"] == "person-a"
+    assert body["session"]["session_budget_min"] == 10
+    assert len(body["lesson"]["slides"]) == len(body["session"]["slide_indices"])
+
+
 def test_curriculum_root_respects_env(monkeypatch):
     root = curriculum_root()
     assert os.path.isdir(root)
