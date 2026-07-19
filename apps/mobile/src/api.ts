@@ -571,7 +571,21 @@ export type LiveRoomState = {
   status: string;
   presenting?: boolean;
   host: { id: string; name: string; role: string };
-  participants: { id: string; name: string; role: string; identity?: string; hand_raised: boolean; muted: boolean; muted_by_host: boolean; can_publish?: boolean }[];
+  participants: {
+    id: string;
+    name: string;
+    role: string;
+    identity?: string;
+    hand_raised: boolean;
+    muted: boolean;
+    muted_by_host: boolean;
+    can_publish?: boolean;
+    /** Moderator/admin-only learner profile fields. */
+    student_id?: string;
+    readiness_score?: number;
+    readiness_band?: string;
+    primary_style?: string;
+  }[];
   chat: { id: string; from_name: string; text: string }[];
   slide: { index: number; title: string; body: string; narration: string };
   recording: { status: string };
@@ -595,6 +609,14 @@ export type LiveRoomState = {
   welcome_message?: string;
   welcome_started_at?: string;
   pre_class_welcome_seconds?: number;
+  audience_profile?: {
+    learner_count?: number;
+    mean_readiness?: number;
+    median_readiness?: number;
+    band_counts?: Record<string, number>;
+    dominant_styles?: string[];
+    adaptation_hints?: string[];
+  };
   group_game?: LiveGroupGame | null;
 };
 
@@ -1038,9 +1060,16 @@ export async function liveRoomAskStream(
 /** Heartbeat the room clock so a mobile-only group class still auto-starts (when
  * full / past the scheduled time), auto-advances slides, and auto-ends when its
  * allotted time is up. Idempotent server-side; any joined client may call it. */
-export async function liveRoomTick(roomId: string, participantId = ""):
+export async function liveRoomTick(
+  roomId: string,
+  participantId = "",
+  moderatorKey = "",
+):
   Promise<{ room: LiveRoomState; auto_started?: boolean; auto_ended?: boolean }> {
-  const q = participantId ? `?pid=${encodeURIComponent(participantId)}` : "";
+  const params: string[] = [];
+  if (participantId) params.push(`pid=${encodeURIComponent(participantId)}`);
+  if (moderatorKey) params.push(`moderator_key=${encodeURIComponent(moderatorKey)}`);
+  const q = params.length ? `?${params.join("&")}` : "";
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/tick${q}`, {
     method: "POST",
     headers: { "content-type": "application/json" },

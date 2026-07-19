@@ -414,6 +414,67 @@ def test_join_with_readiness_refreshes_audience_profile():
     assert "visual" in aud.get("dominant_styles", [])
 
 
+def test_readiness_score_is_visible_only_to_moderators_and_platform_admins(monkeypatch):
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={
+            "name": "Profile Learner",
+            "identity": "profile-private-1",
+            "student_id": "stu-private",
+            "readiness_score": 72,
+            "readiness_band": "developing",
+            "primary_style": "visual",
+        },
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+
+    public_participant = next(
+        p for p in client.get(f"/api/live-rooms/{room_id}").json()["participants"]
+        if p["id"] == pid
+    )
+    assert "readiness_score" not in public_participant
+    assert "primary_style" not in public_participant
+    assert "student_id" not in public_participant
+
+    moderator_participant = next(
+        p for p in client.get(
+            f"/api/live-rooms/{room_id}",
+            params={"moderator_key": mod},
+        ).json()["participants"]
+        if p["id"] == pid
+    )
+    assert moderator_participant["readiness_score"] == 72
+    assert moderator_participant["readiness_band"] == "developing"
+    assert moderator_participant["primary_style"] == "visual"
+
+    moderator_tick = client.post(
+        f"/api/live-rooms/{room_id}/tick",
+        params={"pid": pid, "moderator_key": mod},
+    )
+    assert moderator_tick.status_code == 200, moderator_tick.text
+    tick_participant = next(
+        p for p in moderator_tick.json()["room"]["participants"] if p["id"] == pid
+    )
+    assert tick_participant["readiness_score"] == 72
+
+    import orchestrator.main as m
+
+    monkeypatch.setattr(m, "_request_is_admin", lambda auth: auth == "Bearer admin-token")
+    platform_admin = client.get(
+        f"/api/live-rooms/{room_id}",
+        headers={"authorization": "Bearer admin-token"},
+    )
+    assert platform_admin.status_code == 200, platform_admin.text
+    admin_participant = next(
+        p for p in platform_admin.json()["participants"] if p["id"] == pid
+    )
+    assert admin_participant["readiness_score"] == 72
+
+
 def test_solo_room_full_on_join_auto_starts_and_advances():
     from orchestrator.main import app as _app
 

@@ -325,6 +325,7 @@ class Participant:
         d = self.to_dict()
         d["student_id"] = self.student_id
         d["readiness_score"] = self.readiness_score
+        d["primary_style"] = self.primary_style
         return d
 
 
@@ -554,8 +555,11 @@ class LiveRoom:
         }
 
     def to_moderator_dict(self) -> dict:
-        """Full room state plus moderator_key and user reports (educator only)."""
+        """Full room state plus private learner profiles/reports (educator only)."""
         d = self.to_dict()
+        d["participants"] = [
+            p.to_host_dict() for p in self.participants.values()
+        ]
         d["moderator_key"] = self.moderator_key
         d["reports"] = [r.to_dict() for r in self.open_reports()]
         return d
