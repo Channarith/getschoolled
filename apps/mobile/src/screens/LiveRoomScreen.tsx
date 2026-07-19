@@ -5,7 +5,7 @@ import {
 } from "react-native";
 
 import {
-  deleteLiveRoom, liveRoomAdvance,
+  liveRoomAdvance,
   getLiveRoom, getLiveGiftCatalog, getLearningExperience, joinLiveRoom, leaveLiveRoom, liveRoomAskStream, liveRoomBan, liveRoomCallNext,
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
@@ -1050,7 +1050,7 @@ export default function LiveRoomScreen({
         ) : null}
       </GlassPanel>
 
-      {/* Host / admin bar — same controls as web (Start, Close, Delete), not buried in More. */}
+      {/* Host / admin bar — Start / Next + Close (no Delete; Close ends the session). */}
       {canModerate ? (
         <View style={styles.hostBar}>
           {!room?.presenting ? (
@@ -1111,36 +1111,6 @@ export default function LiveRoomScreen({
           >
             <Text style={styles.hostBtnText}>⛔ Close</Text>
           </Pressable>
-          {account?.is_admin ? (
-            <Pressable
-              style={({ pressed }) => [styles.hostBtn, styles.hostBtnDanger, pressed && styles.hostBtnPressed]}
-              onPress={() => {
-                Alert.alert(
-                  "Delete session",
-                  "Delete this session permanently? This cannot be undone.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: () => {
-                        void (async () => {
-                          try {
-                            await deleteLiveRoom(roomId);
-                            leaveAndBack();
-                          } catch (e) {
-                            setError((e as Error).message);
-                          }
-                        })();
-                      },
-                    },
-                  ],
-                );
-              }}
-            >
-              <Text style={styles.hostBtnText}>🗑 Delete</Text>
-            </Pressable>
-          ) : null}
         </View>
       ) : null}
 
@@ -1507,35 +1477,6 @@ export default function LiveRoomScreen({
                     catch (e) { setError((e as Error).message); }
                   }}
                 />
-                {account?.is_admin ? (
-                  <PrimaryButton
-                    label="🗑 Delete session"
-                    variant="ghost"
-                    onPress={() => {
-                      Alert.alert(
-                        "Delete session",
-                        "Delete this session permanently? This cannot be undone.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => {
-                              void (async () => {
-                                try {
-                                  await deleteLiveRoom(roomId);
-                                  leaveAndBack();
-                                } catch (e) {
-                                  setError((e as Error).message);
-                                }
-                              })();
-                            },
-                          },
-                        ],
-                      );
-                    }}
-                  />
-                ) : null}
               </View>
             </View>
           ) : null}
