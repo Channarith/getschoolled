@@ -108,10 +108,12 @@ def test_knowledge_course_keeps_title_but_localizes_category():
 def test_knowledge_course_translated_title_with_training_locale():
     course = get_course("audio-budgeting-basics", locale="en", training_locale="zh")
     assert course is not None
-    # Title localizes via COURSE_TITLES, and this topic has a curated Chinese
-    # fact set, so the spoken body stays authentic Chinese (no English filler).
+    # Title localizes via COURSE_TITLES. Without a body translator the complete
+    # 30-minute lesson honestly remains English rather than shrinking to the
+    # old three-fact localized preview.
     assert "预算基础" in course.title
-    assert course.body_locale == "zh"
+    assert course.body_locale == "en"
+    assert course.duration_min >= 30
 
 
 def test_list_courses_respects_locale():
@@ -145,9 +147,8 @@ def test_get_course_with_locale():
     assert c_en is not None and c_es is not None
     assert c_en.category == "Personal Finance"
     assert c_es.category == "Finanzas personales"
-    # Budgeting has a curated Spanish fact set, so segments use localized
-    # "Idea clave N" headings (authentic Spanish body, no intro wrapper).
-    assert c_es.segments[0].heading == "Idea clave 1"
+    assert c_es.segments[0].heading == "Overview"
+    assert c_es.duration_min >= 30
 
 
 def test_unknown_locale_falls_back_to_english_cleanly():

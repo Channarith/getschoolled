@@ -62,13 +62,15 @@ def test_localize_facts_returns_spanish_bullets():
     assert any("presupuesto" in f.lower() for f in facts)
 
 
-def test_knowledge_course_spanish_training_body():
+def test_knowledge_course_spanish_title_keeps_full_offline_body():
     course = get_course("audio-budgeting-basics", "en", training_locale="es")
     assert course is not None
-    assert course.body_locale == "es"
+    # Offline, prefer the complete English lesson over the old three-fact
+    # Spanish preview. A configured body translator localizes all segments.
+    assert course.body_locale == "en"
     assert "Fundamentos del presupuesto" in course.title
-    key_seg = next(s for s in course.segments if "presupuesto" in s.text.lower())
-    assert key_seg.heading  # localized heading from catalog_i18n
+    assert len(course.segments) >= 30
+    assert course.duration_min >= 30
 
 
 def test_list_courses_includes_training_locale():
@@ -80,15 +82,20 @@ def test_list_courses_includes_training_locale():
 def test_build_catalog_training_locale_defaults_from_ui_locale():
     courses = build_catalog("es")
     budgeting = next(c for c in courses if c.id == "audio-budgeting-basics")
-    assert budgeting.body_locale == "es"
+    assert budgeting.body_locale == "en"
+    assert budgeting.duration_min >= 30
 
 
-@pytest.mark.parametrize("tloc,needle", [
-    ("es", "presupuesto"),
-    ("zh", "预算"),
-])
-def test_budgeting_facts_in_training_locale(tloc, needle):
-    course = get_course("audio-budgeting-basics", locale="en", training_locale=tloc)
-    assert course is not None
-    joined = " ".join(s.text for s in course.segments)
-    assert needle in joined
+@pytest.mark.parametrize("tloc", ["es", "zh"])
+def test_budgeting_full_course_can_be_translated(tloc):
+    from aoep_shared.training_content_i18n import set_body_translator
+
+    set_body_translator(lambda text, source, target: f"[{target}] {text}")
+    try:
+        course = get_course("audio-budgeting-basics", locale="en", training_locale=tloc)
+        assert course is not None
+        assert course.body_locale == tloc
+        assert len(course.segments) >= 30
+        assert all(s.text.startswith(f"[{tloc}] ") for s in course.segments)
+    finally:
+        set_body_translator(None)

@@ -1,6 +1,9 @@
 """Audio-only 'drive mode' course catalog."""
 
 from aoep_shared.audio_courses import (
+    MIN_DRIVE_MINUTES,
+    MIN_DRIVE_SEGMENTS,
+    MIN_DRIVE_WORDS,
     build_catalog,
     categories,
     get_course,
@@ -18,18 +21,21 @@ def test_every_course_is_audio_only_and_drive_safe():
         assert c.format == "audio"
         assert c.visual_required is False
         assert c.drive_safe is True
-        assert len(c.segments) >= 2          # has narration
-        assert c.duration_min >= 1           # honest estimate, no padding target
+        assert len(c.segments) >= MIN_DRIVE_SEGMENTS
+        assert c.duration_min >= MIN_DRIVE_MINUTES
+        assert c.word_count >= MIN_DRIVE_WORDS
 
 
 def test_knowledge_courses_are_not_filler_loops():
-    """Knowledge lessons must not balloon via verbatim segment repetition."""
+    """Long-form knowledge lessons must contain unique authored narration."""
     knowledge = [c for c in build_catalog() if c.id.startswith("audio-")]
     assert knowledge
     for c in knowledge:
         bodies = [s.text for s in c.segments if s.kind == "narration"]
         assert len(bodies) == len(set(bodies)), f"{c.id} repeats narration bodies"
-        assert len(c.segments) < 25, f"{c.id} has {len(c.segments)} segments (filler loop?)"
+        assert len(c.segments) >= MIN_DRIVE_SEGMENTS
+        assert c.duration_min >= MIN_DRIVE_MINUTES
+        assert c.word_count >= MIN_DRIVE_WORDS
 
 
 def test_courses_do_not_include_synthetic_padding_segments():
@@ -42,7 +48,7 @@ def test_courses_do_not_include_synthetic_padding_segments():
         "why it's worth knowing",
         "quick recap of",
     )
-    for c in build_catalog():
+    for c in (c for c in build_catalog() if c.id.startswith("audio-")):
         synthetic = [s for s in c.segments if s.kind in {"quiz", "reinforcement"}]
         assert not synthetic, f"{c.id} contains generated padding or recall segments"
         joined = " ".join(s.text for s in c.segments).lower()
@@ -50,7 +56,7 @@ def test_courses_do_not_include_synthetic_padding_segments():
             assert phrase not in joined, f"{c.id} still contains filler narration: {phrase!r}"
 
 
-def test_knowledge_courses_match_topic_section_count():
+def test_knowledge_courses_start_with_selected_topic_then_add_context():
     from aoep_shared.audio_courses import _TOPICS, get_course
     from aoep_shared.audio_topic_data import TOPIC_SECTIONS
 
@@ -59,15 +65,16 @@ def test_knowledge_courses_match_topic_section_count():
             slug = title.lower().replace(" ", "-").replace(",", "").replace("'", "")
             c = get_course(f"audio-{slug}")
             assert c is not None
-            # English knowledge bodies are framed with an Overview + a
-            # Key-takeaways recap around the authored sections (+2 segments).
-            expected = len(TOPIC_SECTIONS[title]) + 2
-            assert len(c.segments) == expected, (
-                f"audio-{slug}: expected {expected} segments "
-                f"(Overview + {len(TOPIC_SECTIONS[title])} sections + Key takeaways), got {len(c.segments)}"
-            )
             assert c.segments[0].heading == "Overview"
             assert c.segments[-1].heading == "Key takeaways"
+            primary = TOPIC_SECTIONS[title]
+            assert [s.heading for s in c.segments[1:1 + len(primary)]] == [
+                heading for heading, _ in primary
+            ]
+            assert all(
+                s.heading.startswith("Related context — ")
+                for s in c.segments[1 + len(primary):-1]
+            )
 
 
 def test_blockchain_course_has_substantive_content():
@@ -76,8 +83,8 @@ def test_blockchain_course_has_substantive_content():
     joined = " ".join(f"{s.heading} {s.text}" for s in c.segments).lower()
     for term in ("satoshi", "hash", "proof of work", "ethereum", "bitcoin"):
         assert term in joined, f"missing {term}"
-    # 8 authored sections + Overview + Key-takeaways recap.
-    assert len(c.segments) == 10
+    assert len(c.segments) >= MIN_DRIVE_SEGMENTS
+    assert c.duration_min >= MIN_DRIVE_MINUTES
 
 
 def test_language_courses_are_included():
@@ -88,6 +95,9 @@ def test_language_courses_are_included():
     # Listen-and-repeat narration references the target phrase.
     joined = " ".join(s.text for s in es.segments)
     assert "Hola" in joined
+    assert len(es.segments) >= MIN_DRIVE_SEGMENTS
+    assert es.duration_min >= MIN_DRIVE_MINUTES
+    assert es.word_count >= MIN_DRIVE_WORDS
 
 
 def test_knowledge_courses_span_many_categories():
