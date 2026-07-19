@@ -366,20 +366,24 @@ function QuizDuel({ diff }: { diff: Difficulty }) {
   const [phase, setPhase] = useState<"play" | "result" | "over">("play");
   const [winner, setWinner] = useState<"you" | "ai" | null>(null);
   const resolvedRef = useRef(false);
+  const lockRef = useRef({ you: false, ai: false });
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = queue[qi % queue.length];
 
   const clearTimers = () => {
     if (aiTimer.current) clearTimeout(aiTimer.current);
     if (nextTimer.current) clearTimeout(nextTimer.current);
+    if (roundTimer.current) clearTimeout(roundTimer.current);
   };
 
   const endRound = useCallback((who: "you" | "ai" | "none") => {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
     if (aiTimer.current) clearTimeout(aiTimer.current);
+    if (roundTimer.current) clearTimeout(roundTimer.current);
     setScores((s) => {
       const ns = { you: s.you + (who === "you" ? 1 : 0), ai: s.ai + (who === "ai" ? 1 : 0) };
       if (ns.you >= DUEL_TARGET || ns.ai >= DUEL_TARGET) {
@@ -406,6 +410,7 @@ function QuizDuel({ diff }: { diff: Difficulty }) {
   useEffect(() => {
     if (phase !== "play") return;
     resolvedRef.current = false;
+    lockRef.current = { you: false, ai: false };
     const prof = DUEL_PROFILE[diff];
     const delay = prof.minMs + Math.random() * (prof.maxMs - prof.minMs);
     const willBeCorrect = Math.random() < prof.accuracy;
@@ -414,23 +419,41 @@ function QuizDuel({ diff }: { diff: Difficulty }) {
       if (willBeCorrect) {
         endRound("ai");
       } else {
+        lockRef.current.ai = true;
         setLocked((l) => ({ ...l, ai: true }));
+        // If the player is already locked out too, nobody can answer — resolve.
+        if (lockRef.current.you) endRound("none");
       }
     }, delay);
-    return () => { if (aiTimer.current) clearTimeout(aiTimer.current); };
+    // Safety net: never let a round hang (e.g. both sides answered wrong, or the
+    // player just waits out a question the AI misses).
+    roundTimer.current = setTimeout(() => {
+      if (!resolvedRef.current) endRound("none");
+    }, prof.maxMs + 5000);
+    return () => {
+      if (aiTimer.current) clearTimeout(aiTimer.current);
+      if (roundTimer.current) clearTimeout(roundTimer.current);
+    };
   }, [qi, phase, diff, endRound]);
 
   useEffect(() => () => clearTimers(), []);
 
   const answer = (idx: number) => {
-    if (phase !== "play" || locked.you || resolvedRef.current) return;
-    if (idx === current.answer) endRound("you");
-    else setLocked((l) => ({ ...l, you: true }));
+    if (phase !== "play" || lockRef.current.you || resolvedRef.current) return;
+    if (idx === current.answer) {
+      endRound("you");
+    } else {
+      lockRef.current.you = true;
+      setLocked((l) => ({ ...l, you: true }));
+      // If the AI has already missed this round, nobody can answer — resolve.
+      if (lockRef.current.ai) endRound("none");
+    }
   };
 
   const restart = () => {
     clearTimers();
     resolvedRef.current = false;
+    lockRef.current = { you: false, ai: false };
     setQueue(shuffle(DUEL_BANK));
     setQi(0); setScores({ you: 0, ai: 0 }); setLocked({ you: false, ai: false });
     setBanner(""); setPhase("play"); setWinner(null);
