@@ -156,6 +156,9 @@ let _speechBaseUrl = "";
 let _serverTtsReady: boolean | null = null;
 let _statusProbe: Promise<boolean> | null = null;
 let _serverSound: Audio.Sound | null = null;
+// Bumped by stopSpeech() so in-flight async speakNatural() cannot restart audio
+// after Leave / Close / mute.
+let _speechEpoch = 0;
 let _serverVoiceId = "";       // chosen voice_catalog id (accent/language)
 let _serverInstructor = "";    // chosen instructor personality id
 
@@ -204,16 +207,19 @@ async function stopServerSound(): Promise<void> {
   }
 }
 
-// Stop ALL narration (device voice AND server audio).
+// Stop ALL narration (device voice AND server audio). Bumping the epoch also
+// invalidates any in-flight speakNatural so it cannot start after Leave/Close.
 export function stopSpeech(): void {
+  _speechEpoch += 1;
   try { Speech.stop(); } catch { /* */ }
   void stopServerSound();
 }
 
-async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolean> {
+async function playServerAudio(text: string, opts: SpeakOptions, myEpoch: number): Promise<boolean> {
   if (encodeURIComponent(text).length > MAX_SERVER_TTS_CHARS) return false;
   try {
     await ensureSpeechAudioSession();
+    if (_speechEpoch !== myEpoch) return true;
     const lang = (opts.locale || "en").split("-")[0];
     const style = opts.voiceStyle ?? "standard";
     const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
@@ -221,11 +227,19 @@ async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolea
       + (_serverVoiceId ? `&voice=${encodeURIComponent(_serverVoiceId)}` : "")
       + (_serverInstructor ? `&instructor=${encodeURIComponent(_serverInstructor)}` : "");
     const { sound, status } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
+    if (_speechEpoch !== myEpoch) {
+      try { await sound.unloadAsync(); } catch { /* */ }
+      return true;
+    }
     if (!status.isLoaded) {
       try { await sound.unloadAsync(); } catch { /* */ }
       return false;
     }
     await stopServerSound();
+    if (_speechEpoch !== myEpoch) {
+      try { await sound.unloadAsync(); } catch { /* */ }
+      return true;
+    }
     _serverSound = sound;
     let ended = false;
     const finish = (cb?: () => void) => {
@@ -243,6 +257,7 @@ async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolea
     });
     return true;
   } catch {
+    if (_speechEpoch !== myEpoch) return true;
     await stopServerSound();
     return false;
   }
@@ -251,6 +266,7 @@ async function playServerAudio(text: string, opts: SpeakOptions): Promise<boolea
 // Speak with the most natural voice available: server neural audio when the
 // gateway offers it, else the best on-device voice + lifelike prosody.
 export function speakNatural(text: string, opts: SpeakOptions): void {
+  const myEpoch = _speechEpoch;
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
   const persona = personaProsody(opts.persona);
@@ -258,6 +274,7 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
   // on-device voice too; fall back to the content locale.
   const lang = opts.voiceLocale || localeToBcp47(opts.locale);
   const speakDevice = () => {
+    if (_speechEpoch !== myEpoch) return;
     const voice = pickVoiceId(lang, style, opts.voiceGender);
     // Persona shapes the delivery on top of the style's base prosody so the
     // instructor selection is audible even on the device voice.
@@ -284,9 +301,12 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
     // Configure the playback session first so iOS actually routes TTS to the
     // speaker (mute switch on, or after LiveKit/intro released the session).
     await ensureSpeechAudioSession();
+    if (_speechEpoch !== myEpoch) return;
     if (await serverTtsAvailable()) {
-      if (await playServerAudio(text, opts)) return;   // neural audio playing
+      if (_speechEpoch !== myEpoch) return;
+      if (await playServerAudio(text, opts, myEpoch)) return;   // neural audio playing
     }
+    if (_speechEpoch !== myEpoch) return;
     speakDevice();                                     // fallback
   })();
 }

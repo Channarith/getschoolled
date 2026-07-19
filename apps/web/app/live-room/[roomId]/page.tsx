@@ -106,7 +106,6 @@ function orderedFarewell(primaryLang?: string): typeof CLASS_COMPLETE_MESSAGES {
     ...CLASS_COMPLETE_MESSAGES.slice(idx + 1),
   ];
 }
-
 /** Full-screen farewell shown when a group lesson's allotted time expires: a
  * courteous multilingual thank-you plus a short countdown, after which the
  * learner is excused (navigated out of the room). */
@@ -114,6 +113,12 @@ function ClassCompleteOverlay({ onDone, primaryLang, exitLabel = "Group Classes"
   const [remaining, setRemaining] = useState(CLASS_END_COUNTDOWN);
   const [msgIdx, setMsgIdx] = useState(0);
   const messages = useMemo(() => orderedFarewell(primaryLang), [primaryLang]);
+
+  // Hard-stop Theodore the moment the farewell overlay appears — leaving must
+  // not leave slide/Q&A narration still playing under the "Class complete" UI.
+  useEffect(() => {
+    cancelSpeech();
+  }, []);
 
   useEffect(() => {
     const tick = window.setInterval(() => {
@@ -250,13 +255,6 @@ async function fetchLearnerJoinContext(): Promise<LearnerJoinContext | null> {
   }
 }
 
-function gridLayout(roomSize: number): { cols: number; rows: number } {
-  if (roomSize <= 2) return { cols: 2, rows: 1 }; // solo 1:1 — AI host + you side by side
-  if (roomSize <= 4) return { cols: 2, rows: 2 };
-  if (roomSize <= 6) return { cols: 3, rows: 2 };
-  return { cols: 3, rows: 3 };
-}
-
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -282,6 +280,7 @@ function ParticipantTile({
   audioMuted,
   onToggleAudio,
   fill,
+  showAdminProfile,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -303,6 +302,8 @@ function ParticipantTile({
   onToggleAudio?: () => void;
   /** Fill the grid cell vertically (used by the maximized solo layout). */
   fill?: boolean;
+  /** Private readiness details; only set for a verified room moderator/admin. */
+  showAdminProfile?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -468,9 +469,21 @@ function ParticipantTile({
           fontSize: 12,
         }}
       >
-        <span style={{ fontWeight: 600 }}>
-          {isHost ? "Host · " : ""}
-          {p.name}
+        <span style={{ display: "grid", gap: 1, minWidth: 0 }}>
+          <span style={{ fontWeight: 600 }}>
+            {isHost ? "Host · " : ""}
+            {p.name}
+          </span>
+          {showAdminProfile && !isHost ? (
+            <span
+              title="Private learner profile — visible only to administrators"
+              style={{ color: "#d8b4fe", fontSize: 10, fontWeight: 600 }}
+            >
+              {p.student_id
+                ? `Readiness ${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.readiness_band || "unrated"} · ${p.primary_style || "mixed"}`
+                : "Profile score not completed"}
+            </span>
+          ) : null}
         </span>
         <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {hasFloor && <span title="Speaking now">🎤</span>}
@@ -606,10 +619,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // cause of "setInterval handler took Nms" — a full re-render on an idle tick.
   const lastRoomSigRef = useRef("");
   const applyRoom = useCallback((next: LiveRoomState) => {
-    const sig = JSON.stringify(next);
-    if (sig === lastRoomSigRef.current) return;
-    lastRoomSigRef.current = sig;
-    setRoom(next);
+    setRoom((previous) => {
+      // WebSocket and ordinary action responses are intentionally public. Once
+      // an authorized GET/tick supplied private profile scores, retain them
+      // across those public snapshots without ever exposing them to learners.
+      const previousById = new Map(
+        (previous?.participants ?? []).map((p) => [p.id, p]),
+      );
+      const merged: LiveRoomState = {
+        ...next,
+        participants: next.participants.map((participant) => {
+          const old = previousById.get(participant.id);
+          if (participant.readiness_score !== undefined || !old) return participant;
+          return {
+            ...participant,
+            student_id: old.student_id,
+            readiness_score: old.readiness_score,
+            readiness_band: old.readiness_band ?? participant.readiness_band,
+            primary_style: old.primary_style,
+          };
+        }),
+      };
+      const sig = JSON.stringify(merged);
+      if (sig === lastRoomSigRef.current) return previous;
+      lastRoomSigRef.current = sig;
+      return merged;
+    });
     if (typeof next.viewer_count === "number") {
       viewerSetterRef.current(next.viewer_count);
     }
@@ -665,7 +700,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     [liveKitTiles],
   );
 
-  const layout = useMemo(() => gridLayout(room?.room_size ?? 6), [room?.room_size]);
   const myQueuePos = useMemo(() => {
     if (!me || !room?.speaking_queue) return 0;
     const entry = room.speaking_queue.find(
@@ -897,6 +931,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // excuse the learner: leave the room (best-effort) and return to the class list.
   const excuseFromClass = useCallback(() => {
     leftVoluntarily.current = true;
+    cancelSpeech();
+    setAiAudioOn(false);
     const pid = joinInfo?.participant.id;
     localStream?.getTracks().forEach((t) => t.stop());
     sessionStorage.removeItem(`${ROOM_STORAGE_KEY}:${roomId}`);
@@ -911,6 +947,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   async function handleLeave() {
     if (!me) return;
     leftVoluntarily.current = true;
+    cancelSpeech();
+    setAiAudioOn(false);
     setBusy(true);
     try {
       await leaveLiveRoom(roomId, me.id);
@@ -1227,6 +1265,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         spokenSlideRef.current = s.index;
         cancelSpeech();
         void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+          // Session may have ended while voice options were loading.
+          if (leftVoluntarily.current || roomRef.current?.status === "ended") return;
           speakNaturally(text, {
             ...base,
             onend: () => {
@@ -1257,7 +1297,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => {
     if (!joinInfo) return;
     const tick = () => {
-      void liveRoomTick(roomId, joinInfo.participant.id).then((r) => applyRoom(r)).catch(() => undefined);
+      void liveRoomTick(roomId, joinInfo.participant.id, moderatorKey)
+        .then((r) => applyRoom(r))
+        .catch(() => undefined);
     };
     // Tick immediately on entry. Solo rooms are full with one learner, so the
     // server begins the class automatically as soon as its short AI-introduction
@@ -1265,17 +1307,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     tick();
     const t = window.setInterval(tick, 3000);  // also drives auto-advance + presence
     return () => window.clearInterval(t);
-  }, [joinInfo, roomId, applyRoom]);
+  }, [joinInfo, roomId, moderatorKey, applyRoom]);
 
   // Before the first slide, Theodore welcomes learners and explicitly identifies
   // himself as an AI host. Joining is a user gesture, so audio is already unlocked.
   useEffect(() => {
     if (!room) return;
+    if (room.status === "ended") return;
     const welcome = room.welcome_message?.trim();
     if (!welcome || room.presenting || !aiAudioOn || !aiAudioUnlocked) return;
     if (welcomeSpokenRef.current === room.room_id) return;
     welcomeSpokenRef.current = room.room_id;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+      if (leftVoluntarily.current || roomRef.current?.status === "ended" || !aiAudioOn) return;
       cancelSpeech();
       speakNaturally(welcome, base);
     });
@@ -1306,6 +1350,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       cancelSpeech();  // stop the previous slide's narration before the new one
       const spokenFor = slideIdx;
       void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+        // Leaving / Close can resolve after cancelSpeech(); do not restart audio.
+        if (leftVoluntarily.current || roomRef.current?.status === "ended" || !classLive) return;
         speakNaturally(text, {
           ...base,
           // Advance the instant the AI finishes narrating this slide (not after a
@@ -1342,12 +1388,22 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (spokenAnswerIdRef.current === hostAnswer.id) return;
     spokenAnswerIdRef.current = hostAnswer.id;
     if (!aiAudioOn || !aiAudioUnlocked) return;
+    if (roomRef.current?.status === "ended" || leftVoluntarily.current) return;
     const text = hostAnswer.text;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+      if (leftVoluntarily.current || roomRef.current?.status === "ended") return;
       cancelSpeech();
       speakNaturally(text, base);
     });
   }, [hostAnswer, aiAudioOn, aiAudioUnlocked, narrationLocale]);
+
+  // Session ended (Close / timer): mute AI and kill any in-flight narration so
+  // the farewell overlay is silent.
+  useEffect(() => {
+    if (room?.status !== "ended") return;
+    setAiAudioOn(false);
+    cancelSpeech();
+  }, [room?.status]);
 
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);
@@ -1417,6 +1473,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   async function closeSession() {
     if (!canModerate) return;
     if (typeof window !== "undefined" && !window.confirm("Close this session for everyone?")) return;
+    cancelSpeech();
+    setAiAudioOn(false);
     setBusy(true);
     try {
       setRoom(await liveRoomEnd(roomId, moderatorKey));
@@ -1446,7 +1504,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         <p className="muted">
           You were blocked from this live room and cannot rejoin until a moderator lifts the ban.
         </p>
-        <button onClick={() => { window.location.href = soloExitHref(roomId, room); }}>
+        <button onClick={() => {
+          cancelSpeech();
+          window.location.href = soloExitHref(roomId, room);
+        }}>
           {isSoloLiveRoom(roomId, room) ? "Back to class" : "Back to Group Classes"}
         </button>
       </main>
@@ -1853,6 +1914,36 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
+      {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
+        <div
+          style={{
+            background: "rgba(88,28,135,0.2)",
+            border: "1px solid rgba(192,132,252,0.65)",
+            borderRadius: 10,
+            padding: "9px 12px",
+            marginBottom: 10,
+            color: "#e9d5ff",
+            fontSize: 12,
+            lineHeight: 1.45,
+          }}
+          title="Private administrator view. Theodore receives only anonymous class aggregates."
+        >
+          <strong>🧠 Theodore adaptation monitor</strong>
+          {" · class mean "}
+          {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
+          {" · styles "}
+          {(room?.audience_profile?.dominant_styles ?? []).join(", ") || "mixed"}
+          {(room?.audience_profile?.adaptation_hints ?? []).length
+            ? ` · ${(room?.audience_profile?.adaptation_hints ?? []).join(" · ")}`
+            : ""}
+          <div style={{ opacity: 0.78 }}>
+            Individual readiness appears on learner tiles. Theodore uses anonymous
+            class aggregates when adapting explanations and Q&amp;A; authored slide
+            text itself is unchanged.
+          </div>
+        </div>
+      ) : null}
+
       {/* LiveKit couldn't connect (e.g. media backend unreachable / mis-keyed).
           The class still runs over the AI teacher's narration, chat and Q&A, so
           we show a calm note rather than letting the console fill with failed
@@ -2064,9 +2155,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: isSolo
-            ? "1fr"
-            : showChat ? "minmax(0, 1.4fr) minmax(280px, 1fr)" : "1fr",
+          // Group chat follows the classroom below instead of squeezing the
+          // Theodore presenter into a narrow side column.
+          gridTemplateColumns: "1fr",
           gap: 14,
           alignItems: "start",
         }}
@@ -2078,10 +2169,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               display: "grid",
               gridTemplateColumns: isSolo
                 ? "repeat(2, minmax(0, 1fr))"
-                : focusInstructor ? "1fr" : largeHostColumn(layout.cols),
+                : focusInstructor
+                  ? "1fr"
+                  : "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
               gridTemplateRows: isSolo
                 ? "minmax(420px, calc(100vh - 285px))"
-                : focusInstructor ? "minmax(320px, 60vh)" : `repeat(${layout.rows}, minmax(100px, 1fr))`,
+                : undefined,
               gap: 8,
               marginBottom: 12,
             }}
@@ -2096,13 +2189,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             ))}
             {host && (
               <div style={{
-                gridRow: isSolo || focusInstructor ? "auto" : `span ${layout.rows}`,
-                minHeight: isSolo ? 420 : 220,
+                gridColumn: isSolo ? "auto" : "1 / -1",
+                minHeight: isSolo
+                  ? 420
+                  : focusInstructor
+                    ? "min(76vh, 820px)"
+                    : "clamp(440px, 62vh, 720px)",
               }}>
                 <ParticipantTile
                   p={host}
                   large
-                  fill={isSolo}
+                  fill
                   fullscreen={isFullscreen}
                   liveKitTrack={trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
@@ -2331,10 +2428,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             )}
             {!focusInstructor && learners.map((p) => (
-              <div key={p.id} style={{ position: "relative", minHeight: isSolo ? 420 : undefined }}>
+              <div
+                key={p.id}
+                style={{ position: "relative", minHeight: isSolo ? 420 : 220 }}
+              >
                 <ParticipantTile
                   p={p}
-                  fill={isSolo}
+                  showAdminProfile={canModerate}
+                  fill
                   localStream={p.id === me?.id && cameraOn ? localStream : null}
                   liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
@@ -2418,15 +2519,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 style={{
                   borderRadius: 12,
                   border: "1px dashed var(--border)",
-                  minHeight: 110,
+                  minHeight: 220,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: "var(--muted)",
-                  fontSize: 12,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
                 }}
               >
-                Open seat
+                <span style={{ textAlign: "center" }}>＋<br />Open seat</span>
               </div>
             ))}
           </div>
@@ -2536,45 +2639,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           )}
 
-          {!isSolo && room?.slide && (
-            <div
-              style={{
-                background: "var(--panel)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4 }}>
-                Slide {room.slide.index + 1}
-              </div>
-              <strong>{room.slide.title}</strong>
-              <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14, lineHeight: 1.5 }}>
-                {room.slide.narration || room.slide.body}
-              </p>
-            </div>
-          )}
         </section>
 
         {!isSolo && showChat && (
         <aside
+          aria-label="Group class chat and questions"
           style={{
             display: "flex",
             flexDirection: "column",
             gap: 10,
-            minHeight: 420,
+            minHeight: 0,
+            padding: 12,
+            background: "var(--panel)",
+            borderRadius: 12,
+            border: "1px solid var(--border)",
           }}
         >
+          <strong>💬 Class chat &amp; questions</strong>
           <div
             style={{
-              flex: 1,
-              background: "var(--panel)",
+              background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
               borderRadius: 12,
               border: "1px solid var(--border)",
               padding: 10,
               overflowY: "auto",
-              maxHeight: 320,
-              minHeight: 200,
+              maxHeight: 220,
+              minHeight: 120,
             }}
           >
             {(room?.chat ?? []).map((m) => (
@@ -3085,9 +3175,4 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       </div>
     </main>
   );
-}
-
-function largeHostColumn(cols: number): string {
-  if (cols <= 2) return "1.2fr 1fr";
-  return "1.3fr repeat(2, 1fr)";
 }

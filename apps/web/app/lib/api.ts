@@ -1310,6 +1310,11 @@ export type LiveParticipant = {
   language?: string;
   joined_at: string;
   is_admin?: boolean;
+  /** Moderator/admin-only learner profile fields. */
+  student_id?: string;
+  readiness_score?: number;
+  readiness_band?: string;
+  primary_style?: string;
 };
 
 export type LiveRoomChatMessage = {
@@ -1381,6 +1386,14 @@ export type LiveRoomState = {
   welcome_message?: string;
   welcome_started_at?: string;
   pre_class_welcome_seconds?: number;
+  audience_profile?: {
+    learner_count?: number;
+    mean_readiness?: number;
+    median_readiness?: number;
+    band_counts?: Record<string, number>;
+    dominant_styles?: string[];
+    adaptation_hints?: string[];
+  };
   group_game?: LiveGroupGame | null;
 };
 
@@ -1409,6 +1422,7 @@ export async function getLiveRoom(roomId: string, moderatorKey = ""): Promise<Li
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}${q}`, {
       cache: "no-store",
+      headers: authHeaders(),
     })
   );
 }
@@ -1724,12 +1738,20 @@ export async function deleteLiveRoom(roomId: string): Promise<{ deleted: boolean
 /** Heartbeat the room clock + presence (auto-start/advance/end, and prune
  * learners who closed the tab without leaving). Pass the caller's participantId
  * so their presence stays fresh; any client can call this on a timer. */
-export async function liveRoomTick(roomId: string, participantId = ""): Promise<LiveRoomState> {
-  const q = participantId ? `?pid=${encodeURIComponent(participantId)}` : "";
+export async function liveRoomTick(
+  roomId: string,
+  participantId = "",
+  moderatorKey = "",
+): Promise<LiveRoomState> {
+  const qs = new URLSearchParams();
+  if (participantId) qs.set("pid", participantId);
+  if (moderatorKey) qs.set("moderator_key", moderatorKey);
+  const query = qs.toString();
+  const q = query ? `?${query}` : "";
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/tick${q}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
     })
   );
   return r.room;

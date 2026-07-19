@@ -1497,7 +1497,11 @@ def _ensure_room_or_404(room_id: str):
 
 
 @app.get("/api/live-rooms/{room_id}")
-def get_live_room(room_id: str, moderator_key: str = "") -> dict:
+def get_live_room(
+    room_id: str,
+    moderator_key: str = "",
+    authorization: str = Header(default=""),
+) -> dict:
     room = _ensure_group_class_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="unknown live room")
@@ -1506,7 +1510,10 @@ def get_live_room(room_id: str, moderator_key: str = "") -> dict:
     # ticking, so a GET never reports an expired class as still "live".
     if store.should_expire(room_id):
         room = store.end_room(room_id, auto=True)
-    if moderator_key and moderator_key == room.moderator_key:
+    if (
+        moderator_key
+        and moderator_key == room.moderator_key
+    ) or _request_is_admin(authorization):
         return room.to_moderator_dict()
     return room.to_dict()
 
@@ -2259,7 +2266,13 @@ def live_room_start_presentation(
 
 
 @app.post("/api/live-rooms/{room_id}/tick")
-def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> dict:
+def live_room_tick(
+    room_id: str,
+    background: BackgroundTasks,
+    pid: str = "",
+    moderator_key: str = "",
+    authorization: str = Header(default=""),
+) -> dict:
     """Heartbeat the room clock AND presence. ``pid`` is the caller's participant
     id: it refreshes their presence heartbeat and prunes learners who went stale
     (closed the browser/app without leaving). Also auto-starts the class (full or
@@ -2299,11 +2312,21 @@ def live_room_tick(room_id: str, background: BackgroundTasks, pid: str = "") -> 
                 advanced = _advance_room_slide(room_id, background)
             except HTTPException:
                 advanced = None  # never let a transient advance failure break the tick
-    room_dict = store.require(room_id).to_dict()
+    room = store.require(room_id)
+    is_moderator = (
+        bool(moderator_key) and moderator_key == room.moderator_key
+    ) or _request_is_admin(authorization)
+    room_dict = room.to_moderator_dict() if is_moderator else room.to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
     if (started or ended or pruned) and not advanced and not addressed:
-        _schedule_live_broadcast(background, room_id, ws_room_snapshot(room_dict, room_id=room_id))
+        # Never broadcast moderator-only profile fields to ordinary learners.
+        public_room = room.to_dict()
+        _schedule_live_broadcast(
+            background,
+            room_id,
+            ws_room_snapshot(public_room, room_id=room_id),
+        )
     return {
         "room": room_dict,
         "auto_started": bool(started),

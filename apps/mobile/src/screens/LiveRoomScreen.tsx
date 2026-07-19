@@ -131,7 +131,8 @@ function initials(name: string): string {
 // webcam goes in the TOP window of the card (never a floating PiP over the
 // slide) — parity with the web participant grid.
 function SeatTile({
-  name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera, onPress,
+  name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
+  onPress, adminProfileLabel,
 }: {
   name?: string;
   host?: boolean;
@@ -145,6 +146,8 @@ function SeatTile({
   onToggleCamera?: () => void;
   /** Tap to expand this tile to full-screen. */
   onPress?: () => void;
+  /** Private readiness summary; supplied only to verified moderators/admins. */
+  adminProfileLabel?: string;
 }) {
   if (open) {
     return (
@@ -188,6 +191,15 @@ function SeatTile({
             {hand ? <Text style={styles.seatBadge}>✋</Text> : null}
             {muted ? <Text style={styles.seatBadge}>🔇</Text> : null}
           </View>
+          {adminProfileLabel ? (
+            <Text
+              style={styles.seatProfileBadge}
+              numberOfLines={1}
+              accessibilityLabel={`Private learner profile: ${adminProfileLabel}`}
+            >
+              📊 {adminProfileLabel}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.seatFooter}>
           <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
@@ -293,10 +305,31 @@ export default function LiveRoomScreen({
   // idle tick (a source of slow-timer jank).
   const lastRoomSigRef = useRef("");
   const applyRoom = useCallback((next: LiveRoomState) => {
-    const sig = JSON.stringify(next);
-    if (sig === lastRoomSigRef.current) return;
-    lastRoomSigRef.current = sig;
-    setRoom(next);
+    setRoom((previous) => {
+      // Socket/action snapshots are public by design. Preserve profile fields
+      // previously obtained through an authorized moderator GET/tick.
+      const previousById = new Map(
+        (previous?.participants ?? []).map((p) => [p.id, p]),
+      );
+      const merged: LiveRoomState = {
+        ...next,
+        participants: next.participants.map((participant) => {
+          const old = previousById.get(participant.id);
+          if (participant.readiness_score !== undefined || !old) return participant;
+          return {
+            ...participant,
+            student_id: old.student_id,
+            readiness_score: old.readiness_score,
+            readiness_band: old.readiness_band ?? participant.readiness_band,
+            primary_style: old.primary_style,
+          };
+        }),
+      };
+      const sig = JSON.stringify(merged);
+      if (sig === lastRoomSigRef.current) return previous;
+      lastRoomSigRef.current = sig;
+      return merged;
+    });
   }, []);
 
   const socket = useLiveRoomSocket(roomId, Boolean(participantId), applyRoom);
@@ -355,10 +388,12 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!participantId) return;
     const t = setInterval(() => {
-      void liveRoomTick(roomId, participantId).then((r) => applyRoom(r.room)).catch(() => undefined);
+      void liveRoomTick(roomId, participantId, modKey)
+        .then((r) => applyRoom(r.room))
+        .catch(() => undefined);
     }, 3000);  // 3s so slides auto-advance close to the 5s dwell (and presence stays fresh)
     return () => clearInterval(t);
-  }, [participantId, roomId, applyRoom]);
+  }, [participantId, roomId, modKey, applyRoom]);
 
   // Audio: the AI host (Theodore) has no camera, so its "voice" is TTS. Speak the
   // current slide (title + narration) whenever it changes, and speak Theodore's
@@ -374,17 +409,19 @@ export default function LiveRoomScreen({
 
   useEffect(() => {
     if (!room) return;
+    if (room.status === "ended") return;
     const welcome = room.welcome_message?.trim();
     if (!participantId || muted || room.presenting || !welcome) return;
     if (spokenWelcomeRef.current === room.room_id) return;
     spokenWelcomeRef.current = room.room_id;
     void buildNarrationSpeakOptions(locale).then((base) => {
+      if (roomRef.current?.status === "ended") return;
       speakNatural(welcome, base);
     });
   }, [participantId, muted, room, locale]);
 
   useEffect(() => {
-    if (!participantId || muted || !room?.presenting) return;
+    if (!participantId || muted || !room?.presenting || room.status === "ended") return;
     const s = room?.slide;
     if (!s || spokenSlideRef.current === s.index) return;
     spokenSlideRef.current = s.index;
@@ -394,6 +431,7 @@ export default function LiveRoomScreen({
     const spokenFor = s.index;
     if (text) {
       void buildNarrationSpeakOptions(locale).then((base) => {
+        if (roomRef.current?.status === "ended") return;
         speakNatural(text, {
           ...base,
           // Advance the moment the AI finishes this slide (moderator/admin drives
@@ -415,10 +453,11 @@ export default function LiveRoomScreen({
         });
       });
     }
-  }, [room?.slide?.index, participantId, muted, locale]);
+  }, [room?.slide?.index, room?.presenting, room?.status, participantId, muted, locale]);
 
   useEffect(() => {
     if (!participantId) return;
+    if (room?.status === "ended") return;
     const chat = room?.chat ?? [];
     // Newest message spoken BY Theodore that isn't the slide-narration echo
     // ("📖 …", already spoken via the slide effect) or a system "Room" note.
@@ -439,12 +478,20 @@ export default function LiveRoomScreen({
     const msg = latest;
     if (!muted) {
       void buildNarrationSpeakOptions(locale).then((base) => {
+        if (roomRef.current?.status === "ended") return;
         speakNatural(msg.text, base);
       });
     }
-  }, [room?.chat, participantId, muted, locale]);
+  }, [room?.chat, room?.status, participantId, muted, locale]);
 
   useEffect(() => () => stopSpeech(), []);  // stop narration when leaving the screen
+
+  // Close / time-up: silence Theodore immediately (don't wait for Leave now).
+  useEffect(() => {
+    if (!classEnded) return;
+    stopSpeech();
+    setMuted(true);
+  }, [classEnded]);
 
   const toggleMute = () => {
     setMuted((m) => {
@@ -843,21 +890,14 @@ export default function LiveRoomScreen({
       </Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {/* Seats: the AI host + everyone in the room + open slots, so you can see
-          who's here and where there's room to drop in (like the web grid). */}
+      {/* Learner/open seats. Theodore already owns the dominant presenter panel,
+          so do not repeat him as a tiny card that steals room from learners. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.seatsRow}
         contentContainerStyle={styles.seatsContent}
       >
-        {room?.host ? (
-          <SeatTile
-            name={room.host.name}
-            host
-            onPress={() => setFocusedTile({ kind: "host", name: room.host!.name })}
-          />
-        ) : null}
         {(room?.participants ?? [])
           .filter((p) => p.role !== "host")
           .map((p) => {
@@ -873,6 +913,11 @@ export default function LiveRoomScreen({
                 track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
                 cameraOn={mine ? cameraOn : undefined}
                 onToggleCamera={mine ? () => void toggleCamera() : undefined}
+                adminProfileLabel={canModerate
+                  ? (p.student_id
+                    ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
+                    : "not completed")
+                  : undefined}
                 onPress={() => setFocusedTile({
                   kind: "participant",
                   id: p.id,
@@ -985,6 +1030,7 @@ export default function LiveRoomScreen({
                     onPress: () => {
                       void (async () => {
                         try {
+                          stopSpeech();
                           setRoom(await liveRoomEnd(roomId, modKey));
                         } catch (e) {
                           setError((e as Error).message);
@@ -1299,15 +1345,42 @@ export default function LiveRoomScreen({
             </View>
           ) : null}
 
+          {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
+            <View style={styles.adminProfilePanel}>
+              <Text style={styles.cardTitle}>🧠 Theodore adaptation monitor</Text>
+              <Text style={styles.adminProfileText}>
+                Class mean {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
+                {" · "}
+                {(room?.audience_profile?.dominant_styles ?? []).join(", ") || "mixed"}
+              </Text>
+              {(room?.audience_profile?.adaptation_hints ?? []).map((hint) => (
+                <Text key={hint} style={styles.adminProfileHint}>• {hint}</Text>
+              ))}
+              <Text style={styles.adminProfileNote}>
+                Theodore uses anonymous aggregates for explanations and Q&amp;A;
+                authored slide text remains unchanged.
+              </Text>
+            </View>
+          ) : null}
+
           <View style={styles.sheetSection}>
             <Text style={styles.cardTitle}>In the room ({(room?.participants ?? []).length})</Text>
             {(room?.participants ?? []).map((p) => (
               <View key={p.id} style={styles.personRow}>
-                <Text style={styles.personName} numberOfLines={1}>
-                  {p.id === room?.floor_participant_id ? "🎤 " : p.role === "host" ? "🎓 " : "👤 "}
-                  {p.name}{p.id === participantId ? " (you)" : ""}
-                  {p.hand_raised && p.id !== room?.floor_participant_id ? " ✋" : ""}
-                </Text>
+                <View style={styles.personDetails}>
+                  <Text style={styles.personName} numberOfLines={1}>
+                    {p.id === room?.floor_participant_id ? "🎤 " : p.role === "host" ? "🎓 " : "👤 "}
+                    {p.name}{p.id === participantId ? " (you)" : ""}
+                    {p.hand_raised && p.id !== room?.floor_participant_id ? " ✋" : ""}
+                  </Text>
+                  {canModerate && p.role !== "host" ? (
+                    <Text style={styles.personProfile} numberOfLines={1}>
+                      {p.student_id
+                        ? `Readiness ${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.readiness_band || "unrated"} · ${p.primary_style || "mixed"}`
+                        : "Profile score not completed"}
+                    </Text>
+                  ) : null}
+                </View>
                 {p.role !== "host" && p.id !== participantId ? (
                   <View style={styles.personActions}>
                     {modKey ? (
@@ -1360,7 +1433,11 @@ export default function LiveRoomScreen({
                   label="⛔ Close session"
                   variant="ghost"
                   onPress={async () => {
-                    try { setRoom(await liveRoomEnd(roomId, modKey)); setSheet(null); }
+                    try {
+                      stopSpeech();
+                      setRoom(await liveRoomEnd(roomId, modKey));
+                      setSheet(null);
+                    }
                     catch (e) { setError((e as Error).message); }
                   }}
                 />
@@ -1520,12 +1597,12 @@ const styles = StyleSheet.create({
 
   // Presenter hero — takes all the vertical space between the meta row and the
   // action bar so the teacher/slide is the clear focus on a phone.
-  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 4, maxHeight: 118 },
+  seatsRow: { flexGrow: 0, marginTop: 8, marginBottom: 6, maxHeight: 150 },
   seatsContent: { gap: 8, paddingVertical: 2, paddingRight: 8, alignItems: "flex-start" },
   // Profile card: webcam fills the TOP window; name strip sits below — never a
   // floating PiP over the training slide.
   seat: {
-    width: 88, height: 110, borderRadius: 12, overflow: "hidden",
+    width: 120, height: 142, borderRadius: 14, overflow: "hidden",
     position: "relative",
     backgroundColor: "rgba(30,27,75,0.9)",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
@@ -1556,10 +1633,24 @@ const styles = StyleSheet.create({
   },
   seatOpenText: { color: theme.colors.muted, fontSize: 11, textAlign: "center", fontWeight: "600" },
   seatAvatar: { color: theme.colors.text, fontSize: 26, fontWeight: "800" },
-  seatName: { color: theme.colors.text, fontSize: 11, fontWeight: "700", maxWidth: 80, textAlign: "center" },
+  seatName: { color: theme.colors.text, fontSize: 12, fontWeight: "700", maxWidth: 112, textAlign: "center" },
   seatNameMuted: { color: theme.colors.muted, fontSize: 11, fontWeight: "600" },
   seatBadges: { flexDirection: "row", gap: 2, position: "absolute", top: 2, left: 4 },
   seatBadge: { fontSize: 11 },
+  seatProfileBadge: {
+    position: "absolute", left: 3, right: 3, bottom: 3,
+    color: "#f3e8ff", backgroundColor: "rgba(76,29,149,0.88)",
+    borderRadius: 5, overflow: "hidden", paddingHorizontal: 3, paddingVertical: 1,
+    fontSize: 8, fontWeight: "800", textAlign: "center",
+  },
+  adminProfilePanel: {
+    gap: 4, padding: 10, borderRadius: 10,
+    backgroundColor: "rgba(88,28,135,0.24)",
+    borderWidth: 1, borderColor: "rgba(192,132,252,0.65)",
+  },
+  adminProfileText: { color: "#e9d5ff", fontSize: 12, fontWeight: "700" },
+  adminProfileHint: { color: "#ddd6fe", fontSize: 11 },
+  adminProfileNote: { color: theme.colors.muted, fontSize: 10, fontStyle: "italic" },
   seatCamBtn: {
     position: "absolute",
     top: 2,
@@ -1696,7 +1787,9 @@ const styles = StyleSheet.create({
   controls: { flexDirection: "row", gap: 8, alignItems: "center" },
 
   personRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingVertical: 6 },
-  personName: { color: theme.colors.text, fontSize: 14, flex: 1 },
+  personDetails: { flex: 1, minWidth: 0, gap: 2 },
+  personName: { color: theme.colors.text, fontSize: 14 },
+  personProfile: { color: "#d8b4fe", fontSize: 10, fontWeight: "600" },
   personActions: { flexDirection: "row", gap: 14, alignItems: "center" },
   linkDanger: { color: "#f87171", fontSize: 13, fontWeight: "700" },
   linkMuted: { color: theme.colors.muted, fontSize: 13, fontWeight: "600" },
