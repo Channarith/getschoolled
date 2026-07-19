@@ -150,6 +150,40 @@ export default function ArcadePage() {
                 ⚗️ Potion Lab · 2D (chemistry)
               </Link>
             )}
+            <Link href={`/arcade/geo-blocks?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#db2777", color: "#fff", fontWeight: 600 }}>
+              📐 Geo Blocks · Tetris + geometry
+            </Link>
+            <Link href={`/arcade/stocks?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#16a34a", color: "#fff", fontWeight: 600 }}>
+              📈 Market Mogul · stocks
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Challenge the AI: head-to-head games against a computer opponent. */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(124,58,237,0.14))" }}>
+          <h3 style={{ marginTop: 0 }}>🤖 Challenge the AI</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Go head-to-head with a computer opponent — can you beat it?</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/challenge-ai`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#f59e0b", color: "#111", fontWeight: 700 }}>
+              🕹️ Enter the AI arena
+            </Link>
+            <Link href={`/arcade/challenge-ai/tic-tac-toe`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
+              ❌⭕ Tic-Tac-Toe
+            </Link>
+            <Link href={`/arcade/challenge-ai/connect-four`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
+              🔴🟡 Connect Four
+            </Link>
+            <Link href={`/arcade/challenge-ai/number-duel`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#db2777", color: "#fff", fontWeight: 600 }}>
+              ⚡➗ Number Duel
+            </Link>
           </div>
         </div>
       )}
