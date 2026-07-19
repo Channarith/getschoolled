@@ -28,7 +28,29 @@ def test_policy_places_formative_checks_and_summative_at_end():
     assert [row["checkpoint_id"] for row in body["checkpoints"]] == [
         "progress-25", "progress-50", "progress-75", "course-final",
     ]
+    assert body["checkpoints"][0]["kind"] == "pop_quiz"
+    assert body["checkpoints"][-1]["kind"] == "final_exam"
     assert body["retention_intervals_days"] == [0, 7, 30, 90]
+
+
+def test_corporate_policy_uses_mid_pop_quiz_and_final_exam():
+    """Professional/corporate courses: one mid-course pop quiz + end exam."""
+    # Use a real corporate lesson — do not mutate shared curriculum state
+    # (TeachingSessions is process-wide; mutating audience leaks into other tests).
+    response = client.post("/api/sessions", json={
+        "lesson_id": "ai-fluency-essentials",
+        "class_type": "solo",
+        "student_id": "corp-assessment-student",
+    })
+    assert response.status_code == 200, response.text
+    started = response.json()
+    session_id = started["session"]["session_id"]
+    policy = client.get(f"/assessment/policy/{session_id}").json()
+    assert policy["professional"] is True
+    ids = [row["checkpoint_id"] for row in policy["checkpoints"]]
+    assert ids == ["progress-mid", "course-final"]
+    assert policy["checkpoints"][0]["title"] == "Mid-course pop quiz"
+    assert policy["checkpoints"][1]["kind"] == "final_exam"
 
 
 def test_profile_selects_game_but_answer_key_stays_server_side():

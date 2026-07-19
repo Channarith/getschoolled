@@ -27,6 +27,7 @@ function CorporateLearnInner() {
     <ClassRoom
       title="Corporate training"
       lockedLessonId={lessonId}
+      requireVerifiedPass
       backHref="/corporate"
       backLabel="← Back to Corporate training"
       startLabel="Start course"

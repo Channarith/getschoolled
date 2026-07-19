@@ -18,6 +18,7 @@ type Props = {
   onSubmitted: (result: AssessmentSubmitResult) => void;
   onDismiss?: () => void;
   dismissLabel?: string;
+  headingOverride?: string;
 };
 
 export default function AssessmentCheckpointPanel({
@@ -28,14 +29,14 @@ export default function AssessmentCheckpointPanel({
   onSubmitted,
   onDismiss,
   dismissLabel = "Continue without submitting",
+  headingOverride,
 }: Props) {
   const { locale } = useT();
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const format = run.presentation_format;
-  const stageLabel = run.checkpoint.stage === "summative"
-    ? "Course assessment"
-    : "Checkpoint";
+  const stageLabel = headingOverride
+    || (run.checkpoint.stage === "summative" ? "End-of-course assessment" : "Pop quiz");
 
   useEffect(() => {
     setAnswers({});
@@ -91,8 +92,8 @@ export default function AssessmentCheckpointPanel({
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         {run.checkpoint.stage === "summative"
-          ? "Pass this assessment to verify course completion. Answer keys stay on the server."
-          : "Quick check on what you just learned. Same questions for every format."}
+          ? "End-of-course test: pass to verify completion. Answer keys stay on the server."
+          : "Pop quiz on what you just learned. Same questions for every presentation format."}
       </p>
 
       {run.items.map((item, index) => (

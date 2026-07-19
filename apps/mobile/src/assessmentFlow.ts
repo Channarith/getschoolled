@@ -4,6 +4,8 @@ export type AssessmentCheckpointSpec = {
   checkpoint_id: string;
   stage: "formative" | "summative" | "retention";
   after_slide_index: number;
+  kind?: string;
+  title?: string;
 };
 
 export function findDueFormativeCheckpoint(
@@ -28,4 +30,27 @@ export function findDueSummativeCheckpoint(
   if (!final || completedIds.has(final.checkpoint_id)) return null;
   if (slideIndex < final.after_slide_index) return null;
   return final;
+}
+
+export function shouldOpenSummativeOnAdvance(
+  slideIndex: number,
+  totalSlides: number,
+): boolean {
+  if (totalSlides <= 0) return false;
+  return slideIndex >= totalSlides - 1;
+}
+
+export function canAwardCourseCompletion(opts: {
+  requireVerifiedPass: boolean;
+  passDecisionToken: string | null | undefined;
+}): boolean {
+  if (!opts.requireVerifiedPass) return true;
+  return Boolean(opts.passDecisionToken);
+}
+
+export function checkpointTitle(cp: AssessmentCheckpointSpec): string {
+  if (cp.title?.trim()) return cp.title.trim();
+  if (cp.kind === "final_exam" || cp.stage === "summative") return "End-of-course assessment";
+  if (cp.kind === "pop_quiz" || cp.stage === "formative") return "Pop quiz";
+  return cp.checkpoint_id;
 }
