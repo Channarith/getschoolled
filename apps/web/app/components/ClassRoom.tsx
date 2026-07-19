@@ -62,7 +62,7 @@ import { cancelSpeech, speakNaturally } from "../lib/tts";
 type SpeechRec = {
   lang: string; interimResults: boolean; maxAlternatives: number;
   onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
-  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+  onerror: ((e?: { error?: string }) => void) | (() => void); onend: () => void; start: () => void; stop: () => void;
 };
 
 const RECOG_LANG: Record<string, string> = {
@@ -472,12 +472,31 @@ export default function ClassRoom({
   useEffect(() => () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); }, []);
 
   // Listen to the learner and score how closely they said the target phrase.
-  function startRepeatAfterMe() {
+  async function startRepeatAfterMe() {
     const target = slide?.say_aloud;
     if (!target) return;
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(
+        "Your mic needs a secure connection. Open Salareen over https:// — " +
+        "the browser blocks the microphone on an insecure page."
+      );
+      return;
+    }
     const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch {
+      setError(
+        "Microphone access is blocked. Click the site-settings icon in the address " +
+        "bar, allow the microphone, then tap 🎤 Speak now again."
+      );
+      return;
+    }
     stopSpeaking();   // don't record our own narration
     const rec = new Ctor();
     rec.lang = RECOG_LANG[locale] ?? "en-US";
@@ -501,9 +520,20 @@ export default function ClassRoom({
         })
         .catch((err) => setError(String(err)));
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = (e) => {
+      setListening(false);
+      const code = (e as { error?: string })?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setError("Microphone access is blocked — allow the mic for this site (address-bar icon).");
+      }
+    };
     rec.onend = () => setListening(false);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setError("Couldn't start the microphone. Try Chrome over https://.");
+    }
   }
 
   async function refreshLxTick(slideIndex: number, slidesTotal: number) {
@@ -1163,7 +1193,7 @@ export default function ClassRoom({
                 <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <button
                     type="button"
-                    onClick={startRepeatAfterMe}
+                    onClick={() => void startRepeatAfterMe()}
                     disabled={listening}
                     style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}
                   >
