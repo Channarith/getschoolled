@@ -150,6 +150,10 @@ export default function ArcadePage() {
                 ⚗️ Potion Lab · 2D (chemistry)
               </Link>
             )}
+            <Link href={`/arcade/challenge-ai`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 700 }}>
+              🤖 Challenge the AI · geometry + stocks
+            </Link>
           </div>
         </div>
       )}
