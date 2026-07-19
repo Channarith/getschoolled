@@ -489,6 +489,7 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
         seen = {q.get("content_id") for q in bank}
         bank = bank + [q for q in extended_bank_for_subject(subject, age_group)
                        if q.get("content_id") not in seen]
+        seen = {q.get("content_id") for q in bank}   # refresh before third source
         # Prefer stocks/shape_drop banks when those subjects are chosen.
         if subject in ("finance", "geometry"):
             extra = _extended_mcq_bank(subject, (

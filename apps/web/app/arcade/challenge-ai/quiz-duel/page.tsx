@@ -67,6 +67,7 @@ export default function QuizDuel() {
   const [winner, setWinner] = useState<"player" | "ai" | "tie" | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answered = useRef(false);
+  const aiScoreRef = useRef(0);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
@@ -94,11 +95,10 @@ export default function QuizDuel() {
       const correct = Math.random() < aiAccuracy(age);
       const pick = correct ? q.answer : [0, 1, 2, 3].filter((i) => i !== q.answer)[Math.floor(Math.random() * 3)];
       if (correct) {
-        setAiScore((s) => {
-          const ns = s + 1;
-          checkWin(p, ns);
-          return ns;
-        });
+        const ns = aiScoreRef.current + 1;
+        aiScoreRef.current = ns;
+        setAiScore(ns);
+        checkWin(p, ns);
         setFeedback((f) => f + " · AI got it right 🤖");
       } else {
         setFeedback((f) => f + " · AI missed!");
@@ -110,7 +110,7 @@ export default function QuizDuel() {
     if (aiTimer.current) clearTimeout(aiTimer.current);
     const qs = [...BANK[age]].sort(() => Math.random() - 0.5);
     setQuestions(qs);
-    setQIdx(0); setPlayerScore(0); setAiScore(0);
+    setQIdx(0); setPlayerScore(0); setAiScore(0); aiScoreRef.current = 0;
     setWinner(null); setFeedback(""); answered.current = false;
     setPhase("playing"); setAiThinking(true);
     aiTimer.current = setTimeout(() => {
@@ -136,9 +136,9 @@ export default function QuizDuel() {
     } else {
       setFeedback(`Wrong — answer was "${q.options[q.answer]}"`);
     }
-    // Always advance — never softlock if AI also missed or timers race.
+    // Always advance — use ref for AI score so we never read a stale closure value.
     if (aiTimer.current) clearTimeout(aiTimer.current);
-    setTimeout(() => nextQuestion(p, aiScore), 800);
+    setTimeout(() => nextQuestion(p, aiScoreRef.current), 800);
   };
 
   useEffect(() => () => { if (aiTimer.current) clearTimeout(aiTimer.current); }, []);

@@ -114,7 +114,7 @@ export default function NumberDuel() {
   }, [beginRound]);
 
   const answer = (v: number) => {
-    if (phase !== "live" || !round) return;
+    if (phaseRef.current !== "live" || !round) return;
     clearTimers();
     if (v === round.answer) {
       setPhase("youWin"); setMsg("⚡ You buzzed in correctly!");
