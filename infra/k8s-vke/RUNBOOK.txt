@@ -401,6 +401,16 @@ Apply ingress (www/salareen.com /identity routing):
 After deploy, survey saves onboarding_completed_at to identity (one-time; won't
 re-prompt). Web hides the auto-prompt if API is missing (no infinite loop).
 
+Bare LoadBalancer IP (www blocked / new-domain filters)
+------------------------------------------------------
+Use http://45.63.91.80 (HTTP, not HTTPS) when www.salareen.com is unreachable.
+`aoep-ip` serves the site in place with ssl-redirect: false — it must NOT 301 to
+www. https://45.63.91.80 will warn about TLS (certs cannot cover bare IPs); prefer
+plain HTTP on the IP. After changing ingress-vke.yaml:
+  kubectl -n aoep delete ingress aoep-ip-redirect --ignore-not-found
+  kubectl -n aoep apply -k infra/k8s-vke
+  curl -sI http://45.63.91.80/ | head -5   # expect 200, Location must NOT be www
+
 Ingress apply errors (duplicate host "_")
 -----------------------------------------
 If `kubectl apply -k infra/k8s-vke` fails with nginx admission webhook errors
@@ -408,7 +418,7 @@ like "host _ and path /orchestrator is already defined", the VKE overlay was
 defining the same bare-IP routes twice (aoep + aoep-apis AND aoep-origin-*).
 Pull the latest main: ingress-vke.yaml deletes aoep-origin-web / aoep-origin-apis
 for VKE. If stale origin Ingresses already exist in the cluster, remove them:
-  kubectl -n aoep delete ingress aoep-origin-web aoep-origin-apis --ignore-not-found
+  kubectl -n aoep delete ingress aoep-origin-web aoep-origin-apis aoep-ip-redirect --ignore-not-found
 Then re-apply:
   kubectl -n aoep apply -k infra/k8s-vke
 

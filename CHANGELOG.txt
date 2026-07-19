@@ -2,6 +2,7 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-19 - v0.21.9 - Keep the Vultr bare IP on-cluster: replace aoep-ip-redirect (301 to www.salareen.com) with aoep-ip that serves the site in place over HTTP (ssl-redirect false). Use http://45.63.91.80 when www is blocked by new-domain filters; delete the old redirect Ingress on apply.
 - 2026-07-18 - v0.21.8 - Fix Android crash: add LiveKitReactNative.setup(this)
   to MainApplication.kt onCreate() (was missing — LiveKit threw
   "Audio device module is not initialized!" on every launch when joining a live

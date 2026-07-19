@@ -1,0 +1,55 @@
+# Bare LoadBalancer IP (http://45.63.91.80) — serve the site IN PLACE.
+# Prefer HTTP on the IP: ssl-redirect is false so we never bounce to
+# https://45.63.91.80 (no Let's Encrypt cert can cover a bare IP). This is the
+# intentional bypass when www.salareen.com is blocked (new-domain filters).
+# API same-origin prefixes (/identity, /orchestrator, …) stay on aoep-apis'
+# hostless catch-all. https://45.63.91.80 may still warn in the browser
+# (self-signed / wrong cert); use http://45.63.91.80 for direct Vultr access.
+#
+# If the cluster still has the old aoep-ip-redirect Ingress (301 → www), delete it:
+#   kubectl -n aoep delete ingress aoep-ip-redirect --ignore-not-found
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep-ip
+  namespace: aoep
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "salareen_aff"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /health
+            pathType: Prefix
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }
+          - path: /home
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /audio
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /courses
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /jobs
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /notifications
+            pathType: Prefix
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
