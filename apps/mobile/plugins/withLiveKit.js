@@ -9,8 +9,9 @@
 let AndroidConfig;
 let withAppBuildGradle;
 let withInfoPlist;
+let withMainApplication;
 try {
-  ({ AndroidConfig, withAppBuildGradle, withInfoPlist } = require("@expo/config-plugins"));
+  ({ AndroidConfig, withAppBuildGradle, withInfoPlist, withMainApplication } = require("@expo/config-plugins"));
 } catch (err) {
   console.warn(
     "[withLiveKit] @expo/config-plugins unavailable; skipping plugin:",
@@ -52,6 +53,34 @@ function withLiveKit(config) {
     }
     return cfg;
   });
+
+  // Android: patch MainApplication.kt to call LiveKitReactNative.setup(this)
+  // in onCreate(). LiveKit throws "Audio device module is not initialized!"
+  // at runtime if this call is missing — the audio session cannot be configured
+  // and the app crashes when joining any live room.
+  if (withMainApplication) {
+    const LK_IMPORT = "import com.livekit.reactnative.LiveKitReactNative";
+    const LK_SETUP  = "    LiveKitReactNative.setup(this)";
+    config = withMainApplication(config, (cfg) => {
+      let src = cfg.modResults.contents;
+      // Add import below the last expo import (idempotent).
+      if (!src.includes(LK_IMPORT)) {
+        src = src.replace(
+          /(import expo\.modules\.ReactNativeHostWrapper)/,
+          `$1\n\n${LK_IMPORT}`,
+        );
+      }
+      // Add setup call immediately after super.onCreate() (idempotent).
+      if (!src.includes("LiveKitReactNative.setup")) {
+        src = src.replace(
+          /super\.onCreate\(\)/,
+          `super.onCreate()\n${LK_SETUP}`,
+        );
+      }
+      cfg.modResults.contents = src;
+      return cfg;
+    });
+  }
 
   // iOS: camera/mic usage strings + background audio for live rooms.
   return withInfoPlist(config, (cfg) => {
