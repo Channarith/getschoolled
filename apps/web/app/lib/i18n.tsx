@@ -27,6 +27,7 @@ import {
   type Locale,
 } from "./i18n-strings";
 import { getMe, getToken, setAccountLanguage } from "./api";
+import { setTrainingLocale, trainingLocaleFromUi } from "./trainingLocale";
 
 const DEFAULT_LOCALE: Locale = "en";
 const STORAGE_KEY = "aiclassroom.locale.v1";
@@ -133,6 +134,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     if (!isSupported(next)) return;
     setLocaleState(next);
     try { window.localStorage.setItem(STORAGE_KEY, next); } catch { /* ignore */ }
+    // Drive Mode / audio lessons follow the same profile language — one picker.
+    setTrainingLocale(trainingLocaleFromUi(next));
     // Persist to the profile (best-effort) so the choice follows the learner to
     // their other devices and the AI teacher answers in this language.
     if (typeof window !== "undefined" && getToken()) {

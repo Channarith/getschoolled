@@ -9,6 +9,7 @@ const PROFILE: Partial<Record<Locale, Record<string, string>>> = {
     "profile.themes": "Themes",
     "profile.getApp": "Get the app",
     "profile.language": "Language",
+    "profile.voice": "Voice",
     "profile.signIn": "Sign in",
     "profile.createAccount": "Create account",
     "profile.signOut": "Sign out",

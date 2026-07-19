@@ -5,7 +5,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getAudioCourse, getTtsVoices, getTtsInstructors, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup, type Instructor } from "../api";
+import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, type AudioCourse, type VoiceGroup } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -18,8 +18,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
 import {
-  normalizeTrainingLocale, TRAINING_LOCALES, TRAINING_LOCALE_LABELS,
-  type TrainingLocale,
+  normalizeTrainingLocale, type TrainingLocale,
 } from "../trainingLocale";
 import {
   getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
@@ -50,8 +49,6 @@ export default function DriveModeScreen({
   const [autoListen, setAutoListen] = useState(true);   // hands-free: mic always on
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [instructorId, setInstructorId] = useState("");
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
@@ -83,7 +80,6 @@ export default function DriveModeScreen({
   useEffect(() => {
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
-    void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
     void getVoiceEngineDetails()
       .then((d) => setVoiceEngine(d.label))
       .catch(() => setVoiceEngine("System"));
@@ -93,24 +89,6 @@ export default function DriveModeScreen({
     if (!voiceId || !voiceGroups.length) return;
     syncVoiceRefsFromCatalog(voiceId);
   }, [voiceId, voiceGroups]);
-
-  function chooseVoice(id: string) {
-    setVoiceId(id);
-    setServerVoice(id);
-    syncVoiceRefsFromCatalog(id);
-    void setSettings({ voiceId: id });
-    if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
-  }
-
-  function chooseInstructor(id: string) {
-    setInstructorId(id);
-    setServerInstructor(id);
-    instructorRef.current = id;
-    void setSettings({ instructorId: id });
-    void refreshVoiceStyle().then(() => {
-      if (playing && course) playFrom(course, segRef.current >= 0 ? segRef.current : seg);
-    });
-  }
 
   async function refreshVoiceStyle() {
     const settings = await getSettings();
@@ -133,7 +111,6 @@ export default function DriveModeScreen({
     void getSettings().then((s) => {
       setVoiceId(s.voiceId || "");
       setServerVoice(s.voiceId || "");
-      setInstructorId(s.instructorId || "");
       setServerInstructor(s.instructorId || "");
       instructorRef.current = s.instructorId || "";
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
@@ -144,6 +121,7 @@ export default function DriveModeScreen({
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
     return () => {
+      playGenRef.current++;
       stopSpeech();
       stopVoiceRecognition();
       stopAmbient();
@@ -182,29 +160,6 @@ export default function DriveModeScreen({
         if (playGenRef.current === gen && segRef.current === i) playFrom(c, i + 1, tloc);
       },
     });
-  }
-
-  // Pause -> switch spoken language -> resume at the same point in the new
-  // language. Refetches the course so segment bodies come back localized.
-  function switchLanguage(loc: TrainingLocale) {
-    if (loc === trainingLang) return;
-    const wasPlaying = playing;
-    const atSeg = segRef.current >= 0 ? segRef.current : seg;
-    setTrainingLang(loc);
-    void setSettings({ trainingLocale: loc });
-    stopSpeech();
-    setPlaying(false);
-    getAudioCourse(courseId, locale, loc)
-      .then((c) => {
-        setCourse(c);
-        if (wasPlaying) {
-          playFrom(c, atSeg, loc);
-        } else {
-          segRef.current = atSeg;
-          setSeg(atSeg);
-        }
-      })
-      .catch(() => {});
   }
 
   function clearResumeTimer() {
@@ -487,77 +442,6 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           ))}
         </View>
-
-        <Text style={styles.langLabel}>{t("drive.trainingLang")}</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.langRow}
-        >
-          {TRAINING_LOCALES.map((loc) => (
-            <AnimatedPressable
-              key={loc}
-              onPress={() => switchLanguage(loc)}
-              style={[styles.langChip, trainingLang === loc && styles.langChipOn]}
-            >
-              <Text style={[styles.langChipText, trainingLang === loc && styles.langChipTextOn]}>
-                {TRAINING_LOCALE_LABELS[loc]}
-              </Text>
-            </AnimatedPressable>
-          ))}
-        </ScrollView>
-
-        {instructors.length > 0 && (
-          <>
-            <Text style={styles.langLabel}>Instructor personality</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
-              <AnimatedPressable
-                onPress={() => chooseInstructor("")}
-                style={[styles.langChip, instructorId === "" && styles.langChipOn]}
-              >
-                <Text style={[styles.langChipText, instructorId === "" && styles.langChipTextOn]}>Default</Text>
-              </AnimatedPressable>
-              {instructors.map((p) => (
-                <AnimatedPressable
-                  key={p.id}
-                  onPress={() => chooseInstructor(p.id)}
-                  style={[styles.langChip, instructorId === p.id && styles.langChipOn]}
-                >
-                  <Text style={[styles.langChipText, instructorId === p.id && styles.langChipTextOn]}>
-                    {p.emoji} {p.label}
-                  </Text>
-                </AnimatedPressable>
-              ))}
-            </ScrollView>
-          </>
-        )}
-
-        {voiceGroups.length > 0 && (
-          <>
-            <Text style={styles.langLabel}>Voice &amp; accent</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
-              <AnimatedPressable
-                onPress={() => chooseVoice("")}
-                style={[styles.langChip, voiceId === "" && styles.langChipOn]}
-              >
-                <Text style={[styles.langChipText, voiceId === "" && styles.langChipTextOn]}>Auto</Text>
-              </AnimatedPressable>
-              {voiceGroups.flatMap((g) => g.voices).map((v) => (
-                <AnimatedPressable
-                  key={v.id}
-                  onPress={() => chooseVoice(v.id)}
-                  style={[styles.langChip, voiceId === v.id && styles.langChipOn]}
-                >
-                  <Text style={[styles.langChipText, voiceId === v.id && styles.langChipTextOn]}>
-                    {/* Disambiguate voices that share an accent (e.g. a male and
-                        female British voice) so they don't look like duplicates. */}
-                    {v.accent}{v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}
-                  </Text>
-                </AnimatedPressable>
-              ))}
-            </ScrollView>
-          </>
-        )}
 
         <View style={styles.row}>
           <AnimatedPressable testID="drive-prev" style={styles.btn} onPress={() => playFrom(course, Math.max(0, seg - 1))}>
