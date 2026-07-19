@@ -19,8 +19,34 @@ def test_catalog_lists_subjects_and_types():
     cat = client.get("/games").json()
     assert "biology" in cat["subjects"] and "programming" in cat["subjects"]
     assert "wordplay" in cat["subjects"]
+    assert "finance" in cat["subjects"]
     ids = {g["id"] for g in cat["game_types"]}
     assert "quiz" in ids and "tiles" in ids and "farm" in ids
+    assert "shape_drop" in ids and "stocks" in ids and "challenge" in ids
+
+
+def test_challenge_ai_round_and_submit():
+    h = _auth(_user("duelist@example.com", "Casey"))
+    rnd = client.post("/games/new", json={
+        "subject": "math", "game_type": "challenge", "age_group": "teen", "n": 5,
+    }).json()
+    assert rnd["game_type"] == "challenge"
+    assert rnd["versus"] == "ai"
+    assert "ai_skill" in rnd
+    answers = {it["id"]: 0 for it in rnd["items"]}
+    out = client.post("/games/submit", headers=h,
+                      json={"game_id": rnd["game_id"], "answers": answers}).json()
+    assert out["result"]["versus_outcome"] in ("win", "tie", "lose")
+    assert "ai_correct" in out["result"]
+
+
+def test_stocks_round_api():
+    rnd = client.post("/games/new", json={
+        "subject": "finance", "game_type": "stocks", "n": 4,
+    }).json()
+    assert rnd["game_type"] == "stocks"
+    assert len(rnd["items"]) >= 2
+    assert all(it.get("kind") == "stocks" for it in rnd["items"])
 
 
 def test_new_round_hides_answers():
@@ -81,7 +107,7 @@ def test_marathon_round_via_api():
         "subject": "math", "game_type": "marathon", "n": 20,
     }).json()
     assert rnd["game_type"] == "marathon"
-    assert len(rnd["items"]) == 15
+    assert len(rnd["items"]) == 20
     assert rnd["time_limit_s"] == 180
 
 

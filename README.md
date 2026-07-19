@@ -42,7 +42,7 @@ One AI learning platform, many ways to learn:
 | Mobile apps | Android & iOS (Expo) |
 | AI adaptive learning + profiles | Per-learner mastery tracking and sequencing |
 | Machine vision (camera & voice) | Opt-in recognition that can run on-device |
-| Mini-games arcade | Subject mini-games and leaderboards |
+| Mini-games arcade | Subject mini-games, Shape Drop, Stock Market Lab, Challenge the AI, and leaderboards |
 | Rewards & points | Points, prizes, and redemptions |
 | Course scraper / harvester | Builds fresh courses from the open web |
 | Knowledge base (RAG) | Keeps answers grounded and citable |

@@ -26,7 +26,7 @@ const SUBJECT_EMOJI: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
   history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
   life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
-  creation: "🛠️", farming: "🌾",
+  creation: "🛠️", farming: "🌾", finance: "📈",
 };
 
 function subjectLabel(subject: string): string {
@@ -131,7 +131,10 @@ export default function GameScreen({ subject, onBack }: Props) {
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     setLoading(true);
     try {
-      const n = gameType === "marathon" ? 20 : gameType === "match" ? 8 : 12;
+      const n = gameType === "marathon" ? 20
+        : gameType === "match" ? 8
+        : gameType === "challenge" ? 8
+        : 12;
       const r = await newGame(subject, gameType, ageGroup, n);
       startedAt.current = Date.now();
       setTimeLeft(r.time_limit_s || 0);
@@ -153,7 +156,7 @@ export default function GameScreen({ subject, onBack }: Props) {
   }
 
   const emoji = SUBJECT_EMOJI[subject] ?? "📘";
-  const timed = round && (round.game_type === "speed" || round.game_type === "marathon");
+  const timed = round && (round.game_type === "speed" || round.game_type === "marathon" || round.game_type === "challenge");
 
   if (potionActive) {
     return <PotionLab age={ageGroup as PotionAgeKey} onBack={() => setPotionActive(false)} />;
@@ -335,6 +338,17 @@ export default function GameScreen({ subject, onBack }: Props) {
             <Text style={styles.scoreTitle}>
               {result.result.correct}/{result.result.total} · +{result.points_earned} pts 🎉
             </Text>
+            {result.result.versus_outcome ? (
+              <Text style={styles.meta}>
+                {result.result.versus_outcome === "win"
+                  ? "You beat the AI!"
+                  : result.result.versus_outcome === "tie"
+                    ? "Tied with the AI"
+                    : "AI wins — rematch?"}
+                {" · "}AI {result.result.ai_correct ?? 0}/{result.result.ai_total ?? 0}
+                {result.result.versus_bonus ? ` · +${result.result.versus_bonus} versus` : ""}
+              </Text>
+            ) : null}
             <Text style={styles.meta}>
               {t("game.accuracy")} {Math.round(result.result.accuracy * 100)}%
               {result.result.speed_bonus > 0 ? ` · +${result.result.speed_bonus} speed` : ""}

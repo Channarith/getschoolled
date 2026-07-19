@@ -39,17 +39,30 @@ class GameType(str, enum.Enum):
     FARM = "farm"
     SPELLING = "spelling"
     GEOMETRY = "geometry"
+    SHAPE_DROP = "shape_drop"
+    STOCKS = "stocks"
+    CHALLENGE = "challenge"
 
 
 EXTENDED_ONLY_SUBJECTS = frozenset({
     "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
+    "finance",
 })
 
 EXTENDED_GAME_TYPES = frozenset({
     GameType.TILES, GameType.RESOURCE, GameType.DEPENDENCY, GameType.RPG,
     GameType.CARTOON, GameType.IDIOM, GameType.CREATE, GameType.DOING,
     GameType.FARM, GameType.SPELLING, GameType.GEOMETRY,
+    GameType.SHAPE_DROP, GameType.STOCKS, GameType.CHALLENGE,
 })
+
+# Challenge-the-AI skill by age (probability the AI answers correctly).
+AI_SKILL_BY_AGE: Dict[str, float] = {
+    "kids": 0.42,
+    "tween": 0.55,
+    "teen": 0.68,
+    "adult": 0.78,
+}
 
 
 class AgeGroup(str, enum.Enum):
@@ -73,6 +86,7 @@ GAME_SUBJECTS: List[str] = [
     "biology", "chemistry", "physics", "math", "science",
     "history", "art", "technology", "programming",
     "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
+    "finance",
 ]
 
 SPEED_TIME_LIMIT_S = 45
@@ -357,6 +371,10 @@ class GameRound(BaseModel):
             "game_type": self.game_type.value, "age_group": self.age_group.value,
             "locale": self.locale, "time_limit_s": self.time_limit_s,
         }
+        if self.game_type is GameType.CHALLENGE:
+            out["versus"] = "ai"
+            out["ai_skill"] = ai_skill_for_age(self.age_group)
+            out["ai_name"] = "Salareen AI"
         if self.game_type is GameType.MATCH:
             rng = random.Random(self.game_id)
             options = [{"id": p.id, "text": p.match} for p in self.pairs]
@@ -393,6 +411,37 @@ class ScoreResult(BaseModel):
     accuracy_bonus: int
     points: int
     results: List[ItemResult] = Field(default_factory=list)
+    # Challenge the AI — populated for game_type=challenge
+    ai_correct: int = 0
+    ai_total: int = 0
+    versus_outcome: str = ""  # win | tie | lose | ""
+    versus_bonus: int = 0
+
+
+def ai_skill_for_age(age: AgeGroup) -> float:
+    return AI_SKILL_BY_AGE.get(age.value, 0.65)
+
+
+def simulate_ai_answers(rnd: GameRound, *, skill: Optional[float] = None) -> Dict[str, int]:
+    """Deterministic AI answers for a round (seeded by game_id)."""
+    sk = skill if skill is not None else ai_skill_for_age(rnd.age_group)
+    sk = max(0.05, min(0.95, float(sk)))
+    rng = random.Random(f"ai:{rnd.game_id}")
+    out: Dict[str, int] = {}
+    if rnd.game_type is GameType.MATCH:
+        for p in rnd.pairs:
+            if rng.random() < sk:
+                out[p.id] = 1  # placeholder — match scored separately
+            else:
+                out[p.id] = 0
+        return out
+    for m in rnd.mcqs:
+        if rng.random() < sk:
+            out[m.id] = m.answer_index
+        else:
+            wrong = [i for i in range(len(m.options)) if i != m.answer_index]
+            out[m.id] = rng.choice(wrong) if wrong else m.answer_index
+    return out
 
 
 def _extended_mcq_bank(subject: str, game_type: GameType, age: AgeGroup) -> List[dict]:
@@ -433,7 +482,23 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
         return GameRound(subject=subject, game_type=game_type, age_group=age_group,
                          locale=loc, pairs=pairs)
     bank: List[dict] = []
-    if game_type in EXTENDED_GAME_TYPES or subject in EXTENDED_ONLY_SUBJECTS:
+    # Challenge the AI uses the subject's regular + extended quiz pool.
+    if game_type is GameType.CHALLENGE:
+        bank = mcq_bank_for(subject, age_group)[:]
+        from .games_extended import extended_bank_for_subject
+        seen = {q.get("content_id") for q in bank}
+        bank = bank + [q for q in extended_bank_for_subject(subject, age_group)
+                       if q.get("content_id") not in seen]
+        # Prefer stocks/shape_drop banks when those subjects are chosen.
+        if subject in ("finance", "geometry"):
+            extra = _extended_mcq_bank(subject, (
+                GameType.STOCKS if subject == "finance" else GameType.SHAPE_DROP
+            ), age_group)
+            for q in extra:
+                if q.get("content_id") not in seen:
+                    bank.append(q)
+                    seen.add(q.get("content_id"))
+    elif game_type in EXTENDED_GAME_TYPES or subject in EXTENDED_ONLY_SUBJECTS:
         bank = _extended_mcq_bank(subject, game_type, age_group)
     if not bank:
         bank = mcq_bank_for(subject, age_group)[:]
@@ -462,8 +527,15 @@ def make_round(subject: str, game_type: GameType, *, age_group: AgeGroup = AgeGr
         tl = MARATHON_TIME_LIMIT_S
     elif game_type is GameType.SPEED:
         tl = SPEED_TIME_LIMIT_S
+    elif game_type is GameType.CHALLENGE:
+        tl = SPEED_TIME_LIMIT_S + 15  # duel pace: a bit more room than speed
     else:
         tl = 0
+    # Tag challenge items so the client can render versus UI.
+    if game_type is GameType.CHALLENGE:
+        for m in mcqs:
+            m.kind = "challenge"
+            m.meta = {**(m.meta or {}), "versus": "ai", "ai_skill": ai_skill_for_age(age_group)}
     return GameRound(subject=subject, game_type=game_type, age_group=age_group,
                      locale=loc, mcqs=mcqs, time_limit_s=tl)
 
@@ -501,12 +573,35 @@ def score_round(rnd: GameRound, answers: Dict[str, object],
     marathon_bonus = 0
     if rnd.game_type is GameType.MARATHON and correct >= 3:
         marathon_bonus = correct * 5 + (10 if correct == total else 0)
-    points = base + accuracy_bonus + speed_bonus + marathon_bonus
+
+    ai_correct = 0
+    ai_total = 0
+    versus_outcome = ""
+    versus_bonus = 0
+    if rnd.game_type is GameType.CHALLENGE and rnd.mcqs:
+        ai_ans = simulate_ai_answers(rnd)
+        ai_total = len(rnd.mcqs)
+        for m in rnd.mcqs:
+            if ai_ans.get(m.id) == m.answer_index:
+                ai_correct += 1
+        if correct > ai_correct:
+            versus_outcome = "win"
+            versus_bonus = 35 + (correct - ai_correct) * 5
+        elif correct == ai_correct:
+            versus_outcome = "tie"
+            versus_bonus = 12
+        else:
+            versus_outcome = "lose"
+            versus_bonus = 0
+
+    points = base + accuracy_bonus + speed_bonus + marathon_bonus + versus_bonus
     return ScoreResult(
         game_id=rnd.game_id, subject=rnd.subject, game_type=rnd.game_type,
         correct=correct, total=total, accuracy=accuracy, base_points=base,
         speed_bonus=speed_bonus, accuracy_bonus=accuracy_bonus, points=points,
         results=results,
+        ai_correct=ai_correct, ai_total=ai_total,
+        versus_outcome=versus_outcome, versus_bonus=versus_bonus,
     )
 
 
@@ -530,6 +625,12 @@ def games_catalog(*, locale: Optional[str] = None) -> dict:
         {"id": GameType.FARM.value, "name": "Farm Sim", "desc": "Grow crops and learn along the way."},
         {"id": GameType.SPELLING.value, "name": "Spelling", "desc": "Pick the correct spelling."},
         {"id": GameType.GEOMETRY.value, "name": "Geometry Play", "desc": "Shapes, angles, and spatial reasoning."},
+        {"id": GameType.SHAPE_DROP.value, "name": "Shape Drop",
+         "desc": "Tetris-style geometry: clear falling shapes by answering shape questions."},
+        {"id": GameType.STOCKS.value, "name": "Stock Market Lab",
+         "desc": "Learn investing: bull vs bear, risk, and smart portfolio choices."},
+        {"id": GameType.CHALLENGE.value, "name": "Challenge the AI",
+         "desc": "Duel the AI — same questions, race for the higher score."},
     ]
     return {
         "subjects": GAME_SUBJECTS,

@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-19 - v0.23.0 - Arcade upgrades: Shape Drop (Tetris-style geometry quiz), Stock Market Lab (live chart + investing quizzes), and Challenge the AI (versus duel with server-side AI scoring and win bonus). Adds finance subject plus shape_drop / stocks / challenge game modes to the catalog.
 - 2026-07-19 - v0.22.0 - Wire formative/summative assessment into web ClassRoom, /class, and mobile LessonScreen: auto-open policy checkpoints at 25/50/75%, render profile-selected text/audio/video_aid/game shells, persist signed attempt tokens, and gate course pass awards on verified summative decisions.
 - 2026-07-19 - v0.22.0 - Add versioned 0–9 learning-profile encoding, durable profile-score backfill, privacy-safe device/catalog selection, and profile-driven 10/25/45-minute paths through the same lesson for standard and solo live sessions; reject IP/MAC fingerprints from personalization requests. Add server-held assessment answer keys, 25/50/75% formative checkpoints, verified summative pass decisions, KSB evidence coverage, profile-selected text/audio/video/game assessment shells, signed durable attempt records, retake limits, and immediate/7/30/90-day knowledge-retention checks.
 

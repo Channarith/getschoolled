@@ -20,12 +20,13 @@ const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
   history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
   life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
-  creation: "🛠️", farming: "🌾",
+  creation: "🛠️", farming: "🌾", finance: "📈",
 };
 
 const KIND_BADGE: Record<string, string> = {
   tiles: "🍌", resource: "⚖️", dependency: "🔗", rpg: "🎭", cartoon: "📺",
   idiom: "💬", create: "✨", doing: "🙌", farm: "🚜", spelling: "✏️", geometry: "📐",
+  shape_drop: "🧱", stocks: "📈", challenge: "🤖",
 };
 
 function subjectLabel(cat: GamesCatalog | null, id: string): string {
@@ -84,9 +85,9 @@ export default function ArcadePage() {
     }
   }, [round, answers, loggedIn, loadLeaders, t]);
 
-  // Timed modes: speed + marathon countdown -> auto-submit at zero.
+  // Timed modes: speed + marathon + challenge countdown -> auto-submit at zero.
   useEffect(() => {
-    const timed = round && (round.game_type === "speed" || round.game_type === "marathon");
+    const timed = round && (round.game_type === "speed" || round.game_type === "marathon" || round.game_type === "challenge");
     if (!timed || round!.time_limit_s <= 0) return;
     if (timeLeft <= 0) { void finish(); return; }
     const timer = setTimeout(() => setTimeLeft((s) => s - 1), 1000);
@@ -100,9 +101,23 @@ export default function ArcadePage() {
       router.push(`/arcade/chemistry?age=${ageGroup}`);
       return;
     }
+    if (gameType === "shape_drop") {
+      router.push(`/arcade/shape-drop?age=${ageGroup}`);
+      return;
+    }
+    if (gameType === "stocks" || subject === "finance") {
+      if (gameType === "stocks") {
+        router.push(`/arcade/stocks?age=${ageGroup}`);
+        return;
+      }
+    }
+    if (gameType === "challenge") {
+      router.push(`/arcade/challenge-ai`);
+      return;
+    }
     setError(""); setResult(null); setAnswers({}); setSelTerm("");
     try {
-      const n = gameType === "marathon" ? 20 : gameType === "match" ? 8 : 12;
+      const n = gameType === "marathon" ? 20 : gameType === "match" ? 8 : gameType === "challenge" ? 8 : 12;
       const r = await newGame(subject, gameType, ageGroup, n);
       startedAt.current = Date.now();
       setTimeLeft(r.time_limit_s || 0);
@@ -134,19 +149,31 @@ export default function ArcadePage() {
       {!round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(34,211,238,0.12))" }}>
           <h3 style={{ marginTop: 0 }}>🎮 Featured arcade games</h3>
-          <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines.</p>
+          <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines — plus Challenge the AI.</p>
           <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
             <Link href={`/arcade/cosmic-catch?age=${ageGroup}`}
               style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
               🪐 Cosmic Catch · 2D (math)
             </Link>
-            <Link href={`/arcade/solar-3d`}
+            <Link href={`/arcade/shape-drop?age=${ageGroup}`}
               style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
+              📐 Shape Drop · Tetris geometry
+            </Link>
+            <Link href={`/arcade/stocks?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 600 }}>
+              📈 Stock Market Lab
+            </Link>
+            <Link href={`/arcade/challenge-ai`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 600 }}>
+              🤖 Challenge the AI
+            </Link>
+            <Link href={`/arcade/solar-3d`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0284c7", color: "#fff", fontWeight: 600 }}>
               🌌 Solar Quiz · 3D (astronomy)
             </Link>
             {SUBJECT_ICON.chemistry && (
               <Link href={`/arcade/chemistry?age=${ageGroup}`}
-                style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 600 }}>
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#047857", color: "#fff", fontWeight: 600 }}>
                 ⚗️ Potion Lab · 2D (chemistry)
               </Link>
             )}

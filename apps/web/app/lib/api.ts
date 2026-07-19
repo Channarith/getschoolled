@@ -929,13 +929,16 @@ export type GameTerm = { id: string; term: string };
 export type GameOption = { id: string; text: string };
 export type GameRound = {
   game_id: string; subject: string; game_type: string; time_limit_s: number;
+  age_group?: string;
   items?: GameItem[]; terms?: GameTerm[]; options?: GameOption[];
+  versus?: string; ai_skill?: number; ai_name?: string;
 };
 export type GameItemResult = { id: string; correct: boolean; answer_index?: number; explain: string };
 export type GameScore = {
   game_id: string; subject: string; game_type: string; correct: number; total: number;
   accuracy: number; base_points: number; speed_bonus: number; accuracy_bonus: number;
   points: number; results: GameItemResult[];
+  ai_correct?: number; ai_total?: number; versus_outcome?: string; versus_bonus?: number;
 };
 export type GameSubmit = {
   result: GameScore; points_earned: number; balance: number;
