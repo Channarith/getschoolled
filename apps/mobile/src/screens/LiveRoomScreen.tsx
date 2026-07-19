@@ -21,8 +21,8 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
 import { buildNarrationSpeakOptions } from "../narrationTts";
-import { startVoiceListening, stopVoiceListening } from "../voiceAssistant";
 import GlassPanel from "../components/GlassPanel";
+import { isLiveKitMediaDowngraded, isLiveKitMediaUsable } from "../components/liveKitMedia";
 import { LiveKitVideoView } from "../components/liveKitRuntime";
 import { useLiveKitRoom } from "../components/useLiveKitRoom";
 import PrimaryButton from "../components/PrimaryButton";
@@ -270,7 +270,6 @@ export default function LiveRoomScreen({
   const [chat, setChat] = useState("");
   const [question, setQuestion] = useState("");
   const [gameResponse, setGameResponse] = useState("");
-  const [voiceListening, setVoiceListening] = useState(false);
   const [busy, setBusy] = useState(false);
   const [wasBlocked, setWasBlocked] = useState(false);
   const [giftBalance, setGiftBalance] = useState(0);
@@ -572,6 +571,8 @@ export default function LiveRoomScreen({
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;
+  const liveKitUsable = isLiveKitMediaUsable(media);
+  const liveKitDowngraded = isLiveKitMediaDowngraded(media);
 
   // Single shared LiveKit connection for the whole room: one connection maps each
   // participant's video track to their seat (self-view under "You", every remote
@@ -580,7 +581,7 @@ export default function LiveRoomScreen({
     media,
     room?.participants ?? [],
     hasFloor,
-    Boolean(participantId) && !classEnded,
+    Boolean(participantId) && !classEnded && liveKitUsable,
   );
   // Start as off until LiveKit actually publishes a local track — defaulting to
   // true previously showed "Your camera is on" while the connection was still
@@ -619,28 +620,48 @@ export default function LiveRoomScreen({
       );
       return;
     }
+    if (!liveKitUsable) {
+      Alert.alert(
+        "Camera unavailable",
+        liveKitDowngraded
+          ? "Live video is not configured on this server. You can still listen and participate in chat."
+          : "Live video is still connecting. Wait a moment and try again.",
+      );
+      return;
+    }
     Alert.alert(
       "Camera unavailable",
       connectError
         || "The live video connection is not ready yet. Wait a moment and try again.",
     );
-  }, [cameraOn, connectError, ensureCameraToggle]);
+  }, [cameraOn, connectError, ensureCameraToggle, liveKitDowngraded, liveKitUsable]);
 
   // Hard mutex: learners join without publish rights; when the host/AI grants
   // the floor (me.can_publish flips) re-fetch a fresh token that permits
   // publishing (and a no-publish one when the floor is released).
   //
-  // CRITICAL: seed publishRef from the join payload WITHOUT re-minting a token.
-  // Re-fetching on first mount used to replace join media immediately, which
-  // tore down the LiveKit connect mid-flight and left liveKitConnected=false —
-  // the "Camera unavailable / live video connection is not ready" alert.
+  // On first join: keep the join token when it already has a usable url+JWT
+  // (re-minting immediately used to tear down an in-flight connect). When join
+  // media is missing or empty, fetch /media-token once as a bootstrap fallback.
   const publishRef = useRef<boolean | null>(null);
+  const mediaBootstrapRef = useRef("");
   useEffect(() => {
-    if (!participantId) { publishRef.current = null; return; }
+    if (!participantId) {
+      publishRef.current = null;
+      mediaBootstrapRef.current = "";
+      return;
+    }
     const cp = Boolean(me?.can_publish);
     if (publishRef.current === null) {
       publishRef.current = cp;
-      return;
+      if (isLiveKitMediaUsable(media)) return;
+      if (mediaBootstrapRef.current === participantId) return;
+      mediaBootstrapRef.current = participantId;
+      let alive = true;
+      void liveRoomMediaToken(roomId, participantId)
+        .then((r) => { if (alive) setMedia(r.media); })
+        .catch(() => undefined);
+      return () => { alive = false; };
     }
     if (publishRef.current === cp) return;
     publishRef.current = cp;
@@ -649,7 +670,7 @@ export default function LiveRoomScreen({
       .then((r) => { if (alive) setMedia(r.media); })
       .catch(() => undefined);
     return () => { alive = false; };
-  }, [me?.can_publish, participantId, roomId]);
+  }, [me?.can_publish, participantId, roomId, media?.url, media?.token]);
   const inQueue = Boolean(room?.speaking_queue?.some(
     (e) => e.participant_id === participantId && (e.status === "waiting" || e.status === "speaking")
   ));
@@ -672,63 +693,8 @@ export default function LiveRoomScreen({
     }
   };
 
-  const startFullscreenVoiceQuestion = async () => {
-    if (!hasFloor) {
-      await toggleHand();
-      return;
-    }
-    stopSpeech();
-    setError("");
-    const started = await startVoiceListening({
-      locale,
-      continuous: true,
-      onResult: (transcript) => {
-        setQuestion((previous) => `${previous} ${transcript}`.trim());
-      },
-      onError: (code) => {
-        setVoiceListening(false);
-        setError(
-          code === "permission_denied"
-            ? "Microphone permission is required to ask by voice."
-            : "Voice input is unavailable. Check the microphone and try again.",
-        );
-      },
-      onEnd: () => setVoiceListening(false),
-    });
-    setVoiceListening(started);
-  };
-
-  const submitFullscreenVoiceQuestion = async () => {
-    if (!participantId || !question.trim()) return;
-    stopVoiceListening();
-    setVoiceListening(false);
-    setBusy(true);
-    try {
-      const res = await liveRoomAskStream(roomId, participantId, question.trim(), locale);
-      if (res.room) setRoom(res.room);
-      setQuestion("");
-      if (res.queued) {
-        setError(`You're #${res.queue_position ?? myPos} in the Q&A queue.`);
-      }
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!hasFloor && voiceListening) {
-      stopVoiceListening();
-      setVoiceListening(false);
-    }
-  }, [hasFloor, voiceListening]);
-
-  useEffect(() => () => stopVoiceListening(), []);
-
   const leaveAndBack = () => {
     stopSpeech();
-    stopVoiceListening();
     if (participantId) {
       void leaveLiveRoom(roomId, participantId).catch(() => undefined);
     }
@@ -948,104 +914,25 @@ export default function LiveRoomScreen({
               : room?.welcome_message}
           </Text>
         </ScrollView>
-        {participantId ? (
-          <View style={styles.floatingVoice}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send an animated gift"
-              style={({ pressed }) => [
-                styles.floatingGiftBtn,
-                pressed && styles.hostBtnPressed,
-              ]}
-              onPress={() => setSheet("gifts")}
-            >
-              <Text style={styles.floatingVoiceIcon}>🎁</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Play a group learning game"
-              style={({ pressed }) => [
-                styles.floatingGameBtn,
-                pressed && styles.hostBtnPressed,
-              ]}
-              onPress={() => setSheet("games")}
-            >
-              <Text style={styles.floatingVoiceIcon}>🎮</Text>
-            </Pressable>
-            {hasFloor ? (
-              <>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={voiceListening ? "Stop listening" : "Ask Theodore by voice"}
-                  style={({ pressed }) => [
-                    styles.floatingVoiceBtn,
-                    voiceListening && styles.floatingVoiceBtnListening,
-                    pressed && styles.hostBtnPressed,
-                  ]}
-                  onPress={() => {
-                    if (voiceListening) {
-                      stopVoiceListening();
-                      setVoiceListening(false);
-                    } else {
-                      void startFullscreenVoiceQuestion();
-                    }
-                  }}
-                >
-                  <Text style={styles.floatingVoiceIcon}>{voiceListening ? "🎙️" : "🎤"}</Text>
-                  <Text style={styles.floatingVoiceLabel}>
-                    {voiceListening ? "Listening…" : "Speak"}
-                  </Text>
-                </Pressable>
-                {question.trim() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Send spoken question to Theodore"
-                    style={({ pressed }) => [
-                      styles.floatingAskBtn,
-                      pressed && styles.hostBtnPressed,
-                    ]}
-                    disabled={busy}
-                    onPress={() => void submitFullscreenVoiceQuestion()}
-                  >
-                    <Text style={styles.floatingVoiceLabel}>✓ Ask</Text>
-                  </Pressable>
-                ) : null}
-              </>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={inQueue ? "Lower your hand" : "Raise your hand to ask by voice"}
-                style={({ pressed }) => [
-                  styles.floatingVoiceBtn,
-                  inQueue && styles.floatingVoiceBtnQueued,
-                  pressed && styles.hostBtnPressed,
-                ]}
-                disabled={busy}
-                onPress={() => void toggleHand()}
-              >
-                <Text style={styles.floatingVoiceIcon}>✋</Text>
-                <Text style={styles.floatingVoiceLabel}>
-                  {inQueue ? `Queued #${myPos}` : "Ask"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        ) : null}
         {muted ? <Text style={styles.mutedHint}>Audio muted — tap 🔊 up top to hear the teacher</Text> : null}
         {hasFloor ? (
           <Text style={styles.floorChip}>🎤 You&apos;re live — open &ldquo;More&rdquo; to finish your turn</Text>
         ) : inQueue ? (
           <Text style={styles.floorChip}>✋ You&apos;re #{myPos} in line</Text>
         ) : null}
-        {media ? (
+        {participantId && !classEnded ? (
           <Text style={styles.camHint}>
-            {!liveKitConnected
-              ? (connectError
-                ? `📷 Camera unavailable — ${connectError}`
-                : "📷 Connecting camera…")
-              : cameraOn
-                ? "📹 Your camera is on — tap 📹 on your card to turn it off"
-                : "📷 Camera off — tap 📷 on your card to turn it on"}
+            {liveKitDowngraded
+              ? "📷 Live video is unavailable — you can still listen and chat"
+              : !liveKitUsable
+                ? "📷 Connecting live video…"
+                : !liveKitConnected
+                  ? (connectError
+                    ? `📷 Camera unavailable — ${connectError}`
+                    : "📷 Connecting camera…")
+                  : cameraOn
+                    ? "📹 Your camera is on — tap 📹 on your card to turn it off"
+                    : "📷 Camera off — tap 📷 on your card to turn it on"}
           </Text>
         ) : null}
       </GlassPanel>
@@ -1690,57 +1577,6 @@ const styles = StyleSheet.create({
   heroContent: { gap: 10, paddingBottom: 8 },
   presenterTitle: { color: theme.colors.text, fontSize: 26, fontWeight: "800", lineHeight: 32 },
   presenterBody: { color: theme.colors.text, fontSize: 17, lineHeight: 25, opacity: 0.94 },
-  floatingVoice: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    zIndex: 20,
-  },
-  floatingVoiceBtn: {
-    minWidth: 72,
-    minHeight: 58,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(124,58,237,0.94)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  floatingVoiceBtnQueued: { backgroundColor: "rgba(180,83,9,0.96)" },
-  floatingVoiceBtnListening: { backgroundColor: "rgba(220,38,38,0.96)" },
-  floatingGiftBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(190,24,93,0.96)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  floatingGameBtn: {
-    width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(109,40,217,0.96)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  floatingAskBtn: {
-    minHeight: 58,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(5,150,105,0.96)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  floatingVoiceIcon: { fontSize: 22 },
-  floatingVoiceLabel: { color: "#fff", fontSize: 12, fontWeight: "800" },
   mutedHint: { color: theme.colors.muted, fontSize: 12, fontStyle: "italic" },
   floorChip: {
     color: "#e9d5ff", fontSize: 13, fontWeight: "600",

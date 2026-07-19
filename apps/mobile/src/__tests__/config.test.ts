@@ -53,7 +53,7 @@ describe("cloud mode (default)", () => {
   test("failoverUrlFor maps a primary cloud URL to the Vultr twin", () => {
     const c = loadConfig("ios", {});
     expect(c.failoverUrlFor("https://www.salareen.com/curriculum")).toBe(
-      "http://45.63.91.80/curriculum",
+      "https://api.salareen.com/curriculum",
     );
     // A URL outside the primary origin has no failover twin.
     expect(c.failoverUrlFor("https://example.com/x")).toBeNull();

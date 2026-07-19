@@ -7,6 +7,7 @@ import {
   beginLiveKitAudio,
   endLiveKitAudio,
 } from "./liveKitAudio";
+import { isLiveKitMediaUsable } from "./liveKitMedia";
 import { ensureCameraPermission } from "./cameraPermission";
 import { loadLiveKit } from "./liveKitRuntime";
 
@@ -100,14 +101,13 @@ export function useLiveKitRoom(
   }, [participants]);
 
   useEffect(() => {
-    if (!connectEnabled || !media?.url || !media.token) {
+    if (!connectEnabled || !isLiveKitMediaUsable(media)) {
       setConnected(false);
       setTracks([]);
-      if (connectEnabled && (!media?.url || !media.token)) {
-        setConnectError("Live video credentials are missing. Leave and rejoin the class.");
-      } else {
-        setConnectError("");
-      }
+      // connectEnabled is only true once join/bootstrap produced usable media.
+      // When LiveKit is intentionally downgraded (token but no url), stay quiet
+      // like the web client — class still runs on AI narration + polling.
+      setConnectError("");
       return;
     }
     const lk = loadLiveKit();

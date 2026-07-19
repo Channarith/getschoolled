@@ -19,9 +19,9 @@ export const CLOUD_BASE_URL = (
   extra.cloudBaseUrl || "https://www.salareen.com"
 ).replace(/\/$/, "");
 
-/** Direct Vultr cluster IP — used when www.salareen.com is unreachable. */
+/** Direct Vultr cluster twin — used when www.salareen.com is unreachable. */
 export const CLOUD_FAILOVER_BASE_URL = (
-  extra.cloudFailoverBaseUrl || "http://45.63.91.80"
+  extra.cloudFailoverBaseUrl || "https://api.salareen.com"
 ).replace(/\/$/, "");
 
 /** Map a primary cloud service URL to its Vultr failover twin (cloud mode only). */
