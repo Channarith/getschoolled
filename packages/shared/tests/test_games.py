@@ -141,3 +141,11 @@ def test_catalog_localized_spanish():
     assert types["tiles"] != "Word Tiles"  # localized
     subs = {s["id"]: s["name"] for s in cat["subjects_localized"]}
     assert subs["etiquette"] != "etiquette"
+
+
+def test_investing_subject_round():
+    rnd = make_round("investing", GameType.QUIZ, n=4, seed=99)
+    assert len(rnd.mcqs) >= 1
+    assert rnd.subject == "investing"
+    assert "investing" in GAME_SUBJECTS
+

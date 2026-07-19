@@ -411,6 +411,47 @@ _EXTENDED_RAW: List[dict] = [
         "explain": "Area = length × width = 12 square cm.",
         "kind": "geometry",
     },
+    # --- Investing & finance ----------------------------------------------- #
+    {
+        "content_id": "inv_01", "subjects": ["investing"], "game_types": ["quiz", "resource"],
+        "prompt": "You have $100 to invest. Best first habit for a beginner?",
+        "options": ["Buy one trendy stock", "Start a diversified index fund", "Keep all cash forever", "Borrow to invest"],
+        "answer_index": 1,
+        "explain": "Low-cost diversified index funds spread risk for new investors.",
+        "kind": "resource",
+    },
+    {
+        "content_id": "inv_02", "subjects": ["investing"], "game_types": ["quiz", "resource"],
+        "prompt": "Market drops 10% this month. Wise long-term move?",
+        "options": ["Panic sell everything", "Stay the course / keep contributing", "Quit investing forever", "Double leverage blindly"],
+        "answer_index": 1,
+        "explain": "Time in the market beats panic selling for long horizons.",
+        "kind": "resource",
+    },
+    {
+        "content_id": "inv_03", "subjects": ["investing", "math"], "game_types": ["quiz", "speed"],
+        "prompt": "$50/month at 8% annual return for 30 years — what grows most?",
+        "options": ["Only the deposits ($18k)", "Deposits + compound growth (much more)", "Exactly deposits", "Less than deposits"],
+        "answer_index": 1,
+        "explain": "Compound returns on regular contributions snowball over decades.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "inv_04", "subjects": ["investing"], "game_types": ["quiz", "match"],
+        "prompt": "Dividend reinvestment means…",
+        "options": ["Spending dividends immediately", "Buying more shares with dividends", "Paying extra taxes", "Selling shares"],
+        "answer_index": 1,
+        "explain": "Reinvested dividends buy more shares, compounding wealth.",
+        "kind": "mcq",
+    },
+    {
+        "content_id": "inv_05", "subjects": ["investing"], "game_types": ["quiz", "resource"],
+        "prompt": "Emergency fund before aggressive investing should cover…",
+        "options": ["One day of expenses", "3–6 months of essential expenses", "Nothing — invest first", "Ten years of salary"],
+        "answer_index": 1,
+        "explain": "A cushion prevents forced selling during emergencies.",
+        "kind": "resource",
+    },
 ]
 
 # Spanish + Chinese + Khmer sample translations (pattern for all content IDs).

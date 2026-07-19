@@ -20,7 +20,7 @@ const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
   history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
   life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
-  creation: "🛠️", farming: "🌾",
+  creation: "🛠️", farming: "🌾", investing: "📈",
 };
 
 const KIND_BADGE: Record<string, string> = {
@@ -136,6 +136,18 @@ export default function ArcadePage() {
           <h3 style={{ marginTop: 0 }}>🎮 Featured arcade games</h3>
           <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines.</p>
           <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href="/arcade/challenge-ai"
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#4f46e5", color: "#fff", fontWeight: 600 }}>
+              🤖 Challenge the AI
+            </Link>
+            <Link href={`/arcade/geometry-blocks?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#6366f1", color: "#fff", fontWeight: 600 }}>
+              📐 Geometry Blocks · Tetris quiz
+            </Link>
+            <Link href={`/arcade/market-catch?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#15803d", color: "#fff", fontWeight: 600 }}>
+              📈 Market Catch · investing
+            </Link>
             <Link href={`/arcade/cosmic-catch?age=${ageGroup}`}
               style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
               🪐 Cosmic Catch · 2D (math)

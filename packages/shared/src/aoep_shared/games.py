@@ -73,6 +73,7 @@ GAME_SUBJECTS: List[str] = [
     "biology", "chemistry", "physics", "math", "science",
     "history", "art", "technology", "programming",
     "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
+    "investing",
 ]
 
 SPEED_TIME_LIMIT_S = 45
@@ -170,6 +171,19 @@ _MCQ_BANK: Dict[str, List[dict]] = {
         _mcq("Output of print(2 ** 3)?", ["6", "8", "9", "23"], 1),
         _mcq("HTML is a … language", ["Programming", "Markup", "Query", "Machine"], 1),
     ],
+    "investing": [
+        _mcq("A stock represents…", ["A loan to a company", "Ownership in a company", "A savings account", "A tax"], 1,
+             "Shares are fractional ownership of a corporation."),
+        _mcq("ETF stands for…", ["Electronic Trade Fund", "Exchange-Traded Fund", "Equity Tax Form", "Extra Time Fund"], 1,
+             "ETFs trade on exchanges like stocks but hold a basket of assets."),
+        _mcq("Compound interest means you earn interest on…", ["Only your deposit", "Deposit plus prior interest", "Only dividends", "Fees"], 1),
+        _mcq("Diversification helps…", ["Guarantee profits", "Spread risk across assets", "Avoid all taxes", "Time the market"], 1,
+             "Don't put all eggs in one basket."),
+        _mcq("An index fund typically aims to…", ["Beat the market every year", "Match a market index", "Hold only bonds", "Avoid all fees"], 1),
+        _mcq("Historically, stocks have tended to…", ["Never change value", "Outperform cash long-term with more volatility", "Always beat bonds yearly", "Pay fixed interest"], 1),
+        _mcq("A bond is best described as…", ["Company ownership", "A loan you make to a borrower", "A cryptocurrency", "A savings lottery"], 1),
+        _mcq("Expense ratio measures…", ["Stock price", "Annual fund fees as % of assets", "Dividend yield", "Tax rate"], 1),
+    ],
 }
 
 _PAIR_BANK: Dict[str, List[tuple]] = {
@@ -189,6 +203,9 @@ _PAIR_BANK: Dict[str, List[tuple]] = {
                    ("HTTP", "Web protocol"), ("Binary", "0 and 1")],
     "programming": [("List", "[1, 2]"), ("Recursion", "Calls itself"),
                     ("==", "Equality check"), ("HTML", "Markup language")],
+    "investing": [("Stock", "Company ownership"), ("ETF", "Exchange-traded fund basket"),
+                  ("Compound interest", "Interest on interest"), ("Diversification", "Spread risk"),
+                  ("Index fund", "Tracks a market index"), ("Bond", "Loan to a borrower")],
 }
 
 

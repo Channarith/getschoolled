@@ -78,6 +78,10 @@ SUBJECT_LABELS: Dict[str, Dict[str, str]] = {
                          ("fr", "Ferme et personnage"), ("de", "Farm & Charakter"),
                          ("zh", "农场与角色"), ("ja", "農場とキャラ"), ("ko", "농장과 캐릭터"),
                          ("vi", "Nông trại & nhân vật"), ("km", "កសិដ្ឋាន និង តួអង្គ")),
+    "investing": _locales(("en", "Investing & Finance"), ("es", "Inversión y finanzas"),
+                           ("fr", "Investissement et finance"), ("de", "Investieren & Finanzen"),
+                           ("zh", "投资与理财"), ("ja", "投資と金融"), ("ko", "투자와 금융"),
+                           ("vi", "Đầu tư & tài chính"), ("km", "វិនិយោគ និង ហិរញ្ញវត្ថុ")),
 }
 
 
