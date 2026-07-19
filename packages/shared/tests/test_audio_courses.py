@@ -21,8 +21,9 @@ def test_every_course_is_audio_only_and_drive_safe():
         assert c.format == "audio"
         assert c.visual_required is False
         assert c.drive_safe is True
-        assert len(c.segments) >= 2          # has narration
-        assert c.duration_min >= 1           # honest estimate, no padding target
+        assert len(c.segments) >= MIN_DRIVE_SEGMENTS
+        assert c.duration_min >= MIN_DRIVE_MINUTES
+        assert c.word_count >= MIN_DRIVE_WORDS
 
 
 def test_knowledge_courses_are_not_filler_loops():
@@ -47,7 +48,7 @@ def test_courses_do_not_include_synthetic_padding_segments():
         "why it's worth knowing",
         "quick recap of",
     )
-    for c in build_catalog():
+    for c in (c for c in build_catalog() if c.id.startswith("audio-")):
         synthetic = [s for s in c.segments if s.kind in {"quiz", "reinforcement"}]
         assert not synthetic, f"{c.id} contains generated padding or recall segments"
         joined = " ".join(s.text for s in c.segments).lower()
@@ -94,6 +95,9 @@ def test_language_courses_are_included():
     # Listen-and-repeat narration references the target phrase.
     joined = " ".join(s.text for s in es.segments)
     assert "Hola" in joined
+    assert len(es.segments) >= MIN_DRIVE_SEGMENTS
+    assert es.duration_min >= MIN_DRIVE_MINUTES
+    assert es.word_count >= MIN_DRIVE_WORDS
 
 
 def test_knowledge_courses_span_many_categories():

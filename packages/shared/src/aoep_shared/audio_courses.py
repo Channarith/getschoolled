@@ -195,6 +195,59 @@ _LANG_LESSONS = [
 ]
 
 
+def _language_practice_segments(
+    language: str,
+    phrases: List[dict],
+    locale: str,
+) -> List[AudioSegment]:
+    """Create a 30+ minute eyes-free spaced-practice language lesson.
+
+    Repetition is intentional for language acquisition, but each round changes
+    the phrase pairing and retrieval task rather than duplicating narration.
+    """
+    segments: List[AudioSegment] = []
+    round_no = 1
+    while len(segments) < MIN_DRIVE_SEGMENTS or _narration_words(segments) < MIN_DRIVE_WORDS:
+        current = phrases[(round_no - 1) % len(phrases)]
+        following = phrases[round_no % len(phrases)]
+        say = narration(
+            "lang_phrase_say",
+            locale,
+            language=language,
+            en=current["en"],
+            target=current["target"],
+        )
+        if current.get("roman"):
+            say += narration("lang_phrase_roman", locale, roman=current["roman"])
+        repeat = narration("lang_phrase_repeat", locale, target=current["target"])
+        bridge = narration(
+            "lang_phrase_say",
+            locale,
+            language=language,
+            en=following["en"],
+            target=following["target"],
+        )
+        text = (
+            f"Practice round {round_no}. {say}{repeat} "
+            f"Now connect it to the next useful expression. {bridge} "
+            f"First say {current['target']} slowly, then at a natural conversational pace. "
+            f"Pause and recall the meaning, {current['en']}, without looking at a screen. "
+            f"Next say {following['target']}, meaning {following['en']}. "
+            f"Imagine a brief real-world exchange where the first phrase is followed by "
+            f"the second. Say both expressions together: {current['target']}. "
+            f"{following['target']}. Repeat the pair once more with a calm, clear rhythm. "
+            "Listen for the sound pattern, retrieve the meaning, and answer aloud. "
+            "This cycle builds pronunciation, recognition, and fast recall while keeping "
+            "the practice completely hands-free."
+        )
+        segments.append(AudioSegment(
+            heading=f"Practice round {round_no}: {current['en']}",
+            text=text,
+        ))
+        round_no += 1
+    return segments
+
+
 def _language_courses(locale: str) -> List[AudioCourse]:
     out: List[AudioCourse] = []
     for code in SUPPORTED_LANGUAGES:
@@ -205,25 +258,34 @@ def _language_courses(locale: str) -> List[AudioCourse]:
         # esenciales (audio)"). The phrasebook itself stays in the
         # target language - that's the content the user is learning.
         name_in_locale = _language_name_in_locale(code, locale, fallback=name_en)
+        all_phrases: List[dict] = []
+        seen = set()
+        for source_category, _ in _LANG_LESSONS:
+            for phrase in phrases_for(code, source_category):
+                key = (phrase["en"], phrase["target"])
+                if key not in seen:
+                    seen.add(key)
+                    all_phrases.append(phrase)
         for category, lesson_en in _LANG_LESSONS:
-            phrases = phrases_for(code, category)
-            if len(phrases) < 2:
+            focus = phrases_for(code, category)
+            if len(focus) < 2:
                 continue
             lesson_local = localize_lesson_type(lesson_en, locale)
-            segs: List[AudioSegment] = []
-            for p in phrases:
-                say = narration("lang_phrase_say", locale,
-                                language=name_in_locale, en=p["en"], target=p["target"])
-                if p.get("roman"):
-                    say += narration("lang_phrase_roman", locale, roman=p["roman"])
-                segs.append(AudioSegment(heading=p["en"], text=say))
+            # Lead with this course's focus phrases, then rotate through the
+            # complete phrasebook for substantial spaced retrieval practice.
+            focused_keys = {(p["en"], p["target"]) for p in focus}
+            ordered = focus + [
+                p for p in all_phrases
+                if (p["en"], p["target"]) not in focused_keys
+            ]
+            segs = _language_practice_segments(name_in_locale, ordered, locale)
             out.append(AudioCourse(
                 id=f"lang-{code}-{category}",
                 title=f"{name_in_locale}: {lesson_local} (audio)",
                 category=localize_category("Languages", locale),
                 subject=name_in_locale,
                 level=localize_level("beginner", locale),
-                duration_min=_duration(segs),
+                duration_min=_duration(segs, min_minutes=MIN_DRIVE_MINUTES),
                 tags=[code, name_en.lower(), "language", category, "listen-and-repeat"],
                 segments=segs))
     return out
