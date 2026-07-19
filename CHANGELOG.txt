@@ -2,6 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.21.3 - Fix mobile camera after HTTPS migration (iOS + Android):
+  correct beginLiveKitAudio/endLiveKitAudio generation tracking so stale cleanup
+  no longer kills valid new audio-session calls; change CLOUD_FAILOVER_BASE_URL
+  from http://45.63.91.80 (broken by ssl-redirect + no cert for bare IP) to
+  https://api.salareen.com (valid cert, same cluster); set usesCleartextTraffic
+  to false in cloud builds; raise ingress WebSocket read timeout 60s → 3600s so
+  live-room WebSocket is not killed after 60s of class inactivity
 - 2026-07-18 - v0.21.2 - Solo 1:1 live classes expose the learning-game launcher in the compact action bar; web/mobile now send learner profile readiness and learning style on join so Theodore receives audience_profile on blocking, streaming, and queued Q&A; solo UI shows a How you learn summary chip.
 - 2026-07-18 - v0.21.1 - Fix 8 audit bugs: missing ensureCameraPermission import
   (crashed all mobile live rooms), LiveKitAudio muted prop not synced to DOM
