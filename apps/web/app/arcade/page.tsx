@@ -132,26 +132,54 @@ export default function ArcadePage() {
 
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
       {!round && (
-        <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(34,211,238,0.12))" }}>
-          <h3 style={{ marginTop: 0 }}>🎮 Featured arcade games</h3>
-          <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines.</p>
-          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
-            <Link href={`/arcade/cosmic-catch?age=${ageGroup}`}
-              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
-              🪐 Cosmic Catch · 2D (math)
-            </Link>
-            <Link href={`/arcade/solar-3d`}
-              style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
-              🌌 Solar Quiz · 3D (astronomy)
-            </Link>
-            {SUBJECT_ICON.chemistry && (
-              <Link href={`/arcade/chemistry?age=${ageGroup}`}
-                style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 600 }}>
-                ⚗️ Potion Lab · 2D (chemistry)
+        <>
+          <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.22), rgba(239,68,68,0.1))" }}>
+            <h3 style={{ marginTop: 0 }}>🤖 Challenge the AI</h3>
+            <p className="muted" style={{ marginTop: 0 }}>Can you beat our AI instructor? Quiz duels, tic-tac-toe, and trading showdowns.</p>
+            <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+              <Link href={`/arcade/challenge-ai?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 600 }}>
+                🤖 Challenge the AI
               </Link>
-            )}
+              <Link href={`/arcade/challenge-ai/quiz-duel?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
+                ⚔️ Quiz Duel
+              </Link>
+              <Link href={`/arcade/challenge-ai/grid-master?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
+                🎯 Grid Master
+              </Link>
+            </div>
           </div>
-        </div>
+          <div className="card" style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(34,211,238,0.12))" }}>
+            <h3 style={{ marginTop: 0 }}>🎮 Featured arcade games</h3>
+            <p className="muted" style={{ marginTop: 0 }}>High-quality graphical games with real game engines.</p>
+            <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+              <Link href={`/arcade/shape-stack?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#6366f1", color: "#fff", fontWeight: 600 }}>
+                📐 Shape Stack · Tetris (geometry)
+              </Link>
+              <Link href={`/arcade/market-moves?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 600 }}>
+                📈 Market Moves · Stocks
+              </Link>
+              <Link href={`/arcade/cosmic-catch?age=${ageGroup}`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 600 }}>
+                🪐 Cosmic Catch · 2D (math)
+              </Link>
+              <Link href={`/arcade/solar-3d`}
+                style={{ padding: "10px 16px", borderRadius: 10, background: "#0ea5e9", color: "#fff", fontWeight: 600 }}>
+                🌌 Solar Quiz · 3D (astronomy)
+              </Link>
+              {SUBJECT_ICON.chemistry && (
+                <Link href={`/arcade/chemistry?age=${ageGroup}`}
+                  style={{ padding: "10px 16px", borderRadius: 10, background: "#047857", color: "#fff", fontWeight: 600 }}>
+                  ⚗️ Potion Lab · 2D (chemistry)
+                </Link>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Picker */}
