@@ -113,33 +113,11 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
-    - http:
-        paths:
-          - path: /api/
-            pathType: Prefix
-            backend: { service: { name: orchestrator, port: { number: 8000 } } }
-          - path: /health
-            pathType: Prefix
-            backend: { service: { name: orchestrator, port: { number: 8000 } } }
-          - path: /home
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /audio
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /courses
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
-          # Careers UI (Next.js). API lives at /curriculum/jobs via aoep-apis.
-          - path: /jobs
-            pathType: Prefix
-            backend: { service: { name: web, port: { number: 80 } } }
-          - path: /notifications
-            pathType: Prefix
-            backend: { service: { name: curriculum, port: { number: 8000 } } }
-          - path: /
-            pathType: Prefix
-            backend: { service: { name: web, port: { number: 80 } } }
+    # NOTE: the bare-IP catch-all rule was removed. Previously it allowed
+    # http://45.63.91.80/... to reach the API as a failover, but with
+    # ssl-redirect: true that became https://45.63.91.80/... — which serves
+    # nginx's default self-signed cert and shows "This site is unsafe" in Chrome.
+    # The mobile failover now uses https://api.salareen.com instead.
 ---
 # VKE patch for the per-service API Ingress (base: infra/k8s/ingress.yaml,
 # name: aoep-apis). Re-points the rewrite-prefix API routes at api.salareen.com

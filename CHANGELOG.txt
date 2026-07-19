@@ -2,7 +2,13 @@ CHANGELOG - Agentic Online Education Platform
 =============================================
 Format: newest first. No markdown per project convention.
 
+- 2026-07-18 - v0.21.6 - Fix "This site is unsafe" Chrome warning: delete stale
+  livekit ingress and broken cert (livekit.salareen.com had no DNS, ACME pending
+  4d); remove bare-IP catch-all rule that was bouncing http://IP → https://IP
+  (nginx default self-signed cert). Mobile failover already updated to
+  https://api.salareen.com in v0.21.3.
 - 2026-07-18 - v0.21.4 - Mobile live room: stop re-fetching the LiveKit media token on join (that race tore down the first connect and left the camera on "not ready"); wait briefly for an in-flight connect before failing the camera toggle; surface real connect errors; keep the camera hint honest until a local track exists; remove the redundant Delete session control and keep Close only.
+- 2026-07-18 - v0.21.5 - Mobile live room: stop re-fetching the LiveKit media token on join (that race tore down the first connect and left the camera on "not ready"); wait briefly for an in-flight connect before failing the camera toggle; surface real connect errors; keep the camera hint honest until a local track exists.
 - 2026-07-18 - v0.21.4 - Silence Android + iOS build warnings: add hermesc -w
   flag to Gradle release build via patch-android-hermesc-quiet.js (mirrors the
   existing iOS patch); remove deprecated package= attribute from @livekit/
