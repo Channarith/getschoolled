@@ -35,18 +35,16 @@ def test_policy_places_formative_checks_and_summative_at_end():
 
 def test_corporate_policy_uses_mid_pop_quiz_and_final_exam():
     """Professional/corporate courses: one mid-course pop quiz + end exam."""
-    from orchestrator.main import get_sessions
-
+    # Use a real corporate lesson — do not mutate shared curriculum state
+    # (TeachingSessions is process-wide; mutating audience leaks into other tests).
     response = client.post("/api/sessions", json={
-        "lesson_id": LESSON,
+        "lesson_id": "ai-fluency-essentials",
         "class_type": "solo",
         "student_id": "corp-assessment-student",
     })
     assert response.status_code == 200, response.text
     started = response.json()
     session_id = started["session"]["session_id"]
-    lesson = get_sessions().lesson_for(session_id)
-    lesson.audience = "corporate"
     policy = client.get(f"/assessment/policy/{session_id}").json()
     assert policy["professional"] is True
     ids = [row["checkpoint_id"] for row in policy["checkpoints"]]
