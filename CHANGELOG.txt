@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-19 - v0.26.0 - Drive Mode: request mic permission on the course-start click (getUserMedia) before ambient speech recognition so browsers stop auto-denying with “Microphone blocked”; keep a typed Ask path and an Enable mic retry. ClassRoom Speak now also prompts for mic access first.
 - 2026-07-19 - v0.25.0 - Fix corporate assessment policy test: use a real corporate lesson instead of mutating shared curriculum audience (was leaking intro-to-photosynthesis into the pinned corporate lesson set).
 - 2026-07-19 - v0.25.0 - Professional/corporate courses: mid-course pop quiz + required end-of-course assessment (policy labels, auto-open final on last slide, block completion credit without a verified pass). General courses keep 25/50/75% pop quizzes plus the final exam.
 - 2026-07-19 - v0.24.0 - Consolidate parallel arcade agent branches into one release: keep Shape Stack / Market Moves / Challenge hub from #334 and add Shape Drop, Geo Blocks, Geometry Blocks, Geometry Tetris, Market Mogul, Stock Trader, Stock Rush, Market Catch, Tic-Tac-Toe, Connect Four, Number Duel, and AI Duel; expand Challenge the AI hub + featured arcade links; add finance subject and shape_drop/stocks/challenge catalog modes with server-side versus scoring.

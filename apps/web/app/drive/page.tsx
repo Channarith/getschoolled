@@ -69,6 +69,7 @@ function DrivePageInner() {
   // Hands-free Drive Mode: mic stays always-on and wake-word-gated (no button).
   const [autoListen, setAutoListen] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
+  const [micGranted, setMicGranted] = useState(false);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
@@ -83,6 +84,7 @@ function DrivePageInner() {
   // Always-on ambient recognizer (separate from the one-shot button recognizer).
   const ambientRef = useRef<any>(null);
   const autoListenRef = useRef(true);
+  const micReadyRef = useRef(false);  // true after getUserMedia grant on a user gesture
   const awaitingQuestionRef = useRef(false);   // heard wake word, waiting for the question
   const oneShotActiveRef = useRef(false);      // manual (button) recognizer is running
   const currentNarrationRef = useRef("");      // text being spoken now (for echo filtering)
@@ -263,7 +265,11 @@ function DrivePageInner() {
       const c = await getAudioCourse(id, locale, trainingLang);
       setCourse(c); setSeg(0);
       playSeg(c, 0);
-      if (autoListenRef.current) startAmbientListening();   // hands-free from the start
+      // Hands-free Q&A: only start after mic was primed on a user gesture
+      // (startCourseWithAds / Enable mic). Auto-start without permission → not-allowed.
+      if (autoListenRef.current && micReadyRef.current) {
+        void startAmbientListening();
+      }
     } catch (e) { setError(String(e)); }
   }
 
@@ -279,6 +285,15 @@ function DrivePageInner() {
   // (playNextCourse) still calls startCourse directly — no ad between queued courses.
   async function startCourseWithAds(id: string) {
     if (!getToken()) { setLoggedIn(false); return; }
+    // Prime the mic on this click (user gesture) so ambient listening can run.
+    if (autoListenRef.current) {
+      const access = await ensureMicAccess();
+      if (access !== "ok") {
+        setMicDenied(true);
+        setAutoListen(false);
+        autoListenRef.current = false;
+      }
+    }
     if (adsEnabled && !prerollShown.current) {
       prerollShown.current = true;
       try {
@@ -367,6 +382,36 @@ function DrivePageInner() {
     return Boolean(root.SpeechRecognition || root.webkitSpeechRecognition);
   }
 
+  // Browsers require a secure context + an explicit mic grant. Starting the
+  // Web Speech API without getUserMedia often yields `not-allowed` with no
+  // prompt — which is what showed "Microphone blocked" mid-class.
+  async function ensureMicAccess(): Promise<"ok" | "insecure" | "denied" | "unavailable"> {
+    if (typeof window === "undefined") return "unavailable";
+    if (!window.isSecureContext) return "insecure";
+    if (!supportsSpeechRecognition()) return "unavailable";
+    if (micReadyRef.current) return "ok";
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      micReadyRef.current = true;
+      setMicDenied(false);
+      setMicGranted(true);
+      return "ok";
+    } catch {
+      micReadyRef.current = false;
+      setMicGranted(false);
+      return "denied";
+    }
+  }
+
+  function openTypedAsk(status?: string) {
+    pauseForAssistant(status || t("drive.typeQuestion"));
+    setAssistantOpen(true);
+    setAssistantStatus(status || t("drive.typeQuestion"));
+  }
+
   // Route a final ambient transcript while the course plays. Pauses ONLY for a
   // genuine question (or an explicit "Hey Sala" command) — casual speech, noise,
   // and the narration the mic itself picks up (echo) are filtered out.
@@ -399,8 +444,18 @@ function DrivePageInner() {
     handleAssistantQuestion(raw);
   }
 
-  function startAmbientListening() {
+  async function startAmbientListening() {
     if (!autoListenRef.current || !supportsSpeechRecognition()) return;
+    if (!micReadyRef.current) {
+      const access = await ensureMicAccess();
+      if (access !== "ok") {
+        setMicDenied(true);
+        setAutoListen(false);
+        autoListenRef.current = false;
+        setListening(false);
+        return;
+      }
+    }
     const root = window as any;
     const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
     try { ambientRef.current?.stop?.(); } catch { /* */ }
@@ -418,7 +473,9 @@ function DrivePageInner() {
     rec.onerror = (event: any) => {
       const err = event?.error || "";
       if (err === "not-allowed" || err === "service-not-allowed") {
-        // Mic permission denied — stop trying and let the user use the button.
+        // Mic permission denied — stop ambient; typed Ask stays available.
+        micReadyRef.current = false;
+        setMicGranted(false);
         setMicDenied(true);
         setAutoListen(false);
         autoListenRef.current = false;
@@ -430,10 +487,10 @@ function DrivePageInner() {
       setListening(false);
       // Browsers end the stream on silence/timeout; restart to stay always-on
       // (unless the manual one-shot recognizer is currently active).
-      if (autoListenRef.current && !oneShotActiveRef.current) {
+      if (autoListenRef.current && !oneShotActiveRef.current && micReadyRef.current) {
         window.setTimeout(() => {
           if (autoListenRef.current && !oneShotActiveRef.current && !ambientRef.current?.__running) {
-            startAmbientListening();
+            void startAmbientListening();
           }
         }, 500);
       }
@@ -454,24 +511,50 @@ function DrivePageInner() {
     setListening(false);
   }
 
-  function toggleAutoListen() {
+  async function toggleAutoListen() {
     if (autoListen) {
       setAutoListen(false);
       stopAmbientListening();
-    } else {
-      setMicDenied(false);
-      setAutoListen(true);
-      autoListenRef.current = true;
-      startAmbientListening();
+      return;
     }
+    const access = await ensureMicAccess();
+    if (access === "insecure") {
+      setMicDenied(true);
+      setAssistantStatus(t("drive.micNeedsHttps"));
+      openTypedAsk(t("drive.micNeedsHttps"));
+      return;
+    }
+    if (access !== "ok") {
+      setMicDenied(true);
+      openTypedAsk(t("drive.micBlocked"));
+      return;
+    }
+    setMicDenied(false);
+    setAutoListen(true);
+    autoListenRef.current = true;
+    void startAmbientListening();
   }
 
-  function startVoiceRecognition(expectWakeWord = false) {
+  async function startVoiceRecognition(expectWakeWord = false) {
     pauseForAssistant(t("drive.listenQuestion"));
+    const access = await ensureMicAccess();
+    if (access === "insecure") {
+      setMicDenied(true);
+      setAssistantStatus(t("drive.micNeedsHttps"));
+      setAssistantOpen(true);
+      return;
+    }
+    if (access !== "ok") {
+      setMicDenied(true);
+      setAssistantStatus(t("drive.micBlocked"));
+      setAssistantOpen(true);
+      return;
+    }
     const root = window as any;
     const SpeechRecognition = root.SpeechRecognition || root.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setAssistantStatus(t("drive.voiceUnavailable"));
+      setAssistantOpen(true);
       return;
     }
     // Suspend ambient listening so only one recognizer is active at a time.
@@ -490,21 +573,38 @@ function DrivePageInner() {
       setAssistantTranscript(text);
       handleSpokenInput(text, expectWakeWord);
     };
-    recognition.onerror = () => {
-      setAssistantStatus(t("drive.hearRetry"));
+    recognition.onerror = (event: any) => {
+      const err = event?.error || "";
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        micReadyRef.current = false;
+        setMicGranted(false);
+        setMicDenied(true);
+        setAssistantStatus(t("drive.micBlocked"));
+      } else {
+        setAssistantStatus(t("drive.hearRetry"));
+      }
       setListening(false);
+      oneShotActiveRef.current = false;
+      setAssistantOpen(true);
     };
     recognition.onend = () => {
       setListening(false);
       oneShotActiveRef.current = false;
       // Resume hands-free ambient listening after the manual one-shot.
-      if (autoListenRef.current && courseRef.current) {
-        window.setTimeout(() => { if (autoListenRef.current) startAmbientListening(); }, 500);
+      if (autoListenRef.current && courseRef.current && micReadyRef.current) {
+        window.setTimeout(() => { if (autoListenRef.current) void startAmbientListening(); }, 500);
       }
     };
     recognitionRef.current = recognition;
     setListening(true);
-    recognition.start();
+    setAssistantOpen(true);
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      oneShotActiveRef.current = false;
+      setAssistantStatus(t("drive.hearRetry"));
+    }
   }
 
   function handleSpokenInput(raw: string, _expectWakeWord: boolean) {
@@ -627,15 +727,27 @@ function DrivePageInner() {
             <button onClick={stop} style={{ ...BIG, background: "#e11d48", color: "#fff" }}>⏹</button>
             {supportsSpeechRecognition() && !micDenied ? (
               <button
-                onClick={toggleAutoListen}
+                onClick={() => void toggleAutoListen()}
                 title={t("drive.handsFreeHint")}
                 style={{ ...BIG, background: autoListen ? (listening ? "#16a34a" : "#0d9488") : "#334155", color: "#fff" }}
               >
                 {autoListen ? t("drive.handsFreeOn") : t("drive.handsFreeOff")}
               </button>
             ) : (
-              <button onClick={() => startVoiceRecognition(false)} style={BIG}>🎙 {t("drive.ask")}</button>
+              <button
+                onClick={() => void toggleAutoListen()}
+                style={{ ...BIG, background: "#0d9488", color: "#fff" }}
+                title={t("drive.micEnableHint")}
+              >
+                {t("drive.enableMic")}
+              </button>
             )}
+            <button
+              onClick={() => openTypedAsk(t("drive.typeQuestion"))}
+              style={{ ...BIG, background: "#334155", color: "#fff" }}
+            >
+              {t("drive.askType")}
+            </button>
             {instructors.length > 0 && (
               <label style={{ marginLeft: "auto", color: "#9aa6c2" }}>
                 {t("drive.instructor")}&nbsp;
@@ -656,8 +768,10 @@ function DrivePageInner() {
           </div>
           {micDenied ? (
             <div className="muted" style={{ marginTop: 6, color: "#f59e0b", fontSize: 13 }}>{t("drive.micBlocked")}</div>
-          ) : autoListen && supportsSpeechRecognition() ? (
+          ) : autoListen && micGranted && supportsSpeechRecognition() ? (
             <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
+          ) : supportsSpeechRecognition() ? (
+            <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.micEnableHint")}</div>
           ) : null}
           <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
             {t("drive.autoAdvance")}
