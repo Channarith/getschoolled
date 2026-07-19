@@ -17,6 +17,10 @@ const PATCHES = [
   // Xcode 26 noise: hermesc undeclared-global warnings + deprecated allowBluetooth.
   { script: "patch-hermesc-quiet-warnings.js", required: false },
   { script: "patch-allow-bluetooth-hfp-ios.js", required: false },
+  // Android: suppress hermesc undeclared-global warnings in Gradle release builds.
+  { script: "patch-android-hermesc-quiet.js", required: false },
+  // Android: remove deprecated package= from LiveKit manifests (AGP 8+ warning).
+  { script: "patch-livekit-manifests.js", required: false },
 ];
 
 function runPatch(script) {

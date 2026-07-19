@@ -3,6 +3,12 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 - 2026-07-18 - v0.21.4 - Mobile live room: stop re-fetching the LiveKit media token on join (that race tore down the first connect and left the camera on "not ready"); wait briefly for an in-flight connect before failing the camera toggle; surface real connect errors; keep the camera hint honest until a local track exists; remove the redundant Delete session control and keep Close only.
+- 2026-07-18 - v0.21.4 - Silence Android + iOS build warnings: add hermesc -w
+  flag to Gradle release build via patch-android-hermesc-quiet.js (mirrors the
+  existing iOS patch); remove deprecated package= attribute from @livekit/
+  react-native and @livekit/react-native-webrtc AndroidManifest.xml files via
+  patch-livekit-manifests.js (AGP 8+ warning, becomes error in future AGP).
+  Both patches run automatically on pnpm install via postinstall hook.
 - 2026-07-18 - v0.21.3 - Fix mobile camera after HTTPS migration (iOS + Android):
   correct beginLiveKitAudio/endLiveKitAudio generation tracking so stale cleanup
   no longer kills valid new audio-session calls; change CLOUD_FAILOVER_BASE_URL
