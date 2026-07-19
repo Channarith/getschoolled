@@ -7,8 +7,10 @@ import {
   getLiveGiftCatalog,
   getMe,
   getToken,
+  getLearningExperience,
   joinLiveRoom,
   leaveLiveRoom,
+  listStudents,
   liveRoomBan,
   liveRoomUnban,
   liveRoomReport,
@@ -217,6 +219,35 @@ function isSoloLiveRoom(roomId: string, room?: LiveRoomState | null): boolean {
 
 function soloExitHref(roomId: string, room?: LiveRoomState | null): string {
   return isSoloLiveRoom(roomId, room) ? "/class" : "/group-classes";
+}
+
+type LearnerJoinContext = {
+  studentId: string;
+  readinessScore: number;
+  readinessBand: string;
+  primaryStyle: string;
+  learnerCategory: string;
+  lxScore: number | null;
+};
+
+async function fetchLearnerJoinContext(): Promise<LearnerJoinContext | null> {
+  if (!getToken()) return null;
+  try {
+    const { students } = await listStudents();
+    const student = students[0];
+    if (!student) return null;
+    const lx = await getLearningExperience(student.id);
+    return {
+      studentId: student.id,
+      readinessScore: Number(lx.readiness_score ?? 0),
+      readinessBand: (lx.readiness_band || "").trim(),
+      primaryStyle: (lx.primary_style || student.primary_style || "mixed").trim() || "mixed",
+      learnerCategory: (student.learner_category || "").trim(),
+      lxScore: lx.lx_score_ema ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function gridLayout(roomSize: number): { cols: number; rows: number } {
@@ -512,6 +543,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [gamePrompt, setGamePrompt] = useState("What does AI stand for?");
   const [gameAnswer, setGameAnswer] = useState("artificial intelligence");
   const [gameResponse, setGameResponse] = useState("");
+  const [learnerCtx, setLearnerCtx] = useState<LearnerJoinContext | null>(null);
   const [showChat, setShowChat] = useState(true);
   const [focusInstructor, setFocusInstructor] = useState(false);
   // Per-device playback mute. Unlike the old room-wide mute endpoint, this
@@ -789,7 +821,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       const fallbackIdentity = accountId
         ? `web-acct-${accountId}`
         : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
-      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale);
+      const profile = getToken() ? await fetchLearnerJoinContext() : null;
+      if (profile) setLearnerCtx(profile);
+      const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale, profile ? {
+        studentId: profile.studentId,
+        readinessScore: profile.readinessScore,
+        readinessBand: profile.readinessBand,
+        primaryStyle: profile.primaryStyle,
+      } : undefined);
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can
@@ -1528,7 +1567,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         {!game ? (
           canModerate ? (
             <div style={{ display: "grid", gap: 10 }}>
-              <h2 style={{ margin: 0 }}>🎮 Start a learning game</h2>
+              <h2 style={{ margin: 0 }}>
+                🎮 Start {isSolo ? "a solo learning game" : "a learning game"}
+              </h2>
               <select value={gameType} onChange={(e) => setGameType(e.target.value as LiveGroupGame["type"])} style={{ padding: 10 }}>
                 <option value="quiz_race">⚡ First answer race</option>
                 <option value="tic_tac_toe">⭕ Learning tic-tac-toe</option>
@@ -1546,7 +1587,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               <input value={gamePrompt} onChange={(e) => setGamePrompt(e.target.value)} placeholder="Question or clue" style={{ padding: 10 }} />
               <input value={gameAnswer} onChange={(e) => setGameAnswer(e.target.value)} placeholder="Correct answer" style={{ padding: 10 }} />
               <button type="button" onClick={() => void startGroupGame()} disabled={busy} style={{ padding: 12, background: "#7c3aed", color: "#fff" }}>
-                Start for everyone · 25 points
+                {isSolo ? "Start game" : "Start for everyone"} · 25 points
               </button>
             </div>
           ) : <p>Waiting for Theodore or the class admin to start a game.</p>
@@ -1742,9 +1783,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           background: "#6d28d9", color: "#fff", fontSize: 27,
           boxShadow: "0 10px 30px rgba(0,0,0,.4)",
         }}
-        title="Play a group learning game"
+        title="Play a learning game"
       >🎮</button> : null}
-      {!isSolo ? renderGamePanel(false) : null}
+      {renderGamePanel(false)}
 
       <div
         style={{
@@ -2084,7 +2125,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                         border: "2px solid #c4b5fd", background: "#6d28d9",
                         color: "#fff", fontSize: 27,
                       }}
-                      title="Play a group learning game"
+                      title="Play a learning game"
                     >🎮</button>
                     {renderGamePanel(true)}
                     {socket.giftOverlay ? (
@@ -2780,6 +2821,36 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             boxShadow: "0 8px 24px rgba(0,0,0,.08)",
           }}
         >
+          {learnerCtx && (learnerCtx.readinessBand || learnerCtx.primaryStyle !== "mixed") ? (
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                padding: "8px 10px",
+                borderRadius: 9,
+                background: "color-mix(in srgb, var(--accent-2) 10%, var(--panel))",
+                border: "1px solid color-mix(in srgb, var(--accent-2) 35%, var(--border))",
+              }}
+            >
+              <strong style={{ color: "var(--accent-2)" }}>How you learn</strong>
+              {" · "}
+              {(learnerCtx.primaryStyle || "mixed").replace(/_/g, " ")}
+              {learnerCtx.readinessBand ? (
+                <>
+                  {" · readiness "}
+                  {Math.round(learnerCtx.readinessScore)}
+                  {" ("}
+                  {learnerCtx.readinessBand.replace(/_/g, " ")}
+                  {")"}
+                </>
+              ) : null}
+              {learnerCtx.lxScore != null ? ` · LX ${Math.round(learnerCtx.lxScore)}` : null}
+              {learnerCtx.learnerCategory && learnerCtx.learnerCategory !== "skipped" ? (
+                <> · {learnerCtx.learnerCategory.replace(/_/g, " ")}</>
+              ) : null}
+              <span className="muted"> — Theodore uses this to adapt your Q&amp;A.</span>
+            </div>
+          ) : null}
           {/* A short horizontal transcript preserves vertical space for video. */}
           <div
             style={{
@@ -2847,6 +2918,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               style={{ background: "#be185d", color: "#fff" }}
             >
               🎁 Gift
+            </button>
+            <button
+              type="button"
+              disabled={!me}
+              onClick={() => setShowGame((v) => !v)}
+              title="Play a solo learning game"
+              aria-expanded={showGame}
+              style={{ background: "#6d28d9", color: "#fff" }}
+            >
+              🎮 Game
             </button>
             <input
               value={chatDraft}

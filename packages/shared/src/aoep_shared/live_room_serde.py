@@ -87,11 +87,12 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       row.setdefault("student_id", "")
       row.setdefault("readiness_band", "")
       row.setdefault("readiness_score", 0.0)
+      row.setdefault("primary_style", "")
       # Drop unknown keys that older snapshots may lack / extras that break ctor.
       allowed = {
           "id", "name", "role", "identity", "account_id", "muted", "muted_by_host",
           "hand_raised", "can_publish", "language", "joined_at", "last_seen",
-          "is_admin", "student_id", "readiness_band", "readiness_score",
+          "is_admin", "student_id", "readiness_band", "readiness_score", "primary_style",
       }
       participants[k] = Participant(**{kk: vv for kk, vv in row.items() if kk in allowed})
   chat = [ChatMessage(**m) for m in (data.get("chat") or [])]

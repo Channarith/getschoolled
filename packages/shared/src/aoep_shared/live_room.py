@@ -282,6 +282,8 @@ class Participant:
     # Cached readiness band for host adaptation (no accommodations).
     readiness_band: str = ""
     readiness_score: float = 0.0
+    # Learning style from identity profile (privacy-safe aggregate input for Theodore).
+    primary_style: str = ""
 
     def __post_init__(self) -> None:
         self.name = (self.name or "").strip()
@@ -886,6 +888,7 @@ class LiveRoomStore:
         student_id: str = "",
         readiness_band: str = "",
         readiness_score: float = 0.0,
+        primary_style: str = "",
     ) -> Participant:
         room = self.require(room_id)
         if room.status != "live":
@@ -912,6 +915,9 @@ class LiveRoomStore:
                 if readiness_band:
                     p.readiness_band = readiness_band
                     p.readiness_score = float(readiness_score or 0.0)
+                style = (primary_style or "").strip()
+                if style:
+                    p.primary_style = style
                 p.last_seen = _ts()   # re-join counts as presence
                 self._commit(room)
                 return p
@@ -927,6 +933,7 @@ class LiveRoomStore:
             student_id=sid,
             readiness_band=(readiness_band or "").strip(),
             readiness_score=float(readiness_score or 0.0),
+            primary_style=(primary_style or "").strip(),
             # Hard mutex: learners join WITHOUT publish rights. Their LiveKit token
             # can't send audio/video until the host/AI grants them the floor
             # (which flips can_publish and lets the client fetch a publish token).

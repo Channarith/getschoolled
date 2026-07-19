@@ -1068,6 +1068,7 @@ class LiveRoomJoinRequest(BaseModel):
     student_id: str = ""
     readiness_score: float = 0.0
     readiness_band: str = ""
+    primary_style: str = ""
 
 
 class XrLabEnableRequest(BaseModel):
@@ -1535,6 +1536,7 @@ def join_live_room(
             student_id=req.student_id,
             readiness_band=req.readiness_band,
             readiness_score=req.readiness_score,
+            primary_style=req.primary_style,
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
@@ -1554,6 +1556,12 @@ def join_live_room(
         resolved_room_id,
         ws_presence(toast.to_dict(), room_id=resolved_room_id, viewer_count=room.viewer_count),
     )
+    try:
+        _refresh_audience_profile(resolved_room_id)
+        room = store.require(resolved_room_id)
+        _attach_audience_to_session(resolved_room_id, room.session_id)
+    except Exception:
+        pass
     return {
         "participant": participant.to_dict(),
         "room": room.to_dict(),
@@ -1595,11 +1603,40 @@ def _refresh_audience_profile(room_id: str) -> dict:
                 readiness_score=float(p.readiness_score or 0),
                 band=p.readiness_band or "developing",
                 preferred_language=p.language or "en",
+                primary_style=(p.primary_style or "mixed").strip() or "mixed",
             )
         )
     profile = aggregate_audience(snaps).to_prompt_safe()
     store.set_audience_profile(room_id, profile)
     return profile
+
+
+def _attach_audience_to_session(room_id: str, session_id: str) -> None:
+    """Copy room audience aggregates + learner id into the teaching session so
+    Theodore's blocking and streaming Q&A paths can adapt."""
+    if not session_id:
+        return
+    store = _live_rooms()
+    sessions = get_sessions()
+    try:
+        room = store.require(room_id)
+        session = sessions.store.get(session_id)
+        if session is None:
+            return
+        profile = dict(room.audience_profile or {})
+        if not profile.get("learner_count"):
+            profile = _refresh_audience_profile(room_id)
+        session.audience_profile = profile
+        sessions.store.save(session)
+        for p in room.participants.values():
+            if p.is_host or not p.student_id:
+                continue
+            counters = sessions.counters_for(session_id)
+            if not counters.student_id:
+                counters.student_id = p.student_id
+            break
+    except Exception:
+        pass
 
 
 @app.post("/api/live-rooms/{room_id}/xr/enable")
@@ -2156,6 +2193,7 @@ def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
         except LiveRoomError:
             name, lang = "there", "en"
         try:
+            _attach_audience_to_session(room_id, room.session_id)
             answer = sessions.ask(room.session_id, entry.question, language=lang)
         except Exception:  # noqa: BLE001 - never let Q&A crash the tick
             return None
@@ -2299,16 +2337,7 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
         # Answer in the asker's language: explicit request wins, else the language
         # they joined with (profile/device), else English.
         lang = (req.language or "").strip() or learner.language or "en"
-        # Attach privacy-safe audience profile to the teaching session for Theodore.
-        try:
-            session = sessions.store.get(room.session_id)
-            if session is not None:
-                session.audience_profile = dict(room.audience_profile or {})
-                if not session.audience_profile:
-                    session.audience_profile = _refresh_audience_profile(room_id)
-                sessions.store.save(session)
-        except Exception:
-            pass
+        _attach_audience_to_session(room_id, room.session_id)
         answer = sessions.ask(room.session_id, req.question, language=lang)
         host_msg = store.post_host_message(
             room_id,
@@ -2370,6 +2399,7 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
         return
 
     store.post_chat(room_id, participant_id, question)
+    _attach_audience_to_session(room_id, room.session_id)
     _broadcast_threadsafe(room_id, ws_host_delta(asker=name, text="", room_id=room_id))
 
     streamed: list[str] = []
