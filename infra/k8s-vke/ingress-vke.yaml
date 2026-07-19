@@ -113,11 +113,10 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
-    # NOTE: the bare-IP catch-all rule was removed. Previously it allowed
-    # http://45.63.91.80/... to reach the API as a failover, but with
-    # ssl-redirect: true that became https://45.63.91.80/... — which serves
-    # nginx's default self-signed cert and shows "This site is unsafe" in Chrome.
-    # The mobile failover now uses https://api.salareen.com instead.
+    # Bare IP is served by the separate `aoep-ip` Ingress (ssl-redirect: false)
+    # so http://45.63.91.80 stays on the cluster instead of bouncing to HTTPS on
+    # an un-certifiable IP or redirecting to www. Mobile failover uses
+    # https://api.salareen.com.
 ---
 # VKE patch for the per-service API Ingress (base: infra/k8s/ingress.yaml,
 # name: aoep-apis). Re-points the rewrite-prefix API routes at api.salareen.com
@@ -248,26 +247,3 @@ spec:
           - path: /perception(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: perception, port: { number: 8000 } } }
----
-# Bare-IP HTTP redirect — catches http://45.63.91.80/... (plain HTTP only) and
-# sends a 301 to https://www.salareen.com. Separate from the main ingress so
-# ssl-redirect: false here prevents the HTTP→HTTPS bounce to the un-certifiable
-# bare IP. https://45.63.91.80 will always show "Dangerous" in Chrome because
-# TLS certificates cannot cover bare IP addresses — that is expected and
-# harmless. The canonical URL https://www.salareen.com is always correct.
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: aoep-ip-redirect
-  namespace: aoep
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/permanent-redirect: "https://www.salareen.com"
-spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend: { service: { name: web, port: { number: 80 } } }
