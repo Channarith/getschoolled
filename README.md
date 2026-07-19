@@ -129,6 +129,13 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | --- | --- |
 | <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |
 
+Arcade games — Geo Blocks (Tetris + geometry quiz), Market Mogul (stocks), and
+the Challenge-the-AI arena (Tic-Tac-Toe / Connect Four / Number Duel):
+
+| Geo Blocks quiz | Market Mogul | Challenge the AI | Tic-Tac-Toe win |
+| --- | --- | --- | --- |
+| <img src="docs/screens/arcade_geo_blocks_quiz.webp" alt="Geo Blocks Tetris board with a geometry pop-quiz overlay" /> | <img src="docs/screens/arcade_market_mogul.webp" alt="Market Mogul stocks game with a live price chart and holdings" /> | <img src="docs/screens/arcade_challenge_ai_hub.webp" alt="Challenge the AI hub with three head-to-head games" /> | <img src="docs/screens/arcade_tic_tac_toe_win.webp" alt="Tic-Tac-Toe duel showing a win over the AI" /> |
+
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
 crown, and S-with-bodhi-leaf medallion):
 
