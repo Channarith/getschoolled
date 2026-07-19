@@ -15,9 +15,9 @@ type Phase = "idle" | "live" | "youWin" | "aiWin" | "youWrong" | "done";
 // min/max = AI buzz-in delay range (ms); acc = chance it answers correctly;
 // grace = extra window the player gets to steal the point after the AI fumbles.
 const AI_PARAMS: Record<Level, { min: number; max: number; acc: number; grace: number }> = {
-  easy: { min: 2800, max: 4200, acc: 0.5, grace: 2800 },
-  medium: { min: 1500, max: 2400, acc: 0.8, grace: 1600 },
-  hard: { min: 850, max: 1600, acc: 0.95, grace: 900 },
+  easy: { min: 4500, max: 6000, acc: 0.45, grace: 3500 },
+  medium: { min: 2200, max: 3200, acc: 0.75, grace: 1800 },
+  hard: { min: 900, max: 1700, acc: 0.95, grace: 1000 },
 };
 const WIN_AT = 4;
 
@@ -63,71 +63,96 @@ export default function NumberDuel() {
   const [barMs, setBarMs] = useState(2000);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const phaseRef = useRef<Phase>("idle");
-  phaseRef.current = phase;
+  const nextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A round is resolved exactly once. `roundSeq` is a monotonic counter so every
+  // round gets a unique id that is never reused; `liveId` is the id that may
+  // currently be resolved (0 once consumed). Any pending resolver (player click
+  // OR an AI timer) must present the live id, and resolving clears it so neither
+  // the other path nor a stale timer from an earlier round can score again.
+  // Scores/level live in refs so nothing reads a stale closure.
+  const roundSeqRef = useRef(0);
+  const liveIdRef = useRef(0);
+  const scoreRef = useRef({ you: 0, ai: 0 });
+  const levelRef = useRef<Level>(level);
+  levelRef.current = level;
+  const beginRoundRef = useRef<() => void>(() => {});
+  const resolveRef = useRef<(id: number, endPhase: Phase, message: string) => void>(() => {});
 
-  const clearTimers = () => {
+  const clearRoundTimers = () => {
     if (aiTimer.current) { clearTimeout(aiTimer.current); aiTimer.current = null; }
     if (graceTimer.current) { clearTimeout(graceTimer.current); graceTimer.current = null; }
   };
+  const stopAll = useCallback(() => {
+    clearRoundTimers();
+    if (nextTimer.current) { clearTimeout(nextTimer.current); nextTimer.current = null; }
+    liveIdRef.current = 0;
+  }, []);
 
-  // Launch one round. Scores are threaded explicitly so recursion never reads
-  // stale state, and the round always resolves (win, loss, or AI recovery).
-  const beginRound = useCallback((yScore: number, aScore: number) => {
+  // Resolve the active round once. Idempotent: a stale/duplicate call whose id no
+  // longer matches is ignored, so the player and the AI can never both score.
+  const resolve = useCallback((id: number, endPhase: Phase, message: string) => {
+    if (id === 0 || id !== liveIdRef.current) return;
+    liveIdRef.current = 0;
+    clearRoundTimers();
+    if (endPhase === "youWin") { scoreRef.current.you += 1; setYou(scoreRef.current.you); }
+    else { scoreRef.current.ai += 1; setAi(scoreRef.current.ai); }
+    setPhase(endPhase); setMsg(message);
+    nextTimer.current = setTimeout(() => beginRoundRef.current(), 1300);
+  }, []);
+  resolveRef.current = resolve;
+
+  // Launch one round. Reads scores/level from refs so it never sees stale state.
+  const beginRound = useCallback(() => {
+    const { you: yScore, ai: aScore } = scoreRef.current;
     if (yScore >= WIN_AT || aScore >= WIN_AT) {
       setPhase("done");
       setMsg(yScore > aScore ? "🏆 You beat the AI in the match!" : "🤖 The AI takes the match.");
       return;
     }
-    const r = makeRound(level);
+    const lvl = levelRef.current;
+    const id = ++roundSeqRef.current;
+    liveIdRef.current = id;
+    const r = makeRound(lvl);
     setRound(r); setPhase("live"); setMsg("");
-    const p = AI_PARAMS[level];
+    const p = AI_PARAMS[lvl];
     const t = p.min + Math.random() * (p.max - p.min);
     setBarMs(t); setBarPct(0);
     requestAnimationFrame(() => requestAnimationFrame(() => setBarPct(100)));
-    clearTimers();
-    const aiScores = (extraMsg: string) => {
-      setPhase("aiWin"); setMsg(extraMsg);
-      setAi(aScore + 1);
-      setTimeout(() => beginRound(yScore, aScore + 1), 1300);
-    };
+    clearRoundTimers();
     aiTimer.current = setTimeout(() => {
-      if (phaseRef.current !== "live") return;
       if (Math.random() < p.acc) {
-        aiScores("🤖 The AI buzzed in first!");
+        resolveRef.current(id, "aiWin", "🤖 The AI buzzed in first!");
       } else {
         // AI fumbled — give the player a grace window to steal the point,
         // then the AI recovers so the match can't stall.
         setMsg("🤖 The AI fumbled — quick, answer!");
-        graceTimer.current = setTimeout(() => {
-          if (phaseRef.current !== "live") return;
-          aiScores("🤖 The AI recovered and answered.");
-        }, p.grace);
+        graceTimer.current = setTimeout(
+          () => resolveRef.current(id, "aiWin", "🤖 The AI recovered and answered."),
+          p.grace,
+        );
       }
     }, t);
-  }, [level]);
+  }, []);
+  beginRoundRef.current = beginRound;
 
   const startMatch = useCallback(() => {
-    clearTimers();
+    stopAll();
+    scoreRef.current = { you: 0, ai: 0 };
     setYou(0); setAi(0); setMsg("");
-    beginRound(0, 0);
-  }, [beginRound]);
+    beginRound();
+  }, [beginRound, stopAll]);
 
   const answer = (v: number) => {
-    if (phase !== "live" || !round) return;
-    clearTimers();
-    if (v === round.answer) {
-      setPhase("youWin"); setMsg("⚡ You buzzed in correctly!");
-      setYou(you + 1);
-      setTimeout(() => beginRound(you + 1, ai), 1300);
-    } else {
-      setPhase("youWrong"); setMsg(`❌ Wrong — it was ${round.answer}. Point to the AI.`);
-      setAi(ai + 1);
-      setTimeout(() => beginRound(you, ai + 1), 1300);
-    }
+    const id = liveIdRef.current;
+    if (phase !== "live" || !round || id === 0) return;
+    resolve(
+      id,
+      v === round.answer ? "youWin" : "youWrong",
+      v === round.answer ? "⚡ You buzzed in correctly!" : `❌ Wrong — it was ${round.answer}. Point to the AI.`,
+    );
   };
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => () => stopAll(), [stopAll]);
 
   const live = phase === "live";
 
@@ -142,7 +167,7 @@ export default function NumberDuel() {
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
         <span className="muted">Difficulty:</span>
         {(["easy", "medium", "hard"] as Level[]).map((l) => (
-          <button key={l} onClick={() => { setLevel(l); setPhase("idle"); clearTimers(); }} disabled={live}
+          <button key={l} onClick={() => { setLevel(l); setPhase("idle"); stopAll(); }} disabled={live}
             style={{ opacity: level === l ? 1 : 0.55, fontWeight: level === l ? 700 : 400 }}>
             {l}
           </button>
