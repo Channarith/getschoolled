@@ -8,6 +8,7 @@ import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
 import LanguagePicker from "./LanguagePicker";
+import VoicePrefsControls from "./VoicePrefsControls";
 
 // Netflix-style profile dropdown: a single avatar button on the right of the nav
 // that opens a menu with the user's personal surfaces (profile/account, rewards,
@@ -113,6 +114,12 @@ export default function ProfileMenu() {
             </div>
             <div style={{ padding: "0 10px" }}>
               <LanguagePicker />
+            </div>
+            <div style={{ padding: "10px 14px 6px", fontSize: 12, color: "var(--muted)" }}>
+              🎙 {t("profile.voice")}
+            </div>
+            <div style={{ padding: "0 10px 4px" }}>
+              <VoicePrefsControls />
             </div>
           </div>
 

@@ -9,7 +9,6 @@ import {
   getMe,
   getToken,
   getTtsInstructors,
-  getTtsVoices,
   listAudioCourses,
   listStudents,
   SPEECH_URL,
@@ -17,7 +16,6 @@ import {
   type AudioCourse,
   type AudioCourseRow,
   type Instructor,
-  type VoiceGroup,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import VideoAdBreak from "../components/VideoAdBreak";
@@ -26,12 +24,11 @@ import { useFlag } from "../lib/flags";
 import { friendlyError } from "../lib/errors";
 import { useT } from "../lib/i18n";
 import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
-import { applyVoicePrefsToTts } from "../lib/narrationTts";
-import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, setServerVoice, speakNaturally } from "../lib/tts";
+import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/narrationTts";
+import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
 import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
 import {
-  getTrainingLocaleOrDefault, setTrainingLocale, TRAINING_LOCALE_LABELS,
-  TRAINING_LOCALES, type TrainingLocale,
+  setTrainingLocale, trainingLocaleFromUi, type TrainingLocale,
 } from "../lib/trainingLocale";
 import {
   prosodyForStyle, resolveEffectiveVoiceStyle,
@@ -72,15 +69,8 @@ function DrivePageInner() {
   // Hands-free Drive Mode: mic stays always-on and wake-word-gated (no button).
   const [autoListen, setAutoListen] = useState(true);
   const [micDenied, setMicDenied] = useState(false);
-  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
-  const [serverVoice, setServerVoiceState] = useState("");
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructor, setInstructorState] = useState("");
-  // Voice gender preference (Any / Female / Male). This biases BOTH the neural
-  // voice pick and the on-device fallback voice, so a male voice is available
-  // even when the server neural engine is down (browser voices are otherwise
-  // female by default).
-  const [genderPref, setGenderPref] = useState<"any" | "female" | "male">("any");
   const [loggedIn, setLoggedIn] = useState(false);
   const [tier, setTier] = useState("basic");
   const [adBreak, setAdBreak] = useState<AdBreak | null>(null);
@@ -127,91 +117,51 @@ function DrivePageInner() {
     } catch { /* guest */ }
     voiceStyleRef.current = resolveEffectiveVoiceStyle(prefs.instructorId, student);
     applyVoicePrefsToTts(prefs);
+    const groups = await loadVoiceCatalog();
+    const accent = accentFromPrefs(prefs, groups);
+    voiceLocaleRef.current = accent.voiceLocale;
+    voiceGenderRef.current = accent.voiceGender;
   }
 
   useEffect(() => {
     setAssistantStatus(t("drive.assistantDefault"));
   }, [t]);
 
-  // Stop the mic when leaving Drive Mode.
+  // Hard-stop narration + mic when leaving Drive Mode. Bump playGen first —
+  // speechSynthesis.cancel() fires utterance onend, which would otherwise
+  // auto-advance into the next segment after navigation.
   useEffect(() => {
-    return () => { stopAmbientListening(); stopVoiceRecognition(); };
+    return () => {
+      playGenRef.current++;
+      clearResumeTimer();
+      stopAmbientListening();
+      stopVoiceRecognition();
+      try { cancelSpeech(); } catch { /* */ }
+    };
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (!getToken()) return;
     getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
-    const stored = getTrainingLocaleOrDefault(locale);
+    // Lesson language follows the profile Language picker (no duplicate Drive UI).
+    const stored = trainingLocaleFromUi(locale);
     setTrainingLang(stored);
+    setTrainingLocale(stored);
     getAudioCategories(locale).then(setCats).catch(() => setCats([]));
     ensureVoices();
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
-    // Load the accent/voice catalog + restore the saved choice.
-    getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
     getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
     const prefs = getVoicePrefs();
-    if (prefs.voiceId) { setServerVoiceState(prefs.voiceId); setServerVoice(prefs.voiceId); }
     if (prefs.instructorId) {
       setInstructorState(prefs.instructorId);
       setServerInstructor(prefs.instructorId);
       personaRef.current = prefs.instructorId;
     }
-    if (prefs.voiceGender === "male" || prefs.voiceGender === "female") {
-      setGenderPref(prefs.voiceGender);
-    }
     void refreshVoiceStyle();
   }, [locale]);
 
-  // Keep the accent (voice locale) and persona mirrors current so speak() can
-  // pass them to the browser-voice fallback, not just the neural server path.
-  useEffect(() => {
-    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === serverVoice);
-    voiceLocaleRef.current = v?.locale || "";
-    // An explicit gender preference wins over the selected voice's own gender so
-    // the on-device fallback honors "Male"/"Female" even with no neural engine.
-    voiceGenderRef.current = genderPref !== "any" ? genderPref : (v?.gender || "");
-  }, [serverVoice, voiceGroups, genderPref]);
   useEffect(() => { personaRef.current = instructor; }, [instructor]);
-
-  function chooseVoice(id: string) {
-    setServerVoiceState(id);
-    setServerVoice(id);
-    const v = voiceGroups.flatMap((g) => g.voices).find((x) => x.id === id);
-    voiceLocaleRef.current = v?.locale || "";
-    voiceGenderRef.current = genderPref !== "any" ? genderPref : (v?.gender || "");
-    setVoicePrefs({ voiceId: id });
-    if (playingRef.current && courseRef.current) replayCurrentSegment();
-  }
-
-  // Pick a matching-gender neural voice for the current spoken language (so the
-  // neural path also switches to a male/female voice), then replay so the change
-  // is heard immediately.
-  function chooseGender(pref: "any" | "female" | "male") {
-    setGenderPref(pref);
-    setVoicePrefs({ voiceGender: pref });
-    if (pref !== "any") {
-      const lang = (courseRef.current?.body_locale || trainingLangRef.current || "en").split("-")[0];
-      const all = voiceGroups.flatMap((g) => g.voices);
-      const current = all.find((x) => x.id === serverVoice);
-      // Only auto-switch the neural voice if the current one doesn't already
-      // match the requested gender (respect an explicit accent choice otherwise).
-      if (!current || current.gender !== pref) {
-        const match = all.find((v) => v.language === lang && v.gender === pref)
-          || all.find((v) => v.gender === pref);
-        if (match) {
-          setServerVoiceState(match.id);
-          setServerVoice(match.id);
-          voiceLocaleRef.current = match.locale || "";
-          setVoicePrefs({ voiceId: match.id });
-        }
-      }
-    }
-    voiceGenderRef.current = pref !== "any"
-      ? pref
-      : (voiceGroups.flatMap((g) => g.voices).find((x) => x.id === serverVoice)?.gender || "");
-    if (playingRef.current && courseRef.current) replayCurrentSegment();
-  }
 
   function chooseInstructor(id: string) {
     setInstructorState(id);
@@ -229,22 +179,6 @@ function DrivePageInner() {
       .catch((e) => setError(String(e)));
   }, [cat, q, locale, trainingLang]);
   useEffect(() => { refresh(); }, [refresh]);
-
-  // Silently refresh the selected course text when the UI locale (or the
-  // selected course id) changes. Spoken-language switches are handled by
-  // `switchTrainingLang` below (which also cancels/replays audio), so this
-  // effect intentionally does NOT depend on `trainingLang`. We depend on the
-  // id rather than the full `course` object because this effect calls
-  // setCourse() (depending on `course` would loop).
-  const selectedCourseId = course?.id;
-  useEffect(() => {
-    if (!selectedCourseId || !loggedIn) return;
-    let cancelled = false;
-    getAudioCourse(selectedCourseId, locale, trainingLangRef.current)
-      .then((c) => { if (!cancelled) setCourse(c); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [locale, selectedCourseId, loggedIn]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
@@ -288,44 +222,39 @@ function DrivePageInner() {
     });
   }, [course, seg, speak, playSeg]);
 
-  // Pause -> switch spoken language -> resume at the same point in the new
-  // language. Refetches the open course so segment bodies come back localized,
-  // then replays the current segment (or stays paused) in the new voice.
-  const switchTrainingLang = useCallback((loc: TrainingLocale) => {
-    setTrainingLocale(loc);
-    setTrainingLang(loc);
-    const current = courseRef.current;
-    if (!current) return;
+  // When the profile language changes, refresh the open course's spoken text
+  // and continue from the same segment if audio was playing.
+  useEffect(() => {
+    const id = courseRef.current?.id;
+    if (!id || !loggedIn) return;
+    let cancelled = false;
     const wasPlaying = playingRef.current;
     const at = segRef.current;
-    playGenRef.current++;               // invalidate the utterance we're cancelling
-    cancelSpeech();
-    void getAudioCourse(current.id, locale, loc)
+    getAudioCourse(id, locale, trainingLang)
       .then((c) => {
+        if (cancelled) return;
         setCourse(c);
         setSeg(at);
         if (wasPlaying) playSeg(c, at);
         else setPlaying(false);
       })
       .catch(() => {});
-  }, [locale, playSeg]);
+    return () => { cancelled = true; };
+  }, [locale, trainingLang, loggedIn, playSeg]);
 
   const prevRateRef = useRef(rate);
-  const prevVoiceRef = useRef(serverVoice);
   const prevInstructorRef = useRef(instructor);
   useEffect(() => {
     if (
       prevRateRef.current === rate &&
-      prevVoiceRef.current === serverVoice &&
       prevInstructorRef.current === instructor
     )
       return;
     prevRateRef.current = rate;
-    prevVoiceRef.current = serverVoice;
     prevInstructorRef.current = instructor;
     if (!playing || !course) return;
     replayCurrentSegment();
-  }, [rate, serverVoice, instructor, playing, course, replayCurrentSegment]);
+  }, [rate, instructor, playing, course, replayCurrentSegment]);
 
   async function startCourse(id: string) {
     if (!getToken()) { setLoggedIn(false); return; }   // preview is view-only (no audio)
@@ -642,12 +571,6 @@ function DrivePageInner() {
     handleAssistantQuestion(q);
   }
 
-  useEffect(() => () => {
-    clearResumeTimer();
-    stopVoiceRecognition();
-    try { cancelSpeech(); } catch { /* */ }
-  }, []);
-
   const BIG = { fontSize: 22, padding: "16px 22px", borderRadius: 14 };
 
   return (
@@ -724,43 +647,7 @@ function DrivePageInner() {
                 </select>
               </label>
             )}
-            <span style={{ display: "inline-flex", gap: 4, alignItems: "center", color: "#9aa6c2" }}>
-              {t("drive.voiceGender")}&nbsp;
-              {(["any", "female", "male"] as const).map((g) => {
-                const on = genderPref === g;
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => chooseGender(g)}
-                    style={{
-                      padding: "6px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-                      border: on ? "1px solid #0ea5e9" : "1px solid #334155",
-                      background: on ? "#0ea5e9" : "transparent",
-                      color: on ? "#001022" : "#9aa6c2", cursor: "pointer",
-                    }}
-                  >
-                    {g === "any" ? t("drive.voiceGenderAny") : g === "female" ? t("drive.voiceGenderFemale") : t("drive.voiceGenderMale")}
-                  </button>
-                );
-              })}
-            </span>
-            {voiceGroups.length > 0 && (
-              <label style={{ marginLeft: instructors.length ? undefined : "auto", color: "#9aa6c2" }}>
-                {t("drive.voice")}&nbsp;
-                <select value={serverVoice} onChange={(e) => chooseVoice(e.target.value)}>
-                  <option value="">{t("drive.voiceDefault")}</option>
-                  {voiceGroups.map((g) => (
-                    <optgroup key={g.language} label={g.language.toUpperCase()}>
-                      {g.voices.map((v) => (
-                        <option key={v.id} value={v.id}>{v.accent} · {v.label}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label style={{ marginLeft: voiceGroups.length ? undefined : "auto", color: "#9aa6c2" }}>
+            <label style={{ marginLeft: instructors.length ? undefined : "auto", color: "#9aa6c2" }}>
               {t("drive.speed")}&nbsp;
               <select value={rate} onChange={(e) => setRate(Number(e.target.value))}>
                 {[0.5, 1, 2, 3].map((r) => <option key={r} value={r}>{r}x</option>)}
@@ -772,30 +659,6 @@ function DrivePageInner() {
           ) : autoListen && supportsSpeechRecognition() ? (
             <div className="muted" style={{ marginTop: 6, fontSize: 13 }}>{t("drive.handsFreeHint")}</div>
           ) : null}
-          <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="muted" style={{ fontSize: 13 }}>{t("drive.trainingLang")}</span>
-            {TRAINING_LOCALES.map((loc) => {
-              const on = trainingLang === loc;
-              return (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => switchTrainingLang(loc)}
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    border: on ? "1px solid #16a34a" : "1px solid #334155",
-                    background: on ? "#16a34a" : "transparent",
-                    color: on ? "#001022" : "#9aa6c2",
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  {TRAINING_LOCALE_LABELS[loc]}
-                </button>
-              );
-            })}
-          </div>
           <p className="muted" style={{ marginTop: 10, fontSize: 13 }}>
             {t("drive.autoAdvance")}
           </p>
@@ -836,30 +699,6 @@ function DrivePageInner() {
       <>
       {/* Browse */}
       <div className="card">
-        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-          <span className="muted" style={{ fontSize: 13 }}>{t("drive.trainingLang")}</span>
-          {TRAINING_LOCALES.map((loc) => {
-            const on = trainingLang === loc;
-            return (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => switchTrainingLang(loc)}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  border: on ? "1px solid #16a34a" : "1px solid var(--border)",
-                  background: on ? "#16a34a" : "transparent",
-                  color: on ? "#001022" : "var(--text)",
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                {TRAINING_LOCALE_LABELS[loc]}
-              </button>
-            );
-          })}
-        </div>
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           <input placeholder={t("drive.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: 10 }} />
