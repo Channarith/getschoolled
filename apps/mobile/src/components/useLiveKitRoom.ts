@@ -24,6 +24,22 @@ type TileTrack = { participantId: string; track: object };
 /** Always use the front / selfie camera for live-class profile tiles. */
 const SELFIE_CAMERA = { facingMode: "user" as const };
 
+function friendlyConnectError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err || "");
+  const lower = raw.toLowerCase();
+  if (!raw.trim()) return "Could not connect to live video.";
+  if (lower.includes("permission") || lower.includes("notallowed")) {
+    return "Camera or microphone permission was denied.";
+  }
+  if (lower.includes("network") || lower.includes("websocket") || lower.includes("failed to fetch")) {
+    return "Live video network error. Check your connection and try again.";
+  }
+  if (lower.includes("token") || lower.includes("unauthorized") || lower.includes("403")) {
+    return "Live video session expired. Leave and rejoin the class.";
+  }
+  return raw.length > 160 ? `${raw.slice(0, 157)}…` : raw;
+}
+
 /**
  * Single shared LiveKit connection for a mobile live room.
  *
@@ -42,6 +58,7 @@ export function useLiveKitRoom(
 ) {
   const [tracks, setTracks] = useState<TileTrack[]>([]);
   const [connected, setConnected] = useState(false);
+  const [connectError, setConnectError] = useState("");
   const roomRef = useRef<LKRoom | null>(null);
   const canPublishRef = useRef(canPublish);
   canPublishRef.current = canPublish;
@@ -86,12 +103,18 @@ export function useLiveKitRoom(
     if (!connectEnabled || !media?.url || !media.token) {
       setConnected(false);
       setTracks([]);
+      if (connectEnabled && (!media?.url || !media.token)) {
+        setConnectError("Live video credentials are missing. Leave and rejoin the class.");
+      } else {
+        setConnectError("");
+      }
       return;
     }
     const lk = loadLiveKit();
     if (!lk) {
       setConnected(false);
       setTracks([]);
+      setConnectError("Live video is unavailable in this build. Reinstall the Salareen app.");
       return;
     }
     const { AudioSession } = lk.rn;
@@ -126,6 +149,7 @@ export function useLiveKitRoom(
 
     void (async () => {
       try {
+        setConnectError("");
         // Speaker-first session BEFORE connect so iOS doesn't land on earpiece /
         // soloAmbient (which silences AI teacher TTS). Learners keep playback
         // category until they hold the floor.
@@ -156,6 +180,7 @@ export function useLiveKitRoom(
           return;
         }
         setConnected(true);
+        setConnectError("");
         attach(room.localParticipant);
         room.remoteParticipants.forEach((p) => attach(p));
         // Everyone's camera turns on (video-call feel); the mic follows the
@@ -177,16 +202,24 @@ export function useLiveKitRoom(
         await applyLiveKitAudioRoute(canPublishRef.current);
         const cam = room.localParticipant.getTrackPublication(Track.Source.Camera);
         if (cam?.track) upsert(idFor(room.localParticipant.identity), cam.track);
-      } catch {
+      } catch (err) {
+        if (cancelled) return;
         setConnected(false);
         setTracks([]);
+        setConnectError(friendlyConnectError(err));
+        try {
+          room?.disconnect();
+        } catch {
+          /* ignore */
+        }
+        if (roomRef.current === room) roomRef.current = null;
       }
     })();
 
     return () => {
       cancelled = true;
       room?.disconnect();
-      roomRef.current = null;
+      if (roomRef.current === room) roomRef.current = null;
       setConnected(false);
       setTracks([]);
       void endLiveKitAudio();
@@ -245,6 +278,32 @@ export function useLiveKitRoom(
     }
   }, [idFor]);
 
+  /** True when the LiveKit Room object exists (may briefly lead React `connected`). */
+  const hasRoom = useCallback(() => roomRef.current != null, []);
+
+  /**
+   * Wait briefly for an in-flight connect, then try the camera toggle.
+   * Prefer this over gating purely on React `connected` — join used to race a
+   * media-token refresh that left the UI disconnected while connect completed.
+   */
+  const ensureCameraToggle = useCallback(async (enabled: boolean): Promise<"ok" | "not_ready" | "denied"> => {
+    if (roomRef.current) {
+      const ok = await setCameraEnabled(enabled);
+      return ok ? "ok" : "denied";
+    }
+    // Give an in-flight connect up to ~2s before failing closed.
+    for (let i = 0; i < 8; i += 1) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 250);
+      });
+      if (roomRef.current) {
+        const ok = await setCameraEnabled(enabled);
+        return ok ? "ok" : "denied";
+      }
+    }
+    return "not_ready";
+  }, [setCameraEnabled]);
+
   const trackFor = useCallback(
     (participantId: string, identity?: string): object | null => {
       const hit = tracks.find(
@@ -257,5 +316,12 @@ export function useLiveKitRoom(
     [tracks],
   );
 
-  return { trackFor, setCameraEnabled, connected };
+  return {
+    trackFor,
+    setCameraEnabled,
+    ensureCameraToggle,
+    hasRoom,
+    connected,
+    connectError,
+  };
 }
