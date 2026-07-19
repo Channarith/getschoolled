@@ -9,6 +9,7 @@ import {
   askStream,
   type AskDone,
   enrollCourse,
+  getAssessmentPolicy,
   getDisclosure,
   getQuiz,
   grantReward,
@@ -18,16 +19,23 @@ import {
   getToken,
   gradeQuiz,
   listLessons,
+  listStudents,
   getMe,
   pronounce,
   reengage,
+  recordAssessmentAttempt,
+  recordAssessmentPass,
   reportIssue,
   setEnrollmentStatus,
+  startAssessmentCheckpoint,
   startSession,
   startSoloLiveRoom,
   submitPostClassSurvey,
   type AdBreak,
   type Answer,
+  type AssessmentCheckpointSpec,
+  type AssessmentRun,
+  type AssessmentSubmitResult,
   type Disclosure,
   type Lesson,
   type Pronounce,
@@ -36,10 +44,16 @@ import {
   type Reengagement,
   type SessionView,
   type Slide,
+  type StudentProfile,
   type SurveyTemplate,
 } from "../lib/api";
+import {
+  findDueFormativeCheckpoint,
+  findDueSummativeCheckpoint,
+} from "../lib/assessmentFlow";
 import SignInToUse from "../components/SignInToUse";
 import AiPresenter from "../components/AiPresenter";
+import AssessmentCheckpointPanel from "../components/AssessmentCheckpointPanel";
 import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
 import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk } from "../lib/tts";
@@ -112,11 +126,19 @@ export default function ClassPage() {
   const [heard, setHeard] = useState("");
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [listening, setListening] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [assessmentPolicy, setAssessmentPolicy] = useState<AssessmentCheckpointSpec[]>([]);
+  const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
+  const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
+  const completedCheckpointsRef = useRef<Set<string>>(new Set());
+  const assessmentStartingRef = useRef(false);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (getToken()) {
       getMe().then((a) => setTier((a.tier || "basic").toLowerCase())).catch(() => {});
+      listStudents().then((r) => setStudentProfile(r.students[0] ?? null)).catch(() => {});
     }
     listLessons()
       .then((ls) => {
@@ -274,11 +296,116 @@ export default function ClassPage() {
       setSlide(v.slide);
       setChat([]);
       setQuiz(null);
+      setAssessmentRun(null);
+      setAssessmentResult(null);
+      setPassDecisionToken(null);
+      completedCheckpointsRef.current = new Set();
       advanceCount.current = 0;
+      try {
+        const policy = await getAssessmentPolicy(v.session.session_id);
+        setAssessmentPolicy(policy.checkpoints);
+      } catch {
+        setAssessmentPolicy([]);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function openCheckpoint(cp: AssessmentCheckpointSpec) {
+    if (!view || assessmentStartingRef.current || assessmentRun) return;
+    assessmentStartingRef.current = true;
+    stopSpeaking();
+    setBusy(true);
+    try {
+      const acc = studentProfile?.accessibility || {};
+      const run = await startAssessmentCheckpoint({
+        studentId: studentProfile?.id || getStudentId(),
+        sessionId: view.session.session_id,
+        checkpointId: cp.checkpoint_id,
+        stage: cp.stage,
+        profileScore: studentProfile?.profile_score || "",
+        needsCaptions: Boolean(acc.needs_captions),
+        usesAssistiveTech: Boolean(acc.uses_assistive_tech),
+        maxItems: cp.stage === "summative" ? 5 : 3,
+      });
+      setAssessmentRun(run);
+      setAssessmentResult(null);
+    } catch (e) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
+      setError(String(e));
+    } finally {
+      assessmentStartingRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function maybeOpenDueCheckpoint(slideIndex: number, includeSummative = false) {
+    const formative = findDueFormativeCheckpoint(
+      assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+    );
+    if (formative) {
+      await openCheckpoint(formative);
+      return true;
+    }
+    if (includeSummative) {
+      const summative = findDueSummativeCheckpoint(
+        assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+      );
+      if (summative) {
+        await openCheckpoint(summative);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function awardVerifiedPass(token: string) {
+    if (!view) return;
+    const sid = studentProfile?.id;
+    if (!getToken() || !sid) {
+      setFinish({ kind: "guest" });
+      return;
+    }
+    try {
+      await enrollCourse(lessonId, view.lesson.title, "enrolled");
+      const before = await getRewards().then((r) => r.balance).catch(() => 0);
+      const res = await recordAssessmentPass(sid, token);
+      const earned = Math.max(0, res.points_balance - before);
+      setPassDecisionToken(null);
+      setFinish(
+        earned > 0
+          ? { kind: "earned", earned, balance: res.points_balance }
+          : { kind: "complete", balance: res.points_balance },
+      );
+    } catch {
+      setFinish({ kind: "complete" });
+    }
+  }
+
+  async function onAssessmentSubmitted(result: AssessmentSubmitResult) {
+    const checkpointId = result.attempt.checkpoint_id;
+    if (result.attempt.passed || result.attempt.stage === "formative") {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+    }
+    setAssessmentResult(result);
+    setAssessmentRun(null);
+    const sid = studentProfile?.id;
+    if (result.attempt_result_token && sid && getToken()) {
+      recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
+    }
+    if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
+    if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+      await awardVerifiedPass(result.pass_decision_token);
+      const surveyRes = await getPostClassSurvey().catch(() => null);
+      if (surveyRes?.enabled && surveyRes.template) {
+        setSurvey(surveyRes.template);
+        setSurveyAnswers({});
+        setSurveyDone(false);
+      }
     }
   }
 
@@ -304,11 +431,12 @@ export default function ClassPage() {
   }
 
   async function doAdvance() {
-    if (!view) return;
+    if (!view || assessmentRun) return;
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
       setSlide(s);
+      await maybeOpenDueCheckpoint(s.index, false);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -403,13 +531,18 @@ export default function ClassPage() {
     }
   }
 
-  // End the class: reward the completion (logged-in learners earn points), then
-  // prompt the post-class survey if enabled.
+  // End the class: run summative when due, then reward verified pass.
   async function onFinish() {
-    if (!view) return;
+    if (!view || assessmentRun) return;
     setBusy(true);
     try {
-      await awardCompletion();
+      const idx = slide?.index ?? view.lesson.slides.length - 1;
+      if (await maybeOpenDueCheckpoint(idx, true)) return;
+      if (passDecisionToken && studentProfile?.id && getToken()) {
+        await awardVerifiedPass(passDecisionToken);
+      } else {
+        await awardCompletion();
+      }
       const res = await getPostClassSurvey();
       if (res.enabled && res.template) {
         setSurvey(res.template);
@@ -426,11 +559,15 @@ export default function ClassPage() {
   }
 
   // Mark this lesson passed so identity awards reward points on the first pass
-  // (idempotent server-side). Signed-out learners are nudged to sign in.
+  // (idempotent server-side). Prefer verified assessment-pass when available.
   async function awardCompletion() {
     if (!view) return;
     if (!getToken()) {
       setFinish({ kind: "guest" });
+      return;
+    }
+    if (passDecisionToken && studentProfile?.id) {
+      await awardVerifiedPass(passDecisionToken);
       return;
     }
     try {
@@ -859,6 +996,55 @@ export default function ClassPage() {
               </button>
             </div>
           </div>
+
+          {assessmentRun && (
+            <AssessmentCheckpointPanel
+              run={assessmentRun}
+              busy={busy}
+              onBusy={setBusy}
+              onError={(msg) => setError(msg)}
+              onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
+              onDismiss={() => {
+                if (assessmentRun) {
+                  completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
+                    .add(assessmentRun.checkpoint.checkpoint_id);
+                }
+                setAssessmentRun(null);
+              }}
+            />
+          )}
+
+          {assessmentResult && !assessmentRun && (
+            <div
+              className="card"
+              style={{ borderColor: assessmentResult.attempt.passed ? "#16a34a" : "#d97706" }}
+            >
+              <strong>
+                {assessmentResult.attempt.passed ? "Checkpoint passed" : "Checkpoint not yet passed"}
+                {" — "}
+                {Math.round(assessmentResult.attempt.score * 100)}%
+              </strong>
+              {assessmentResult.attempt.stage === "summative" && !assessmentResult.course_decision?.passed ? (
+                <button
+                  type="button"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    setAssessmentResult(null);
+                    const summative = findDueSummativeCheckpoint(
+                      assessmentPolicy, slide?.index ?? 0, completedCheckpointsRef.current,
+                    );
+                    if (summative) void openCheckpoint(summative);
+                  }}
+                >
+                  Retry assessment
+                </button>
+              ) : (
+                <button type="button" style={{ marginTop: 8 }} onClick={() => setAssessmentResult(null)}>
+                  Continue
+                </button>
+              )}
+            </div>
+          )}
 
           {quiz && quiz.length > 0 && (
             <div className="card">

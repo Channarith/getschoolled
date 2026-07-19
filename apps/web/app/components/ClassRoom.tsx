@@ -8,6 +8,7 @@ import {
   directorLxTick,
   enrollCourse,
   generateClassQuiz,
+  getAssessmentPolicy,
   getDisclosure,
   getStudentAdaptation,
   grantReward,
@@ -20,25 +21,37 @@ import {
   listStudents,
   pronounce,
   recordAdaptationEvent,
+  recordAssessmentAttempt,
+  recordAssessmentPass,
   recordBehavior,
   recordWellnessCheckIn,
   reportIssue,
   setEnrollmentStatus,
+  startAssessmentCheckpoint,
   startSession,
   submitPostClassSurvey,
   submitPulseSurvey,
   updateTopicMastery,
   type Answer,
+  type AssessmentCheckpointSpec,
+  type AssessmentRun,
+  type AssessmentSubmitResult,
   type ClassQuizItem,
   type Disclosure,
   type Lesson,
   type Pronounce,
   type SessionView,
   type Slide,
+  type StudentProfile,
   type SurveyTemplate,
 } from "../lib/api";
+import {
+  findDueFormativeCheckpoint,
+  findDueSummativeCheckpoint,
+} from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
+import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, speakNaturally } from "../lib/tts";
@@ -135,6 +148,11 @@ export default function ClassRoom({
   const [popQuiz, setPopQuiz] = useState<ClassQuizItem[] | null>(null);
   const [popQuizAnswers, setPopQuizAnswers] = useState<Record<string, number>>({});
   const [studentId, setStudentId] = useState("");
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [assessmentPolicy, setAssessmentPolicy] = useState<AssessmentCheckpointSpec[]>([]);
+  const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
+  const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
   const [heard, setHeard] = useState("");
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [listening, setListening] = useState(false);
@@ -150,14 +168,18 @@ export default function ClassRoom({
   const declaredPaceRef = useRef("moderate");
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const autoStartedRef = useRef(false);
+  const completedCheckpointsRef = useRef<Set<string>>(new Set());
+  const assessmentStartingRef = useRef(false);
 
   useEffect(() => {
     const signedIn = Boolean(getToken());
     setLoggedIn(signedIn);
     if (signedIn) {
       listStudents().then((r) => {
-        const sid = r.students[0]?.id ?? "";
+        const first = r.students[0] ?? null;
+        const sid = first?.id ?? "";
         setStudentId(sid);
+        setStudentProfile(first);
         if (sid) {
           getStudentAdaptation(sid).then((prof) => {
             setAdaptationProfile(prof.adaptation ?? {});
@@ -243,11 +265,124 @@ export default function ClassRoom({
 
   useEffect(() => { autoplayRef.current = autoplay; }, [autoplay]);
 
-  // Continue the lecture after a quiz / pulse check closes (autoplay only).
+  // Continue the lecture after a quiz / pulse check / assessment closes (autoplay only).
   function resumeAutoplay() {
     if (!autoplayRef.current || !speakAnswers) return;
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     autoAdvanceRef.current = setTimeout(() => { void onAdvance(); }, 400);
+  }
+
+  async function openCheckpoint(cp: AssessmentCheckpointSpec) {
+    if (!view || assessmentStartingRef.current || assessmentRun) return;
+    const sid = studentId || "guest";
+    assessmentStartingRef.current = true;
+    stopSpeaking();
+    setAutoplay(false);
+    setBusy(true);
+    try {
+      const acc = studentProfile?.accessibility || {};
+      const run = await startAssessmentCheckpoint({
+        studentId: sid,
+        sessionId: view.session.session_id,
+        checkpointId: cp.checkpoint_id,
+        stage: cp.stage,
+        profileScore: studentProfile?.profile_score || "",
+        needsCaptions: Boolean(acc.needs_captions),
+        usesAssistiveTech: Boolean(acc.uses_assistive_tech),
+        maxItems: cp.stage === "summative" ? 5 : 3,
+      });
+      setAssessmentRun(run);
+      setAssessmentResult(null);
+    } catch (e) {
+      // Content too thin / offline: mark skipped so we don't loop, keep teaching.
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
+      setError(String(e));
+    } finally {
+      assessmentStartingRef.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function maybeOpenDueCheckpoint(slideIndex: number, includeSummative = false) {
+    const formative = findDueFormativeCheckpoint(
+      assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+    );
+    if (formative) {
+      await openCheckpoint(formative);
+      return true;
+    }
+    if (includeSummative) {
+      const summative = findDueSummativeCheckpoint(
+        assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+      );
+      if (summative) {
+        await openCheckpoint(summative);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function onAssessmentSubmitted(result: AssessmentSubmitResult) {
+    const checkpointId = result.attempt.checkpoint_id;
+    const passedOrFormative = result.attempt.passed || result.attempt.stage === "formative";
+    if (passedOrFormative) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+    }
+    setAssessmentResult(result);
+    setAssessmentRun(null);
+    if (result.attempt_result_token && studentId && getToken()) {
+      recordAssessmentAttempt(studentId, result.attempt_result_token).catch(() => {});
+    }
+    if (result.pass_decision_token) {
+      setPassDecisionToken(result.pass_decision_token);
+    }
+    if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+      await awardVerifiedPass(result.pass_decision_token);
+      const surveyRes = await getPostClassSurvey().catch(() => null);
+      if (surveyRes?.enabled && surveyRes.template) {
+        setSurvey(surveyRes.template);
+        setSurveyAnswers({});
+        setSurveyDone(false);
+      }
+      return;
+    }
+    if (result.attempt.stage === "formative") {
+      resumeAutoplay();
+    }
+  }
+
+  function dismissAssessment() {
+    if (assessmentRun) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
+        .add(assessmentRun.checkpoint.checkpoint_id);
+    }
+    setAssessmentRun(null);
+    setAssessmentResult(null);
+    resumeAutoplay();
+  }
+
+  async function awardVerifiedPass(token: string) {
+    if (!view) return;
+    if (!getToken() || !studentId) {
+      setFinish({ kind: "guest" });
+      return;
+    }
+    try {
+      await enrollCourse(lessonId, view.lesson.title, "enrolled");
+      const before = await getRewards().then((r) => r.balance).catch(() => 0);
+      const res = await recordAssessmentPass(studentId, token);
+      const earned = Math.max(0, res.points_balance - before);
+      setPassDecisionToken(null);
+      setFinish(
+        earned > 0
+          ? { kind: "earned", earned, balance: res.points_balance }
+          : { kind: "complete", balance: res.points_balance },
+      );
+    } catch {
+      setFinish({ kind: "complete" });
+    }
   }
 
   // Fullscreen "Zoom call" mode for the presenter + slide.
@@ -273,7 +408,7 @@ export default function ClassRoom({
     setPron(null);
     setListening(false);
     if (autoAdvanceRef.current) { clearTimeout(autoAdvanceRef.current); autoAdvanceRef.current = null; }
-    if (!slide || !view) return;
+    if (!slide || !view || assessmentRun || showPulse || popQuiz) return;
     // The AI instructor narrates EVERY slide as it appears (this is what makes it
     // feel driven/immersive) — a repeat-after-me slide leads with its cue. When
     // the narration finishes, auto-advance so it teaches the whole course end to
@@ -402,9 +537,19 @@ export default function ClassRoom({
       frustrationCountRef.current = 0;
       questionsAskedRef.current = 0;
       quizStatsRef.current = { correct: 0, total: 0 };
+      completedCheckpointsRef.current = new Set();
+      setAssessmentRun(null);
+      setAssessmentResult(null);
+      setPassDecisionToken(null);
       setView(v);
       setSlide(v.slide);
       setChat([]);
+      try {
+        const policy = await getAssessmentPolicy(v.session.session_id);
+        setAssessmentPolicy(policy.checkpoints);
+      } catch {
+        setAssessmentPolicy([]);
+      }
       await refreshLxTick(v.slide.index, v.lesson.slides.length);
     } catch (e) {
       setError(String(e));
@@ -414,7 +559,7 @@ export default function ClassRoom({
   }
 
   async function onAdvance() {
-    if (!view || popQuiz || showPulse) return;
+    if (!view || popQuiz || showPulse || assessmentRun) return;
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
@@ -427,10 +572,12 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
+      // Policy checkpoints interrupt teaching (including autoplay) so formative
+      // checks and the summative appear automatically in the selected format.
+      if (await maybeOpenDueCheckpoint(s.index, false)) return;
       // While autoplay is on, the AI teaches straight through — don't interrupt
-      // the lecture with pulse surveys or pop quizzes (they require interaction
-      // and would stall the "teach beginning to end" flow). They resume in
-      // self-paced mode when autoplay is paused.
+      // the lecture with pulse surveys or legacy pop quizzes (they require
+      // interaction). They resume in self-paced mode when autoplay is paused.
       if (autoplayRef.current) return;
       const interval = pulseTemplate?.interval_slides ?? 5;
       if (pulseEnabled && pulseTemplate && (s.index + 1) % interval === 0) {
@@ -559,13 +706,18 @@ export default function ClassRoom({
     resumeAutoplay();
   }
 
-  // End the class: reward the completion (logged-in learners earn points), then
-  // prompt the post-class survey if enabled.
+  // End the class: run the summative when due, then reward verified pass.
   async function onFinish() {
-    if (!view) return;
+    if (!view || assessmentRun) return;
     setBusy(true);
     try {
-      await awardCompletion();
+      const idx = slide?.index ?? view.lesson.slides.length - 1;
+      if (await maybeOpenDueCheckpoint(idx, true)) return;
+      if (passDecisionToken && studentId && getToken()) {
+        await awardVerifiedPass(passDecisionToken);
+      } else {
+        await awardCompletion();
+      }
       const res = await getPostClassSurvey();
       if (res.enabled && res.template) {
         setSurvey(res.template);
@@ -582,11 +734,15 @@ export default function ClassRoom({
   }
 
   // Mark this lesson passed so identity awards reward points on the first pass
-  // (idempotent server-side). Signed-out learners are nudged to sign in.
+  // (idempotent server-side). Prefer verified assessment-pass when available.
   async function awardCompletion() {
     if (!view) return;
     if (!getToken()) {
       setFinish({ kind: "guest" });
+      return;
+    }
+    if (passDecisionToken && studentId) {
+      await awardVerifiedPass(passDecisionToken);
       return;
     }
     try {
@@ -1013,6 +1169,64 @@ export default function ClassRoom({
             </div>
           </div>
           </div>
+
+          {assessmentRun && (
+            <AssessmentCheckpointPanel
+              run={assessmentRun}
+              busy={busy}
+              onBusy={setBusy}
+              onError={(msg) => setError(msg)}
+              onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
+              onDismiss={dismissAssessment}
+            />
+          )}
+
+          {assessmentResult && !assessmentRun && (
+            <div
+              className="card"
+              style={{
+                borderColor: assessmentResult.attempt.passed ? "#16a34a" : "#d97706",
+              }}
+            >
+              <strong>
+                {assessmentResult.attempt.passed ? "Checkpoint passed" : "Checkpoint not yet passed"}
+                {" — "}
+                {Math.round(assessmentResult.attempt.score * 100)}%
+              </strong>
+              <div className="muted" style={{ marginTop: 4 }}>
+                {assessmentResult.attempt.stage === "summative"
+                  ? (assessmentResult.course_decision?.passed
+                    ? "Course pass verified. Retention checks are scheduled."
+                    : "You can retry the course assessment (up to 3 attempts).")
+                  : "Keep going — the next slides unlock when you continue."}
+              </div>
+              {assessmentResult.attempt.stage === "summative" && !assessmentResult.course_decision?.passed ? (
+                <button
+                  type="button"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    setAssessmentResult(null);
+                    const summative = findDueSummativeCheckpoint(
+                      assessmentPolicy,
+                      slide?.index ?? 0,
+                      completedCheckpointsRef.current,
+                    );
+                    if (summative) void openCheckpoint(summative);
+                  }}
+                >
+                  Retry assessment
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setAssessmentResult(null)}
+                >
+                  Continue
+                </button>
+              )}
+            </div>
+          )}
 
           {showPulse && pulseTemplate && (
             <div className="card" style={{ borderColor: "#f0ad4e" }}>

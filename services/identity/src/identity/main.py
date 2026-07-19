@@ -548,6 +548,146 @@ def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dic
     return {"student": prof.model_dump(), "skipped": True}
 
 
+def _assessment_signing_key() -> bytes:
+    return os.environ.get(
+        "ASSESSMENT_SIGNING_KEY",
+        os.environ.get("AUTH_SIGNING_KEY", "dev-assessment-signing-key"),
+    ).encode()
+
+
+class AssessmentDecisionSubmit(BaseModel):
+    decision_token: str
+
+
+class AssessmentAttemptSubmit(BaseModel):
+    attempt_token: str
+
+
+@app.post("/students/{student_id}/assessment-attempt")
+def record_assessment_attempt(
+    student_id: str,
+    req: AssessmentAttemptSubmit,
+    acct=Depends(current_account),
+) -> dict:
+    """Persist a signed formative, summative, or retention checkpoint result."""
+    claims = verify_token(req.attempt_token, _assessment_signing_key())
+    if not claims or claims.get("kind") != "assessment_attempt":
+        raise HTTPException(status_code=422, detail="invalid or expired assessment attempt")
+    if claims.get("student_id") != student_id:
+        raise HTTPException(status_code=403, detail="assessment attempt belongs to another student")
+    try:
+        prof = app.state.accounts.record_verified_assessment_attempt(
+            acct.id,
+            student_id,
+            attempt_id=str(claims.get("attempt_id", "")),
+            course_id=str(claims.get("course_id", "")),
+            checkpoint_id=str(claims.get("checkpoint_id", "")),
+            stage=str(claims.get("stage", "")),
+            score=float(claims.get("score", 0)),
+            passed=bool(claims.get("passed", False)),
+            presentation_format=str(claims.get("presentation_format", "text")),
+            ksb_codes=list(claims.get("ksb_codes") or []),
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {
+        "student_id": student_id,
+        "attempt_id": str(claims.get("attempt_id", "")),
+        "recorded": True,
+        "attempt_count": len(prof.assessment_attempts),
+    }
+
+
+@app.post("/students/{student_id}/assessment-pass")
+def record_assessment_pass(
+    student_id: str,
+    req: AssessmentDecisionSubmit,
+    acct=Depends(current_account),
+) -> dict:
+    """Accept only an orchestrator-signed summative pass decision."""
+    claims = verify_token(req.decision_token, _assessment_signing_key())
+    if not claims or claims.get("kind") != "assessment_pass":
+        raise HTTPException(status_code=422, detail="invalid or expired assessment decision")
+    if claims.get("student_id") != student_id:
+        raise HTTPException(status_code=403, detail="assessment decision belongs to another student")
+    try:
+        prof = app.state.accounts.record_verified_assessment_pass(
+            acct.id,
+            student_id,
+            course_id=str(claims.get("course_id", "")),
+            score=float(claims.get("score", 0)),
+            attempt_ids=list(claims.get("attempt_ids") or []),
+            ksb_codes=list(claims.get("ksb_codes") or []),
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    course_id = str(claims.get("course_id", ""))
+    enrollment = acct.enrollments[course_id]
+    return {
+        "student_id": student_id,
+        "course_id": course_id,
+        "passed": True,
+        "score": enrollment.score,
+        "retention_checks": [
+            check for check in prof.retention_checks
+            if check.get("course_id") == course_id
+        ],
+        "points_balance": app.state.accounts.points_balance(acct.id),
+    }
+
+
+@app.get("/students/{student_id}/assessment-history")
+def assessment_history(student_id: str, acct=Depends(current_account)) -> dict:
+    prof = app.state.accounts.get_student(acct.id, student_id)
+    if prof is None:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {
+        "student_id": student_id,
+        "attempts": list(prof.assessment_attempts),
+        "retention_checks": list(prof.retention_checks),
+    }
+
+
+@app.get("/students/{student_id}/retention/due")
+def due_retention_checks(student_id: str, acct=Depends(current_account)) -> dict:
+    try:
+        checks = app.state.accounts.due_retention_checks(acct.id, student_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student profile")
+    return {"student_id": student_id, "checks": checks}
+
+
+class RetentionResultSubmit(BaseModel):
+    result_token: str
+
+
+@app.post("/students/{student_id}/retention/{check_id}/result")
+def record_retention_result(
+    student_id: str,
+    check_id: str,
+    req: RetentionResultSubmit,
+    acct=Depends(current_account),
+) -> dict:
+    claims = verify_token(req.result_token, _assessment_signing_key())
+    if not claims or claims.get("kind") != "retention_result":
+        raise HTTPException(status_code=422, detail="invalid or expired retention result")
+    if claims.get("student_id") != student_id or claims.get("check_id") != check_id:
+        raise HTTPException(status_code=403, detail="retention result does not match this check")
+    try:
+        check = app.state.accounts.record_retention_result(
+            acct.id,
+            student_id,
+            check_id=check_id,
+            course_id=str(claims.get("course_id", "")),
+            attempt_id=str(claims.get("attempt_id", "")),
+            score=float(claims.get("score", 0)),
+            passed=bool(claims.get("passed", False)),
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown student or retention check")
+    return {"student_id": student_id, "check": check}
+
+
 class AdaptationEvent(BaseModel):
     event_type: str
     payload: dict = {}

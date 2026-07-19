@@ -18,8 +18,6 @@ from aoep_shared.assessment import (
     grade,
 )
 from aoep_shared.assessment_policy import (
-    AssessmentAttemptResult,
-    AssessmentFormat,
     AssessmentStage,
     CheckpointPolicy,
     EvidenceDomain,
@@ -1020,10 +1018,35 @@ def assessment_checkpoint_submit(
         )
         memory.update_mastery(result.student_id, result.course_id, evidence.correct)
 
-    response = {"attempt": result.model_dump(mode="json"), "course_decision": None}
-    if result.stage == AssessmentStage.SUMMATIVE:
-        from aoep_shared.auth import sign_token
+    from aoep_shared.auth import sign_token
 
+    evidenced_codes = sorted({
+        code
+        for evidence in result.item_evidence
+        if evidence.correct
+        for code in evidence.ksb_codes
+    })
+    response = {
+        "attempt": result.model_dump(mode="json"),
+        "course_decision": None,
+        "attempt_result_token": sign_token(
+            {
+                "kind": "assessment_attempt",
+                "student_id": result.student_id,
+                "course_id": result.course_id,
+                "checkpoint_id": result.checkpoint_id,
+                "stage": result.stage.value,
+                "attempt_id": result.attempt_id,
+                "score": result.score,
+                "passed": result.passed,
+                "presentation_format": result.presentation_format.value,
+                "ksb_codes": evidenced_codes,
+            },
+            _assessment_signing_key(),
+            ttl_s=3_600,
+        ),
+    }
+    if result.stage == AssessmentStage.SUMMATIVE:
         decision = decide_course_pass(
             result.student_id,
             result.course_id,
@@ -1044,8 +1067,6 @@ def assessment_checkpoint_submit(
                 ttl_s=3_600,
             )
     elif result.stage == AssessmentStage.RETENTION:
-        from aoep_shared.auth import sign_token
-
         response["retention_result_token"] = sign_token(
             {
                 "kind": "retention_result",

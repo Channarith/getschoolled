@@ -547,6 +547,8 @@ export type StudentProfile = {
   accommodations_notes?: string; learner_category?: string;
   onboarding_completed_at?: number | null;
   onboarding_answers?: Record<string, unknown>;
+  profile_score?: string;
+  profile_score_version?: string;
 };
 
 export async function listStudents(): Promise<{ students: StudentProfile[] }> {
@@ -1190,6 +1192,171 @@ export async function gradeQuiz(args: {
         student_id: args.studentId ?? null,
       }),
     })
+  );
+}
+
+// --- policy checkpoints (server-held keys + profile format shells) -------- //
+export type AssessmentCheckpointSpec = {
+  checkpoint_id: string;
+  stage: "formative" | "summative" | "retention";
+  after_slide_index: number;
+};
+
+export type AssessmentPolicy = {
+  session_id: string;
+  course_id: string;
+  checkpoints: AssessmentCheckpointSpec[];
+  retention_intervals_days: number[];
+  pass_rule: string;
+};
+
+export type AssessmentPresentedItem = {
+  item_id: string;
+  topic: string;
+  prompt: string;
+  options: string[];
+  difficulty: string;
+  format: string;
+  audio?: { narration: string; transcript: boolean };
+  video_aid?: { presenter_cue: string; captions: boolean; visual_prompt: string };
+  game?: {
+    kind: string;
+    content_id: string;
+    timed: boolean;
+    points_per_correct: number;
+  };
+};
+
+export type AssessmentRun = {
+  run_id: string;
+  student_id: string;
+  course_id: string;
+  checkpoint: {
+    checkpoint_id: string;
+    stage: string;
+    pass_threshold: number;
+    min_items: number;
+    max_attempts: number;
+  };
+  attempt_number: number;
+  presentation_format: "text" | "audio" | "video_aid" | "game" | string;
+  items: AssessmentPresentedItem[];
+  answer_key_exposed: boolean;
+};
+
+export type AssessmentSubmitResult = {
+  attempt: {
+    attempt_id: string;
+    student_id: string;
+    course_id: string;
+    checkpoint_id: string;
+    stage: string;
+    presentation_format: string;
+    score: number;
+    passed: boolean;
+    attempt_number: number;
+  };
+  course_decision: {
+    student_id: string;
+    course_id: string;
+    passed: boolean;
+    score: number;
+    reason: string;
+  } | null;
+  attempt_result_token: string;
+  pass_decision_token?: string;
+  retention_result_token?: string;
+};
+
+export async function getAssessmentPolicy(sessionId: string): Promise<AssessmentPolicy> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/policy/${encodeURIComponent(sessionId)}`, {
+      cache: "no-store",
+    }),
+  );
+}
+
+export async function startAssessmentCheckpoint(args: {
+  studentId: string;
+  sessionId?: string;
+  courseId?: string;
+  checkpointId: string;
+  stage?: "formative" | "summative" | "retention";
+  profileScore?: string;
+  deviceMode?: string;
+  needsCaptions?: boolean;
+  usesAssistiveTech?: boolean;
+  maxItems?: number;
+  retentionCheckId?: string;
+}): Promise<AssessmentRun> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/assessment/checkpoints/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        student_id: args.studentId,
+        session_id: args.sessionId ?? "",
+        course_id: args.courseId ?? "",
+        checkpoint_id: args.checkpointId,
+        stage: args.stage ?? "formative",
+        profile_score: args.profileScore ?? "",
+        requested_format: "auto",
+        device_mode: args.deviceMode ?? "class",
+        needs_captions: Boolean(args.needsCaptions),
+        uses_assistive_tech: Boolean(args.usesAssistiveTech),
+        max_items: args.maxItems ?? 5,
+        retention_check_id: args.retentionCheckId ?? "",
+      }),
+    }),
+  );
+}
+
+export async function submitAssessmentCheckpoint(
+  runId: string,
+  chosenIndices: number[],
+): Promise<AssessmentSubmitResult> {
+  return jsonOrThrow(
+    await fetch(
+      `${ORCHESTRATOR_URL}/assessment/checkpoints/${encodeURIComponent(runId)}/submit`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chosen_indices: chosenIndices }),
+      },
+    ),
+  );
+}
+
+export async function recordAssessmentAttempt(
+  studentId: string,
+  attemptToken: string,
+): Promise<{ student_id: string; attempt_id: string; recorded: boolean; attempt_count: number }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/assessment-attempt`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ attempt_token: attemptToken }),
+    }),
+  );
+}
+
+export async function recordAssessmentPass(
+  studentId: string,
+  decisionToken: string,
+): Promise<{
+  student_id: string;
+  course_id: string;
+  passed: boolean;
+  score: number;
+  points_balance: number;
+  retention_checks: { check_id: string; interval_days: number; due_at: number; status: string }[];
+}> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/students/${encodeURIComponent(studentId)}/assessment-pass`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ decision_token: decisionToken }),
+    }),
   );
 }
 

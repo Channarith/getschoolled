@@ -43,6 +43,8 @@ class Enrollment(BaseModel):
     score: Optional[float] = None
     level: str = "beginner"
     hands_on: bool = False
+    assessment_verified: bool = False
+    assessment_attempt_id: str = ""
     points_awarded: bool = False   # guard against double-awarding on re-pass
     enrolled_at: float = Field(default_factory=lambda: time.time())
     updated_at: float = Field(default_factory=lambda: time.time())
@@ -845,12 +847,53 @@ class AccountStore:
                 course_id=course_id,
                 title=course_id,
             )
+        enrollment = acct.enrollments[course_id]
+        enrollment.assessment_verified = True
+        enrollment.assessment_attempt_id = source_attempt
         self.set_status(
             account_id,
             course_id,
             EnrollmentStatus.PASSED,
             score=max(0.0, min(1.0, float(score))),
         )
+        self._persist()
+        return prof
+
+    def record_verified_assessment_attempt(
+        self,
+        account_id: str,
+        student_id: str,
+        *,
+        attempt_id: str,
+        course_id: str,
+        checkpoint_id: str,
+        stage: str,
+        score: float,
+        passed: bool,
+        presentation_format: str,
+        ksb_codes: List[str],
+    ) -> StudentProfile:
+        """Append a signed checkpoint result without trusting client grades."""
+        prof = self._by_id[account_id].students.get(student_id)
+        if prof is None:
+            raise KeyError(student_id)
+        if any(
+            row.get("attempt_id") == attempt_id
+            or attempt_id in row.get("attempt_ids", [])
+            for row in prof.assessment_attempts
+        ):
+            return prof
+        prof.assessment_attempts.append({
+            "attempt_id": attempt_id,
+            "course_id": course_id,
+            "checkpoint_id": checkpoint_id,
+            "stage": stage,
+            "score": max(0.0, min(1.0, float(score))),
+            "passed": bool(passed),
+            "presentation_format": presentation_format,
+            "ksb_codes": list(ksb_codes),
+            "recorded_at": time.time(),
+        })
         self._persist()
         return prof
 
@@ -1175,7 +1218,7 @@ class AccountStore:
             self._persist()
         wanted = set(scopes or [
             "profile", "interests", "mastery", "completions", "class_context",
-            "learning_profile", "adaptation", "pace",
+            "learning_profile", "adaptation", "pace", "assessment",
         ])
         student = {"id": prof.id, "display_name": prof.display_name, "age_band": prof.age_band}
         if "interests" in wanted or "profile" in wanted:
@@ -1224,6 +1267,16 @@ class AccountStore:
             out["completed_course_ids"] = list(prof.completed_course_ids)
         if "class_context" in wanted:
             out["class_contexts"] = [c.model_dump() for c in prof.class_contexts]
+        if "assessment" in wanted:
+            due = self.due_retention_checks(account_id, student_id)
+            out["assessment"] = {
+                "verified_passes": sum(
+                    1 for row in prof.assessment_attempts
+                    if row.get("stage") == "summative" and row.get("passed")
+                ),
+                "retention_checks_due": len(due),
+                "recent_results": list(prof.assessment_attempts[-5:]),
+            }
         if "adaptation" in wanted or "pace" in wanted:
             out["adaptation"] = dict(prof.adaptation or {})
         if "pace" in wanted:

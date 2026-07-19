@@ -6,13 +6,20 @@ import {
 
 import {
   advanceLessonSession, askLessonSession, directorLxTick, enrollCourse,
-  getPostClassSurvey, getPulseSurvey, getQuiz, getRewards, gradeQuiz,
-  reengageLessonSession, setEnrollmentStatus, startLessonSession,
+  getAssessmentPolicy, getPostClassSurvey, getPulseSurvey, getQuiz, getRewards, gradeQuiz,
+  listStudents, reengageLessonSession, recordAssessmentAttempt, recordAssessmentPass,
+  setEnrollmentStatus, startAssessmentCheckpoint, startLessonSession,
   submitPostClassSurvey, submitPulseSurvey,
+  type AssessmentCheckpointSpec, type AssessmentRun, type AssessmentSubmitResult,
   type LessonAnswer, type LessonSessionView, type LessonSlide,
-  type QuizGrade, type QuizItemView, type SurveyTemplate,
+  type QuizGrade, type QuizItemView, type StudentProfile, type SurveyTemplate,
 } from "../api";
+import {
+  findDueFormativeCheckpoint,
+  findDueSummativeCheckpoint,
+} from "../assessmentFlow";
 import AnimatedPressable from "../components/AnimatedPressable";
+import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import SurveySheet from "../components/SurveySheet";
@@ -63,8 +70,15 @@ export default function LessonScreen({
   const [finish, setFinish] = useState<FinishState | null>(null);
   const [surveyTpl, setSurveyTpl] = useState<SurveyTemplate | null>(null);
   const [surveyBusy, setSurveyBusy] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [assessmentPolicy, setAssessmentPolicy] = useState<AssessmentCheckpointSpec[]>([]);
+  const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentSubmitResult | null>(null);
+  const [passDecisionToken, setPassDecisionToken] = useState<string | null>(null);
   const slideRef = useRef<LessonSlide | null>(null);
   const studentIdRef = useRef("guest");
+  const completedCheckpointsRef = useRef<Set<string>>(new Set());
+  const assessmentStartingRef = useRef(false);
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
@@ -77,11 +91,31 @@ export default function LessonScreen({
       try {
         const settings = await getSettings();
         studentIdRef.current = settings.studentId;
-        const v = await startLessonSession(lessonId, settings.studentId, classType);
+        if (account) {
+          try {
+            const listed = await listStudents();
+            const first = listed.students[0] ?? null;
+            if (first) {
+              studentIdRef.current = first.id;
+              if (alive) setStudentProfile(first);
+            }
+          } catch { /* optional */ }
+        }
+        const v = await startLessonSession(lessonId, studentIdRef.current, classType);
         if (!alive) return;
         setView(v);
         setSlide(v.slide);
         slideRef.current = v.slide;
+        completedCheckpointsRef.current = new Set();
+        setAssessmentRun(null);
+        setAssessmentResult(null);
+        setPassDecisionToken(null);
+        try {
+          const policy = await getAssessmentPolicy(v.session.session_id);
+          if (alive) setAssessmentPolicy(policy.checkpoints);
+        } catch {
+          if (alive) setAssessmentPolicy([]);
+        }
       } catch (e) {
         if (!alive) return;
         setError((e as Error).message);
@@ -93,7 +127,7 @@ export default function LessonScreen({
       alive = false;
       Speech.stop();
     };
-  }, [lessonId, classType]);
+  }, [lessonId, classType, account]);
 
   function stopNarration() {
     Speech.stop();
@@ -139,8 +173,98 @@ export default function LessonScreen({
     } catch { /* optional */ }
   }
 
-  async function next() {
+  async function openCheckpoint(cp: AssessmentCheckpointSpec) {
+    if (!view || assessmentStartingRef.current || assessmentRun) return;
+    assessmentStartingRef.current = true;
+    stopNarration();
+    setError("");
+    try {
+      const acc = studentProfile?.accessibility || {};
+      const run = await startAssessmentCheckpoint({
+        studentId: studentIdRef.current,
+        sessionId: view.session.session_id,
+        checkpointId: cp.checkpoint_id,
+        stage: cp.stage,
+        profileScore: studentProfile?.profile_score || "",
+        needsCaptions: Boolean(acc.needs_captions),
+        usesAssistiveTech: Boolean(acc.uses_assistive_tech),
+        maxItems: cp.stage === "summative" ? 5 : 3,
+      });
+      setAssessmentRun(run);
+      setAssessmentResult(null);
+    } catch (e) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
+      setError((e as Error).message);
+    } finally {
+      assessmentStartingRef.current = false;
+    }
+  }
+
+  async function maybeOpenDueCheckpoint(slideIndex: number, includeSummative = false) {
+    const formative = findDueFormativeCheckpoint(
+      assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+    );
+    if (formative) {
+      await openCheckpoint(formative);
+      return true;
+    }
+    if (includeSummative) {
+      const summative = findDueSummativeCheckpoint(
+        assessmentPolicy, slideIndex, completedCheckpointsRef.current,
+      );
+      if (summative) {
+        await openCheckpoint(summative);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function awardVerifiedPass(token: string) {
     if (!view) return;
+    if (!account) {
+      setFinish({ kind: "guest" });
+      return;
+    }
+    try {
+      await enrollCourse(lessonId, view.lesson.title, "enrolled");
+      const before = await getRewards().then((r) => r.balance).catch(() => 0);
+      const res = await recordAssessmentPass(studentIdRef.current, token);
+      const earned = Math.max(0, res.points_balance - before);
+      setPassDecisionToken(null);
+      setFinish(
+        earned > 0
+          ? { kind: "earned", earned, balance: res.points_balance }
+          : { kind: "complete", balance: res.points_balance },
+      );
+    } catch {
+      setFinish({ kind: "complete" });
+    }
+  }
+
+  async function onAssessmentSubmitted(result: AssessmentSubmitResult) {
+    const checkpointId = result.attempt.checkpoint_id;
+    if (result.attempt.passed || result.attempt.stage === "formative") {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+    }
+    setAssessmentResult(result);
+    setAssessmentRun(null);
+    if (result.attempt_result_token && account) {
+      recordAssessmentAttempt(studentIdRef.current, result.attempt_result_token).catch(() => {});
+    }
+    if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
+    if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
+      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+      await awardVerifiedPass(result.pass_decision_token);
+      try {
+        const surveyRes = await getPostClassSurvey(view?.lesson.lesson_id, account?.tier);
+        if (surveyRes.enabled && surveyRes.template) setSurveyTpl(surveyRes.template);
+      } catch { /* optional */ }
+    }
+  }
+
+  async function next() {
+    if (!view || assessmentRun) return;
     stopNarration();
     // Mid-lesson interstitial for ad-supported tiers (best-effort; proceeds if
     // no ad is loaded). show() presents the full-screen AdMob ad on iOS/Android.
@@ -157,6 +281,7 @@ export default function LessonScreen({
       setSlide(s);
       slideRef.current = s;
       void tickLx(s);
+      if (await maybeOpenDueCheckpoint(s.index, false)) return;
       void maybePulse(s);
     } catch (e) {
       setError((e as Error).message);
@@ -233,6 +358,10 @@ export default function LessonScreen({
       setFinish({ kind: "guest" });
       return;
     }
+    if (passDecisionToken) {
+      await awardVerifiedPass(passDecisionToken);
+      return;
+    }
     try {
       await enrollCourse(lessonId, view.lesson.title, "enrolled");
       const before = await getRewards().then((r) => r.balance).catch(() => 0);
@@ -249,8 +378,14 @@ export default function LessonScreen({
   }
 
   async function onFinish() {
-    if (!view) return;
-    await awardCompletion();
+    if (!view || assessmentRun) return;
+    const idx = slide?.index ?? view.lesson.slides.length - 1;
+    if (await maybeOpenDueCheckpoint(idx, true)) return;
+    if (passDecisionToken && account) {
+      await awardVerifiedPass(passDecisionToken);
+    } else {
+      await awardCompletion();
+    }
     try {
       const res = await getPostClassSurvey(view.lesson.lesson_id, account?.tier);
       if (res.enabled && res.template) {
@@ -387,6 +522,51 @@ export default function LessonScreen({
                   <PrimaryButton label={t("lesson.finish")} onPress={() => void onFinish()} variant="netflix" />
                 )}
               </View>
+            </GlassPanel>
+          ) : null}
+
+          {assessmentRun ? (
+            <AssessmentCheckpointCard
+              run={assessmentRun}
+              busy={advancing}
+              onError={setError}
+              onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
+              onDismiss={() => {
+                if (assessmentRun) {
+                  completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
+                    .add(assessmentRun.checkpoint.checkpoint_id);
+                }
+                setAssessmentRun(null);
+              }}
+            />
+          ) : null}
+
+          {assessmentResult && !assessmentRun ? (
+            <GlassPanel style={styles.card}>
+              <Text style={styles.cardTitle}>
+                {assessmentResult.attempt.passed ? "Checkpoint passed" : "Checkpoint not yet passed"}
+                {" — "}
+                {Math.round(assessmentResult.attempt.score * 100)}%
+              </Text>
+              {assessmentResult.attempt.stage === "summative" && !assessmentResult.course_decision?.passed ? (
+                <PrimaryButton
+                  label="Retry assessment"
+                  onPress={() => {
+                    setAssessmentResult(null);
+                    const summative = findDueSummativeCheckpoint(
+                      assessmentPolicy, slide?.index ?? 0, completedCheckpointsRef.current,
+                    );
+                    if (summative) void openCheckpoint(summative);
+                  }}
+                  variant="brand"
+                />
+              ) : (
+                <PrimaryButton
+                  label="Continue"
+                  onPress={() => setAssessmentResult(null)}
+                  variant="ghost"
+                />
+              )}
             </GlassPanel>
           ) : null}
 
