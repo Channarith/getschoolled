@@ -136,6 +136,8 @@ export default function QuizDuel() {
     } else {
       setFeedback(`Wrong — answer was "${q.options[q.answer]}"`);
     }
+    // Always advance — never softlock if AI also missed or timers race.
+    if (aiTimer.current) clearTimeout(aiTimer.current);
     setTimeout(() => nextQuestion(p, aiScore), 800);
   };
 
