@@ -132,7 +132,8 @@ def test_etiquette_subject_uses_extended_content():
 
 def test_geometry_game_mode():
     rnd = make_round("geometry", GameType.GEOMETRY, n=3, seed=3)
-    assert all(m.kind == "geometry" for m in rnd.mcqs)
+    assert len(rnd.mcqs) >= 1
+    assert all(m.kind in ("geometry", "shape_drop") for m in rnd.mcqs)
 
 
 def test_catalog_localized_spanish():
