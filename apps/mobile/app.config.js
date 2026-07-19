@@ -5,7 +5,11 @@
  * MOBILE_CLOUD_BASE_URL=https://www.salareen.com
  */
 const CLOUD_DEFAULT = "https://www.salareen.com";
-const CLOUD_FAILOVER_DEFAULT = "http://45.63.91.80";
+// Failover must use HTTPS now that ssl-redirect is enforced on the ingress —
+// the bare IP no longer serves HTTP (it 301-redirects to https://45.63.91.80
+// which has no valid cert). api.salareen.com resolves to the same cluster IP
+// and is covered by the salareen-tls cert.
+const CLOUD_FAILOVER_DEFAULT = "https://api.salareen.com";
 
 module.exports = ({ config }) => {
   const extra = config.extra || {};
@@ -52,8 +56,9 @@ module.exports = ({ config }) => {
           // LiveKit (@livekit/react-native m137) requires Android minSdk 24;
           // Expo SDK 51 default is 23 -> manifest merger fails without this.
           minSdkVersion: 24,
-          // Local Vultr HTTP + Android emulator dev client (not valid in app.json schema).
-          usesCleartextTraffic: true,
+          // Allow cleartext only in local/dev builds (Android emulator uses http://).
+          // Production cloud builds use https:// exclusively after the HTTPS migration.
+          usesCleartextTraffic: deployMode === "local",
         },
       },
     ]);

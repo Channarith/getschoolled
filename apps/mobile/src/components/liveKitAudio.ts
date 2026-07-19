@@ -75,9 +75,13 @@ const MEDIA_ANDROID_OPTS: Record<string, unknown> = {
 
 let session: LiveKitAudioSession | null = null;
 let micPublishing = false;
-// Generation counter: incremented by every beginLiveKitAudio call so that an
-// async continuation from a stale call can detect it has been superseded and
-// must not touch the current session (fixes the fast-re-join audio corruption).
+// Generation counter — incremented by BOTH beginLiveKitAudio (new session) and
+// endLiveKitAudio (teardown). This lets any in-progress beginLiveKitAudio call
+// detect it has been superseded without relying on the `session` reference,
+// which endLiveKitAudio nulls immediately (before the async teardown completes).
+//
+// Invariant: a beginLiveKitAudio continuation should proceed only when its
+// captured `myGen === sessionGen`, i.e. nothing started or ended after it began.
 let sessionGen = 0;
 
 /** True while a live-room LiveKit audio session is owned by this bridge. */
@@ -101,7 +105,11 @@ export async function beginLiveKitAudio(
   session = audioSession;
   micPublishing = Boolean(opts?.micEnabled);
 
-  const superseded = () => sessionGen !== myGen || session !== audioSession;
+  // Only check the generation — NOT `session !== audioSession`. endLiveKitAudio
+  // nulls `session` synchronously before its async teardown completes, which
+  // would make `session !== audioSession` true for the VALID new call that ran
+  // after the stale cleanup, causing it to bail early and skip audio setup.
+  const superseded = () => sessionGen !== myGen;
 
   try {
     await audioSession.configureAudio({
@@ -177,6 +185,10 @@ export async function ensureLiveRoomNarrationRoute(): Promise<void> {
 export async function endLiveKitAudio(): Promise<void> {
   const s = session;
   session = null;
+  // Bump the generation so any in-progress beginLiveKitAudio from the SAME
+  // effect invocation detects it has been superseded by this teardown and
+  // stops without touching the session a new effect just started.
+  sessionGen++;
   micPublishing = false;
   _narrationRouteApplied = false;
   if (s && Platform.OS === "ios") {
