@@ -15,8 +15,10 @@ import {
   type QuizGrade, type QuizItemView, type StudentProfile, type SurveyTemplate,
 } from "../api";
 import {
+  canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  shouldOpenSummativeOnAdvance,
 } from "../assessmentFlow";
 import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
@@ -281,7 +283,10 @@ export default function LessonScreen({
       setSlide(s);
       slideRef.current = s;
       void tickLx(s);
-      if (await maybeOpenDueCheckpoint(s.index, false)) return;
+      const openFinal = shouldOpenSummativeOnAdvance(
+        s.index, view.lesson.slides.length,
+      );
+      if (await maybeOpenDueCheckpoint(s.index, openFinal)) return;
       void maybePulse(s);
     } catch (e) {
       setError((e as Error).message);
@@ -381,6 +386,33 @@ export default function LessonScreen({
     if (!view || assessmentRun) return;
     const idx = slide?.index ?? view.lesson.slides.length - 1;
     if (await maybeOpenDueCheckpoint(idx, true)) return;
+    // Mobile professional courses: prefer verified pass when policy has a summative.
+    const hasSummative = assessmentPolicy.some((cp) => cp.stage === "summative");
+    if (
+      hasSummative
+      && !canAwardCourseCompletion({
+        requireVerifiedPass: true,
+        passDecisionToken,
+      })
+    ) {
+      const summative = findDueSummativeCheckpoint(
+        assessmentPolicy, idx, completedCheckpointsRef.current,
+      );
+      if (summative) {
+        await openCheckpoint(summative);
+        return;
+      }
+      const finalCp = assessmentPolicy.find((cp) => cp.stage === "summative");
+      if (finalCp) {
+        completedCheckpointsRef.current = new Set(
+          [...completedCheckpointsRef.current].filter((id) => id !== finalCp.checkpoint_id),
+        );
+        await openCheckpoint(finalCp as AssessmentCheckpointSpec);
+        return;
+      }
+      setError("Pass the end-of-course assessment to finish this course.");
+      return;
+    }
     if (passDecisionToken && account) {
       await awardVerifiedPass(passDecisionToken);
     } else {

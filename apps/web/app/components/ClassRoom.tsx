@@ -46,8 +46,10 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import {
+  canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  shouldOpenSummativeOnAdvance,
 } from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
@@ -82,6 +84,12 @@ export type ClassRoomProps = {
   backLabel?: string;
   // Label for the primary start button.
   startLabel?: string;
+  /**
+   * Professional / corporate courses: block silent completion awards until the
+   * end-of-course assessment issues a verified pass token. Locked lessons
+   * default to true.
+   */
+  requireVerifiedPass?: boolean;
 };
 
 export default function ClassRoom({
@@ -92,12 +100,14 @@ export default function ClassRoom({
   backHref,
   backLabel,
   startLabel,
+  requireVerifiedPass,
 }: ClassRoomProps) {
   const { t, locale } = useT();
   const heading = title ?? t("class.title");
   const startBtn = startLabel ?? t("class.startLabel");
   const back = backLabel ?? t("class.back");
   const locked = Boolean(lockedLessonId);
+  const mustVerifyPass = requireVerifiedPass ?? locked;
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>(lockedLessonId ?? initialLessonId ?? "");
   const [classType, setClassType] = useState<string>("group");
@@ -354,6 +364,15 @@ export default function ClassRoom({
   }
 
   function dismissAssessment() {
+    // Professional courses: do not silently skip a required end-of-course exam.
+    if (
+      mustVerifyPass
+      && assessmentRun?.checkpoint.stage === "summative"
+      && !passDecisionToken
+    ) {
+      setError("Complete the end-of-course assessment to finish this professional course.");
+      return;
+    }
     if (assessmentRun) {
       completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
         .add(assessmentRun.checkpoint.checkpoint_id);
@@ -572,12 +591,14 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
-      // Policy checkpoints interrupt teaching (including autoplay) so formative
-      // checks and the summative appear automatically in the selected format.
-      if (await maybeOpenDueCheckpoint(s.index, false)) return;
+      // Policy checkpoints interrupt teaching (including autoplay): mid-course
+      // pop quizzes (formative) and the end-of-course exam on the last slide.
+      const openFinal = shouldOpenSummativeOnAdvance(s.index, view.lesson.slides.length);
+      if (await maybeOpenDueCheckpoint(s.index, openFinal)) return;
       // While autoplay is on, the AI teaches straight through — don't interrupt
       // the lecture with pulse surveys or legacy pop quizzes (they require
       // interaction). They resume in self-paced mode when autoplay is paused.
+      // Policy formatives/summatives above still fire under autoplay.
       if (autoplayRef.current) return;
       const interval = pulseTemplate?.interval_slides ?? 5;
       if (pulseEnabled && pulseTemplate && (s.index + 1) % interval === 0) {
@@ -713,6 +734,34 @@ export default function ClassRoom({
     try {
       const idx = slide?.index ?? view.lesson.slides.length - 1;
       if (await maybeOpenDueCheckpoint(idx, true)) return;
+      if (
+        !canAwardCourseCompletion({
+          requireVerifiedPass: mustVerifyPass,
+          passDecisionToken,
+          summativeCompleted: false,
+        })
+      ) {
+        const summative = findDueSummativeCheckpoint(
+          assessmentPolicy, idx, completedCheckpointsRef.current,
+        );
+        if (summative) {
+          await openCheckpoint(summative);
+          return;
+        }
+        // Failed summative without a pass token — reopen final exam for retry.
+        const finalCp = assessmentPolicy.find((cp) => cp.stage === "summative");
+        if (finalCp) {
+          completedCheckpointsRef.current = new Set(
+            [...completedCheckpointsRef.current].filter((id) => id !== finalCp.checkpoint_id),
+          );
+          await openCheckpoint(finalCp);
+          return;
+        }
+        setError(
+          "This professional course requires a passing end-of-course assessment before completion credit.",
+        );
+        return;
+      }
       if (passDecisionToken && studentId && getToken()) {
         await awardVerifiedPass(passDecisionToken);
       } else {
@@ -743,6 +792,12 @@ export default function ClassRoom({
     }
     if (passDecisionToken && studentId) {
       await awardVerifiedPass(passDecisionToken);
+      return;
+    }
+    if (mustVerifyPass) {
+      setError(
+        "This professional course requires a passing end-of-course assessment before completion credit.",
+      );
       return;
     }
     try {
@@ -1170,6 +1225,16 @@ export default function ClassRoom({
           </div>
           </div>
 
+          {mustVerifyPass && view && !assessmentRun && (
+            <div className="card" style={{ borderColor: "#6366f1", background: "rgba(99,102,241,0.06)" }}>
+              <strong>Professional course assessments</strong>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                Expect a mid-course pop quiz while you learn, then an end-of-course assessment.
+                Completion credit requires a passing final score.
+              </p>
+            </div>
+          )}
+
           {assessmentRun && (
             <AssessmentCheckpointPanel
               run={assessmentRun}
@@ -1177,7 +1242,17 @@ export default function ClassRoom({
               onBusy={setBusy}
               onError={(msg) => setError(msg)}
               onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
-              onDismiss={dismissAssessment}
+              onDismiss={
+                mustVerifyPass && assessmentRun.checkpoint.stage === "summative"
+                  ? undefined
+                  : dismissAssessment
+              }
+              dismissLabel="Continue without submitting"
+              headingOverride={
+                assessmentRun.checkpoint.stage === "summative"
+                  ? "End-of-course assessment"
+                  : "Pop quiz"
+              }
             />
           )}
 

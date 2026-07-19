@@ -866,24 +866,83 @@ def _assessment_ksb_maps(course_id: str, items: list[QuizItem]):
 
 @app.get("/assessment/policy/{session_id}")
 def assessment_policy_for_session(session_id: str) -> dict:
-    """Return required assessment points for the current personalized lesson."""
+    """Return required assessment points for the current personalized lesson.
+
+    Professional / corporate courses get a mid-course pop quiz plus a required
+    end-of-course exam. Other audiences keep the denser 25/50/75% schedule.
+    """
     sessions = get_sessions()
     try:
         lesson = sessions.lesson_for(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
     last = max(0, len(lesson.slides) - 1)
+    audience = (getattr(lesson, "audience", None) or "general").lower()
+    professional = audience in {"corporate", "professional", "enterprise"}
+
+    if professional:
+        mid = max(0, min(last, round(last * 0.5)))
+        checkpoints = [
+            {
+                "checkpoint_id": "progress-mid",
+                "stage": "formative",
+                "after_slide_index": mid,
+                "kind": "pop_quiz",
+                "title": "Mid-course pop quiz",
+            },
+            {
+                "checkpoint_id": "course-final",
+                "stage": "summative",
+                "after_slide_index": last,
+                "kind": "final_exam",
+                "title": "End-of-course assessment",
+            },
+        ]
+        pass_rule = (
+            "Professional courses require the mid-course pop quiz and a passing "
+            "end-of-course assessment before completion credit."
+        )
+    else:
+        checkpoints = [
+            {
+                "checkpoint_id": "progress-25",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.25),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 25%",
+            },
+            {
+                "checkpoint_id": "progress-50",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.50),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 50%",
+            },
+            {
+                "checkpoint_id": "progress-75",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.75),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 75%",
+            },
+            {
+                "checkpoint_id": "course-final",
+                "stage": "summative",
+                "after_slide_index": last,
+                "kind": "final_exam",
+                "title": "End-of-course assessment",
+            },
+        ]
+        pass_rule = "passing summative assessment required"
+
     return {
         "session_id": session_id,
         "course_id": lesson.lesson_id,
-        "checkpoints": [
-            {"checkpoint_id": "progress-25", "stage": "formative", "after_slide_index": round(last * 0.25)},
-            {"checkpoint_id": "progress-50", "stage": "formative", "after_slide_index": round(last * 0.50)},
-            {"checkpoint_id": "progress-75", "stage": "formative", "after_slide_index": round(last * 0.75)},
-            {"checkpoint_id": "course-final", "stage": "summative", "after_slide_index": last},
-        ],
+        "audience": audience,
+        "professional": professional,
+        "checkpoints": checkpoints,
         "retention_intervals_days": [0, 7, 30, 90],
-        "pass_rule": "passing summative assessment required",
+        "pass_rule": pass_rule,
     }
 
 

@@ -1410,6 +1410,8 @@ export type AssessmentCheckpointSpec = {
   checkpoint_id: string;
   stage: "formative" | "summative" | "retention";
   after_slide_index: number;
+  kind?: string;
+  title?: string;
 };
 
 export type AssessmentPolicy = {
