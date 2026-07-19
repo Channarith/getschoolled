@@ -576,13 +576,16 @@ export default function LiveRoomScreen({
   // Single shared LiveKit connection for the whole room: one connection maps each
   // participant's video track to their seat (self-view under "You", every remote
   // learner under their own name), so a group class shows MULTIPLE live feeds.
-  const { trackFor, setCameraEnabled, connected: liveKitConnected } = useLiveKitRoom(
+  const { trackFor, ensureCameraToggle, connected: liveKitConnected, connectError } = useLiveKitRoom(
     media,
     room?.participants ?? [],
     hasFloor,
     Boolean(participantId) && !classEnded,
   );
-  const [cameraOn, setCameraOn] = useState(true);
+  // Start as off until LiveKit actually publishes a local track — defaulting to
+  // true previously showed "Your camera is on" while the connection was still
+  // down, then the toggle hit the "not ready" alert.
+  const [cameraOn, setCameraOn] = useState(false);
   type FocusedTile =
     | { kind: "host"; name: string }
     | { kind: "participant"; id: string; identity?: string; name: string; me: boolean };
@@ -598,37 +601,47 @@ export default function LiveRoomScreen({
     ? trackFor(participantId, myIdentity)
     : null;
   useEffect(() => {
-    if (!participantId || !liveKitConnected || myTrack === null) return;
-    setCameraOn(true);
-  }, [participantId, liveKitConnected, myTrack]);
+    if (!participantId) return;
+    setCameraOn(Boolean(myTrack));
+  }, [participantId, myTrack]);
 
   const toggleCamera = useCallback(async () => {
-    if (!liveKitConnected) {
-      Alert.alert(
-        "Camera unavailable",
-        "The live video connection is not ready yet. Wait a moment and try again.",
-      );
-      return;
-    }
     const next = !cameraOn;
-    const ok = await setCameraEnabled(next);
-    if (ok) {
+    const result = await ensureCameraToggle(next);
+    if (result === "ok") {
       setCameraOn(next);
       return;
     }
+    if (result === "denied") {
+      Alert.alert(
+        "Could not toggle camera",
+        "Allow camera access for Salareen in system Settings, then try again.",
+      );
+      return;
+    }
     Alert.alert(
-      "Could not toggle camera",
-      "Allow camera access for Salareen in system Settings, then try again.",
+      "Camera unavailable",
+      connectError
+        || "The live video connection is not ready yet. Wait a moment and try again.",
     );
-  }, [cameraOn, liveKitConnected, setCameraEnabled]);
+  }, [cameraOn, connectError, ensureCameraToggle]);
 
   // Hard mutex: learners join without publish rights; when the host/AI grants
   // the floor (me.can_publish flips) re-fetch a fresh token that permits
   // publishing (and a no-publish one when the floor is released).
+  //
+  // CRITICAL: seed publishRef from the join payload WITHOUT re-minting a token.
+  // Re-fetching on first mount used to replace join media immediately, which
+  // tore down the LiveKit connect mid-flight and left liveKitConnected=false —
+  // the "Camera unavailable / live video connection is not ready" alert.
   const publishRef = useRef<boolean | null>(null);
   useEffect(() => {
     if (!participantId) { publishRef.current = null; return; }
     const cp = Boolean(me?.can_publish);
+    if (publishRef.current === null) {
+      publishRef.current = cp;
+      return;
+    }
     if (publishRef.current === cp) return;
     publishRef.current = cp;
     let alive = true;
@@ -1026,7 +1039,13 @@ export default function LiveRoomScreen({
         ) : null}
         {media ? (
           <Text style={styles.camHint}>
-            {cameraOn ? "📹 Your camera is on — tap 📹 on your card to turn it off" : "📷 Camera off — tap 📷 on your card to turn it on"}
+            {!liveKitConnected
+              ? (connectError
+                ? `📷 Camera unavailable — ${connectError}`
+                : "📷 Connecting camera…")
+              : cameraOn
+                ? "📹 Your camera is on — tap 📹 on your card to turn it off"
+                : "📷 Camera off — tap 📷 on your card to turn it on"}
           </Text>
         ) : null}
       </GlassPanel>
