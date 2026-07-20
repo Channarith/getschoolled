@@ -142,8 +142,8 @@ def test_live_provider_falls_back_to_sample_offline(monkeypatch):
     p = RemotiveJobsProvider()
     monkeypatch.setattr(p, "_fetch", lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
     rows = p.search(limit=5)
-    assert len(rows) >= 5                       # served the curated board
-    assert p.source == "sample"                 # and reported as sample, not remotive
+    assert rows == []                           # empty on failure; composite handles fallback
+    assert p.source == "remotive"               # provider identity unchanged (never mutated)
 
 
 def test_live_provider_caches_for_get_job(monkeypatch):

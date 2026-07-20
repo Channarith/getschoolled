@@ -453,10 +453,12 @@ class _LiveJobsProvider(JobsProvider):
         except Exception:  # noqa: BLE001 - any network/parse error -> fallback
             postings = []
         if not postings:
-            # Air-gapped or provider down: serve the curated board (clearly sample).
-            fallback = MockJobsProvider().search(query=query, location=location, limit=limit)
-            self.source = "sample"
-            return fallback
+            # Air-gapped / provider down. Return [] so CompositeJobsProvider can
+            # exclude this provider and fall back to the sample board at its level.
+            # Serving the sample board here would corrupt the composite's merge.
+            # When this provider is used standalone (not in a composite), callers
+            # that need a non-empty result must handle the empty list themselves.
+            return []
         _cache_put(key, postings)
         return postings
 
@@ -1051,7 +1053,7 @@ class CompositeJobsProvider(_LiveJobsProvider):
             except Exception:  # noqa: BLE001
                 rows = []
             if getattr(p, "source", "") == "sample":
-                continue  # a provider already fell back; ignore its sample rows here
+                continue  # standalone sample provider; skip in composite
             for j in rows:
                 dedup = (j.title.lower(), j.company.lower())
                 if dedup in seen:

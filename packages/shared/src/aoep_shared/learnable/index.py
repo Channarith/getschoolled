@@ -11,7 +11,38 @@ from aoep_shared.games import GAME_SUBJECTS
 from aoep_shared.language_learning import language_list
 
 from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
+import re as _re
+
 from .models import LearnableItem
+
+# ── Kids Academy filter constants (Pre-K to 3rd grade, ages 4–8) ──────────
+# Hoisted to module level so they are built once, not on every request.
+_KIDS_AUDIO_CATEGORIES: frozenset = frozenset({
+    "science & nature", "nature", "health & wellness",
+    "cooking & food", "cooking", "sports & games", "sports",
+    "geography & world", "geography", "world cultures",
+    "true stories & biographies", "arts & culture",
+    "music & instruments", "languages", "civics & law",
+    "history", "kids", "children",
+})
+_KIDS_TITLE_BLOCK = (
+    "abstract", "advanced", "algebra", "calculus", "trigonometry",
+    "differential", "linear algebra", "statistics", "probability",
+    "ai fluency", "machine learning", "deep learning", "neural",
+    "ethics and society", "ai ethics", "data science",
+    "devops", "sap ", "power bi", "cybersecurity", "it fundamentals",
+    "microeconomics", "macroeconomics", "cryptocurrency", "blockchain",
+    "venture capital", "ux design", "philosophy", "stoicism",
+    "acting techniques", "tour of impressionism",
+    "baroque", "renaissance", "modernism", "abstract expressionism",
+    "impressionism", "cubism", "surrealism",
+    "world war", "cold war", "holocaust", "genocide", "civil war",
+    "french revolution", "roman empire",
+    # Removed "ottoman" and "a tour of" — too broad, block valid kids content.
+)
+_KIDS_CAT_PATTERN = _re.compile(
+    r"\b(" + "|".join(_re.escape(k) for k in _KIDS_AUDIO_CATEGORIES) + r")\b"
+)
 
 CERTIFIABLE_LESSONS = {
     "sexual-harassment-prevention": ("Salareen", 1.0),
@@ -234,7 +265,7 @@ def _from_program(p: Any) -> LearnableItem:
         level="beginner",
         tags=["program", audience] if audience else ["program"],
         preview=description[:160],
-        deep_link="/corporate",
+        deep_link=f"/corporate?program={program_id}",
         popularity=3,
     )
 
@@ -332,70 +363,36 @@ def search_learnable(
     rows: List[LearnableItem] = list(items)
 
     if kids_only:
-        # Kids Academy = Pre-K through 3rd grade (ages 4–8).
-        # Only very specific, age-appropriate audio categories are allowed.
-        # Catalog courses require explicit maturity_rating="kids".
-        # Audio courses use a strict category allowlist — no algebra, AI, acting, etc.
-        _KIDS_AUDIO_CATEGORIES = frozenset({
-            # Core early-childhood subjects
-            "science & nature", "nature",
-            "health & wellness",
-            "cooking & food", "cooking",
-            "sports & games", "sports",
-            "geography & world", "geography",
-            "world cultures",
-            "true stories & biographies",   # simple biographies (Ada Lovelace etc.)
-            "arts & culture",               # basic art appreciation
-            "music & instruments",          # basic music
-            "languages",                    # language learning always safe
-            "civics & law",                 # basic civics (how government works)
-            "history",                      # basic history stories
-            "kids", "children",
-        })
-        # Block any title that signals adult/advanced content regardless of category
-        _KIDS_TITLE_BLOCK = (
-            "abstract", "advanced", "algebra", "calculus", "trigonometry",
-            "differential", "linear algebra", "statistics", "probability",
-            "ai fluency", "machine learning", "deep learning", "neural",
-            "ethics and society", "ai ethics", "data science",
-            "devops", "sap ", "power bi", "cybersecurity", "it fundamentals",
-            "microeconomics", "macroeconomics", "cryptocurrency", "blockchain",
-            "venture capital", "ux design", "philosophy", "stoicism",
-            "acting techniques", "tour of impressionism", "a tour of",
-            "baroque", "renaissance", "modernism", "abstract expressionism",
-            "impressionism", "cubism", "surrealism",
-            "world war", "cold war", "holocaust", "genocide", "civil war",
-            "french revolution", "roman empire", "ottoman",
-        )
-        import re as _re
-        _kids_cat_pattern = _re.compile(
-            r"\b(" + "|".join(_re.escape(k) for k in _KIDS_AUDIO_CATEGORIES) + r")\b"
-        )
+        # Use module-level constants (built once at import time, not per-request).
 
         def _is_kids_safe(c: "LearnableItem") -> bool:
             if c.maturity_rating == "kids":
                 return True
             if c.maturity_rating in ("mature", "adult", "explicit"):
                 return False
+            # Catalog courses require explicit maturity_rating="kids" — checked
+            # BEFORE the format shortcuts so interactive catalog courses (e.g.
+            # adult coding courses with media_format="interactive") can't bypass
+            # the curator gate.
+            if c.source == "catalog":
+                return c.format == "game"  # arcade games from catalog always OK
             title_low = c.title.lower()
-            # Block explicitly adult/professional topics by title.
-            if any(block in title_low for block in _KIDS_TITLE_BLOCK):
-                return False
             cat_low = (c.category or c.subject or "").lower()
-            # Arcade games (all subjects) are always fine for kids.
+            # Arcade games (non-catalog) are always fine for kids.
             if c.format == "game":
                 return True
             # Language-learning courses are always kids-safe.
-            if c.format in ("language", "interactive") or "language" in cat_low:
+            if c.format == "language" or "language" in cat_low:
                 return True
-            # Catalog courses that have not been explicitly marked "kids" are kept
-            # out of kids mode unless they are games/language — a human curator
-            # must tag them maturity_rating="kids" first.
-            if c.source == "catalog":
-                return False
-            # Non-catalog items (audio, lesson, program, game): use category-based
-            # allow-list so the auto-generated audio catalog still appears.
-            if _kids_cat_pattern.search(cat_low):
+            # Non-catalog audio/lesson items: category must be in the allowlist.
+            # Apply title-block AFTER category to avoid false-positives on topic
+            # names like "World Cultures: The Ottoman Empire" (category=world cultures
+            # is approved; "ottoman" in the title should not override that).
+            if _KIDS_CAT_PATTERN.search(cat_low):
+                # Only block titles that signal truly adult-level content, not
+                # mere topic mentions within an approved category.
+                if any(block in title_low for block in _KIDS_TITLE_BLOCK):
+                    return False
                 return True
             # Tags can explicitly mark something kids-safe.
             tags_low = " ".join(c.tags or []).lower()
