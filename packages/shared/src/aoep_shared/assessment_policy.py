@@ -37,7 +37,7 @@ class CheckpointPolicy(BaseModel):
     checkpoint_id: str
     stage: AssessmentStage = AssessmentStage.FORMATIVE
     pass_threshold: float = 0.7
-    min_items: int = 3
+    min_items: int = Field(default=3, ge=1)
     max_attempts: int = 3
     required: bool = True
     ksb_coverage_min: float = 0.0
@@ -120,14 +120,14 @@ def select_assessment_format(
             "hands_on": AssessmentFormat.GAME,
             "mixed": AssessmentFormat.TEXT,
         }.get(style, AssessmentFormat.TEXT)
-    if device_mode == "drive":
-        return AssessmentFormat.AUDIO
+    # Apply accessibility overrides before device-mode forcing so caption-
+    # dependent learners always get text even in drive mode.
     if needs_captions and selected == AssessmentFormat.AUDIO:
-        return AssessmentFormat.TEXT
-    if uses_assistive_tech and selected in {
-        AssessmentFormat.VIDEO_AID, AssessmentFormat.GAME,
-    }:
-        return AssessmentFormat.TEXT
+        selected = AssessmentFormat.TEXT
+    if uses_assistive_tech and selected in {AssessmentFormat.VIDEO_AID, AssessmentFormat.GAME}:
+        selected = AssessmentFormat.TEXT
+    if device_mode == "drive":
+        return AssessmentFormat.AUDIO if not needs_captions else AssessmentFormat.TEXT
     return selected
 
 
@@ -279,9 +279,14 @@ def schedule_retention_checks(
     course_id: str,
     completed_at: float,
     source_attempt_id: str,
-    intervals_days: Sequence[int] = (0, 7, 30, 90),
+    intervals_days: Sequence[int] = (1, 7, 30, 90),
 ) -> List[RetentionCheck]:
-    """Build immediate and delayed retrieval checks from one verified pass."""
+    """Build spaced-retrieval checks from one verified pass.
+
+    The first interval is 1 day (not 0) so no check is immediately due at the
+    moment of course completion — a due_at == completed_at check would be
+    permanently overdue from the instant it is created.
+    """
     return [
         RetentionCheck(
             student_id=student_id,

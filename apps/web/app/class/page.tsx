@@ -48,6 +48,7 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import {
+  canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
 } from "../lib/assessmentFlow";
@@ -334,13 +335,19 @@ export default function ClassPage() {
       setAssessmentRun(run);
       setAssessmentResult(null);
     } catch (e) {
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
-      setError(String(e));
+      const msg = String(e);
+      const contentUnavailable = msg.includes("422") || msg.toLowerCase().includes("too little");
+      if (contentUnavailable) {
+        completedCheckpointsRef.current.add(cp.checkpoint_id);
+      }
+      setError(msg);
     } finally {
       assessmentStartingRef.current = false;
       setBusy(false);
     }
   }
+
+  const hasSummativePolicy = assessmentPolicy.some((cp) => cp.stage === "summative");
 
   async function maybeOpenDueCheckpoint(slideIndex: number, includeSummative = false) {
     const formative = findDueFormativeCheckpoint(
@@ -538,6 +545,11 @@ export default function ClassPage() {
     try {
       const idx = slide?.index ?? view.lesson.slides.length - 1;
       if (await maybeOpenDueCheckpoint(idx, true)) return;
+      if (!canAwardCourseCompletion({ requireVerifiedPass: hasSummativePolicy, passDecisionToken, summativeCompleted: false })) {
+        // Summative policy exists but no verified pass yet — re-open the exam.
+        const summative = findDueSummativeCheckpoint(assessmentPolicy, idx, completedCheckpointsRef.current);
+        if (summative) { await openCheckpoint(summative); return; }
+      }
       if (passDecisionToken && studentProfile?.id && getToken()) {
         await awardVerifiedPass(passDecisionToken);
       } else {
@@ -1004,13 +1016,14 @@ export default function ClassPage() {
               onBusy={setBusy}
               onError={(msg) => setError(msg)}
               onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
-              onDismiss={() => {
-                if (assessmentRun) {
-                  completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
-                    .add(assessmentRun.checkpoint.checkpoint_id);
-                }
-                setAssessmentRun(null);
-              }}
+              onDismiss={
+                hasSummativePolicy && assessmentRun?.checkpoint.stage === "summative" && !passDecisionToken
+                  ? undefined
+                  : () => {
+                      if (assessmentRun) completedCheckpointsRef.current.add(assessmentRun.checkpoint.checkpoint_id);
+                      setAssessmentRun(null);
+                    }
+              }
             />
           )}
 

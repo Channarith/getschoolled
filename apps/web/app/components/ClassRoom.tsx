@@ -46,8 +46,10 @@ import {
   type SurveyTemplate,
 } from "../lib/api";
 import {
+  canAwardCourseCompletion,
   findDueFormativeCheckpoint,
   findDueSummativeCheckpoint,
+  shouldOpenSummativeOnAdvance,
 } from "../lib/assessmentFlow";
 import SignInToUse from "./SignInToUse";
 import AiPresenter from "./AiPresenter";
@@ -60,7 +62,7 @@ import { cancelSpeech, speakNaturally } from "../lib/tts";
 type SpeechRec = {
   lang: string; interimResults: boolean; maxAlternatives: number;
   onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
-  onerror: () => void; onend: () => void; start: () => void; stop: () => void;
+  onerror: ((e?: { error?: string }) => void) | (() => void); onend: () => void; start: () => void; stop: () => void;
 };
 
 const RECOG_LANG: Record<string, string> = {
@@ -82,6 +84,12 @@ export type ClassRoomProps = {
   backLabel?: string;
   // Label for the primary start button.
   startLabel?: string;
+  /**
+   * Professional / corporate courses: block silent completion awards until the
+   * end-of-course assessment issues a verified pass token. Locked lessons
+   * default to true.
+   */
+  requireVerifiedPass?: boolean;
 };
 
 export default function ClassRoom({
@@ -92,12 +100,14 @@ export default function ClassRoom({
   backHref,
   backLabel,
   startLabel,
+  requireVerifiedPass,
 }: ClassRoomProps) {
   const { t, locale } = useT();
   const heading = title ?? t("class.title");
   const startBtn = startLabel ?? t("class.startLabel");
   const back = backLabel ?? t("class.back");
   const locked = Boolean(lockedLessonId);
+  const mustVerifyPass = requireVerifiedPass ?? locked;
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>(lockedLessonId ?? initialLessonId ?? "");
   const [classType, setClassType] = useState<string>("group");
@@ -294,9 +304,15 @@ export default function ClassRoom({
       setAssessmentRun(run);
       setAssessmentResult(null);
     } catch (e) {
-      // Content too thin / offline: mark skipped so we don't loop, keep teaching.
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
-      setError(String(e));
+      const msg = String(e);
+      // Only permanently skip on content-unavailable (422). Transient network
+      // errors (5xx, offline) should remain retryable so a summative exam is
+      // not silently bypassed due to a momentary server blip.
+      const contentUnavailable = msg.includes("422") || msg.toLowerCase().includes("too little");
+      if (contentUnavailable) {
+        completedCheckpointsRef.current.add(cp.checkpoint_id);
+      }
+      setError(msg);
     } finally {
       assessmentStartingRef.current = false;
       setBusy(false);
@@ -354,6 +370,15 @@ export default function ClassRoom({
   }
 
   function dismissAssessment() {
+    // Professional courses: do not silently skip a required end-of-course exam.
+    if (
+      mustVerifyPass
+      && assessmentRun?.checkpoint.stage === "summative"
+      && !passDecisionToken
+    ) {
+      setError("Complete the end-of-course assessment to finish this professional course.");
+      return;
+    }
     if (assessmentRun) {
       completedCheckpointsRef.current = new Set(completedCheckpointsRef.current)
         .add(assessmentRun.checkpoint.checkpoint_id);
@@ -453,12 +478,31 @@ export default function ClassRoom({
   useEffect(() => () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); }, []);
 
   // Listen to the learner and score how closely they said the target phrase.
-  function startRepeatAfterMe() {
+  async function startRepeatAfterMe() {
     const target = slide?.say_aloud;
     if (!target) return;
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(
+        "Your mic needs a secure connection. Open Salareen over https:// — " +
+        "the browser blocks the microphone on an insecure page."
+      );
+      return;
+    }
     const w = window as unknown as { webkitSpeechRecognition?: new () => SpeechRec; SpeechRecognition?: new () => SpeechRec };
     const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!Ctor) { setError("Speech recognition isn't available in this browser — try Chrome."); return; }
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch {
+      setError(
+        "Microphone access is blocked. Click the site-settings icon in the address " +
+        "bar, allow the microphone, then tap 🎤 Speak now again."
+      );
+      return;
+    }
     stopSpeaking();   // don't record our own narration
     const rec = new Ctor();
     rec.lang = RECOG_LANG[locale] ?? "en-US";
@@ -482,9 +526,20 @@ export default function ClassRoom({
         })
         .catch((err) => setError(String(err)));
     };
-    rec.onerror = () => setListening(false);
+    rec.onerror = (e) => {
+      setListening(false);
+      const code = (e as { error?: string })?.error || "";
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setError("Microphone access is blocked — allow the mic for this site (address-bar icon).");
+      }
+    };
     rec.onend = () => setListening(false);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setError("Couldn't start the microphone. Try Chrome over https://.");
+    }
   }
 
   async function refreshLxTick(slideIndex: number, slidesTotal: number) {
@@ -572,12 +627,14 @@ export default function ClassRoom({
         }).catch(() => {});
       }
       await refreshLxTick(s.index, view.lesson.slides.length);
-      // Policy checkpoints interrupt teaching (including autoplay) so formative
-      // checks and the summative appear automatically in the selected format.
-      if (await maybeOpenDueCheckpoint(s.index, false)) return;
+      // Policy checkpoints interrupt teaching (including autoplay): mid-course
+      // pop quizzes (formative) and the end-of-course exam on the last slide.
+      const openFinal = shouldOpenSummativeOnAdvance(s.index, view.lesson.slides.length);
+      if (await maybeOpenDueCheckpoint(s.index, openFinal)) return;
       // While autoplay is on, the AI teaches straight through — don't interrupt
       // the lecture with pulse surveys or legacy pop quizzes (they require
       // interaction). They resume in self-paced mode when autoplay is paused.
+      // Policy formatives/summatives above still fire under autoplay.
       if (autoplayRef.current) return;
       const interval = pulseTemplate?.interval_slides ?? 5;
       if (pulseEnabled && pulseTemplate && (s.index + 1) % interval === 0) {
@@ -713,6 +770,34 @@ export default function ClassRoom({
     try {
       const idx = slide?.index ?? view.lesson.slides.length - 1;
       if (await maybeOpenDueCheckpoint(idx, true)) return;
+      if (
+        !canAwardCourseCompletion({
+          requireVerifiedPass: mustVerifyPass,
+          passDecisionToken,
+          summativeCompleted: false,
+        })
+      ) {
+        const summative = findDueSummativeCheckpoint(
+          assessmentPolicy, idx, completedCheckpointsRef.current,
+        );
+        if (summative) {
+          await openCheckpoint(summative);
+          return;
+        }
+        // Failed summative without a pass token — reopen final exam for retry.
+        const finalCp = assessmentPolicy.find((cp) => cp.stage === "summative");
+        if (finalCp) {
+          completedCheckpointsRef.current = new Set(
+            [...completedCheckpointsRef.current].filter((id) => id !== finalCp.checkpoint_id),
+          );
+          await openCheckpoint(finalCp);
+          return;
+        }
+        setError(
+          "This professional course requires a passing end-of-course assessment before completion credit.",
+        );
+        return;
+      }
       if (passDecisionToken && studentId && getToken()) {
         await awardVerifiedPass(passDecisionToken);
       } else {
@@ -743,6 +828,12 @@ export default function ClassRoom({
     }
     if (passDecisionToken && studentId) {
       await awardVerifiedPass(passDecisionToken);
+      return;
+    }
+    if (mustVerifyPass) {
+      setError(
+        "This professional course requires a passing end-of-course assessment before completion credit.",
+      );
       return;
     }
     try {
@@ -1108,7 +1199,7 @@ export default function ClassRoom({
                 <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <button
                     type="button"
-                    onClick={startRepeatAfterMe}
+                    onClick={() => void startRepeatAfterMe()}
                     disabled={listening}
                     style={{ background: listening ? "#94a3b8" : "#7c3aed", color: "#fff" }}
                   >
@@ -1170,6 +1261,16 @@ export default function ClassRoom({
           </div>
           </div>
 
+          {mustVerifyPass && view && !assessmentRun && (
+            <div className="card" style={{ borderColor: "#6366f1", background: "rgba(99,102,241,0.06)" }}>
+              <strong>Professional course assessments</strong>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                Expect a mid-course pop quiz while you learn, then an end-of-course assessment.
+                Completion credit requires a passing final score.
+              </p>
+            </div>
+          )}
+
           {assessmentRun && (
             <AssessmentCheckpointPanel
               run={assessmentRun}
@@ -1177,7 +1278,17 @@ export default function ClassRoom({
               onBusy={setBusy}
               onError={(msg) => setError(msg)}
               onSubmitted={(result) => { void onAssessmentSubmitted(result); }}
-              onDismiss={dismissAssessment}
+              onDismiss={
+                mustVerifyPass && assessmentRun.checkpoint.stage === "summative"
+                  ? undefined
+                  : dismissAssessment
+              }
+              dismissLabel="Continue without submitting"
+              headingOverride={
+                assessmentRun.checkpoint.stage === "summative"
+                  ? "End-of-course assessment"
+                  : "Pop quiz"
+              }
             />
           )}
 

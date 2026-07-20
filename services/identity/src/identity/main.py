@@ -45,13 +45,22 @@ def _bootstrap_on_startup() -> None:
 @app.on_event("startup")
 def _startup_seed_accounts() -> None:
     _bootstrap_on_startup()
+    if os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT) == _AUTH_KEY_DEFAULT:
+        import logging
+        logging.getLogger(__name__).warning(
+            "AUTH_SIGNING_KEY is not set — using the insecure development default. "
+            "Set this environment variable before deploying."
+        )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
 app.state.game_submitted = set()
 
 
+_AUTH_KEY_DEFAULT = "dev-auth-signing-key"
+
+
 def _token_key() -> bytes:
-    return os.environ.get("AUTH_SIGNING_KEY", "dev-auth-signing-key").encode()
+    return os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT).encode()
 
 
 def current_account(authorization: str = Header(default="")):
@@ -145,6 +154,10 @@ class SignupRequest(BaseModel):
     display_name: str = ""
     region: Region = Region.US
 
+    @property
+    def clean_display_name(self) -> str:
+        return self.display_name.strip()[:100]
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -178,7 +191,7 @@ def signup(req: SignupRequest, request: Request) -> dict:
     try:
         validate_password(req.password)
         acct = app.state.accounts.create(
-            req.email, req.password, display_name=req.display_name, region=req.region)
+            req.email, req.password, display_name=req.clean_display_name, region=req.region)
         app.state.accounts.ensure_default_student(acct.id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -610,24 +623,24 @@ def record_assessment_pass(
         raise HTTPException(status_code=422, detail="invalid or expired assessment decision")
     if claims.get("student_id") != student_id:
         raise HTTPException(status_code=403, detail="assessment decision belongs to another student")
+    course_id = str(claims.get("course_id", ""))
     try:
         prof = app.state.accounts.record_verified_assessment_pass(
             acct.id,
             student_id,
-            course_id=str(claims.get("course_id", "")),
+            course_id=course_id,
             score=float(claims.get("score", 0)),
             attempt_ids=list(claims.get("attempt_ids") or []),
             ksb_codes=list(claims.get("ksb_codes") or []),
         )
+        enrollment = acct.enrollments.get(course_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown student profile")
-    course_id = str(claims.get("course_id", ""))
-    enrollment = acct.enrollments[course_id]
     return {
         "student_id": student_id,
         "course_id": course_id,
         "passed": True,
-        "score": enrollment.score,
+        "score": enrollment.score if enrollment else float(claims.get("score", 0)),
         "retention_checks": [
             check for check in prof.retention_checks
             if check.get("course_id") == course_id

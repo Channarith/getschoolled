@@ -78,6 +78,10 @@ SUBJECT_LABELS: Dict[str, Dict[str, str]] = {
                          ("fr", "Ferme et personnage"), ("de", "Farm & Charakter"),
                          ("zh", "农场与角色"), ("ja", "農場とキャラ"), ("ko", "농장과 캐릭터"),
                          ("vi", "Nông trại & nhân vật"), ("km", "កសិដ្ឋាន និង តួអង្គ")),
+    "finance": _locales(("en", "Stocks & Money"), ("es", "Acciones y dinero"),
+                         ("fr", "Actions et argent"), ("de", "Aktien & Geld"),
+                         ("zh", "股票与理财"), ("ja", "株式とお金"), ("ko", "주식과 돈"),
+                         ("vi", "Chứng khoán & tiền"), ("km", "ភាគហ៊ុន និង លុយ")),
 }
 
 
@@ -130,6 +134,17 @@ GAME_TYPE_LABELS: Dict[str, Dict[str, str]] = {
     "geometry": _locales(("en", "Geometry Play"), ("es", "Geometría"), ("fr", "Géométrie"),
                           ("de", "Geometrie"), ("zh", "几何游戏"), ("ja", "図形ゲーム"),
                           ("ko", "기하 게임"), ("vi", "Hình học"), ("km", "ធរណីមាត្រ")),
+    "shape_drop": _locales(("en", "Shape Drop"), ("es", "Formas cayendo"), ("fr", "Formes tombantes"),
+                            ("de", "Formen-Drop"), ("zh", "形状下落"), ("ja", "シェイプドロップ"),
+                            ("ko", "도형 드롭"), ("vi", "Hình rơi"), ("km", "រូបរាងធ្លាក់")),
+    "stocks": _locales(("en", "Stock Market Lab"), ("es", "Mercado de valores"),
+                        ("fr", "Bourse"), ("de", "Börsen-Labor"), ("zh", "股市实验室"),
+                        ("ja", "株式ラボ"), ("ko", "주식 랩"), ("vi", "Phòng lab chứng khoán"),
+                        ("km", "ទីផ្សារភាគហ៊ុន")),
+    "challenge": _locales(("en", "Challenge the AI"), ("es", "Desafía a la IA"),
+                           ("fr", "Défie l'IA"), ("de", "KI herausfordern"), ("zh", "挑战 AI"),
+                           ("ja", "AIに挑戦"), ("ko", "AI에 도전"), ("vi", "Thách thức AI"),
+                           ("km", "ប្រកួតជាមួយ AI")),
 }
 
 GAME_TYPE_DESCS: Dict[str, Dict[str, str]] = {
@@ -166,6 +181,18 @@ GAME_TYPE_DESCS: Dict[str, Dict[str, str]] = {
     "geometry": _locales(("en", "Shapes, angles, and spatial reasoning."),
                           ("es", "Formas y ángulos."), ("zh", "图形、角度与空间。"),
                           ("ja", "図形・角度・空間。"), ("km", "រូបរាង និង មុំ។")),
+    "shape_drop": _locales(("en", "Tetris-style geometry: clear falling shapes by answering shape questions."),
+                            ("es", "Geometría estilo Tetris: limpia formas respondiendo."),
+                            ("zh", "类俄罗斯方块几何：答题清除下落图形。"),
+                            ("ja", "テトリス風の図形クイズ。"), ("km", "ធរណីមាត្របែប Tetris។")),
+    "stocks": _locales(("en", "Learn investing: bull vs bear, risk, and smart portfolio choices."),
+                        ("es", "Aprende a invertir: riesgo y carteras."),
+                        ("zh", "学投资：牛熊市、风险与组合。"),
+                        ("ja", "投資を学ぶ：相場・リスク・分散。"), ("km", "រៀនវិនិយោគ។")),
+    "challenge": _locales(("en", "Duel the AI — same questions, race for the higher score."),
+                           ("es", "Duelo contra la IA — mismas preguntas."),
+                           ("zh", "与 AI 对决：同样题目比高分。"),
+                           ("ja", "AIと対決。同じ問題で勝負。"), ("km", "ប្រកួតជាមួយ AI។")),
 }
 
 

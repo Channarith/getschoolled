@@ -866,30 +866,106 @@ def _assessment_ksb_maps(course_id: str, items: list[QuizItem]):
 
 @app.get("/assessment/policy/{session_id}")
 def assessment_policy_for_session(session_id: str) -> dict:
-    """Return required assessment points for the current personalized lesson."""
+    """Return required assessment points for the current personalized lesson.
+
+    Professional / corporate courses get a mid-course pop quiz plus a required
+    end-of-course exam. Other audiences keep the denser 25/50/75% schedule.
+    """
     sessions = get_sessions()
     try:
         lesson = sessions.lesson_for(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
     last = max(0, len(lesson.slides) - 1)
+    audience = (getattr(lesson, "audience", None) or "general").lower()
+    professional = audience in {"corporate", "professional", "enterprise"}
+
+    if professional:
+        mid = max(0, min(last, round(last * 0.5)))
+        checkpoints = [
+            {
+                "checkpoint_id": "progress-mid",
+                "stage": "formative",
+                "after_slide_index": mid,
+                "kind": "pop_quiz",
+                "title": "Mid-course pop quiz",
+            },
+            {
+                "checkpoint_id": "course-final",
+                "stage": "summative",
+                "after_slide_index": last,
+                "kind": "final_exam",
+                "title": "End-of-course assessment",
+            },
+        ]
+        pass_rule = (
+            "Professional courses require the mid-course pop quiz and a passing "
+            "end-of-course assessment before completion credit."
+        )
+    else:
+        checkpoints = [
+            {
+                "checkpoint_id": "progress-25",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.25),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 25%",
+            },
+            {
+                "checkpoint_id": "progress-50",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.50),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 50%",
+            },
+            {
+                "checkpoint_id": "progress-75",
+                "stage": "formative",
+                "after_slide_index": round(last * 0.75),
+                "kind": "pop_quiz",
+                "title": "Pop quiz · 75%",
+            },
+            {
+                "checkpoint_id": "course-final",
+                "stage": "summative",
+                "after_slide_index": last,
+                "kind": "final_exam",
+                "title": "End-of-course assessment",
+            },
+        ]
+        pass_rule = "passing summative assessment required"
+
     return {
         "session_id": session_id,
         "course_id": lesson.lesson_id,
-        "checkpoints": [
-            {"checkpoint_id": "progress-25", "stage": "formative", "after_slide_index": round(last * 0.25)},
-            {"checkpoint_id": "progress-50", "stage": "formative", "after_slide_index": round(last * 0.50)},
-            {"checkpoint_id": "progress-75", "stage": "formative", "after_slide_index": round(last * 0.75)},
-            {"checkpoint_id": "course-final", "stage": "summative", "after_slide_index": last},
-        ],
-        "retention_intervals_days": [0, 7, 30, 90],
-        "pass_rule": "passing summative assessment required",
+        "audience": audience,
+        "professional": professional,
+        "checkpoints": checkpoints,
+        "retention_intervals_days": [1, 7, 30, 90],
+        "pass_rule": pass_rule,
     }
 
 
+def _assessment_account_id(authorization: str) -> str:
+    """Extract account id from a bearer token without calling identity."""
+    from aoep_shared.auth import verify_token  # noqa: E402
+    key = os.environ.get("AUTH_SIGNING_KEY", "dev-auth-signing-key").encode()
+    bearer = (authorization or "").strip()
+    if bearer.lower().startswith("bearer "):
+        bearer = bearer[7:].strip()
+    claims = verify_token(bearer, key) if bearer else None
+    return str(claims.get("sub", "")).strip() if claims else ""
+
+
 @app.post("/assessment/checkpoints/start")
-def assessment_checkpoint_start(req: PolicyAssessmentStartRequest) -> dict:
+def assessment_checkpoint_start(
+    req: PolicyAssessmentStartRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     """Create a private answer-key run and return a profile-selected presentation."""
+    account_id = _assessment_account_id(authorization)
+    if not account_id:
+        raise HTTPException(status_code=401, detail="authentication required for assessments")
     sessions = get_sessions()
     session = None
     course_id = req.course_id.strip()
@@ -957,6 +1033,7 @@ def assessment_checkpoint_start(req: PolicyAssessmentStartRequest) -> dict:
         )
     app.state.assessment_runs[run_id] = {
         "student_id": req.student_id,
+        "account_id": account_id,
         "course_id": course_id,
         "policy": policy,
         "items": items,
@@ -989,11 +1066,19 @@ def _assessment_signing_key() -> bytes:
 def assessment_checkpoint_submit(
     run_id: str,
     req: PolicyAssessmentSubmitRequest,
+    authorization: str = Header(default=""),
 ) -> dict:
     """Grade against the server-held key and issue a signed pass decision."""
+    account_id = _assessment_account_id(authorization)
+    if not account_id:
+        raise HTTPException(status_code=401, detail="authentication required for assessments")
     run = app.state.assessment_runs.pop(run_id, None)
     if run is None:
         raise HTTPException(status_code=404, detail="unknown or already submitted assessment run")
+    if run.get("account_id") and run["account_id"] != account_id:
+        # Put the run back so it isn't consumed by an impersonator.
+        app.state.assessment_runs[run_id] = run
+        raise HTTPException(status_code=403, detail="assessment run belongs to another account")
     try:
         result = evaluate_checkpoint(
             student_id=run["student_id"],

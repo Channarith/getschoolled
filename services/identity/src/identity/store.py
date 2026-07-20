@@ -220,7 +220,8 @@ class AccountStore:
     def create(self, email: str, password: str, *, display_name: str = "",
                tier: PlanTier = PlanTier.FREE, region: Region = Region.US) -> Account:
         email = email.strip().lower()
-        if not email or "@" not in email:
+        parts = email.split("@")
+        if len(parts) != 2 or not parts[0] or not parts[1] or "." not in parts[1]:
             raise ValueError("a valid email is required")
         if email in self._id_by_email:
             raise ValueError("an account with that email already exists")

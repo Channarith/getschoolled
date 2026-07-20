@@ -939,13 +939,16 @@ export type GameTerm = { id: string; term: string };
 export type GameOption = { id: string; text: string };
 export type GameRound = {
   game_id: string; subject: string; game_type: string; time_limit_s: number;
+  age_group?: string;
   items?: GameItem[]; terms?: GameTerm[]; options?: GameOption[];
+  versus?: string; ai_skill?: number; ai_name?: string;
 };
 export type GameItemResult = { id: string; correct: boolean; answer_index?: number; explain: string };
 export type GameScore = {
   game_id: string; subject: string; game_type: string; correct: number; total: number;
   accuracy: number; base_points: number; speed_bonus: number; accuracy_bonus: number;
   points: number; results: GameItemResult[];
+  ai_correct?: number; ai_total?: number; versus_outcome?: string; versus_bonus?: number;
 };
 export type GameSubmit = {
   result: GameScore; points_earned: number; balance: number;
@@ -1210,6 +1213,8 @@ export type AssessmentCheckpointSpec = {
   checkpoint_id: string;
   stage: "formative" | "summative" | "retention";
   after_slide_index: number;
+  kind?: string;
+  title?: string;
 };
 
 export type AssessmentPolicy = {
@@ -1302,7 +1307,7 @@ export async function startAssessmentCheckpoint(args: {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/assessment/checkpoints/start`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         student_id: args.studentId,
         session_id: args.sessionId ?? "",
@@ -1330,7 +1335,7 @@ export async function submitAssessmentCheckpoint(
       `${ORCHESTRATOR_URL}/assessment/checkpoints/${encodeURIComponent(runId)}/submit`,
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...authHeaders() },
         body: JSON.stringify({ chosen_indices: chosenIndices }),
       },
     ),
