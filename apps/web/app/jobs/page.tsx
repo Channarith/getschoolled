@@ -17,8 +17,8 @@ function excerpt(text: string, max = 140): string {
 }
 const SOURCE_ICON: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor", ziprecruiter: "ZipRecruiter",
-  remotive: "Remotive", arbeitnow: "Arbeitnow", adzuna: "Adzuna", jsearch: "JSearch",
-  sample: "Demo board",
+  remotive: "Remotive", arbeitnow: "Arbeitnow", remoteok: "RemoteOK",
+  adzuna: "Adzuna", jsearch: "JSearch", sample: "Demo board",
 };
 
 const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
@@ -28,9 +28,35 @@ const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
   ziprecruiter: { bg: "#1a7f37", fg: "#ffffff" },
   remotive: { bg: "#5b21b6", fg: "#ede9fe" },
   arbeitnow: { bg: "#334155", fg: "#e2e8f0" },
+  remoteok: { bg: "#1d4ed8", fg: "#ffffff" },
   adzuna: { bg: "#7c3aed", fg: "#ffffff" },
   sample: { bg: "#1e293b", fg: "#94a3b8" },
 };
+
+/** Build a search URL for each major job platform using the active query/location. */
+function platformSearchUrl(platform: string, q: string, loc: string): string {
+  const eq = encodeURIComponent(q || "software engineer");
+  const el = encodeURIComponent(loc || "");
+  switch (platform) {
+    case "linkedin":
+      return `https://www.linkedin.com/jobs/search/?keywords=${eq}${el ? `&location=${el}` : ""}`;
+    case "indeed":
+      return `https://www.indeed.com/jobs?q=${eq}${el ? `&l=${el}` : ""}`;
+    case "glassdoor":
+      return `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${eq}${el ? `&locT=C&locId=0&locKeyword=${el}` : ""}`;
+    case "ziprecruiter":
+      return `https://www.ziprecruiter.com/jobs-search?search=${eq}${el ? `&location=${el}` : ""}`;
+    default:
+      return "#";
+  }
+}
+
+const EXTERNAL_PLATFORMS = [
+  { key: "linkedin",     label: "LinkedIn",     color: "#0a66c2", emoji: "💼" },
+  { key: "indeed",       label: "Indeed",       color: "#2557a7", emoji: "🔍" },
+  { key: "ziprecruiter", label: "ZipRecruiter", color: "#1a7f37", emoji: "⚡" },
+  { key: "glassdoor",    label: "Glassdoor",    color: "#0caa41", emoji: "🚪" },
+];
 
 export default function JobsPage() {
   const { t } = useT();
@@ -224,6 +250,27 @@ export default function JobsPage() {
             {source ? ` · ${SOURCE_ICON[source] ?? pretty(source)}` : ""}
           </p>
         )}
+      </div>
+
+      {/* Search directly on major platforms */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "4px 0 8px" }}>
+        <span className="muted" style={{ fontSize: 13, whiteSpace: "nowrap" }}>Also search on:</span>
+        {EXTERNAL_PLATFORMS.map(({ key, label, color, emoji }) => (
+          <a
+            key={key}
+            href={platformSearchUrl(key, q, loc)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
+              background: color, color: "#fff", textDecoration: "none",
+              boxShadow: "0 1px 3px rgba(0,0,0,.15)",
+            }}
+          >
+            {emoji} {label}
+          </a>
+        ))}
       </div>
 
       {loading && (

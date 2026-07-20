@@ -369,6 +369,15 @@ def _http_get_json(url: str, headers: Optional[dict] = None, timeout: Optional[f
         return _json.loads(resp.read().decode("utf-8", "replace"))
 
 
+def _http_get_text(url: str, headers: Optional[dict] = None, timeout: Optional[float] = None) -> str:
+    """Fetch a URL and return the raw response body as a string (for RSS/XML feeds)."""
+    req = _urlreq.Request(url, headers={"User-Agent": _USER_AGENT,
+                                        "Accept": "application/rss+xml, application/xml, text/xml",
+                                        **(headers or {})})
+    with _urlreq.urlopen(req, timeout=timeout or _HTTP_TIMEOUT) as resp:
+        return resp.read().decode("utf-8", "replace")
+
+
 def _cache_get(key: str) -> Optional[List[JobPosting]]:
     hit = _RESULT_CACHE.get(key)
     if hit and hit[0] > _time.time():
@@ -586,6 +595,103 @@ class JSearchJobsProvider(_LiveJobsProvider):
         return out
 
 
+class IndeedRssProvider(_LiveJobsProvider):
+    """Indeed jobs via their public RSS feed (free, no key required).
+
+    RSS endpoint: https://www.indeed.com/rss?q=<query>&l=<location>
+    Returns real listings from Indeed's job board — same ones you see on
+    the website. Results are tagged source="indeed".
+    """
+
+    source = "indeed"
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        import xml.etree.ElementTree as ET
+        params: dict[str, object] = {"fromage": 30, "limit": max(min(limit, 50), 1)}
+        if query:
+            params["q"] = query
+        if location:
+            params["l"] = location
+        url = f"https://www.indeed.com/rss?{urlencode(params)}"
+        raw = _http_get_text(url)
+        if not raw:
+            return []
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError:
+            return []
+        return root.findall(".//item")
+
+    def _parse(self, rows) -> List[JobPosting]:
+        import xml.etree.ElementTree as ET
+        out = []
+        for item in rows:
+            def _t(tag: str) -> str:
+                el = item.find(tag)
+                return (el.text or "").strip() if el is not None else ""
+            title = _t("title")
+            company = _t("{http://www.google.com/schemas/sitemap/0.84}name") or _t("author") or ""
+            location_raw = _t("{http://www.google.com/schemas/sitemap/0.84}location") or ""
+            # Indeed RSS puts "Company - Location" in title sometimes; best-effort parse
+            link = _t("link")
+            desc = _strip_html(_t("description"))
+            pub = _t("pubDate")
+            job_id = link.split("jk=")[-1].split("&")[0] if "jk=" in link else link[-20:]
+            out.append(JobPosting(
+                id=f"indeed-{job_id}",
+                title=title, company=company,
+                location=location_raw or "United States",
+                source="indeed", url=link,
+                employment_type="Full-time",
+                posted_days_ago=_days_ago(pub),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
+class RemoteOkProvider(_LiveJobsProvider):
+    """RemoteOK remote-only job board (free, no key required).
+
+    Covers software, design, marketing, sales and other remote roles.
+    API: https://remoteok.com/api — returns JSON array directly.
+    """
+
+    source = "remoteok"
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        tag = query.replace(" ", "-").lower() if query else ""
+        url = f"https://remoteok.com/api{'?tags=' + tag if tag else ''}"
+        data = _http_get_json(url, headers={"User-Agent": "salareen-jobs/1.0"})
+        if not isinstance(data, list):
+            return []
+        # First element is a metadata dict, skip it
+        rows = [r for r in data if isinstance(r, dict) and "position" in r]
+        if query:
+            ql = query.lower()
+            rows = [r for r in rows
+                    if ql in (r.get("position", "") + " " + " ".join(r.get("tags") or [])).lower()]
+        return rows[:max(limit, 1)]
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("position", "")
+            desc = _strip_html(r.get("description", ""))
+            tags = r.get("tags") or []
+            out.append(JobPosting(
+                id=f"remoteok-{r.get('id', '')}",
+                title=title, company=r.get("company", ""),
+                location="Remote", source="remoteok",
+                url=r.get("url", "") or f"https://remoteok.com/remote-jobs/{r.get('slug','')}",
+                salary_range=r.get("salary", "") or "",
+                posted_days_ago=_days_ago(r.get("date")),
+                category=_category_for(f"{title} {' '.join(tags)}"),
+                skills=_derive_skills(title, desc, tags), description=desc))
+        return out
+
+
 class LinkedInJobsProvider(JobsProvider):
     """Real LinkedIn jobs via a partner key (LINKEDIN_API_KEY). LinkedIn has no
     open public API, so without partner access use JSearch/Adzuna instead; this
@@ -649,6 +755,10 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
             return RemotiveJobsProvider()
         if name == "arbeitnow":
             return ArbeitnowJobsProvider()
+        if name == "indeed":
+            return IndeedRssProvider()
+        if name == "remoteok":
+            return RemoteOkProvider()
         if name == "jsearch" and env.get("RAPIDAPI_KEY"):
             return JSearchJobsProvider(env["RAPIDAPI_KEY"])
         if name == "adzuna" and env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
@@ -675,8 +785,16 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         return LinkedInJobsProvider(env.get("LINKEDIN_API_KEY") or env["JOBS_API_KEY"])
 
     # Live free boards when explicitly enabled (JOBS_LIVE=1 or JOBS_PROVIDER=live).
+    # Includes Indeed (RSS), RemoteOK, Remotive, and Arbeitnow — no API key required.
+    # To add LinkedIn/Glassdoor/ZipRecruiter coverage set RAPIDAPI_KEY (JSearch)
+    # or ADZUNA_APP_ID+ADZUNA_APP_KEY (Adzuna multi-board aggregator).
     if _truthy(env.get("JOBS_LIVE")) or choice == "live":
-        return CompositeJobsProvider([RemotiveJobsProvider(), ArbeitnowJobsProvider()])
+        return CompositeJobsProvider([
+            IndeedRssProvider(),
+            RemoteOkProvider(),
+            RemotiveJobsProvider(),
+            ArbeitnowJobsProvider(),
+        ])
 
     # Default (tests / air-gapped): the curated sample board.
     return MockJobsProvider()
