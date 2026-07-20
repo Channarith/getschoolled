@@ -1479,12 +1479,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     // confirmation timer. Skip TTS for the floor holder in that case.
     if (!needsConfirmation && confirmationTimerRef.current) return;
     const myId = me?.id;
+    let alive = true;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
       if (leftVoluntarily.current || roomRef.current?.status === "ended") return;
       cancelSpeech();
       speakNaturally(text, {
         ...base,
         onend: () => {
+          if (!alive) return;
           // Re-read from the ref at onend time so a floor transfer during TTS
           // doesn't open the mic on the wrong client.
           const isFloorHolder = roomRef.current?.floor_participant_id === myId;
@@ -1507,6 +1509,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         },
       });
     });
+    return () => { alive = false; };
   }, [hostAnswer, aiAudioOn, aiAudioUnlocked, narrationLocale, me?.id,
       startListening, stopListening, roomId, moderatorKey]);
 
@@ -1535,6 +1538,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       cancelSpeech();
       void buildNarrationSpeakOptions(narrationLocale).then((base) => {
         if (!roomRef.current?.floor_participant_id) return;
+        if (leftVoluntarily.current) return;
         speakNaturally(cue, { ...base, onend: () => { void startListening(); } });
       });
     } else if (!hasFloor) {

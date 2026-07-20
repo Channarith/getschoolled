@@ -81,6 +81,7 @@ export default function LessonScreen({
   const studentIdRef = useRef("guest");
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
   const assessmentStartingRef = useRef(false);
+  const finishingRef = useRef(false);
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
@@ -383,7 +384,9 @@ export default function LessonScreen({
   }
 
   async function onFinish() {
-    if (!view || assessmentRun) return;
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    if (!view || assessmentRun) { finishingRef.current = false; return; }
     const idx = slide?.index ?? view.lesson.slides.length - 1;
     if (await maybeOpenDueCheckpoint(idx, true)) return;
     // Mobile professional courses: prefer verified pass when policy has a summative.

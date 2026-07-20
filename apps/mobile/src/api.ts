@@ -1466,6 +1466,13 @@ export async function setEnrollmentStatus(
   });
 }
 
+export async function deleteEnrollment(courseId: string): Promise<void> {
+  await get(IDENTITY_URL, `/enrollments/${encodeURIComponent(courseId)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
 export async function getPortfolio(): Promise<Portfolio> {
   return get(IDENTITY_URL, "/portfolio", { headers: authHeaders() });
 }

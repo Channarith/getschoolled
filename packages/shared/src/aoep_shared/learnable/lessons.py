@@ -105,13 +105,30 @@ def load_sample_lessons(root: Optional[str | Path] = None) -> List[SampleLesson]
 
 def lesson_category(lesson_id: str, title: str) -> str:
     lid = lesson_id.lower()
-    if lid.startswith("python"):
+    if lid.startswith("python") or any(k in lid for k in ("devops", "cybersecurity", "it-fundamental")):
         return "Technology"
-    if "fraction" in lid or "fraction" in title.lower():
+    if any(k in lid for k in (
+        "algebra", "calculus", "geometry", "trigonometry", "math", "arithmetic",
+        "statistics", "fraction",
+    )) or "fraction" in title.lower():
         return "Mathematics"
     if "photo" in lid:
         return "Science & Nature"
-    return "Live Class"
+    if any(k in lid for k in ("economics", "microeconomics", "macroeconomics")):
+        return "Economics"
+    if any(k in lid for k in (
+        "osha", "fire-safety", "hipaa", "food-handler", "sexual-harassment",
+        "workplace-ethics", "dei", "forklift", "diversity-equity",
+    )):
+        return "Workplace Compliance"
+    if any(k in lid for k in (
+        "comptia", "hvac", "drivers-permit", "ase-automotive", "pharmacy",
+        "real-estate", "cpr", "security-guard",
+    )):
+        return "Certifications"
+    # Fall back to first word of title, or generic
+    first_word = title.split()[0] if title.split() else ""
+    return first_word if first_word else "Live Class"
 
 
 def lesson_duration_min(slides: List[SampleSlide]) -> int:

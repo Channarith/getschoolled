@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { getPortfolio, listAudioCourses, setEnrollmentStatus, type AudioCourseRow } from "../api";
+import { getPortfolio, listAudioCourses, deleteEnrollment, type AudioCourseRow } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import { useT } from "../i18n";
@@ -21,6 +21,7 @@ export default function MyListScreen({ onOpenCourse }: {
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
 
   const load = async () => {
+    let alive = true;
     try {
       // Fetch saved course IDs from the server, then hydrate from the audio catalog.
       const [portfolio, all] = await Promise.all([
@@ -32,9 +33,10 @@ export default function MyListScreen({ onOpenCourse }: {
       );
       const lookup = new Map(all.courses.map((c) => [c.id, c]));
       setRows([...savedIds].map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
+    } catch {
+      if (alive) setRows([]);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (alive) { setLoading(false); setRefreshing(false); }
     }
   };
   useEffect(() => { void load(); }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -43,7 +45,7 @@ export default function MyListScreen({ onOpenCourse }: {
     // Optimistic UI update then sync to server.
     setRows((r) => r.filter((c) => c.id !== id));
     try {
-      await setEnrollmentStatus(id, "enrolled"); // revert saved → enrolled (no title overwrite)
+      await deleteEnrollment(id); // DELETE the enrollment entirely (un-save bookmark)
     } catch {
       void load(); // revert on error
     }

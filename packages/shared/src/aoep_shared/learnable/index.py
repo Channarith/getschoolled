@@ -26,7 +26,7 @@ _KIDS_AUDIO_CATEGORIES: frozenset = frozenset({
     "history", "kids", "children",
 })
 _KIDS_TITLE_BLOCK = (
-    "abstract", "advanced", "algebra", "calculus", "trigonometry",
+    "algebra", "calculus", "trigonometry",
     "differential", "linear algebra", "statistics", "probability",
     "ai fluency", "machine learning", "deep learning", "neural",
     "ethics and society", "ai ethics", "data science",
@@ -43,6 +43,18 @@ _KIDS_TITLE_BLOCK = (
 _KIDS_CAT_PATTERN = _re.compile(
     r"\b(" + "|".join(_re.escape(k) for k in _KIDS_AUDIO_CATEGORIES) + r")\b"
 )
+
+_BEGINNER_LESSONS: frozenset = frozenset({
+    "arithmetic", "intro-to-fractions", "intro-to-photosynthesis", "intro-physics",
+    "intro-python", "intro-science", "drivers-permit-test", "cpr-first-aid-certification",
+    "food-handler-safety", "sexual-harassment-prevention", "fire-safety-training",
+    "workplace-ethics", "diversity-equity-inclusion",
+})
+_ADVANCED_LESSONS: frozenset = frozenset({
+    "calculus-2", "differential-equations", "linear-algebra", "math-olympiad",
+    "comptia-a-plus", "ase-automotive-certification", "pharmacy-technician-certification",
+    "real-estate-license-prep",
+})
 
 CERTIFIABLE_LESSONS = {
     "sexual-harassment-prevention": ("Salareen", 1.0),
@@ -194,6 +206,10 @@ def _from_lesson(lesson: Any) -> LearnableItem:
     if lesson_id in CERTIFIABLE_LESSONS:
         certification_body, ceu_credits = CERTIFIABLE_LESSONS[lesson_id]
         certifiable = True
+    if certifiable:
+        tags.append("certifiable")
+        if certification_body:
+            tags.append(certification_body.lower())
     return LearnableItem(
         id=f"lesson:{lesson_id}",
         source="lesson",
@@ -203,7 +219,9 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         category=category,
         subject=category,
         format="live_class",
-        level="beginner" if lesson_id.startswith("intro") else "intermediate",
+        level="beginner" if (lesson_id.startswith("intro") or lesson_id in _BEGINNER_LESSONS)
+        else "advanced" if lesson_id in _ADVANCED_LESSONS
+        else "intermediate",
         language=language,
         duration_min=duration,
         tags=tags,
@@ -382,7 +400,7 @@ def search_learnable(
             if c.format == "game":
                 return True
             # Language-learning courses are always kids-safe.
-            if c.format == "language" or "language" in cat_low:
+            if "language" in cat_low:
                 return True
             # Non-catalog audio/lesson items: category must be in the allowlist.
             # Apply title-block AFTER category to avoid false-positives on topic

@@ -684,12 +684,13 @@ export type Facets = {
 export async function searchLearnable(
   params: Record<string, string>,
   locale = "en",
+  signal?: AbortSignal,
 ): Promise<LearnSearchResult> {
   const qs = new URLSearchParams(
     Object.entries({ ...params, locale }).filter(([, v]) => v !== "" && v != null),
   ).toString();
   return jsonOrThrow(
-    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store" }),
+    await fetch(`${CURRICULUM_URL}/learn/search${qs ? `?${qs}` : ""}`, { cache: "no-store", signal }),
   );
 }
 

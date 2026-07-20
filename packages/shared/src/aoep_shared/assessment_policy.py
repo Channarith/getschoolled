@@ -213,7 +213,10 @@ def evaluate_checkpoint(
 
     score = correct_count / len(items)
     coverage = len(evidenced_ksbs) / len(all_ksbs) if all_ksbs else 1.0
-    domains_ok = set(policy.required_domains).issubset(domains)
+    if policy.required_domains:
+        domains_ok = set(policy.required_domains).issubset(domains)
+    else:
+        domains_ok = bool(domains)  # at least one domain must be evidenced when none are specified
     passed = (
         score >= policy.pass_threshold
         and coverage >= policy.ksb_coverage_min

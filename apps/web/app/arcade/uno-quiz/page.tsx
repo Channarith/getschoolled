@@ -42,6 +42,7 @@ const COLOR_LABEL: Record<UnoColor, string> = {
 let _cardId = 1;
 
 function buildDeck(): UnoCard[] {
+  _cardId = 0;
   const cards: UnoCard[] = [];
   const colors: UnoColor[] = ["red", "blue", "green", "yellow"];
 

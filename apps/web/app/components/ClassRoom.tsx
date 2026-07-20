@@ -1318,7 +1318,7 @@ export default function ClassRoom({
                     setAssessmentResult(null);
                     const summative = findDueSummativeCheckpoint(
                       assessmentPolicy,
-                      slide?.index ?? 0,
+                      slide?.index ?? (view?.lesson.slides.length ?? 1) - 1,
                       completedCheckpointsRef.current,
                     );
                     if (summative) void openCheckpoint(summative);
