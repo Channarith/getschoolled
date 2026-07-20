@@ -6,6 +6,7 @@ import {
   type ConsumerPlan, type Subscription,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import DropdownListSelector from "../components/DropdownListSelector";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
@@ -21,6 +22,8 @@ export default function BillingScreen({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [selectedTier, setSelectedTier] = useState("");
+  const [plansOpen, setPlansOpen] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +38,19 @@ export default function BillingScreen({ onBack }: { onBack: () => void }) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const tiers = Object.keys(plans);
+    if (!tiers.length) {
+      setSelectedTier("");
+      return;
+    }
+    if (!selectedTier || !plans[selectedTier]) {
+      setSelectedTier(tiers[0]);
+    }
+  }, [plans, selectedTier]);
+
+  const selectedPlan: ConsumerPlan | null = selectedTier ? plans[selectedTier] ?? null : null;
 
   async function pick(tier: string) {
     setBusy(tier);
@@ -61,19 +77,34 @@ export default function BillingScreen({ onBack }: { onBack: () => void }) {
           <Text style={styles.current}>{t("billing.current", { tier: sub.tier, status: sub.status })}</Text>
         </GlassPanel>
       ) : null}
-      {Object.values(plans).map((p) => (
-        <GlassPanel key={p.tier} style={styles.plan}>
-          <Text style={styles.planName}>{p.display_name}</Text>
-          <Text style={styles.planPrice}>${p.price_usd}/{p.billing_interval}</Text>
-          <Text style={styles.planBlurb}>{p.blurb}</Text>
+      {Object.values(plans).length ? (
+        <DropdownListSelector
+          title={t("billing.choose")}
+          selectedLabel={selectedPlan ? selectedPlan.display_name : "—"}
+          selectedKey={selectedTier}
+          options={Object.values(plans).map((p) => ({ key: p.tier, label: p.display_name }))}
+          open={plansOpen}
+          onToggle={() => setPlansOpen((v) => !v)}
+          onSelect={(tier) => {
+            setSelectedTier(tier);
+            setPlansOpen(false);
+          }}
+          maxHeight={220}
+        />
+      ) : null}
+      {selectedPlan ? (
+        <GlassPanel key={selectedPlan.tier} style={styles.plan}>
+          <Text style={styles.planName}>{selectedPlan.display_name}</Text>
+          <Text style={styles.planPrice}>${selectedPlan.price_usd}/{selectedPlan.billing_interval}</Text>
+          <Text style={styles.planBlurb}>{selectedPlan.blurb}</Text>
           <PrimaryButton
             label={t("billing.choose")}
-            onPress={() => void pick(p.tier)}
-            loading={busy === p.tier}
+            onPress={() => void pick(selectedPlan.tier)}
+            loading={busy === selectedPlan.tier}
             variant="netflix"
           />
         </GlassPanel>
-      ))}
+      ) : null}
     </ScrollView>
   );
 }

@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import os
+import time
 
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.login_audit import login_context_from_headers
-from aoep_shared.oauth_login import OAuthError, verify_facebook_access_token, verify_google_id_token
+from aoep_shared.oauth_login import (
+    OAuthError,
+    oauth_provider_status,
+    verify_facebook_access_token,
+    verify_google_id_token,
+)
 from aoep_shared.passkeys import (
     credentials_public,
     new_login_challenge,
@@ -86,10 +93,18 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
     @app.post("/auth/login")
     def login(req: LoginRequest, request: Request) -> dict:
         ctx = _ctx(request)
+        normalized_email = (req.email or "").strip().lower()
+        precheck_acct = app.state.accounts.by_email(req.email)
+        # region agent log
+        open(os.path.expanduser('/opt/cursor/logs/debug.log'), 'a').write(json.dumps({"hypothesisId": "H3", "location": "services/identity/src/identity/auth_security.py:login:entry", "message": "login request received", "data": {"email_len": len(req.email or ""), "normalized_email_len": len(normalized_email), "email_has_at": "@" in normalized_email, "account_exists_before_auth": precheck_acct is not None}, "timestamp": int(time.time() * 1000)}) + '\n')
+        # endregion
         acct = app.state.accounts.authenticate(
             req.email, req.password, **ctx,
         )
         if acct is None:
+            # region agent log
+            open(os.path.expanduser('/opt/cursor/logs/debug.log'), 'a').write(json.dumps({"hypothesisId": "H3", "location": "services/identity/src/identity/auth_security.py:login:reject", "message": "login rejected", "data": {"account_exists_before_auth": precheck_acct is not None}, "timestamp": int(time.time() * 1000)}) + '\n')
+            # endregion
             raise HTTPException(status_code=401, detail="invalid email or password")
         if acct.totp_enabled and acct.totp_secret:
             mfa = sign_token(
@@ -98,6 +113,9 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
                 ttl_s=300,
             )
             return {"requires_2fa": True, "mfa_token": mfa}
+        # region agent log
+        open(os.path.expanduser('/opt/cursor/logs/debug.log'), 'a').write(json.dumps({"hypothesisId": "H4", "location": "services/identity/src/identity/auth_security.py:login:success", "message": "login success", "data": {"totp_enabled": bool(acct.totp_enabled), "membership_class": acct.membership_class, "login_count": acct.login_count}, "timestamp": int(time.time() * 1000)}) + '\n')
+        # endregion
         return session_fn(acct)
 
     @app.post("/auth/2fa/verify")
@@ -195,6 +213,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         )
         app.state.accounts.oauth_login_success(acct.id, method="facebook", **ctx)
         return session_fn(acct)
+
+    @app.get("/auth/oauth/providers")
+    def oauth_providers() -> dict:
+        return oauth_provider_status()
 
     @app.post("/auth/passkey/register/options")
     def passkey_register_options(acct=Depends(current_account)) -> dict:

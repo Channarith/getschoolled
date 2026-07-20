@@ -16,6 +16,30 @@ def _deploy_mode() -> str:
     return os.environ.get("DEPLOY_MODE", "local").lower()
 
 
+def oauth_provider_status() -> dict:
+    """Return backend OAuth provider availability for UI gating."""
+    deploy_mode = _deploy_mode()
+    sandbox_enabled = deploy_mode == "local"
+    google_live = bool(os.environ.get("GOOGLE_CLIENT_ID", "").strip())
+    facebook_live = bool(
+        os.environ.get("FACEBOOK_APP_ID", "").strip()
+        and os.environ.get("FACEBOOK_APP_SECRET", "").strip()
+    )
+
+    def _provider(live_enabled: bool, missing: str) -> dict:
+        if sandbox_enabled:
+            return {"enabled": True, "mode": "sandbox", "reason": ""}
+        if live_enabled:
+            return {"enabled": True, "mode": "live", "reason": ""}
+        return {"enabled": False, "mode": "disabled", "reason": missing}
+
+    return {
+        "sandbox_enabled": sandbox_enabled,
+        "google": _provider(google_live, "GOOGLE_CLIENT_ID not configured"),
+        "facebook": _provider(facebook_live, "FACEBOOK_APP_ID/SECRET not configured"),
+    }
+
+
 def _http_get_json(url: str, *, timeout: float = 10.0) -> dict:
     req = Request(url, headers={"Accept": "application/json"})
     with urlopen(req, timeout=timeout) as resp:
