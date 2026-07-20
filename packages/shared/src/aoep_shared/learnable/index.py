@@ -321,18 +321,26 @@ def search_learnable(
         def _is_kids_safe(c: "LearnableItem") -> bool:
             if c.maturity_rating == "kids":
                 return True
+            if c.maturity_rating in ("mature", "adult", "explicit"):
+                return False
             title_low = c.title.lower()
             # Block explicitly adult/professional topics by title.
             if any(block in title_low for block in _KIDS_TITLE_BLOCK):
                 return False
             cat_low = (c.category or c.subject or "").lower()
-            # Arcade games (all subjects) are fine.
+            # Arcade games (all subjects) are always fine for kids.
             if c.format == "game":
                 return True
             # Language-learning courses are always kids-safe.
             if c.format in ("language", "interactive") or "language" in cat_low:
                 return True
-            # Audio and live-class courses: only allow kids-appropriate categories.
+            # Catalog courses that have not been explicitly marked "kids" are kept
+            # out of kids mode unless they are games/language — a human curator
+            # must tag them maturity_rating="kids" first.
+            if c.source == "catalog":
+                return False
+            # Non-catalog items (audio, lesson, program, game): use category-based
+            # allow-list so the auto-generated audio catalog still appears.
             if any(k in cat_low for k in _KIDS_CATEGORIES):
                 return True
             # Tags can explicitly mark something kids-safe.

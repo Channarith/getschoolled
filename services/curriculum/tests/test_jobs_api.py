@@ -70,10 +70,11 @@ def test_jobs_live_mode_falls_back_gracefully(monkeypatch):
     populated board rather than erroring."""
     _seed()
     monkeypatch.setenv("JOBS_LIVE", "1")
-    # Force the live HTTP fetch to fail (simulates blocked egress).
+    # Block ALL outbound HTTP (both JSON and text/RSS) to simulate blocked egress.
     import aoep_shared.jobs as jobs_mod
-    monkeypatch.setattr(jobs_mod, "_http_get_json",
-                        lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
+    _block = lambda *a, **k: (_ for _ in ()).throw(OSError("blocked"))  # noqa: E731
+    monkeypatch.setattr(jobs_mod, "_http_get_json", _block)
+    monkeypatch.setattr(jobs_mod, "_http_get_text", _block)
     body = client.get("/jobs").json()
     assert body["count"] >= 5
     assert body["source"] == "sample"
