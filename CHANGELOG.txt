@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.10 - Fix CI: add by_status to mobile Portfolio type; mock _http_get_text in jobs fallback test to block RSS providers in CI.
 - 2026-07-20 - v0.27.9 - Add My List feature: bookmark button on every course card, /my-list page showing saved courses, My List nav link, mobile MyListScreen synced to backend API instead of local AsyncStorage.
 - 2026-07-20 - v0.27.8 - Add 5 kids arcade games (Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz); add LinkedIn RapidAPI jobs provider with 25-req/month budget guard; add USAJobs, WeWorkRemotely, Jobspresso free job sources; update jobs page with new source badges; add RAPIDAPI_KEY to cluster.
 - 2026-07-20 - v0.27.7 - Careers: add Indeed RSS and RemoteOK job providers (free, no key); CompositeJobsProvider now includes Indeed + RemoteOK + Remotive + Arbeitnow when JOBS_LIVE=1; add LinkedIn/Indeed/ZipRecruiter/Glassdoor deep-link search widget on the jobs page; document RAPIDAPI_KEY path for full aggregation.
