@@ -24,6 +24,15 @@ CERTIFIABLE_LESSONS = {
     "osha-forklift-safety": ("OSHA", 1.0),
     "cybersecurity": ("Salareen", 1.5),
     "devops": ("Salareen", 2.0),
+    # Professional certification prep courses
+    "comptia-a-plus": ("CompTIA", 3.0),
+    "hvac-epa-certification": ("EPA", 2.5),
+    "drivers-permit-test": ("DMV", 1.0),
+    "ase-automotive-certification": ("ASE", 3.0),
+    "pharmacy-technician-certification": ("PTCE", 3.0),
+    "real-estate-license-prep": ("NAR", 3.0),
+    "cpr-first-aid-certification": ("AHA", 0.5),
+    "security-guard-certification": ("Salareen", 2.0),
 }
 
 
