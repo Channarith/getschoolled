@@ -597,6 +597,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // can confirm ("yes") or ask a follow-up before the floor is released.
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guard so the floor-granted cue is spoken only once per floor grant, not on
+  // every dep change (narrationLocale, startListening, etc.) while holding it.
+  const floorCueSpokenRef = useRef(false);
   // Pause state for solo classes — the class keeps the session alive but stops
   // narration and auto-advance until the learner resumes.
   const [paused, setPaused] = useState(false);
@@ -1406,6 +1409,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               void startListening();
               // Auto-close after 12 s and treat whatever was said as a response.
               confirmationTimerRef.current = setTimeout(() => {
+                confirmationTimerRef.current = null;
                 const spoken = spokenFinalRef.current.trim();
                 stopListening();
                 if (spoken) {
@@ -1482,6 +1486,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           void startListening();
           // Auto-release the floor after 15 s if no response.
           confirmationTimerRef.current = setTimeout(() => {
+            confirmationTimerRef.current = null;
             stopListening();
             setAwaitingConfirmation(false);
             const pid = roomRef.current?.floor_participant_id || me?.id || "";
@@ -1506,7 +1511,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   }, [room?.status]);
 
   // Always stop narration when leaving the room.
-  useEffect(() => () => cancelSpeech(), []);
+  useEffect(() => () => { cancelSpeech(); stopListening(); }, [stopListening]);
 
   // When this learner is granted the floor (and not already in the confirmation
   // loop), Theodore speaks their name then opens the mic in the onend callback.
@@ -1515,7 +1520,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // setAwaitingConfirmation(true) does not run this effect's cleanup
   // (stopListening) and kill the mic that onend just opened.
   useEffect(() => {
-    if (hasFloor) {
+    if (hasFloor && !floorCueSpokenRef.current) {
+      floorCueSpokenRef.current = true;
       const firstName = (me?.name || "").split(" ")[0] || "there";
       const cue = `${firstName}, please ask your question.`;
       cancelSpeech();
@@ -1523,7 +1529,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         if (!roomRef.current?.floor_participant_id) return;
         speakNaturally(cue, { ...base, onend: () => { void startListening(); } });
       });
-    } else {
+    } else if (!hasFloor) {
+      floorCueSpokenRef.current = false;
       stopListening();
       setSpokenText("");
       spokenFinalRef.current = "";

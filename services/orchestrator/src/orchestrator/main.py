@@ -2403,8 +2403,13 @@ def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
             "Stay on the topic of the lesson if relevant, otherwise be friendly and encouraging."
         )
         try:
-            answer = sessions.ask(room.session_id, prompt, language=lang)
-            reply_text = (answer.text or "").strip()
+            chunks = []
+            for chunk in sessions.ask_stream(room.session_id, prompt, language=lang):
+                if chunk:
+                    chunks.append(chunk)
+            reply_text = "".join(chunks).strip()
+            if not reply_text:
+                reply_text = (sessions.ask(room.session_id, prompt, language=lang).text or "").strip()
         except Exception:  # noqa: BLE001
             return
         if not reply_text:
@@ -2776,6 +2781,11 @@ def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
             _confirmation_pending.pop(room_id, None)
             try:
                 store.finish_turn(room_id, pending_pid)
+                from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+                _broadcast_threadsafe(
+                    room_id,
+                    ws_room_snapshot(store.require(room_id).to_dict(), room_id=room_id),
+                )
             except Exception:  # noqa: BLE001
                 pass
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
@@ -2956,6 +2966,7 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
             f"@{learner.name} {answer.text}",
         )
         store.finish_turn(room_id, req.participant_id)
+        _confirmation_pending.pop(room_id, None)
     except KeyError:
         raise HTTPException(status_code=404, detail="teaching session not found")
     except LiveRoomError as exc:
