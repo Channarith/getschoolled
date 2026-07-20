@@ -45,11 +45,19 @@ def _bootstrap_on_startup() -> None:
 @app.on_event("startup")
 def _startup_seed_accounts() -> None:
     _bootstrap_on_startup()
+    import logging as _log
+    _lg = _log.getLogger(__name__)
     if os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT) == _AUTH_KEY_DEFAULT:
-        import logging
-        logging.getLogger(__name__).warning(
+        _lg.warning(
             "AUTH_SIGNING_KEY is not set — using the insecure development default. "
             "Set this environment variable before deploying."
+        )
+    if "ASSESSMENT_SIGNING_KEY" in os.environ and "AUTH_SIGNING_KEY" not in os.environ:
+        _lg.warning(
+            "ASSESSMENT_SIGNING_KEY is set but AUTH_SIGNING_KEY is not. "
+            "The orchestrator falls back to AUTH_SIGNING_KEY when signing assessment tokens; "
+            "if it is also unset on the orchestrator, token verification will fail. "
+            "Set ASSESSMENT_SIGNING_KEY on both services or set AUTH_SIGNING_KEY as the common fallback."
         )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}

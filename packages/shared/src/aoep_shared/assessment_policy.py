@@ -120,14 +120,17 @@ def select_assessment_format(
             "hands_on": AssessmentFormat.GAME,
             "mixed": AssessmentFormat.TEXT,
         }.get(style, AssessmentFormat.TEXT)
-    # Apply accessibility overrides before device-mode forcing so caption-
-    # dependent learners always get text even in drive mode.
+    # Apply accessibility overrides before device-mode forcing so these are
+    # never bypassed — even in drive mode.
     if needs_captions and selected == AssessmentFormat.AUDIO:
         selected = AssessmentFormat.TEXT
     if uses_assistive_tech and selected in {AssessmentFormat.VIDEO_AID, AssessmentFormat.GAME}:
         selected = AssessmentFormat.TEXT
     if device_mode == "drive":
-        return AssessmentFormat.AUDIO if not needs_captions else AssessmentFormat.TEXT
+        # Drive mode prefers audio; respect both caption and assistive-tech overrides.
+        if needs_captions or uses_assistive_tech:
+            return AssessmentFormat.TEXT
+        return AssessmentFormat.AUDIO
     return selected
 
 
