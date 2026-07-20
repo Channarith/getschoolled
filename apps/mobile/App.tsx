@@ -50,6 +50,7 @@ import AccountScreen from "./src/screens/AccountScreen";
 import SecurityScreen from "./src/screens/SecurityScreen";
 import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
+import SearchScreen from "./src/screens/SearchScreen";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
@@ -91,6 +92,7 @@ function AppInner() {
   const [showSecurity, setShowSecurity] = useState(false);
   const [showBilling, setShowBilling] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
   const [bugCapture, setBugCapture] = useState<BugScreenshotUpload | null>(null);
@@ -170,6 +172,7 @@ function AppInner() {
       setShowSecurity(false);
       setShowBilling(false);
       setShowLanguages(false);
+      setShowSearch(false);
       setShowBugReport(false);
       setActiveLesson(null);
       setPreviewModeState(false);
@@ -367,6 +370,7 @@ function AppInner() {
     setShowSecurity(false);
     setShowBilling(false);
     setShowLanguages(false);
+    setShowSearch(false);
     setShowBugReport(false);
     void refreshUnreadAndAlerts();
     setTab(id);
@@ -421,7 +425,8 @@ function AppInner() {
 
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !gameSubject && !activeLesson
-    && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages && !showBugReport;
+    && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
+    && !showSearch && !showBugReport;
 
   // Android hardware / gesture back: when no overlay screen owns the handler,
   // pop to Home from secondary tabs (standard Android tab UX). On Home, allow
@@ -462,6 +467,14 @@ function AppInner() {
     screen = <RewardsScreen onBack={() => setShowRewards(false)} />;
   } else if (showLanguages) {
     screen = <LanguagesScreen onBack={() => setShowLanguages(false)} />;
+  } else if (showSearch) {
+    screen = (
+      <SearchScreen
+        onBack={() => setShowSearch(false)}
+        onOpenCourse={(id) => { setShowSearch(false); openCourse(id); }}
+        onOpenSettings={(section) => { setShowSearch(false); setShowAccount(true); }}
+      />
+    );
   } else if (gameSubject) {
     screen = (
       <GameScreen subject={gameSubject} onBack={() => setGameSubject(null)} />
@@ -540,6 +553,7 @@ function AppInner() {
         onOpenLiveRooms={() => setShowLiveRooms(true)}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
+        onOpenSearch={() => setShowSearch(true)}
         guestMode={!authenticated}
       />
     );

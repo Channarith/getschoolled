@@ -29,6 +29,13 @@ const KIND_BADGE: Record<string, string> = {
   shape_drop: "🧱", stocks: "📈", challenge: "🤖",
 };
 
+const DEFAULT_AGE_GROUPS = [
+  { id: "kids",  name: "Kids",   range: "5–8"  },
+  { id: "tween", name: "Tweens", range: "9–12" },
+  { id: "teen",  name: "Teens",  range: "13–17"},
+  { id: "adult", name: "Adults", range: "18+"  },
+];
+
 function subjectLabel(cat: GamesCatalog | null, id: string): string {
   const loc = cat?.subjects_localized?.find((s) => s.id === id);
   return loc?.name ?? id.replace(/_/g, " ");
@@ -64,6 +71,10 @@ export default function ArcadePage() {
       .then((r) => setLeaders(r.leaders)).catch(() => setLeaders([]));
   }, [lbSubject, lbAge]);
   useEffect(() => { loadLeaders(); }, [loadLeaders]);
+
+  // Sync the leaderboard age filter with the picker age group so the
+  // leaderboard visibly responds when the user switches age group.
+  useEffect(() => { setLbAge(ageGroup); }, [ageGroup]);
 
   const finish = useCallback(async () => {
     if (!round) return;
@@ -254,12 +265,16 @@ export default function ArcadePage() {
           </div>
           <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>{t("arcade.ageGroup")}</div>
           <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
-            {cat?.age_groups.map((a) => (
+            {(cat?.age_groups?.length ? cat.age_groups : DEFAULT_AGE_GROUPS).map((a) => (
               <button key={a.id} onClick={() => setAgeGroup(a.id)} title={a.range}
-                style={{ opacity: ageGroup === a.id ? 1 : 0.55,
-                  background: ageGroup === a.id ? "#0ea5e9" : undefined,
-                  color: ageGroup === a.id ? "#fff" : undefined }}>
-                {a.name} <span style={{ fontSize: 11, opacity: 0.8 }}>({a.range})</span>
+                style={{
+                  background: ageGroup === a.id ? "#0ea5e9" : "transparent",
+                  color: ageGroup === a.id ? "#fff" : "var(--text)",
+                  border: ageGroup === a.id ? "2px solid #0ea5e9" : "2px solid var(--border)",
+                  opacity: 1,
+                  cursor: "pointer",
+                }}>
+                {a.name} <span style={{ fontSize: 11, opacity: 0.75 }}>({a.range})</span>
               </button>
             ))}
           </div>
