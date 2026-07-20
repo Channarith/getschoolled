@@ -195,8 +195,14 @@ def evaluate_checkpoint(
     evidenced_ksbs: set[str] = set()
     domains: set[EvidenceDomain] = set()
     correct_count = 0
-    for item, chosen in zip(items, chosen_indices):
-        correct = int(chosen) == item.answer_index
+    for i, (item, chosen) in enumerate(zip(items, chosen_indices)):
+        n_opts = len(item.options) if getattr(item, "options", None) else None
+        chosen_int = int(chosen)
+        if n_opts is not None and not (0 <= chosen_int < n_opts):
+            raise ValueError(
+                f"item {i} ({item.item_id}): chosen_index {chosen_int} out of range [0, {n_opts - 1}]"
+            )
+        correct = chosen_int == item.answer_index
         domain = domain_by_item.get(item.item_id, EvidenceDomain.KNOWLEDGE)
         codes = list(ksb_by_item.get(item.item_id, []))
         if correct:
@@ -206,7 +212,7 @@ def evaluate_checkpoint(
         evidence.append(ItemEvidence(
             item_id=item.item_id,
             correct=correct,
-            chosen_index=int(chosen),
+            chosen_index=chosen_int,
             evidence_domain=domain,
             ksb_codes=codes,
         ))

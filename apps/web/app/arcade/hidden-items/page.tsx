@@ -597,6 +597,8 @@ export default function HiddenItems() {
   const [glowing, setGlowing] = useState<string | null>(null);
   const [wrongMsg, setWrongMsg] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // livesRef keeps a synchronous copy of lives so rapid wrong-clicks consume the correct count
+  const livesRef = useRef(3);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
@@ -609,6 +611,7 @@ export default function HiddenItems() {
 
   const startGame = () => {
     setFound(new Set());
+    livesRef.current = 3;
     setLives(3);
     setScore(0);
     setElapsed(0);
@@ -650,12 +653,20 @@ export default function HiddenItems() {
         return;
       }
     }
-    // Wrong click
-    const newLives = lives - 1;
-    setLives(newLives);
+    // If the click landed on an item that exists in the scene but isn't active for
+    // this difficulty level, ignore it silently — don't penalize the player.
+    for (const item of scene.items) {
+      if (activeItems.some((ai) => ai.id === item.id)) continue; // active item already checked above
+      const d = Math.sqrt((x - item.cx) ** 2 + (y - item.cy) ** 2);
+      if (d <= item.r) return; // inactive item: no reward, no penalty
+    }
+
+    // Wrong click — use livesRef to avoid stale closure under rapid clicking
+    livesRef.current = Math.max(0, livesRef.current - 1);
+    setLives(livesRef.current);
     setWrongMsg(true);
     setTimeout(() => setWrongMsg(false), 800);
-    if (newLives <= 0) {
+    if (livesRef.current <= 0) {
       setPhase("done");
       if (timerRef.current) clearInterval(timerRef.current);
     }

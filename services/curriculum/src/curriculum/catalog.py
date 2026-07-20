@@ -13,6 +13,7 @@ from __future__ import annotations
 import enum
 import json
 import os
+import threading
 import time
 import uuid
 from typing import Dict, List, Optional
@@ -104,6 +105,7 @@ class CatalogStore:
         self.path = path
         self.courses: Dict[str, Course] = {}
         self.programs: Dict[str, Program] = {}
+        self._lock = threading.Lock()
         if path and os.path.isfile(path):
             self.load_json(path)
 
@@ -169,12 +171,13 @@ class CatalogStore:
 
     # --- discovery rails (Netflix-style home feed) ------------------------- #
     def bump_popularity(self, course_id: str, by: int = 1) -> Optional[Course]:
-        c = self.courses.get(course_id)
-        if c is None:
-            return None
-        c.popularity += by
-        self._autosave()
-        return c
+        with self._lock:
+            c = self.courses.get(course_id)
+            if c is None:
+                return None
+            c.popularity += by
+            self._autosave()
+            return c
 
     def kids_safe(self) -> List[Course]:
         """Courses for the children's platform: only kid-authored (kids-rated).
@@ -251,7 +254,7 @@ class CatalogStore:
         directory = os.path.dirname(target)
         if directory:
             os.makedirs(directory, exist_ok=True)
-        tmp = target + ".tmp"
+        tmp = target + f".{os.getpid()}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(self.to_dict(), fh)
         os.replace(tmp, target)

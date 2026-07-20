@@ -428,6 +428,8 @@ export default function SpotDifference() {
   const [score, setScore] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // foundRef keeps a synchronous copy of found so rapid clicks can't double-award the same diff
+  const foundRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
@@ -438,6 +440,7 @@ export default function SpotDifference() {
   const diffs = scene.diffs;
 
   const startGame = () => {
+    foundRef.current = new Set();
     setFound(new Set());
     setScore(0);
     setElapsed(0);
@@ -461,13 +464,13 @@ export default function SpotDifference() {
     const y = (e.clientY - rect.top) * scaleY;
 
     for (const d of diffs) {
-      if (found.has(d.id)) continue;
+      // Use foundRef (synchronous) so rapid clicks can't slip past a stale found Set
+      if (foundRef.current.has(d.id)) continue;
       if (dist(x, y, d.cx, d.cy) <= d.r) {
-        const next = new Set(found);
-        next.add(d.id);
-        setFound(next);
+        foundRef.current = new Set([...foundRef.current, d.id]);
+        setFound(new Set(foundRef.current));
         setScore((s) => s + 100);
-        if (next.size === diffs.length) {
+        if (foundRef.current.size === diffs.length) {
           setPhase("done");
         }
         return;

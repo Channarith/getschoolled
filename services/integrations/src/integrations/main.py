@@ -155,7 +155,10 @@ async def payment_webhook(provider: str, request: Request) -> dict:
         raise HTTPException(status_code=401, detail="invalid webhook signature")
     import json
 
-    event = parse_payment_event(provider, json.loads(body or b"{}"))
+    try:
+        event = parse_payment_event(provider, json.loads(body or b"{}"))
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"invalid webhook body: {exc}")
     if event.kind == "ignore":
         return {"provider": provider, "handled": False, "type": event.raw_type}
 
@@ -210,7 +213,7 @@ class RosterImportRequest(BaseModel):
     payload: dict                    # OneRoster users payload
 
 
-@app.post("/lms/roster")
+@app.post("/lms/roster", dependencies=[Depends(require_internal)])
 def lms_roster(req: RosterImportRequest) -> dict:
     members = parse_oneroster(req.payload)
     app.state.rosters[req.context_id] = members
@@ -226,10 +229,13 @@ class GradePassbackRequest(BaseModel):
     export_xapi: bool = False
 
 
-@app.post("/lms/grade-passback")
+@app.post("/lms/grade-passback", dependencies=[Depends(require_internal)])
 def lms_grade_passback(req: GradePassbackRequest) -> dict:
     payload = build_ags_score(req.user_id, req.score, req.maximum, line_item=req.line_item)
-    result = app.state.lms.push_grade(payload)
+    try:
+        result = app.state.lms.push_grade(payload)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"LMS unavailable: {exc}")
     out = {"pushed": payload, "result": result}
     if req.export_xapi:
         scaled = (req.score / req.maximum) if req.maximum else 0.0
@@ -359,6 +365,10 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
         source_id = str(row.get("source_id") or row.get("sourceId") or "").strip()
         if not source_id:
             continue
+        try:
+            fps_val = int(row.get("fps") or 0)
+        except (TypeError, ValueError):
+            fps_val = 0
         camera_sources.append(
             ExternalCameraSource(
                 source_id=source_id,
@@ -370,7 +380,7 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
                     row.get("participant_identity") or row.get("participantIdentity") or ""
                 ).strip(),
                 resolution=str(row.get("resolution") or "").strip(),
-                fps=int(row.get("fps") or 0),
+                fps=fps_val,
             )
         )
     try:
@@ -425,11 +435,11 @@ def bridge_session_chat(session_id: str, req: BridgeChatRequest) -> dict:
 
 @app.post("/bridges/sessions/{session_id}/disconnect")
 def bridge_session_disconnect(session_id: str) -> dict:
-    session = _session(session_id)
+    session = app.state.bridge_sessions.pop(session_id, None)
+    if session is None:
+        raise HTTPException(status_code=404, detail="unknown bridge session")
     session.stop()
-    out = session.status()
-    app.state.bridge_sessions.pop(session_id, None)
-    return out
+    return session.status()
 
 
 # --------------------------------------------------------------------------- #

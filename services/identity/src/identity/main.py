@@ -24,22 +24,34 @@ from .persistence import load_from_redis
 
 app = create_service("identity")
 app.state.accounts = AccountStore()
-load_from_redis(app.state.accounts)
+try:
+    load_from_redis(app.state.accounts)
+except Exception:
+    pass  # startup event will retry via load_from_redis_with_retry
+
+
+_reseed_lock: "threading.Lock | None" = None
 
 
 def _bootstrap_on_startup() -> None:
     import logging
+    import threading as _threading
+
+    global _reseed_lock
+    if _reseed_lock is None:
+        _reseed_lock = _threading.Lock()
 
     from .bootstrap import bootstrap_accounts
     from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
 
-    if not load_from_redis_with_retry(app.state.accounts):
+    loaded = load_from_redis_with_retry(app.state.accounts)
+    if not loaded:
         logging.getLogger(__name__).info(
             "identity startup: no Redis snapshot loaded (will bootstrap in-memory)")
-    stats = bootstrap_accounts(app.state.accounts)
-    if not save_to_redis_with_retry(app.state.accounts):
-        logging.getLogger(__name__).error(
-            "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
+        stats = bootstrap_accounts(app.state.accounts)
+        if not save_to_redis_with_retry(app.state.accounts):
+            logging.getLogger(__name__).error(
+                "identity bootstrap: failed to persist seeded accounts to Redis (%s)", stats)
 
 
 @app.on_event("startup")
@@ -102,19 +114,26 @@ def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
 
 
 def _run_reseed_seeded() -> dict:
+    import threading as _threading
+
+    global _reseed_lock
+    if _reseed_lock is None:
+        _reseed_lock = _threading.Lock()
+
     from .bootstrap import bootstrap_accounts, env_seed_password
     from .persistence import load_from_redis_with_retry, save_to_redis_with_retry
 
-    load_from_redis_with_retry(app.state.accounts)
-    stats = bootstrap_accounts(app.state.accounts)
-    persisted = save_to_redis_with_retry(app.state.accounts)
-    qa_pw = env_seed_password("QA_ACCOUNTS_PASSWORD", "QaTest123")
-    admin_pw = env_seed_password("DEFAULT_ADMIN_PASSWORD", "88888888")
-    login_ok = {
-        "admin@salareen.com": app.state.accounts.authenticate("admin@salareen.com", admin_pw) is not None,
-        "qa-pro@salareen.com": app.state.accounts.authenticate("qa-pro@salareen.com", qa_pw) is not None,
-        "qa3": app.state.accounts.authenticate("qa3", qa_pw) is not None,
-    }
+    with _reseed_lock:
+        load_from_redis_with_retry(app.state.accounts)
+        stats = bootstrap_accounts(app.state.accounts)
+        persisted = save_to_redis_with_retry(app.state.accounts)
+        qa_pw = env_seed_password("QA_ACCOUNTS_PASSWORD", "QaTest123")
+        admin_pw = env_seed_password("DEFAULT_ADMIN_PASSWORD", "88888888")
+        login_ok = {
+            "admin@salareen.com": app.state.accounts.authenticate("admin@salareen.com", admin_pw) is not None,
+            "qa-pro@salareen.com": app.state.accounts.authenticate("qa-pro@salareen.com", qa_pw) is not None,
+            "qa3": app.state.accounts.authenticate("qa3", qa_pw) is not None,
+        }
     return {
         "reseeded": True,
         "stats": stats,

@@ -19,6 +19,7 @@ import { theme } from "../theme";
 
 type Props = {
   subject: string;
+  initialGameType?: string;
   onBack: () => void;
 };
 
@@ -33,11 +34,11 @@ function subjectLabel(subject: string): string {
   return subject.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function GameScreen({ subject, onBack }: Props) {
+export default function GameScreen({ subject, initialGameType, onBack }: Props) {
   const { t, locale } = useT();
   const { account } = useAuth();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
-  const [gameType, setGameType] = useState("quiz");
+  const [gameType, setGameType] = useState(initialGameType || "quiz");
   const [ageGroup, setAgeGroup] = useState("teen");
   const [round, setRound] = useState<GameRound | null>(null);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
@@ -60,6 +61,13 @@ export default function GameScreen({ subject, onBack }: Props) {
     onBack();
     return true;
   });
+
+  useEffect(() => {
+    if (initialGameType === "potion" && subject === "chemistry") {
+      setGameType("potion");
+      setPotionActive(true);
+    }
+  }, [initialGameType, subject]);
 
   useEffect(() => {
     getGamesCatalog(locale).then(setCat).catch(() => {});

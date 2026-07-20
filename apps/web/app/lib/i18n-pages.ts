@@ -162,6 +162,8 @@ const PROFILE: Partial<Record<Locale, Record<string, string>>> = {
 
 const SHARED: Record<string, string> = {
   "nav.aiInstructed": "AI-instructed",
+  "nav.openMenu": "Open navigation menu",
+  "nav.closeMenu": "Close navigation menu",
   "preview.lockedTitle": "Sign in to use this feature",
   "preview.lockedBody": "Preview mode lets you browse — sign in to take classes, play audio, and save progress.",
   "preview.signIn": "Sign in",
@@ -174,6 +176,9 @@ const SHARED: Record<string, string> = {
   "drive.all": "All",
   "drive.pause": "⏸ Pause",
   "drive.play": "▶ Play",
+  "drive.prevSegment": "Previous segment",
+  "drive.nextSegment": "Next segment",
+  "drive.stop": "Stop playback",
   "drive.speed": "Speed",
   "drive.narrationVoice": "Narration voice:",
   "drive.trainingLang": "Lesson language:",

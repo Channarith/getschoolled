@@ -70,6 +70,10 @@ export default function CardMatch() {
   const [done, setDone] = useState(false);
   const [best, setBest] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // checkingRef prevents rapid second-card double-clicks from evaluating a pair twice
+  const checkingRef = useRef(false);
+  // startTimeRef lets us compute accurate elapsed time without relying on stale closure
+  const startTimeRef = useRef(0);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
@@ -82,7 +86,9 @@ export default function CardMatch() {
   function start() {
     setDeck(buildDeck(PAIRS[age]));
     setSelected([]); setScore(0); setMisses(0); setElapsed(0); setDone(false);
+    checkingRef.current = false;
     if (timerRef.current) clearInterval(timerRef.current);
+    startTimeRef.current = Date.now();
     setRunning(true);
     timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
   }
@@ -91,6 +97,8 @@ export default function CardMatch() {
 
   function flip(id: string) {
     if (!running || done) return;
+    // Guard: block any new flips while a pair is being evaluated
+    if (checkingRef.current) return;
     const card = deck.find((c) => c.id === id);
     if (!card || card.flipped || card.matched || selected.length >= 2) return;
 
@@ -100,6 +108,8 @@ export default function CardMatch() {
     setSelected(newSel);
 
     if (newSel.length === 2) {
+      // Lock flipping until this pair resolves
+      checkingRef.current = true;
       const [a, b] = newSel.map((sid) => newDeck.find((c) => c.id === sid)!);
       if (a.pairIdx === b.pairIdx && a.type !== b.type) {
         // Match!
@@ -107,14 +117,18 @@ export default function CardMatch() {
           setDeck((d) => d.map((c) => newSel.includes(c.id) ? { ...c, matched: true } : c));
           setScore((s) => s + 10);
           setSelected([]);
+          checkingRef.current = false;
           const remaining = newDeck.filter((c) => !c.matched && !newSel.includes(c.id));
           if (remaining.length === 0) {
             setDone(true); setRunning(false);
             if (timerRef.current) clearInterval(timerRef.current);
+            // Compute elapsed from startTimeRef to avoid stale closure
+            const finalElapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
+            setElapsed(finalElapsed);
             const key = `aoep_cardmatch_best_${age}`;
             try {
               const prev = Number(localStorage.getItem(key) || "9999");
-              if (elapsed < prev || prev === 9999) { localStorage.setItem(key, String(elapsed)); setBest(elapsed); }
+              if (finalElapsed < prev || prev === 9999) { localStorage.setItem(key, String(finalElapsed)); setBest(finalElapsed); }
             } catch { /* */ }
           }
         }, 300);
@@ -123,6 +137,7 @@ export default function CardMatch() {
           setDeck((d) => d.map((c) => newSel.includes(c.id) ? { ...c, flipped: false } : c));
           setMisses((m) => m + 1);
           setSelected([]);
+          checkingRef.current = false;
         }, 900);
       }
     }

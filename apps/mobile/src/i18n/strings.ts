@@ -131,7 +131,10 @@ export type StringKey =
   // Streak hero
   | "streak.label"
   // Careers
-  | "home.navCareers" | "home.navLanguages" | "home.navRewards" | "home.navGroups" | "home.navLive"
+  | "home.navArcade" | "home.navLanguages" | "home.navRewards" | "home.navGroups" | "home.navLive"
+  | "arcade.back" | "arcade.title" | "arcade.intro" | "arcade.error"
+  | "arcade.featured" | "arcade.featuredSub" | "arcade.subjects"
+  | "arcade.inApp" | "arcade.inAppSub" | "arcade.webHint" | "arcade.webOpenFailed"
   | "careers.back" | "careers.title" | "careers.sub"
   // Group classes
   | "group.title" | "group.intro" | "group.back" | "group.empty"
@@ -182,11 +185,23 @@ const EN: Record<StringKey, string> = {
   "home.subDefault": "Tap any class to start hands-free in Drive Mode.",
   "home.subStreak": "🔥 {days}-day streak — keep it alive with one quick class.",
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
-  "home.navCareers": "Careers",
+  "home.navArcade": "Arcade",
   "home.navLanguages": "Languages",
   "home.navRewards": "Rewards",
   "home.navGroups": "Groups",
   "home.navLive": "Live 1:1",
+
+  "arcade.back": "← Back",
+  "arcade.title": "Arcade",
+  "arcade.intro": "Pick a subject and play quizzes, speed rounds, match games, and Potion Lab.",
+  "arcade.error": "Couldn't load the arcade catalog ({error}). Pull to retry.",
+  "arcade.featured": "Featured",
+  "arcade.featuredSub": "Real-time chemistry arcade — tap atoms to build molecules.",
+  "arcade.subjects": "SUBJECTS",
+  "arcade.inApp": "In-app quiz games",
+  "arcade.inAppSub": "Pick a subject for quiz, speed, and match rounds.",
+  "arcade.webHint": "Opens in your browser — same games as salareen.com/arcade.",
+  "arcade.webOpenFailed": "Could not open this game. Try again from the Salareen website.",
 
   "careers.back": "← Back",
   "careers.title": "Careers",

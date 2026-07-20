@@ -34,12 +34,12 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass,
+  onOpenCourse, onOpenCategory, onOpenArcade, onOpenGroupClasses, onOpenLiveClass,
   onOpenLanguages, onOpenRewards, onOpenSearch, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
-  onOpenCareers: () => void;
+  onOpenArcade?: () => void;
   onOpenGroupClasses?: () => void;
   onOpenLiveClass?: () => void;
   onOpenLanguages?: () => void;
@@ -184,11 +184,13 @@ export default function HomeScreen({
             {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
           </Text>
           <View style={styles.actionDock}>
-            <HomeAction
-              icon="briefcase-outline"
-              label={t("home.navCareers")}
-              onPress={onOpenCareers}
-            />
+            {onOpenArcade ? (
+              <HomeAction
+                icon="game-controller-outline"
+                label={t("home.navArcade")}
+                onPress={onOpenArcade}
+              />
+            ) : null}
             {onOpenLanguages ? (
               <HomeAction
                 icon="language-outline"

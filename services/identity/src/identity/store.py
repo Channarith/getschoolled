@@ -597,6 +597,10 @@ class AccountStore:
                 existing.score = enrollment.score
             if enrollment.title:
                 existing.title = enrollment.title
+            if enrollment.level is not None:
+                existing.level = enrollment.level
+            if enrollment.hands_on is not None:
+                existing.hands_on = enrollment.hands_on
             existing.updated_at = time.time()
             self._persist()
             return existing
@@ -824,11 +828,12 @@ class AccountStore:
         if prof is None:
             raise KeyError(student_id)
         source_attempt = attempt_ids[-1] if attempt_ids else ""
-        if not any(
-            row.get("course_id") == course_id
-            and source_attempt in row.get("attempt_ids", [])
+        already_recorded = any(
+            row.get("course_id") == course_id and row.get("passed")
+            and (not source_attempt or source_attempt in row.get("attempt_ids", []))
             for row in prof.assessment_attempts
-        ):
+        )
+        if not already_recorded:
             completed_at = time.time()
             prof.assessment_attempts.append({
                 "course_id": course_id,
@@ -863,8 +868,9 @@ class AccountStore:
                 title=course_id.replace("-", " ").title(),
             )
         enrollment = acct.enrollments[course_id]
-        enrollment.assessment_verified = True
-        enrollment.assessment_attempt_id = source_attempt
+        if not enrollment.assessment_verified:
+            enrollment.assessment_verified = True
+            enrollment.assessment_attempt_id = source_attempt
         self.set_status(
             account_id,
             course_id,

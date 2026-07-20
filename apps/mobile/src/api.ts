@@ -2,7 +2,7 @@
 
 import type { MascotResolve } from "./mascot";
 import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL } from "./config";
-import { getToken } from "./storage";
+import { getToken, clearAuthToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL };
 
@@ -102,10 +102,15 @@ export type JobMatch = {
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401) {
+      try { void clearAuthToken(); } catch { /* ignore */ }
+    }
     let detail = res.statusText;
     try {
       const j = await res.json();
-      detail = j.detail || j.message || detail;
+      if (typeof j?.detail === 'string') detail = j.detail;
+      else if (typeof j?.message === 'string') detail = j.message;
+      else if (j != null) detail = JSON.stringify(j);
     } catch { /* ignore */ }
     throw new Error(`${res.status} ${detail}`);
   }

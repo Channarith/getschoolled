@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 
 from aoep_shared.compliance import compliance_summary
 from aoep_shared.flags import FlagStore, require_admin
@@ -34,6 +35,10 @@ from .store import MemoryStore
 
 app = create_service("memory")
 app.state.store = MemoryStore()
+
+_submitted_surveys: set[tuple] = set()
+_mastery_locks: dict[str, threading.Lock] = {}
+_mastery_lock = threading.Lock()
 app.state.acceptances = AcceptanceStore()
 app.state.flags = FlagStore()
 app.state.surveys = SurveyStore()
@@ -41,11 +46,17 @@ app.state.pulse_surveys = PulseSurveyStore()
 app.state.onboarding_surveys = OnboardingSurveyStore()
 
 
+_bug_reports_lock = threading.Lock()
+
+
 def _bug_reports() -> BugReportStore:
     store = getattr(app.state, "bug_reports", None)
     if store is None:
-        store = BugReportStore.open()
-        app.state.bug_reports = store
+        with _bug_reports_lock:
+            store = getattr(app.state, "bug_reports", None)
+            if store is None:
+                store = BugReportStore.open()
+                app.state.bug_reports = store
     return store
 
 
@@ -286,6 +297,10 @@ class SurveySubmit(BaseModel):
 
 @app.post("/survey/post-class")
 def survey_submit(req: SurveySubmit) -> dict:
+    key = (req.course_id, req.student_id or "")
+    if key in _submitted_surveys:
+        raise HTTPException(status_code=409, detail="survey already submitted")
+    _submitted_surveys.add(key)
     try:
         resp = app.state.surveys.submit(SurveyResponse(**req.model_dump()))
     except ValueError as exc:
@@ -523,7 +538,10 @@ def test_seed(req: SeedRequest, _: str = Depends(require_admin_header)) -> dict:
 
 @app.post("/mastery")
 def update_mastery(req: MasteryUpdate) -> dict:
-    score = app.state.store.update_mastery(req.student_id, req.topic, req.correct)
+    with _mastery_lock:
+        student_lock = _mastery_locks.setdefault(req.student_id, threading.Lock())
+    with student_lock:
+        score = app.state.store.update_mastery(req.student_id, req.topic, req.correct)
     return {"student_id": req.student_id, "topic": req.topic, "mastery": score}
 
 
