@@ -33,6 +33,8 @@ import {
   liveRoomFollowHost,
   liveRoomPlayGame,
   liveRoomStartGame,
+  identifyEmbedding,
+  reportLiveRoomPresence,
   type LiveGiftCatalogItem,
   type LiveGroupGame,
   type LiveParticipant,
@@ -48,6 +50,7 @@ import { useT } from "../../lib/i18n";
 import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
 import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlock";
+import { createVisionEngine, type VisionEngine } from "../../lib/vision";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
 
@@ -606,6 +609,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [paused, setPaused] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
+  const presenceProbeVideoRef = useRef<HTMLVideoElement | null>(null);
+  const presenceEngineRef = useRef<VisionEngine | null>(null);
+  const presenceProbeBusyRef = useRef(false);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -842,6 +848,112 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     }
     await enableCamera();
   }
+
+  useEffect(() => {
+    const el = presenceProbeVideoRef.current;
+    if (!el) return;
+    if (!localStream) {
+      try { el.pause(); } catch {}
+      el.srcObject = null;
+      return;
+    }
+    el.srcObject = localStream;
+    el.muted = true;
+    el.playsInline = true;
+    void el.play().catch(() => undefined);
+  }, [localStream]);
+
+  useEffect(() => {
+    const participantId = joinInfo?.participant?.id || "";
+    const presenceEnabled = Boolean(room?.presence_policy?.enabled);
+    const maxFacesAllowed = Math.max(1, Number(room?.presence_policy?.max_faces_allowed || 1));
+    const requireLiveness = room?.presence_policy?.require_liveness ?? true;
+    const enabled = Boolean(
+      participantId &&
+      room?.status === "live" &&
+      room?.presenting &&
+      presenceEnabled &&
+      cameraOn &&
+      localStream
+    );
+    if (!enabled) return;
+    let cancelled = false;
+    const run = async () => {
+      if (cancelled || presenceProbeBusyRef.current) return;
+      const source = presenceProbeVideoRef.current;
+      if (!source || source.readyState < 2) return;
+      presenceProbeBusyRef.current = true;
+      try {
+        if (!presenceEngineRef.current) {
+          presenceEngineRef.current = await createVisionEngine();
+        }
+        const faces = presenceEngineRef.current.detectAndEmbed(source);
+        let present = faces.length > 0;
+        let livenessState: "live" | "unknown" | "spoof" | "absent" = present ? "unknown" : "absent";
+        let livenessScore = 0;
+        let reason = present ? "face_detected" : "no_face";
+        if (present) {
+          if (faces.length > maxFacesAllowed) {
+            livenessState = "spoof";
+            reason = "too_many_faces";
+          } else {
+            const analysis = await identifyEmbedding(faces.slice(0, 1), []);
+            const first = analysis.faces?.[0];
+            const attention = Number(first?.attention || 0);
+            const frontal = Number(first?.gaze_frontal || 0);
+            livenessScore = Math.max(0, Math.min(1, attention * 0.55 + frontal * 0.45));
+            if (requireLiveness && livenessScore < 0.35) {
+              livenessState = "unknown";
+              reason = "liveness_low";
+            } else {
+              livenessState = "live";
+              reason = "verified";
+            }
+          }
+        }
+        const res = await reportLiveRoomPresence(roomId, {
+          participantId,
+          present,
+          faceCount: faces.length,
+          livenessState,
+          livenessScore,
+          reason,
+          source: "web-on-device",
+        });
+        applyRoom(res.room);
+      } catch {
+        /* best effort; tick keeps room alive */
+      } finally {
+        presenceProbeBusyRef.current = false;
+      }
+    };
+    void run();
+    const timer = setInterval(() => { void run(); }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [
+    applyRoom,
+    cameraOn,
+    joinInfo?.participant?.id,
+    localStream,
+    room?.presence_policy?.enabled,
+    room?.presence_policy?.max_faces_allowed,
+    room?.presence_policy?.require_liveness,
+    room?.presenting,
+    room?.status,
+    roomId,
+  ]);
+
+  useEffect(() => () => {
+    try {
+      presenceEngineRef.current?.dispose();
+    } catch {
+      /* best effort */
+    }
+    presenceEngineRef.current = null;
+  }, []);
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
     const name = (nameOverride ?? displayName).trim();
@@ -2190,6 +2302,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       ) : null}
 
+      {room?.presence?.hold_active ? (
+        <div
+          style={{
+            background: "rgba(251,191,36,0.16)",
+            border: "1px solid rgba(251,191,36,0.55)",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 10,
+            fontSize: 14,
+            color: "#fde68a",
+          }}
+        >
+          <strong>Presence hold active.</strong>{" "}
+          {room.presence.hold_participant_name || "A learner"} is not visually present
+          {room.presence.hold_reason ? ` (${room.presence.hold_reason.replace(/_/g, " ")}).` : "."}
+          {" "}Class resumes automatically when presence is verified.
+        </div>
+      ) : null}
+
       {!liveKitConnectEnabled && joinInfo?.media?.url && (
         <div
           role="dialog"
@@ -3321,6 +3452,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           Leave
         </button>
       </div>
+      <video
+        ref={presenceProbeVideoRef}
+        autoPlay
+        muted
+        playsInline
+        aria-hidden="true"
+        style={{ position: "fixed", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+      />
     </main>
   );
 }

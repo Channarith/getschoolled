@@ -10,6 +10,8 @@ from .live_room import (
     ChatMessage,
     LiveRoom,
     Participant,
+    PresencePolicy,
+    PresenceSignal,
     QueueEntry,
     RecordingState,
     SlideSync,
@@ -75,6 +77,14 @@ def live_room_to_dict(room: LiveRoom) -> Dict[str, Any]:
       "xr_lab": getattr(room, "xr_lab", None),
       "xr_attempts": dict(getattr(room, "xr_attempts", None) or {}),
       "audience_profile": dict(getattr(room, "audience_profile", None) or {}),
+      "presence_policy": asdict(getattr(room, "presence_policy", PresencePolicy())),
+      "presence_signals": {
+          k: asdict(v) for k, v in (getattr(room, "presence_signals", None) or {}).items()
+      },
+      "presence_hold_active": bool(getattr(room, "presence_hold_active", False)),
+      "presence_hold_participant_id": getattr(room, "presence_hold_participant_id", "") or "",
+      "presence_hold_reason": getattr(room, "presence_hold_reason", "") or "",
+      "presence_hold_started_at": getattr(room, "presence_hold_started_at", "") or "",
       "group_game": dict(getattr(room, "group_game", None) or {}) or None,
   }
 
@@ -105,6 +115,35 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
   reactions = [ReactionEvent(**r) for r in (data.get("reactions") or [])]
   recording = RecordingState(**(data.get("recording") or {}))
   slide = SlideSync(**(data.get("slide") or {}))
+  raw_policy = dict(data.get("presence_policy") or {})
+  policy = PresencePolicy(
+      enabled=raw_policy.get("enabled", True),
+      grace_seconds=raw_policy.get("grace_seconds", 90),
+      stale_seconds=raw_policy.get("stale_seconds", 20),
+      require_liveness=raw_policy.get("require_liveness", True),
+      max_faces_allowed=raw_policy.get("max_faces_allowed", 1),
+  )
+  signals: Dict[str, PresenceSignal] = {}
+  for k, raw in (data.get("presence_signals") or {}).items():
+      row = dict(raw or {})
+      row.setdefault("participant_id", k)
+      row.setdefault("participant_name", "")
+      allowed = {
+          "participant_id",
+          "participant_name",
+          "present",
+          "face_count",
+          "liveness_state",
+          "liveness_score",
+          "reason",
+          "source",
+          "observed_at",
+          "absent_started_at",
+          "last_live_at",
+          "hold_started_at",
+          "updated_at",
+      }
+      signals[k] = PresenceSignal(**{kk: vv for kk, vv in row.items() if kk in allowed})
   return LiveRoom(
       room_id=data["room_id"],
       class_id=data["class_id"],
@@ -149,5 +188,11 @@ def live_room_from_dict(data: Dict[str, Any]) -> LiveRoom:
       xr_lab=data.get("xr_lab"),
       xr_attempts=dict(data.get("xr_attempts") or {}),
       audience_profile=dict(data.get("audience_profile") or {}),
+      presence_policy=policy,
+      presence_signals=signals,
+      presence_hold_active=bool(data.get("presence_hold_active", False)),
+      presence_hold_participant_id=data.get("presence_hold_participant_id") or "",
+      presence_hold_reason=data.get("presence_hold_reason") or "",
+      presence_hold_started_at=data.get("presence_hold_started_at") or "",
       group_game=dict(data.get("group_game") or {}) or None,
   )

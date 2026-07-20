@@ -1854,6 +1854,11 @@ def start_group_class(
             creator_name=gc.host or "Salareen",
             scheduled_start=gc.start_time,
             duration_seconds=int(gc.duration_min) * 60,
+            presence_enabled=True,
+            presence_hold_grace_seconds=90,
+            presence_stale_seconds=20,
+            presence_require_liveness=bool(gc.require_liveness),
+            presence_max_faces_allowed=int(gc.max_faces_allowed or 1),
         )
         moderator_key = live.moderator_key
 
@@ -1891,6 +1896,17 @@ class LiveRoomJoinRequest(BaseModel):
     readiness_score: float = 0.0
     readiness_band: str = ""
     primary_style: str = ""
+
+
+class LiveRoomPresenceReportRequest(BaseModel):
+    participant_id: str
+    present: bool = False
+    face_count: int = 0
+    liveness_state: str = "unknown"
+    liveness_score: float = 0.0
+    reason: str = ""
+    source: str = "client"
+    observed_at: str = ""
 
 
 class XrLabEnableRequest(BaseModel):
@@ -2307,6 +2323,11 @@ def _ensure_group_class_room(room_id: str):
         creator_name=gc.host or "Salareen",
         scheduled_start=gc.start_time,
         duration_seconds=int(gc.duration_min) * 60,
+        presence_enabled=True,
+        presence_hold_grace_seconds=90,
+        presence_stale_seconds=20,
+        presence_require_liveness=bool(gc.require_liveness),
+        presence_max_faces_allowed=int(gc.max_faces_allowed or 1),
     )
     # Replica reopen / Redis miss: the teaching session may already be mid-lesson
     # (slide index > 0) while the freshly materialized room has presenting=False.
@@ -3223,6 +3244,41 @@ def live_room_start_presentation(
     return {"room": room_dict, "presenting": room.presenting}
 
 
+@app.post("/api/live-rooms/{room_id}/presence-report")
+def live_room_presence_report(
+    room_id: str,
+    req: LiveRoomPresenceReportRequest,
+) -> dict:
+    store = _live_rooms()
+    _ensure_room_or_404(room_id)
+    observed_at = None
+    if req.observed_at.strip():
+        from datetime import datetime
+
+        try:
+            observed_at = datetime.fromisoformat(req.observed_at.strip().replace("Z", "+00:00"))
+        except ValueError:
+            observed_at = None
+    try:
+        presence = store.report_presence(
+            room_id,
+            participant_id=req.participant_id,
+            present=req.present,
+            face_count=req.face_count,
+            liveness_state=req.liveness_state,
+            liveness_score=req.liveness_score,
+            reason=req.reason,
+            source=req.source,
+            observed_at=observed_at,
+        )
+        room = store.require(room_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown live room")
+    except (LiveRoomError, BannedError) as exc:
+        raise _live_room_http_error(exc)
+    return {"room": room.to_dict(), "presence": presence}
+
+
 @app.post("/api/live-rooms/{room_id}/tick")
 def live_room_tick(
     room_id: str,
@@ -3238,11 +3294,15 @@ def live_room_tick(
     when the allotted time is up. Any client may call this periodically; all
     actions are idempotent/rate-guarded server-side."""
     store = _live_rooms()
-    _ensure_room_or_404(room_id)  # reopen on this replica if the LB routed us elsewhere
+    room = _ensure_room_or_404(room_id)  # reopen on this replica if the LB routed us elsewhere
     # Presence: mark the caller alive, then drop anyone whose heartbeat went stale.
     if pid:
         store.touch(room_id, pid)
-    pruned = store.prune_stale(room_id)
+    prune_ttl = 45
+    if getattr(room, "presence_policy", None) and room.presence_policy.enabled:
+        prune_ttl = max(prune_ttl, int(room.presence_policy.grace_seconds) + 15)
+    pruned = store.prune_stale(room_id, ttl_seconds=prune_ttl)
+    presence_changed = store.evaluate_presence_holds(room_id)
     started = advanced = None
     ended = False
     addressed = None
@@ -3277,7 +3337,7 @@ def live_room_tick(
     room_dict = room.to_moderator_dict() if is_moderator else room.to_dict()
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
-    if (started or ended or pruned) and not advanced and not addressed:
+    if (started or ended or pruned or presence_changed) and not advanced and not addressed:
         # Never broadcast moderator-only profile fields to ordinary learners.
         public_room = room.to_dict()
         _schedule_live_broadcast(

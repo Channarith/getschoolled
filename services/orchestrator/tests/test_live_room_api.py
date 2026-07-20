@@ -606,6 +606,110 @@ def test_tick_prunes_a_participant_who_left_without_leaving():
     assert a not in ids and b in ids
 
 
+def test_presence_report_endpoint_sets_and_clears_hold():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Ada", "identity": "presence-a1"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+    room = _app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    room.presence_policy.grace_seconds = 1
+    _app.state.live_rooms._backend.save(room)
+    started = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={"participant_id": pid},
+    )
+    assert started.status_code == 200, started.text
+
+    t0 = datetime.now(timezone.utc)
+    absent = client.post(
+        f"/api/live-rooms/{room_id}/presence-report",
+        json={
+            "participant_id": pid,
+            "present": False,
+            "face_count": 0,
+            "liveness_state": "absent",
+            "reason": "no_face",
+            "observed_at": t0.isoformat(),
+        },
+    )
+    assert absent.status_code == 200, absent.text
+    still_running = absent.json()["room"]
+    assert still_running["presence"]["hold_active"] is False
+
+    hold = client.post(
+        f"/api/live-rooms/{room_id}/presence-report",
+        json={
+            "participant_id": pid,
+            "present": False,
+            "face_count": 0,
+            "liveness_state": "absent",
+            "reason": "no_face",
+            "observed_at": (t0 + timedelta(seconds=2)).isoformat(),
+        },
+    )
+    assert hold.status_code == 200, hold.text
+    held_room = hold.json()["room"]
+    assert held_room["presence"]["hold_active"] is True
+    assert held_room["presence"]["hold_participant_id"] == pid
+
+    resume = client.post(
+        f"/api/live-rooms/{room_id}/presence-report",
+        json={
+            "participant_id": pid,
+            "present": True,
+            "face_count": 1,
+            "liveness_state": "live",
+            "liveness_score": 0.9,
+            "reason": "verified",
+            "observed_at": (t0 + timedelta(seconds=3)).isoformat(),
+        },
+    )
+    assert resume.status_code == 200, resume.text
+    resumed_room = resume.json()["room"]
+    assert resumed_room["presence"]["hold_active"] is False
+
+
+def test_tick_presence_hold_does_not_prune_before_grace_window():
+    from orchestrator.main import app as _app
+
+    info = _start_salareen_class(4)
+    room_id = info["room_id"]
+    joined = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Bo", "identity": "presence-b1"},
+    )
+    assert joined.status_code == 200, joined.text
+    pid = joined.json()["participant"]["id"]
+    room = _app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    room.presence_policy.grace_seconds = 70
+    room.presence_policy.stale_seconds = 5
+    _app.state.live_rooms._backend.save(room)
+    started = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={"participant_id": pid},
+    )
+    assert started.status_code == 200, started.text
+
+    # Backdate heartbeat beyond stale_seconds, but less than hold grace.
+    room = _app.state.live_rooms.require(room_id)
+    room.participants[pid].last_seen = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+    _app.state.live_rooms._backend.save(room)
+
+    ticked = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert ticked.status_code == 200, ticked.text
+    body = ticked.json()["room"]
+    assert body["presence"]["hold_active"] is False
+    assert any(p["id"] == pid for p in body["participants"])
+
+
 def test_get_and_tick_close_an_expired_abandoned_room():
     from orchestrator.main import app as _app
 
