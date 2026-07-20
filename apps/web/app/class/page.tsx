@@ -545,7 +545,7 @@ export default function ClassPage() {
     try {
       const idx = slide?.index ?? view.lesson.slides.length - 1;
       if (await maybeOpenDueCheckpoint(idx, true)) return;
-      if (!canAwardCourseCompletion({ requireVerifiedPass: hasSummativePolicy, passDecisionToken, summativeCompleted: false })) {
+      if (!canAwardCourseCompletion({ requireVerifiedPass: hasSummativePolicy, passDecisionToken })) {
         // Summative policy exists but no verified pass yet — re-open the exam.
         const summative = findDueSummativeCheckpoint(assessmentPolicy, idx, completedCheckpointsRef.current);
         if (summative) { await openCheckpoint(summative); return; }

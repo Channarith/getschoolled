@@ -75,7 +75,13 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
         );
       }
     } catch (e) {
-      setError(String(e));
+      const msg = String(e);
+      if (mode === "signup" && /already exists/i.test(msg)) {
+        setMode("login");
+        setError("That email is already registered. Sign in instead, or reset your password.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }

@@ -426,6 +426,16 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
   );
 }
 
+export type OAuthProviderStatus = {
+  sandbox_enabled: boolean;
+  google: { enabled: boolean; mode: "sandbox" | "live" | "disabled"; reason: string };
+  facebook: { enabled: boolean; mode: "sandbox" | "live" | "disabled"; reason: string };
+};
+
+export async function getOAuthProviderStatus(): Promise<OAuthProviderStatus> {
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/auth/oauth/providers`, { cache: "no-store" }));
+}
+
 export async function getMe(): Promise<Account> {
   // No token → the visitor is signed out. Skip the request that is guaranteed to
   // 401 (avoids the console error + a pointless round-trip on every guest load

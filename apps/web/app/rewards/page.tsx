@@ -12,6 +12,25 @@ import {
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 
+function formatRewardReason(reason: string): string {
+  const [kind, rawDetail = ""] = reason.split(":", 2);
+  const detail = rawDetail.replace(/[_-]+/g, " ").trim();
+  if (kind === "live_gift") return `Gift sent: ${detail || "item"}`;
+  if (kind === "live_gift_received") return `Gift received: ${detail || "item"}`;
+  if (kind === "language") {
+    const lang = (rawDetail || "").trim().toUpperCase();
+    return `Language: ${lang || "practice"}`;
+  }
+  return reason.replace(/[_-]+/g, " ");
+}
+
+function formatRewardRef(ref: string | undefined): string {
+  const value = (ref || "").trim();
+  if (!value) return "";
+  if (value.length <= 18) return ` (${value})`;
+  return ` (${value.slice(0, 10)}...${value.slice(-5)})`;
+}
+
 export default function RewardsPage() {
   const { t } = useT();
   const [summary, setSummary] = useState<RewardsSummary | null>(null);
@@ -118,7 +137,7 @@ export default function RewardsPage() {
                 <span style={{ color: e.delta >= 0 ? "#16a34a" : "#d97706" }}>
                   {e.delta >= 0 ? "+" : ""}{e.delta}
                 </span>{" "}
-                — {e.reason}{e.ref ? ` (${e.ref})` : ""}
+                — {formatRewardReason(e.reason)}{formatRewardRef(e.ref)}
               </li>
             ))}
           </ul>

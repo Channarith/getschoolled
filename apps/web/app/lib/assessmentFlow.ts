@@ -42,7 +42,6 @@ export function shouldOpenSummativeOnAdvance(
 export function canAwardCourseCompletion(opts: {
   requireVerifiedPass: boolean;
   passDecisionToken: string | null | undefined;
-  summativeCompleted: boolean;
 }): boolean {
   if (!opts.requireVerifiedPass) return true;
   if (opts.passDecisionToken) return true;

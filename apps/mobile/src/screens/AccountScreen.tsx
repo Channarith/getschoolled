@@ -8,6 +8,7 @@ import {
   type Portfolio, type StudentProfile,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import DropdownListSelector from "../components/DropdownListSelector";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
@@ -34,6 +35,7 @@ export default function AccountScreen({
   const [newPw, setNewPw] = useState("");
   const [newLearner, setNewLearner] = useState("");
   const [busy, setBusy] = useState(false);
+  const [learnersOpen, setLearnersOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -103,15 +105,25 @@ export default function AccountScreen({
         <PrimaryButton label={t("account.security")} onPress={onOpenSecurity} variant="brand" />
         <PrimaryButton label={t("account.billing")} onPress={onOpenBilling} variant="ghost" />
       </GlassPanel>
-      <Text style={styles.section}>{t("account.learners")}</Text>
-      {students.map((s) => (
-        <PrimaryButton
-          key={s.id}
-          label={`${s.display_name}${s.id === activeStudentId ? " ✓" : ""}`}
-          onPress={() => void switchStudent(s.id)}
-          variant={s.id === activeStudentId ? "netflix" : "ghost"}
+      {students.length ? (
+        <DropdownListSelector
+          title={t("account.learners")}
+          selectedLabel={
+            students.find((s) => s.id === activeStudentId)?.display_name
+            ?? students[0]?.display_name
+            ?? "—"
+          }
+          selectedKey={activeStudentId || students[0]?.id || ""}
+          options={students.map((s) => ({ key: s.id, label: s.display_name }))}
+          open={learnersOpen}
+          onToggle={() => setLearnersOpen((v) => !v)}
+          onSelect={(id) => {
+            void switchStudent(id);
+            setLearnersOpen(false);
+          }}
+          maxHeight={220}
         />
-      ))}
+      ) : null}
       <View style={styles.row}>
         <TextInput
           style={styles.input}

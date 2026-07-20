@@ -50,6 +50,15 @@ def test_google_oauth_sandbox():
     assert out["account"]["email"] == "oauth@example.com"
 
 
+def test_oauth_provider_status_endpoint():
+    out = client.get("/auth/oauth/providers")
+    assert out.status_code == 200
+    body = out.json()
+    assert body["sandbox_enabled"] is True
+    assert body["google"]["mode"] == "sandbox"
+    assert body["facebook"]["mode"] == "sandbox"
+
+
 def test_login_history_recorded():
     _signup("hist@example.com")
     client.post("/auth/login", json={"email": "hist@example.com", "password": "S3cretpass"},

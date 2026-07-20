@@ -3,7 +3,12 @@
 import time
 
 from aoep_shared.login_audit import login_context_from_headers
-from aoep_shared.oauth_login import OAuthError, verify_facebook_access_token, verify_google_id_token
+from aoep_shared.oauth_login import (
+    OAuthError,
+    oauth_provider_status,
+    verify_facebook_access_token,
+    verify_google_id_token,
+)
 from aoep_shared.password_reset import issue_reset_token, verify_reset_token
 from aoep_shared.totp import current_totp, generate_totp_secret, verify_totp
 
@@ -39,3 +44,31 @@ def test_google_sandbox_token():
 def test_facebook_sandbox_token():
     ident = verify_facebook_access_token("sandbox_facebook_bob@example.com")
     assert ident["email"] == "bob@example.com"
+
+
+def test_oauth_provider_status_local(monkeypatch):
+    monkeypatch.setenv("DEPLOY_MODE", "local")
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("FACEBOOK_APP_ID", raising=False)
+    monkeypatch.delenv("FACEBOOK_APP_SECRET", raising=False)
+    status = oauth_provider_status()
+    assert status["sandbox_enabled"] is True
+    assert status["google"]["enabled"] is True
+    assert status["google"]["mode"] == "sandbox"
+    assert status["facebook"]["enabled"] is True
+    assert status["facebook"]["mode"] == "sandbox"
+
+
+def test_oauth_provider_status_cloud_unconfigured(monkeypatch):
+    monkeypatch.setenv("DEPLOY_MODE", "cloud")
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("FACEBOOK_APP_ID", raising=False)
+    monkeypatch.delenv("FACEBOOK_APP_SECRET", raising=False)
+    status = oauth_provider_status()
+    assert status["sandbox_enabled"] is False
+    assert status["google"]["enabled"] is False
+    assert status["google"]["mode"] == "disabled"
+    assert status["google"]["reason"] == "GOOGLE_CLIENT_ID not configured"
+    assert status["facebook"]["enabled"] is False
+    assert status["facebook"]["mode"] == "disabled"
+    assert status["facebook"]["reason"] == "FACEBOOK_APP_ID/SECRET not configured"

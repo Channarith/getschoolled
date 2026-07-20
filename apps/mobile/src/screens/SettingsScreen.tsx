@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
+import DropdownListSelector from "../components/DropdownListSelector";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE } from "../config";
@@ -26,7 +27,7 @@ import {
 } from "../storage";
 import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
-import { LANGUAGES, languageInfo, useT } from "../i18n";
+import { LANGUAGES, languageInfo, useT, type LocaleCode } from "../i18n";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
 
@@ -59,6 +60,11 @@ export default function SettingsScreen({
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [localeOpen, setLocaleOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [instructorOpen, setInstructorOpen] = useState(false);
+  const [trainingLocaleOpen, setTrainingLocaleOpen] = useState(false);
+  const [hourOpen, setHourOpen] = useState(false);
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -206,6 +212,27 @@ export default function SettingsScreen({
 
   const current = languageInfo(locale);
   const categoryLabel = student?.learner_category?.replace(/_/g, " ") || "";
+  const voiceOptions = [
+    { key: "", label: t("settings.voiceDefault") },
+    ...voiceGroups.flatMap((g) => g.voices).map((v) => ({
+      key: v.id,
+      label: `${v.accent}${v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}`,
+    })),
+  ];
+  const selectedVoice = voiceOptions.find((v) => v.key === s.voiceId) ?? voiceOptions[0];
+  const instructorOptions = [
+    { key: "", label: t("settings.instructorAuto") },
+    ...instructors.map((p) => ({ key: p.id, label: `${p.emoji} ${p.label}` })),
+  ];
+  const selectedInstructor = instructorOptions.find((p) => p.key === s.instructorId) ?? instructorOptions[0];
+  const trainingLocaleOptions = TRAINING_LOCALES.map((loc) => ({
+    key: loc,
+    label: TRAINING_LOCALE_LABELS[loc],
+  }));
+  const selectedTrainingLocale = trainingLocaleOptions.find((loc) => loc.key === s.trainingLocale)
+    ?? trainingLocaleOptions[0];
+  const reminderHours = [7, 9, 12, 15, 18, 20, 21];
+  const selectedReminderHour = `${pad(s.dailyReminderHour)}:00`;
 
   return (
     <ScrollView style={styles.bg} contentContainerStyle={{ paddingTop: 56, paddingBottom: 32 }}>
@@ -263,114 +290,74 @@ export default function SettingsScreen({
       </Section>
 
       <Section title={t("settings.sectionLang")}>
-        <Row label={t("settings.language")} desc={t("settings.languageDesc")}>
-          <Text style={styles.currentLang}>{current.flag}  {current.native}</Text>
-        </Row>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {LANGUAGES.map((lang) => {
-              const selected = lang.code === locale;
-              return (
-                <AnimatedPressable
-                  key={lang.code}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setLocale(lang.code)}
-                  style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
-                >
-                  <Text style={[styles.langText, selected && styles.langTextOn]}>
-                    {lang.flag} {lang.native}
-                  </Text>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
+        <Text style={styles.desc}>{t("settings.languageDesc")}</Text>
+        <View style={{ marginTop: 10 }}>
+          <DropdownListSelector
+            title={t("settings.language")}
+            selectedLabel={`${current.flag} ${current.native}`}
+            selectedKey={locale}
+            options={LANGUAGES.map((lang) => ({ key: lang.code, label: `${lang.flag} ${lang.native}` }))}
+            open={localeOpen}
+            onToggle={() => setLocaleOpen((v) => !v)}
+            onSelect={(code) => {
+              setLocale(code as LocaleCode);
+              setLocaleOpen(false);
+            }}
+          />
+        </View>
       </Section>
 
       <Section title={t("settings.sectionVoice")}>
         <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-          <View style={{ flexDirection: "row", gap: 8, paddingRight: 8 }}>
-            <AnimatedPressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: !s.voiceId }}
-              onPress={() => update({ voiceId: "" })}
-              style={[styles.langChip, !s.voiceId ? styles.langChipOn : styles.langChipOff]}
-            >
-              <Text style={[styles.langText, !s.voiceId && styles.langTextOn]}>
-                {t("settings.voiceDefault")}
-              </Text>
-            </AnimatedPressable>
-            {voiceGroups.flatMap((g) => g.voices).map((v) => {
-              const selected = s.voiceId === v.id;
-              return (
-                <AnimatedPressable
-                  key={v.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => update({ voiceId: v.id })}
-                  style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
-                >
-                  <Text style={[styles.langText, selected && styles.langTextOn]}>
-                    {v.accent}{v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}
-                  </Text>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <View style={{ marginTop: 10 }}>
+          <DropdownListSelector
+            title={t("settings.sectionVoice")}
+            selectedLabel={selectedVoice.label}
+            selectedKey={selectedVoice.key}
+            options={voiceOptions}
+            open={voiceOpen}
+            onToggle={() => setVoiceOpen((v) => !v)}
+            onSelect={(key) => {
+              update({ voiceId: key });
+              setVoiceOpen(false);
+            }}
+          />
+        </View>
       </Section>
 
       <Section title={t("settings.sectionInstructor")}>
         <Text style={styles.desc}>{t("settings.instructorDesc")}</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-          <AnimatedPressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: !s.instructorId }}
-            onPress={() => update({ instructorId: "" })}
-            style={[styles.langChip, !s.instructorId ? styles.langChipOn : styles.langChipOff]}
-          >
-            <Text style={[styles.langText, !s.instructorId && styles.langTextOn]}>
-              {t("settings.instructorAuto")}
-            </Text>
-          </AnimatedPressable>
-          {instructors.map((p) => {
-            const selected = s.instructorId === p.id;
-            return (
-              <AnimatedPressable
-                key={p.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => update({ instructorId: p.id })}
-                style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
-              >
-                <Text style={[styles.langText, selected && styles.langTextOn]}>
-                  {p.emoji} {p.label}
-                </Text>
-              </AnimatedPressable>
-            );
-          })}
+        <View style={{ marginTop: 10 }}>
+          <DropdownListSelector
+            title={t("settings.sectionInstructor")}
+            selectedLabel={selectedInstructor.label}
+            selectedKey={selectedInstructor.key}
+            options={instructorOptions}
+            open={instructorOpen}
+            onToggle={() => setInstructorOpen((v) => !v)}
+            onSelect={(key) => {
+              update({ instructorId: key });
+              setInstructorOpen(false);
+            }}
+          />
         </View>
       </Section>
 
       <Section title={t("settings.sectionTrainingLang")}>
         <Text style={styles.desc}>{t("settings.trainingLangDesc")}</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-          {TRAINING_LOCALES.map((loc) => {
-            const selected = s.trainingLocale === loc;
-            return (
-              <AnimatedPressable
-                key={loc}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => update({ trainingLocale: loc as TrainingLocale })}
-                style={[styles.langChip, selected ? styles.langChipOn : styles.langChipOff]}
-              >
-                <Text style={[styles.langText, selected && styles.langTextOn]}>
-                  {TRAINING_LOCALE_LABELS[loc]}
-                </Text>
-              </AnimatedPressable>
-            );
-          })}
+        <View style={{ marginTop: 10 }}>
+          <DropdownListSelector
+            title={t("settings.sectionTrainingLang")}
+            selectedLabel={selectedTrainingLocale?.label ?? ""}
+            selectedKey={selectedTrainingLocale?.key ?? ""}
+            options={trainingLocaleOptions}
+            open={trainingLocaleOpen}
+            onToggle={() => setTrainingLocaleOpen((v) => !v)}
+            onSelect={(key) => {
+              update({ trainingLocale: key as TrainingLocale });
+              setTrainingLocaleOpen(false);
+            }}
+          />
         </View>
       </Section>
 
@@ -443,25 +430,19 @@ export default function SettingsScreen({
             thumbColor={s.dailyReminder ? theme.colors.netflix : "#666"} />
         </Row>
         <View style={[styles.row, { flexDirection: "column", alignItems: "stretch", gap: 8 }]}>
-          <Text style={styles.label}>{t("settings.time")}</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {[7, 9, 12, 15, 18, 20, 21].map((h) => {
-              const selected = s.dailyReminderHour === h;
-              return (
-                <AnimatedPressable
-                  key={h}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => update({ dailyReminderHour: h })}
-                  style={[styles.hourChip, selected ? styles.hourChipOn : styles.hourChipOff]}
-                >
-                  <Text style={[styles.hourText, selected && styles.hourTextOn]}>
-                    {pad(h)}:00
-                  </Text>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
+          <DropdownListSelector
+            title={t("settings.time")}
+            selectedLabel={selectedReminderHour}
+            selectedKey={String(s.dailyReminderHour)}
+            options={reminderHours.map((h) => ({ key: String(h), label: `${pad(h)}:00` }))}
+            open={hourOpen}
+            onToggle={() => setHourOpen((v) => !v)}
+            onSelect={(key) => {
+              update({ dailyReminderHour: Number(key) });
+              setHourOpen(false);
+            }}
+            maxHeight={180}
+          />
         </View>
         <Row label={t("settings.newAlerts")} desc={t("settings.newAlertsDesc")}>
           <Switch
@@ -599,16 +580,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   qaText: { color: theme.colors.muted, fontSize: 12, fontWeight: "600" },
-  hourChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.pill },
-  hourChipOff: { backgroundColor: "rgba(29, 39, 70, 0.75)", borderWidth: 1, borderColor: theme.colors.border },
-  hourChipOn: { backgroundColor: theme.colors.netflix },
-  hourText: { color: theme.colors.muted, fontWeight: "700" },
-  hourTextOn: { color: "#fff" },
   about: { color: theme.colors.muted, lineHeight: 18, fontSize: 13 },
   currentLang: { color: theme.colors.text, fontWeight: "700" },
-  langChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: theme.radius.pill },
-  langChipOff: { backgroundColor: "rgba(29, 39, 70, 0.75)", borderWidth: 1, borderColor: theme.colors.border },
-  langChipOn: { backgroundColor: theme.colors.netflix },
-  langText: { color: theme.colors.muted, fontWeight: "600" },
-  langTextOn: { color: "#fff", fontWeight: "800" },
 });

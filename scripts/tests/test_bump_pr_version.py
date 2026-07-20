@@ -102,6 +102,15 @@ def test_threshold_env_override_disables_auto_minor(monkeypatch, tmp_path):
     assert (tmp_path / "VERSION").read_text().strip() == "0.15.1"
 
 
+def test_threshold_env_override_cannot_weaken_policy(monkeypatch, tmp_path):
+    # CI may inject a high threshold; clamp keeps >8 auto-minor intact.
+    _setup(tmp_path, "0.15.0", _many_pending(9))
+    monkeypatch.setenv("AOEP_MINOR_BUMP_THRESHOLD", "120")
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert bump_pr.main([]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.16.0"
+
+
 def test_force_patch_overrides_auto_minor(monkeypatch, tmp_path):
     _setup(tmp_path, "0.15.0", _many_pending(20))
     monkeypatch.delenv("AOEP_MINOR_BUMP_THRESHOLD", raising=False)

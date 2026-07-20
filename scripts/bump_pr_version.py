@@ -20,10 +20,11 @@ Release strategy:
     the project's "autobump to the next version when we have >8 features" rule.
   * --force-level {patch,minor,major} always overrides the automatic choice.
 
-Tuning: set AOEP_MINOR_BUMP_THRESHOLD to change the >8 threshold (0 disables
-auto-minor). build_release.py rolls the pending changelog block into a released
-section at release time, which resets the counter so the next cycle starts at
-PATCH again.
+Tuning: set AOEP_MINOR_BUMP_THRESHOLD to tighten the >8 threshold (0 disables
+auto-minor). Values above 8 are clamped to 8 so CI/env drift cannot weaken the
+project's "auto-minor after >8 features" rule. build_release.py rolls the
+pending changelog block into a released section at release time, which resets
+the counter so the next cycle starts at PATCH again.
 
 Refreshes EVERY version file so they never drift: VERSION, build-info.txt,
 apps/web/app/lib/version.ts + apps/web/package.json, and the mobile
@@ -48,7 +49,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_release as br  # noqa: E402
 
 # >N features/changes since the last release auto-promotes a PATCH to a MINOR.
-DEFAULT_MINOR_BUMP_THRESHOLD = 120
+DEFAULT_MINOR_BUMP_THRESHOLD = 8
 
 Version = tuple[int, int, int]
 
@@ -57,7 +58,13 @@ def _minor_bump_threshold() -> int:
     raw = os.environ.get("AOEP_MINOR_BUMP_THRESHOLD", "").strip()
     if raw:
         try:
-            return int(raw)
+            parsed = int(raw)
+            if parsed <= 0:
+                return 0
+            # Project policy is strict: auto-minor must trigger once >8
+            # pending feature changes exist. Allow tightening this threshold,
+            # but never loosening it via environment drift in CI.
+            return min(parsed, DEFAULT_MINOR_BUMP_THRESHOLD)
         except ValueError:
             pass
     return DEFAULT_MINOR_BUMP_THRESHOLD

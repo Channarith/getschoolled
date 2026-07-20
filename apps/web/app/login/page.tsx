@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, signup, setToken, verify2faLogin, loginWithGoogle, loginWithFacebook, getOnboardingStatus } from "../lib/api";
+import {
+  getOAuthProviderStatus,
+  getOnboardingStatus,
+  login,
+  loginWithFacebook,
+  loginWithGoogle,
+  setToken,
+  signup,
+  verify2faLogin,
+  type OAuthProviderStatus,
+} from "../lib/api";
 import { useT } from "../lib/i18n";
 import { EyeIcon } from "../components/EyeIcon";
 import { useFlag } from "../lib/flags";
@@ -29,12 +39,27 @@ export default function LoginPage() {
   const [mfaToken, setMfaToken] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [oauthEmail, setOauthEmail] = useState("");
+  const [oauthStatus, setOauthStatus] = useState<OAuthProviderStatus | null>(null);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("mode") === "signup") setMode("signup");
     const em = p.get("email");
     if (em) setEmail(em);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getOAuthProviderStatus()
+      .then((status) => {
+        if (!cancelled) setOauthStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setOauthStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ops.new_signups kill-switch: if registration is paused, force the form back to
@@ -84,7 +109,13 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
-      setError(String(err));
+      const msg = String(err);
+      if (mode === "signup" && /already exists/i.test(msg)) {
+        setMode("login");
+        setError("That email is already registered. Sign in instead, or use Forgot password.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -99,6 +130,7 @@ export default function LoginPage() {
             <label style={{ display: "block", marginBottom: 8 }}>
               {t("login.name")}
               <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                autoComplete="name"
                 style={{ width: "100%", padding: 8 }} />
             </label>
           )}
@@ -106,6 +138,7 @@ export default function LoginPage() {
             {mode === "login" ? t("login.emailOrUsername") : t("login.email")}
             <input type={mode === "login" ? "text" : "email"} required value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete={mode === "login" ? "username" : "email"}
               autoCapitalize="none" autoCorrect="off"
               style={{ width: "100%", padding: 8 }} />
           </label>
@@ -115,6 +148,7 @@ export default function LoginPage() {
               <input type={showPassword ? "text" : "password"} required value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={mode === "signup" ? 8 : undefined}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 autoCapitalize="none" autoCorrect="off"
                 style={{ width: "100%", padding: 8, paddingRight: 42 }} />
               <button type="button" onClick={() => setShowPassword((s) => !s)}
@@ -148,13 +182,17 @@ export default function LoginPage() {
             {busy ? t("login.busy") : mfaToken ? "Verify 2FA" : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
-        {mode === "login" && !mfaToken && (
+        {mode === "login" && !mfaToken && oauthStatus?.sandbox_enabled && (
           <>
             <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>Or continue with</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               <button type="button" disabled={busy} onClick={async () => {
                 setBusy(true); setError("");
                 try {
+                  if (!oauthStatus.google.enabled || oauthStatus.google.mode !== "sandbox") {
+                    setError(oauthStatus.google.reason || "Google sign-in is unavailable in this environment.");
+                    return;
+                  }
                   const em = oauthEmail || window.prompt("Email for sandbox Google login") || "";
                   const res = await loginWithGoogle(`sandbox_google_${em}`);
                   setToken(res.token);
@@ -164,6 +202,10 @@ export default function LoginPage() {
               <button type="button" disabled={busy} onClick={async () => {
                 setBusy(true); setError("");
                 try {
+                  if (!oauthStatus.facebook.enabled || oauthStatus.facebook.mode !== "sandbox") {
+                    setError(oauthStatus.facebook.reason || "Facebook sign-in is unavailable in this environment.");
+                    return;
+                  }
                   const em = oauthEmail || window.prompt("Email for sandbox Facebook login") || "";
                   const res = await loginWithFacebook(`sandbox_facebook_${em}`);
                   setToken(res.token);
@@ -177,6 +219,12 @@ export default function LoginPage() {
               <a href="/security">Sign-in security</a>
             </p>
           </>
+        )}
+        {mode === "login" && !mfaToken && oauthStatus && !oauthStatus.sandbox_enabled && (
+          <p className="muted" style={{ marginTop: 12 }}>
+            Social sign-in is disabled in this environment. Configure `GOOGLE_CLIENT_ID`,
+            `FACEBOOK_APP_ID`, and `FACEBOOK_APP_SECRET` on the identity service to enable it.
+          </p>
         )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
         {signupsOpen ? (

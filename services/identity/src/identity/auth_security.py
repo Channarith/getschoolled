@@ -6,7 +6,12 @@ import os
 
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.login_audit import login_context_from_headers
-from aoep_shared.oauth_login import OAuthError, verify_facebook_access_token, verify_google_id_token
+from aoep_shared.oauth_login import (
+    OAuthError,
+    oauth_provider_status,
+    verify_facebook_access_token,
+    verify_google_id_token,
+)
 from aoep_shared.passkeys import (
     credentials_public,
     new_login_challenge,
@@ -195,6 +200,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         )
         app.state.accounts.oauth_login_success(acct.id, method="facebook", **ctx)
         return session_fn(acct)
+
+    @app.get("/auth/oauth/providers")
+    def oauth_providers() -> dict:
+        return oauth_provider_status()
 
     @app.post("/auth/passkey/register/options")
     def passkey_register_options(acct=Depends(current_account)) -> dict:
