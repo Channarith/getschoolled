@@ -3,11 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-<<<<<<< HEAD
-    "version": "0.27.0",
-=======
-    "version": "0.26.2",
->>>>>>> c2d4f017 (Fix CI failures: update auto-minor threshold test to 120, remove dead summativeCompleted arg, bump to 0.26.2)
+    "version": "0.27.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -71,11 +67,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-<<<<<<< HEAD
-      "buildNumber": "0.27.0"
-=======
-      "buildNumber": "0.26.2"
->>>>>>> c2d4f017 (Fix CI failures: update auto-minor threshold test to 120, remove dead summativeCompleted arg, bump to 0.26.2)
+      "buildNumber": "0.27.1"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -93,11 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-<<<<<<< HEAD
-      "versionCode": 2700
-=======
-      "versionCode": 2602
->>>>>>> c2d4f017 (Fix CI failures: update auto-minor threshold test to 120, remove dead summativeCompleted arg, bump to 0.26.2)
+      "versionCode": 2701
     },
     "extra": {
       "deployMode": "cloud",
