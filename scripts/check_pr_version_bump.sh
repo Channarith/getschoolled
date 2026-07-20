@@ -72,15 +72,21 @@ if [ -f apps/mobile/src/version.ts ]; then
   fi
 fi
 
-# The new version must be DOCUMENTED in the newest CHANGELOG entry (traceability:
-# the changelog must name the version, not just append a date). We scan the block
-# from the first dated bullet up to (but not including) the next dated bullet.
-NEWEST_ENTRY="$(awk '
-  /^- [0-9]{4}-[0-9]{2}-[0-9]{2}/ { c++; if (c > 1) exit }
-  c == 1 { print }
+# The PR version must be DOCUMENTED in the most-recent changelog window.
+# On GitHub pull_request runs, Actions checks out a synthetic merge commit
+# (base branch as "ours"). With CHANGELOG union merges, base bullets can appear
+# before PR bullets even when the PR version is newer, so checking only the
+# single first bullet causes false failures. We therefore check that vX.Y.Z
+# appears within the recent dated entries near the top of CHANGELOG.txt.
+RECENT_DATED_ENTRIES="$(awk '
+  /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] - v[0-9]+\.[0-9]+\.[0-9]+ - / {
+    print
+    c++
+    if (c >= 20) exit
+  }
 ' CHANGELOG.txt)"
-if ! printf '%s\n' "${NEWEST_ENTRY}" | grep -qF "${HEAD_VERSION}"; then
-  echo "::error::The newest CHANGELOG.txt entry must document version ${HEAD_VERSION}."
+if ! printf '%s\n' "${RECENT_DATED_ENTRIES}" | grep -qF "v${HEAD_VERSION}"; then
+  echo "::error::CHANGELOG.txt must document version ${HEAD_VERSION} near the top."
   echo "Use the format:  - YYYY-MM-DD - v${HEAD_VERSION} - <what changed>"
   exit 1
 fi
