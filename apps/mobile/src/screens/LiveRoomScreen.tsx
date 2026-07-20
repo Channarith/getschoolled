@@ -412,7 +412,7 @@ export default function LiveRoomScreen({
     if (!room) return;
     if (room.status === "ended") return;
     const welcome = room.welcome_message?.trim();
-    if (!participantId || muted || room.presenting || !welcome) return;
+    if (!participantId || muted || room.presenting || !welcome || room.presence?.hold_active) return;
     if (spokenWelcomeRef.current === room.room_id) return;
     spokenWelcomeRef.current = room.room_id;
     void buildNarrationSpeakOptions(locale).then((base) => {
@@ -422,7 +422,7 @@ export default function LiveRoomScreen({
   }, [participantId, muted, room, locale]);
 
   useEffect(() => {
-    if (!participantId || muted || !room?.presenting || room.status === "ended") return;
+    if (!participantId || muted || !room?.presenting || room.status === "ended" || room.presence?.hold_active) return;
     const s = room?.slide;
     if (!s || spokenSlideRef.current === s.index) return;
     spokenSlideRef.current = s.index;
@@ -444,6 +444,7 @@ export default function LiveRoomScreen({
               canModerate &&
               r?.presenting &&
               r.status !== "ended" &&
+              !r.presence?.hold_active &&
               spokenSlideRef.current === spokenFor &&
               !r.floor_participant_id &&
               !(r.speaking_queue?.some((e) => e.status === "waiting"))
@@ -896,6 +897,12 @@ export default function LiveRoomScreen({
         {socket.connected ? " · live" : " · polling"}
       </Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {room?.presence?.hold_active ? (
+        <Text style={styles.warning}>
+          Presence hold: {room.presence.hold_participant_name || "a learner"} is not visually present.
+          Class resumes automatically once verified.
+        </Text>
+      ) : null}
 
       {/* Learner/open seats. Theodore already owns the dominant presenter panel,
           so do not repeat him as a tiny card that steals room from learners. */}
@@ -1601,6 +1608,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: theme.colors.text, fontSize: 15, fontWeight: "700", marginBottom: 4 },
   muteBtn: { fontSize: 24 },
   error: { color: "#f87171" },
+  warning: { color: "#fde68a", backgroundColor: "rgba(251,191,36,0.14)", borderRadius: 8, padding: 8, marginTop: 6 },
 
   // Presenter hero — takes all the vertical space between the meta row and the
   // action bar so the teacher/slide is the clear focus on a phone.

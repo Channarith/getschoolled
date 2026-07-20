@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from aoep_shared.live_room import (
@@ -334,3 +336,96 @@ def test_report_participant_and_moderator_dismiss():
         store.report_participant("class-report", a.id, a.id, reason="nope", category="other")
     store.dismiss_report("class-report", report.id, moderator_key=mod)
     assert store.require("class-report").open_reports() == []
+
+
+def test_presence_hold_pauses_until_liveness_recovers():
+    store = LiveRoomStore()
+    room = store.open_room(
+        room_id="class-presence",
+        class_id="presence",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Presence",
+        room_size=4,
+        presence_hold_grace_seconds=30,
+        presence_stale_seconds=10,
+        presence_require_liveness=True,
+        presence_max_faces_allowed=1,
+    )
+    learner = store.join("class-presence", "Ada")
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    store._commit(room)  # noqa: SLF001
+    store.start_presentation("class-presence", auto=True)
+    t0 = datetime.now(timezone.utc)
+    store.report_presence(
+        "class-presence",
+        participant_id=learner.id,
+        present=True,
+        face_count=1,
+        liveness_state="live",
+        observed_at=t0,
+    )
+    assert store.require("class-presence").presence_hold_active is False
+    store.report_presence(
+        "class-presence",
+        participant_id=learner.id,
+        present=True,
+        face_count=2,
+        liveness_state="spoof",
+        observed_at=t0 + timedelta(seconds=31),
+    )
+    store.report_presence(
+        "class-presence",
+        participant_id=learner.id,
+        present=True,
+        face_count=2,
+        liveness_state="spoof",
+        observed_at=t0 + timedelta(seconds=62),
+    )
+    held = store.require("class-presence")
+    assert held.presence_hold_active is True
+    assert held.presence_hold_participant_id == learner.id
+    assert store.should_auto_advance("class-presence", now=t0 + timedelta(seconds=120)) is False
+    store.report_presence(
+        "class-presence",
+        participant_id=learner.id,
+        present=True,
+        face_count=1,
+        liveness_state="live",
+        observed_at=t0 + timedelta(seconds=35),
+    )
+    recovered = store.require("class-presence")
+    assert recovered.presence_hold_active is False
+
+
+def test_presence_hold_triggers_when_signal_goes_stale():
+    store = LiveRoomStore()
+    room = store.open_room(
+        room_id="class-presence-stale",
+        class_id="presence-stale",
+        session_id="s1",
+        lesson_id="lesson",
+        title="Presence stale",
+        room_size=4,
+        presence_hold_grace_seconds=30,
+        presence_stale_seconds=5,
+    )
+    learner = store.join("class-presence-stale", "Bo")
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    store._commit(room)  # noqa: SLF001
+    store.start_presentation("class-presence-stale", auto=True)
+    t0 = datetime.now(timezone.utc)
+    store.report_presence(
+        "class-presence-stale",
+        participant_id=learner.id,
+        present=True,
+        face_count=1,
+        liveness_state="live",
+        observed_at=t0,
+    )
+    changed = store.evaluate_presence_holds("class-presence-stale", now=t0 + timedelta(seconds=7))
+    assert changed is True
+    assert store.require("class-presence-stale").presence_hold_active is False
+    changed2 = store.evaluate_presence_holds("class-presence-stale", now=t0 + timedelta(seconds=40))
+    assert changed2 is True
+    assert store.require("class-presence-stale").presence_hold_active is True
