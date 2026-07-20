@@ -49,7 +49,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_release as br  # noqa: E402
 
 # >N features/changes since the last release auto-promotes a PATCH to a MINOR.
-DEFAULT_MINOR_BUMP_THRESHOLD = 120
+DEFAULT_MINOR_BUMP_THRESHOLD = 8
 
 Version = tuple[int, int, int]
 
