@@ -74,7 +74,7 @@ data:
   BUG_REPORT_GITHUB_PUBLIC_REPO: "Channarith/getschoolled"
   # Mobile app download targets for /download (empty -> "Coming soon"). Set these
   # to the hosted APK + Play/App Store links once published; inlined at build.
-  NEXT_PUBLIC_ANDROID_APK_URL: "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.20.4/salareen-v0.20.4.apk"
+  NEXT_PUBLIC_ANDROID_APK_URL: "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.26.1/app-release.apk"
   NEXT_PUBLIC_PLAY_STORE_URL: ""
   NEXT_PUBLIC_IOS_APP_URL: ""
   NEXT_PUBLIC_APP_STORE_URL: ""

@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-19 - v0.26.1 - Update Android website download target for Vultr object storage to the current release path (`releases/android/v0.26.1/app-release.apk`) in both the web fallback URL and VKE configmap env.
 - 2026-07-19 - v0.26.1 - Fix `scripts/check_pr_version_bump.sh` false negatives on pull_request merge refs: validate that `v<HEAD_VERSION>` appears in the recent top changelog entries instead of requiring only the first dated bullet (base-branch union entries can precede PR entries in synthetic merge commits).
 - 2026-07-19 - v0.26.1 - Fix PR version auto-minor policy drift in CI: `scripts/bump_pr_version.py` now clamps `AOEP_MINOR_BUMP_THRESHOLD` values above 8 back to 8 so the required ">8 pending features => minor bump" rule cannot be weakened by environment overrides; add regression coverage for the `120` threshold case.
 - 2026-07-19 - v0.26.1 - Web/mobile auth UX: hide cloud-disabled sandbox social buttons, add OAuth provider status endpoint for UI gating, add browser autocomplete attributes on login/signup fields, and show clear "email already registered" guidance that directs users to sign in/reset password. Rewards activity now renders human-readable reasons and truncates long refs for readability on web and mobile.
