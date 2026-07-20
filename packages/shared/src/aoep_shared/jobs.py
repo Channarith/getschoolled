@@ -689,6 +689,9 @@ class USAJobsProvider(_LiveJobsProvider):
 
     def _fetch(self, query, location, limit):
         from urllib.parse import urlencode
+        api_key = os.environ.get("USAJOBS_API_KEY", "").strip()
+        if not api_key:
+            return []  # skip gracefully without key — avoids 403 on every request
         params: dict[str, object] = {"ResultsPerPage": max(min(limit, 25), 1)}
         if query:
             params["Keyword"] = query
@@ -698,6 +701,7 @@ class USAJobsProvider(_LiveJobsProvider):
         data = _http_get_json(url, headers={
             "Host": "data.usajobs.gov",
             "User-Agent": "salareen-jobs/1.0 (jobs@salareen.com)",
+            "Authorization-Key": api_key,
         })
         search_result = (data or {}).get("SearchResult", {})
         return (search_result or {}).get("SearchResultItems", [])

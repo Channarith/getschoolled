@@ -846,7 +846,7 @@ class AccountStore:
         if course_id not in acct.enrollments:
             acct.enrollments[course_id] = Enrollment(
                 course_id=course_id,
-                title=course_id,
+                title=course_id.replace("-", " ").title(),
             )
         enrollment = acct.enrollments[course_id]
         enrollment.assessment_verified = True
@@ -857,7 +857,7 @@ class AccountStore:
             EnrollmentStatus.PASSED,
             score=max(0.0, min(1.0, float(score))),
         )
-        self._persist()
+        # _persist() is already called inside set_status(); no second call needed.
         return prof
 
     def record_verified_assessment_attempt(

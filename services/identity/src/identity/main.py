@@ -510,7 +510,9 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
 @app.delete("/enrollments/{course_id}")
 def delete_enrollment(course_id: str, acct=Depends(current_account)) -> dict:
     """Remove a course from the learner's list entirely (e.g. un-save a bookmark)."""
-    acct.enrollments.pop(course_id, None)
+    if course_id not in acct.enrollments:
+        raise HTTPException(status_code=404, detail="enrollment not found")
+    acct.enrollments.pop(course_id)
     app.state.accounts._persist()
     return {"ok": True, "course_id": course_id}
 
@@ -578,9 +580,13 @@ def skip_learning_profile(student_id: str, acct=Depends(current_account)) -> dic
 
 
 def _assessment_signing_key() -> bytes:
+    # IMPORTANT: ASSESSMENT_SIGNING_KEY must be set separately from AUTH_SIGNING_KEY
+    # in production. Sharing the same key would allow an auth token to be accepted
+    # as a valid assessment token (and vice versa), since kind-field checks alone
+    # cannot prevent cross-token forgery when both use the same secret.
     return os.environ.get(
         "ASSESSMENT_SIGNING_KEY",
-        os.environ.get("AUTH_SIGNING_KEY", "dev-assessment-signing-key"),
+        "dev-assessment-signing-key",  # never fall through to AUTH_SIGNING_KEY
     ).encode()
 
 

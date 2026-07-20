@@ -37,7 +37,11 @@ export default function NavSearchBox() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
   const [gameSubjects, setGameSubjects] = useState<GameResult[]>([]);
+
+  // Clear debounce timer on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   // Pre-load arcade subjects once for client-side game search
   useEffect(() => {
@@ -98,6 +102,11 @@ export default function NavSearchBox() {
         return;
       }
 
+      // Cancel any in-flight request before starting a new one
+      searchAbortRef.current?.abort();
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
+
       setLoading(true);
       try {
         const lower = q.toLowerCase();
@@ -117,12 +126,13 @@ export default function NavSearchBox() {
         );
 
         // Courses/lessons: API call
-        const courseRes = await searchLearnable({ q, limit: "6" });
+        const courseRes = await searchLearnable({ q, limit: "6" }, "en", controller.signal);
         const courses = courseRes.items.slice(0, 6);
 
         setResults({ courses, games: games.slice(0, 4), settings: settings.slice(0, 3) });
-      } catch {
-        // Silently fail — search is a progressive enhancement
+      } catch (err) {
+        // Ignore aborted requests; silently fail others — search is a progressive enhancement
+        if (err instanceof Error && err.name === "AbortError") return;
         setResults(EMPTY);
       } finally {
         setLoading(false);

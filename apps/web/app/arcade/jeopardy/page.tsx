@@ -228,7 +228,8 @@ export default function JeopardyGame() {
   const [totalAnswered, setTotalAnswered] = useState(0);
 
   // mutable refs — avoid stale-closure issues inside setTimeout callbacks
-  const aiTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markAnsweredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answeredRef   = useRef(false);   // true once player OR ai has answered the current cell
   const scoreRef      = useRef(0);
   const aiScoreRef    = useRef(0);
@@ -238,6 +239,12 @@ export default function JeopardyGame() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("age");
     if (q === "kids" || q === "tween" || q === "teen" || q === "adult") setAge(q as Age);
+  }, []);
+
+  // Cleanup timers on unmount
+  useEffect(() => () => {
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (markAnsweredTimerRef.current) clearTimeout(markAnsweredTimerRef.current);
   }, []);
 
   // Keep refs in sync with state
@@ -305,7 +312,8 @@ export default function JeopardyGame() {
     const newTotal = totalRef.current + 1;
     totalRef.current = newTotal;
     setTotalAnswered(newTotal);
-    setTimeout(() => {
+    markAnsweredTimerRef.current = setTimeout(() => {
+      markAnsweredTimerRef.current = null;
       setCurrent(null);
       setFeedback(null);
       setResult(null);

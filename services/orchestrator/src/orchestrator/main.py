@@ -1015,6 +1015,10 @@ def assessment_checkpoint_start(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+    # KNOWN_ISSUE: app.state.assessment_results is in-memory only. On service
+    # restart all prior attempts are lost and attempt_number always starts at 1,
+    # bypassing max_attempts. TODO: persist assessment_results to a durable store
+    # (DB/Redis) to enforce the attempt limit correctly across restarts.
     previous = [
         result for result in app.state.assessment_results
         if result.student_id == req.student_id
@@ -2752,6 +2756,8 @@ def leave_live_room(
 
 _chat_reply_last: dict[str, float] = {}  # room:pid -> last reply timestamp
 _CHAT_REPLY_COOLDOWN_S = 8.0  # minimum seconds between Theodore replies per participant
+import threading as _threading  # noqa: E402
+_chat_reply_lock = _threading.Lock()  # guards _chat_reply_last to prevent TOCTOU races
 # room_id -> (timestamp, participant_id): track when a floor holder enters
 # the confirmation-pending state so the tick watchdog can auto-release if
 # the client disconnects before calling finish-turn.
@@ -2762,10 +2768,11 @@ def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
     """Reply to a learner chat message from Theodore in a background thread."""
     import time as _time
     key = f"{room_id}:{participant_id}"
-    now = _time.time()
-    if now - _chat_reply_last.get(key, 0) < _CHAT_REPLY_COOLDOWN_S:
-        return
-    _chat_reply_last[key] = now
+    with _chat_reply_lock:
+        now = _time.time()
+        if now - _chat_reply_last.get(key, 0) < _CHAT_REPLY_COOLDOWN_S:
+            return
+        _chat_reply_last[key] = now
 
     store = _live_rooms()
     try:
@@ -3443,6 +3450,11 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
     store.post_chat(room_id, participant_id, question)
     _attach_audience_to_session(room_id, room.session_id)
     _broadcast_threadsafe(room_id, ws_host_delta(asker=name, text="", room_id=room_id))
+    # Bug fix: stamp the watchdog BEFORE streaming so a mid-stream client
+    # disconnect (which abandons the generator) still records the pending state
+    # and the tick watchdog can auto-release the floor after 30 s.
+    import time as _time
+    _confirmation_pending[room_id] = (_time.time(), participant_id)
 
     streamed: list[str] = []
     buf = ""
@@ -3475,6 +3487,12 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
     elif buf.strip():
         _broadcast_threadsafe(room_id, ws_host_delta(text=buf.strip(), asker=name, room_id=room_id))
 
+    # Bug fix: if the LLM produced no text at all, clear the watchdog stamp.
+    # The client's hostAnswer effect returns early when text is empty, so no
+    # confirmation UI starts and the floor would be held forever without this.
+    if not text:
+        _confirmation_pending.pop(room_id, None)
+
     # Append a confirmation prompt so the learner always gets a chance to
     # follow up before the floor is released.
     confirmation_prompt = "Does that answer your question?"
@@ -3486,12 +3504,9 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
     full_text = (text + " " + confirmation_prompt).strip() if text else ""
 
     host_msg = store.post_host_message(room_id, f"@{name} {full_text}") if full_text else None
-    # Do NOT release the floor yet. Signal the client to hold the mic open for
-    # the learner's yes/no confirmation. The client calls finish-turn once the
-    # learner confirms. Stamp a server-side watchdog so the tick can auto-release
-    # after 30 s if the client disconnects before calling finish-turn.
-    import time as _time
-    _confirmation_pending[room_id] = (_time.time(), participant_id)
+    # The floor is held open for the learner's confirmation. The watchdog stamp
+    # was already set before streaming started (see above) so it is always
+    # recorded even if the client disconnected mid-stream.
     room_dict = store.require(room_id).to_dict()
     yield {"type": "awaiting_confirmation", "asker": name, "confirmation": confirmation_prompt}
     _broadcast_threadsafe(

@@ -111,6 +111,7 @@ export default function KartRace() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const kartsRef    = useRef<KartState[]>([]);
   const loopRef     = useRef<GameLoop | null>(null);
+  const surfaceRef  = useRef<Surface | null>(null);
   const triviaTimer = useRef(0);          // seconds until next question (counts down)
   const triviaActive = useRef(false);     // true while question panel is visible
   const usedQs      = useRef(new Set<number>());
@@ -169,7 +170,9 @@ export default function KartRace() {
     setTrivia(null);
     setHud({ lap: 1, pos: 1 });
 
+    surfaceRef.current?.dispose();
     const surface = new Surface(canvas);
+    surfaceRef.current = surface;
 
     const loop = new GameLoop((dt) => {
       const { ctx } = surface;
@@ -366,7 +369,11 @@ export default function KartRace() {
   }, [pickTrivia]);
 
   // Cleanup on unmount
-  useEffect(() => () => { loopRef.current?.stop(); }, []);
+  useEffect(() => () => {
+    loopRef.current?.stop();
+    surfaceRef.current?.dispose();
+    surfaceRef.current = null;
+  }, []);
 
   // ── trivia answer handler ──
   const answerTrivia = (optIdx: number | null) => {
