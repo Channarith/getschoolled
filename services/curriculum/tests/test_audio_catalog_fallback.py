@@ -29,7 +29,10 @@ def test_home_feed_uses_audio_when_catalog_empty():
 
 def test_search_and_facets_use_audio_when_catalog_empty():
     _empty_catalog()
-    courses = client.get("/courses/search").json()
+    # With many live-class lessons now in sample-curriculum, the default page
+    # (limit=100) may be filled before audio courses appear. Request a larger
+    # set or filter specifically for audio to confirm they are indexed.
+    courses = client.get("/courses/search", params={"limit": "500"}).json()
     assert len(courses) >= 50
     assert any(c["media_format"] == "audio" for c in courses)
     facets = client.get("/courses/facets").json()
