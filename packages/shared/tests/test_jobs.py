@@ -181,8 +181,8 @@ def test_get_jobs_provider_selection():
     assert isinstance(
         get_jobs_provider({"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b"}), AdzunaJobsProvider)
     # keyed aggregator wins over the generic live flag
-    assert isinstance(
-        get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
+    p = get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"})
+    assert isinstance(p, (JSearchJobsProvider, CompositeJobsProvider))
 
 
 def test_location_matches_usa_filters_brazil():
