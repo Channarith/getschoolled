@@ -173,7 +173,7 @@ type Dict = Partial<Record<StringKey, string>>;
 
 const EN: Record<StringKey, string> = {
   "tab.home": "Home",
-  "tab.drive": "Drive",
+  "tab.drive": "On the Go",
   "tab.mylist": "My List",
   "tab.careers": "Careers",
   "tab.alerts": "Alerts",
@@ -318,7 +318,7 @@ const EN: Record<StringKey, string> = {
   "meta.segmentOf": "{i} / {n} segments",
   "meta.classes": "{n} classes",
 
-  "drive.title": "🚗 Drive Mode",
+  "drive.title": "🎧 On the Go",
   "drive.subtitle": "Audio-only classes for the road — eyes free.",
   "drive.search": "Search…",
   "drive.all": "All",
@@ -580,7 +580,7 @@ const EN: Record<StringKey, string> = {
 // missing falls back to EN cleanly via the `t()` function.
 
 const ES: Dict = {
-  "tab.home": "Inicio", "tab.drive": "Conducir", "tab.mylist": "Mi lista",
+  "tab.home": "Inicio", "tab.drive": "En marcha", "tab.mylist": "Mi lista",
   "tab.careers": "Empleo",
   "tab.alerts": "Alertas", "tab.settings": "Ajustes",
   "home.kicker": "AI CLASSROOM",
