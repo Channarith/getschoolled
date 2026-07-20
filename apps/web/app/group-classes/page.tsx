@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 
 import {
+  checkoutGroupClass,
+  confirmGroupClassPayment,
   getMe,
   getToken,
   listGroupClasses,
   listLessons,
+  reviewGroupClass,
   scheduleGroupClass,
   startGroupClass,
   type GroupClass,
@@ -30,6 +33,8 @@ const PLATFORM_BADGE: Record<string, { label: string; bg: string; fg: string }> 
   teams: { label: "Teams", bg: "#eae8ff", fg: "#5b21b6" },
   meet: { label: "Google Meet", bg: "#dcfce7", fg: "#15803d" },
 };
+
+const ATTENDEE_CODE_KEY = "salareen-attendee-code";
 
 function fmtTime(iso: string): string {
   try {
@@ -73,6 +78,8 @@ export default function GroupClassesPage() {
   const [roomSize, setRoomSize] = useState(6);
 
   const offline = t("error.offline");
+  const paidLabel = "Paid class";
+  const ratingLabel = "Instructor rating";
 
   async function refresh() {
     try {
@@ -144,9 +151,28 @@ export default function GroupClassesPage() {
     setError("");
     setBusy(true);
     try {
+      if (gc.payment_required || gc.attendee_code_required) {
+        const codeKey = `${ATTENDEE_CODE_KEY}:${gc.id}`;
+        let attendeeCode = sessionStorage.getItem(codeKey) || "";
+        if (!attendeeCode) {
+          const me = await getMe();
+          const checkout = await checkoutGroupClass(
+            gc.id,
+            me.display_name || me.email || "Learner",
+            me.email || "",
+          );
+          const paid = await confirmGroupClassPayment(gc.id, checkout.checkout.session_id);
+          attendeeCode = paid.attendee_code;
+          sessionStorage.setItem(codeKey, attendeeCode);
+        }
+      }
       const wasLive = gc.status === "live" || Boolean(gc.live_room_id);
       const res = await startGroupClass(gc.id);   // idempotent: opens the room
       const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
+      const attendeeCode = sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${gc.id}`) || "";
+      if (attendeeCode) {
+        sessionStorage.setItem(`${ATTENDEE_CODE_KEY}:${roomId}`, attendeeCode);
+      }
       // Only the first joiner (class wasn't live yet) becomes the host/moderator;
       // later arrivals join as learners.
       if (!wasLive && res.bridge.moderator_key) {
@@ -157,6 +183,28 @@ export default function GroupClassesPage() {
         return;
       }
       setStarted(res);
+      await refresh();
+    } catch (e) {
+      setError(friendlyError(e, offline));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRate(gc: GroupClass) {
+    if (!requireAccount()) return;
+    const raw = window.prompt("Rate this instructor (1-5):", "5");
+    if (!raw) return;
+    const rating = Number(raw);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      setError("Rating must be between 1 and 5.");
+      return;
+    }
+    const comment = window.prompt("Optional review comment:", "") || "";
+    setBusy(true);
+    setError("");
+    try {
+      await reviewGroupClass(gc.id, Math.round(rating), comment);
       await refresh();
     } catch (e) {
       setError(friendlyError(e, offline));
@@ -306,6 +354,32 @@ export default function GroupClassesPage() {
                   {t("group.seatsLeft")}: {gc.seats_left} / {gc.capacity}
                   {gc.platform === "salareen" && gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
                 </div>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {ratingLabel}: {gc.instructor_stats?.review_avg ?? gc.review_avg ?? 0} / 5
+                  {" · "}
+                  {gc.instructor_stats?.review_count ?? gc.review_count ?? 0} reviews
+                  {" · "}
+                  {gc.instructor_stats?.courses_taught ?? 0} classes taught
+                </div>
+                {(gc.payment_required || gc.attendee_code_required) && (
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    {paidLabel}
+                    {gc.price_per_user_usd ? ` · $${gc.price_per_user_usd.toFixed(2)} per seat` : ""}
+                    {" · "}Salareen commission {(100 * (gc.commission_rate ?? 0.15)).toFixed(0)}%
+                  </div>
+                )}
+                {gc.audit_required && gc.audit_status !== "approved" && (
+                  <div className="muted" style={{ fontSize: 13, color: "#b45309" }}>
+                    Pending Salareen audit approval.
+                  </div>
+                )}
+                {gc.platform === "teams" && gc.external_camera_ingest_supported && (
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    Teams room-device camera ingest ready
+                    {gc.device_profile ? ` (${gc.device_profile})` : ""}
+                    {gc.camera_source_count ? ` · ${gc.camera_source_count} camera source(s)` : ""}
+                  </div>
+                )}
               </div>
               <div className="group-class-actions">
                 {/* One button: first join opens (and hosts) the class; later
@@ -318,6 +392,9 @@ export default function GroupClassesPage() {
                   style={{ background: "#0ea5e9", color: "#fff" }}
                 >
                   {gc.seats_left <= 0 && !isAdmin ? t("group.full") : t("group.join")}
+                </button>
+                <button onClick={() => onRate(gc)} disabled={busy}>
+                  Rate instructor
                 </button>
               </div>
             </div>

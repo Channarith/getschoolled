@@ -1396,6 +1396,26 @@ export type GroupClass = {
   room_size?: number;
   learner_capacity?: number;
   live_room_id?: string;
+  marketplace_listing?: boolean;
+  audit_required?: boolean;
+  audit_status?: string;
+  instructor_name?: string;
+  instructor_account_id?: string;
+  price_per_user_usd?: number;
+  commission_rate?: number;
+  payment_required?: boolean;
+  attendee_code_required?: boolean;
+  max_faces_allowed?: number;
+  require_liveness?: boolean;
+  recording_protection_required?: boolean;
+  device_profile?: string;
+  camera_ingest_mode?: string;
+  camera_sources?: Array<Record<string, unknown>>;
+  camera_source_count?: number;
+  external_camera_ingest_supported?: boolean;
+  review_count?: number;
+  review_avg?: number;
+  instructor_stats?: { courses_taught: number; review_count: number; review_avg: number };
 };
 
 export type ScheduleGroupClassInput = {
@@ -1410,6 +1430,24 @@ export type ScheduleGroupClassInput = {
   room_size?: number;
   language?: string;
   description?: string;
+  marketplace_listing?: boolean;
+  audit_required?: boolean;
+  credentials_summary?: string;
+  credential_photo_url?: string;
+  identity_photo_url?: string;
+  interview_notes?: string;
+  demo_notes?: string;
+  instructor_name?: string;
+  price_per_user_usd?: number;
+  commission_rate?: number;
+  payment_required?: boolean;
+  attendee_code_required?: boolean;
+  max_faces_allowed?: number;
+  require_liveness?: boolean;
+  recording_protection_required?: boolean;
+  device_profile?: string;
+  camera_ingest_mode?: string;
+  camera_sources?: Array<Record<string, unknown>>;
 };
 
 export type GroupClassStart = {
@@ -1451,13 +1489,123 @@ export async function scheduleGroupClass(input: ScheduleGroupClassInput): Promis
 export async function registerGroupClass(
   classId: string,
   name: string,
-  email = ""
+  email = "",
+  opts?: { attendeeCode?: string; checkoutSessionId?: string; paymentStatus?: string },
 ): Promise<GroupClass> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/register`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        name,
+        email,
+        attendee_code: opts?.attendeeCode || "",
+        checkout_session_id: opts?.checkoutSessionId || "",
+        payment_status: opts?.paymentStatus || "unpaid",
+      }),
+    })
+  );
+}
+
+export async function checkoutGroupClass(
+  classId: string,
+  name: string,
+  email = "",
+): Promise<{ checkout: { session_id: string; url: string; provider: string; method: string; payment_status: string } }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/checkout`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name, email }),
+    })
+  );
+}
+
+export async function confirmGroupClassPayment(
+  classId: string,
+  checkoutSessionId: string,
+): Promise<{ class: GroupClass; attendee_code: string; payment_status: string }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/confirm-payment`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ checkout_session_id: checkoutSessionId }),
+    })
+  );
+}
+
+export async function reviewGroupClass(
+  classId: string,
+  rating: number,
+  comment = "",
+): Promise<{ class: GroupClass; review: { reviewer_name: string; rating: number; comment: string; created_at: string } }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/review`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ rating, comment }),
+    })
+  );
+}
+
+export async function submitTeachRequest(input: {
+  title: string;
+  lesson_id: string;
+  start_time: string;
+  duration_min?: number;
+  language?: string;
+  description?: string;
+  instructor_name?: string;
+  credentials_summary: string;
+  credential_photo_url?: string;
+  identity_photo_url?: string;
+  interview_notes?: string;
+  demo_notes?: string;
+  price_per_user_usd?: number;
+  capacity?: number;
+  room_size?: number;
+  commission_rate?: number;
+  max_faces_allowed?: number;
+  require_liveness?: boolean;
+  recording_protection_required?: boolean;
+}): Promise<GroupClass> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/teach-request`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(input),
+    })
+  );
+}
+
+export async function auditGroupClass(
+  classId: string,
+  approved: boolean,
+  interviewNotes = "",
+  demoNotes = "",
+): Promise<GroupClass> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/audit`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ approved, interview_notes: interviewNotes, demo_notes: demoNotes }),
+    })
+  );
+}
+
+export async function updateGroupClassCameraSources(
+  classId: string,
+  input: {
+    device_profile?: string;
+    camera_ingest_mode?: string;
+    camera_sources: Array<Record<string, unknown>>;
+  },
+): Promise<GroupClass> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/camera-sources`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(input),
     })
   );
 }
@@ -1631,6 +1779,7 @@ export async function joinLiveRoom(
     readinessScore?: number;
     readinessBand?: string;
     primaryStyle?: string;
+    attendeeCode?: string;
   },
 ): Promise<LiveRoomJoin> {
   return jsonOrThrow(
@@ -1645,6 +1794,7 @@ export async function joinLiveRoom(
         readiness_score: opts?.readinessScore || 0,
         readiness_band: opts?.readinessBand || "",
         primary_style: opts?.primaryStyle || "",
+        attendee_code: opts?.attendeeCode || "",
       }),
     })
   );

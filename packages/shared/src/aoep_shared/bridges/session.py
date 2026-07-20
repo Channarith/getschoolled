@@ -19,7 +19,7 @@ unavailable offline.
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Callable, List, Optional, Protocol, runtime_checkable
 
 from .meeting import MeetingRef
@@ -69,6 +69,20 @@ class DisclosureNotice:
 class BridgedTrack:
     kind: TrackKind
     direction: Direction
+
+
+@dataclass(frozen=True)
+class ExternalCameraSource:
+    """External camera feed metadata (e.g., Cisco room camera via Teams bridge)."""
+
+    source_id: str
+    label: str = ""
+    device_type: str = ""
+    source_kind: str = "camera"
+    stream_url: str = ""
+    participant_identity: str = ""
+    resolution: str = ""
+    fps: int = 0
 
 
 @runtime_checkable
@@ -142,6 +156,7 @@ class BridgeSession:
         recording: bool = False,
         retention_days: Optional[int] = None,
         tutor_router: Optional[Callable[[str], None]] = None,
+        camera_sources: Optional[List[ExternalCameraSource]] = None,
     ) -> None:
         self.capabilities = capabilities
         self.meeting = meeting
@@ -150,6 +165,7 @@ class BridgeSession:
         self._recording = recording
         self._retention_days = retention_days
         self._tutor_router = tutor_router
+        self._camera_sources = list(camera_sources or [])
         self.state = BridgeState.NEW
         self.bridged: List[BridgedTrack] = []
         self.disclosure: Optional[DisclosureNotice] = None
@@ -170,6 +186,10 @@ class BridgeSession:
             for track in _planned_tracks(self.capabilities):
                 self._transport.bridge_track(track.kind, track.direction)
                 self.bridged.append(track)
+            attach_camera = getattr(self._transport, "attach_external_camera", None)
+            if callable(attach_camera):
+                for source in self._camera_sources:
+                    attach_camera(source)
             self.state = BridgeState.BRIDGING
         except Exception:
             self.state = BridgeState.FAILED
@@ -208,6 +228,8 @@ class BridgeSession:
             "disclosure": (self.disclosure.text if self.disclosure else None),
             "recording": self._recording,
             "retention_days": self._retention_days,
+            "camera_sources": [asdict(s) for s in self._camera_sources],
+            "camera_source_count": len(self._camera_sources),
         }
 
 
@@ -247,3 +269,6 @@ class FakeTransport:
     def close(self) -> None:
         self.closed = True
         self.calls.append(_Call("close", {}))
+
+    def attach_external_camera(self, source: ExternalCameraSource) -> None:
+        self.calls.append(_Call("attach_external_camera", asdict(source)))

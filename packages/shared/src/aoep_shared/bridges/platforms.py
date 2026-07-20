@@ -35,6 +35,7 @@ from .session import (
     BridgeSession,
     Direction,
     DisclosureNotice,
+    ExternalCameraSource,
     LiveKitEndpoint,
     MediaTransport,
     TrackKind,
@@ -64,6 +65,7 @@ class MediaBridge(abc.ABC):
         retention_days: Optional[int] = None,
         tutor_router: Optional[Callable[[str], None]] = None,
         transport: Optional[MediaTransport] = None,
+        camera_sources: Optional[list[ExternalCameraSource]] = None,
     ) -> BridgeSession:
         """Join the meeting and bridge media into ``livekit_room``.
 
@@ -88,6 +90,7 @@ class MediaBridge(abc.ABC):
             recording=recording,
             retention_days=retention_days,
             tutor_router=tutor_router,
+            camera_sources=camera_sources or [],
         )
         return session.start()
 
@@ -163,6 +166,18 @@ class HttpSidecarTransport:
 
     def close(self) -> None:
         self._post("/call/leave", {})
+
+    def attach_external_camera(self, source: ExternalCameraSource) -> None:
+        self._post("/call/camera/attach", {
+            "sourceId": source.source_id,
+            "label": source.label,
+            "deviceType": source.device_type,
+            "sourceKind": source.source_kind,
+            "streamUrl": source.stream_url,
+            "participantIdentity": source.participant_identity,
+            "resolution": source.resolution,
+            "fps": int(source.fps or 0),
+        })
 
 
 class TeamsMediaBridge(MediaBridge):

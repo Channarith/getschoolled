@@ -17,6 +17,7 @@ import pytest
 
 from aoep_shared.bridges import (
     BridgePlatform,
+    ExternalCameraSource,
     BridgeSession,
     BridgeState,
     BridgeUnavailable,
@@ -179,3 +180,30 @@ def test_meet_chat_capability_routes_questions():
     session.route_chat_question("Explain photosynthesis")
     assert got == ["Explain photosynthesis"]
     session.stop()
+
+
+def test_external_camera_sources_are_attached_and_reported():
+    fake = FakeTransport()
+    sources = [
+        ExternalCameraSource(
+            source_id="cam-front",
+            label="Front room cam",
+            device_type="cisco_roomkit",
+            source_kind="camera",
+            participant_identity="teams-room-1",
+            resolution="1920x1080",
+            fps=30,
+        )
+    ]
+    session = get_bridge(BridgePlatform.TEAMS).connect(
+        "19:meeting_x@thread.v2",
+        livekit_room="class-teams",
+        transport=fake,
+        camera_sources=sources,
+    )
+    attached = [c for c in fake.calls if c.op == "attach_external_camera"]
+    assert len(attached) == 1
+    assert attached[0].args["source_id"] == "cam-front"
+    status = session.status()
+    assert status["camera_source_count"] == 1
+    assert status["camera_sources"][0]["device_type"] == "cisco_roomkit"

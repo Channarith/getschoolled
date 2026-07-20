@@ -15,6 +15,7 @@ meeting-platform SDK; the orchestrator service exposes it over HTTP.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -38,6 +39,17 @@ STATUS_SCHEDULED = "scheduled"
 STATUS_LIVE = "live"
 STATUS_ENDED = "ended"
 _STATUSES = (STATUS_SCHEDULED, STATUS_LIVE, STATUS_ENDED)
+
+# User-created marketplace classes require human audit before learners can join.
+AUDIT_PENDING = "pending"
+AUDIT_APPROVED = "approved"
+AUDIT_REJECTED = "rejected"
+_AUDIT_STATUSES = (AUDIT_PENDING, AUDIT_APPROVED, AUDIT_REJECTED)
+
+PAYMENT_UNPAID = "unpaid"
+PAYMENT_PENDING = "pending"
+PAYMENT_PAID = "paid"
+_PAYMENT_STATUSES = (PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_PAID)
 
 
 class GroupClassError(ValueError):
@@ -70,6 +82,12 @@ def _parse_iso(value: str) -> datetime:
 class Registration:
     name: str
     email: str = ""
+    account_id: str = ""
+    payment_status: str = PAYMENT_UNPAID
+    checkout_session_id: str = ""
+    attendee_code: str = ""
+    attendee_code_bound_identity: str = ""
+    attendee_code_used: bool = False
     registered_at: str = ""
 
     def __post_init__(self) -> None:
@@ -77,8 +95,40 @@ class Registration:
             raise GroupClassError("registration name is required")
         self.name = self.name.strip()
         self.email = (self.email or "").strip()
+        self.account_id = (self.account_id or "").strip()
+        self.payment_status = (self.payment_status or PAYMENT_UNPAID).strip().lower()
+        if self.payment_status not in _PAYMENT_STATUSES:
+            raise GroupClassError(f"invalid payment_status {self.payment_status!r}")
+        self.checkout_session_id = (self.checkout_session_id or "").strip()
+        self.attendee_code = (self.attendee_code or "").strip().upper()
+        self.attendee_code_bound_identity = (self.attendee_code_bound_identity or "").strip()
         if not self.registered_at:
             self.registered_at = _now().isoformat()
+
+
+@dataclass
+class InstructorReview:
+    reviewer_name: str
+    rating: int
+    comment: str = ""
+    reviewer_account_id: str = ""
+    created_at: str = ""
+    verified_attendee: bool = False
+
+    def __post_init__(self) -> None:
+        self.reviewer_name = (self.reviewer_name or "").strip()
+        if not self.reviewer_name:
+            raise GroupClassError("reviewer_name is required")
+        self.reviewer_account_id = (self.reviewer_account_id or "").strip()
+        self.comment = (self.comment or "").strip()
+        self.rating = int(self.rating)
+        if self.rating < 1 or self.rating > 5:
+            raise GroupClassError("rating must be between 1 and 5")
+        if not self.created_at:
+            self.created_at = _now().isoformat()
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
@@ -94,9 +144,33 @@ class GroupClass:
     room_size: int = 6  # Salareen grid: 4, 6, or 9 total seats including AI host
     language: str = "en"
     description: str = ""
+    created_by_account_id: str = ""
+    instructor_account_id: str = ""
+    instructor_name: str = ""
+    marketplace_listing: bool = False
+    audit_required: bool = False
+    audit_status: str = AUDIT_APPROVED
+    credentials_summary: str = ""
+    credential_photo_url: str = ""
+    identity_photo_url: str = ""
+    interview_notes: str = ""
+    demo_notes: str = ""
+    audited_by: str = ""
+    audited_at: str = ""
+    price_per_user_usd: float = 0.0
+    commission_rate: float = 0.15
+    payment_required: bool = False
+    attendee_code_required: bool = False
+    max_faces_allowed: int = 1
+    require_liveness: bool = True
+    recording_protection_required: bool = True
+    device_profile: str = ""
+    camera_ingest_mode: str = "platform_default"
+    camera_sources: List[dict] = field(default_factory=list)
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     status: str = STATUS_SCHEDULED
     registrations: List[Registration] = field(default_factory=list)
+    reviews: List[InstructorReview] = field(default_factory=list)
     session_id: str = ""           # set when the class goes live
     bridge_session_id: str = ""    # set when the meeting bridge is connected
     live_room_id: str = ""         # Salareen room id (class-{id}) when live
@@ -124,6 +198,48 @@ class GroupClass:
         self.duration_min = int(self.duration_min)
         if self.duration_min <= 0:
             raise GroupClassError("duration_min must be positive")
+        self.created_by_account_id = (self.created_by_account_id or "").strip()
+        self.instructor_account_id = (
+            (self.instructor_account_id or "").strip() or self.created_by_account_id
+        )
+        self.instructor_name = (
+            (self.instructor_name or "").strip() or (self.host or "").strip()
+        )
+        self.marketplace_listing = bool(self.marketplace_listing)
+        self.audit_required = bool(self.audit_required or self.marketplace_listing)
+        self.audit_status = (self.audit_status or AUDIT_APPROVED).strip().lower()
+        if self.audit_status not in _AUDIT_STATUSES:
+            raise GroupClassError(
+                f"audit_status must be one of {', '.join(_AUDIT_STATUSES)}"
+            )
+        if self.audit_required and self.audit_status == AUDIT_APPROVED and self.marketplace_listing:
+            # New marketplace classes should be reviewed before they go live.
+            self.audit_status = AUDIT_PENDING
+        self.credentials_summary = (self.credentials_summary or "").strip()
+        self.credential_photo_url = (self.credential_photo_url or "").strip()
+        self.identity_photo_url = (self.identity_photo_url or "").strip()
+        self.interview_notes = (self.interview_notes or "").strip()
+        self.demo_notes = (self.demo_notes or "").strip()
+        self.audited_by = (self.audited_by or "").strip()
+        self.audited_at = (self.audited_at or "").strip()
+        self.price_per_user_usd = max(0.0, float(self.price_per_user_usd or 0.0))
+        self.commission_rate = float(self.commission_rate or 0.0)
+        if self.commission_rate < 0 or self.commission_rate > 1:
+            raise GroupClassError("commission_rate must be between 0 and 1")
+        self.payment_required = bool(self.payment_required or self.price_per_user_usd > 0)
+        self.attendee_code_required = bool(
+            self.attendee_code_required or self.payment_required or self.marketplace_listing
+        )
+        self.max_faces_allowed = max(1, int(self.max_faces_allowed or 1))
+        self.require_liveness = bool(self.require_liveness)
+        self.recording_protection_required = bool(self.recording_protection_required)
+        self.device_profile = (self.device_profile or "").strip().lower()
+        self.camera_ingest_mode = (
+            (self.camera_ingest_mode or "platform_default").strip().lower()
+        )
+        self.camera_sources = [
+            dict(row) for row in (self.camera_sources or []) if isinstance(row, dict)
+        ][:16]
         self.room_size = int(self.room_size)
         if self.platform == "salareen":
             self.room_size = validate_room_size(self.room_size)
@@ -135,6 +251,8 @@ class GroupClass:
         self.capacity = int(self.capacity)
         if self.capacity <= 0:
             raise GroupClassError("capacity must be positive")
+        if self.marketplace_listing and self.capacity > 9:
+            raise GroupClassError("marketplace classes are limited to 9 learners")
         if self.platform == "salareen" and self.capacity > learner_capacity(self.room_size):
             raise GroupClassError(
                 f"salareen capacity cannot exceed {learner_capacity(self.room_size)} "
@@ -164,6 +282,15 @@ class GroupClass:
         d["seats_left"] = self.seats_left
         d["registered"] = len(self.registrations)
         d["needs_bridge"] = self.needs_bridge
+        d["review_count"] = len(self.reviews)
+        if self.reviews:
+            d["review_avg"] = round(
+                sum(int(r.rating) for r in self.reviews) / len(self.reviews), 2
+            )
+        else:
+            d["review_avg"] = 0.0
+        d["camera_source_count"] = len(self.camera_sources)
+        d["external_camera_ingest_supported"] = self.platform in ("teams", "zoom", "meet")
         d["room_size"] = self.room_size
         d["learner_capacity"] = (
             learner_capacity(self.room_size) if self.platform == "salareen" else self.capacity
@@ -293,20 +420,251 @@ class GroupClassStore:
                 removed += 1
         return removed
 
-    def register(self, class_id: str, name: str, email: str = "") -> Registration:
+    @staticmethod
+    def _mint_attendee_code(class_id: str, account_id: str, seed: str = "") -> str:
+        raw = f"{class_id}|{account_id}|{seed}|{uuid.uuid4().hex}".encode()
+        digest = hashlib.sha256(raw).hexdigest().upper()
+        return f"{digest[:4]}-{digest[4:8]}-{digest[8:12]}"
+
+    @staticmethod
+    def _registration_matches(
+        reg: Registration,
+        *,
+        email: str = "",
+        account_id: str = "",
+        checkout_session_id: str = "",
+    ) -> bool:
+        if checkout_session_id and reg.checkout_session_id == checkout_session_id:
+            return True
+        if account_id and reg.account_id and reg.account_id == account_id:
+            return True
+        if email and reg.email and reg.email.lower() == email.lower():
+            return True
+        return False
+
+    def register(
+        self,
+        class_id: str,
+        name: str,
+        email: str = "",
+        *,
+        account_id: str = "",
+        checkout_session_id: str = "",
+        payment_status: str = PAYMENT_UNPAID,
+    ) -> Registration:
         gc = self.require(class_id)
         if gc.status == STATUS_ENDED:
             raise GroupClassError("this class has already ended")
-        reg = Registration(name=name, email=email)
-        if reg.email:
-            for existing in gc.registrations:
-                if existing.email and existing.email.lower() == reg.email.lower():
-                    return existing  # idempotent: already registered with this email
+        if gc.audit_required and gc.audit_status != AUDIT_APPROVED:
+            raise GroupClassError("this class is pending Salareen audit approval")
+        pay = (payment_status or PAYMENT_UNPAID).strip().lower()
+        if pay not in _PAYMENT_STATUSES:
+            raise GroupClassError(
+                f"payment_status must be one of {', '.join(_PAYMENT_STATUSES)}"
+            )
+        if gc.payment_required and pay != PAYMENT_PAID:
+            raise GroupClassError("payment must be completed before registration")
+        reg = Registration(
+            name=name,
+            email=email,
+            account_id=account_id,
+            checkout_session_id=checkout_session_id,
+            payment_status=pay,
+        )
+        for existing in gc.registrations:
+            if self._registration_matches(
+                existing,
+                email=reg.email,
+                account_id=reg.account_id,
+                checkout_session_id=reg.checkout_session_id,
+            ):
+                if gc.payment_required and existing.payment_status != PAYMENT_PAID and pay == PAYMENT_PAID:
+                    existing.payment_status = PAYMENT_PAID
+                if not existing.name:
+                    existing.name = reg.name
+                if reg.email and not existing.email:
+                    existing.email = reg.email
+                if reg.account_id and not existing.account_id:
+                    existing.account_id = reg.account_id
+                if gc.attendee_code_required and not existing.attendee_code and existing.payment_status == PAYMENT_PAID:
+                    existing.attendee_code = self._mint_attendee_code(gc.id, existing.account_id or existing.email or existing.name)
+                self._commit(gc)
+                return existing  # idempotent for same learner/payment session
         if gc.is_full:
             raise ClassFullError("this class is full")
+        if gc.attendee_code_required and reg.payment_status == PAYMENT_PAID:
+            reg.attendee_code = self._mint_attendee_code(gc.id, reg.account_id or reg.email or reg.name)
         gc.registrations.append(reg)
         self._commit(gc)
         return reg
+
+    def open_checkout(
+        self,
+        class_id: str,
+        *,
+        name: str,
+        email: str = "",
+        account_id: str = "",
+        checkout_session_id: str,
+    ) -> Registration:
+        gc = self.require(class_id)
+        if gc.status == STATUS_ENDED:
+            raise GroupClassError("this class has already ended")
+        if gc.audit_required and gc.audit_status != AUDIT_APPROVED:
+            raise GroupClassError("this class is pending Salareen audit approval")
+        if gc.is_full:
+            raise ClassFullError("this class is full")
+        reg = Registration(
+            name=name,
+            email=email,
+            account_id=account_id,
+            checkout_session_id=checkout_session_id,
+            payment_status=PAYMENT_PENDING,
+        )
+        for existing in gc.registrations:
+            if self._registration_matches(existing, email=reg.email, account_id=reg.account_id):
+                existing.checkout_session_id = checkout_session_id
+                existing.payment_status = PAYMENT_PENDING
+                self._commit(gc)
+                return existing
+        gc.registrations.append(reg)
+        self._commit(gc)
+        return reg
+
+    def confirm_checkout(
+        self,
+        class_id: str,
+        *,
+        checkout_session_id: str,
+        account_id: str = "",
+    ) -> Registration:
+        gc = self.require(class_id)
+        sid = (checkout_session_id or "").strip()
+        if not sid:
+            raise GroupClassError("checkout_session_id is required")
+        for reg in gc.registrations:
+            if reg.checkout_session_id != sid:
+                continue
+            if account_id and reg.account_id and reg.account_id != account_id:
+                raise GroupClassError("checkout does not belong to this account")
+            reg.payment_status = PAYMENT_PAID
+            if gc.attendee_code_required and not reg.attendee_code:
+                reg.attendee_code = self._mint_attendee_code(gc.id, reg.account_id or reg.email or reg.name, sid)
+            self._commit(gc)
+            return reg
+        raise GroupClassError("checkout session not found for this class")
+
+    def authorize_attendee(
+        self,
+        class_id: str,
+        *,
+        attendee_code: str,
+        account_id: str = "",
+        identity: str = "",
+    ) -> Registration | None:
+        """Validate one attendee code per learner and bind first successful join."""
+        gc = self.require(class_id)
+        code = (attendee_code or "").strip().upper()
+        if gc.attendee_code_required and not code:
+            raise GroupClassError("attendee code is required for this class")
+        if gc.audit_required and gc.audit_status != AUDIT_APPROVED:
+            raise GroupClassError("this class is pending Salareen audit approval")
+        if not gc.attendee_code_required:
+            return None
+        ident = (identity or "").strip()
+        acct = (account_id or "").strip()
+        for reg in gc.registrations:
+            if reg.attendee_code != code:
+                continue
+            if reg.payment_status != PAYMENT_PAID:
+                raise GroupClassError("payment must be completed before joining this class")
+            if acct and reg.account_id and reg.account_id != acct:
+                raise GroupClassError("attendee code does not belong to this account")
+            if reg.attendee_code_bound_identity and ident and reg.attendee_code_bound_identity != ident:
+                raise GroupClassError("this attendee code is already bound to another participant")
+            if not reg.attendee_code_bound_identity and ident:
+                reg.attendee_code_bound_identity = ident
+            reg.attendee_code_used = True
+            self._commit(gc)
+            return reg
+        raise GroupClassError("invalid attendee code")
+
+    def add_review(
+        self,
+        class_id: str,
+        *,
+        reviewer_name: str,
+        rating: int,
+        comment: str = "",
+        reviewer_account_id: str = "",
+    ) -> InstructorReview:
+        gc = self.require(class_id)
+        verified = False
+        for reg in gc.registrations:
+            if reviewer_account_id and reg.account_id == reviewer_account_id:
+                verified = True
+                break
+            if reviewer_name and reg.name.lower() == reviewer_name.strip().lower():
+                verified = True
+                break
+        review = InstructorReview(
+            reviewer_name=reviewer_name,
+            rating=rating,
+            comment=comment,
+            reviewer_account_id=reviewer_account_id,
+            verified_attendee=verified,
+        )
+        for existing in gc.reviews:
+            if (
+                reviewer_account_id
+                and existing.reviewer_account_id
+                and existing.reviewer_account_id == reviewer_account_id
+            ):
+                existing.rating = review.rating
+                existing.comment = review.comment
+                existing.created_at = review.created_at
+                existing.verified_attendee = review.verified_attendee
+                self._commit(gc)
+                return existing
+        gc.reviews.append(review)
+        self._commit(gc)
+        return review
+
+    def audit_class(
+        self,
+        class_id: str,
+        *,
+        approved: bool,
+        audited_by: str,
+        interview_notes: str = "",
+        demo_notes: str = "",
+    ) -> GroupClass:
+        gc = self.require(class_id)
+        gc.audit_required = True
+        gc.audit_status = AUDIT_APPROVED if approved else AUDIT_REJECTED
+        gc.audited_by = (audited_by or "").strip() or "salareen-employee"
+        gc.audited_at = _now().isoformat()
+        if interview_notes.strip():
+            gc.interview_notes = interview_notes.strip()
+        if demo_notes.strip():
+            gc.demo_notes = demo_notes.strip()
+        self._commit(gc)
+        return gc
+
+    def instructor_stats(self, instructor_account_id: str) -> dict:
+        iid = (instructor_account_id or "").strip()
+        if not iid:
+            return {"courses_taught": 0, "review_count": 0, "review_avg": 0.0}
+        taught = 0
+        ratings: list[int] = []
+        for gc in self._all_classes():
+            if gc.instructor_account_id != iid:
+                continue
+            if gc.status in (STATUS_LIVE, STATUS_ENDED):
+                taught += 1
+            ratings.extend(int(r.rating) for r in gc.reviews)
+        avg = round(sum(ratings) / len(ratings), 2) if ratings else 0.0
+        return {"courses_taught": taught, "review_count": len(ratings), "review_avg": avg}
 
     def set_status(self, class_id: str, status: str) -> GroupClass:
         if status not in _STATUSES:
@@ -326,6 +684,12 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
     external bridge is needed — learners join the built-in live room directly.
     """
     room = livekit_room or f"class-{gc.id}"
+    camera_hint = {
+        "device_profile": gc.device_profile,
+        "camera_ingest_mode": gc.camera_ingest_mode,
+        "camera_sources": gc.camera_sources,
+        "camera_source_count": len(gc.camera_sources),
+    }
     if not gc.needs_bridge:
         return {
             "needs_bridge": False,
@@ -339,18 +703,31 @@ def bridge_plan(gc: GroupClass, *, livekit_room: str = "") -> Mapping[str, objec
                 "Built-in Salareen live room — join the multi-user grid "
                 f"({gc.room_size} seats, AI host Theodore)."
             ),
+            **camera_hint,
         }
+    note = (
+        f"Connect the bridge (integrations {gc.platform}/connect) to pipe the "
+        "AI's LiveKit room into the meeting so the AI presents through "
+        f"{gc.platform}."
+    )
+    if gc.platform == "teams":
+        note += (
+            " Teams bridge can ingest external room-device cameras (for example "
+            "Cisco room kits and iPad camera sources) when provided in "
+            "camera_sources during bridge connect."
+        )
     return {
         "needs_bridge": True,
         "platform": gc.platform,
         "meeting_ref": gc.meeting_url,
         "livekit_room": room,
         "connect_endpoint": f"/bridges/{gc.platform}/connect",
-        "note": (
-            f"Connect the bridge (integrations {gc.platform}/connect) to pipe the "
-            "AI's LiveKit room into the meeting so the AI presents through "
-            f"{gc.platform}."
+        "supports_external_camera_ingest": gc.platform == "teams",
+        "camera_ingest_endpoint": (
+            f"/bridges/{gc.platform}/connect" if gc.platform == "teams" else ""
         ),
+        "note": note,
+        **camera_hint,
     }
 
 

@@ -1227,9 +1227,12 @@ def assessment_grade(req: GradeRequest) -> GradeResponse:
 # LiveKit room into the external meeting so it presents through that platform.
 # --------------------------------------------------------------------------- #
 from aoep_shared.group_classes import (  # noqa: E402
+    AUDIT_PENDING,
     ClassFullError,
     GroupClassError,
     GroupClassStore,
+    PAYMENT_PAID,
+    PAYMENT_PENDING,
     bridge_plan,
 )
 from aoep_shared.live_room import (  # noqa: E402
@@ -1325,6 +1328,25 @@ def _live_rooms() -> LiveRoomStore:
     return app.state.live_rooms
 
 
+def _group_class_payload(gc) -> dict:
+    payload = gc.to_dict()
+    stats = _group_store().instructor_stats(gc.instructor_account_id)
+    payload["instructor_stats"] = stats
+    return payload
+
+
+def _class_host_is_caller(gc, authorization: str) -> bool:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    caller = account_from_authorization(authorization) or ""
+    if not caller:
+        return False
+    return caller in {
+        (gc.created_by_account_id or "").strip(),
+        (gc.instructor_account_id or "").strip(),
+    }
+
+
 async def _broadcast_live_room(room_id: str, event: dict) -> None:
     await app.state.live_room_hub.broadcast(room_id, event)
 
@@ -1361,11 +1383,84 @@ class ScheduleGroupClassRequest(BaseModel):
     room_size: int = 6
     language: str = "en"
     description: str = ""
+    marketplace_listing: bool = False
+    audit_required: bool = False
+    credentials_summary: str = ""
+    credential_photo_url: str = ""
+    identity_photo_url: str = ""
+    interview_notes: str = ""
+    demo_notes: str = ""
+    instructor_name: str = ""
+    price_per_user_usd: float = 0.0
+    commission_rate: float = 0.15
+    payment_required: bool = False
+    attendee_code_required: bool = False
+    max_faces_allowed: int = 1
+    require_liveness: bool = True
+    recording_protection_required: bool = True
+    device_profile: str = ""
+    camera_ingest_mode: str = "platform_default"
+    camera_sources: list[dict] = []
 
 
 class RegisterRequest(BaseModel):
     name: str
     email: str = ""
+    checkout_session_id: str = ""
+    payment_status: str = "unpaid"
+    attendee_code: str = ""
+
+
+class GroupClassCheckoutRequest(BaseModel):
+    name: str
+    email: str = ""
+    payment_method: str = "card"
+
+
+class GroupClassConfirmPaymentRequest(BaseModel):
+    checkout_session_id: str
+
+
+class GroupClassReviewRequest(BaseModel):
+    rating: int
+    comment: str = ""
+
+
+class GroupClassAuditRequest(BaseModel):
+    approved: bool
+    interview_notes: str = ""
+    demo_notes: str = ""
+
+
+class GroupClassCameraSourcesRequest(BaseModel):
+    device_profile: str = ""
+    camera_ingest_mode: str = ""
+    camera_sources: list[dict] = []
+
+
+class TeachRequest(BaseModel):
+    title: str
+    lesson_id: str
+    start_time: str
+    duration_min: int = 60
+    language: str = "en"
+    description: str = ""
+    instructor_name: str = ""
+    credentials_summary: str
+    credential_photo_url: str = ""
+    identity_photo_url: str = ""
+    demo_notes: str = ""
+    interview_notes: str = ""
+    price_per_user_usd: float = 0.0
+    capacity: int = 8
+    room_size: int = 9
+    commission_rate: float = 0.15
+    max_faces_allowed: int = 1
+    require_liveness: bool = True
+    recording_protection_required: bool = True
+    device_profile: str = "teams_cisco_room"
+    camera_ingest_mode: str = "external_preferred"
+    camera_sources: list[dict] = []
 
 
 class LiveRoomLocation(BaseModel):
@@ -1383,16 +1478,28 @@ def list_group_classes(upcoming: bool = True) -> dict:
 
     ensure_standard_daily_classes(_group_store())
     classes = _group_store().list(upcoming_only=upcoming)
-    return {"classes": [c.to_dict() for c in classes]}
+    return {"classes": [_group_class_payload(c) for c in classes]}
 
 
 @app.post("/api/group-classes")
-def schedule_group_class(req: ScheduleGroupClassRequest) -> dict:
+def schedule_group_class(
+    req: ScheduleGroupClassRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    payload = req.model_dump()
+    payload["created_by_account_id"] = account_id
+    if req.marketplace_listing:
+        payload["instructor_account_id"] = account_id
+        payload["audit_required"] = True
+        payload["audit_status"] = AUDIT_PENDING
     try:
-        gc = _group_store().schedule(**req.model_dump())
+        gc = _group_store().schedule(**payload)
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return gc.to_dict()
+    return _group_class_payload(gc)
 
 
 def _find_unique_group_class_prefix(store: GroupClassStore, class_id: str):
@@ -1425,23 +1532,246 @@ def get_group_class(class_id: str) -> dict:
     gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
-    return gc.to_dict()
+    return _group_class_payload(gc)
 
 
 @app.post("/api/group-classes/{class_id}/register")
-def register_group_class(class_id: str, req: RegisterRequest) -> dict:
+def register_group_class(
+    class_id: str,
+    req: RegisterRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
     store = _group_store()
+    account_id = account_from_authorization(authorization) or ""
     if store.get(class_id) is None:
         _seed_group_classes()   # materialize standard classes on a miss (see _find_group_class)
     try:
-        store.register(class_id, req.name, req.email)
+        if req.attendee_code.strip():
+            store.authorize_attendee(
+                class_id,
+                attendee_code=req.attendee_code,
+                account_id=account_id,
+                identity="",
+            )
+        store.register(
+            class_id,
+            req.name,
+            req.email,
+            account_id=account_id,
+            checkout_session_id=req.checkout_session_id,
+            payment_status=req.payment_status,
+        )
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown group class")
     except ClassFullError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return store.require(class_id).to_dict()
+    return _group_class_payload(store.require(class_id))
+
+
+@app.post("/api/group-classes/{class_id}/camera-sources")
+def upsert_group_class_camera_sources(
+    class_id: str,
+    req: GroupClassCameraSourcesRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    gc = _find_group_class(class_id)
+    if gc is None:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    if not (_request_is_admin(authorization) or _class_host_is_caller(gc, authorization)):
+        raise HTTPException(status_code=403, detail="class host or admin required")
+    if req.device_profile.strip():
+        gc.device_profile = req.device_profile.strip().lower()
+    if req.camera_ingest_mode.strip():
+        gc.camera_ingest_mode = req.camera_ingest_mode.strip().lower()
+    gc.camera_sources = [
+        dict(row) for row in req.camera_sources if isinstance(row, dict)
+    ][:16]
+    _group_store().save(gc)
+    return _group_class_payload(gc)
+
+
+@app.post("/api/group-classes/teach-request")
+def submit_teach_request(
+    req: TeachRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    if not account_id:
+        raise HTTPException(status_code=401, detail="sign in required to request teaching")
+    payload = {
+        "title": req.title,
+        "lesson_id": req.lesson_id,
+        "start_time": req.start_time,
+        "duration_min": req.duration_min,
+        "language": req.language,
+        "description": req.description,
+        "host": req.instructor_name or "Instructor",
+        "instructor_name": req.instructor_name or "Instructor",
+        "capacity": req.capacity,
+        "room_size": req.room_size,
+        "marketplace_listing": True,
+        "audit_required": True,
+        "audit_status": AUDIT_PENDING,
+        "created_by_account_id": account_id,
+        "instructor_account_id": account_id,
+        "credentials_summary": req.credentials_summary,
+        "credential_photo_url": req.credential_photo_url,
+        "identity_photo_url": req.identity_photo_url,
+        "interview_notes": req.interview_notes,
+        "demo_notes": req.demo_notes,
+        "price_per_user_usd": req.price_per_user_usd,
+        "commission_rate": req.commission_rate,
+        "payment_required": True,
+        "attendee_code_required": True,
+        "max_faces_allowed": req.max_faces_allowed,
+        "require_liveness": req.require_liveness,
+        "recording_protection_required": req.recording_protection_required,
+        "device_profile": req.device_profile,
+        "camera_ingest_mode": req.camera_ingest_mode,
+        "camera_sources": req.camera_sources,
+    }
+    try:
+        gc = _group_store().schedule(**payload)
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return _group_class_payload(gc)
+
+
+@app.post("/api/group-classes/{class_id}/audit")
+def audit_group_class(
+    class_id: str,
+    req: GroupClassAuditRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    if not _request_is_admin(authorization):
+        raise HTTPException(status_code=403, detail="admin role required")
+    try:
+        gc = _group_store().audit_class(
+            class_id,
+            approved=req.approved,
+            audited_by="salareen-employee",
+            interview_notes=req.interview_notes,
+            demo_notes=req.demo_notes,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return _group_class_payload(gc)
+
+
+@app.post("/api/group-classes/{class_id}/checkout")
+def checkout_group_class(
+    class_id: str,
+    req: GroupClassCheckoutRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    gc = _find_group_class(class_id)
+    if gc is None:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    if gc.audit_required and gc.audit_status != "approved":
+        raise HTTPException(status_code=400, detail="class has not yet passed Salareen audit")
+    if gc.price_per_user_usd <= 0:
+        raise HTTPException(status_code=400, detail="this class does not require paid checkout")
+    payment = app.state.factory.payment()
+    customer_id = account_id or req.email.strip() or req.name.strip().lower().replace(" ", "-")
+    plan_name = f"class-{gc.id}"
+    try:
+        session = payment.create_checkout(customer_id=customer_id, plan=plan_name)
+        reg = _group_store().open_checkout(
+            class_id,
+            name=req.name,
+            email=req.email,
+            account_id=account_id,
+            checkout_session_id=session.session_id,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    except ClassFullError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except (ValueError, NotImplementedError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return {
+        "checkout": {
+            "session_id": session.session_id,
+            "url": session.url,
+            "provider": session.provider,
+            "method": req.payment_method,
+            "payment_status": PAYMENT_PENDING,
+        },
+        "registration": reg.__dict__,
+    }
+
+
+@app.post("/api/group-classes/{class_id}/confirm-payment")
+def confirm_group_class_payment(
+    class_id: str,
+    req: GroupClassConfirmPaymentRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    try:
+        reg = _group_store().confirm_checkout(
+            class_id,
+            checkout_session_id=req.checkout_session_id,
+            account_id=account_id,
+        )
+        gc = _group_store().require(class_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {
+        "class": _group_class_payload(gc),
+        "registration": reg.__dict__,
+        "attendee_code": reg.attendee_code,
+        "payment_status": PAYMENT_PAID,
+    }
+
+
+@app.post("/api/group-classes/{class_id}/review")
+def review_group_class(
+    class_id: str,
+    req: GroupClassReviewRequest,
+    authorization: str = Header(default=""),
+) -> dict:
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    account_id = account_from_authorization(authorization) or ""
+    reviewer_name = "Learner"
+    if account_id:
+        try:
+            _, acct = _identity_profile_from_auth(authorization)
+            reviewer_name = acct.display_name or acct.email or reviewer_name
+        except Exception:
+            reviewer_name = "Learner"
+    try:
+        review = _group_store().add_review(
+            class_id,
+            reviewer_name=reviewer_name,
+            rating=req.rating,
+            comment=req.comment,
+            reviewer_account_id=account_id,
+        )
+        gc = _group_store().require(class_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown group class")
+    except GroupClassError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"class": _group_class_payload(gc), "review": review.to_dict()}
 
 
 @app.get("/api/group-classes/{class_id}/calendar.ics")
@@ -1475,6 +1805,8 @@ def start_group_class(
     gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
+    if gc.audit_required and gc.audit_status != "approved":
+        raise HTTPException(status_code=400, detail="class is pending Salareen audit approval")
 
     sessions = get_sessions()
     try:
@@ -1521,7 +1853,7 @@ def start_group_class(
     plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
 
     return {
-        "class": gc.to_dict(),
+        "class": _group_class_payload(gc),
         "session": SessionView(
             session=state,
             lesson=sessions.lesson_for(state.session_id),
@@ -1539,6 +1871,7 @@ def start_group_class(
 class LiveRoomJoinRequest(BaseModel):
     name: str
     identity: str = ""
+    attendee_code: str = ""
     language: str = ""
     student_id: str = ""
     readiness_score: float = 0.0
@@ -2036,6 +2369,22 @@ def join_live_room(
     # scheduled (not-yet-started) class works instead of 404ing.
     ensured_room = _ensure_group_class_room(room_id)
     resolved_room_id = ensured_room.room_id if ensured_room is not None else room_id
+    class_id = ""
+    if resolved_room_id.startswith("class-"):
+        class_id = resolved_room_id[len("class-"):]
+        gc = _find_group_class(class_id)
+        if gc is not None and gc.attendee_code_required:
+            if not req.attendee_code.strip():
+                raise HTTPException(status_code=400, detail="attendee_code is required for this class")
+            try:
+                _group_store().authorize_attendee(
+                    class_id,
+                    attendee_code=req.attendee_code,
+                    account_id=account_id,
+                    identity=req.identity,
+                )
+            except GroupClassError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
     try:
         participant = store.join(
             resolved_room_id,
@@ -2050,6 +2399,16 @@ def join_live_room(
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
+    if class_id and req.attendee_code.strip():
+        try:
+            _group_store().authorize_attendee(
+                class_id,
+                attendee_code=req.attendee_code,
+                account_id=account_id,
+                identity=participant.identity,
+            )
+        except GroupClassError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
     media = app.state.factory.media()
     token = media.issue_token(
         room=resolved_room_id,
