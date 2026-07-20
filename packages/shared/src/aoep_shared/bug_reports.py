@@ -246,7 +246,7 @@ def _upload_private_screenshots(
             repo_path = f"bug-report-attachments/{report.id}/{filename}"
             url = _upload_one_screenshot(data, repo, repo_path, token)
             if url:
-                links.append(f"- [{filename}]({url})")
+                links.append(f"- ![{filename}]({url})")
             else:
                 errors.append(f"{filename}: upload returned no URL")
         except (OSError, ValueError, urllib.error.HTTPError) as exc:
