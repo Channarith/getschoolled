@@ -941,14 +941,31 @@ def assessment_policy_for_session(session_id: str) -> dict:
         "audience": audience,
         "professional": professional,
         "checkpoints": checkpoints,
-        "retention_intervals_days": [0, 7, 30, 90],
+        "retention_intervals_days": [1, 7, 30, 90],
         "pass_rule": pass_rule,
     }
 
 
+def _assessment_account_id(authorization: str) -> str:
+    """Extract account id from a bearer token without calling identity."""
+    from aoep_shared.auth import verify_token  # noqa: E402
+    key = os.environ.get("AUTH_SIGNING_KEY", "dev-auth-signing-key").encode()
+    bearer = (authorization or "").strip()
+    if bearer.lower().startswith("bearer "):
+        bearer = bearer[7:].strip()
+    claims = verify_token(bearer, key) if bearer else None
+    return str(claims.get("sub", "")).strip() if claims else ""
+
+
 @app.post("/assessment/checkpoints/start")
-def assessment_checkpoint_start(req: PolicyAssessmentStartRequest) -> dict:
+def assessment_checkpoint_start(
+    req: PolicyAssessmentStartRequest,
+    authorization: str = Header(default=""),
+) -> dict:
     """Create a private answer-key run and return a profile-selected presentation."""
+    account_id = _assessment_account_id(authorization)
+    if not account_id:
+        raise HTTPException(status_code=401, detail="authentication required for assessments")
     sessions = get_sessions()
     session = None
     course_id = req.course_id.strip()
@@ -1016,6 +1033,7 @@ def assessment_checkpoint_start(req: PolicyAssessmentStartRequest) -> dict:
         )
     app.state.assessment_runs[run_id] = {
         "student_id": req.student_id,
+        "account_id": account_id,
         "course_id": course_id,
         "policy": policy,
         "items": items,
@@ -1048,11 +1066,19 @@ def _assessment_signing_key() -> bytes:
 def assessment_checkpoint_submit(
     run_id: str,
     req: PolicyAssessmentSubmitRequest,
+    authorization: str = Header(default=""),
 ) -> dict:
     """Grade against the server-held key and issue a signed pass decision."""
+    account_id = _assessment_account_id(authorization)
+    if not account_id:
+        raise HTTPException(status_code=401, detail="authentication required for assessments")
     run = app.state.assessment_runs.pop(run_id, None)
     if run is None:
         raise HTTPException(status_code=404, detail="unknown or already submitted assessment run")
+    if run.get("account_id") and run["account_id"] != account_id:
+        # Put the run back so it isn't consumed by an impersonator.
+        app.state.assessment_runs[run_id] = run
+        raise HTTPException(status_code=403, detail="assessment run belongs to another account")
     try:
         result = evaluate_checkpoint(
             student_id=run["student_id"],

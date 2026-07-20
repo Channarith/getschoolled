@@ -116,5 +116,5 @@ def test_retention_schedule_is_immediate_7_30_90_days():
         completed_at=1_000.0,
         source_attempt_id="attempt-1",
     )
-    assert [check.interval_days for check in checks] == [0, 7, 30, 90]
+    assert [check.interval_days for check in checks] == [1, 7, 30, 90]
     assert checks[-1].due_at == 1_000.0 + 90 * 86_400

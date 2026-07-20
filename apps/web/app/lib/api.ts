@@ -1297,7 +1297,7 @@ export async function startAssessmentCheckpoint(args: {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/assessment/checkpoints/start`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         student_id: args.studentId,
         session_id: args.sessionId ?? "",
@@ -1325,7 +1325,7 @@ export async function submitAssessmentCheckpoint(
       `${ORCHESTRATOR_URL}/assessment/checkpoints/${encodeURIComponent(runId)}/submit`,
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...authHeaders() },
         body: JSON.stringify({ chosen_indices: chosenIndices }),
       },
     ),
