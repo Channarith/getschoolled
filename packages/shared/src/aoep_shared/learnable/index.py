@@ -301,12 +301,47 @@ def search_learnable(
     rows: List[LearnableItem] = list(items)
 
     if kids_only:
-        rows = [
-            c for c in rows
-            if c.maturity_rating == "kids"
-            or c.format in ("live_class", "game", "interactive")
-            or (c.format == "audio" and c.duration_min <= 15)
-        ]
+        # Subject-matter allow-list: categories and keyword patterns safe for children.
+        _KIDS_CATEGORIES = frozenset({
+            "history", "science & nature", "science", "nature", "arts & culture",
+            "arts & film", "music & instruments", "geography & world", "geography",
+            "health & wellness", "cooking & food", "cooking", "sports & games",
+            "sports", "focus & philosophy", "world cultures", "true stories & biographies",
+            "mathematics", "math", "languages", "stem", "animals",
+            "civics & law", "productivity & study", "kids", "children",
+        })
+        _KIDS_TITLE_BLOCK = (
+            "ai fluency", "machine learning", "deep learning", "neural network",
+            "devops", "sap ", "power bi", "microeconomics", "macroeconomics",
+            "differential equations", "linear algebra", "calculus ii",
+            "options and derivatives", "cryptocurrency", "blockchain", "xrp",
+            "venture capital", "ux design", "cybersecurity", "it fundamentals",
+        )
+
+        def _is_kids_safe(c: "LearnableItem") -> bool:
+            if c.maturity_rating == "kids":
+                return True
+            title_low = c.title.lower()
+            # Block explicitly adult/professional topics by title.
+            if any(block in title_low for block in _KIDS_TITLE_BLOCK):
+                return False
+            cat_low = (c.category or c.subject or "").lower()
+            # Arcade games (all subjects) are fine.
+            if c.format == "game":
+                return True
+            # Language-learning courses are always kids-safe.
+            if c.format in ("language", "interactive") or "language" in cat_low:
+                return True
+            # Audio and live-class courses: only allow kids-appropriate categories.
+            if any(k in cat_low for k in _KIDS_CATEGORIES):
+                return True
+            # Tags can explicitly mark something kids-safe.
+            tags_low = " ".join(c.tags or []).lower()
+            if "kids" in tags_low or "children" in tags_low or "elementary" in tags_low:
+                return True
+            return False
+
+        rows = [c for c in rows if _is_kids_safe(c)]
 
     if audience or core_skill is not None:
         from aoep_shared.skills_taxonomy import course_relevance
