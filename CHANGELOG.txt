@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window.
 - 2026-07-20 - v0.27.4 - Live room interactive voice loop: Theodore says learner's name when granting floor; detects "Say it out loud"/"Repeat after me" phrases and auto-opens mic; appends "Does that answer your question?" to every answer and holds the floor open for yes/no confirmation before releasing; Theodore auto-replies to class chat messages; solo class gets Pause/Resume instead of Close Session, and Leave now ends the session cleanly.
 - 2026-07-20 - v0.27.3 - Fix low-contrast banners in live room (adaptation monitor, insecure-origin, camera-note now use opaque high-contrast backgrounds); hide social sign-in config message from users on plain HTTP.
 - 2026-07-20 - v0.27.2 - Fix bug-report GitHub delivery: use Git blobs API for screenshots >900 KB (Contents API rejects >1 MB), fix GET requests in _github_json to omit body, add migrate_bugs_to_github.py script to back-fill existing reports to GitHub Issues.
@@ -971,6 +972,7 @@ Format: newest first. No markdown per project convention.
   main-thread FAULT (check authorizationStatus first via
   ensureForegroundLocationPermission). CI: renamed duplicate test_run.py files that
   broke pytest collection. Release tooling: rolled the stale CHANGELOG [unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window.
   block that had pinned bump_pr_version.py to MINOR on every run, so routine PRs
   are PATCH bumps again.
 
@@ -3790,8 +3792,10 @@ Format: newest first. No markdown per project convention.
 
 [0.3.1] - 2026-06-18
 - fix(changelog): repair changelog rolling. build_release.py only recognized a
-  dated "[unreleased] - <date>" header, so the bare "[unreleased]" header was
-  never rolled into a release: real notes piled up under [unreleased] while the
+  dated "[unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window. - <date>" header, so the bare "[unreleased]" header was
+  never rolled into a release: real notes piled up under [unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window. while the
   bot appended empty "[0.2.x] - release build (no itemized changes)" sections.
   The regex now matches both forms; the corrupted cascade was collapsed and the
   accumulated notes consolidated into [0.3.0].

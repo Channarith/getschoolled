@@ -1225,15 +1225,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
     // If we're in the confirmation loop, check whether the learner said yes/no.
     if (awaitingConfirmation) {
-      setAwaitingConfirmation(false);
       const affirm = /\b(yes|yeah|yep|yup|got it|thanks|thank you|that.?s right|perfect|great|sure|ok|okay|confirmed|correct)\b/i;
       if (!spoken || affirm.test(spoken)) {
         // Confirmed — release the floor and resume slides.
+        // Clear awaitingConfirmation AFTER finish_turn so the hasFloor effect
+        // doesn't replay the floor cue between now and when the floor releases.
         setBusy(true);
         try {
           const pid = room?.floor_participant_id || me.id;
-          setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
+          const updated = await liveRoomFinishTurn(roomId, pid, moderatorKey);
+          setAwaitingConfirmation(false);
+          setRoom(updated);
         } catch (e) {
+          setAwaitingConfirmation(false);
           setError(friendlyError(e, "Couldn't release the floor"));
         } finally {
           setBusy(false);
@@ -1241,6 +1245,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         return;
       }
       // Didn't confirm — treat what they said as a follow-up question.
+      setAwaitingConfirmation(false);
     }
 
     setBusy(true);
@@ -1432,6 +1437,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         });
       });
     }
+    return () => {
+      // Clear any trigger-phrase confirmation timer so it doesn't fire against
+      // a stale slide after a slide change.
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+        confirmationTimerRef.current = null;
+      }
+    };
   }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
       canModerate, moderatorKey, roomId, paused, me?.id, startListening, stopListening]);
 
@@ -1449,13 +1462,20 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (roomRef.current?.status === "ended" || leftVoluntarily.current) return;
     const text = hostAnswer.text;
     const needsConfirmation = hostAnswer.awaitingConfirmation;
-    const isFloorHolder = roomRef.current?.floor_participant_id === me?.id;
+    // A chat reply (awaitingConfirmation=false) arriving while the floor holder
+    // is in the confirmation loop must not speak over the prompt or reset the
+    // confirmation timer. Skip TTS for the floor holder in that case.
+    if (!needsConfirmation && confirmationTimerRef.current) return;
+    const myId = me?.id;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
       if (leftVoluntarily.current || roomRef.current?.status === "ended") return;
       cancelSpeech();
       speakNaturally(text, {
         ...base,
         onend: () => {
+          // Re-read from the ref at onend time so a floor transfer during TTS
+          // doesn't open the mic on the wrong client.
+          const isFloorHolder = roomRef.current?.floor_participant_id === myId;
           if (!needsConfirmation || !isFloorHolder) return;
           // Floor holder: open mic for yes/no confirmation.
           setAwaitingConfirmation(true);
@@ -1488,10 +1508,14 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);
 
-  // When this learner is granted the floor, Theodore first says their name and
-  // invites them to speak, then opens the mic once the cue finishes.
+  // When this learner is granted the floor (and not already in the confirmation
+  // loop), Theodore speaks their name then opens the mic in the onend callback.
+  // awaitingConfirmation is intentionally NOT in this dep array — the mic
+  // is managed by a separate effect below so that a re-render triggered by
+  // setAwaitingConfirmation(true) does not run this effect's cleanup
+  // (stopListening) and kill the mic that onend just opened.
   useEffect(() => {
-    if (hasFloor && !awaitingConfirmation) {
+    if (hasFloor) {
       const firstName = (me?.name || "").split(" ")[0] || "there";
       const cue = `${firstName}, please ask your question.`;
       cancelSpeech();
@@ -1499,7 +1523,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         if (!roomRef.current?.floor_participant_id) return;
         speakNaturally(cue, { ...base, onend: () => { void startListening(); } });
       });
-    } else if (!hasFloor) {
+    } else {
       stopListening();
       setSpokenText("");
       spokenFinalRef.current = "";
@@ -1510,8 +1534,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         confirmationTimerRef.current = null;
       }
     }
-    return () => stopListening();
-  }, [hasFloor, awaitingConfirmation, me?.name, narrationLocale, startListening, stopListening]);
+    // No cleanup stopListening() here — that would kill the mic opened by onend
+    // whenever any dep changes (e.g. awaitingConfirmation flipping to true).
+  }, [hasFloor, me?.name, narrationLocale, startListening, stopListening]);
 
   async function banLearner(participantId: string, name: string) {
     if (!canModerate) return;

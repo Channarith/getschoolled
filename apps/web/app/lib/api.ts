@@ -2015,6 +2015,7 @@ export async function liveRoomAskStream(
         result = { ...result, awaitingConfirmation: true };
       } else if (ev.type === "done") {
         result = {
+          ...result,               // preserve awaitingConfirmation set by the preceding event
           queued: false,
           room: ev.room as LiveRoomState | undefined,
           text: (ev.text as string) ?? "",
