@@ -90,6 +90,7 @@ export default function ProfileMenu() {
           {loggedIn ? (
             <>
               <Link role="menuitem" href="/account" style={itemStyle}>👤 {t("profile.account")}</Link>
+              <Link role="menuitem" href="/my-list" style={itemStyle}>🔖 {t("nav.saved")}</Link>
               <Link role="menuitem" href="/rewards" style={itemStyle}>⭐ {t("profile.rewards")}</Link>
               <Link role="menuitem" href="/backgrounds" style={itemStyle}>🎨 {t("profile.themes")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>
