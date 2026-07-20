@@ -1,0 +1,110 @@
+LESSON: HIPAA Privacy and Security Training
+LANGUAGE: en
+
+SLIDE 1 | What Is HIPAA?
+The Health Insurance Portability and Accountability Act (HIPAA) was enacted by Congress in 1996. Its original purpose was to ensure health insurance portability when workers change or lose jobs. Over time, it has become best known for its privacy and security rules that govern how health information is created, used, and shared. HIPAA violations can result in significant civil and criminal penalties.
+NARRATION: HIPAA, enacted in 1996, establishes rules governing how health information is protected and shared.
+
+SLIDE 2 | Covered Entities
+HIPAA applies directly to covered entities: health plans, health care clearinghouses, and health care providers that transmit health information electronically. Health plans include insurers, HMOs, Medicare, and Medicaid. Health care providers include hospitals, physician practices, pharmacies, dentists, chiropractors, and nursing homes. If your organization is a covered entity, HIPAA compliance is mandatory.
+NARRATION: Covered entities include health plans, clearinghouses, and health care providers who transmit information electronically.
+
+SLIDE 3 | Business Associates
+A business associate is any person or entity that performs certain functions or activities on behalf of a covered entity that involves the use or disclosure of protected health information (PHI). Examples include billing companies, IT vendors, cloud storage providers, transcription services, and legal firms. Business associates must sign a Business Associate Agreement (BAA) and are directly subject to HIPAA regulations.
+NARRATION: Business associates who handle PHI on behalf of covered entities must sign a Business Associate Agreement.
+
+SLIDE 4 | What Is Protected Health Information (PHI)?
+PHI is any individually identifiable health information that relates to an individual's past, present, or future physical or mental health condition, health care services, or payment for health care. PHI includes information in any form — electronic, paper, or verbal. The 18 HIPAA identifiers include name, address, dates, phone number, Social Security number, medical record number, and IP address.
+NARRATION: PHI is any individually identifiable health information in electronic, paper, or verbal form.
+
+SLIDE 5 | Electronic PHI (ePHI)
+Electronic protected health information (ePHI) is PHI that is created, received, maintained, or transmitted in electronic form. ePHI is subject to the HIPAA Security Rule in addition to the Privacy Rule. Common ePHI includes electronic health records (EHRs), billing systems, email communications containing patient information, and medical imaging files.
+NARRATION: ePHI is any protected health information in electronic form and is governed by both the Privacy and Security Rules.
+
+SLIDE 6 | The Minimum Necessary Standard
+The Privacy Rule requires that covered entities and business associates make reasonable efforts to limit the use, disclosure, and request of PHI to the minimum necessary to accomplish the intended purpose. This means employees should access only the patient records needed to perform their job — not records of family members, neighbors, celebrities, or other patients out of curiosity.
+NARRATION: Access only the minimum amount of patient information needed to perform your specific job duties.
+
+SLIDE 7 | Permitted Uses and Disclosures
+HIPAA permits the use and disclosure of PHI without patient authorization for treatment, payment, and health care operations (TPO). For example, a physician may share a patient's record with a specialist for treatment purposes without separate written authorization. Other permitted disclosures include public health reporting, law enforcement under specific circumstances, and research subject to safeguards.
+NARRATION: Treatment, payment, and health care operations are the most common permitted uses of PHI without authorization.
+
+SLIDE 8 | Patient Rights Under HIPAA
+Patients have the right to access and receive a copy of their PHI, request corrections to their records, receive an accounting of disclosures, request restrictions on certain uses, request confidential communications, and file complaints with the covered entity or the Department of Health and Human Services (HHS). Covered entities must respond to access requests within 30 days.
+NARRATION: Patients can access their records, request corrections, and file complaints with HHS under HIPAA.
+
+SLIDE 9 | Notice of Privacy Practices
+Covered entities must provide patients with a Notice of Privacy Practices (NPP) that explains how PHI is used and disclosed, patient rights, and how to file a complaint. Health care providers must give patients the NPP at the first point of service and make good-faith efforts to obtain written acknowledgment of receipt. Health plans must distribute the NPP at enrollment and at least every three years thereafter.
+NARRATION: The Notice of Privacy Practices tells patients how their health information is used and how to file complaints.
+
+SLIDE 10 | The Privacy Rule Overview
+The HIPAA Privacy Rule (45 CFR Part 164, Subpart E) establishes national standards for the protection of PHI. It applies to all PHI regardless of form or medium. The Privacy Rule grants patients rights over their health information and sets limits on who can access and use it. Covered entities must have written privacy policies and designate a Privacy Officer.
+NARRATION: The Privacy Rule establishes national standards for protecting health information in all forms.
+
+SLIDE 11 | The Security Rule — Administrative Safeguards
+The HIPAA Security Rule (45 CFR Part 164, Subpart C) applies specifically to ePHI. Administrative safeguards are the policies and procedures that manage the selection, development, implementation, and maintenance of security measures. Required elements include a Security Management Process, designated Security Officer, workforce security training, access management, and contingency planning.
+NARRATION: Administrative safeguards are policies and training programs that govern how ePHI is managed and secured.
+
+SLIDE 12 | The Security Rule — Physical Safeguards
+Physical safeguards control physical access to ePHI. They include facility access controls, workstation policies, and device and media controls. Servers containing ePHI must be in locked rooms. Screens must be positioned so unauthorized individuals cannot view patient information. Unattended workstations must be locked. Portable devices containing ePHI must be encrypted.
+NARRATION: Physical safeguards restrict who can physically access devices and systems that store patient information.
+
+SLIDE 13 | The Security Rule — Technical Safeguards
+Technical safeguards are the technology solutions that protect ePHI. Required measures include access controls (unique user IDs and passwords), audit controls (logs of who accessed what and when), integrity controls (ensuring data is not improperly altered or destroyed), and transmission security (encrypting ePHI sent over open networks). Multi-factor authentication is a best practice for all ePHI systems.
+NARRATION: Technical safeguards use technology to control access, create audit logs, and encrypt patient data.
+
+SLIDE 14 | Breach Notification Rule
+A breach is an impermissible acquisition, access, use, or disclosure of PHI that compromises the security or privacy of the information. Covered entities must notify affected individuals within 60 days of discovering a breach. Breaches affecting 500 or more individuals in a state must also be reported to HHS and prominent media outlets. All breaches, regardless of size, must be reported to HHS annually.
+NARRATION: PHI breaches must be reported to affected patients within 60 days and to HHS for all incidents.
+
+SLIDE 15 | The HITECH Act
+The Health Information Technology for Economic and Clinical Health (HITECH) Act of 2009 strengthened HIPAA by increasing penalty amounts, extending liability to business associates, creating the Breach Notification Rule, and incentivizing adoption of electronic health records. HITECH also enhanced enforcement authority and allowed states' attorneys general to bring civil actions on behalf of state residents affected by HIPAA violations.
+NARRATION: HITECH strengthened HIPAA by increasing penalties, covering business associates, and creating breach notification requirements.
+
+SLIDE 16 | Texting and PHI
+Sending unencrypted PHI via standard text message is generally considered a violation of the HIPAA Security Rule because standard SMS is not encrypted during transmission. Organizations should use a secure messaging platform that encrypts messages, authenticates users, and provides remote wipe capabilities. If clinicians must text PHI, a risk analysis and appropriate safeguards are required.
+NARRATION: Standard text messages are not encrypted — use a secure messaging platform for any PHI communications.
+
+SLIDE 17 | Email and PHI
+Unencrypted email transmitted over the internet is not considered a secure channel for PHI. Covered entities must implement encryption for emails containing ePHI sent outside the organization's network. Internal email on a secure server may be acceptable if the organization has conducted a risk analysis. Staff should never forward PHI to personal email accounts.
+NARRATION: Encrypt PHI emails sent outside your network and never forward patient information to a personal account.
+
+SLIDE 18 | Social Media and HIPAA
+Posting any patient information on social media — even without a name — can violate HIPAA if the information could reasonably be used to identify the patient. This includes posting about interesting cases, sharing photos taken in patient care areas, or commenting on a patient's condition. Once something is posted online, it can be impossible to fully retract.
+NARRATION: Never post patient information or photos from care areas on social media — even without using a name.
+
+SLIDE 19 | Penalties and Enforcement
+HHS Office for Civil Rights (OCR) enforces HIPAA. Civil penalties are tiered based on culpability, ranging from $100 per violation (if the covered entity was unaware) up to $50,000 per violation for willful neglect, with an annual cap of $1.9 million per violation category. Criminal penalties, prosecuted by the Department of Justice, can result in fines up to $250,000 and 10 years in prison for knowingly violating HIPAA.
+NARRATION: HIPAA civil penalties reach up to $50,000 per violation, and criminal violations can lead to prison.
+
+SLIDE 20 | Common HIPAA Violations
+The most frequently cited HIPAA violations include: impermissible uses and disclosures of PHI, failure to provide patients with access to their records, failure to implement adequate ePHI safeguards, failure to conduct a thorough risk analysis, and lack of required policies and workforce training. Many violations are the result of human error, not malicious intent — reinforcing the importance of training.
+NARRATION: Most HIPAA violations stem from inadequate training, weak policies, or accidental disclosures — not malicious intent.
+
+SLIDE 21 | The Risk Analysis Requirement
+The Security Rule requires covered entities and business associates to conduct a thorough, accurate, and scope-wide risk analysis to identify all risks to the confidentiality, integrity, and availability of ePHI. The risk analysis must be documented, reviewed regularly, and updated when operations or technology change. It is the foundation of a compliant security program.
+NARRATION: A documented risk analysis of all threats to ePHI is a core Security Rule requirement.
+
+SLIDE 22 | Workforce Training
+All members of the workforce — including volunteers and students — who have access to PHI must receive HIPAA privacy and security training that is specific to their job functions. Training must occur at hire and when material changes to policies or regulations occur. Organizations should document training dates and content. Workforce members who fail to comply with policies must face disciplinary action.
+NARRATION: All staff with access to PHI must receive role-specific HIPAA training and face discipline for violations.
+
+SLIDE 23 | De-identification of PHI
+Information that has been properly de-identified is no longer subject to HIPAA restrictions and can be used for research, marketing, or other purposes. HIPAA recognizes two de-identification methods: the Expert Determination method and the Safe Harbor method, which requires removal of all 18 specific identifiers. Re-identification of de-identified data is prohibited.
+NARRATION: Properly de-identified data is no longer PHI and is not subject to HIPAA restrictions.
+
+SLIDE 24 | Telehealth and HIPAA
+The expansion of telehealth has increased the use of video conferencing and remote monitoring technologies that transmit ePHI. Covered entities must ensure that telehealth platforms are HIPAA-compliant, include a BAA from the vendor, and use end-to-end encryption. During a telehealth encounter, clinicians must conduct sessions from private locations to prevent incidental disclosures.
+NARRATION: Telehealth platforms must be HIPAA-compliant with a Business Associate Agreement and end-to-end encryption.
+
+SLIDE 25 | Building a Culture of Privacy
+HIPAA compliance is not just a legal checkbox — it is an ongoing commitment to treating patient information with the respect and confidentiality patients deserve. Building a culture of privacy means workforce members take their data protection responsibilities seriously every day, report potential breaches immediately, and view privacy as a core professional value.
+NARRATION: A culture of privacy treats patient information as a fundamental professional responsibility, not just a legal requirement.
+
+FACT: PHI includes 18 specific identifiers such as name, address, Social Security number, and IP address.
+FACT: Covered entities must notify patients of a breach within 60 days of discovering it.
+FACT: Business associates are directly subject to HIPAA and must sign a Business Associate Agreement.
+FACT: The minimum necessary standard requires accessing only the PHI needed to perform your specific job.
+FACT: HIPAA criminal penalties can result in up to $250,000 in fines and 10 years in prison.
+FACT: Standard SMS text messages are not encrypted and are not a secure method for transmitting PHI.
+FACT: The Security Rule requires a documented risk analysis of all threats to ePHI.

@@ -1,0 +1,110 @@
+LESSON: Fire Safety and Prevention
+LANGUAGE: en
+
+SLIDE 1 | Why Fire Safety Matters
+Fires in commercial and industrial settings cause billions of dollars in property damage and hundreds of deaths each year in the United States. Most workplace fires are preventable with proper training, equipment maintenance, and safe work practices. Understanding fire behavior and response procedures can mean the difference between a minor incident and a catastrophic loss.
+NARRATION: Most workplace fires are preventable through proper training, equipment maintenance, and safe practices.
+
+SLIDE 2 | The Fire Triangle
+Fire requires three elements to exist simultaneously: fuel (any combustible material), heat (sufficient temperature to ignite the fuel), and oxygen (typically air). This relationship is called the fire triangle. Removing any one of the three elements will extinguish a fire. Fire suppression methods work by targeting one or more of these elements.
+NARRATION: Fire needs fuel, heat, and oxygen — remove any one of them and the fire goes out.
+
+SLIDE 3 | The Fire Tetrahedron
+Modern fire science adds a fourth element to create the fire tetrahedron: the chemical chain reaction that sustains combustion. Some suppression agents, such as halon and certain dry chemicals, work by interrupting this chain reaction rather than by removing fuel, heat, or oxygen. Understanding the tetrahedron helps explain why different extinguishing agents are effective on different fire types.
+NARRATION: Some extinguishing agents work by interrupting the chemical chain reaction that sustains fire.
+
+SLIDE 4 | Class A Fires
+Class A fires involve ordinary combustible materials such as wood, paper, cloth, rubber, and many plastics. These are the most common type of fire. Class A fires are best extinguished with water or water-based agents, which cool the burning material below its ignition temperature. Most multi-purpose dry chemical extinguishers also rated for Class A fires.
+NARRATION: Class A fires involve ordinary combustibles like wood and paper, and are best extinguished with water.
+
+SLIDE 5 | Class B Fires
+Class B fires involve flammable and combustible liquids such as gasoline, oil, grease, solvents, and alcohols, as well as flammable gases. Water should never be used on Class B fires because it can spread the burning liquid. Appropriate agents include carbon dioxide, dry chemical, and foam. Always extinguish at the base of the flame.
+NARRATION: Never use water on Class B flammable liquid fires — use CO2, dry chemical, or foam instead.
+
+SLIDE 6 | Class C Fires
+Class C fires involve energized electrical equipment such as motors, switchboards, and wiring. The "C" stands for "current." The primary hazard is electrocution if a conductive extinguishing agent like water is used. Carbon dioxide and dry chemical extinguishers rated for Class C do not conduct electricity. Once electrical power is de-energized, the fire may reclassify as Class A.
+NARRATION: Class C fires involve live electrical equipment — never use water because it conducts electricity.
+
+SLIDE 7 | Class D and Class K Fires
+Class D fires involve combustible metals such as magnesium, titanium, potassium, and sodium. These fires require specialized dry powder extinguishing agents and must not be treated with water, CO2, or standard dry chemicals. Class K fires involve cooking oils and fats in commercial kitchen appliances. Wet chemical suppression systems and Class K extinguishers are specifically designed for kitchen fires.
+NARRATION: Class D fires involve combustible metals and Class K fires involve cooking oils, each requiring specialized agents.
+
+SLIDE 8 | Fire Extinguisher Types
+The most common portable fire extinguisher types are: water (Class A only), carbon dioxide (B and C), dry chemical (A, B, C), wet chemical (Class K), and clean agent (B and C). Multi-purpose ABC dry chemical extinguishers are the most widely used in workplaces. Extinguishers must be inspected monthly, maintained annually, and hydrostatically tested on a schedule based on type.
+NARRATION: ABC dry chemical extinguishers are most common, but always match the extinguisher type to the fire class.
+
+SLIDE 9 | The PASS Technique
+The PASS technique is the standard method for using a portable fire extinguisher: Pull the safety pin; Aim the nozzle at the base of the fire; Squeeze the handle to discharge the agent; Sweep the nozzle from side to side at the base of the flames. Most portable extinguishers discharge in 10 to 30 seconds. Only attempt to fight a fire if it is small, contained, and you have a clear exit path.
+NARRATION: To use a fire extinguisher, remember PASS — Pull, Aim, Squeeze, Sweep.
+
+SLIDE 10 | When NOT to Fight a Fire
+You should not attempt to fight a fire if it is spreading beyond the point of origin, if the room is filling with smoke, if you do not have the correct type of extinguisher, if you lack training, or if you cannot maintain a clear escape route. In these situations, pull the fire alarm, alert others, call 911, and evacuate immediately. The priority is always life safety over property protection.
+NARRATION: If a fire is spreading or the room fills with smoke, evacuate immediately rather than attempt to fight it.
+
+SLIDE 11 | Automatic Sprinkler Systems
+Automatic sprinkler systems are the most effective built-in fire protection tool in a building. Contrary to popular belief, sprinklers are heat-activated individually — only the heads near the fire activate. Sprinklers control or extinguish fire in 96 percent of cases where they operate. Never obstruct sprinkler heads, and report any damaged or missing heads to facilities immediately.
+NARRATION: Sprinkler systems activate individually by heat and control or extinguish fires in over 96 percent of cases.
+
+SLIDE 12 | Fire Alarm Systems
+Fire alarm systems detect smoke or heat and alert building occupants to evacuate. When an alarm sounds, always treat it as a real emergency — do not assume it is a drill or a false alarm. Fire alarm pull stations can also manually activate the system. If you discover a fire, activate the nearest pull station immediately before beginning to fight the fire or evacuate.
+NARRATION: Always treat a fire alarm as real and activate the nearest pull station when you discover a fire.
+
+SLIDE 13 | Evacuation Procedures
+Every workplace must have a documented evacuation plan with clearly marked primary and alternate exit routes. When evacuating: close doors behind you without locking them, do not use elevators, and proceed calmly to the designated assembly area. Account for all personnel at the assembly point. Do not re-enter the building until emergency responders give the all-clear.
+NARRATION: During evacuation, close doors, avoid elevators, and account for all personnel at the assembly area.
+
+SLIDE 14 | Fire Doors and Exits
+Fire-rated doors are designed to contain fire and smoke within a compartment for a specified period, protecting escape routes and limiting fire spread. Fire doors must be kept closed or equipped with automatic closers — propping them open defeats their purpose. Exit doors must be clearly marked, unobstructed, and unlocked during occupancy. Exit signs must be illuminated at all times.
+NARRATION: Fire doors must remain closed to contain fire, and exits must be unobstructed and clearly marked.
+
+SLIDE 15 | Hot Work Permits
+Hot work — including welding, cutting, grinding, and soldering — generates sparks and heat that can ignite surrounding materials. A hot work permit system requires workers to identify nearby flammable materials, remove or protect them, designate a fire watch, and inspect the area for at least 30 to 60 minutes after work is complete. Hot work is a leading cause of industrial fires.
+NARRATION: A hot work permit requires removing flammables and posting a fire watch before and after operations.
+
+SLIDE 16 | Flammable and Combustible Liquid Storage
+Flammable liquids (flash point below 100°F) and combustible liquids (flash point at or above 100°F) must be stored in approved safety containers, away from ignition sources, in ventilated areas, and in quantities no greater than what is needed for immediate use. OSHA and NFPA standards specify maximum quantities for storage inside and outside buildings. Dispensing areas must be grounded to prevent static sparks.
+NARRATION: Store flammable liquids in approved containers away from ignition sources and in ventilated areas.
+
+SLIDE 17 | Electrical Fire Prevention
+Electrical failures and malfunctions are one of the leading causes of workplace fires. Prevention measures include not overloading circuits or extension cords, using properly rated equipment for the environment, replacing damaged wiring or equipment promptly, keeping electrical panels clear of storage, and having a qualified electrician perform all electrical work. Ground fault circuit interrupters (GFCIs) protect against electrical fires and shock in wet locations.
+NARRATION: Prevent electrical fires by not overloading circuits, fixing damaged wiring, and keeping panels accessible.
+
+SLIDE 18 | Kitchen Fire Safety
+Commercial kitchen fires frequently involve cooking oils that have exceeded their smoke point and ignited. Key prevention measures include never leaving cooking unattended, keeping equipment clean and grease-free, and ensuring suppression systems above cooking appliances are maintained and unobstructed. If a grease fire occurs on the stovetop, cover it with a lid to smother it — never use water.
+NARRATION: Prevent kitchen fires by cleaning equipment regularly and never using water on a grease fire.
+
+SLIDE 19 | Smoke Detector Maintenance
+Smoke detectors provide the earliest warning of a fire and are essential for life safety. Detectors should be tested monthly using the test button and cleaned per manufacturer instructions. Battery-powered units require annual battery replacement; hardwired units should have backup batteries. Detectors older than 10 years should be replaced. Never remove or disable a smoke detector.
+NARRATION: Test smoke detectors monthly, replace batteries annually, and replace the unit after 10 years.
+
+SLIDE 20 | Building Fire Codes
+Building fire codes — developed by organizations such as the National Fire Protection Association (NFPA) and the International Building Code (IBC) — establish minimum safety requirements for building construction, occupancy loads, exit access, fire suppression systems, and fire alarm systems. Local authorities enforce these codes through building permits and inspections. Code compliance is the legal baseline; many facilities aim for higher standards.
+NARRATION: Building fire codes set minimum requirements for construction, occupancy, exits, and suppression systems.
+
+SLIDE 21 | Fire Warden Duties
+Fire wardens (also called fire marshals or floor wardens) are designated employees responsible for assisting in the orderly evacuation of their area during an emergency. Duties include knowing all exits and evacuation routes, conducting floor sweeps to ensure all occupants evacuate, assisting people with disabilities or mobility limitations, and reporting headcount to emergency services at the assembly area.
+NARRATION: Fire wardens sweep their area, assist those who need help, and report headcount at the assembly area.
+
+SLIDE 22 | Special Hazards — Combustible Dust
+Combustible dust — fine particles of organic or metallic materials — can form explosive clouds in enclosed spaces. Industries such as food processing, woodworking, and metal finishing are at high risk. The dust must be kept below explosion threshold concentrations through regular housekeeping, proper ventilation, and ignition source control. Combustible dust fires can escalate into devastating secondary explosions.
+NARRATION: Combustible dust can form explosive clouds — control accumulations through regular housekeeping and ventilation.
+
+SLIDE 23 | Compressed Gas Safety
+Compressed gas cylinders stored or used improperly can become projectiles or fuel a fire. Cylinders must be secured upright, stored with caps on when not in use, kept away from heat sources and open flames, and segregated by gas type (e.g., flammable and oxidizing gases stored separately). Cylinders must never be dropped, dragged, or placed in enclosed vehicles.
+NARRATION: Secure cylinders upright, store with caps on, and keep flammable and oxidizing gases separated.
+
+SLIDE 24 | Fire Safety Inspections and Audits
+Regular fire safety inspections help identify and correct hazards before a fire occurs. Inspections should cover fire extinguisher condition and placement, exit and aisle clearance, storage of flammables, condition of fire doors and sprinklers, and integrity of electrical systems. Findings should be documented, corrective actions assigned with deadlines, and follow-up inspections scheduled to verify compliance.
+NARRATION: Regular fire safety inspections identify hazards and must document findings with corrective action deadlines.
+
+SLIDE 25 | Building Your Fire Safety Culture
+Fire safety is everyone's responsibility — not just the safety team's. Employees should know their evacuation routes before an emergency, report fire hazards immediately, participate in drills seriously, and never prop open fire doors or block exits. A fire-safe culture is built through regular training, visible leadership commitment, and treating near-misses as learning opportunities.
+NARRATION: Everyone shares responsibility for fire safety — report hazards, know your exits, and take drills seriously.
+
+FACT: The fire triangle consists of fuel, heat, and oxygen — remove any element and fire cannot exist.
+FACT: The PASS technique stands for Pull, Aim, Squeeze, and Sweep.
+FACT: Sprinkler systems control or extinguish fire in over 96 percent of cases where they operate.
+FACT: Fire doors must remain closed to contain fire and protect escape routes.
+FACT: A hot work permit requires a fire watch for at least 30 to 60 minutes after work is complete.
+FACT: Never use water on Class B flammable liquid or Class C electrical fires.
+FACT: Class K fires involve cooking oils and require wet chemical suppression agents.

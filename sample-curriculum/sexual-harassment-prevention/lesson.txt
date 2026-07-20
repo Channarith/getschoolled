@@ -1,0 +1,110 @@
+LESSON: Sexual Harassment Prevention Training
+LANGUAGE: en
+
+SLIDE 1 | What Is Sexual Harassment?
+Sexual harassment is unwelcome conduct of a sexual nature that affects an individual's employment, unreasonably interferes with their work performance, or creates an intimidating, hostile, or offensive work environment. It is a form of sex discrimination prohibited under federal and most state laws. Both men and women can be victims or perpetrators, and harassment can occur between people of the same gender.
+NARRATION: Sexual harassment is unwelcome sexual conduct that affects someone's employment or creates a hostile work environment.
+
+SLIDE 2 | Quid Pro Quo Harassment
+Quid pro quo — meaning "this for that" — occurs when a supervisor or person in authority conditions a job benefit on an employee's submission to sexual advances or conduct. Examples include promising a promotion in exchange for a date, or threatening termination if a sexual request is refused. A single incident can be enough to constitute quid pro quo harassment.
+NARRATION: Quid pro quo harassment means tying job benefits or punishments to sexual demands.
+
+SLIDE 3 | Hostile Work Environment
+A hostile work environment exists when unwelcome sexual conduct is so severe or pervasive that it alters the conditions of employment and a reasonable person would find it abusive. This can include sexual jokes, displaying explicit images, unwanted touching, or repeated inappropriate comments. Unlike quid pro quo, a hostile environment can be created by coworkers, not just supervisors.
+NARRATION: A hostile work environment results from pervasive sexual conduct that a reasonable person would find abusive.
+
+SLIDE 4 | Federal Law — Title VII of the Civil Rights Act
+Title VII of the Civil Rights Act of 1964 prohibits employment discrimination based on sex, which courts have interpreted to include sexual harassment. The Equal Employment Opportunity Commission (EEOC) is the federal agency responsible for enforcing Title VII. Employers with 15 or more employees are covered, and affected employees can file a charge with the EEOC within 180 days of the incident.
+NARRATION: Title VII is the federal law that prohibits sexual harassment as a form of sex discrimination.
+
+SLIDE 5 | State and Local Laws
+Many states and municipalities have their own harassment laws that provide broader protections than federal law, covering smaller employers or extending the filing deadline to 300 days or longer. Some states, like California and New York, require mandatory annual harassment prevention training for all employees and supervisors. Always check the specific requirements for your state and locality.
+NARRATION: State laws often provide broader protections than federal law and may require mandatory training.
+
+SLIDE 6 | Who Can Be Harassed?
+Sexual harassment protections extend to all employees regardless of gender, sexual orientation, gender identity, or gender expression. Victims do not have to be the direct target of the harassing conduct — a bystander who witnesses persistent harassment in the workplace may also have a valid claim. Contractors, vendors, clients, and interns may also be protected under applicable laws.
+NARRATION: Anyone in the workplace — regardless of gender or role — can be a victim of sexual harassment.
+
+SLIDE 7 | Types of Harassing Conduct
+Harassing behavior can be verbal (sexual jokes, innuendo, explicit comments), nonverbal (staring, gestures, displaying explicit material), physical (unwanted touching, blocking movement), or written and electronic (emails, texts, social media messages). The key factor is whether the conduct is unwelcome, not whether it was intended to offend. Even a single severe physical act, such as assault, can constitute harassment.
+NARRATION: Harassment includes verbal, physical, nonverbal, and electronic conduct that is unwelcome.
+
+SLIDE 8 | What Makes Conduct "Unwelcome"?
+Conduct is unwelcome when the victim did not solicit or invite it and regarded it as undesirable or offensive. The fact that someone participated in or initially tolerated behavior does not mean that behavior is welcome. Victims are not required to explicitly say "stop" before reporting harassment, though clear communication can be helpful.
+NARRATION: Unwelcome means the person did not invite the conduct and found it offensive or undesirable.
+
+SLIDE 9 | The Bystander's Role
+Bystanders who witness harassment have an important role in preventing and stopping it. Safe and effective bystander strategies include directly interrupting the behavior, distracting the parties involved, checking in with the target after the incident, and reporting what was witnessed to management or HR. Organizations with strong bystander cultures experience lower rates of harassment.
+NARRATION: Bystanders can intervene safely by interrupting, distracting, or reporting harassing behavior.
+
+SLIDE 10 | How to Respond if You Are Harassed
+If you experience harassment, tell the harasser clearly that the behavior is unwanted and must stop, if you feel safe doing so. Document what happened: record dates, times, locations, witnesses, and the exact behavior. Report the conduct using your organization's established procedures. You do not have to solve the problem alone — HR and management are there to help.
+NARRATION: If harassed, document what happened and report it through your organization's procedures.
+
+SLIDE 11 | Reporting Procedures
+Most organizations have a designated process for reporting harassment, typically through a direct supervisor, HR representative, or an anonymous hotline. Employees should not feel required to report to a supervisor who is the alleged harasser — an alternative reporting path should always be available. Reports can be made verbally or in writing, and the organization is obligated to investigate promptly.
+NARRATION: Report harassment to HR or through an alternative channel if your supervisor is involved.
+
+SLIDE 12 | The Investigation Process
+Once a complaint is filed, the employer must conduct a prompt, thorough, and impartial investigation. Investigators should interview the complainant, the accused, and any relevant witnesses, then review available documentation. The goal is to determine whether harassment occurred, not to assign blame prematurely. Findings should be documented and communicated appropriately to the parties involved.
+NARRATION: A proper harassment investigation is prompt, thorough, impartial, and well-documented.
+
+SLIDE 13 | Retaliation Is Illegal
+Federal and state laws prohibit retaliation against anyone who reports harassment in good faith, participates in an investigation, or opposes unlawful conduct. Retaliation can take many forms including demotion, schedule changes, exclusion from meetings, or a sudden negative performance review. Even if an investigation finds no harassment occurred, retaliation against the reporter is independently illegal.
+NARRATION: Retaliating against someone who reports harassment is illegal, even if no harassment is found.
+
+SLIDE 14 | Discipline and Consequences
+When an investigation confirms harassment occurred, the employer must take immediate corrective action proportionate to the severity of the conduct. Consequences can range from mandatory counseling and written warnings to suspension or termination. Inaction or inadequate response can expose the employer to significant legal liability in addition to perpetuating the harmful behavior.
+NARRATION: Confirmed harassment must result in corrective action proportionate to the severity of the conduct.
+
+SLIDE 15 | Manager Responsibilities
+Managers and supervisors have heightened responsibilities under harassment law. They must model appropriate workplace behavior, address concerns they witness even if not formally reported, and ensure they do not create or condone a hostile environment. Employers are automatically liable for harassment by supervisors that results in a tangible employment action such as termination or demotion.
+NARRATION: Managers must model good behavior, address witnessed misconduct, and never retaliate.
+
+SLIDE 16 | Digital and Remote Workplace Harassment
+Harassment does not require in-person contact. Inappropriate behavior via email, messaging apps, video calls, social media, or virtual meetings is subject to the same legal standards as in-person conduct. Remote employees are fully protected, and employers must ensure that harassment policies explicitly cover all digital communication channels.
+NARRATION: Harassment via email, messaging apps, or video calls carries the same legal consequences as in-person conduct.
+
+SLIDE 17 | LGBTQ+ Protections
+In 2020, the U.S. Supreme Court ruled in Bostock v. Clayton County that Title VII's prohibition on sex discrimination includes discrimination based on sexual orientation and gender identity. This means harassing someone because of their actual or perceived sexual orientation, gender identity, or gender expression is a form of illegal sex discrimination under federal law.
+NARRATION: Federal law protects LGBTQ employees from harassment based on sexual orientation or gender identity.
+
+SLIDE 18 | Non-Binary and Transgender Protections
+Employees who identify as non-binary, genderqueer, or transgender are protected from harassment that stems from their gender identity or expression. Repeatedly misgendering a colleague by using the wrong pronouns after being corrected, or mocking someone's gender expression, can contribute to a hostile work environment. Respectful use of preferred pronouns and names is expected of all employees.
+NARRATION: Refusing to use a colleague's correct pronouns or name after being corrected can constitute harassment.
+
+SLIDE 19 | Third-Party Harassment
+Employees are protected from harassment by customers, clients, vendors, and other third parties — not just by coworkers or supervisors. When an employer learns that a third party has harassed an employee, the employer has a duty to investigate and take reasonable steps to prevent future harassment, which may include restricting the third party's access to the workplace.
+NARRATION: Employers must also address harassment by customers and vendors, not only by coworkers.
+
+SLIDE 20 | Employer Liability and the Faragher-Ellerth Defense
+Under the Faragher and Ellerth Supreme Court decisions, employers can limit their liability for supervisory harassment that did not result in a tangible employment action by proving two things: that the employer exercised reasonable care to prevent and correct harassment, and that the employee unreasonably failed to use the employer's complaint procedures. This defense incentivizes employers to maintain effective anti-harassment programs.
+NARRATION: Employers can reduce legal liability by having strong policies and employees using them.
+
+SLIDE 21 | Confidentiality and Privacy
+Organizations must balance the confidentiality needs of all parties involved in a harassment investigation. While complete confidentiality cannot be guaranteed, information should be shared only on a need-to-know basis. Breaching confidentiality unnecessarily can harm both the complainant and the accused and may deter future reporting.
+NARRATION: Investigation details should be kept confidential and shared only on a need-to-know basis.
+
+SLIDE 22 | Training Requirements
+Many jurisdictions require employers to provide regular sexual harassment prevention training to all employees and managers. Effective training is interactive, covers the employer's specific policies, includes realistic examples, and is updated to reflect current law. Training alone does not prevent harassment, but it is a critical component of a comprehensive prevention strategy.
+NARRATION: Effective harassment prevention training is interactive, policy-specific, and legally required in many states.
+
+SLIDE 23 | Creating a Respectful Culture
+Preventing harassment requires more than just legal compliance — it requires building a workplace culture of mutual respect. Leaders must visibly model respectful behavior, reward employees who speak up about concerns, and treat every complaint as an opportunity to improve the workplace. A culture where employees feel safe to report concerns is the most effective harassment prevention tool.
+NARRATION: A culture of respect, modeled from the top, is the strongest defense against workplace harassment.
+
+SLIDE 24 | Policy Review and Updates
+Harassment prevention policies should be reviewed and updated at least annually to reflect changes in the law, new court decisions, and evolving workplace practices. All employees should receive updated policies and confirm receipt in writing or electronically. New hires should receive policy and training on or before their first day of work.
+NARRATION: Review and update harassment policies at least annually and ensure all employees receive them.
+
+SLIDE 25 | Your Commitment to a Respectful Workplace
+Every employee has a role in maintaining a workplace free from sexual harassment. Your commitment means treating all colleagues with dignity and respect, speaking up when you witness inappropriate behavior, and using proper reporting channels when needed. Together, we create an environment where everyone can perform their best work without fear.
+NARRATION: Every employee shares responsibility for maintaining a respectful and harassment-free workplace.
+
+FACT: Sexual harassment is a form of sex discrimination prohibited by Title VII of the Civil Rights Act of 1964.
+FACT: Quid pro quo harassment involves conditioning job benefits on submission to sexual conduct.
+FACT: A hostile work environment must be severe or pervasive enough that a reasonable person would find it abusive.
+FACT: Retaliation against a harassment complainant is independently illegal, even if no harassment is found.
+FACT: The Supreme Court's 2020 Bostock decision extended Title VII protections to LGBTQ employees.
+FACT: Employers can be automatically liable for harassment by supervisors that results in a tangible employment action.
+FACT: Digital and remote communications are subject to the same harassment standards as in-person conduct.
