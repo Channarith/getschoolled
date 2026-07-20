@@ -124,7 +124,10 @@ def _github_json(
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=body, method=method, headers=headers)
     with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
-        return dict(json.loads(response.read().decode("utf-8")))
+        body = response.read()
+        if not body or getattr(response, "status", 200) == 204:
+            return {}
+        return dict(json.loads(body.decode("utf-8")))
 
 
 def _create_github_issue(

@@ -138,8 +138,11 @@ export async function captureDisplayScreenshot(): Promise<BugScreenshotUpload | 
     // Wait for the first decoded frame before drawing — play() resolves when
     // playback starts, not when a frame is available, so a fixed delay can race.
     await new Promise<void>((resolve) => {
-      if (video.readyState >= 3) { resolve(); return; }
-      video.addEventListener("canplay", () => resolve(), { once: true });
+      // readyState >= 2 (HAVE_CURRENT_DATA) means the first frame is decoded and
+      // ready to draw. `loadeddata` fires when that state is first reached, which
+      // is more reliable than `canplay` (which can fire before any frame is decoded).
+      if (video.readyState >= 2) { resolve(); return; }
+      video.addEventListener("loadeddata", () => resolve(), { once: true });
       setTimeout(resolve, 3000); // hard fallback
     });
     const width = video.videoWidth || 1280;

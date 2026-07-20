@@ -7,7 +7,13 @@ creation via the PaymentProvider (Stripe in cloud, sandbox stub local).
 
 from __future__ import annotations
 
+import os
+import threading
+import time
+
+from aoep_shared.auth import verify_token
 from aoep_shared.entitlements import PLANS, can_start
+from aoep_shared.flags import require_admin
 from aoep_shared.plan_pricing import CONSUMER_PLANS, consumer_plan_for_tier
 from aoep_shared.payments import (
     COUNTRY_METHODS,
@@ -20,8 +26,58 @@ from aoep_shared.payments import (
 )
 from aoep_shared.schemas import ClassType, PlanTier
 from aoep_shared.service import create_service
-from fastapi import HTTPException
+from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
+
+_AUTH_KEY_DEFAULT = "dev-auth-signing-key"
+
+
+def _token_key() -> bytes:
+    return os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT).encode()
+
+
+def current_account_id(authorization: str = Header(default="")) -> str:
+    """Resolve Bearer token to account ID (401 if missing/invalid)."""
+    token = authorization[7:] if authorization.lower().startswith("bearer ") else authorization
+    claims = verify_token(token, _token_key()) if token else None
+    if not claims:
+        raise HTTPException(status_code=401, detail="invalid or expired session")
+    return claims.get("sub", "")
+
+
+def _admin_secret() -> str:
+    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+
+
+def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
+    """Admin shared-secret gate for internal/ops endpoints."""
+    if not require_admin(x_admin_secret, _admin_secret()):
+        raise HTTPException(status_code=403, detail="admin secret required")
+    return x_admin_secret
+
+
+# Idempotency cache: (customer_id, plan) -> (created_at, CheckoutResponse)
+_checkout_cache: dict[tuple, tuple] = {}
+_checkout_cache_lock = threading.Lock()
+_CHECKOUT_CACHE_TTL = 60.0  # seconds
+
+
+def _get_cached_checkout(customer_id: str, plan: str):
+    """Return cached CheckoutResponse if created within TTL, else None."""
+    key = (customer_id, plan)
+    with _checkout_cache_lock:
+        entry = _checkout_cache.get(key)
+        if entry and (time.time() - entry[0]) < _CHECKOUT_CACHE_TTL:
+            return entry[1]
+        if entry:
+            del _checkout_cache[key]
+    return None
+
+
+def _cache_checkout(customer_id: str, plan: str, response) -> None:
+    key = (customer_id, plan)
+    with _checkout_cache_lock:
+        _checkout_cache[key] = (time.time(), response)
 
 app = create_service("billing")
 
@@ -183,7 +239,19 @@ def payment_methods_by_country() -> CountryMethodsResponse:
 
 
 @app.post("/checkout", response_model=CheckoutResponse)
-def checkout(req: CheckoutRequest) -> CheckoutResponse:
+def checkout(
+    req: CheckoutRequest,
+    acct_id: str = Depends(current_account_id),
+) -> CheckoutResponse:
+    # Bug 2: Validate that the authenticated user owns the customer_id being checked out.
+    if req.customer_id != acct_id:
+        raise HTTPException(status_code=403, detail="customer_id does not match authenticated user")
+
+    # Bug 1: Return cached session if the same (customer_id, plan) was processed recently.
+    cached = _get_cached_checkout(req.customer_id, req.plan.value)
+    if cached is not None:
+        return cached
+
     payment = app.state.factory.payment()
     try:
         session = payment.create_checkout(
@@ -193,13 +261,15 @@ def checkout(req: CheckoutRequest) -> CheckoutResponse:
         raise HTTPException(status_code=422, detail=str(exc))
     except NotImplementedError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    return CheckoutResponse(
+    resp = CheckoutResponse(
         session_id=session.session_id,
         url=session.url,
         provider=session.provider,
         method=session.method,
         instructions=session.instructions,
     )
+    _cache_checkout(req.customer_id, req.plan.value, resp)
+    return resp
 
 
 @app.get("/ads/networks")
@@ -272,7 +342,7 @@ def ads_click(req: AdEventRequest) -> dict:
 
 
 @app.get("/ads/revenue")
-def ads_revenue(days: float = 0.0) -> dict:
+def ads_revenue(days: float = 0.0, _: str = Depends(require_admin_secret)) -> dict:
     """Ad-revenue report (impressions, clicks, CTR, estimated revenue + eCPM).
 
     Read-only aggregate for the admin console (client-gated like telemetry).

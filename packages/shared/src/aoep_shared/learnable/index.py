@@ -374,6 +374,7 @@ def search_learnable(
     audience: Optional[str] = None,
     core_skill: Optional[bool] = None,
     tag: Optional[str] = None,
+    access_tier: Optional[str] = None,
     kids_only: bool = False,
     offset: int = 0,
     limit: int = 50,
@@ -387,6 +388,9 @@ def search_learnable(
             if c.maturity_rating == "kids":
                 return True
             if c.maturity_rating in ("mature", "adult", "explicit"):
+                return False
+            # Programs are not curated for kids unless explicitly tagged.
+            if c.source == "program":
                 return False
             # Catalog courses require explicit maturity_rating="kids" — checked
             # BEFORE the format shortcuts so interactive catalog courses (e.g.
@@ -456,6 +460,8 @@ def search_learnable(
         if hands_on is not None and c.hands_on != hands_on:
             return False
         if tag is not None and tag.lower() not in [t.lower() for t in c.tags]:
+            return False
+        if not _matches_eq(c.access_tier, access_tier):
             return False
         return True
 
@@ -545,7 +551,7 @@ def learnable_home_rails(
     per_rail: int = 12,
 ) -> List[dict]:
     if kids_only:
-        pool = search_learnable(items, kids_only=True, limit=500)["items"]
+        pool = search_learnable(items, kids_only=True, limit=2000)["items"]
     else:
         pool = list(items)
 
@@ -566,8 +572,8 @@ def learnable_home_rails(
     games = [c for c in pool if c.format == "game"]
 
     rail("live", "Live interactive classes", sorted(live, key=lambda c: c.title))
-    rail("new", "New this week", sorted(audio, key=lambda c: c.title))
-    rail("audio", "Drive-safe audio classes", audio[:per_rail * 2])
+    rail("new", "New this week", audio)
+    rail("audio", "Drive-safe audio classes", sorted(audio, key=lambda c: -c.popularity))
     rail("languages", "Language learning", languages)
     rail("games", "Arcade practice", games)
 

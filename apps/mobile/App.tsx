@@ -84,6 +84,8 @@ function AppInner() {
   const [showGroupClasses, setShowGroupClasses] = useState(false);
   const [showLiveClass, setShowLiveClass] = useState(false);
   const [showLiveRooms, setShowLiveRooms] = useState(false);
+  const [liveRoomsOrigin, setLiveRoomsOrigin] = useState<"solo" | "group" | null>(null);
+  const [liveRoomOrigin, setLiveRoomOrigin] = useState<"solo" | "group" | "liveRooms" | null>(null);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
   const [liveModeratorKey, setLiveModeratorKey] = useState("");
   const [gameSubject, setGameSubject] = useState<string | null>(null);
@@ -164,6 +166,8 @@ function AppInner() {
       setShowGroupClasses(false);
       setShowLiveClass(false);
       setShowLiveRooms(false);
+      setLiveRoomsOrigin(null);
+      setLiveRoomOrigin(null);
       setLiveRoomId(null);
       setLiveModeratorKey("");
       setGameSubject(null);
@@ -494,7 +498,14 @@ function AppInner() {
       <LiveRoomScreen
         roomId={liveRoomId}
         moderatorKey={liveModeratorKey}
-        onBack={() => { setLiveRoomId(null); setShowGroupClasses(true); setShowLiveRooms(false); setLiveModeratorKey(""); }}
+        onBack={() => {
+          setLiveRoomId(null);
+          setLiveModeratorKey("");
+          if (liveRoomOrigin === "solo") setShowLiveClass(true);
+          else if (liveRoomOrigin === "liveRooms") setShowLiveRooms(true);
+          else setShowGroupClasses(true);
+          setLiveRoomOrigin(null);
+        }}
       />
     );
   } else if (showLiveRooms) {
@@ -504,8 +515,14 @@ function AppInner() {
           setLiveRoomId(id);
           setLiveModeratorKey(modKey || "");
           setShowLiveRooms(false);
+          setLiveRoomOrigin("liveRooms");
         }}
-        onBack={() => setShowLiveRooms(false)}
+        onBack={() => {
+          setShowLiveRooms(false);
+          if (liveRoomsOrigin === "solo") setShowLiveClass(true);
+          if (liveRoomsOrigin === "group") setShowGroupClasses(true);
+          setLiveRoomsOrigin(null);
+        }}
       />
     );
   } else if (showLiveClass) {
@@ -519,6 +536,7 @@ function AppInner() {
               const { room_id } = await startSoloLiveRoom(id);
               setLiveModeratorKey("");
               setShowLiveClass(false);
+              setLiveRoomOrigin("solo");
               setLiveRoomId(room_id);
               return;
             } catch {
@@ -527,6 +545,11 @@ function AppInner() {
           }
           setShowLiveClass(false);
           setActiveLesson({ id, title, classType });
+        }}
+        onOpenLiveRooms={() => {
+          setShowLiveClass(false);
+          setLiveRoomsOrigin("solo");
+          setShowLiveRooms(true);
         }}
         onBack={() => setShowLiveClass(false)}
       />
@@ -538,6 +561,12 @@ function AppInner() {
           setLiveRoomId(id);
           setLiveModeratorKey(modKey || "");
           setShowGroupClasses(false);
+          setLiveRoomOrigin("group");
+        }}
+        onOpenLiveRooms={() => {
+          setShowGroupClasses(false);
+          setLiveRoomsOrigin("group");
+          setShowLiveRooms(true);
         }}
         onBack={() => setShowGroupClasses(false)}
       />
@@ -550,7 +579,6 @@ function AppInner() {
         onOpenCareers={() => setTab("careers")}
         onOpenGroupClasses={() => setShowGroupClasses(true)}
         onOpenLiveClass={() => setShowLiveClass(true)}
-        onOpenLiveRooms={() => setShowLiveRooms(true)}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
         onOpenSearch={() => setShowSearch(true)}

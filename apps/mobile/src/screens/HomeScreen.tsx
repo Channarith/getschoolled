@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Image, ImageBackground, Modal, RefreshControl, ScrollView,
   StyleSheet, Text, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import {
@@ -33,7 +34,7 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass, onOpenLiveRooms,
+  onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass,
   onOpenLanguages, onOpenRewards, onOpenSearch, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
@@ -41,7 +42,6 @@ export default function HomeScreen({
   onOpenCareers: () => void;
   onOpenGroupClasses?: () => void;
   onOpenLiveClass?: () => void;
-  onOpenLiveRooms?: () => void;
   onOpenLanguages?: () => void;
   onOpenRewards?: () => void;
   onOpenSearch?: () => void;
@@ -61,6 +61,7 @@ export default function HomeScreen({
   const [streakDays, setStreakDays] = useState(0);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [showMascot, setShowMascot] = useState(false);
+  const loadAliveRef = useRef(true);
 
   const load = async () => {
     setError("");
@@ -81,6 +82,7 @@ export default function HomeScreen({
           ? { ...c, title: fresh.title, category: fresh.category }
           : c;
       });
+      if (!loadAliveRef.current) return;
       setContinueRows(refreshedContinue);
       setCats(allCats.categories);
       const savedIdSet = new Set(savedIds);
@@ -101,19 +103,22 @@ export default function HomeScreen({
       } else { setSavedRows([]); }
 
       const streak = await getStreak();
+      if (!loadAliveRef.current) return;
       setStreakDays(streak.days);
     } catch (e) {
-      setError(t("home.error", { error: String(e) }));
+      if (loadAliveRef.current) setError(t("home.error", { error: String(e) }));
     } finally {
-      setLoading(false); setRefreshing(false);
+      if (loadAliveRef.current) { setLoading(false); setRefreshing(false); }
     }
   };
 
   // Reload whenever the user switches language so titles, categories,
   // and segment headings re-render in the new locale.
   useEffect(() => {
+    loadAliveRef.current = true;
     setLoading(true);
     void load();
+    return () => { loadAliveRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
@@ -178,29 +183,44 @@ export default function HomeScreen({
           <Text style={styles.heroSub}>
             {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
           </Text>
-          <View style={styles.heroActions}>
-            <PrimaryButton label={t("home.careers")} onPress={onOpenCareers} variant="netflix" />
+          <View style={styles.actionDock}>
+            <HomeAction
+              icon="briefcase-outline"
+              label={t("home.navCareers")}
+              onPress={onOpenCareers}
+            />
             {onOpenLanguages ? (
-              <PrimaryButton label={t("home.languages")} onPress={onOpenLanguages} variant="brand" />
+              <HomeAction
+                icon="language-outline"
+                label={t("home.navLanguages")}
+                onPress={onOpenLanguages}
+              />
             ) : null}
             {onOpenRewards ? (
-              <PrimaryButton label={t("home.rewards")} onPress={onOpenRewards} variant="brand" />
+              <HomeAction
+                icon="trophy-outline"
+                label={t("home.navRewards")}
+                onPress={onOpenRewards}
+              />
             ) : null}
             {onOpenGroupClasses ? (
-              <PrimaryButton label={t("home.groupClasses")} onPress={onOpenGroupClasses} variant="brand" />
+              <HomeAction
+                icon="people-outline"
+                label={t("home.navGroups")}
+                onPress={onOpenGroupClasses}
+              />
             ) : null}
             {onOpenLiveClass ? (
-              <PrimaryButton label={t("home.liveClass")} onPress={onOpenLiveClass} variant="brand" />
-            ) : null}
-            {onOpenLiveRooms ? (
-              <PrimaryButton label={t("home.liveNearby")} onPress={onOpenLiveRooms} variant="brand" />
+              <HomeAction
+                icon="videocam-outline"
+                label={t("home.navLive")}
+                onPress={onOpenLiveClass}
+              />
             ) : null}
           </View>
           {guestMode ? (
-            <Text style={styles.careersSub}>{t("settings.previewBadge")}</Text>
-          ) : (
-            <Text style={styles.careersSub}>{t("home.careersSub")}</Text>
-          )}
+            <Text style={styles.previewBadge}>{t("settings.previewBadge")}</Text>
+          ) : null}
         </View>
       </ImageBackground>
 
@@ -332,6 +352,30 @@ export default function HomeScreen({
   );
 }
 
+function HomeAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={styles.actionItem}
+    >
+      <View style={styles.actionIcon}>
+        <Ionicons name={icon} size={23} color="#fff" />
+      </View>
+      <Text style={styles.actionLabel} numberOfLines={1}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
 const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: "transparent" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -361,8 +405,37 @@ const styles = StyleSheet.create({
   kicker: { ...theme.typography.kicker, color: theme.colors.muted },
   hero: { ...theme.typography.hero, color: theme.colors.text, marginTop: 6 },
   heroSub: { color: "#c5cce0", marginTop: 8, ...theme.typography.body },
-  heroActions: { marginTop: 18, maxWidth: 220 },
-  careersSub: { color: theme.colors.muted, fontSize: 12, marginTop: 8 },
+  actionDock: {
+    alignItems: "flex-start",
+    alignSelf: "stretch",
+    backgroundColor: "rgba(8,13,28,0.82)",
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 11,
+  },
+  actionItem: { alignItems: "center", flex: 1, minWidth: 0 },
+  actionIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderRadius: 22,
+    height: 43,
+    justifyContent: "center",
+    width: 43,
+  },
+  actionLabel: {
+    color: theme.colors.text,
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 6,
+    maxWidth: 64,
+    textAlign: "center",
+  },
+  previewBadge: { color: theme.colors.muted, fontSize: 12, marginTop: 8 },
   errPanel: { marginHorizontal: theme.spacing.screenX, marginBottom: 12 },
   err: { color: "#ff8a8a", ...theme.typography.body },
   modalScrim: {

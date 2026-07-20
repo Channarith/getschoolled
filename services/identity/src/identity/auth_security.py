@@ -3,6 +3,31 @@
 from __future__ import annotations
 
 import os
+import time as _time
+
+# ---------------------------------------------------------------------------
+# Module-level state for security controls
+# ---------------------------------------------------------------------------
+
+# Bug 4: TOTP replay prevention — track (account_id, code) pairs accepted in
+# the last 90 seconds so the same code cannot be used twice in one window.
+_used_totp: dict[tuple, float] = {}  # (account_id, code) -> accepted_at
+_TOTP_TTL = 90.0  # seconds (covers one 30-s window + one carry-over)
+
+
+def _purge_used_totp() -> None:
+    now = _time.time()
+    expired = [k for k, ts in list(_used_totp.items()) if now - ts > _TOTP_TTL]
+    for k in expired:
+        _used_totp.pop(k, None)
+
+
+# Bug 7: 2FA brute-force lockout — after 5 wrong codes the mfa_token is burned.
+_mfa_fail_counts: dict[str, int] = {}  # mfa_token -> failure count
+_mfa_burned: set[str] = set()         # mfa_tokens invalidated by lockout
+
+# Bug 8: Password-reset token single-use — tokens are added here after use.
+_used_reset_tokens: set[str] = set()
 
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.login_audit import login_context_from_headers
@@ -107,6 +132,9 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
 
     @app.post("/auth/2fa/verify")
     def verify_2fa_login(req: MfaVerifyRequest, request: Request) -> dict:
+        # Bug 7: Reject tokens that have been burned by failed-attempt lockout.
+        if req.mfa_token in _mfa_burned:
+            raise HTTPException(status_code=401, detail="invalid or expired MFA session")
         body = verify_token(req.mfa_token, token_key_fn())
         if not body or body.get("purpose") != "mfa_pending":
             raise HTTPException(status_code=401, detail="invalid or expired MFA session")
@@ -114,11 +142,24 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         if acct is None or not acct.totp_enabled:
             raise HTTPException(status_code=401, detail="2FA not enabled")
         if not verify_totp(acct.totp_secret, req.code):
+            # Bug 7: Track failures per mfa_token; burn after 5 attempts.
+            _mfa_fail_counts[req.mfa_token] = _mfa_fail_counts.get(req.mfa_token, 0) + 1
+            if _mfa_fail_counts[req.mfa_token] >= 5:
+                _mfa_burned.add(req.mfa_token)
+                _mfa_fail_counts.pop(req.mfa_token, None)
             ctx = _ctx(request)
             app.state.accounts.record_login_event(
                 acct.id, success=False, method="mfa", **ctx, reason="bad_code",
             )
             raise HTTPException(status_code=401, detail="invalid 2FA code")
+        # Bug 4: Reject replayed TOTP codes in the same 30-s window.
+        totp_key = (acct.id, req.code)
+        _purge_used_totp()
+        if totp_key in _used_totp:
+            raise HTTPException(status_code=401, detail="TOTP code already used")
+        _used_totp[totp_key] = _time.time()
+        # Clear failure counter on success.
+        _mfa_fail_counts.pop(req.mfa_token, None)
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="mfa", **ctx)
         return session_fn(acct)
@@ -138,6 +179,9 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
     def reset_password(req: ResetPasswordRequest) -> dict:
         from aoep_shared.passwords import validate_password
 
+        # Bug 8: Prevent reset-token reuse — reject tokens already consumed.
+        if req.token in _used_reset_tokens:
+            raise HTTPException(status_code=400, detail="invalid or expired reset link")
         body = verify_reset_token(req.token, token_key_fn())
         if not body:
             raise HTTPException(status_code=400, detail="invalid or expired reset link")
@@ -150,6 +194,8 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         if acct:
             acct.failed_logins = 0
             acct.locked_until = None
+        # Mark token as used so it cannot be replayed.
+        _used_reset_tokens.add(req.token)
         return {"reset": True}
 
     @app.post("/auth/2fa/setup")
@@ -233,8 +279,11 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
     def passkey_login_options(req: PasskeyLoginOptions) -> dict:
         acct = app.state.accounts.by_email(req.email) if req.email else None
         allow = [c.credential_id for c in (acct.passkeys if acct else [])]
+        # Bug 9: Return a generic 200 (empty challenge) for unknown emails /
+        # accounts without passkeys to prevent account enumeration via 404.
         if not allow:
-            raise HTTPException(status_code=404, detail="no passkeys for this account")
+            opts = new_login_challenge(allow_credentials=[])
+            return opts
         opts = new_login_challenge(allow_credentials=allow)
         app.state.accounts.store_passkey_challenge(acct.id, opts["challenge"])
         return {**opts, "account_id": acct.id}

@@ -46,9 +46,11 @@ const PLATFORM_LABEL: Record<string, string> = {
 
 export default function GroupClassesScreen({
   onOpenRoom,
+  onOpenLiveRooms,
   onBack,
 }: {
   onOpenRoom: (roomId: string, moderatorKey?: string) => void;
+  onOpenLiveRooms: () => void;
   onBack: () => void;
 }) {
   const { t } = useT();
@@ -271,7 +273,10 @@ export default function GroupClassesScreen({
         <Text style={styles.title}>{t("group.title")}</Text>
       </View>
       <Text style={styles.lead}>{t("group.intro")}</Text>
-      <PrimaryButton label={t("group.scheduleCta")} onPress={() => setShowSchedule(true)} variant="brand" />
+      <View style={styles.topActions}>
+        <PrimaryButton label={t("group.scheduleCta")} onPress={() => setShowSchedule(true)} variant="brand" />
+        <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
+      </View>
       {loading && !refreshing ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : null}
@@ -474,6 +479,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { color: theme.colors.text, fontSize: 20, fontWeight: "700", flex: 1 },
   lead: { color: theme.colors.muted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  topActions: { gap: 8 },
   list: { gap: 12, paddingBottom: 32 },
   card: { gap: 8 },
   badgeRow: { flexDirection: "row", gap: 8, alignItems: "center" },

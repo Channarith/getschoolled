@@ -15,10 +15,11 @@ export type LiveClassMode = "solo" | "group";
 
 type Props = {
   onStart: (lessonId: string, title: string, classType: LiveClassMode) => void;
+  onOpenLiveRooms: () => void;
   onBack: () => void;
 };
 
-export default function LiveClassScreen({ onStart, onBack }: Props) {
+export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Props) {
   const { t } = useT();
   useAndroidBackTo(onBack);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
@@ -72,6 +73,13 @@ export default function LiveClassScreen({ onStart, onBack }: Props) {
         <Text style={styles.kicker}>{t("liveClass.kicker")}</Text>
         <Text style={styles.title}>{t("liveClass.title")}</Text>
         <Text style={styles.sub}>{t("liveClass.sub")}</Text>
+        <View style={styles.liveRoomsAction}>
+          <PrimaryButton
+            label={t("live.browseCta")}
+            onPress={onOpenLiveRooms}
+            variant="ghost"
+          />
+        </View>
       </View>
 
       {loading ? (
@@ -121,6 +129,7 @@ const styles = StyleSheet.create({
   bg: { flex: 1 },
   scroll: { paddingHorizontal: theme.spacing.screenX, paddingTop: 56, paddingBottom: 32 },
   header: { marginBottom: 20 },
+  liveRoomsAction: { marginTop: 14 },
   kicker: {
     color: theme.colors.muted,
     fontSize: 11,

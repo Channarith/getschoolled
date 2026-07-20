@@ -30,13 +30,18 @@ export default function HomePage() {
   const [tier, setTier] = useState("free");
 
   useEffect(() => {
+    let alive = true;
     const sync = () => {
       const authed = Boolean(getToken());
       setLoggedIn(authed);
       setAuthResolved(true);
       if (authed) {
-        getHomeFeed(false, locale).then(setRails).catch((e) => setError(String(e)));
-        getMe().then((m) => setTier(m.tier || "free")).catch(() => setTier("free"));
+        getHomeFeed(false, locale)
+          .then((r) => { if (!alive) return; setRails(r); })
+          .catch((e) => { if (!alive) return; setError(String(e)); });
+        getMe()
+          .then((m) => { if (!alive) return; setTier(m.tier || "free"); })
+          .catch(() => { if (!alive) return; setTier("free"); });
       } else {
         setRails(null);
         setError("");
@@ -46,6 +51,7 @@ export default function HomePage() {
     window.addEventListener(AUTH_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
+      alive = false;
       window.removeEventListener(AUTH_EVENT, sync);
       window.removeEventListener("storage", sync);
     };

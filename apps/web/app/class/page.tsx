@@ -347,6 +347,11 @@ export default function ClassPage() {
     }
   }
 
+  // hasSummativePolicy is intentionally used as requireVerifiedPass: any course
+  // with a summative checkpoint requires a verified pass token before completion
+  // can be awarded. ClassRoom.tsx uses `mustVerifyPass = requireVerifiedPass ?? locked`
+  // which falls back to course lock status; here we derive it from the policy
+  // directly so even unlocked/free courses with a summative gate are treated correctly.
   const hasSummativePolicy = assessmentPolicy.some((cp) => cp.stage === "summative");
 
   async function maybeOpenDueCheckpoint(slideIndex: number, includeSummative = false) {
@@ -404,6 +409,10 @@ export default function ClassPage() {
       recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
     }
     if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
+    if (result.attempt.stage === "summative" && !result.course_decision?.passed) {
+      // Clear stale token so it can't be re-used on the next finish attempt.
+      setPassDecisionToken(null);
+    }
     if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
       completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
       await awardVerifiedPass(result.pass_decision_token);

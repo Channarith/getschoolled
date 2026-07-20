@@ -73,12 +73,11 @@ def create_service(
         if request.url.path in _bypass_paths:
             return await call_next(request)
         limiter = app.state.rate_limiter
-        # Prefer authenticated principal (X-User-Id) over IP so a single
-        # logged-in user sharing a CGNAT egress doesn't share the bucket
-        # with strangers.
+        # Bug 6: X-User-Id is a client-supplied header and cannot be trusted
+        # for rate-limit identity — it would let any client claim any user's
+        # bucket and bypass throttling.  Always use the network IP instead.
         ident = (
-            request.headers.get("x-user-id")
-            or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
             or (request.client.host if request.client else "anon")
         )
         decision = limiter.allow(f"{name}:{ident}")
@@ -136,7 +135,8 @@ def create_service(
 
     # The browser web app calls services cross-origin during local dev. Allow
     # configured origins (comma-separated CORS_ORIGINS); default to "*" for the
-    # local stack. Phase10 hardening tightens this for cloud.
+    # local stack. Bug 5: In non-local/dev modes without explicit CORS_ORIGINS,
+    # fall back to the known production origins rather than wildcard "*".
     #
     # Added LAST so CORS is the OUTERMOST middleware (add_middleware prepends):
     # short-circuit responses from inner middleware — rate-limit 429s in
@@ -144,8 +144,14 @@ def create_service(
     # surface them as opaque CORS failures instead of handleable errors.
     from fastapi.middleware.cors import CORSMiddleware
 
-    origins_raw = os.environ.get("CORS_ORIGINS", "*")
-    origins = [o.strip() for o in origins_raw.split(",") if o.strip()]
+    _deploy_mode = os.environ.get("DEPLOY_MODE", "local").lower()
+    _cors_env = os.environ.get("CORS_ORIGINS", "")
+    if _cors_env:
+        origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+    elif _deploy_mode in ("local", "dev", "debug", "test"):
+        origins = ["*"]
+    else:
+        origins = ["https://salareen.com", "https://www.salareen.com"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,

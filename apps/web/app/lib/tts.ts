@@ -242,7 +242,11 @@ function stopServerAudio(): void {
     // (which would call the segment's done() callback).
     _currentAudio.onended = null;
     _currentAudio.onerror = null;
+    // Revoke any blob URL before clearing src so it isn't leaked when onerror
+    // is silenced above and the browser would otherwise never clean it up.
+    const blobSrc = _currentAudio.src?.startsWith("blob:") ? _currentAudio.src : null;
     _currentAudio.src = "";
+    if (blobSrc) URL.revokeObjectURL(blobSrc);
     _currentAudio = null;
   }
 }
@@ -287,12 +291,11 @@ async function playServerAudio(
     });
     if (_epoch !== myEpoch) return true;    // cancelled during fetch: swallow
     if (!resp.ok) {
-      // 501 = the server has no working neural engine (e.g. edge-tts installed
-      // but its endpoint is unreachable, so /tts/status reported "available"
-      // but synthesis fails). Downgrade for the rest of the session so we stop
-      // POSTing (and stop spamming the console with 501s) and use the on-device
-      // voice from here on.
-      if (resp.status === 501) _serverTtsReady = false;
+      // Only permanently disable on 404 (endpoint doesn't exist). Transient
+      // errors (501, 5xx, network) are allowed to retry on the next utterance;
+      // permanently setting _serverTtsReady=false on a 501 would prevent recovery
+      // if the neural engine comes back online mid-session.
+      if (resp.status === 404) _serverTtsReady = false;
       return false;                         // -> browser fallback
     }
     const blob = await resp.blob();
@@ -343,9 +346,9 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
       }),
     });
     if (!resp.ok) {
-      // See playServerAudio: a 501 means no working neural engine — stop trying
-      // for the rest of the session so we don't repeatedly POST /tts (501).
-      if (resp.status === 501) _serverTtsReady = false;
+      // Only permanently disable on 404 (endpoint doesn't exist). Transient
+      // errors (501, 5xx) are allowed to retry on the next utterance.
+      if (resp.status === 404) _serverTtsReady = false;
       return null;
     }
     const blob = await resp.blob();
@@ -354,6 +357,7 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
     const audio = new Audio(url);
     if (opts.rate && opts.rate > 0) audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate));
     audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+    audio.addEventListener("error", () => URL.revokeObjectURL(url), { once: true });
     return audio;
   } catch {
     return null;
@@ -419,6 +423,11 @@ export function splitForSpeech(text: string): string[] {
 // Chunks the text and queues the chunks so the engine paces sentences naturally;
 // a slightly slower rate reads warmer and clearer than the default.
 export function speakNaturally(text: string, opts: SpeakOptions): void {
+  // Each call invalidates any concurrent/previous speakNaturally call so only
+  // the most recent one proceeds. Without bumping the epoch here, two back-to-back
+  // calls share the same epoch value and both pass the _epoch !== myEpoch guards.
+  _epoch++;
+  stopServerAudio();
   const myEpoch = _epoch;   // invalidated by any cancelSpeech() after this point
   let finished = false;
   const done = () => {

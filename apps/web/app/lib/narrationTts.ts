@@ -12,11 +12,13 @@ import { prosodyForStyle, resolveEffectiveVoiceStyle } from "./voiceProfiles";
 let voiceGroupsCache: VoiceGroup[] | null = null;
 
 export async function loadVoiceCatalog(): Promise<VoiceGroup[]> {
-  if (voiceGroupsCache) return voiceGroupsCache;
+  if (voiceGroupsCache !== null) return voiceGroupsCache;
   try {
     voiceGroupsCache = (await getTtsVoices()).groups;
   } catch {
-    voiceGroupsCache = [];
+    // Leave cache as null so the next call retries; setting it to [] (truthy)
+    // would permanently suppress future retries even if the endpoint recovers.
+    return [];
   }
   return voiceGroupsCache;
 }

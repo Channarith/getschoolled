@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  AUTH_EVENT,
   getHomeFeed,
   getToken,
   listStudents,
@@ -34,20 +35,30 @@ export default function RecommendedPage() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    setLoggedIn(Boolean(getToken()));
-    if (getToken()) {
-      listStudents().then((r) => {
-        setStudents(r.students);
-        if (r.students.length) setSelected(r.students[0].id);
-      }).catch((e) => setError(String(e)));
-    }
+    const sync = () => {
+      const authed = Boolean(getToken());
+      setLoggedIn(authed);
+      if (authed) {
+        listStudents().then((r) => {
+          setStudents(r.students);
+          if (r.students.length) setSelected(r.students[0].id);
+        }).catch((e) => setError(String(e)));
+      }
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   const applyHomeFallback = useCallback(async (base: ForesightResult, studentId: string) => {
     try {
       const rails = await getHomeFeed(false, locale);
       const popular = rails.find((r) => r.key === "popular")?.courses
-        ?? rails.find((r) => r.courses.length)?.courses
+        ?? rails.find((r) => (r.courses ?? []).length)?.courses
         ?? [];
       const recs: ForesightRec[] = popular.slice(0, 8).map((c) => ({
         course_id: c.course_id,

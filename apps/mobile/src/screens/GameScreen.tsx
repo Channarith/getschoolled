@@ -41,6 +41,8 @@ export default function GameScreen({ subject, onBack }: Props) {
   const [ageGroup, setAgeGroup] = useState("teen");
   const [round, setRound] = useState<GameRound | null>(null);
   const [answers, setAnswers] = useState<Record<string, number | string>>({});
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
   const [selTerm, setSelTerm] = useState("");
   const [result, setResult] = useState<GameSubmit | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,7 +98,7 @@ export default function GameScreen({ subject, onBack }: Props) {
     setLoading(true);
     setError("");
     try {
-      const r = await submitGame(round.game_id, answers, elapsed);
+      const r = await submitGame(round.game_id, answersRef.current, elapsed);
       setResult(r);
       setRound(null);
     } catch (e) {
@@ -110,10 +112,10 @@ export default function GameScreen({ subject, onBack }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [round, answers, t]);
+  }, [round, t]);
 
   useEffect(() => {
-    const timed = round && (round.game_type === "speed" || round.game_type === "marathon");
+    const timed = round && (round.game_type === "speed" || round.game_type === "marathon" || round.game_type === "challenge");
     if (!timed || round!.time_limit_s <= 0) return;
     if (timeLeft <= 0) { void finish(); return; }
     const timer = setTimeout(() => setTimeLeft((s) => s - 1), 1000);

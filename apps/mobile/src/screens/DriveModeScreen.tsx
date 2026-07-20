@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
@@ -14,6 +14,7 @@ import {
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
+import { useFocusEffect } from "@react-navigation/native";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
@@ -36,6 +37,9 @@ export default function DriveModeScreen({
 }: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
   useAndroidBackTo(() => { stopAllTts(); onBack(); });
+  useFocusEffect(useCallback(() => {
+    return () => { stopAllTts(); };
+  }, []));
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -184,7 +188,7 @@ export default function DriveModeScreen({
     clearResumeTimer();
     const resume = () => {
       setAssistantOpen(false);
-      playFrom(course, seg);
+      playFrom(course, segRef.current);
     };
     if (delayMs > 0) {
       setAssistantStatus(`Resuming in ${Math.round(delayMs / 1000)} seconds. Say or tap Pause to stay paused.`);
@@ -431,6 +435,7 @@ export default function DriveModeScreen({
               testID={`drive-speed-${r}`}
               onPress={() => {
                 setRate(r);
+                rateRef.current = r;
                 if (course) {
                   stopAllTts();
                   playFrom(course, seg);

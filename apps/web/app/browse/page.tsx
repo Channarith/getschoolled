@@ -43,9 +43,11 @@ export default function BrowsePage() {
 
   useEffect(() => {
     if (!loggedIn) return;
-    searchLearnable({ ...filters, limit: "80" }, locale)
-      .then((r) => { setItems(r.items); setTotal(r.total); })
-      .catch((e) => setError(String(e)));
+    const controller = new AbortController();
+    searchLearnable({ ...filters, limit: "80" }, locale, controller.signal)
+      .then((r) => { if (controller.signal.aborted) return; setItems(r.items); setTotal(r.total); })
+      .catch((e) => { if (controller.signal.aborted) return; setError(String(e)); });
+    return () => controller.abort();
   }, [filters, loggedIn, locale]);
 
   function set(key: string, value: string) {

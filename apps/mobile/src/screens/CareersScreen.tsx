@@ -70,7 +70,7 @@ export default function CareersScreen({ onBack, onOpenCourse }: Props) {
             </View>
           </AnimatedPressable>
         ) : null}
-        <Text style={styles.kicker}>{t("home.careers")}</Text>
+        <Text style={styles.kicker}>{t("careers.title")}</Text>
         <Text style={styles.title}>{t("careers.title")}</Text>
         <Text style={styles.sub}>
           {t("careers.sub")}

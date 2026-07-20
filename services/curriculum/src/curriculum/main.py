@@ -407,8 +407,9 @@ def search_courses(
     return _search_learnable_as_courses(
         q=q, category=category, language=language, audio=audio,
         media_format=media_format, level=level, tag=tag, hands_on=hands_on,
-        access_tier=access_tier, maturity=maturity, audience=audience,
-        core_skill=core_skill, source=source, limit=limit, offset=offset,
+        delivery_mode=delivery_mode, access_tier=access_tier, maturity=maturity,
+        audience=audience, core_skill=core_skill, source=source,
+        limit=limit, offset=offset,
     )
 
 
@@ -425,6 +426,7 @@ def _search_learnable_as_courses(**kwargs) -> list[Course]:
     offset = int(kwargs.pop("offset", 0))
     audio = kwargs.pop("audio", None)
     media_format = kwargs.pop("media_format", None)
+    kwargs.pop("delivery_mode", None)  # all learnable items are AI-delivered; param acknowledged
     result = search_learnable(
         _learnable_index(),
         q=kwargs.get("q"),
@@ -435,6 +437,7 @@ def _search_learnable_as_courses(**kwargs) -> list[Course]:
         level=kwargs.get("level"),
         tag=kwargs.get("tag"),
         hands_on=kwargs.get("hands_on"),
+        access_tier=kwargs.get("access_tier"),
         maturity=kwargs.get("maturity"),
         audience=kwargs.get("audience"),
         core_skill=kwargs.get("core_skill"),

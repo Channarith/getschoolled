@@ -131,8 +131,7 @@ export type StringKey =
   // Streak hero
   | "streak.label"
   // Careers
-  | "home.careers" | "home.careersSub" | "home.groupClasses" | "home.liveClass"
-  | "home.languages" | "home.rewards"
+  | "home.navCareers" | "home.navLanguages" | "home.navRewards" | "home.navGroups" | "home.navLive"
   | "careers.back" | "careers.title" | "careers.sub"
   // Group classes
   | "group.title" | "group.intro" | "group.back" | "group.empty"
@@ -151,9 +150,8 @@ export type StringKey =
   | "game.potionLab" | "game.potionTip" | "game.leaderboard" | "game.leaderboardSub"
   // Live room discovery (Bigo-style)
   | "live.back" | "live.title" | "live.intro" | "live.nearby" | "live.empty"
-  | "live.goLive" | "live.refresh" | "live.createTitle" | "live.titlePlaceholder"
+  | "live.goLive" | "live.browseCta" | "live.refresh" | "live.createTitle" | "live.titlePlaceholder"
   | "live.create" | "live.creating" | "live.cancel" | "live.defaultTitle"
-  | "home.liveNearby"
   | "liveClass.back" | "liveClass.kicker" | "liveClass.title" | "liveClass.sub"
   | "liveClass.empty" | "liveClass.mode" | "liveClass.solo" | "liveClass.soloHint"
   | "liveClass.group" | "liveClass.groupHint" | "liveClass.pickLesson"
@@ -184,12 +182,11 @@ const EN: Record<StringKey, string> = {
   "home.subDefault": "Tap any class to start hands-free in Drive Mode.",
   "home.subStreak": "🔥 {days}-day streak — keep it alive with one quick class.",
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
-  "home.careers": "💼 Careers",
-  "home.careersSub": "Match live jobs to Salareen courses",
-  "home.languages": "🌍 Languages",
-  "home.rewards": "🏆 Rewards",
-  "home.groupClasses": "👥 Group Classes",
-  "home.liveClass": "🎓 Live 1:1 Class",
+  "home.navCareers": "Careers",
+  "home.navLanguages": "Languages",
+  "home.navRewards": "Rewards",
+  "home.navGroups": "Groups",
+  "home.navLive": "Live 1:1",
 
   "careers.back": "← Back",
   "careers.title": "Careers",
@@ -255,6 +252,7 @@ const EN: Record<StringKey, string> = {
   "live.nearby": "Nearby & trending",
   "live.empty": "No live rooms right now. Tap Go Live to start one others can find.",
   "live.goLive": "📍 Go Live",
+  "live.browseCta": "Browse live rooms nearby",
   "live.refresh": "Refresh",
   "live.createTitle": "Start a Salareen room",
   "live.titlePlaceholder": "Room title (e.g. Algebra study group)",
@@ -262,8 +260,6 @@ const EN: Record<StringKey, string> = {
   "live.creating": "Creating…",
   "live.cancel": "Cancel",
   "live.defaultTitle": "Salareen Live",
-  "home.liveNearby": "📍 Live Nearby",
-
   "liveClass.back": "← Back",
   "liveClass.kicker": "LIVE CLASS",
   "liveClass.title": "Start a live class",

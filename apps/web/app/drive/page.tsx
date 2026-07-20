@@ -210,7 +210,7 @@ function DrivePageInner() {
     speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
       if (playGenRef.current === gen) playSeg(c, i + 1);
     });
-  }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speak, course]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
@@ -658,7 +658,9 @@ function DrivePageInner() {
     setAssistantStatus(t("drive.answeringStatus"));
     playGenRef.current++;
     cancelSpeech();
+    const genSnapshot = playGenRef.current;
     speak(t("drive.resumePrompt", { answer }), () => {
+      if (playGenRef.current !== genSnapshot) return;
       resumeAfterAssistant(6500);
     });
   }
@@ -678,7 +680,7 @@ function DrivePageInner() {
       {adBreak && (
         <VideoAdBreak
           adBreak={adBreak}
-          placement={`drive-${adBreak.position}`}
+          placement={`on-the-go-${adBreak.position}`}
           tier={effectiveAdTier(tier)}
           audioOnly
           onDone={onAdDone}

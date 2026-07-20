@@ -156,14 +156,18 @@ def _extended_knowledge_segments(
     keeps every narration body unique while guaranteeing substantial Drive
     lessons even when the optional harvest cache is unavailable.
     """
+    seen_topics: set = {title}
     ordered_topics = [title]
-    ordered_topics.extend(t for t in _TOPICS.get(category, []) if t != title)
-    ordered_topics.extend(
-        t
-        for cat, titles in _TOPICS.items()
-        if cat != category
-        for t in titles
-    )
+    for t in _TOPICS.get(category, []):
+        if t != title and t not in seen_topics:
+            seen_topics.add(t)
+            ordered_topics.append(t)
+    for cat, titles in _TOPICS.items():
+        if cat != category:
+            for t in titles:
+                if t not in seen_topics:
+                    seen_topics.add(t)
+                    ordered_topics.append(t)
 
     segments: List[AudioSegment] = []
     for topic in ordered_topics:
@@ -181,6 +185,8 @@ def _extended_knowledge_segments(
             len(framed) >= MIN_DRIVE_SEGMENTS
             and _narration_words(framed) >= MIN_DRIVE_WORDS
         ):
+            break
+        if len(segments) > 500:
             break
 
     return _deepen_en_segments(title, segments)
@@ -477,14 +483,14 @@ _TOPICS: Dict[str, List[str]] = {
     "Music & Instruments": [
         "How to Play Guitar", "Learning Piano Basics", "Music Theory Fundamentals",
         "How to Sing", "Rhythm and Drumming", "How to Read Music",
-        "Music Production Basics", "The History of Jazz", "Classical Music Appreciation",
+        "Music Production Basics", "Classical Music Appreciation",
         "How to Play Bass Guitar", "Electronic Music Making", "Songwriting 101",
     ],
     "Business & Finance": [
         "How to Write a CV", "Job Interview Skills", "Personal Budgeting",
         "Stock Market Investing", "Cryptocurrency Basics", "Understanding XRP",
-        "Accounting Fundamentals", "Starting a Business", "Business Plan Writing",
-        "Financial Planning for Beginners", "Understanding Taxes", "Entrepreneurship 101",
+        "Accounting Fundamentals",
+        "Financial Planning for Beginners",
     ],
     "TED Talks": [
         "The Power of Vulnerability", "How Great Leaders Inspire Action",
@@ -557,7 +563,7 @@ _TOPICS: Dict[str, List[str]] = {
     ],
     "Space & Astronomy": [
         "Our Solar System", "Stars and Stellar Evolution",
-        "Galaxies and the Universe", "Black Holes Explained",
+        "Galaxies and the Universe",
         "The Big Bang Theory", "Space Exploration History",
         "Exoplanets and the Search for Life", "Dark Matter and Dark Energy",
         "Cosmology Fundamentals", "Telescopes and Observatories",
@@ -622,7 +628,7 @@ _TOPICS: Dict[str, List[str]] = {
     "Film & Media Studies": [
         "History of Cinema", "Film Directing Techniques",
         "Cinematography and Visual Storytelling", "Film Editing and Montage",
-        "Screenwriting Structure", "Documentary Filmmaking",
+        "Screenwriting Structure",
         "Animation History and Techniques", "Sound Design in Film",
         "Film Genres and Their Conventions", "Independent Cinema",
         "Streaming and the Future of Film", "Film Criticism and Analysis",
@@ -681,7 +687,7 @@ _TOPICS: Dict[str, List[str]] = {
         "How to Ask for a Promotion", "Remote Work Best Practices",
         "Managing Up at Work", "Giving and Receiving Feedback",
         "Dealing with Difficult Coworkers", "Workplace Etiquette",
-        "Time Management at Work", "Building a Personal Brand Online",
+        "Building a Personal Brand Online",
     ],
     "Real Estate": [
         "How to Buy Your First Home", "Understanding Mortgage Types",
@@ -711,7 +717,7 @@ _TOPICS: Dict[str, List[str]] = {
         "Organic Chemistry Basics", "Introduction to Genetics",
         "Nuclear Physics Overview", "The Human Immune System",
         "Materials Science Basics", "Nanotechnology Introduction",
-        "Environmental Chemistry", "How Vaccines Work",
+        "Environmental Chemistry",
         "The Science of Sleep", "Neuroscience of Learning",
         "Geology and Earth Science", "Introduction to Botany",
     ],
@@ -733,7 +739,7 @@ _TOPICS: Dict[str, List[str]] = {
     ],
     "Parenting & Family (Expanded)": [
         "Newborn Care Basics", "Sleep Training Methods",
-        "How to Talk to Teenagers", "Managing Screen Time",
+        "How to Talk to Teenagers",
         "Homeschooling Basics", "ADHD Parenting Strategies",
         "Raising Bilingual Children", "Teen Mental Health",
         "Divorce and Co-Parenting", "College Preparation for Parents",
@@ -864,7 +870,7 @@ _TOPICS: Dict[str, List[str]] = {
         "Islam: History and Beliefs", "Judaism Explained",
         "Buddhism Fundamentals", "Hinduism Overview",
         "Indigenous Spiritual Traditions", "Comparative Theology",
-        "Meditation Across Traditions", "Ethics and Moral Philosophy",
+        "Meditation Across Traditions",
         "Interfaith Dialogue", "Spirituality Without Religion",
     ],
     "Astronomy & Space Science": [
@@ -925,17 +931,17 @@ _TOPICS: Dict[str, List[str]] = {
     ],
     "Nonprofit Management": [
         "Starting a Nonprofit", "Nonprofit Governance and Board Roles",
-        "Grant Writing Basics", "Fundraising Strategies",
+        "Fundraising Strategies",
         "Volunteer Management", "Nonprofit Marketing",
         "Program Evaluation", "Financial Management for Nonprofits",
         "Donor Relations", "Social Enterprise Models",
         "Advocacy and Policy Work", "Sustainability Planning",
     ],
     "Architecture & Interior Design": [
-        "History of Architecture", "Architectural Drawing Basics",
-        "Sustainable Architecture", "Urban Planning Overview",
-        "Interior Design Fundamentals", "Space Planning",
-        "Materials and Construction", "Landscape Architecture",
+        "Architectural Drawing Basics",
+        "Urban Planning Overview",
+        "Space Planning",
+        "Materials and Construction",
         "Residential vs Commercial Design", "BIM and CAD Overview",
         "Renovation and Adaptive Reuse", "Architecture Career Paths",
     ],
@@ -950,7 +956,7 @@ _TOPICS: Dict[str, List[str]] = {
     "Veterinary & Animal Science": [
         "Animal Anatomy Basics", "Pet Nutrition Fundamentals",
         "Common Pet Health Issues", "Wildlife Conservation",
-        "Animal Behavior Explained", "Exotic Pet Care",
+        "Animal Behavior Explained",
         "Livestock and Farm Animal Health", "Veterinary Career Paths",
         "Zoonotic Diseases", "Animal Rehabilitation",
         "Pet First Aid", "Shelter Medicine and Adoption",
@@ -965,18 +971,18 @@ _TOPICS: Dict[str, List[str]] = {
     ],
     "Philosophy": [
         "Introduction to Philosophy", "Logic and Critical Thinking",
-        "Ethics and Moral Philosophy", "Political Philosophy",
+        "Political Philosophy",
         "Philosophy of Mind", "Epistemology Explained",
         "Existentialism Overview", "Ancient Greek Philosophy",
         "Eastern Philosophy", "Philosophy of Science",
         "Aesthetics and Philosophy of Art", "Free Will and Determinism",
     ],
     "Sociology": [
-        "Introduction to Sociology", "Social Institutions",
+        "Social Institutions",
         "Culture and Society", "Social Stratification",
         "Gender and Society", "Race and Ethnicity",
         "Deviance and Social Control", "Urban Sociology",
-        "Globalization and Society", "Social Movements",
+        "Social Movements",
         "Sociological Research Methods", "Technology and Society",
     ],
 }

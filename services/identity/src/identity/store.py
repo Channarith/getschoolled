@@ -204,6 +204,8 @@ class AccountStore:
         self._id_by_email: Dict[str, str] = {}
         # Arcade leaderboard: account_id -> aggregate game stats.
         self._game_stats: Dict[str, dict] = {}
+        # Per-account set of submitted game_ids for idempotency (Bug 15).
+        self._submitted_game_ids: Dict[str, set] = {}
         # One-time nonces of redeemed AI-agent reward vouchers (replay guard).
         self._used_grant_nonces: set = set()
         self._passkey_challenges: Dict[str, str] = {}
@@ -711,10 +713,16 @@ class AccountStore:
         `score` is the dict form of games.ScoreResult. Returns the updated
         per-player stats. Points feed the same rewards ledger (redeemable).
         """
+        game_id = str(score.get("game_id", ""))
+        submitted = self._submitted_game_ids.setdefault(account_id, set())
+        if game_id and game_id in submitted:
+            raise ValueError(f"duplicate game submission: {game_id}")
+        if game_id:
+            submitted.add(game_id)
         acct = self._by_id[account_id]
         pts = int(score.get("points", 0))
         if pts > 0:
-            acct.points.earn(pts, reason=f"game:{subject}", ref=str(score.get("game_id", "")))
+            acct.points.earn(pts, reason=f"game:{subject}", ref=game_id)
         st = self._game_stats.setdefault(account_id, {
             "account_id": account_id, "name": player_name or acct.display_name or acct.email,
             "game_points": 0, "games_played": 0, "best_by_subject": {},
@@ -746,19 +754,25 @@ class AccountStore:
             key = lambda r: r["game_points"]  # noqa: E731
         rows.sort(key=key, reverse=True)
         out = []
+        prev_score: Optional[int] = None
+        prev_rank = 0
         for i, r in enumerate(rows[:limit], start=1):
-            out.append({"rank": i, "name": r["name"], "score": key(r),
-                        "game_points": r["game_points"], "games_played": r["games_played"]})
+            score = key(r)
+            rank = i if score != prev_score else prev_rank
+            prev_score = score
+            prev_rank = rank
+            out.append({"rank": rank, "name": r["name"], "account_id": r["account_id"],
+                        "score": score, "game_points": r["game_points"],
+                        "games_played": r["games_played"]})
         return out
 
     def my_game_rank(self, account_id: str, *, subject: Optional[str] = None,
                      age_group: Optional[str] = None) -> Optional[int]:
         board = self.leaderboard(subject=subject, age_group=age_group, limit=10_000)
-        mine = self._game_stats.get(account_id)
-        if not mine:
+        if not self._game_stats.get(account_id):
             return None
         for row in board:
-            if row["name"] == mine["name"]:
+            if row["account_id"] == account_id:
                 return row["rank"]
         return None
 
