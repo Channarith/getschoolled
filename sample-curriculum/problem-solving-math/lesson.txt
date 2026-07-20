@@ -1,0 +1,114 @@
+LESSON: Mathematical Problem Solving
+LANGUAGE: en
+
+SLIDE 1 | Why Problem Solving?
+Mathematics is more than computing answers — it is the art of reasoning through unfamiliar situations. Strong problem-solving skills transfer to science, engineering, business, and everyday life. Learning structured strategies gives you a toolkit to attack any problem you encounter, even ones you have never seen before.
+NARRATION: Problem solving is a learnable skill, not a talent you either have or do not have.
+
+SLIDE 2 | Polya's Four-Step Framework
+George Polya's classic book How to Solve It outlines four steps: understand the problem, devise a plan, carry out the plan, and look back. These steps apply to virtually every mathematical challenge. Using them deliberately helps you stay organized and catch errors before they become final answers.
+NARRATION: Polya's four steps — understand, plan, execute, review — are the backbone of mathematical problem solving.
+
+SLIDE 3 | Step 1 — Understand the Problem
+Before attempting any computation, read the problem slowly and identify what is given and what must be found. Restate the problem in your own words and note any constraints. Drawing a quick sketch or writing down knowns and unknowns often reveals the structure of the problem.
+NARRATION: Know exactly what the problem is asking before you try to solve it.
+
+SLIDE 4 | Step 2 — Devise a Plan
+Choosing a strategy is the creative heart of problem solving. Ask yourself whether you have seen a similar problem, whether there is a simpler analogous case, or whether working backwards from the answer helps. Having a mental library of strategies — diagrams, algebra, patterns, cases — makes this step faster and more reliable.
+NARRATION: Pick a strategy by connecting the current problem to problems you have solved before.
+
+SLIDE 5 | Step 3 — Carry Out the Plan
+Execute your chosen strategy carefully, showing each step. If a step does not work, do not erase everything — try to diagnose where the plan failed and adjust. Persistence through difficulty is one of the most important qualities of a successful problem solver.
+NARRATION: Work through your plan step by step, and treat obstacles as clues rather than dead ends.
+
+SLIDE 6 | Step 4 — Look Back
+After reaching an answer, verify it against the original problem. Check that the answer has correct units, lies in a reasonable range, and satisfies every condition stated. Looking back also trains you to recognize patterns that will help you solve future problems faster.
+NARRATION: Always check your answer makes sense before calling the problem done.
+
+SLIDE 7 | Strategy — Working Backwards
+Working backwards starts at the desired result and traces backwards to the given information. This is especially useful for problems asking "what initial value produces this outcome?" For example, if you know a final bank balance and the interest rate, you can work backwards to find the original deposit.
+NARRATION: Start at the goal and reverse your steps to find the starting point.
+
+SLIDE 8 | Strategy — Drawing Diagrams
+A well-labeled diagram makes abstract relationships concrete and can reveal geometry, symmetry, or structure invisible in words. Draw diagrams for geometry problems, rate problems, and even combinatorics situations. Updating the diagram as you learn more information keeps your reasoning organized.
+NARRATION: A clear diagram often shows you the path to the solution before any equation does.
+
+SLIDE 9 | Strategy — Making Organized Lists
+Organized lists ensure you count every case without repetition or omission. List systematically by fixing one variable and varying others, then move to the next value. This strategy is essential for counting problems and for verifying that no cases are missed.
+NARRATION: Systematic lists prevent double-counting and missed cases in complex problems.
+
+SLIDE 10 | Strategy — Finding Patterns
+Many problems become straightforward once you recognize a repeating pattern or sequence. Compute small cases, record the results in a table, and look for regularity. Once you identify the pattern, verify it holds and use it to reach the answer without computing every case.
+NARRATION: Compute small cases, spot the pattern, then extend it to solve the full problem.
+
+SLIDE 11 | Strategy — Guess and Check
+Guess and check begins with an educated guess, evaluates how close it comes to the target, and adjusts systematically. It is particularly useful when the solution is a whole number or falls in a narrow range. Combining it with logical narrowing, such as binary search, can quickly pinpoint an exact answer.
+NARRATION: Make a smart guess, check it, and use what you learn to improve the next guess.
+
+SLIDE 12 | Strategy — Simplify the Problem
+Replace large numbers with small ones, add symmetry, or reduce to fewer dimensions to reveal the essential structure. Solve the simpler version completely, then generalize the method back to the original problem. This is one of the most powerful professional mathematical techniques.
+NARRATION: Simplify first, then scale the solution back up to the full problem.
+
+SLIDE 13 | Using Algebra to Model Problems
+Algebra translates a word problem into an equation or system of equations. Assign a variable to the unknown quantity, express all relationships as equations, and solve. The key skill is interpreting phrases like "three more than," "twice as fast," or "the ratio of" into algebraic symbols precisely.
+NARRATION: Variables and equations are the language that turns word problems into solvable mathematics.
+
+SLIDE 14 | Rate-Time-Distance Problems
+The fundamental relationship is distance equals rate times time, written d = rt. Problems involving two travelers, opposite directions, or catches up situations require setting up one equation per object and solving simultaneously. Drawing a timeline or table of d, r, t for each object before writing equations greatly reduces errors.
+NARRATION: Organize distance, rate, and time in a table for each object before writing any equation.
+
+SLIDE 15 | Mixture and Work Problems
+Mixture problems combine two or more ingredients at different concentrations to reach a target concentration. Work problems ask how long two workers, each with their own rate, take to finish a job together. For work problems, add rates: if A finishes in a days and B in b days, together they finish at 1/a + 1/b of the job per day.
+NARRATION: In mixture problems balance concentrations; in work problems add rates, not times.
+
+SLIDE 16 | Percent Change and Profit/Loss
+Percent change equals the change divided by the original value, all times 100. Profit equals revenue minus cost; profit margin equals profit divided by revenue times 100. Watch out for the classic trap: a 20 percent gain followed by a 20 percent loss does not return to the starting value.
+NARRATION: Percent change is always relative to the original starting value, not the new one.
+
+SLIDE 17 | Counting — The Fundamental Principle
+The fundamental counting principle states that if one event has m outcomes and a second independent event has n outcomes, the two together have m times n outcomes. This multiplicative principle extends to any number of stages. It is the foundation for all counting formulas.
+NARRATION: Multiply the number of choices at each independent stage to count all outcomes.
+
+SLIDE 18 | Permutations and Combinations
+A permutation counts ordered arrangements: P(n,r) = n!/(n-r)!. A combination counts unordered selections: C(n,r) = n!/(r!(n-r)!). Use permutations when order matters, such as ranking contestants; use combinations when order does not matter, such as selecting committee members.
+NARRATION: Permutations count ordered lists; combinations count unordered groups.
+
+SLIDE 19 | Probability Word Problems
+The probability of an event equals the number of favorable outcomes divided by the total number of equally likely outcomes. To solve probability word problems, identify the sample space, count favorable outcomes carefully, and simplify. Compound events use addition for "or" and multiplication for "and" under independence.
+NARRATION: Probability equals favorable outcomes over total outcomes in an equally likely sample space.
+
+SLIDE 20 | Geometry Word Problems
+Geometry word problems require knowing formulas for area, perimeter, surface area, and volume and translating the verbal description into a labeled figure. Common targets include the area of composite shapes (break them into simpler parts), the volume of prisms and cylinders, and the relationship between angles in triangles and parallel-line figures.
+NARRATION: Label a diagram with all given measurements before writing any geometric formula.
+
+SLIDE 21 | Age and Number Relationship Problems
+Age problems assign variables to people's current ages and use relationships like "in five years" or "three times as old" to write equations. Number puzzles express properties like "the sum of two consecutive integers" or "the digit in the tens place" algebraically. Carefully defining variables is the most important step.
+NARRATION: Define clear variables for each unknown age or number before writing any relationship as an equation.
+
+SLIDE 22 | Integer and Divisibility Puzzles
+Divisibility puzzles exploit the structure of integers: factors, multiples, odd and even behavior, and remainders. Key facts include that a number is divisible by 3 if its digits sum to a multiple of 3, and by 9 if they sum to a multiple of 9. Testing small cases and using parity (odd versus even) arguments often cracks puzzles quickly.
+NARRATION: Divisibility rules and parity arguments are powerful shortcuts for integer puzzles.
+
+SLIDE 23 | Sets and Venn Diagram Problems
+A Venn diagram represents sets as overlapping circles inside a rectangle for the universal set. The intersection holds elements in both sets; the union holds elements in at least one. The inclusion-exclusion formula states |A ∪ B| = |A| + |B| - |A ∩ B|, preventing double-counting of the overlap.
+NARRATION: Inclusion-exclusion ensures you neither miss elements nor count the overlap twice.
+
+SLIDE 24 | Logic Puzzles and Truth Tables
+Logic puzzles test deductive reasoning: given a set of statements, determine which configuration is consistent. Truth tables systematically list all combinations of true and false for each proposition and evaluate compound statements. Key connectives are AND (true only when both parts are true), OR (true when at least one is true), and NOT (reverses truth value).
+NARRATION: Truth tables remove guesswork from logical puzzles by systematically testing every possible scenario.
+
+SLIDE 25 | Problem Solving in Standardized Tests
+Tests like the SAT and ACT reward efficient strategy selection over raw computation. Plug in numbers, use answer choices, and eliminate clearly wrong options to save time. The most dangerous trap is overcomplicating a problem: step back, re-read, and ask whether a simpler approach would suffice.
+NARRATION: On timed tests, speed comes from choosing the right strategy quickly, not from computing faster.
+
+SLIDE 26 | Building a Problem-Solving Mindset
+Expert problem solvers embrace struggle as normal and view mistakes as information. Keeping a problem journal, attempting a variety of problem types, and reviewing wrong answers in detail all accelerate growth. Consistency in practice matters far more than innate ability: persistence over months beats talent without effort.
+NARRATION: The willingness to struggle productively with hard problems is itself the most important problem-solving skill.
+
+FACT: Polya's four steps are understand, plan, execute, and look back.
+FACT: Distance equals rate times time: d = rt.
+FACT: For work problems, add rates: 1/a + 1/b is the combined rate when A takes a days and B takes b days.
+FACT: Permutations count ordered arrangements; combinations count unordered selections.
+FACT: The inclusion-exclusion formula is |A ∪ B| = |A| + |B| - |A ∩ B|.
+FACT: Percent change is always calculated relative to the original value.
+FACT: The fundamental counting principle multiplies the number of choices at each independent stage.

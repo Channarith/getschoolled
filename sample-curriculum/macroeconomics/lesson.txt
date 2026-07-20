@@ -1,0 +1,118 @@
+LESSON: Macroeconomics
+LANGUAGE: en
+
+SLIDE 1 | What Macroeconomics Studies: The Big Picture
+Macroeconomics studies the behavior and performance of the economy as a whole rather than individual markets. It addresses questions such as: Why do some countries grow rich while others remain poor? What causes recessions? Why does inflation rise and fall? How should governments and central banks respond to economic downturns? The field emerged as a distinct discipline after John Maynard Keynes published "The General Theory of Employment, Interest and Money" in 1936, in response to the catastrophic Great Depression.
+NARRATION: Macroeconomics studies economy-wide outcomes like growth, unemployment, and inflation.
+
+SLIDE 2 | GDP: Definition and Components
+Gross Domestic Product (GDP) is the total market value of all final goods and services produced within a country's borders in a given time period. The expenditure approach measures GDP as C + I + G + NX, where C is household consumption (the largest component in the U.S., typically about 70 percent of GDP), I is business investment, G is government purchases of goods and services, and NX is net exports (exports minus imports). Intermediate goods are excluded to avoid double counting — only the value of the final car, not the steel that went into it, is counted.
+NARRATION: GDP equals consumption plus investment plus government spending plus net exports.
+
+SLIDE 3 | Real vs. Nominal GDP
+Nominal GDP values output at current prices, which means it rises when either output increases or prices rise. Real GDP adjusts nominal GDP for price changes using a base-year price index, isolating genuine growth in output. If nominal GDP rose by 6 percent and prices rose by 4 percent, real GDP grew by roughly 2 percent. The GDP deflator is the ratio of nominal to real GDP times 100, and it serves as a broad measure of price change across the entire economy.
+NARRATION: Real GDP strips out inflation so we can compare genuine output across different years.
+
+SLIDE 4 | GDP Per Capita and Limitations of GDP
+GDP per capita — GDP divided by population — is a widely used measure of average living standards. In 2024, GDP per capita in the United States was approximately $82,000, while in sub-Saharan Africa it averaged under $3,000. However, GDP omits non-market activity (unpaid household work, volunteering), does not account for inequality (a rising tide may not lift all boats equally), ignores environmental degradation, and says nothing about leisure, health, or political freedom. Alternative measures like the Human Development Index (HDI) incorporate health and education alongside income.
+NARRATION: GDP per capita approximates living standards but misses inequality, health, environment, and leisure.
+
+SLIDE 5 | The Business Cycle: Phases and Characteristics
+The business cycle describes periodic fluctuations in economic activity around its long-run trend. During the expansion phase, real GDP grows, employment rises, consumer confidence is high, and businesses invest. The peak is the top of the cycle — the point just before a downturn begins. A recession is a significant decline in activity lasting more than a few months, typically defined as two consecutive quarters of falling real GDP. The trough is the cycle's low point; recovery and a new expansion follow. The National Bureau of Economic Research (NBER) is the official arbiter of U.S. recession dates.
+NARRATION: The business cycle alternates between expansions and recessions around a long-run growth trend.
+
+SLIDE 6 | Types of Unemployment and the Natural Rate
+Frictional unemployment reflects normal job-search time: workers who quit, graduate, or are laid off take time to find new positions that match their skills. Structural unemployment arises when workers' skills become mismatched with available jobs — automation displacing factory workers is a prominent modern example. Cyclical unemployment is caused by insufficient aggregate demand during recessions. The natural rate of unemployment (NAIRU — Non-Accelerating Inflation Rate of Unemployment) is the sum of frictional and structural unemployment, typically estimated at about 4–5 percent in the United States.
+NARRATION: The natural rate of unemployment combines frictional and structural unemployment, excluding cyclical effects.
+
+SLIDE 7 | Measuring Unemployment: The Unemployment Rate
+The Bureau of Labor Statistics (BLS) conducts a monthly household survey to measure unemployment. A person is classified as unemployed if they are jobless, available for work, and have actively searched for a job in the previous four weeks. The unemployment rate is (unemployed / labor force) × 100, where the labor force equals employed plus unemployed. Discouraged workers — those who have given up searching — are not counted, so the official rate can understate true joblessness; the U-6 measure, which includes part-time workers who want full-time work and marginally attached workers, provides a broader view.
+NARRATION: The official unemployment rate counts only those actively seeking work; discouraged workers are excluded.
+
+SLIDE 8 | Inflation: CPI, PPI, and the GDP Deflator
+The Consumer Price Index (CPI) measures the cost of a fixed market basket of goods and services representative of a typical urban household. The BLS updates prices monthly and computes the percentage change to obtain the inflation rate. The Producer Price Index (PPI) tracks prices at the wholesale level — what producers receive — and often anticipates consumer-level inflation. The GDP deflator is broader than the CPI because it covers all goods in GDP, not just a fixed basket, and it rises when prices of domestically produced goods increase.
+NARRATION: The CPI tracks a fixed household basket; the GDP deflator covers all domestic production.
+
+SLIDE 9 | Causes of Inflation: Demand-Pull, Cost-Push, and Monetary
+Demand-pull inflation arises when aggregate demand grows faster than the economy's productive capacity — "too much money chasing too few goods." Cost-push inflation (also called supply-side inflation) results from increases in production costs — an oil price shock raises costs across the economy, shifting aggregate supply leftward. Monetary inflation, emphasized by monetarists following Milton Friedman, holds that inflation is "always and everywhere a monetary phenomenon" — excessive money supply growth eventually manifests as higher prices. All three mechanisms can interact: a supply shock can trigger demand responses and monetary accommodation.
+NARRATION: Inflation can be driven by excess demand, rising production costs, or excessive money growth.
+
+SLIDE 10 | The Fisher Effect and Real vs. Nominal Interest Rates
+The nominal interest rate is the stated rate you see on a loan or savings account. The real interest rate adjusts for inflation: real rate ≈ nominal rate − inflation rate. This relationship, formalized by economist Irving Fisher, is called the Fisher equation. If a bank pays 5 percent nominal interest and inflation is 3 percent, your real return is only 2 percent. The Fisher effect predicts that nominal rates adjust one-for-one with expected inflation in the long run, meaning monetary policy cannot permanently alter real interest rates.
+NARRATION: The real interest rate equals the nominal rate minus inflation, capturing the true cost of borrowing.
+
+SLIDE 11 | Aggregate Demand: Components and the AD Curve
+Aggregate demand (AD) is the total spending on domestically produced goods and services at every price level: AD = C + I + G + NX. The AD curve slopes downward: at a higher price level, real wealth falls (wealth effect), the real interest rate rises making borrowing costlier (interest rate effect), and exports become less competitive (exchange rate effect). Fiscal policy shifts AD by changing G or taxes; monetary policy shifts AD by altering interest rates that affect C and I. Anything that changes total spending shifts the AD curve.
+NARRATION: The aggregate demand curve slopes downward because higher price levels reduce real wealth and raise borrowing costs.
+
+SLIDE 12 | Aggregate Supply: Short-Run and Long-Run
+The short-run aggregate supply (SRAS) curve slopes upward: at higher price levels, firms increase output because input costs (especially wages) are sticky and do not immediately adjust. Supply shocks — an oil embargo, a pandemic disrupting supply chains — shift SRAS leftward; technological improvements and falling input costs shift it rightward. The long-run aggregate supply (LRAS) curve is vertical at the economy's natural output (potential GDP), reflecting the idea that in the long run, all prices and wages are flexible and output is determined by real factors like technology and labor force size.
+NARRATION: Short-run supply slopes upward due to sticky wages; long-run supply is vertical at potential GDP.
+
+SLIDE 13 | Equilibrium in the AS-AD Model
+The economy's short-run equilibrium is where the AD and SRAS curves intersect, determining both the price level and real output. If the economy is in recession — output below potential GDP — the AS-AD intersection lies to the left of the LRAS curve. Over time, falling wages and input prices shift SRAS rightward, restoring potential output in the long run without policy intervention. An expansionary shock (e.g., a tax cut) shifts AD rightward, raising both output and price level in the short run but only the price level in the long run.
+NARRATION: The AS-AD intersection determines short-run output and prices; the economy self-corrects to potential GDP in the long run.
+
+SLIDE 14 | Fiscal Policy: Expansionary and Contractionary
+Fiscal policy refers to the use of government spending and taxation to influence aggregate demand. Expansionary fiscal policy — cutting taxes or increasing spending — shifts AD rightward, raising output and employment during a recession. Contractionary fiscal policy — raising taxes or cutting spending — shifts AD leftward, reducing inflationary pressure. Automatic stabilizers (unemployment insurance, progressive income taxes) provide counter-cyclical fiscal policy without legislative action, automatically increasing the deficit during recessions and reducing it during expansions.
+NARRATION: Expansionary fiscal policy shifts aggregate demand right; contractionary fiscal policy shifts it left.
+
+SLIDE 15 | The Multiplier Effect
+When government spends $100 billion on infrastructure, the total impact on GDP is larger than $100 billion because of the multiplier effect. Workers hired for construction spend their wages on goods and services, whose producers in turn spend their income, and so on through multiple rounds of spending. The simple spending multiplier is 1 / (1 − MPC), where MPC is the marginal propensity to consume. If MPC = 0.8, the multiplier is 5 — a $1 increase in autonomous spending raises GDP by $5, assuming no crowding-out or leakages.
+NARRATION: The multiplier amplifies the GDP impact of a change in spending through successive rounds of re-spending.
+
+SLIDE 16 | The Federal Budget: Deficits, Surpluses, and National Debt
+A budget deficit occurs when government spending exceeds tax revenue in a given year; a surplus occurs when revenues exceed spending. The national debt is the cumulative sum of all past deficits minus surpluses, representing the total amount the government owes to creditors. As of 2024, the U.S. national debt exceeded $34 trillion. Keynesians argue that deficit spending is appropriate to stimulate demand in recessions; critics worry about crowding out private investment and the burden of interest payments on future taxpayers.
+NARRATION: The national debt is the stock of accumulated deficits and represents total government borrowing outstanding.
+
+SLIDE 17 | Monetary Policy: Tools of the Federal Reserve
+The Federal Reserve (the Fed) uses several tools to implement monetary policy. Open-market operations — buying or selling U.S. Treasury securities — are the primary tool: buying bonds injects reserves into the banking system, lowering the federal funds rate and encouraging lending. The discount rate is the interest rate the Fed charges banks for overnight borrowing from its discount window. The reserve requirement dictates the fraction of deposits banks must hold, though the Fed has not adjusted it frequently. Since 2008, the Fed has also paid interest on excess reserves (IOER), giving banks an incentive to hold reserves rather than lend.
+NARRATION: The Fed's main tool is open-market operations, which adjust the money supply and the federal funds rate.
+
+SLIDE 18 | The Money Supply, Money Multiplier, and the Banking System
+When a bank receives a $1,000 deposit and holds 10 percent in reserve, it lends out $900. The borrower deposits $900 in another bank, which lends out $810, and so on. This process creates money: the money multiplier is 1 / reserve requirement. With a 10 percent reserve requirement, a $1,000 deposit can ultimately support $10,000 of deposits economy-wide. The money supply is divided into M1 (currency plus demand deposits) and M2 (M1 plus savings deposits, small time deposits, and money-market funds). The Fed controls the monetary base; the multiplier links it to broader money supply measures.
+NARRATION: Fractional reserve banking allows each dollar of base money to support multiple dollars of deposits.
+
+SLIDE 19 | The IS-LM Model Overview
+The IS-LM model describes simultaneous equilibrium in the goods market and the money market. The IS curve (Investment-Saving) shows combinations of interest rates and output where the goods market is in equilibrium: lower interest rates raise investment and output. The LM curve (Liquidity-Money) shows combinations where money supply equals money demand: higher output raises money demand and thus the equilibrium interest rate. The intersection of IS and LM determines short-run real GDP and the interest rate, and the model shows how fiscal policy (shifting IS) and monetary policy (shifting LM) interact.
+NARRATION: The IS-LM model finds equilibrium where both the goods market and money market clear simultaneously.
+
+SLIDE 20 | The Phillips Curve: Inflation vs. Unemployment
+A.W. Phillips observed in 1958 that low unemployment in the United Kingdom was historically associated with high wage inflation — suggesting a stable short-run trade-off. Policymakers in the 1960s believed they could permanently choose a point on the curve — accepting higher inflation for lower unemployment. Milton Friedman and Edmund Phelps argued this was an illusion: in the long run, workers adjust expectations and the curve is vertical at the natural rate of unemployment. The stagflation of the 1970s — high inflation and high unemployment simultaneously — appeared to validate this critique.
+NARRATION: The Phillips curve shows a short-run trade-off between inflation and unemployment that breaks down in the long run.
+
+SLIDE 21 | Economic Growth: Sources and the Solow Model
+Long-run economic growth is driven by increases in labor, physical capital, human capital, and technology. The Solow growth model shows that capital accumulation alone leads to diminishing returns and a steady state — where investment just replaces depreciating capital. Beyond the steady state, sustained growth requires continuous technological progress (total factor productivity growth). Countries that save more reach a higher steady-state capital stock and output per worker. The model predicts convergence: poor countries should grow faster than rich ones as they accumulate capital — a pattern visible in East Asia but less so in sub-Saharan Africa.
+NARRATION: The Solow model shows that sustained long-run growth requires ongoing technological progress, not just capital accumulation.
+
+SLIDE 22 | International Trade: Absolute vs. Comparative Advantage
+Absolute advantage means producing a good using fewer resources than another country. Comparative advantage — the more important concept — means producing a good at a lower opportunity cost. Even if the United States is absolutely more productive in both wheat and semiconductors, if it gives up less wheat per semiconductor than Mexico, the U.S. should specialize in semiconductors while Mexico specializes in wheat and the two countries trade. This logic, developed by David Ricardo, explains why free trade can raise incomes in all participating nations simultaneously.
+NARRATION: Comparative advantage, not absolute advantage, determines which goods a country should specialize in and trade.
+
+SLIDE 23 | Exchange Rates: Fixed, Floating, Appreciation, Depreciation
+The exchange rate is the price of one currency in terms of another. Under a floating rate system, market forces of currency supply and demand determine exchange rates; under a fixed rate system, a government pegs its currency to another (often the U.S. dollar or gold). When a currency appreciates, it buys more foreign currency — U.S. imports become cheaper and exports more expensive. Currency depreciation has the opposite effect, stimulating exports and reducing imports. The real exchange rate adjusts the nominal rate for differences in price levels across countries.
+NARRATION: A floating exchange rate rises and falls with market demand, appreciating when the currency strengthens.
+
+SLIDE 24 | Balance of Payments: Current Account and Capital Account
+The balance of payments is a double-entry accounting system that records all transactions between a country and the rest of the world. The current account records trade in goods (merchandise trade balance), services, primary income (wages and investment returns), and secondary income (remittances). The capital and financial account records purchases and sales of financial assets — foreign direct investment, portfolio investment, and official reserve transactions. By construction, the current account balance plus the financial account balance equals zero: a current account deficit is financed by a financial account surplus.
+NARRATION: A current account deficit must be matched by a capital and financial account surplus by accounting identity.
+
+SLIDE 25 | The Mundell-Fleming Model and the Open Economy
+The Mundell-Fleming model extends IS-LM to an open economy with capital mobility and a floating exchange rate. Under a floating rate and perfect capital mobility, monetary policy is very effective: cutting interest rates causes capital outflows, depreciating the currency and boosting net exports, amplifying the effect on output. However, fiscal policy becomes ineffective: increased government spending raises interest rates, attracting capital inflows, appreciating the currency, and crowding out net exports — leaving output unchanged. Under fixed exchange rates, the conclusions reverse, making fiscal policy more powerful and monetary policy constrained.
+NARRATION: The Mundell-Fleming model shows how capital mobility and exchange rate regimes shape the power of fiscal and monetary policy.
+
+SLIDE 26 | Keynesian vs. Classical vs. Monetarist Perspectives
+Classical economists believe markets clear quickly and output is always at its natural rate; they favor non-intervention. Keynesians argue that wages and prices are sticky in the short run, so demand shortfalls cause prolonged recessions requiring active fiscal stimulus. Monetarists, following Friedman, accept that money matters in the short run but argue that discretionary policy is destabilizing and advocate a constant money-growth rule. New Keynesian economists combine rational expectations with sticky prices and wages, justifying a limited role for policy to combat shocks.
+NARRATION: Classical, Keynesian, and monetarist schools disagree on how quickly markets clear and how active policy should be.
+
+SLIDE 27 | Modern Macroeconomic Debates and Policy Challenges
+Contemporary macroeconomics grapples with secular stagnation (persistently low growth and interest rates), the consequences of quantitative easing and large central bank balance sheets, rising inequality and its macroeconomic effects, and supply-side disruptions like climate change and deglobalization. Modern Monetary Theory (MMT) challenges conventional views on deficits, arguing that governments that issue their own currency cannot go bankrupt and should spend until inflation constrains them. The COVID-19 pandemic and subsequent inflation surge of 2021–2023 tested the limits of both fiscal and monetary frameworks and sparked fresh debate on inflation dynamics and the appropriate role of government.
+NARRATION: Modern macroeconomics debates secular stagnation, inequality, supply shocks, and the lessons of the post-pandemic inflation surge.
+
+FACT: GDP equals consumption plus investment plus government spending plus net exports: C + I + G + NX.
+FACT: The natural rate of unemployment is the sum of frictional and structural unemployment.
+FACT: The Fisher equation states that the real interest rate equals the nominal rate minus expected inflation.
+FACT: The money multiplier equals one divided by the reserve requirement.
+FACT: The SRAS curve slopes upward because wages and prices are sticky in the short run.
+FACT: A current account deficit must be offset by a financial account surplus by accounting identity.
+FACT: The Solow model predicts that sustained growth requires ongoing technological progress, not just capital accumulation.

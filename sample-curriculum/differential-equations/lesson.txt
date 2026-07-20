@@ -1,0 +1,110 @@
+LESSON: Differential Equations
+LANGUAGE: en
+
+SLIDE 1 | What Is a Differential Equation?
+A differential equation is an equation that relates a function to one or more of its derivatives. It describes how a quantity changes rather than what it equals at a single moment. Differential equations appear everywhere in science and engineering, from modeling population growth to describing electric circuits.
+NARRATION: A differential equation connects a function to its own rate of change.
+
+SLIDE 2 | Order and Linearity
+The order of a differential equation is the highest derivative that appears in it. A first-order equation involves only the first derivative, while a second-order equation involves the second. An equation is linear if the unknown function and all its derivatives appear to the first power with no products between them.
+NARRATION: Order tells you the highest derivative present; linearity tells you how the terms combine.
+
+SLIDE 3 | Notation and Terminology
+We write derivatives using prime notation, such as y' and y'', or Leibniz notation, such as dy/dx and d²y/dx². The unknown function is often called y and the independent variable is often x or t. A solution is a function that, when substituted into the equation, makes it true everywhere on an interval.
+NARRATION: Prime notation and Leibniz notation are two ways to write the same derivative.
+
+SLIDE 4 | Direction Fields and Slope Fields
+A direction field (or slope field) is a visual tool for first-order equations. At each point in the plane, a short line segment is drawn with slope equal to dy/dx at that point. By following the flow of segments, you can sketch approximate solution curves without solving the equation algebraically.
+NARRATION: A direction field lets you visualize solutions as curves that flow along the slope segments.
+
+SLIDE 5 | Equilibrium Solutions
+An equilibrium solution is a constant function y = c that satisfies the equation. Setting dy/dt = 0 and solving for y reveals these constant solutions. Equilibria can be stable, meaning nearby solutions move toward them, or unstable, meaning nearby solutions move away.
+NARRATION: Equilibrium solutions are constants where the rate of change is permanently zero.
+
+SLIDE 6 | Separable Equations
+A first-order equation is separable if it can be written as dy/dx = g(x) h(y). Rearranging gives (1/h(y)) dy = g(x) dx, and both sides can be integrated independently. This technique is among the most powerful tools for solving first-order differential equations.
+NARRATION: Separate variables so all y terms are on one side and all x terms are on the other, then integrate.
+
+SLIDE 7 | Linear First-Order Equations
+A linear first-order equation has the form dy/dx + P(x)y = Q(x). The standard solution method multiplies every term by the integrating factor mu(x) = e^(integral of P(x) dx), which turns the left side into the derivative of mu(x) y. Integrating both sides then gives the general solution directly.
+NARRATION: The integrating factor transforms the equation so the left side becomes a perfect derivative.
+
+SLIDE 8 | Exact Equations
+An equation M(x,y) dx + N(x,y) dy = 0 is exact when the partial derivative of M with respect to y equals the partial derivative of N with respect to x. In that case a potential function F exists such that dF = 0, and the general solution is F(x,y) = C. If the equation is not exact, an integrating factor can sometimes make it so.
+NARRATION: An exact equation hides a potential function whose level curves are the solution curves.
+
+SLIDE 9 | Application — Population Growth
+The exponential growth model dP/dt = kP says the growth rate is proportional to the current population. Separating and integrating gives P(t) = P₀ e^(kt), where P₀ is the initial population and k is the growth constant. The logistic model dP/dt = kP(1 - P/M) adds a carrying capacity M, producing an S-shaped growth curve.
+NARRATION: The exponential model predicts unlimited growth; the logistic model adds a natural ceiling.
+
+SLIDE 10 | Application — Newton's Law of Cooling
+Newton's Law of Cooling states that dT/dt = k(T - T_env), where T is the object's temperature and T_env is the surrounding environment temperature. This separable equation yields T(t) = T_env + (T₀ - T_env) e^(kt) with k negative for cooling. The solution shows temperature approaching T_env exponentially as time increases.
+NARRATION: An object's temperature approaches room temperature exponentially according to Newton's Law of Cooling.
+
+SLIDE 11 | Application — Mixing Problems
+Mixing problems track a substance dissolved in a fluid that flows into and out of a tank. The rate equation is dA/dt = rate in minus rate out, where A is the amount of substance at time t. Setting up and solving this linear first-order equation tells you the concentration at any future time.
+NARRATION: Mixing problems combine inflow and outflow rates to find how substance concentration changes over time.
+
+SLIDE 12 | Autonomous Equations and Phase Lines
+An autonomous equation has the form dy/dt = f(y), where the right side depends only on y and not on t directly. A phase line is a number line that marks equilibria and shows arrows indicating whether y increases or decreases between them. Reading the phase line reveals the long-term behavior of every solution without explicit formulas.
+NARRATION: A phase line classifies equilibria and shows where solutions head as time goes on.
+
+SLIDE 13 | Euler's Method
+Euler's method is the simplest numerical technique for approximating the solution to dy/dx = f(x,y) with initial value y(x₀) = y₀. Starting at the known point, we step forward by a small amount h using the update y_{n+1} = y_n + h · f(x_n, y_n). Smaller steps improve accuracy but require more computation; more sophisticated methods such as Runge-Kutta reduce error at larger step sizes.
+NARRATION: Euler's method approximates a solution by taking small tangent-line steps from the initial point.
+
+SLIDE 14 | Second-Order Linear Homogeneous Equations
+A second-order linear homogeneous equation has the form ay'' + by' + cy = 0 with constant coefficients a, b, c. The general solution is a linear combination of two linearly independent solutions. Finding those solutions begins with the characteristic equation obtained by substituting y = e^(rx).
+NARRATION: For constant-coefficient equations, guessing y equals e to the rx leads to the characteristic equation.
+
+SLIDE 15 | Characteristic Equation — Real Distinct Roots
+When the characteristic equation ar² + br + c = 0 has two distinct real roots r₁ and r₂, the general solution is y = C₁e^(r₁x) + C₂e^(r₂x). The two exponentials are linearly independent, so every solution is a unique combination of them. Initial conditions determine the constants C₁ and C₂.
+NARRATION: Two distinct real roots give a general solution that is a sum of two different exponentials.
+
+SLIDE 16 | Characteristic Equation — Repeated and Complex Roots
+If the characteristic equation has a repeated root r, the general solution is y = (C₁ + C₂x)e^(rx) to account for linear independence. When the roots are complex conjugates a ± bi, the real-valued general solution is y = e^(ax)(C₁cos(bx) + C₂sin(bx)). Complex roots signal oscillatory behavior in the solution.
+NARRATION: Repeated roots introduce an extra factor of x; complex roots produce oscillating sine and cosine solutions.
+
+SLIDE 17 | Method of Undetermined Coefficients
+The method of undetermined coefficients finds a particular solution to ay'' + by' + cy = g(x) when g(x) is a polynomial, exponential, sine, cosine, or sum and product of these. You guess the form of the particular solution based on g(x), substitute it into the equation, and solve for the unknown coefficients. The general solution is the particular solution plus the homogeneous solution.
+NARRATION: Guess a particular solution of the same type as the forcing function, then match coefficients.
+
+SLIDE 18 | Variation of Parameters
+Variation of parameters is a more general method for finding a particular solution when undetermined coefficients does not apply. Given the two homogeneous solutions y₁ and y₂, we write y_p = u₁(x)y₁ + u₂(x)y₂ and derive formulas for u₁' and u₂' using the Wronskian. Integration then yields the functions u₁ and u₂, completing the particular solution.
+NARRATION: Variation of parameters replaces the constants in the homogeneous solution with functions to handle any forcing term.
+
+SLIDE 19 | Application — Spring-Mass Systems
+A mass m on a spring with constant k and damping coefficient c obeys my'' + cy' + ky = F(t). When c = 0 the system oscillates forever; when c > 0 solutions decay over time. If the external force F(t) matches the natural frequency of the spring, resonance occurs and amplitude grows without bound.
+NARRATION: The spring-mass equation shows undamped oscillation, damped decay, or resonance depending on the parameters.
+
+SLIDE 20 | Application — RLC Circuits
+In a series RLC circuit, charge q(t) satisfies Lq'' + Rq' + q/C = E(t), where L is inductance, R is resistance, C is capacitance, and E(t) is the applied voltage. This is mathematically identical to the spring-mass equation. Electrical engineers solve it to design filters, oscillators, and signal-processing circuits.
+NARRATION: An RLC circuit obeys the same differential equation as a mass on a spring, linking mechanics and electronics.
+
+SLIDE 21 | The Laplace Transform
+The Laplace transform converts a function f(t) into a function F(s) = integral from 0 to infinity of e^(-st) f(t) dt. It turns differential equations into algebraic equations in s, which are often much easier to solve. Key transforms include L{e^(at)} = 1/(s-a), L{sin(bt)} = b/(s²+b²), and L{t^n} = n!/s^(n+1).
+NARRATION: The Laplace transform exchanges a calculus problem for an algebra problem in the variable s.
+
+SLIDE 22 | Inverse Laplace Transform and IVPs
+After solving the algebraic equation for F(s), the inverse Laplace transform recovers the solution f(t). Partial fraction decomposition is the essential algebraic tool for breaking F(s) into pieces whose inverse transforms are known. The Laplace method automatically incorporates initial conditions, making it ideal for initial value problems.
+NARRATION: Partial fractions and inverse transforms bring the algebraic solution back into the time domain.
+
+SLIDE 23 | Systems of Differential Equations
+Real phenomena often involve several interacting quantities, leading to systems such as dx/dt = ax + by and dy/dt = cx + dy. Writing the system as a matrix equation X' = AX, we look for solutions of the form X = ve^(rt), where v is an eigenvector and r is an eigenvalue of A. The general solution combines solutions from all eigenvalues.
+NARRATION: Systems of equations are solved by finding eigenvalues and eigenvectors of the coefficient matrix.
+
+SLIDE 24 | Phase Plane Analysis
+The phase plane displays trajectories of a two-variable system by plotting y versus x without showing time explicitly. Equilibrium points correspond to constant solutions, and their stability is determined by the eigenvalues of the linearized system at each point. Trajectories spiral, cycle, or move along straight lines depending on the eigenvalue structure.
+NARRATION: Phase plane trajectories reveal the long-term behavior of a system at a glance.
+
+SLIDE 25 | Introduction to Partial Differential Equations
+Partial differential equations (PDEs) involve functions of two or more variables and their partial derivatives. Famous examples include the heat equation, the wave equation, and Laplace's equation. Solving PDEs typically requires techniques such as separation of variables, Fourier series, and transform methods, and they underlie almost all of modern physics and engineering.
+NARRATION: Partial differential equations describe how quantities vary in both space and time, forming the foundation of physics.
+
+FACT: A differential equation's order equals the highest derivative that appears in it.
+FACT: Separable equations are solved by moving all y terms to one side and all x terms to the other, then integrating.
+FACT: The integrating factor for a linear first-order equation is e raised to the integral of P(x).
+FACT: The characteristic equation of ay'' + by' + cy = 0 is ar² + br + c = 0.
+FACT: Complex roots a ± bi in the characteristic equation produce oscillatory solutions with envelope e^(ax).
+FACT: The Laplace transform converts a differential equation into an algebraic equation in s.
+FACT: Resonance in a spring-mass system occurs when the driving frequency matches the natural frequency.

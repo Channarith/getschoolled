@@ -40,8 +40,8 @@ def test_jobs_search_filter():
 def test_job_detail_matches_courses_with_coverage():
     _seed()
     m = client.get("/jobs/job-data").json()  # sql, excel, data-analysis, statistics
-    # The expanded audio catalog may match this job via audio-* courses, so we
-    # check coverage/path rather than pinning to specific seeded catalog IDs.
+    # The expanded audio catalog may now match this job better than the seeded
+    # catalog courses, so we check coverage/path rather than specific IDs.
     assert len(m["matched_courses"]) > 0
     assert 0 < m["coverage_pct"] <= 100
     assert m["recommended_path"]

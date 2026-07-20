@@ -1,0 +1,119 @@
+LESSON: Excel Tips and Tricks
+LANGUAGE: en
+
+SLIDE 1 | Navigating Excel Efficiently
+Excel's keyboard shortcuts can dramatically speed up navigation. Press Ctrl+End to jump to the last cell containing data, and Ctrl+Arrow keys to leap to the edge of a data region in any direction. The Name Box (the small field left of the formula bar) lets you type any cell address like C100 and press Enter to teleport there instantly.
+NARRATION: Use Ctrl+End and Ctrl+Arrow keys to fly around your spreadsheet without touching the mouse.
+
+SLIDE 2 | Go To Special
+Go To Special (Ctrl+G then Alt+S, or F5 then Special) is one of Excel's most underused power features. You can select all blank cells in a range, every cell containing a formula, cells with constants only, or cells that differ from a reference row — all in one click. This makes mass edits, cleanups, and audits dramatically faster.
+NARRATION: Go To Special lets you select every blank cell, formula, or constant in a region with a single command.
+
+SLIDE 3 | Absolute vs Relative vs Mixed References
+When you copy a formula, relative references like A1 shift automatically, while absolute references like $A$1 stay locked. Mixed references lock only one dimension: $A1 locks the column but lets the row shift, while A$1 locks the row but lets the column shift. Use F4 to cycle through all four reference types while your cursor is inside a cell reference.
+NARRATION: Press F4 to toggle between relative, absolute, and mixed cell references in any formula.
+
+SLIDE 4 | Essential Formulas: SUM, AVERAGE, COUNT, COUNTA
+SUM adds a range of numbers, AVERAGE divides the total by the count, COUNT counts only numeric cells, and COUNTA counts all non-empty cells regardless of type. For example, =COUNTA(A2:A100) tells you how many rows have any entry, while =COUNT(A2:A100) tells you how many are numbers. These four functions handle the majority of everyday spreadsheet reporting.
+NARRATION: SUM, AVERAGE, COUNT, and COUNTA are the building blocks of almost every Excel report.
+
+SLIDE 5 | IF and IFERROR
+The IF function evaluates a condition and returns one value when true and another when false: =IF(B2>100,"Over Budget","OK"). Nest IFERROR around any formula to catch errors gracefully: =IFERROR(A2/B2,"Divide by zero") returns your custom message instead of the ugly #DIV/0! error. Combining these two functions makes reports clean and professional.
+NARRATION: Wrap any formula in IFERROR to replace error codes with a friendly message of your choice.
+
+SLIDE 6 | Text Functions: LEFT, RIGHT, MID, LEN, TRIM
+LEFT(text, n) extracts n characters from the start; RIGHT(text, n) from the end; MID(text, start, n) from the middle. LEN counts total characters, which is useful for validating data entry lengths. TRIM removes extra spaces — including hidden leading and trailing spaces that cause VLOOKUP mismatches — and should be applied to any data imported from another system.
+NARRATION: TRIM is often the first function you should apply to imported data to fix invisible spacing errors.
+
+SLIDE 7 | CONCATENATE, TEXTJOIN, and TEXT
+CONCATENATE (or the & operator) joins text: ="Hello "&A2. TEXTJOIN is more powerful: =TEXTJOIN(", ",TRUE,A2:A10) joins a whole range with a separator and skips blanks automatically. The TEXT function converts numbers to formatted strings: =TEXT(TODAY(),"DD/MM/YYYY") formats a date as 20/07/2026, which is essential when building dynamic text labels in dashboards.
+NARRATION: Use TEXTJOIN to combine an entire range of cells with a delimiter in a single formula.
+
+SLIDE 8 | VLOOKUP Pitfalls
+VLOOKUP searches the leftmost column of a table and returns a value from a column to the right: =VLOOKUP(A2,Table,3,FALSE) for an exact match. Its main pitfalls are that it cannot look to the left, it breaks when columns are inserted or deleted because the column index is hard-coded, and it returns the first match only. For any serious lookup work, INDEX+MATCH or XLOOKUP are better alternatives.
+NARRATION: VLOOKUP breaks when columns shift — always prefer INDEX+MATCH or XLOOKUP in production spreadsheets.
+
+SLIDE 9 | INDEX+MATCH
+INDEX returns the value at a given row and column position in a range; MATCH returns the position of a value in a range. Combined, =INDEX(C2:C100,MATCH(F2,A2:A100,0)) looks up F2 in column A and returns the corresponding value from column C — working in any direction. This combination is more flexible and faster on large datasets than VLOOKUP.
+NARRATION: INDEX and MATCH together give you a two-way lookup that works left, right, up, and down.
+
+SLIDE 10 | XLOOKUP
+XLOOKUP, available in Excel 365 and Excel 2021, replaces VLOOKUP and INDEX+MATCH with cleaner syntax: =XLOOKUP(lookup_value, lookup_array, return_array, "Not found"). It searches left or right, handles multiple return columns, supports wildcards, and lets you specify what to return when no match is found. If you have access to it, XLOOKUP should be your default lookup function.
+NARRATION: XLOOKUP is the modern replacement for VLOOKUP, with a cleaner syntax and far fewer limitations.
+
+SLIDE 11 | Date and Time Functions
+TODAY() returns today's date dynamically; NOW() includes the current time. DATEDIF(start,end,"D") calculates the number of days between two dates; use "M" for months and "Y" for years. EOMONTH(date,0) returns the last day of the same month, while WORKDAY(date,n) calculates a date n working days in the future, respecting weekends. NETWORKDAYS counts working days between two dates.
+NARRATION: DATEDIF and NETWORKDAYS are essential for calculating deadlines, tenures, and project durations.
+
+SLIDE 12 | Logical Functions: AND, OR, NOT, IFS, SWITCH
+AND returns TRUE only if all conditions are met; OR returns TRUE if any condition is met; NOT reverses a logical value. Nesting multiple IFs becomes unreadable quickly, so use IFS instead: =IFS(A2>90,"A",A2>80,"B",A2>70,"C",TRUE,"D") evaluates conditions in sequence. SWITCH compares one expression against a list of values: =SWITCH(B2,"Red",1,"Blue",2,"Green",3,0).
+NARRATION: Replace deeply nested IF statements with IFS or SWITCH for formulas that are readable at a glance.
+
+SLIDE 13 | Conditional Formatting
+Conditional formatting automatically colors cells based on rules, making patterns and outliers visible immediately. Highlight Cell Rules and Top/Bottom Rules are quick starting points; Data Bars and Color Scales add in-cell charts. For advanced use, choose "Use a formula to determine which cells to format" — for example, =$C2>$D2 highlights entire rows where actuals exceed budget.
+NARRATION: A formula-based conditional formatting rule applied to a whole row is one of Excel's most powerful visual tools.
+
+SLIDE 14 | Data Validation
+Data validation restricts what users can enter into a cell and displays helpful error messages when they enter something invalid. Choose "List" to create a dropdown from a range or a comma-separated list. Use "Custom" with a formula like =COUNTIF($A$2:$A$100,A2)=1 to prevent duplicate entries in a column, catching errors at the point of entry rather than later during analysis.
+NARRATION: Custom data validation formulas prevent duplicates and enforce business rules right where data is entered.
+
+SLIDE 15 | Sorting and Filtering
+Multi-level sorting lets you sort by multiple columns in priority order: sort by Region first, then by Sales descending within each region. After adding AutoFilter with Ctrl+Shift+L, you can filter by color (great after conditional formatting) and by multiple values simultaneously. The Advanced Filter, found on the Data tab, lets you filter based on complex criteria written in a separate range and copy results to another location.
+NARRATION: Multi-level sort and Advanced Filter give you control over data that a simple column sort can never match.
+
+SLIDE 16 | Removing Duplicates and Data Cleaning
+The Remove Duplicates button on the Data tab eliminates duplicate rows based on the columns you select, showing a count of removed and remaining rows. For cleaning imported data: use TRIM to remove extra spaces, PROPER or UPPER/LOWER to standardize case, and VALUE or DATEVALUE to convert text that looks like numbers or dates into actual values Excel can calculate with. Flash Fill (Ctrl+E) recognizes patterns and fills in the rest of a column automatically.
+NARRATION: Flash Fill detects patterns in your data and can split, reformat, or combine columns with a single keystroke.
+
+SLIDE 17 | Power Query: Import and Transform
+Power Query (Get & Transform) connects to files, databases, web pages, and APIs, then records every cleaning step as a repeatable query. You can split columns, pivot and unpivot data, merge queries like SQL joins, change data types, and filter rows — all without writing code. When the source data refreshes, click Refresh All and all your transformations reapply automatically.
+NARRATION: Power Query records every cleanup step so you never manually reformat imported data again.
+
+SLIDE 18 | Pivot Tables
+A pivot table summarizes large datasets in seconds: drag a field to Rows, Columns, Values, or Filters, and Excel aggregates the data instantly. Right-click dates in a Row field and choose Group to bucket by month, quarter, or year. Add a Calculated Field from the PivotTable Analyze tab to create metrics like profit margin directly inside the pivot without touching the source data.
+NARRATION: Drag fields into a pivot table to summarize thousands of rows of data in under ten seconds.
+
+SLIDE 19 | Slicers, Timelines, and Pivot Charts
+Slicers are visual filter buttons you attach to a pivot table: click a button to filter, click another to change the view. Timelines work the same way but specifically for date fields, letting users drag a handle to filter by month or quarter intuitively. Pivot Charts stay in sync with their pivot table, and slicers control both simultaneously — making them the fastest way to build an interactive dashboard.
+NARRATION: A slicer lets any user filter a pivot table or chart just by clicking a button, no Excel knowledge required.
+
+SLIDE 20 | Dynamic Arrays: FILTER, SORT, UNIQUE, SEQUENCE
+Introduced in Excel 365, dynamic array functions spill results into neighboring cells automatically. =FILTER(A2:C100,B2:B100="West") returns only the rows where the region is West. =UNIQUE(A2:A100) lists every distinct value once. =SORT(range,column,1) sorts without disturbing source data. =SEQUENCE(10) generates the numbers 1 through 10. These functions replace many complex array formulas from older Excel versions.
+NARRATION: FILTER and UNIQUE can replace many complex formulas and manual copy-paste steps in a single cell entry.
+
+SLIDE 21 | SUMIF, SUMIFS, COUNTIF, COUNTIFS, AVERAGEIF
+SUMIF sums values in one column based on a condition in another: =SUMIF(A:A,"West",C:C) totals column C wherever column A says "West". SUMIFS extends this to multiple conditions. COUNTIF counts how many cells match a criterion, and COUNTIFS adds multi-condition support. Use these instead of pivot tables when you need conditional totals that update live as your data changes.
+NARRATION: SUMIFS with multiple criteria is often faster to build and maintain than a pivot table for targeted conditional totals.
+
+SLIDE 22 | Named Ranges and Structured Table References
+Pressing Ctrl+T converts a range into an Excel Table, which auto-expands as you add data and enables structured references like =SUM(SalesData[Revenue]) that are far more readable than =SUM(C2:C500). Named Ranges (Formulas > Define Name) let you assign a meaningful label to any range or value — writing =Revenue_Target*1.1 is clearer than =$F$1*1.1 to anyone reading the file later.
+NARRATION: Structured table references like Table[Column] make formulas self-documenting and immune to row insertions.
+
+SLIDE 23 | Protecting Sheets and Workbooks
+To prevent accidental edits, protect a sheet via Review > Protect Sheet, choosing which actions locked-cell users can still perform (filter, format cells, insert rows). By default all cells are locked; unlock input cells first by selecting them, pressing Ctrl+1, and unchecking Locked under the Protection tab. Protect the workbook structure to prevent sheet deletions and reordering, and add a password only to fields that genuinely need security.
+NARRATION: Unlock your input cells before protecting the sheet so users can fill in the highlighted fields and nothing else.
+
+SLIDE 24 | Dynamic References: INDIRECT and OFFSET
+INDIRECT converts a text string into a cell reference: =INDIRECT("Sheet"&A2&"!B10") builds a reference to a different sheet based on a cell value, enabling dropdown-driven dashboards. OFFSET returns a range that starts at a cell and shifts by a specified number of rows and columns: =SUM(OFFSET(A1,0,0,COUNTA(A:A),1)) sums a column that grows as new rows are added, automatically adjusting the range.
+NARRATION: INDIRECT lets you build cell references dynamically from text, enabling dropdown-controlled formulas and reports.
+
+SLIDE 25 | Sparklines and In-Cell Data Visualization
+Sparklines are miniature charts that live inside a single cell, giving a visual trend summary without taking up chart space. Insert them from Insert > Sparklines, choosing Line, Column, or Win/Loss. Combine sparklines with a data bar column (via conditional formatting) and a color-scale column to create a compact performance dashboard that prints cleanly on one page and updates automatically with new data.
+NARRATION: Sparklines put a tiny trend chart inside a cell, turning a plain data table into a visual performance summary.
+
+SLIDE 26 | Recording and Editing Macros
+The macro recorder (Developer > Record Macro) captures every click and keystroke as VBA code, so you can automate repetitive tasks without writing code from scratch. After recording, open the Visual Basic Editor with Alt+F11 to review and edit the code — removing unnecessary selection steps and adding a loop makes recorded macros far more efficient. Assign the macro to a button or keyboard shortcut for one-click automation.
+NARRATION: Record a macro to capture a repetitive task as code, then clean it up in the VBA editor to make it robust.
+
+SLIDE 27 | Keyboard Shortcuts That Save Hours
+Ctrl+T converts a range to a table; Ctrl+Shift+L toggles AutoFilter; Alt+= inserts a SUM formula for the range above; F4 repeats the last action (or toggles reference types inside a formula); Ctrl+D fills down; Ctrl+; inserts today's date as a static value; Ctrl+Shift+; inserts the current time. Learning ten well-chosen shortcuts eliminates hundreds of mouse clicks per day and compounds significantly over a career.
+NARRATION: Mastering just ten Excel keyboard shortcuts will save you more time than almost any other skill in this course.
+
+SLIDE 28 | Common Excel Mistakes and Audit Techniques
+The most common errors are hard-coded numbers buried in formulas, broken external links, circular references, and volatile functions like NOW() or OFFSET in large files that slow recalculation. Use Formulas > Trace Precedents and Trace Dependents to visualize which cells feed into or receive from a formula. The Formula Auditing toolbar and the Watch Window let you monitor key cells while scrolling elsewhere in a large workbook.
+NARRATION: Trace Precedents draws arrows showing exactly which cells feed into a formula, making audits fast and visual.
+
+SLIDE 29 | Building a Professional Dashboard from Scratch
+A great Excel dashboard starts with three separated zones: a raw data sheet, a calculations sheet with named ranges and pivot tables, and a dashboard sheet containing only charts, slicers, and KPI tiles with no visible formulas. Use camera-linked picture objects to paste live views of calculation ranges onto the dashboard canvas. Lock and hide your data and calculation sheets, protect the workbook, and deliver a polished, interactive report that any stakeholder can use without breaking.
+NARRATION: Separate your raw data, calculations, and presentation onto three distinct sheets to build a dashboard that is easy to maintain and safe to share.
+

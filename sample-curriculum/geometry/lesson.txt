@@ -1,0 +1,114 @@
+LESSON: Geometry
+LANGUAGE: en
+
+SLIDE 1 | Points, Lines, and Planes
+A point is an exact location in space with no size, represented by a dot and a capital letter. A line extends infinitely in both directions and is determined by any two points on it. A plane is a flat surface that extends infinitely in all directions and is determined by any three non-collinear points.
+NARRATION: Points, lines, and planes are the building blocks of all geometry — each is perfectly flat and infinite.
+
+SLIDE 2 | Measuring Segments and Angles
+A line segment is the part of a line between two endpoints, and its length is measured with a ruler in units such as centimeters or inches. An angle is formed by two rays sharing a common endpoint called the vertex, and its measure is given in degrees using a protractor. A full rotation is 360 degrees.
+NARRATION: Segments have measurable length and angles have measurable degree measure — both are foundational tools.
+
+SLIDE 3 | Angle Pairs — Complementary and Supplementary
+Two angles are complementary if their measures add to 90 degrees, and supplementary if they add to 180 degrees. Adjacent angles share a vertex and a side but do not overlap. Knowing these relationships lets you find a missing angle when one is given: if one angle is 35°, its complement is 55° and its supplement is 145°.
+NARRATION: Complementary angles sum to 90 degrees; supplementary angles sum to 180 degrees.
+
+SLIDE 4 | Vertical Angles
+When two lines intersect, they form two pairs of vertical angles — angles that are across the intersection from each other. Vertical angles are always congruent, meaning they have equal measures. The two pairs of adjacent angles at the intersection are supplementary, each pair summing to 180 degrees.
+NARRATION: Vertical angles are opposite each other at an intersection and are always equal in measure.
+
+SLIDE 5 | Parallel Lines and Transversals
+When a transversal crosses two parallel lines, it creates eight angles in four special pairs. Corresponding angles are in matching positions and are congruent. Alternate interior angles are between the parallel lines on opposite sides of the transversal and are congruent. Alternate exterior angles are outside the parallel lines on opposite sides and are also congruent.
+NARRATION: A transversal cutting parallel lines creates corresponding and alternate angles that are always congruent.
+
+SLIDE 6 | Co-Interior Angles and Parallel Line Proofs
+Co-interior angles (also called consecutive interior or same-side interior angles) are between the parallel lines on the same side of the transversal, and they are supplementary — their measures add to 180 degrees. These angle relationships can also be used in reverse: if the angles have these properties, you can conclude the lines are parallel.
+NARRATION: Same-side interior angles are supplementary — use angle relationships to prove lines are parallel.
+
+SLIDE 7 | Triangle Classification
+Triangles are classified by their side lengths and by their angle measures. By sides: equilateral (all sides equal), isosceles (two sides equal), and scalene (no sides equal). By angles: acute (all angles less than 90°), right (one angle equals 90°), and obtuse (one angle greater than 90°). The three interior angles of any triangle always sum to 180 degrees.
+NARRATION: Triangles are classified by sides and by angles — all three interior angles always add to 180 degrees.
+
+SLIDE 8 | Triangle Congruence — SSS and SAS
+Two triangles are congruent if all corresponding sides and angles are equal. The Side-Side-Side (SSS) postulate states that if all three pairs of corresponding sides are equal, the triangles are congruent. The Side-Angle-Side (SAS) postulate requires two pairs of equal sides and the included angle between them to be equal.
+NARRATION: SSS needs three matching sides; SAS needs two matching sides with the angle between them.
+
+SLIDE 9 | Triangle Congruence — ASA, AAS, and HL
+Angle-Side-Angle (ASA) requires two pairs of equal angles and the included side between them. Angle-Angle-Side (AAS) uses two pairs of equal angles and a non-included side. The Hypotenuse-Leg (HL) theorem applies only to right triangles: if the hypotenuse and one leg are equal, the triangles are congruent. There is no Angle-Side-Side or Angle-Angle-Angle congruence shortcut.
+NARRATION: ASA, AAS, and HL are three more ways to prove triangles congruent — HL works only for right triangles.
+
+SLIDE 10 | Triangle Similarity
+Two triangles are similar if their corresponding angles are equal and their corresponding sides are proportional. The Angle-Angle (AA) postulate says that if two pairs of angles are equal, the triangles are similar. Side-Angle-Side (SAS) similarity requires proportional sides and the included angle, while Side-Side-Side (SSS) similarity requires all three pairs of sides to be in proportion.
+NARRATION: Similar triangles have the same shape — AA is the quickest way to prove two triangles similar.
+
+SLIDE 11 | The Pythagorean Theorem
+In any right triangle, the square of the hypotenuse equals the sum of the squares of the two legs: a² + b² = c², where c is the hypotenuse (opposite the right angle). This theorem lets you find any side of a right triangle when two are known. Common Pythagorean triples include 3-4-5, 5-12-13, and 8-15-17.
+NARRATION: a squared plus b squared equals c squared — the Pythagorean theorem works for every right triangle.
+
+SLIDE 12 | Special Right Triangles — 45-45-90
+A 45-45-90 triangle is an isosceles right triangle. Its legs are equal, and the hypotenuse is always the leg length times √2. For example, if each leg is 5, the hypotenuse is 5√2. This triangle is half of a square cut along its diagonal, and its ratios come up constantly in geometry and trigonometry.
+NARRATION: In a 45-45-90 triangle, the hypotenuse is the leg times the square root of two.
+
+SLIDE 13 | Special Right Triangles — 30-60-90
+A 30-60-90 triangle is half of an equilateral triangle. Its sides are in the ratio 1 : √3 : 2 — the shortest leg is opposite the 30° angle, the longer leg opposite the 60° angle, and the hypotenuse is twice the shortest leg. For example, if the shortest leg is 4, the longer leg is 4√3 and the hypotenuse is 8.
+NARRATION: In a 30-60-90 triangle, the sides are in ratio one to root three to two.
+
+SLIDE 14 | Trigonometric Ratios — Sine, Cosine, Tangent
+In a right triangle, the three basic trigonometric ratios relate angles to side lengths. Sine of an angle equals the opposite side divided by the hypotenuse. Cosine equals the adjacent side divided by the hypotenuse. Tangent equals the opposite side divided by the adjacent side. The acronym SOH-CAH-TOA helps you remember all three.
+NARRATION: SOH-CAH-TOA — sine is opposite over hypotenuse, cosine adjacent over hypotenuse, tangent opposite over adjacent.
+
+SLIDE 15 | Using Trigonometry to Find Missing Parts
+To find a missing side, set up the appropriate ratio and solve algebraically. To find a missing angle when two sides are known, use an inverse trig function: θ = sin⁻¹(opposite/hypotenuse), for example. Trigonometry is used in navigation, engineering, and construction to find distances and angles that cannot be measured directly.
+NARRATION: Set up a trig ratio with the known sides and solve for the missing side or use inverse trig for an angle.
+
+SLIDE 16 | Polygons and Their Properties
+A polygon is a closed figure made of straight line segments. Regular polygons have all sides and angles equal. The sum of the interior angles of any polygon with n sides is (n − 2) × 180°. A triangle has 180°, a quadrilateral 360°, a pentagon 540°, and a hexagon 720°. Each interior angle of a regular n-gon measures (n − 2) × 180° / n.
+NARRATION: The interior angle sum of any polygon is n minus two times 180 degrees.
+
+SLIDE 17 | Area of Triangles and Quadrilaterals
+The area of a triangle is one half base times height: A = ½bh. A rectangle's area is length times width; a parallelogram's is base times height. A trapezoid's area uses both parallel bases: A = ½(b₁ + b₂)h. Always use the perpendicular height, not the slant side, in these formulas.
+NARRATION: Area formulas use the perpendicular height — one half base times height for triangles.
+
+SLIDE 18 | The Distance Formula
+The distance between two points (x₁, y₁) and (x₂, y₂) in the coordinate plane is d = √((x₂ − x₁)² + (y₂ − y₁)²). This formula is derived directly from the Pythagorean theorem applied to the horizontal and vertical legs of a right triangle formed by the two points. Distance is always non-negative.
+NARRATION: The distance formula is just the Pythagorean theorem applied to coordinate points.
+
+SLIDE 19 | The Midpoint Formula
+The midpoint of a segment connecting (x₁, y₁) and (x₂, y₂) is found by averaging the coordinates: M = ((x₁ + x₂)/2, (y₁ + y₂)/2). The midpoint divides the segment into two equal halves. Midpoints are used in constructions, proofs, and finding centers of geometric figures.
+NARRATION: The midpoint is the average of the x-coordinates and the average of the y-coordinates.
+
+SLIDE 20 | Circles — Radius, Diameter, Circumference, Area
+A circle is the set of all points equidistant from a center point. The radius r is the distance from center to edge; the diameter d = 2r spans the full width. The circumference (perimeter) is C = 2πr or πd, and the area is A = πr². The number π (approximately 3.14159) is the ratio of circumference to diameter for any circle.
+NARRATION: Circumference equals pi times diameter; area equals pi times radius squared.
+
+SLIDE 21 | Arcs and Central Angles
+A central angle has its vertex at the center of the circle, and its measure equals the arc it intercepts. An arc is a portion of the circle's edge, measured in degrees or in arc length. Arc length equals (central angle / 360°) × circumference. A semicircle is a 180° arc, and a minor arc is less than 180°.
+NARRATION: A central angle equals its intercepted arc — arc length is that fraction of the full circumference.
+
+SLIDE 22 | Inscribed Angles
+An inscribed angle has its vertex on the circle and its sides as chords. The Inscribed Angle Theorem states that an inscribed angle is always half the central angle that intercepts the same arc. Therefore, all inscribed angles intercepting the same arc are equal, and any inscribed angle in a semicircle is exactly 90°.
+NARRATION: An inscribed angle is half its intercepted arc — angles in a semicircle are always 90 degrees.
+
+SLIDE 23 | Surface Area of Prisms and Pyramids
+The surface area of a 3D figure is the total area of all its faces. For a rectangular prism: SA = 2(lw + lh + wh). For a triangular prism, sum the two triangular bases and three rectangular sides. For a pyramid, add the base area to the area of all triangular faces: each lateral face has area ½ × base edge × slant height.
+NARRATION: Surface area is the sum of all face areas — add two bases and all lateral faces for a prism.
+
+SLIDE 24 | Volume of Prisms, Cylinders, Cones, and Spheres
+Volume measures the space inside a 3D figure. A prism or cylinder has volume V = Bh, where B is the base area and h is the height. A cone or pyramid holds exactly one-third as much as the corresponding prism: V = ⅓Bh. A sphere's volume is V = (4/3)πr³. These formulas apply to packaging, construction, and science.
+NARRATION: Prisms and cylinders use base times height; cones and pyramids add one third to that formula.
+
+SLIDE 25 | Transformations
+A transformation moves or changes a figure in the plane. A translation slides every point the same distance in the same direction. A reflection flips the figure over a line of symmetry. A rotation turns the figure around a fixed center point by a given angle. A dilation scales the figure larger or smaller by a scale factor from a center point.
+NARRATION: Translate, reflect, rotate, and dilate — the four transformations move or resize figures in the plane.
+
+SLIDE 26 | Two-Column Proofs
+A two-column proof is a formal logical argument in geometry. The left column lists each statement in order, and the right column gives the reason — a definition, postulate, theorem, or given information — that justifies it. Proofs begin with the given information and end with the statement to be proved. Writing proofs develops rigorous logical thinking.
+NARRATION: A two-column proof lists each logical step alongside the definition or theorem that justifies it.
+
+FACT: The sum of the interior angles of any triangle is always 180 degrees.
+FACT: The Pythagorean theorem states a squared plus b squared equals c squared for right triangles.
+FACT: SOH-CAH-TOA helps you remember sine, cosine, and tangent ratios.
+FACT: An inscribed angle equals half its intercepted arc in a circle.
+FACT: Volume of a cone is one third the volume of the corresponding cylinder.
+FACT: The interior angle sum of any n-gon is (n minus 2) times 180 degrees.
+FACT: Vertical angles are always congruent — they are formed by two intersecting lines.
