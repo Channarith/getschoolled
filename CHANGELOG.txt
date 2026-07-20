@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.11 - Fix 5 audit bugs (unsaveForLater deletes instead of enrolling, mobile remove uses setEnrollmentStatus not empty-title enrollCourse, kids filter uses whole-word regex to prevent stem/systems false positive, _LIVE_BY_ID capped at 5000 entries, DELETE /enrollments/{id} endpoint added); expand audio catalog to 680 knowledge topics (794 total courses).
 - 2026-07-20 - v0.27.9 - Update README: 600+ course catalog, all new features (My List, Search, Kids fix, arcade games, assessment, bug reports, 8 job sources, Google Scholar), updated platform-at-a-glance table and What is implemented matrix.
 - 2026-07-20 - v0.27.8 - Add 5 kids arcade games (Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz); add LinkedIn RapidAPI jobs provider with 25-req/month budget guard; add USAJobs, WeWorkRemotely, Jobspresso free job sources; update jobs page with new source badges; add RAPIDAPI_KEY to cluster.
 - 2026-07-20 - v0.27.7 - Careers: add Indeed RSS and RemoteOK job providers (free, no key); CompositeJobsProvider now includes Indeed + RemoteOK + Remotive + Arbeitnow when JOBS_LIVE=1; add LinkedIn/Indeed/ZipRecruiter/Glassdoor deep-link search widget on the jobs page; document RAPIDAPI_KEY path for full aggregation.

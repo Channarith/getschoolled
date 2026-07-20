@@ -6,7 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { enrollCourse, getPortfolio, listAudioCourses, type AudioCourseRow } from "../api";
+import { getPortfolio, listAudioCourses, setEnrollmentStatus, type AudioCourseRow } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import { useT } from "../i18n";
@@ -43,7 +43,7 @@ export default function MyListScreen({ onOpenCourse }: {
     // Optimistic UI update then sync to server.
     setRows((r) => r.filter((c) => c.id !== id));
     try {
-      await enrollCourse(id, "", "enrolled"); // revert saved → enrolled
+      await setEnrollmentStatus(id, "enrolled"); // revert saved → enrolled (no title overwrite)
     } catch {
       void load(); // revert on error
     }
