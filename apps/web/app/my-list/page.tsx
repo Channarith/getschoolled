@@ -32,7 +32,7 @@ export default function MyListPage() {
   return (
     <main className="container" style={{ maxWidth: 900 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <h1 style={{ margin: 0 }}>🔖 My List</h1>
+        <h1 style={{ margin: 0 }}>🔖 Saved</h1>
         <span className="muted" style={{ fontSize: 14 }}>Courses you&apos;ve bookmarked for later</span>
         <Link href="/browse" style={{ marginLeft: "auto", fontSize: 14, color: "#0ea5e9" }}>
           + Browse more courses

@@ -1,0 +1,253 @@
+LESSON: HVAC and EPA 608 Certification Prep
+LANGUAGE: en
+
+SLIDE 1 | What is EPA Section 608?
+EPA Section 608 of the Clean Air Act regulates the handling of refrigerants used in
+stationary refrigeration and air conditioning equipment. Technicians who purchase or
+handle refrigerants must be certified. Violations can result in fines up to $44,539
+per day per violation. Certification is administered through EPA-approved testing
+organizations.
+NARRATION: Section 608 protects the ozone layer by requiring certified technicians to
+handle refrigerants responsibly and avoid illegal venting.
+
+SLIDE 2 | Refrigerant Categories - CFCs, HCFCs, and HFCs
+CFCs (chlorofluorocarbons) such as R-11 and R-12 have the highest ozone depletion
+potential (ODP) and are fully phased out. HCFCs (hydrochlorofluorocarbons) such as
+R-22 have lower ODP and are being phased out under the Montreal Protocol. HFCs
+(hydrofluorocarbons) such as R-410A and R-134a have zero ODP but high global warming
+potential (GWP). HFOs are the newest low-GWP alternatives.
+NARRATION: Know the three main refrigerant families by their ozone impact; CFCs are
+banned, HCFCs are being phased out, and HFCs are current but face future restrictions.
+
+SLIDE 3 | Common Refrigerants - R-22
+R-22 (chlorodifluoromethane) is an HCFC once used in most residential air conditioners.
+It has an ODP of 0.05 and a GWP of 1,810. The U.S. banned new production and import
+of R-22 as of January 1, 2020. Only reclaimed or recovered R-22 may be used for
+servicing existing equipment. Technicians must use Type II or Universal certification
+to handle it.
+NARRATION: R-22 is still found in older systems; you may service them with reclaimed
+refrigerant, but you cannot buy virgin R-22 anymore.
+
+SLIDE 4 | Common Refrigerants - R-410A and R-32
+R-410A is an HFC blend (50% R-32 and 50% R-125) used as the primary replacement for
+R-22 in residential systems. It operates at higher pressures than R-22 and requires
+dedicated tools and recovery equipment. R-32 is a single-component HFC with lower
+GWP (675) than R-410A (2,088) and is becoming more common in newer systems. Neither
+depletes ozone.
+NARRATION: R-410A dominates current residential installs, but R-32's lower GWP makes
+it the direction the industry is heading.
+
+SLIDE 5 | Certification Types - Type I
+Type I certification covers small appliances. These are factory-sealed systems
+with five pounds or less of refrigerant, such as household refrigerators, freezers,
+window air conditioners, and packaged terminal units. Recovery requirements differ
+for Type I: technicians may use system-dependent (passive) recovery equipment. The
+refrigerant is typically R-134a or R-600a (isobutane).
+NARRATION: Type I is the small appliance category; passive recovery is allowed because
+the systems are factory-sealed and small.
+
+SLIDE 6 | Certification Types - Type II
+Type II certification covers high-pressure appliances, which are systems that use
+refrigerants with a boiling point above -50 degrees C at atmospheric pressure, such
+as R-22, R-410A, and R-134a. Most residential and commercial air conditioning and
+refrigeration systems fall into this category. Type II requires active (self-contained)
+recovery equipment and more stringent leak repair requirements.
+NARRATION: Type II is the most common certification for residential and light commercial
+HVAC work; most technicians start here.
+
+SLIDE 7 | Certification Types - Type III and Universal
+Type III certification covers low-pressure appliances using refrigerants with a boiling
+point below -50 degrees C at atmospheric pressure, such as R-11 and R-113 used in
+large commercial chillers. Pressures during recovery can drop below atmospheric,
+creating vacuum conditions. Universal certification covers all three types and is the
+most versatile credential for commercial HVAC technicians.
+NARRATION: Universal certification is the gold standard; it allows you to work on any
+refrigeration or air conditioning system.
+
+SLIDE 8 | The Refrigeration Cycle - Overview
+The basic refrigeration cycle has four stages: compression, condensation, expansion,
+and evaporation. The refrigerant changes state between liquid and vapor to absorb
+and release heat. This cycle moves heat from inside a space (where it is unwanted) to
+outside. The key principle is that refrigerants absorb heat when they evaporate and
+release heat when they condense.
+NARRATION: Refrigeration does not create cold; it moves heat from one place to another
+using the refrigerant's phase-change properties.
+
+SLIDE 9 | Refrigeration Cycle - Compression
+The compressor receives low-pressure refrigerant vapor from the evaporator and
+compresses it into a high-pressure, high-temperature vapor. This is the heart of the
+system. Common compressor types include reciprocating, scroll, rotary, and centrifugal.
+The compressor is driven by an electric motor. High compressor head pressure may
+indicate a dirty condenser or refrigerant overcharge.
+NARRATION: The compressor is the workhorse of the refrigeration system; it raises both
+pressure and temperature of the refrigerant vapor.
+
+SLIDE 10 | Refrigeration Cycle - Condensation and Expansion
+The high-pressure vapor flows to the condenser, where it releases heat to the outside
+air or water and condenses into a high-pressure liquid. The liquid then passes through
+the expansion device (TXV or orifice) which lowers its pressure rapidly. This pressure
+drop causes the refrigerant to flash, dropping its temperature dramatically before it
+enters the evaporator.
+NARRATION: The condenser rejects heat; the expansion valve is the pressure dividing
+point between the high and low sides of the system.
+
+SLIDE 11 | Refrigeration Cycle - Evaporation
+The low-pressure liquid refrigerant enters the evaporator coil and absorbs heat from
+the surrounding air or product, causing it to evaporate back into a vapor. This is
+the cooling effect you feel from an air conditioner or refrigerator. The low-pressure
+vapor then returns to the compressor and the cycle repeats. Superheat and subcooling
+measurements verify proper refrigerant charge.
+NARRATION: The evaporator produces the cooling effect; superheat ensures all liquid
+has evaporated before returning to the compressor to prevent damage.
+
+SLIDE 12 | Refrigerant Recovery Procedures
+Federal law prohibits venting refrigerants into the atmosphere. Recovery must occur
+before opening or disposing of any system. Self-contained (active) recovery machines
+are required for most equipment. Recovery continues until the system reaches the
+required vacuum level specified by EPA regulations. Recovered refrigerant must be
+stored in approved DOT cylinders and labeled with the refrigerant type.
+NARRATION: Always recover before opening any system; venting refrigerant is a federal
+violation with serious financial penalties.
+
+SLIDE 13 | Recycling and Reclaiming Refrigerants
+Recycling means cleaning refrigerant for reuse in the same or similar equipment using
+oil separation and moisture removal, but without meeting ARI 700 purity standards.
+Reclaiming means processing refrigerant to ARI 700 purity standards at an EPA-certified
+facility, making it equivalent to new refrigerant. Reclaimed refrigerant can be sold
+and used in any compatible equipment. Only EPA-certified reclaimers may reclaim.
+NARRATION: Recycled refrigerant stays on-site; reclaimed refrigerant is purified to
+new-product standards and can be resold.
+
+SLIDE 14 | Leak Detection Requirements
+EPA requires technicians to repair leaks when the leak rate exceeds the threshold for
+the equipment type. For commercial refrigeration, the threshold is 20% of the charge
+per year; for comfort cooling chillers it is 10%. Methods of leak detection include
+electronic detectors, UV dye, soap bubbles, and nitrogen pressure testing. After repair,
+technicians must verify the repair and document it.
+NARRATION: Leak detection is not optional; you must repair leaks above the threshold
+and verify the repair was successful.
+
+SLIDE 15 | Venting Prohibitions and Safe Refrigerants
+It is illegal to knowingly vent any CFC, HCFC, or HFC refrigerant while maintaining,
+servicing, repairing, or disposing of equipment. Small releases incidental to good-
+faith recovery are allowed. Certain substitute refrigerants designated as acceptable
+by EPA under the SNAP program may be vented under specific conditions. Nitrogen used
+for pressure testing is not regulated and may be vented.
+NARRATION: The rule is simple: never intentionally vent regulated refrigerants;
+nitrogen is not a refrigerant and is not subject to venting rules.
+
+SLIDE 16 | Refrigerant Cylinders and Safety
+Refrigerant is stored in color-coded cylinders by type (e.g., pink for R-22, rose/
+light green for R-410A). Recovery cylinders are gray with yellow tops. Never fill a
+cylinder beyond 80% capacity; refrigerants expand with heat. Store cylinders upright,
+secured, and away from heat sources. Never heat cylinders with open flames. Cylinders
+must be DOT-approved and hydrostatically tested.
+NARRATION: Color coding and the 80% fill rule are safety standards that prevent
+cylinder rupture from thermal expansion.
+
+SLIDE 17 | Record-Keeping Requirements
+Technicians must keep records of refrigerant purchases and transfers. Appliances
+with more than 50 pounds of refrigerant require records when refrigerant is added,
+including the date, amount added, and technician's name. Records must be kept for
+three years and made available to the EPA upon request. Distributors must verify
+purchaser certification before selling refrigerants in containers larger than two
+pounds.
+NARRATION: Documentation protects technicians; if the EPA audits you, your records
+prove compliance with recovery and leak repair requirements.
+
+SLIDE 18 | Electrical Safety for HVAC Technicians
+Always lock out and tag out (LOTO) electrical panels before servicing equipment.
+Use a multimeter to verify circuits are de-energized before touching wires.
+Capacitors in HVAC equipment store lethal charges even after power is removed;
+discharge them with a resistor before handling. Understand single-phase and three-
+phase power, common voltages (115V, 208V, 230V, 460V), and ampacity requirements
+for equipment.
+NARRATION: Capacitors are the biggest electrical hazard in HVAC; they can hold
+enough charge to kill even after the unit is unplugged.
+
+SLIDE 19 | Troubleshooting Refrigeration Systems
+Systematic troubleshooting starts with collecting symptom information from the
+customer. Check pressures on both the high and low sides using a manifold gauge set.
+Compare suction and discharge pressures to normal operating ranges for the refrigerant
+type. Measure superheat and subcooling. Common problems include low charge (low
+suction pressure), overcharge (high suction pressure), and dirty condenser (high
+discharge pressure).
+NARRATION: Use your manifold gauges as your diagnostic tool; suction pressure reflects
+evaporator conditions and discharge pressure reflects condenser conditions.
+
+SLIDE 20 | EPA Penalties for Violations
+Knowingly venting a regulated refrigerant can result in civil penalties up to $44,539
+per day per violation. Purchasing refrigerant without proper certification is also
+a violation. EPA may pay rewards of up to $10,000 to individuals who provide
+information leading to a penalty. Criminal penalties may apply for willful violations.
+Companies may also lose the ability to purchase refrigerants.
+NARRATION: The financial penalties for violations far exceed any money saved by
+skipping proper recovery; certification protects your livelihood.
+
+SLIDE 21 | Refrigerant Oils and Compatibility
+Different refrigerants require compatible lubricating oils. R-22 systems use mineral
+oil or alkylbenzene oil. R-410A and most HFC systems require polyolester (POE) oil,
+which is hygroscopic and must be kept sealed to prevent moisture absorption. Mixing
+incompatible oils or refrigerants can damage compressors and void warranties. Always
+flush systems when converting from one refrigerant type to another.
+NARRATION: POE oil absorbs moisture rapidly from air; keep containers sealed and
+work quickly to prevent contamination.
+
+SLIDE 22 | Pressure-Enthalpy and System Efficiency
+A pressure-enthalpy (P-H) diagram maps the refrigeration cycle and helps diagnose
+efficiency problems. SEER (Seasonal Energy Efficiency Ratio) rates cooling efficiency
+for air conditioners; higher SEER is more efficient. EER measures efficiency at a
+specific operating point. HSPF rates heat pump heating efficiency. Modern equipment
+must meet minimum SEER2 ratings set by the Department of Energy.
+NARRATION: SEER ratings help customers understand energy costs; a higher SEER unit
+costs more upfront but saves money on utility bills over time.
+
+SLIDE 23 | EPA 608 Exam Format
+The EPA 608 exam has a core section taken by all candidates plus a section for each
+certification type sought. The core section covers environmental impact, regulations,
+and safety. Type I, II, and III sections cover specific equipment and procedures.
+A score of 70% or higher is required to pass. Exams are administered by EPA-approved
+testing organizations. Certification does not expire; it is a one-time credential.
+NARRATION: Plan to take the core plus the type sections you need; Universal candidates
+take all four sections in one sitting.
+
+SLIDE 24 | Montreal Protocol and Global Phase-Down
+The Montreal Protocol is an international treaty signed in 1987 to phase out ozone-
+depleting substances. It successfully eliminated CFC production globally and set
+phase-down schedules for HCFCs. The Kigali Amendment (2016) added HFC phase-down
+targets due to their high global warming potential. The U.S. is implementing HFC
+reductions through the AIM Act, which will drive adoption of lower-GWP refrigerants
+like HFOs.
+NARRATION: The Montreal Protocol is one of the most successful environmental treaties
+in history; HVAC technicians play a direct role in its success through proper
+refrigerant handling.
+
+SLIDE 25 | HFO Refrigerants and the Future
+Hydrofluoroolefins (HFOs) such as R-1234yf and R-1234ze have near-zero GWP and
+zero ODP, making them the environmentally preferred refrigerants. R-1234yf is
+replacing R-134a in automotive air conditioning. HFO blends like R-454B are being
+used in new residential equipment to replace R-410A. HFOs are mildly flammable
+(A2L classification), requiring updated safety procedures and equipment.
+NARRATION: The industry is moving toward HFOs; technicians must understand A2L
+flammability requirements and updated handling procedures for these new refrigerants.
+
+SLIDE 26 | Study Tips and Certification Resources
+Study using EPA 608 prep books and free online practice tests available through
+HVAC-R industry associations. Focus on the differences between refrigerant categories,
+recovery requirements for each type, and the specific thresholds and percentages
+tested on the exam. The Refrigeration Service Engineers Society (RSES) and ESCO Group
+offer study materials and approved testing. Practice calculating recovery efficiency
+and leak rate percentages.
+NARRATION: The 608 exam rewards rote knowledge of regulations and numbers; create
+flashcards for thresholds, penalties, and refrigerant properties.
+
+FACT: EPA Section 608 prohibits knowingly venting regulated refrigerants into the atmosphere.
+FACT: Fines for refrigerant venting can reach $44,539 per day per violation.
+FACT: R-22 new production and import was banned in the U.S. as of January 1, 2020.
+FACT: Type I covers small appliances with 5 pounds or less of refrigerant.
+FACT: The EPA 608 passing score is 70% for each section.
+FACT: Recovery cylinders are gray with a yellow top by industry convention.
+FACT: Cylinders must never be filled beyond 80% capacity due to thermal expansion.
+FACT: POE oil is required with most HFC refrigerants and absorbs moisture from air.
+FACT: The Kigali Amendment to the Montreal Protocol added HFC phase-down targets in 2016.
+FACT: EPA 608 certification does not expire once earned.

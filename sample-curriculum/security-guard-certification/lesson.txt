@@ -1,0 +1,288 @@
+LESSON: Security Guard Certification Training
+LANGUAGE: en
+
+SLIDE 1 | Role and Responsibilities of a Security Officer
+Security officers protect people, property, and information from theft, vandalism,
+unauthorized access, and other threats. Duties vary by assignment but typically include
+access control, patrol, incident response, report writing, and customer service.
+Security officers are the first line of defense at many facilities; they observe and
+report, deter criminal activity through presence, and coordinate with law enforcement
+when necessary.
+NARRATION: The security officer's primary tools are observation, communication, and
+documentation; physical force is the last resort, not the first.
+
+SLIDE 2 | Legal Authority and Limits
+Security officers are private citizens and do not have police authority. Your legal
+authority is the same as any private citizen, extended by the authority granted by
+the property owner. You may detain someone only if you have reasonable belief they
+have committed a crime on the property (citizen's arrest in most states), and only
+for a reasonable time until police arrive. You cannot search a person without consent,
+a warrant, or as a condition of entry stated in posted policy. Exceeding legal authority
+creates civil and criminal liability.
+NARRATION: Acting outside your legal authority exposes you and your employer to
+lawsuits; when in doubt, call law enforcement rather than escalate.
+
+SLIDE 3 | Peace Officer vs Security Officer
+Peace officers (police) have arrest authority, power to carry weapons under law
+enforcement authority, and investigative powers granted by government. Security
+officers are private employees with no government-granted authority beyond that of
+any citizen. Some states license armed security officers with expanded authority;
+requirements vary widely. Never represent yourself as a police officer; impersonating
+a peace officer is a criminal offense.
+NARRATION: The distinction between security officer and peace officer matters legally;
+always be clear about your role to the public and never blur the line.
+
+SLIDE 4 | Trespass Law and Property Rights
+Property owners can legally exclude individuals from their private property. A person
+who remains on private property after being asked to leave is trespassing. Security
+officers may order a trespasser to leave, and if they refuse, may contact police and
+request removal. Document all trespass incidents thoroughly, including time, location,
+description of the individual, and what was said. Trespass notices (bar letters) are
+enforceable legal documents; know how your employer issues them.
+NARRATION: The legal power to exclude people from private property is the foundation
+of most security work; document every trespass incident in case law enforcement or
+court action follows.
+
+SLIDE 5 | Use of Force Continuum
+The use of force continuum describes escalating levels of force used in response to
+a subject's behavior. Levels typically include: officer presence (most common), verbal
+commands, soft empty-hand control (guiding, holding), hard empty-hand control (strikes),
+intermediate weapons (baton, OC spray if authorized), and deadly force (only when life
+is in immediate danger). Always use the minimum force necessary and de-escalate as
+quickly as possible. Document any use of force in detail.
+NARRATION: The continuum is a guide, not a rigid ladder; jump to a higher level if the
+threat requires it, but always aim to de-escalate as soon as it is safe to do so.
+
+SLIDE 6 | Conflict De-escalation Techniques
+De-escalation prevents the need for force by reducing tension. Key techniques: maintain
+a calm, non-threatening tone and body language; use the person's name if known; listen
+actively and acknowledge their feelings; give the person choices and time to comply;
+avoid arguing, interrupting, or issuing ultimatums that back them into a corner; keep
+a safe distance (at least arm's length plus the reach of a weapon). Most situations
+can be resolved through communication before physical intervention is needed.
+NARRATION: People in crisis often respond to calmness with calmness; your tone and
+body language can either defuse or escalate a situation.
+
+SLIDE 7 | Emergency Response Procedures - Fire
+When a fire is discovered: activate the nearest fire alarm pull station, call 911, and
+announce the emergency over the PA system or radio. Assist with building evacuation
+using the facility's emergency action plan. Never use elevators during a fire. Direct
+occupants to the nearest safe exit and assembly point. Only use a fire extinguisher on
+a small, contained fire if you are trained and have an exit behind you. Report to the
+incident commander upon arrival of fire department. Account for all personnel.
+NARRATION: Your priority in a fire is life safety, not property; get people out first
+and account for everyone at the assembly point.
+
+SLIDE 8 | Emergency Response Procedures - Medical
+For a medical emergency: call 911 immediately. Provide first aid within your training
+and certification level. Retrieve and activate the AED for cardiac arrest victims.
+Maintain scene security and keep bystanders clear to allow responders access. Meet
+emergency vehicles at the facility entrance to guide them to the patient. Document
+time of incident, time 911 was called, and actions taken. Notify your supervisor and
+complete an incident report. Preserve any evidence if the cause of injury may be
+criminal.
+NARRATION: Getting EMS on the way quickly is your first action; every minute of delay
+in cardiac arrest significantly reduces the patient's chance of survival.
+
+SLIDE 9 | Active Threat Response
+An active threat (such as an active shooter) requires immediate action. The preferred
+response model is Run-Hide-Fight: Run and evacuate if there is a safe escape route;
+Hide if evacuation is not possible (secure the space, silence phones, turn off lights);
+Fight only as a last resort using improvised weapons. Security officers must balance
+personal safety with duty. Follow your facility's specific active threat plan. When
+law enforcement arrives, show empty hands, follow all commands, and do not block or
+guide officers; let them move to the threat.
+NARRATION: When police arrive during an active threat, they will treat everyone as a
+potential suspect until the scene is secured; hands visible, no sudden movements.
+
+SLIDE 10 | Patrol Techniques - Fixed Post
+A fixed post security officer is assigned to a specific location such as a lobby,
+gate, or checkpoint. Responsibilities include controlling entry and exit, verifying
+credentials, monitoring surveillance cameras, and communicating with mobile units.
+Fixed post officers must remain alert despite the monotony of stationary duty. Regular
+communication with dispatch and roving officers maintains situational awareness.
+Know your post orders (standing post instructions) and follow them precisely.
+NARRATION: Post orders are your written instructions for your assignment; read and
+understand them before every shift because they contain site-specific rules that
+override general training.
+
+SLIDE 11 | Patrol Techniques - Mobile and Foot Patrol
+Mobile patrols cover large areas by vehicle, checking multiple locations on a
+randomized schedule to avoid predictable patterns. Foot patrols allow closer inspection
+of buildings, lots, and perimeter fencing. Check for unlocked doors, broken windows,
+graffiti, suspicious vehicles, and people who do not belong. Use the OODA loop
+(Observe, Orient, Decide, Act) to process your surroundings continuously. Document
+patrol observations in your log, noting time, location, and anything unusual.
+NARRATION: Randomizing your patrol route removes the predictability that allows
+criminals to time their activities around your schedule.
+
+SLIDE 12 | Access Control Systems
+Access control restricts entry to authorized individuals. Systems range from simple
+key locks to electronic badge readers, biometric scanners (fingerprint, iris, facial
+recognition), and video intercom systems. Tailgating occurs when an unauthorized
+person follows an authorized person through a secured door; challenge any individual
+who does not badge in. Visitor management systems issue temporary credentials and
+require identification. Maintain access control logs for all personnel entries.
+NARRATION: Tailgating is one of the most common ways unauthorized people enter secure
+facilities; never assume someone who follows a badged employee is authorized.
+
+SLIDE 13 | CCTV and Surveillance Basics
+Closed-circuit television (CCTV) provides visual monitoring of areas. Security officers
+must know camera locations and coverage gaps. Monitor screens actively; passive
+watching allows incidents to go unnoticed. Record and preserve footage of incidents
+before it is overwritten. PTZ (pan-tilt-zoom) cameras allow remote control. Camera
+placement best practices: cover all entry and exit points, parking areas, cash handling
+areas, and high-risk locations. Inform the public that cameras are in use through
+posted signage where legally required.
+NARRATION: Cameras deter crime and document incidents, but only if someone is actively
+monitoring them and preserving footage when needed.
+
+SLIDE 14 | Report Writing and Documentation
+Security incident reports are legal documents. All reports must be: factual (only what
+you observed, heard, or did), accurate (correct names, times, and locations), clear
+and concise (no jargon or vague language), complete (who, what, when, where, how),
+and objective (no opinions or conclusions, just facts). Write reports immediately while
+details are fresh. Reports may be subpoenaed in criminal or civil proceedings. Errors
+in reports can undermine prosecutions and expose employers to liability.
+NARRATION: Stick to facts in your report; write what you saw and did, not what you
+think happened or why.
+
+SLIDE 15 | Testifying in Court
+Security officers may be required to testify about incidents they observed or responded
+to. Review your reports and notes before court. Testify only to what you personally
+observed; do not speculate or guess. If you do not know or do not remember, say so.
+Speak clearly and directly to the judge or jury. Do not argue with attorneys; answer
+the question asked and stop talking. Professional appearance and demeanor in court
+reflect on your credibility and your employer.
+NARRATION: Your credibility in court depends on the accuracy of your report and your
+demeanor on the stand; honest, clear testimony is always best.
+
+SLIDE 16 | Radio Communication Protocols
+Professional radio communication is clear, brief, and follows established protocols.
+Identify yourself and your unit, state the recipient, then give your message. Use plain
+language unless your agency uses a standardized 10-code system. Common codes:
+10-4 (message received), 10-20 (location), 10-99 (assignment completed). Always confirm
+important messages by repeating them back. Keep transmissions under 30 seconds. Use
+channel discipline; do not tie up the channel with unnecessary chatter.
+NARRATION: Clear radio communication can be the difference between a coordinated
+response and chaos during an emergency; practice brevity and clarity on every call.
+
+SLIDE 17 | Handling Difficult Individuals
+Difficult situations include angry customers, intoxicated individuals, emotionally
+disturbed persons, and people in mental health crises. De-escalation is the primary
+tool. Give clear, simple instructions and wait for compliance before escalating. For
+intoxicated persons, do not leave them alone if they are in danger; call EMS if needed.
+For mental health crises, avoid argumentation, maintain calm, and involve mental health
+resources or law enforcement with crisis intervention training (CIT) if available.
+Document all interactions.
+NARRATION: Intoxicated and mentally ill individuals are often scared or confused; a
+calm, patient, and non-threatening approach is almost always more effective than
+escalation.
+
+SLIDE 18 | First Aid for Security Officers
+Security officers often arrive at medical emergencies before EMS. Core skills include
+CPR and AED use, bleeding control with direct pressure and tourniquets, choking
+response, and recognizing signs of stroke, heart attack, and overdose. The opioid
+antidote naloxone (Narcan) is increasingly carried by security staff; administer per
+your training and jurisdiction. Always document first aid provided in the incident
+report and transfer care to EMS with a clear verbal handoff of what you observed and
+did.
+NARRATION: Security officers are often the first responders on scene; basic first aid
+skills and CPR certification can mean the difference between life and death.
+
+SLIDE 19 | Cyber and Information Security Basics
+Physical security and cyber security intersect. Tailgating into server rooms is a
+physical security threat with cyber consequences. Social engineering attempts may target
+security personnel for access or information. Sensitive documents must be shredded, not
+discarded in open waste bins. Visitors must not be left unattended in secure areas.
+Report suspicious behavior such as people photographing secure areas or attempting to
+access restricted terminals. Follow your employer's information security policies.
+NARRATION: A criminal who gains physical access to a data center can steal or destroy
+more data in minutes than a remote hacker can in days; physical and cyber security
+must work together.
+
+SLIDE 20 | Privacy and Confidentiality
+Security officers routinely handle confidential information including access logs,
+incident reports, personnel records, and client information. Never share this information
+outside of official reporting channels. Do not discuss incidents on social media or
+with friends and family. Confidentiality agreements (NDAs) are common in the industry,
+particularly in corporate, healthcare, and government security roles. Breaches of
+confidentiality can result in termination, civil liability, and criminal charges.
+NARRATION: What you see and hear on duty stays on duty; confidentiality is a condition
+of employment in virtually every security role.
+
+SLIDE 21 | Professional Appearance and Conduct
+A security officer's appearance communicates authority and professionalism. Maintain
+a clean, pressed uniform with all required insignia in place. Proper grooming, polished
+boots, and appropriate badge display are standard requirements. Avoid unprofessional
+behavior including using personal phones on post, eating or drinking in unauthorized
+areas, sleeping on duty, or making personal calls. Conduct on and off duty reflects
+on your employer; a security officer with a reputation for integrity commands more
+respect and cooperation.
+NARRATION: Professional appearance deters crime through visible authority and builds
+trust with the public and clients; a disheveled officer undermines both.
+
+SLIDE 22 | Report Writing Practice - Use of Force
+Use of force reports require specific documentation: exact time and location, the
+subject's behavior that prompted force, each action taken and why, injuries to any
+party, witnesses present, and whether medical attention was requested or provided.
+These reports are reviewed by supervisors, legal counsel, and potentially courts.
+Follow the chronological sequence of events precisely. Do not minimize or exaggerate;
+an accurate account is your best legal protection.
+NARRATION: Use of force reports are the most legally sensitive documents you will
+write; complete them before leaving your shift while every detail is fresh.
+
+SLIDE 23 | State Licensing Requirements Overview
+Security guard licensing is regulated at the state level, not federally. Most states
+require applicants to be at least 18 years old, pass a criminal background check, and
+complete a state-approved training curriculum (typically 8-40+ hours). Armed security
+officers face additional requirements including firearm training, range qualification,
+and additional background checks. Licenses must be renewed periodically with continuing
+education. Some states require you to register with the state before beginning work.
+NARRATION: Security guard license requirements vary significantly by state; verify your
+state's current requirements through the state licensing board before seeking employment.
+
+SLIDE 24 | Workplace Violence Prevention
+Security officers play a key role in identifying and responding to workplace violence
+indicators. Warning signs include threatening statements or behavior, sudden changes
+in mood or demeanor, obsessive focus on a coworker or supervisor, and bringing weapons
+or unusual items to the workplace. Report warning signs to supervisors immediately;
+never confront a potentially violent individual alone. Participate in workplace violence
+prevention training. Follow the facility's threat management process for reporting
+and escalating concerns.
+NARRATION: Most workplace violence incidents are preceded by observable warning signs;
+early reporting and intervention prevent escalation.
+
+SLIDE 25 | Crowd Management and Event Security
+Event security requires planning, teamwork, and communication. Key responsibilities
+include ingress and egress control, prohibited item screening, crowd flow management,
+locating and assisting distressed individuals, and coordinating with local law
+enforcement. Crowd crush (compressive asphyxia) can occur in dense crowds; monitor
+crowd density and pressure-wave movement. Establish clear communication channels
+with event management. Know emergency evacuation procedures specific to the venue
+and the event.
+NARRATION: Crowd crush is a silent danger; people can be asphyxiated while still
+standing without room to fall; monitor density and open emergency corridors early.
+
+SLIDE 26 | Career Development in Security
+Entry-level security officers can advance to supervisory, investigative, loss prevention,
+and management roles. Specialized certifications include the Certified Protection
+Professional (CPP) from ASIS International, the Physical Security Professional (PSP),
+and the Professional Certified Investigator (PCI). Higher-level positions often require
+a degree in criminal justice or security management. Building a reputation for
+reliability, professional report writing, and sound judgment is the fastest path to
+advancement in the security industry.
+NARRATION: The CPP from ASIS International is the most respected advanced credential
+in the security industry; it signals expert-level knowledge of security management
+principles.
+
+FACT: Security officers have the same legal authority as a private citizen, extended by the authority granted by the property owner.
+FACT: The use of force continuum starts with officer presence and ends with deadly force as a last resort.
+FACT: The Run-Hide-Fight model is the widely taught active threat response framework.
+FACT: Tailgating is when an unauthorized person follows an authorized person through a secured access point.
+FACT: Security incident reports must be factual, accurate, clear, complete, and objective.
+FACT: OODA stands for Observe, Orient, Decide, and Act.
+FACT: 10-4 on a radio means the message was received and understood.
+FACT: Impersonating a peace officer is a criminal offense.
+FACT: The Certified Protection Professional (CPP) from ASIS International is a leading advanced security credential.
+FACT: Most states require a background check and state-approved training before a security guard license is issued.
