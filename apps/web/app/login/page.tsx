@@ -220,10 +220,10 @@ export default function LoginPage() {
             </p>
           </>
         )}
-        {mode === "login" && !mfaToken && oauthStatus && !oauthStatus.sandbox_enabled && (
+        {mode === "login" && !mfaToken && oauthStatus && !oauthStatus.sandbox_enabled
+          && typeof window !== "undefined" && window.location.protocol === "https:" && (
           <p className="muted" style={{ marginTop: 12 }}>
-            Social sign-in is disabled in this environment. Configure `GOOGLE_CLIENT_ID`,
-            `FACEBOOK_APP_ID`, and `FACEBOOK_APP_SECRET` on the identity service to enable it.
+            Social sign-in is not available on this deployment.
           </p>
         )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}

@@ -1917,12 +1917,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
         <div
           style={{
-            background: "rgba(88,28,135,0.2)",
-            border: "1px solid rgba(192,132,252,0.65)",
+            background: "rgba(88,28,135,0.88)",
+            border: "1px solid rgba(192,132,252,0.5)",
             borderRadius: 10,
             padding: "9px 12px",
             marginBottom: 10,
-            color: "#e9d5ff",
+            color: "#f3e8ff",
             fontSize: 12,
             lineHeight: 1.45,
           }}
@@ -2026,13 +2026,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       {insecureOrigin && joinInfo ? (
         <div
           style={{
-            background: "rgba(239,68,68,0.15)",
+            background: "#b91c1c",
             border: "1px solid #ef4444",
             borderRadius: 8,
             padding: "10px 12px",
             marginBottom: 10,
             fontSize: 14,
-            color: "#fecaca",
+            color: "#fff",
           }}
         >
           Webcam is blocked on this URL. Open the class at{" "}
@@ -2046,13 +2046,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       {cameraNote ? (
         <div
           style={{
-            background: "rgba(245,158,11,0.12)",
-            border: "1px solid rgba(251,191,36,0.45)",
+            background: "#92400e",
+            border: "1px solid #f59e0b",
             borderRadius: 8,
             padding: "8px 10px",
             marginBottom: 10,
             fontSize: 13,
-            color: "#fcd34d",
+            color: "#fef3c7",
           }}
         >
           {cameraNote}
