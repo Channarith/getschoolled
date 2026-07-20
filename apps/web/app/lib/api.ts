@@ -792,12 +792,11 @@ export type JobMatch = {
   covered: string[]; missing: string[]; coverage_pct: number; recommended_path: string[];
 };
 
-export async function listJobs(q?: string, location?: string): Promise<{ source: string; count: number; jobs: JobPosting[] }> {
-  const p = new URLSearchParams();
+export async function listJobs(q?: string, location?: string, limit = 500): Promise<{ source: string; count: number; jobs: JobPosting[] }> {
+  const p = new URLSearchParams({ limit: String(limit) });
   if (q) p.set("q", q);
   if (location) p.set("location", location);
-  const qs = p.toString();
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs?${p.toString()}`, { cache: "no-store" }));
 }
 export async function getJobMatch(jobId: string): Promise<JobMatch> {
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" }));

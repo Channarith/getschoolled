@@ -332,27 +332,44 @@ def search_learnable(
     rows: List[LearnableItem] = list(items)
 
     if kids_only:
-        # Subject-matter allow-list: categories and keyword patterns safe for children.
-        _KIDS_CATEGORIES = frozenset({
-            "history", "science & nature", "science", "nature", "arts & culture",
-            "arts & film", "music & instruments", "geography & world", "geography",
-            "health & wellness", "cooking & food", "cooking", "sports & games",
-            "sports", "focus & philosophy", "world cultures", "true stories & biographies",
-            "mathematics", "math", "languages", "animals",
-            "civics & law", "productivity & study", "kids", "children",
-            # Note: "stem" removed — it is a substring of "systems" and would let
-            # adult technical courses (computer systems, etc.) pass the kids filter.
+        # Kids Academy = Pre-K through 3rd grade (ages 4–8).
+        # Only very specific, age-appropriate audio categories are allowed.
+        # Catalog courses require explicit maturity_rating="kids".
+        # Audio courses use a strict category allowlist — no algebra, AI, acting, etc.
+        _KIDS_AUDIO_CATEGORIES = frozenset({
+            # Core early-childhood subjects
+            "science & nature", "nature",
+            "health & wellness",
+            "cooking & food", "cooking",
+            "sports & games", "sports",
+            "geography & world", "geography",
+            "world cultures",
+            "true stories & biographies",   # simple biographies (Ada Lovelace etc.)
+            "arts & culture",               # basic art appreciation
+            "music & instruments",          # basic music
+            "languages",                    # language learning always safe
+            "civics & law",                 # basic civics (how government works)
+            "history",                      # basic history stories
+            "kids", "children",
         })
+        # Block any title that signals adult/advanced content regardless of category
+        _KIDS_TITLE_BLOCK = (
+            "abstract", "advanced", "algebra", "calculus", "trigonometry",
+            "differential", "linear algebra", "statistics", "probability",
+            "ai fluency", "machine learning", "deep learning", "neural",
+            "ethics and society", "ai ethics", "data science",
+            "devops", "sap ", "power bi", "cybersecurity", "it fundamentals",
+            "microeconomics", "macroeconomics", "cryptocurrency", "blockchain",
+            "venture capital", "ux design", "philosophy", "stoicism",
+            "acting techniques", "tour of impressionism", "a tour of",
+            "baroque", "renaissance", "modernism", "abstract expressionism",
+            "impressionism", "cubism", "surrealism",
+            "world war", "cold war", "holocaust", "genocide", "civil war",
+            "french revolution", "roman empire", "ottoman",
+        )
         import re as _re
         _kids_cat_pattern = _re.compile(
-            r"\b(" + "|".join(_re.escape(k) for k in _KIDS_CATEGORIES) + r")\b"
-        )
-        _KIDS_TITLE_BLOCK = (
-            "ai fluency", "machine learning", "deep learning", "neural network",
-            "devops", "sap ", "power bi", "microeconomics", "macroeconomics",
-            "differential equations", "linear algebra", "calculus ii",
-            "options and derivatives", "cryptocurrency", "blockchain", "xrp",
-            "venture capital", "ux design", "cybersecurity", "it fundamentals",
+            r"\b(" + "|".join(_re.escape(k) for k in _KIDS_AUDIO_CATEGORIES) + r")\b"
         )
 
         def _is_kids_safe(c: "LearnableItem") -> bool:

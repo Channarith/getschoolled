@@ -1122,18 +1122,13 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         return LinkedInJobsProvider(env.get("LINKEDIN_API_KEY") or env["JOBS_API_KEY"])
 
     # Live free boards when explicitly enabled (JOBS_LIVE=1 or JOBS_PROVIDER=live).
-    # Includes LinkedIn (rate-limited, key required), Indeed RSS, USAJobs,
-    # WeWorkRemotely, Jobspresso, RemoteOK, Remotive, and Arbeitnow.
+    # NOTE: LinkedInRapidApiProvider and IndeedScraperProvider are disabled —
+    # the linkedin-api8 endpoint was shut down ("no longer providing this service")
+    # and the indeed-scraper-api returns 403 with the current key. Both are kept
+    # in the codebase for when new API keys are sourced. Free sources only for now.
     if _truthy(env.get("JOBS_LIVE")) or choice == "live":
-        providers: List[JobsProvider] = []
-        if env.get("RAPIDAPI_KEY"):
-            providers.append(LinkedInRapidApiProvider(env["RAPIDAPI_KEY"]))
-            # IndeedScraperProvider replaces IndeedRssProvider when the key is set
-            # (higher-quality structured data; limited to 10 calls/day on free tier).
-            providers.append(IndeedScraperProvider(env["RAPIDAPI_KEY"]))
-        else:
-            providers.append(IndeedRssProvider())
-        providers += [
+        providers: List[JobsProvider] = [
+            IndeedRssProvider(),
             USAJobsProvider(),
             WeWorkRemotelyProvider(),
             JobspressoProvider(),

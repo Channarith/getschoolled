@@ -518,7 +518,7 @@ def jobs_parse(req: ParseJobRequest) -> dict:
 
 
 @app.get("/jobs")
-def jobs_list(q: str | None = None, location: str | None = None, limit: int = 50) -> dict:
+def jobs_list(q: str | None = None, location: str | None = None, limit: int = 500) -> dict:
     """Open roles from the job market (LinkedIn/other via provider; sample offline)."""
     from aoep_shared.jobs import get_jobs_provider
 
