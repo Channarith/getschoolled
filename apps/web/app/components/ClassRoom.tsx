@@ -304,9 +304,15 @@ export default function ClassRoom({
       setAssessmentRun(run);
       setAssessmentResult(null);
     } catch (e) {
-      // Content too thin / offline: mark skipped so we don't loop, keep teaching.
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(cp.checkpoint_id);
-      setError(String(e));
+      const msg = String(e);
+      // Only permanently skip on content-unavailable (422). Transient network
+      // errors (5xx, offline) should remain retryable so a summative exam is
+      // not silently bypassed due to a momentary server blip.
+      const contentUnavailable = msg.includes("422") || msg.toLowerCase().includes("too little");
+      if (contentUnavailable) {
+        completedCheckpointsRef.current.add(cp.checkpoint_id);
+      }
+      setError(msg);
     } finally {
       assessmentStartingRef.current = false;
       setBusy(false);

@@ -623,24 +623,24 @@ def record_assessment_pass(
         raise HTTPException(status_code=422, detail="invalid or expired assessment decision")
     if claims.get("student_id") != student_id:
         raise HTTPException(status_code=403, detail="assessment decision belongs to another student")
+    course_id = str(claims.get("course_id", ""))
     try:
         prof = app.state.accounts.record_verified_assessment_pass(
             acct.id,
             student_id,
-            course_id=str(claims.get("course_id", "")),
+            course_id=course_id,
             score=float(claims.get("score", 0)),
             attempt_ids=list(claims.get("attempt_ids") or []),
             ksb_codes=list(claims.get("ksb_codes") or []),
         )
+        enrollment = acct.enrollments.get(course_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown student profile")
-    course_id = str(claims.get("course_id", ""))
-    enrollment = acct.enrollments[course_id]
     return {
         "student_id": student_id,
         "course_id": course_id,
         "passed": True,
-        "score": enrollment.score,
+        "score": enrollment.score if enrollment else float(claims.get("score", 0)),
         "retention_checks": [
             check for check in prof.retention_checks
             if check.get("course_id") == course_id

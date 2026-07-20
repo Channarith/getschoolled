@@ -38,7 +38,7 @@ def test_signed_pass_schedules_retention_and_updates_enrollment():
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["passed"] is True
-    assert [row["interval_days"] for row in body["retention_checks"]] == [0, 7, 30, 90]
+    assert [row["interval_days"] for row in body["retention_checks"]] == [1, 7, 30, 90]
     enrollment = app.state.accounts.by_email("assessment-pass@example.com").enrollments["course-1"]
     assert enrollment.assessment_verified is True
     assert enrollment.assessment_attempt_id == "attempt-final"
@@ -47,8 +47,8 @@ def test_signed_pass_schedules_retention_and_updates_enrollment():
         f"/students/{student_id}/retention/due",
         headers=headers,
     ).json()["checks"]
-    assert len(due) == 1
-    assert due[0]["interval_days"] == 0
+    # First check is due in 1 day, not immediately — no check should be due right now.
+    assert len(due) == 0
 
     history = client.get(
         f"/students/{student_id}/assessment-history",
