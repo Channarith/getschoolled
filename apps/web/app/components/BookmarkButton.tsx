@@ -21,9 +21,18 @@ function getSharedSavedIds(): Promise<Set<string>> {
   _portfolioExpiry = now + 30_000; // cache for 30 s
   _portfolioPromise = getPortfolio()
     .then((p) => new Set((p.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)))
-    .catch(() => new Set<string>());
+    .catch(() => {
+      // On error, clear the cache so the next mount retries rather than
+      // caching an empty set for the full 30-second window.
+      _portfolioPromise = null;
+      _portfolioExpiry = 0;
+      return new Set<string>();
+    });
   return _portfolioPromise;
 }
+
+// Exported so auth/logout flows can clear stale cross-user state.
+// Called automatically after save/unsave via invalidatePortfolioCache().
 
 /** Call this after saving/unsaving so the next mount gets fresh data. */
 export function invalidatePortfolioCache() {
