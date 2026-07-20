@@ -56,6 +56,16 @@ QUEUE_DONE = "done"
 REPORT_CATEGORIES: tuple = ("spam", "harassment", "inappropriate", "disruptive", "other")
 REPORT_OPEN = "open"
 REPORT_DISMISSED = "dismissed"
+PRESENCE_LIVE = "live"
+PRESENCE_UNKNOWN = "unknown"
+PRESENCE_SPOOF = "spoof"
+PRESENCE_ABSENT = "absent"
+PRESENCE_LIVENESS_STATES: tuple = (
+    PRESENCE_LIVE,
+    PRESENCE_UNKNOWN,
+    PRESENCE_SPOOF,
+    PRESENCE_ABSENT,
+)
 
 
 @dataclass
@@ -353,6 +363,63 @@ class SlideSync:
 
 
 @dataclass
+class PresencePolicy:
+    enabled: bool = True
+    grace_seconds: int = 90
+    stale_seconds: int = 20
+    require_liveness: bool = True
+    max_faces_allowed: int = 1
+
+    def __post_init__(self) -> None:
+        self.enabled = bool(self.enabled)
+        self.grace_seconds = max(30, min(300, int(self.grace_seconds or 90)))
+        self.stale_seconds = max(5, min(120, int(self.stale_seconds or 20)))
+        self.max_faces_allowed = max(1, int(self.max_faces_allowed or 1))
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class PresenceSignal:
+    participant_id: str
+    participant_name: str = ""
+    present: bool = False
+    face_count: int = 0
+    liveness_state: str = PRESENCE_UNKNOWN
+    liveness_score: float = 0.0
+    reason: str = ""
+    source: str = ""
+    observed_at: str = ""
+    absent_started_at: str = ""
+    last_live_at: str = ""
+    hold_started_at: str = ""
+    updated_at: str = ""
+
+    def __post_init__(self) -> None:
+        self.participant_id = (self.participant_id or "").strip()
+        if not self.participant_id:
+            raise LiveRoomError("presence signal requires participant_id")
+        self.participant_name = (self.participant_name or "").strip()
+        self.present = bool(self.present)
+        self.face_count = max(0, int(self.face_count or 0))
+        self.liveness_state = (self.liveness_state or PRESENCE_UNKNOWN).strip().lower()
+        if self.liveness_state not in PRESENCE_LIVENESS_STATES:
+            self.liveness_state = PRESENCE_UNKNOWN
+        self.liveness_score = max(0.0, min(1.0, float(self.liveness_score or 0.0)))
+        self.reason = (self.reason or "").strip()
+        self.source = (self.source or "").strip()
+        self.observed_at = (self.observed_at or "").strip()
+        self.absent_started_at = (self.absent_started_at or "").strip()
+        self.last_live_at = (self.last_live_at or "").strip()
+        self.hold_started_at = (self.hold_started_at or "").strip()
+        self.updated_at = (self.updated_at or self.observed_at or _ts()).strip()
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class LiveRoom:
     room_id: str
     class_id: str
@@ -406,6 +473,13 @@ class LiveRoom:
     xr_attempts: Dict[str, dict] = field(default_factory=dict)
     # Privacy-safe audience readiness snapshot for Theodore (no names).
     audience_profile: Dict[str, object] = field(default_factory=dict)
+    # Camera-driven attendance hold policy/signals.
+    presence_policy: PresencePolicy = field(default_factory=PresencePolicy)
+    presence_signals: Dict[str, PresenceSignal] = field(default_factory=dict)
+    presence_hold_active: bool = False
+    presence_hold_participant_id: str = ""
+    presence_hold_reason: str = ""
+    presence_hold_started_at: str = ""
     # Synchronized educational mini-game (private answer is stripped publicly).
     group_game: Optional[dict] = None
 
@@ -551,6 +625,22 @@ class LiveRoom:
                 for pid, row in (self.xr_attempts or {}).items()
             },
             "audience_profile": dict(self.audience_profile or {}),
+            "presence_policy": self.presence_policy.to_dict(),
+            "presence": {
+                "hold_active": bool(self.presence_hold_active),
+                "hold_participant_id": self.presence_hold_participant_id,
+                "hold_participant_name": (
+                    self.participants.get(self.presence_hold_participant_id).name
+                    if self.presence_hold_participant_id in self.participants
+                    else ""
+                ),
+                "hold_reason": self.presence_hold_reason,
+                "hold_started_at": self.presence_hold_started_at,
+                "signals": [
+                    self.presence_signals[k].to_dict()
+                    for k in sorted(self.presence_signals.keys())
+                ],
+            },
             "group_game": public_game(self.group_game),
         }
 
@@ -663,6 +753,11 @@ class LiveRoomStore:
         creator_account_id: str = "",
         scheduled_start: str = "",
         duration_seconds: int = 0,
+        presence_enabled: bool = True,
+        presence_hold_grace_seconds: int = 90,
+        presence_stale_seconds: int = 20,
+        presence_require_liveness: bool = True,
+        presence_max_faces_allowed: int = 1,
     ) -> LiveRoom:
         existing = self._backend.get(room_id)
         if existing is not None:
@@ -672,6 +767,16 @@ class LiveRoomStore:
                 dirty = True
             if duration_seconds and not existing.duration_seconds:
                 existing.duration_seconds = int(duration_seconds)
+                dirty = True
+            next_policy = PresencePolicy(
+                enabled=presence_enabled,
+                grace_seconds=presence_hold_grace_seconds,
+                stale_seconds=presence_stale_seconds,
+                require_liveness=presence_require_liveness,
+                max_faces_allowed=presence_max_faces_allowed,
+            )
+            if existing.presence_policy.to_dict() != next_policy.to_dict():
+                existing.presence_policy = next_policy
                 dirty = True
             if dirty:
                 self._commit(existing)
@@ -707,6 +812,13 @@ class LiveRoomStore:
             creator_account_id=creator_account_id.strip(),
             scheduled_start=(scheduled_start or "").strip(),
             duration_seconds=int(duration_seconds or 0),
+            presence_policy=PresencePolicy(
+                enabled=presence_enabled,
+                grace_seconds=presence_hold_grace_seconds,
+                stale_seconds=presence_stale_seconds,
+                require_liveness=presence_require_liveness,
+                max_faces_allowed=presence_max_faces_allowed,
+            ),
         )
         host = Participant(id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True)
         room.participants[host.id] = host
@@ -1284,6 +1396,8 @@ class LiveRoomStore:
         from datetime import timedelta
 
         room = self.require(room_id)
+        if room.presence_hold_active:
+            return False
         if room.status != "live" or room.presenting or room.learner_count < 1:
             return False
         welcome_started = _parse_ts(room.welcome_started_at)
@@ -1310,6 +1424,8 @@ class LiveRoomStore:
         from datetime import timedelta
 
         room = self.require(room_id)
+        if room.presence_hold_active:
+            return False
         if room.status != "live" or not room.presenting or room.floor_participant_id or room.waiting_queue():
             return False
         started = _parse_ts(room.slide_started_at)
@@ -1340,6 +1456,8 @@ class LiveRoomStore:
         from datetime import timedelta
 
         room = self.require(room_id)
+        if room.presence_hold_active:
+            return False
         if room.status != "live" or not room.presenting or room.duration_seconds <= 0:
             return False
         started = _parse_ts(room.presentation_started_at)
@@ -1370,6 +1488,206 @@ class LiveRoomStore:
                 seconds=room.duration_seconds + room.auto_start_grace_seconds
             )
         return False
+
+    @staticmethod
+    def _presence_is_live(room: LiveRoom, signal: PresenceSignal) -> tuple[bool, str]:
+        if not room.presence_policy.enabled:
+            return True, "disabled"
+        if not signal.present or signal.face_count <= 0:
+            return False, signal.reason or "no_face"
+        if signal.face_count > room.presence_policy.max_faces_allowed:
+            return False, "too_many_faces"
+        if room.presence_policy.require_liveness and signal.liveness_state != PRESENCE_LIVE:
+            return False, "liveness_not_verified"
+        return True, signal.reason or "verified"
+
+    @staticmethod
+    def _set_presence_hold(
+        room: LiveRoom,
+        participant_id: str,
+        participant_name: str,
+        reason: str,
+        *,
+        now: datetime,
+    ) -> bool:
+        if room.presence_hold_active and room.presence_hold_participant_id == participant_id:
+            return False
+        room.presence_hold_active = True
+        room.presence_hold_participant_id = participant_id
+        room.presence_hold_reason = (reason or "presence_not_verified").strip()
+        room.presence_hold_started_at = now.isoformat()
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=(
+                    f"⏸️ Presence hold: pausing class because {participant_name or 'a learner'} "
+                    "is not visually present. We'll resume automatically once they return."
+                ),
+            )
+        )
+        return True
+
+    @staticmethod
+    def _clear_presence_hold(room: LiveRoom, participant_name: str, *, now: datetime) -> bool:
+        if not room.presence_hold_active:
+            return False
+        room.presence_hold_active = False
+        room.presence_hold_participant_id = ""
+        room.presence_hold_reason = ""
+        room.presence_hold_started_at = ""
+        # Reset the slide timer so auto-advance does not jump immediately after resume.
+        room.slide_started_at = now.isoformat()
+        room.chat.append(
+            ChatMessage(
+                id=uuid.uuid4().hex[:10],
+                from_id=AI_HOST_ID,
+                from_name=AI_HOST_NAME,
+                text=(
+                    f"▶️ Presence restored for {participant_name or 'the learner'} — "
+                    "resuming class."
+                ),
+            )
+        )
+        return True
+
+    def report_presence(
+        self,
+        room_id: str,
+        *,
+        participant_id: str,
+        present: bool,
+        face_count: int = 0,
+        liveness_state: str = PRESENCE_UNKNOWN,
+        liveness_score: float = 0.0,
+        reason: str = "",
+        source: str = "",
+        observed_at: Optional[datetime] = None,
+    ) -> dict:
+        room = self.require(room_id)
+        p = room.participants.get(participant_id)
+        if p is None or p.is_host:
+            raise NotInRoomError(f"unknown participant {participant_id!r}")
+        ref = observed_at or _now()
+        signal = room.presence_signals.get(participant_id) or PresenceSignal(
+            participant_id=participant_id,
+            participant_name=p.name,
+        )
+        signal.participant_name = p.name
+        signal.present = bool(present)
+        signal.face_count = max(0, int(face_count or 0))
+        signal.liveness_state = (liveness_state or PRESENCE_UNKNOWN).strip().lower()
+        if signal.liveness_state not in PRESENCE_LIVENESS_STATES:
+            signal.liveness_state = PRESENCE_UNKNOWN
+        signal.liveness_score = max(0.0, min(1.0, float(liveness_score or 0.0)))
+        signal.reason = (reason or "").strip()
+        signal.source = (source or "").strip()
+        signal.observed_at = ref.isoformat()
+        signal.updated_at = _ts()
+        is_live, hold_reason = self._presence_is_live(room, signal)
+        if is_live:
+            signal.last_live_at = ref.isoformat()
+            signal.absent_started_at = ""
+            signal.hold_started_at = ""
+            if (
+                room.presence_hold_active
+                and room.presence_hold_participant_id == participant_id
+            ):
+                self._clear_presence_hold(room, p.name, now=ref)
+        else:
+            if not signal.absent_started_at:
+                signal.absent_started_at = ref.isoformat()
+            absent_since = _parse_ts(signal.absent_started_at)
+            if (
+                absent_since is not None
+                and (ref - absent_since).total_seconds() >= room.presence_policy.grace_seconds
+            ):
+                signal.hold_started_at = room.presence_hold_started_at or ref.isoformat()
+                self._set_presence_hold(room, participant_id, p.name, hold_reason, now=ref)
+        room.presence_signals[participant_id] = signal
+        self._commit(room)
+        payload = signal.to_dict()
+        payload["verified_live"] = is_live
+        payload["hold_reason"] = hold_reason
+        return payload
+
+    def evaluate_presence_holds(self, room_id: str, *, now: Optional[datetime] = None) -> bool:
+        room = self.require(room_id)
+        if not room.presence_policy.enabled or room.status != "live" or not room.presenting:
+            return False
+        ref = now or _now()
+        changed = False
+        for pid, participant in list(room.participants.items()):
+            if participant.is_host:
+                continue
+            signal = room.presence_signals.get(pid)
+            if signal is None:
+                signal = PresenceSignal(participant_id=pid, participant_name=participant.name)
+                signal.reason = "no_signal"
+                signal.present = False
+                signal.observed_at = participant.joined_at or ""
+                signal.updated_at = _ts()
+                signal.absent_started_at = ref.isoformat()
+                room.presence_signals[pid] = signal
+                changed = True
+            else:
+                signal.participant_name = participant.name
+                observed = _parse_ts(signal.observed_at or signal.updated_at)
+                if observed is None or (
+                    (ref - observed).total_seconds() > room.presence_policy.stale_seconds
+                ):
+                    if signal.present:
+                        signal.present = False
+                        changed = True
+                    if not signal.reason:
+                        signal.reason = "stale_signal"
+                        changed = True
+                    if not signal.absent_started_at:
+                        signal.absent_started_at = ref.isoformat()
+                        changed = True
+        if room.presence_hold_active:
+            active_id = room.presence_hold_participant_id
+            if not active_id or active_id not in room.participants:
+                changed = self._clear_presence_hold(room, "the learner", now=ref) or changed
+            else:
+                active_signal = room.presence_signals.get(active_id)
+                if active_signal is not None:
+                    is_live, _ = self._presence_is_live(room, active_signal)
+                    if is_live:
+                        changed = (
+                            self._clear_presence_hold(
+                                room, room.participants[active_id].name, now=ref
+                            )
+                            or changed
+                        )
+        if not room.presence_hold_active:
+            for pid, participant in room.participants.items():
+                if participant.is_host:
+                    continue
+                signal = room.presence_signals.get(pid)
+                if signal is None:
+                    continue
+                is_live, hold_reason = self._presence_is_live(room, signal)
+                if is_live:
+                    continue
+                absent_since = _parse_ts(signal.absent_started_at)
+                if absent_since is None:
+                    continue
+                if (ref - absent_since).total_seconds() < room.presence_policy.grace_seconds:
+                    continue
+                signal.hold_started_at = room.presence_hold_started_at or ref.isoformat()
+                changed = self._set_presence_hold(
+                    room,
+                    pid,
+                    participant.name,
+                    hold_reason,
+                    now=ref,
+                ) or changed
+                break
+        if changed:
+            self._commit(room)
+        return changed
 
     def touch(self, room_id: str, participant_id: str, *, now: Optional[datetime] = None) -> None:
         """Refresh a learner's presence heartbeat (called on the client tick)."""
@@ -1409,6 +1727,12 @@ class LiveRoomStore:
                 if e.participant_id != pid or e.status == QUEUE_DONE
             ]
             room.participants.pop(pid, None)
+            room.presence_signals.pop(pid, None)
+            if room.presence_hold_active and room.presence_hold_participant_id == pid:
+                room.presence_hold_active = False
+                room.presence_hold_participant_id = ""
+                room.presence_hold_reason = ""
+                room.presence_hold_started_at = ""
             removed.append(p.name)
         if removed:
             room._reindex_waiting()
@@ -1978,6 +2302,10 @@ class LiveRoomStore:
         room.status = "ended"
         room.presenting = False
         room.floor_participant_id = ""
+        room.presence_hold_active = False
+        room.presence_hold_participant_id = ""
+        room.presence_hold_reason = ""
+        room.presence_hold_started_at = ""
         room.ended_at = _ts()
         text = (
             "🎓 That's our allotted time for today — the class is now complete. "

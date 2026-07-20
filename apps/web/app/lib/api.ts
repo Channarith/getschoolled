@@ -1738,6 +1738,37 @@ export type LiveRoomState = {
     dominant_styles?: string[];
     adaptation_hints?: string[];
   };
+  presence_policy?: {
+    enabled: boolean;
+    grace_seconds: number;
+    stale_seconds: number;
+    require_liveness: boolean;
+    max_faces_allowed: number;
+  };
+  presence?: {
+    hold_active: boolean;
+    hold_participant_id: string;
+    hold_participant_name: string;
+    hold_reason: string;
+    hold_started_at: string;
+    signals: {
+      participant_id: string;
+      participant_name: string;
+      present: boolean;
+      face_count: number;
+      liveness_state: string;
+      liveness_score: number;
+      reason: string;
+      source: string;
+      observed_at: string;
+      absent_started_at: string;
+      last_live_at: string;
+      hold_started_at: string;
+      updated_at: string;
+      verified_live?: boolean;
+      hold_reason?: string;
+    }[];
+  };
   group_game?: LiveGroupGame | null;
 };
 
@@ -2101,6 +2132,37 @@ export async function liveRoomTick(
     })
   );
   return r.room;
+}
+
+export async function reportLiveRoomPresence(
+  roomId: string,
+  payload: {
+    participantId: string;
+    present: boolean;
+    faceCount?: number;
+    livenessState?: "live" | "unknown" | "spoof" | "absent";
+    livenessScore?: number;
+    reason?: string;
+    source?: string;
+    observedAt?: string;
+  }
+): Promise<{ room: LiveRoomState; presence: Record<string, unknown> }> {
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/presence-report`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        participant_id: payload.participantId,
+        present: payload.present,
+        face_count: payload.faceCount || 0,
+        liveness_state: payload.livenessState || "unknown",
+        liveness_score: payload.livenessScore || 0,
+        reason: payload.reason || "",
+        source: payload.source || "web-on-device",
+        observed_at: payload.observedAt || "",
+      }),
+    })
+  );
 }
 
 export async function liveRoomAsk(
