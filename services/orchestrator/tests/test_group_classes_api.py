@@ -132,3 +132,97 @@ def test_unknown_class_404():
     assert client.post("/api/group-classes/nope/start").status_code == 404
     assert client.post("/api/group-classes/nope/register",
                        json={"name": "Ada"}).status_code == 404
+
+
+def test_paid_enrollment_checkout_confirm_and_register():
+    lid = _first_lesson()
+    created = client.post("/api/group-classes", json={
+        "title": "Instructor paid class",
+        "lesson_id": lid,
+        "start_time": _iso(20),
+        "platform": "salareen",
+        "room_size": 9,
+        "capacity": 8,
+        "payment_required": True,
+        "attendee_code_required": True,
+        "price_per_user_usd": 25.0,
+        "commission_rate": 0.15,
+    })
+    assert created.status_code == 200, created.text
+    cid = created.json()["id"]
+
+    checkout = client.post(f"/api/group-classes/{cid}/checkout", json={
+        "name": "Ada",
+        "email": "ada@example.com",
+    })
+    assert checkout.status_code == 200, checkout.text
+    session_id = checkout.json()["checkout"]["session_id"]
+    assert session_id
+
+    confirm = client.post(f"/api/group-classes/{cid}/confirm-payment", json={
+        "checkout_session_id": session_id,
+    })
+    assert confirm.status_code == 200, confirm.text
+    code = confirm.json()["attendee_code"]
+    assert code
+
+    reg = client.post(f"/api/group-classes/{cid}/register", json={
+        "name": "Ada",
+        "email": "ada@example.com",
+        "attendee_code": code,
+        "checkout_session_id": session_id,
+        "payment_status": "paid",
+    })
+    assert reg.status_code == 200, reg.text
+    assert reg.json()["registered"] == 1
+    assert reg.json()["payment_required"] is True
+
+
+def test_group_class_review_updates_instructor_stats():
+    lid = _first_lesson()
+    created = client.post("/api/group-classes", json={
+        "title": "Rated class",
+        "lesson_id": lid,
+        "start_time": _iso(30),
+        "instructor_name": "Coach Kim",
+        "instructor_account_id": "inst-1",
+    })
+    assert created.status_code == 200, created.text
+    cid = created.json()["id"]
+
+    review = client.post(f"/api/group-classes/{cid}/review", json={"rating": 5, "comment": "Excellent"})
+    assert review.status_code == 200, review.text
+    body = review.json()
+    assert body["review"]["rating"] == 5
+    assert body["class"]["review_count"] == 1
+    assert body["class"]["review_avg"] == 5.0
+
+
+def test_teams_class_camera_sources_are_exposed_in_bridge_plan():
+    lid = _first_lesson()
+    created = client.post("/api/group-classes", json={
+        "title": "Cisco room class",
+        "lesson_id": lid,
+        "platform": "teams",
+        "meeting_url": "https://teams.microsoft.com/l/meetup-join/19%3ameeting_x%40thread.v2/0",
+        "start_time": _iso(25),
+        "device_profile": "teams_cisco_room",
+        "camera_ingest_mode": "external_preferred",
+        "camera_sources": [
+            {
+                "source_id": "cam-room-front",
+                "label": "Cisco front cam",
+                "device_type": "cisco_roomkit",
+                "source_kind": "camera",
+            }
+        ],
+    })
+    assert created.status_code == 200, created.text
+    cid = created.json()["id"]
+    started = client.post(f"/api/group-classes/{cid}/start", json={})
+    assert started.status_code == 200, started.text
+    plan = started.json()["bridge"]
+    assert plan["platform"] == "teams"
+    assert plan["supports_external_camera_ingest"] is True
+    assert plan["camera_source_count"] == 1
+    assert plan["camera_sources"][0]["source_id"] == "cam-room-front"

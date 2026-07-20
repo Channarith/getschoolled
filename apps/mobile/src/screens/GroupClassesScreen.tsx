@@ -5,7 +5,14 @@ import {
 } from "react-native";
 
 import {
-  listGroupClasses, listLessons, registerGroupClass, scheduleGroupClass, startGroupClass,
+  checkoutGroupClass,
+  confirmGroupClassPayment,
+  listGroupClasses,
+  listLessons,
+  registerGroupClass,
+  reviewGroupClass,
+  scheduleGroupClass,
+  startGroupClass,
   type GroupClassRow, type GroupClassStart, type LessonRow,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
@@ -16,6 +23,7 @@ import StartTimeField, { defaultStartDate } from "../components/StartTimeField";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { getLiveRoomLocation } from "../liveRoomLocation";
+import { getAttendeeCode, setAttendeeCode } from "../liveRoomAccess";
 import { theme } from "../theme";
 
 function fmtTime(iso: string): string {
@@ -108,6 +116,19 @@ export default function GroupClassesScreen({
       return;
     }
     if (gc.platform === "salareen" || gc.live_room_id) {
+      if (gc.payment_required || gc.attendee_code_required) {
+        let attendeeCode = getAttendeeCode(gc.id);
+        if (!attendeeCode) {
+          const checkout = await checkoutGroupClass(
+            gc.id,
+            account?.display_name || "Learner",
+            account?.email || "",
+          );
+          const paid = await confirmGroupClassPayment(gc.id, checkout.checkout.session_id);
+          attendeeCode = paid.attendee_code || "";
+          setAttendeeCode(gc.id, attendeeCode);
+        }
+      }
       // A Salareen room only exists on the server once the class has been
       // "started" (open_room). Joining a not-yet-live class hits a room id that
       // doesn't exist -> 404. Open it first (idempotent) so entering succeeds,
@@ -118,6 +139,8 @@ export default function GroupClassesScreen({
           const geo = await getLiveRoomLocation();
           const res = await startGroupClass(gc.id, geo);
           const roomId = res.bridge.live_room_id || res.bridge.livekit_room || roomIdFor(gc);
+          const attendeeCode = getAttendeeCode(gc.id);
+          if (attendeeCode) setAttendeeCode(roomId, attendeeCode);
           void load();
           // First person in opens + hosts the class (gets the moderator key).
           onOpenRoom(roomId, res.bridge.moderator_key || "");
@@ -132,6 +155,24 @@ export default function GroupClassesScreen({
       return;
     }
     setError(t("group.joinUnavailable"));
+  }
+
+  async function handleReview(gc: GroupClassRow, rating = 5) {
+    if (rating < 1 || rating > 5) {
+      Alert.alert("Review", "Rating must be between 1 and 5.");
+      return;
+    }
+    setBusyId(gc.id);
+    setError("");
+    try {
+      await reviewGroupClass(gc.id, Math.round(rating), "");
+      await load();
+      Alert.alert("Review", "Thanks! Your review was saved.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function handleStart(gc: GroupClassRow) {
@@ -264,6 +305,27 @@ export default function GroupClassesScreen({
                 {t("group.seatsLeft")}: {gc.seats_left}/{gc.capacity}
                 {gc.room_size ? ` · ${gc.room_size}-seat room` : ""}
               </Text>
+              <Text style={styles.meta}>
+                Rating {(gc.instructor_stats?.review_avg ?? gc.review_avg ?? 0).toFixed(2)} / 5 ·
+                {(gc.instructor_stats?.review_count ?? gc.review_count ?? 0)} reviews ·
+                {(gc.instructor_stats?.courses_taught ?? 0)} taught
+              </Text>
+              {gc.payment_required || gc.attendee_code_required ? (
+                <Text style={styles.meta}>
+                  Paid class{gc.price_per_user_usd ? ` · $${gc.price_per_user_usd.toFixed(2)}` : ""} ·
+                  Commission {((gc.commission_rate ?? 0.15) * 100).toFixed(0)}%
+                </Text>
+              ) : null}
+              {gc.audit_required && gc.audit_status !== "approved" ? (
+                <Text style={styles.error}>Pending Salareen audit approval.</Text>
+              ) : null}
+              {gc.platform === "teams" && gc.external_camera_ingest_supported ? (
+                <Text style={styles.meta}>
+                  Teams room-device camera ingest ready
+                  {gc.device_profile ? ` (${gc.device_profile})` : ""}
+                  {gc.camera_source_count ? ` · ${gc.camera_source_count} source(s)` : ""}
+                </Text>
+              ) : null}
               <View style={styles.actions}>
                 {/* One button: first join opens + hosts the class; later joins
                     drop into the running room. No separate register/start step.
@@ -274,6 +336,13 @@ export default function GroupClassesScreen({
                   loading={busy}
                   disabled={busy || joinBlocked}
                   variant="brand"
+                />
+                <PrimaryButton
+                  label="Rate"
+                  onPress={() => void handleReview(gc, 5)}
+                  loading={busy}
+                  disabled={busy}
+                  variant="ghost"
                 />
               </View>
             </GlassPanel>

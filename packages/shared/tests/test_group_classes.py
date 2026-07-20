@@ -7,11 +7,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from aoep_shared.group_classes import (
+    AUDIT_APPROVED,
+    AUDIT_PENDING,
     BRIDGED_PLATFORMS,
     ClassFullError,
     GroupClass,
     GroupClassError,
     GroupClassStore,
+    PAYMENT_PAID,
     bridge_plan,
     calendar_ics,
     ensure_standard_daily_classes,
@@ -228,6 +231,102 @@ def test_bridge_plan_salareen_vs_external():
     assert zplan["platform"] == "zoom"
     assert zplan["meeting_ref"] == "https://zoom.us/j/123456789"
     assert zplan["connect_endpoint"] == "/bridges/zoom/connect"
+
+    teams = GroupClass(
+        title="t",
+        lesson_id="a",
+        platform="teams",
+        meeting_url="19:meeting_x@thread.v2",
+        start_time=_iso(10),
+        device_profile="teams_cisco_room",
+        camera_sources=[{"source_id": "cam-1", "device_type": "cisco_roomkit"}],
+    )
+    tplan = bridge_plan(teams)
+    assert tplan["supports_external_camera_ingest"] is True
+    assert tplan["camera_source_count"] == 1
+
+
+def test_marketplace_class_requires_audit_and_caps_capacity():
+    store = GroupClassStore()
+    with pytest.raises(GroupClassError):
+        store.schedule(
+            title="Too big",
+            lesson_id="a",
+            start_time=_iso(10),
+            platform="zoom",
+            meeting_url="https://zoom.us/j/123456789",
+            marketplace_listing=True,
+            audit_required=True,
+            audit_status=AUDIT_PENDING,
+            capacity=10,
+        )
+    gc = store.schedule(
+        title="Instructor class",
+        lesson_id="a",
+        start_time=_iso(10),
+        marketplace_listing=True,
+        audit_required=True,
+        audit_status=AUDIT_PENDING,
+        room_size=9,
+        capacity=8,
+    )
+    assert gc.audit_status == AUDIT_PENDING
+    gc = store.audit_class(gc.id, approved=True, audited_by="ops")
+    assert gc.audit_status == AUDIT_APPROVED
+
+
+def test_checkout_confirm_mints_attendee_code_and_allows_join_auth():
+    store = GroupClassStore()
+    gc = store.schedule(
+        title="Paid instructor class",
+        lesson_id="a",
+        start_time=_iso(20),
+        room_size=9,
+        capacity=8,
+        marketplace_listing=True,
+        audit_required=True,
+        audit_status=AUDIT_APPROVED,
+        payment_required=True,
+        attendee_code_required=True,
+        price_per_user_usd=15.0,
+    )
+    gc = store.audit_class(gc.id, approved=True, audited_by="ops")
+    pending = store.open_checkout(
+        gc.id,
+        name="Ada",
+        email="ada@example.com",
+        account_id="acct-1",
+        checkout_session_id="chk_123",
+    )
+    assert pending.payment_status == "pending"
+    paid = store.confirm_checkout(gc.id, checkout_session_id="chk_123", account_id="acct-1")
+    assert paid.payment_status == PAYMENT_PAID
+    assert paid.attendee_code
+    ok = store.authorize_attendee(
+        gc.id,
+        attendee_code=paid.attendee_code,
+        account_id="acct-1",
+        identity="mobile-acct-1",
+    )
+    assert ok is not None
+    assert ok.attendee_code_bound_identity == "mobile-acct-1"
+
+
+def test_review_updates_instructor_stats():
+    store = GroupClassStore()
+    gc = store.schedule(
+        title="Taught class",
+        lesson_id="a",
+        start_time=_iso(15),
+        instructor_account_id="teach-1",
+    )
+    store.set_status(gc.id, "live")
+    store.add_review(gc.id, reviewer_name="Ada", reviewer_account_id="acct-1", rating=4, comment="great")
+    store.add_review(gc.id, reviewer_name="Ada", reviewer_account_id="acct-1", rating=5, comment="updated")
+    stats = store.instructor_stats("teach-1")
+    assert stats["courses_taught"] == 1
+    assert stats["review_count"] == 1
+    assert stats["review_avg"] == 5.0
 
 
 def test_set_status_and_ended_blocks_registration():

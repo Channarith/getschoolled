@@ -71,6 +71,7 @@ type SpeechRec = {
 
 const ROOM_STORAGE_KEY = "salareen-live-participant";
 const MODERATOR_STORAGE_KEY = "salareen-live-moderator";
+const ATTENDEE_CODE_KEY = "salareen-attendee-code";
 
 // Seconds the "class complete" farewell shows before learners are excused.
 const CLASS_END_COUNTDOWN = 5;
@@ -867,12 +868,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         : `web-${name.toLowerCase().replace(/\s+/g, "-")}`;
       const profile = getToken() ? await fetchLearnerJoinContext() : null;
       if (profile) setLearnerCtx(profile);
+      const classId = roomId.startsWith("class-") ? roomId.slice("class-".length) : "";
+      const attendeeCode = (
+        sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${roomId}`)
+        || (classId ? sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${classId}`) : "")
+        || ""
+      ).trim();
       const info = await joinLiveRoom(roomId, name, identity || fallbackIdentity, locale, profile ? {
         studentId: profile.studentId,
         readinessScore: profile.readinessScore,
         readinessBand: profile.readinessBand,
         primaryStyle: profile.primaryStyle,
-      } : undefined);
+        attendeeCode,
+      } : { attendeeCode });
       setJoinInfo(info);
       setRoom(info.room);
       // The admin (first joiner) receives the moderator key so their client can

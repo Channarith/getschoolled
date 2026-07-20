@@ -41,6 +41,7 @@ from aoep_shared.connectors.lms import (
 from aoep_shared.bridges import (
     BridgePlatform,
     BridgeUnavailable,
+    ExternalCameraSource,
     FakeTransport,
     capabilities,
     get_bridge,
@@ -339,6 +340,8 @@ class BridgeConnectRequest(BaseModel):
     recording: bool = False
     retention_days: int | None = None
     simulate: bool = False
+    camera_sources: list[dict] = []
+    camera_policy: str = "meeting_default"
 
 
 @app.post("/bridges/{platform}/connect")
@@ -351,11 +354,31 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
         if not _simulation_allowed():
             raise HTTPException(status_code=403, detail="bridge simulation disabled in this mode")
         transport = FakeTransport()
+    camera_sources = []
+    for row in req.camera_sources:
+        source_id = str(row.get("source_id") or row.get("sourceId") or "").strip()
+        if not source_id:
+            continue
+        camera_sources.append(
+            ExternalCameraSource(
+                source_id=source_id,
+                label=str(row.get("label") or "").strip(),
+                device_type=str(row.get("device_type") or row.get("deviceType") or "").strip(),
+                source_kind=str(row.get("source_kind") or row.get("sourceKind") or "camera").strip(),
+                stream_url=str(row.get("stream_url") or row.get("streamUrl") or "").strip(),
+                participant_identity=str(
+                    row.get("participant_identity") or row.get("participantIdentity") or ""
+                ).strip(),
+                resolution=str(row.get("resolution") or "").strip(),
+                fps=int(row.get("fps") or 0),
+            )
+        )
     try:
         session = get_bridge(p).connect(
             req.meeting_ref, livekit_room=room, room_url=token.url,
             room_token=token.token, recording=req.recording,
             retention_days=req.retention_days, transport=transport,
+            camera_sources=camera_sources,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -363,7 +386,12 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
         raise HTTPException(status_code=503, detail=str(exc))
     sid = uuid.uuid4().hex[:12]
     app.state.bridge_sessions[sid] = session
-    return {"session_id": sid, "simulated": bool(transport), **session.status()}
+    return {
+        "session_id": sid,
+        "simulated": bool(transport),
+        "camera_policy": req.camera_policy,
+        **session.status(),
+    }
 
 
 def _session(session_id: str):

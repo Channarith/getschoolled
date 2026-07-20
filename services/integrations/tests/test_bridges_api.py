@@ -44,6 +44,7 @@ def test_simulated_connect_bridges_tracks_and_supports_chat_and_disconnect():
     r = client.post("/bridges/zoom/connect", json={
         "meeting_ref": "https://us05web.zoom.us/j/87654321012?pwd=secret",
         "livekit_room": "class-demo", "recording": True, "retention_days": 14,
+        "camera_sources": [{"source_id": "cam-1", "label": "Cisco board cam"}],
         "simulate": True,
     })
     assert r.status_code == 200, r.text
@@ -56,6 +57,7 @@ def test_simulated_connect_bridges_tracks_and_supports_chat_and_disconnect():
     assert ("audio", "meeting_to_room") in directions
     assert ("audio", "room_to_meeting") in directions
     assert body["disclosure"] and "14 days" in body["disclosure"]
+    assert body["camera_source_count"] == 1
     sid = body["session_id"]
 
     # Status round-trips.

@@ -27,6 +27,7 @@ import { LiveKitVideoView } from "../components/liveKitRuntime";
 import { useLiveKitRoom } from "../components/useLiveKitRoom";
 import PrimaryButton from "../components/PrimaryButton";
 import { getLiveRoomLocation } from "../liveRoomLocation";
+import { getAttendeeCode } from "../liveRoomAccess";
 import { useLiveRoomSocket } from "../liveRoomWs";
 import { theme } from "../theme";
 
@@ -535,7 +536,10 @@ export default function LiveRoomScreen({
         readinessScore?: number;
         readinessBand?: string;
         primaryStyle?: string;
+        attendeeCode?: string;
       } | undefined;
+      const classId = roomId.startsWith("class-") ? roomId.slice("class-".length) : "";
+      const attendeeCode = getAttendeeCode(roomId) || getAttendeeCode(classId);
       if (account) {
         try {
           const { students } = await listStudents();
@@ -547,11 +551,14 @@ export default function LiveRoomScreen({
               readinessScore: Number(lx.readiness_score ?? 0),
               readinessBand: lx.readiness_band || "",
               primaryStyle: lx.primary_style || student.primary_style || "mixed",
+              attendeeCode,
             };
           }
         } catch {
-          joinOpts = undefined;
+          joinOpts = attendeeCode ? { attendeeCode } : undefined;
         }
+      } else if (attendeeCode) {
+        joinOpts = { attendeeCode };
       }
       let joined: Awaited<ReturnType<typeof joinLiveRoom>>;
       try {
