@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.1 - Raise auto-minor bump threshold to 120 (patch), fix eight assessment security/correctness bugs (PR #339), fix four more assessment bugs including drive-mode accessibility bypass and retry-button null-slide.
 - 2026-07-20 - v0.27.0 - Fix PR #340 CI regressions: restore the strict auto-minor threshold policy in `scripts/bump_pr_version.py` (auto-minor when pending changes exceed 8), remove temporary identity login debug logging that broke pytest in CI, and fix the web class completion type mismatch in `canAwardCourseCompletion(...)` calls.
 - 2026-07-19 - v0.26.1 - Update Android website download target for Vultr object storage to the current release path (`releases/android/v0.26.1/app-release.apk`) in both the web fallback URL and VKE configmap env.
 - 2026-07-19 - v0.26.1 - Fix `scripts/check_pr_version_bump.sh` false negatives on pull_request merge refs: validate that `v<HEAD_VERSION>` appears in the recent top changelog entries instead of requiring only the first dated bullet (base-branch union entries can precede PR entries in synthetic merge commits).

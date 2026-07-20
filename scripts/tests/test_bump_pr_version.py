@@ -77,8 +77,8 @@ def _many_pending(n: int) -> str:
 
 
 def test_auto_minor_when_over_threshold(monkeypatch, tmp_path):
-    # >8 pending changes auto-promotes a PATCH to a MINOR (0.x.0).
-    _setup(tmp_path, "0.15.0", _many_pending(9))
+    # >120 pending changes auto-promotes a PATCH to a MINOR (0.x.0).
+    _setup(tmp_path, "0.15.0", _many_pending(121))
     monkeypatch.delenv("AOEP_MINOR_BUMP_THRESHOLD", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert bump_pr.main([]) == 0
@@ -86,8 +86,8 @@ def test_auto_minor_when_over_threshold(monkeypatch, tmp_path):
 
 
 def test_no_auto_minor_at_or_below_threshold(monkeypatch, tmp_path):
-    # Exactly 8 pending changes stays a PATCH (strictly greater than triggers).
-    _setup(tmp_path, "0.15.0", _many_pending(8))
+    # Exactly 120 pending changes stays a PATCH (strictly greater than triggers).
+    _setup(tmp_path, "0.15.0", _many_pending(120))
     monkeypatch.delenv("AOEP_MINOR_BUMP_THRESHOLD", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert bump_pr.main([]) == 0
@@ -103,9 +103,11 @@ def test_threshold_env_override_disables_auto_minor(monkeypatch, tmp_path):
 
 
 def test_threshold_env_override_cannot_weaken_policy(monkeypatch, tmp_path):
-    # CI may inject a high threshold; clamp keeps >8 auto-minor intact.
-    _setup(tmp_path, "0.15.0", _many_pending(9))
-    monkeypatch.setenv("AOEP_MINOR_BUMP_THRESHOLD", "120")
+    # Env var cannot raise the effective threshold above DEFAULT (120); setting
+    # AOEP_MINOR_BUMP_THRESHOLD=200 is clamped to min(200, 120)=120, so 121
+    # pending items still triggers a MINOR.
+    _setup(tmp_path, "0.15.0", _many_pending(121))
+    monkeypatch.setenv("AOEP_MINOR_BUMP_THRESHOLD", "200")
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert bump_pr.main([]) == 0
     assert (tmp_path / "VERSION").read_text().strip() == "0.16.0"

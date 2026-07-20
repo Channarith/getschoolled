@@ -1307,6 +1307,7 @@ async def _class_cleanup_loop() -> None:
 @app.on_event("startup")
 async def _orchestrator_startup() -> None:
     import asyncio
+    import logging as _log
 
     # Capture the running loop so background threads (e.g. the streamed AI-host
     # answer, which runs a blocking LLM generator in a threadpool) can push
@@ -1315,6 +1316,19 @@ async def _orchestrator_startup() -> None:
     _seed_group_classes()
     _cleanup_expired_classes()  # sweep once at boot
     app.state._class_cleanup_task = asyncio.create_task(_class_cleanup_loop())
+
+    _lg = _log.getLogger(__name__)
+    _orch_key = os.environ.get("ASSESSMENT_SIGNING_KEY") or os.environ.get("AUTH_SIGNING_KEY")
+    if not _orch_key:
+        _lg.warning(
+            "Neither ASSESSMENT_SIGNING_KEY nor AUTH_SIGNING_KEY is set on the orchestrator. "
+            "Assessment tokens will be signed with the insecure development default key."
+        )
+    elif not os.environ.get("ASSESSMENT_SIGNING_KEY") and os.environ.get("AUTH_SIGNING_KEY"):
+        _lg.info(
+            "ASSESSMENT_SIGNING_KEY not set — orchestrator will sign assessment tokens "
+            "with AUTH_SIGNING_KEY. Ensure the identity service uses the same key."
+        )
 
 
 def _group_store() -> GroupClassStore:
