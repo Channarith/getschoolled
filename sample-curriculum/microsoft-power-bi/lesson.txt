@@ -1,0 +1,115 @@
+LESSON: Microsoft Power BI
+LANGUAGE: en
+
+SLIDE 1 | What is Power BI?
+Power BI is Microsoft's business intelligence platform that transforms raw data into interactive visualizations and reports. It consists of three main products: Power BI Desktop (a free Windows application for building reports), Power BI Service (a cloud-based SaaS platform at app.powerbi.com), and Power BI Mobile (iOS and Android apps for on-the-go access). Most workflows start in Desktop and publish to Service for sharing.
+NARRATION: Power BI is Microsoft's platform for turning raw data into interactive reports and dashboards.
+
+SLIDE 2 | Power BI Desktop vs Service vs Mobile
+Power BI Desktop is where you build and model data — it runs locally and saves as a .pbix file. Power BI Service is where you publish, share, and schedule refreshes; it also supports creating simple reports directly in the browser. Power BI Mobile lets consumers view dashboards and reports, set data alerts, and annotate visuals on a phone or tablet.
+NARRATION: Build in Desktop, share in Service, and consume on the go with Mobile.
+
+SLIDE 3 | Connecting to Data Sources
+Power BI can connect to hundreds of sources via Get Data: Excel spreadsheets, SQL Server databases, Azure services, Salesforce, Google Analytics, SharePoint, and public web pages. Each connector prompts for credentials and connection details, then loads a preview of the data. You can connect to multiple sources in the same report and combine them in the data model.
+NARRATION: Get Data connects Power BI to hundreds of sources, from Excel files to cloud databases.
+
+SLIDE 4 | Import vs DirectQuery vs Live Connection
+Import mode copies data into Power BI's in-memory engine, enabling the fastest query performance but requiring scheduled refreshes. DirectQuery sends every user interaction as a live query to the source database, keeping data current but putting load on the source. Live Connection is used exclusively with Analysis Services or Power BI datasets and delegates all calculations to that engine. Import is the right choice for most small to medium datasets.
+NARRATION: Import is fastest, DirectQuery is always current, and Live Connection delegates to an existing model.
+
+SLIDE 5 | The Power Query Editor
+Power Query Editor is Power BI's data transformation layer, opened via Transform Data. Every action you take — filtering rows, renaming columns, splitting text — is recorded as an Applied Step in the right-hand panel, creating a repeatable, auditable pipeline. Transformations are non-destructive: the original source data is never changed. You can reorder, delete, or edit any step at any time.
+NARRATION: Power Query records every transformation as a step you can review, reorder, or delete.
+
+SLIDE 6 | The Transform Tab and M Language
+The Transform tab exposes common operations: change data type, replace values, pivot and unpivot columns, and extract parts of text or dates. Under the hood, every step generates M language code visible in the formula bar. For advanced logic, you can write M directly — for example, Table.SelectRows(Source, each [Sales] > 1000) filters rows where Sales exceeds 1,000. M is a functional, case-sensitive language.
+NARRATION: The Transform tab writes M code for you, but you can always edit that code directly.
+
+SLIDE 7 | Data Types and Column Quality
+Power BI supports types including Whole Number, Decimal Number, Text, Date, Date/Time, and Boolean. Assigning the correct type is critical: a date stored as text cannot be used in time intelligence calculations. The Column Quality view in Power Query shows the percentage of valid, empty, and error values in each column — aim for 100% valid before loading data into the model.
+NARRATION: Set the right data type in Power Query or your DAX calculations will break later.
+
+SLIDE 8 | Merging and Appending Queries
+Merge Queries combines two tables horizontally, like a SQL JOIN, matching rows on a key column. Power BI supports Left Outer, Right Outer, Inner, Full Outer, Left Anti, and Right Anti join kinds. Append Queries stacks tables vertically — useful for combining January, February, and March sales files into a single table. Both operations produce a new step in Applied Steps, keeping the originals intact.
+NARRATION: Merge joins tables side by side; Append stacks them on top of each other.
+
+SLIDE 9 | The Data Model and Star Schema
+The data model in Power BI stores tables and their relationships. A star schema — the recommended structure — places a central fact table (containing transactional measures like SalesAmount and Quantity) surrounded by dimension tables (Date, Product, Customer, Store). This design minimizes complexity, improves DAX performance, and makes reports easier to build. Avoid snowflake schemas and many-to-many relationships where possible.
+NARRATION: Organize your model as a star: one fact table surrounded by dimension tables.
+
+SLIDE 10 | Creating Relationships
+Relationships link tables on a shared key column. In Model view, drag the foreign key from the fact table to the primary key in the dimension table. Power BI requires that the dimension side have unique values (one-to-many cardinality). Cross-filter direction controls how filters flow: Single means filters flow from the one-side to the many-side, while Both allows bidirectional filtering, which can cause ambiguity and should be used sparingly.
+NARRATION: Drag keys between tables to create relationships, and keep cross-filter direction single unless you have a clear reason not to.
+
+SLIDE 11 | DAX Fundamentals
+DAX (Data Analysis Expressions) is the formula language used to create calculated columns and measures. A calculated column is evaluated row by row when the data loads and stored in the model. A measure is calculated at query time based on the filter context — the set of filters active in a visual. For example, Total Sales := SUM(Sales[Amount]) creates a measure that aggregates differently in every visual.
+NARRATION: DAX measures calculate dynamically based on whatever filters the user applies.
+
+SLIDE 12 | Calculated Columns vs Measures
+Calculated columns consume memory because they store a value for every row. Use them when you need a per-row value — like a concatenated full name or a profit margin per transaction. Measures use no storage and recalculate dynamically; use them for any aggregation like total, average, or ratio. A common mistake is creating a calculated column for something like Total Sales — always make that a measure instead.
+NARRATION: Columns store row-level values; measures calculate aggregates on the fly — prefer measures.
+
+SLIDE 13 | Core DAX Functions
+SUM and AVERAGE aggregate a column. COUNT counts rows with non-blank values; COUNTA counts non-blank rows of any type. CALCULATE is the most powerful DAX function — it evaluates an expression in a modified filter context: CALCULATE(SUM(Sales[Amount]), Sales[Region] = "West") returns west-region sales regardless of the current page filter. FILTER returns a table of rows meeting a condition. ALL removes filters from a column or table, useful for percentage-of-total calculations.
+NARRATION: CALCULATE is the engine of DAX — it lets you override the current filter context.
+
+SLIDE 14 | The RELATED Function
+RELATED retrieves a value from a related table in a one-to-many relationship, working like a VLOOKUP. For example, in a calculated column on the Sales fact table, RELATED(Product[Category]) brings in the product category for each sales row. RELATEDTABLE works in the opposite direction, returning a table of related rows from the many-side. Both functions only work inside calculated columns, not measures — use CALCULATE with FILTER for measure equivalents.
+NARRATION: RELATED pulls a value from a dimension table into your fact table row by row.
+
+SLIDE 15 | Time Intelligence DAX
+Time intelligence functions require a properly marked Date table with no gaps between the min and max date. DATESYTD returns a set of dates from January 1 to the current date, so CALCULATE(SUM(Sales[Amount]), DATESYTD(Date[Date])) gives year-to-date sales. SAMEPERIODLASTYEAR shifts the context back exactly one year. DATEADD is more flexible: DATEADD(Date[Date], -1, MONTH) shifts back one month. Always mark your Date table using the Mark as Date Table option.
+NARRATION: Time intelligence DAX needs a complete, marked Date table with no missing dates.
+
+SLIDE 16 | Building Visuals
+The Visualizations pane offers bar charts, line charts, scatter plots, card visuals, tables, matrices, maps, treemaps, and more. Drag fields from the Fields pane into the visual's well (Axis, Values, Legend). A card visual shows a single KPI number — drag Total Sales into Value and add conditional formatting to highlight targets. A matrix is Power BI's pivot table, supporting row and column hierarchies with subtotals.
+NARRATION: Drag fields into a visual's wells to control what data appears on which axis.
+
+SLIDE 17 | Slicers and Filters
+Slicers are on-canvas filter controls that let report consumers narrow data without opening the Filter pane. A date slicer with a slider lets users pick a custom range; a dropdown slicer saves canvas space. The Filters pane offers visual-level, page-level, and report-level filters. Syncing slicers across pages — via View > Sync Slicers — keeps selections consistent as users navigate between report pages.
+NARRATION: Slicers let users filter data directly on the canvas without touching the Filters pane.
+
+SLIDE 18 | Formatting, Theming, and Accessibility
+Every visual has a Format pane for colors, labels, titles, borders, and background. Report themes (JSON files) apply consistent colors and fonts across all visuals at once — Microsoft provides built-in themes and you can create custom ones. For accessibility, enable Alt Text on every visual, ensure sufficient color contrast (WCAG AA requires a 4.5:1 ratio for normal text), and test navigation with the Tab key to ensure screen readers can traverse visuals logically.
+NARRATION: Apply a theme JSON file to enforce consistent colors and fonts across every visual instantly.
+
+SLIDE 19 | Drill-Through and Drill-Down
+Drill-down navigates deeper within a hierarchy on the same visual — for example, clicking Year expands to Quarter, then Month. Drill-through jumps to a separate detail page filtered to the item the user right-clicks. To set up drill-through, add a field to the Drill Through well on the destination page; Power BI automatically adds a back button. This pattern is ideal for summary-to-detail navigation, such as from a regional sales chart to a store-level breakdown.
+NARRATION: Drill-down digs into a hierarchy; drill-through jumps to a separate detail page.
+
+SLIDE 20 | Bookmarks and Buttons for Navigation
+Bookmarks capture the current state of a report page — filters, slicer selections, visual visibility, and scroll position. Assign a bookmark to a button to create interactive navigation experiences without writing any code. A common pattern is a Toggle button that shows and hides a filter panel using two bookmarks and selection visibility. Buttons can also link to other pages, external URLs, or Q&A, making Power BI reports feel like web applications.
+NARRATION: Bookmarks and buttons let you build app-like navigation with no coding required.
+
+SLIDE 21 | Row-Level Security
+Row-Level Security (RLS) restricts which rows of data a user can see based on their identity. You define roles in Desktop using DAX filter expressions — for example, [Region] = USERNAME() or [Region] = USERPRINCIPALNAME(). Publish to Service, then assign users or groups to each role in the dataset settings. RLS is enforced at the dataset level, so it applies to every report built on that dataset. Always test roles using the View As feature in Desktop.
+NARRATION: RLS uses DAX rules and user identity to limit which rows each person can see.
+
+SLIDE 22 | Publishing to Power BI Service and Scheduling Refresh
+Publish from Desktop sends the .pbix file to a workspace in Power BI Service. In Service, open the dataset settings to configure a scheduled refresh — up to 8 times per day on Pro, up to 48 times per day on Premium. You must provide stored credentials for each data source. If the source is on-premises (a local SQL Server or file share), you also need an On-Premises Data Gateway installed on a machine that can reach that source.
+NARRATION: Schedule refresh in Service so your reports always show current data without manual exports.
+
+SLIDE 23 | Dashboards, Sharing, and Collaboration
+In Power BI Service, a dashboard is a single canvas of pinned tiles from one or more reports — not the same as a report page. Pin a visual by hovering it and clicking the pin icon. Share a report or dashboard with individuals by email, or publish to a workspace where colleagues with Viewer role can access it. Apps bundle workspaces for broader distribution. Power BI integrates with Microsoft Teams, letting users embed live reports directly in Teams channels.
+NARRATION: Dashboards pin your best visuals together; Apps package entire workspaces for distribution.
+
+SLIDE 24 | Performance Tips and Best Practices
+Avoid high-cardinality text columns in relationships — a GUID or URL column can balloon model size. Use measures instead of calculated columns to reduce memory footprint. Reduce the number of visuals per page — each visual fires a separate DAX query on render. Use DAX Studio (a free tool) to profile slow measures and identify query bottlenecks. Disable auto date/time under Options to prevent Power BI from creating hidden Date tables for every date column, which silently inflates model size.
+NARRATION: Fewer visuals per page and measures over columns are the two fastest wins for performance.
+
+SLIDE 25 | The On-Premises Data Gateway
+The On-Premises Data Gateway is a Windows service that acts as a secure bridge between Power BI Service and data sources inside a corporate network — SQL Server, Oracle, SAP HANA, local files. Install the Standard mode gateway on a dedicated, always-on machine (not a laptop). One gateway can serve multiple Power BI datasets, Analysis Services connections, and Power Automate flows. Monitor gateway performance and cluster multiple gateways for high availability.
+NARRATION: The gateway bridges your cloud Power BI Service to databases locked inside your corporate network.
+
+SLIDE 26 | Power BI Embedded and the Premium Capacity
+Power BI Embedded lets developers embed interactive reports and dashboards into custom applications for external customers — no Power BI license required for end users. It is priced by Azure capacity (A-SKUs) rather than per user. Power BI Premium (P-SKUs) provides dedicated cloud capacity for large organizations, enabling paginated reports, AI features, and higher refresh frequencies. Both use the same underlying engine and the same reports you build in Desktop.
+NARRATION: Embed Power BI visuals in your own app for customers using Power BI Embedded and Azure capacity.
+
+FACT: Power BI Desktop is free to download and use; sharing in Service requires a Pro or Premium license.
+FACT: Import mode stores data in memory for fast queries; DirectQuery queries the source live on every interaction.
+FACT: A star schema places one fact table at the center surrounded by dimension tables.
+FACT: CALCULATE is the most important DAX function because it lets you override filter context.
+FACT: Time intelligence DAX requires a complete, gap-free, marked Date table.
+FACT: Row-Level Security is defined in Desktop with DAX rules and enforced in Service by user identity.
+FACT: The On-Premises Data Gateway must be installed on an always-on machine inside the corporate network.
+FACT: Use measures instead of calculated columns to reduce model memory size.

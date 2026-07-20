@@ -1,0 +1,107 @@
+LESSON: Microsoft PowerPoint: Professional Presentations
+LANGUAGE: en
+
+SLIDE 1 | Presentation Design Principles
+Great presentations follow the signal-versus-noise principle: every element on a slide should either inform or support, and anything that does neither should be removed. The 10-20-30 rule (popularized by Guy Kawasaki) suggests no more than 10 slides, a 20-minute talk, and a minimum 30-point font. Most importantly, one idea per slide forces you to clarify your thinking and gives audiences one thing to focus on at a time.
+NARRATION: One idea per slide is the single most important rule for presentations that actually land with an audience.
+
+SLIDE 2 | Slide Masters and Layouts
+The Slide Master (View > Slide Master) controls the design of every slide in your presentation from a single place. Changes made to the master — fonts, colors, logo position, background — flow down to all layouts and all slides that use them. Below the master are layout slides (Title Slide, Title and Content, Two Content, and others); edit a layout to change every slide that uses it without touching individual slides. This separation of design from content is what makes large decks maintainable.
+NARRATION: Edit the Slide Master once to change the look of every slide instantly rather than reformatting them one by one.
+
+SLIDE 3 | Themes, Colors, and Fonts
+A PowerPoint theme bundles a color palette, font pairing, and effect preset. You can create a custom theme by going to Design > Variants > Colors > Customize Colors and defining six accent colors, a text/background pair, and a hyperlink color that match your brand. Save this as a custom theme (.thmx) so it is available for all future presentations. Use maximum two font families — one for headings and one for body text — and stick to them throughout the deck.
+NARRATION: Save your brand colors and fonts as a custom theme so every new deck starts with the right look automatically.
+
+SLIDE 4 | Working with Images
+Insert images with Insert > Pictures and resize by dragging corners (hold Shift to constrain proportions). Use Remove Background (Picture Format > Remove Background) to isolate a subject and remove a plain or solid-color backdrop. Compress all images before sharing (Picture Format > Compress Pictures, set to Email 96 ppi) to keep file sizes manageable. Avoid stretching images by using the "Set Transparent Color" or crop-to-shape tools rather than pulling corners unevenly.
+NARRATION: Remove Background and Compress Pictures are the two image tools that most improve the quality and size of your deck.
+
+SLIDE 5 | Icons, 3D Models, and SVG Graphics
+PowerPoint 365 includes a library of thousands of flat icons (Insert > Icons) that are scalable vector graphics, meaning they stay crisp at any size and can be recolored to match your brand. Insert > 3D Models adds rotating three-dimensional objects from Microsoft's library or your own files. SVG files (from tools like Adobe Illustrator or Figma) can be inserted and then ungrouped to edit individual paths and recolor elements, giving you full control over complex graphics.
+NARRATION: SVG icons from PowerPoint's library stay sharp at any zoom level and can be recolored to match your brand instantly.
+
+SLIDE 6 | Chart Design Principles
+Every chart should answer exactly one question, stated in the slide title as a complete sentence: "Revenue grew 23% year-over-year" is better than "Revenue." Remove chart junk: eliminate gridlines, border boxes, and 3D effects that add visual noise without data. Label data series directly on the chart instead of using a legend that forces the reader's eye to travel back and forth. Choose the right chart type: bars for comparisons, lines for trends, pies only when you have two or three segments that sum to a meaningful whole.
+NARRATION: Title your chart with the conclusion it proves, so the audience reads the insight before they process the data.
+
+SLIDE 7 | Data Visualization Makeovers
+The most common business chart mistake is using a clustered bar chart with 12 groups, 5 series, a legend, and a title that says "Sales by Region Q1." A better version focuses on the single comparison that matters — perhaps only two regions, a single highlighted bar, and a title that states the finding. Before/after slide makeovers reveal that less data, presented with more clarity, is almost always more persuasive than a data-dense chart that requires two minutes to decode.
+NARRATION: Ask yourself what one comparison or trend this chart proves, then remove everything that does not support that answer.
+
+SLIDE 8 | SmartArt vs Custom Diagrams
+SmartArt (Insert > SmartArt) quickly converts a bullet list into a visual diagram — a chevron process flow, a cycle, a hierarchy. It is fast but constrained: you cannot freely resize individual elements or use unconventional layouts. Custom diagrams built from individual shapes (Insert > Shapes) are more flexible and professional-looking, but take longer to construct. A good rule: use SmartArt for internal working drafts and custom shapes for client-facing or high-stakes presentations.
+NARRATION: Use SmartArt for speed in working drafts, but build custom shapes for client presentations that need to look polished.
+
+SLIDE 9 | Animations and Transitions
+Animations make objects appear, disappear, or move on a slide; transitions control how slides change from one to the next. The most professional approach is restraint: use Fade or Appear animations for text, avoid Fly In from random directions, and use a single consistent transition (Fade at 0.3 seconds) throughout the deck. The Morph transition creates smooth cinematic movement between two slides by matching and morphing objects that share the same name, which is powerful for before/after comparisons and zooming into details.
+NARRATION: Morph transition creates smooth object movement between slides by morphing identically named shapes automatically.
+
+SLIDE 10 | Rehearsing and Slide Timing
+Use Slide Show > Rehearse Timings to run through your presentation while PowerPoint records how long you spend on each slide. The recorded times appear below each slide in the Slide Sorter view and can be used for a self-running kiosk display. Speaker Notes (visible in Normal View below the slide) hold your script, talking points, and cues. Print notes pages (Print > Notes Pages layout) to bring a physical script to the podium rather than reading from the screen.
+NARRATION: Rehearse Timings records exactly how long you spend on each slide so you can identify where you rush or overrun.
+
+SLIDE 11 | Presenter View and Multi-Monitor Setup
+Presenter View (available when two screens are connected) shows the current slide on the projector, while your laptop displays the current slide, next slide, speaker notes, and a timer simultaneously. Enable it from Slide Show > Use Presenter View. Even in single-monitor mode, you can activate Presenter View by pressing Alt+F5, which is useful for rehearsal. Use the laser pointer (hold Ctrl while clicking) and pen annotation tools to draw attention to specific elements during delivery.
+NARRATION: Presenter View shows you the next slide and your speaker notes while the audience sees only the current slide.
+
+SLIDE 12 | Hyperlinks and Action Buttons
+Hyperlinks in PowerPoint (Ctrl+K) can link to a website, another slide in the same deck, or a separate file. Action Buttons (Insert > Action Buttons) are pre-built navigation shapes that trigger on mouse click or mouse-over, making it easy to build interactive training modules or choose-your-own-path presentations. Assign a macro to an action button for more complex behavior. Test all hyperlinks in Slide Show mode before presenting, because hyperlinks do not work in Normal view.
+NARRATION: Action Buttons let you build interactive presentations where clicking a shape jumps to a specific slide or opens a file.
+
+SLIDE 13 | Embedding Video and Audio
+Insert video from a local file (Insert > Video > This Device) or from the web (Insert > Video > Online Video, which embeds a YouTube link). For reliable playback offline, always use local files and check "Embed" rather than linking. Use Insert > Screen Recording to capture a portion of your screen as video directly inside PowerPoint — ideal for software demonstrations in training decks. Add narration via Insert > Audio > Record Audio, which attaches a voice-over to a specific slide.
+NARRATION: Use Screen Recording in PowerPoint to capture software demos that play back inside your slides without any additional tools.
+
+SLIDE 14 | Exporting to PDF and Printing
+Export your deck to PDF via File > Export > Create PDF/XPS. In the Options dialog, set Publish What to "Slides" for a standard deck, "Notes Pages" for a presenter handout with slide images and notes, or "Handouts" for a 2, 4, or 6-slides-per-page printable reference. Check "Include non-printing information" and "Document properties" to keep metadata. For presentations with hyperlinks, the PDF will preserve them as long as you do not flatten to images.
+NARRATION: Export to Notes Pages PDF to give your audience a printout that includes both the slide and your talking points on each page.
+
+SLIDE 15 | Exporting PowerPoint as Video
+File > Export > Create a Video exports the entire presentation as an MP4 or WMV file, perfect for recorded webinars, onboarding content, and social media. Set the quality to Full HD 1080p for screen viewing or Ultra HD 4K for video production. If you have recorded timings and narration, the video will play them; otherwise, set "Seconds spent on each slide" manually. This feature makes PowerPoint a simple but functional video production tool without any third-party software.
+NARRATION: Export your narrated, timed presentation as an MP4 video for distribution on any platform without additional tools.
+
+SLIDE 16 | Designer AI Feature
+The Designer pane (Design > Design Ideas) analyzes your slide content — a headline plus bullet points, or a photo with a title — and suggests visually polished layouts automatically. Click any suggestion to apply it. Designer works best with clean slides that have one clear content element and a concise title. It is not a substitute for design judgment, but it is an excellent starting point for people without design training and a useful source of layout ideas for experienced users.
+NARRATION: Designer suggests professional layouts based on your slide content — use it as a starting point, then refine from there.
+
+SLIDE 17 | Accessibility in PowerPoint
+Every slide must have a unique, descriptive title (even if you make it invisible by coloring it white) so screen readers can announce which slide the user is on. Add alt text to every image, chart, and SmartArt via the Alt Text pane (right-click the object). The Reading Order pane (Accessibility > Reading Order Pane) shows the order in which a screen reader will announce each element — drag items to reorder. Run the Accessibility Checker from Review > Check Accessibility before sharing.
+NARRATION: Give every slide a unique title and add alt text to every image so screen readers can navigate your presentation.
+
+SLIDE 18 | Slide Show Shortcuts During Delivery
+During a presentation, press B to fade the screen to black (or W for white) to pause and redirect attention to yourself. Press a slide number followed by Enter to jump directly to any slide. Ctrl+P activates the pen for drawing annotations, and Ctrl+E switches to the eraser. Press E to erase all ink. Hold Ctrl and click to activate the laser pointer. Knowing these shortcuts means you can handle question detours, pause for discussion, and recover from technical glitches without losing composure.
+NARRATION: Press B to black out the screen during questions so the audience focuses on you rather than the last slide.
+
+SLIDE 19 | Sharing and Co-Authoring
+Save your presentation to OneDrive or SharePoint and share a link from File > Share instead of emailing a file attachment. Co-authoring allows multiple people to edit simultaneously, with each person's cursor shown in a different color. Use File > Info > Version History to browse and restore any previous auto-saved version. When you must share as an email attachment, send the PDF for viewing and the .pptx only when the recipient needs to edit.
+NARRATION: Share a OneDrive link instead of an email attachment so collaborators always work on the latest version.
+
+SLIDE 20 | Version History and Recovery
+PowerPoint AutoSave (the toggle in the top-left corner of the title bar) saves to OneDrive every few seconds. If a file is closed without saving or crashes, go to File > Info > Manage Presentation > Recover Unsaved Presentations, which stores drafts for up to four days. Version History (available on cloud-saved files) shows a timestamped list of every auto-save checkpoint, and you can open, compare, and restore any of them — a safety net that replaces the need for manual backup copies named "Final_v3_REALLY_FINAL.pptx."
+NARRATION: AutoSave and Version History on OneDrive replace the habit of saving duplicate copies with names like Final v2 and Final FINAL.
+
+SLIDE 21 | Delivering Remotely via Teams and Zoom
+In Microsoft Teams, use "Share > PowerPoint Live" rather than sharing your screen — this streams the deck without showing your desktop, lets remote attendees scroll back on their own, and keeps Presenter View available to you. In Zoom, use "Share Screen" and check "Optimize for video clip" when your slides contain embedded video. For both platforms, hide your taskbar, close notifications, and test audio and screen share in an empty meeting before the real session.
+NARRATION: In Teams, use PowerPoint Live instead of screen sharing so you keep Presenter View and attendees can navigate independently.
+
+SLIDE 22 | The SCR Structure: Situation, Complication, Resolution
+The McKinsey and BCG approach to slide decks uses a three-part narrative structure: Situation (the agreed-upon context), Complication (the problem or tension that disrupts the status quo), and Resolution (the recommendation or insight). Every section of a deck, and often every slide, follows this arc. A slide that opens with the Resolution and supports it with evidence (known as the Pyramid Principle) is more persuasive than one that walks through data chronologically and reveals the conclusion at the end.
+NARRATION: State your conclusion first, then support it with evidence — this Pyramid Principle structure is more persuasive than building to a reveal.
+
+SLIDE 23 | Common Mistakes That Look Amateur
+The most common amateur mistakes are: using more than two font families, inconsistent font sizes across slides, text smaller than 24 points, bullet points that are full paragraphs rather than short labels, a different background or color on every slide, and clip art or low-resolution images stretched out of proportion. Centered text is harder to read than left-aligned text at scale. Using the same slide layout template throughout and applying a single high-quality photo per slide immediately raises perceived professionalism.
+NARRATION: Consistent fonts, left-aligned text, and one high-quality image per slide are the three quickest ways to look more professional.
+
+SLIDE 24 | Building a Compelling Pitch Deck
+A classic pitch deck follows this sequence: Problem (make the audience feel the pain), Solution (your product or idea), Market Size (the opportunity), Product (a demo or screenshot), Business Model (how you make money), Traction (evidence it is working), Team (why you will win), and Ask (what you want from the audience). Each slide should state its conclusion in the title and take no more than 30 seconds to read in full. Investors read decks in under three minutes, so every word must earn its place.
+NARRATION: Structure your pitch deck as a story — Problem, Solution, Market, Traction, Team, and Ask — with one slide for each chapter.
+
+SLIDE 25 | Slide Design Workflow from Scratch
+Start in Slide Master view to set brand colors, fonts, and logo placement before touching any content slide. Define three to five reusable slide layouts (Title, Section Divider, Content with Image, Full-Bleed Photo, and Data). Draft all content in outline view first to confirm the narrative before designing visuals. Build the most complex slide first to stress-test your layout, then apply the same design logic to simpler slides. Export the finished master as a template (.potx) for the rest of your team.
+NARRATION: Draft the full narrative in outline view before designing a single slide — story clarity must come before visual design.
+
+SLIDE 26 | Grids, Guides, and Alignment
+Enable the grid (View > Show > Gridlines) and drawing guides (View > Show > Guides) to align objects precisely without eyeballing. Drag guides to custom positions and they snap objects to them. Use the Align tools (Format > Align) to align multiple selected objects to each other — Align Left lines up their left edges, Distribute Horizontally spaces them evenly, and Align Middle centers them on the same horizontal axis. Consistent alignment is the single most visible difference between amateur and professional slide design.
+NARRATION: Distribute Horizontally spaces multiple objects with exactly equal gaps, eliminating manual measurement entirely.
+

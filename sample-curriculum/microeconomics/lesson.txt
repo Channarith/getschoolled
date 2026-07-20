@@ -1,0 +1,114 @@
+LESSON: Microeconomics
+LANGUAGE: en
+
+SLIDE 1 | Scarcity, Choice, and Opportunity Cost
+Microeconomics begins with the fundamental problem of scarcity: resources are limited but human wants are not. Every decision — whether made by a household, a firm, or a government agency — involves choosing among alternatives and forgoing others. The opportunity cost of any choice is the value of the best foregone alternative. A pre-med student who attends an extra lecture incurs an opportunity cost equal to whatever else she could have done with that hour.
+NARRATION: Scarcity forces every economic actor to choose, and every choice has an opportunity cost.
+
+SLIDE 2 | The Demand Curve: Law of Demand and Shifts
+The law of demand states that, holding all else constant, a higher price reduces the quantity demanded of a good. Consumers substitute cheaper alternatives and face reduced purchasing power when prices rise. The demand curve slopes downward from left to right when price is on the vertical axis and quantity on the horizontal. Shifts of the entire demand curve — outward or inward — occur when income changes, the prices of substitutes or complements change, consumer tastes shift, or expectations about future prices change.
+NARRATION: Higher prices reduce quantity demanded; changes in income or tastes shift the whole curve.
+
+SLIDE 3 | The Supply Curve: Law of Supply and Shifts
+The law of supply states that producers offer more of a good at higher prices because higher prices increase profitability. The supply curve slopes upward. It shifts rightward (more supply at every price) when input costs fall, technology improves, the number of sellers rises, or government subsidies increase. It shifts leftward when input costs rise, natural disasters destroy capacity, or new regulations raise compliance costs. Distinguishing a movement along the supply curve from a shift is essential for correct analysis.
+NARRATION: Higher prices induce greater production; cost changes or new technology shift the whole supply curve.
+
+SLIDE 4 | Market Equilibrium and Price Adjustment
+Equilibrium is the price-quantity pair at which quantity demanded equals quantity supplied. Above equilibrium, a surplus exists — inventories pile up, firms discount prices, and quantity demanded rises while quantity supplied falls until equilibrium is restored. Below equilibrium, a shortage exists — buyers bid prices up until the market clears. This self-correcting mechanism works continuously in competitive markets, converging to equilibrium with remarkable speed.
+NARRATION: Markets clear automatically as surpluses push prices down and shortages push prices up.
+
+SLIDE 5 | Price Elasticity of Demand: Definition and Calculation
+Price elasticity of demand (PED) measures how responsive quantity demanded is to a change in price: PED = (% change in quantity demanded) / (% change in price). Demand is elastic when |PED| > 1 — a 10 percent price increase causes more than a 10 percent drop in sales. It is inelastic when |PED| < 1, as with insulin or gasoline in the short run. Elasticity determines whether a price increase raises or lowers total revenue — for elastic goods, revenue falls; for inelastic goods, revenue rises.
+NARRATION: Price elasticity measures the percentage change in quantity demanded per percentage change in price.
+
+SLIDE 6 | Determinants of Price Elasticity of Demand
+Elasticity is higher when good substitutes are available, when the good is a luxury rather than a necessity, when the time horizon is longer (consumers have more time to adjust), and when the purchase represents a large share of income. Salt, cigarettes, and prescription drugs tend to be inelastic; air travel, restaurant meals, and specific brands of athletic shoes tend to be elastic. Airlines exploit inelastic demand from business travelers by charging them far more than leisure travelers.
+NARRATION: Elasticity rises with more substitutes, longer time horizons, and larger budget shares.
+
+SLIDE 7 | Price Elasticity of Supply
+Price elasticity of supply (PES) measures how much quantity supplied changes in response to a price change: PES = (% change in quantity supplied) / (% change in price). Supply is more elastic when producers can quickly ramp up production using spare capacity and when inputs are readily available. Agricultural supply is inelastic in the short run — you cannot instantly grow more wheat — but more elastic in subsequent seasons when farmers can shift acreage. Real estate supply is extremely inelastic in the short run because buildings take years to construct.
+NARRATION: Supply elasticity reflects how quickly producers can expand output in response to higher prices.
+
+SLIDE 8 | Income Elasticity and Cross-Price Elasticity
+Income elasticity of demand measures how demand changes with income: a positive value indicates a normal good (people buy more as income rises), while a negative value indicates an inferior good (people buy less as income rises — like instant noodles). Cross-price elasticity measures how the quantity demanded of one good responds to price changes in another: substitutes have positive cross-price elasticity (higher coffee prices raise tea demand), while complements have negative cross-price elasticity (higher gasoline prices reduce SUV demand).
+NARRATION: Income elasticity identifies normal and inferior goods; cross-price elasticity identifies substitutes and complements.
+
+SLIDE 9 | Consumer Theory: Utility and Budget Constraints
+Utility is the satisfaction a consumer derives from consuming goods and services. The law of diminishing marginal utility states that each additional unit of a good provides less extra satisfaction than the previous one — the tenth slice of pizza pleases far less than the first. Consumers maximize total utility subject to a budget constraint: the combinations of goods they can afford given their income and prevailing prices. The budget line shifts outward when income rises and pivots when one price changes.
+NARRATION: Consumers maximize satisfaction from their purchases subject to what they can afford.
+
+SLIDE 10 | Indifference Curves and Optimal Consumption
+An indifference curve connects all consumption bundles that give the consumer the same total utility. Higher curves represent greater utility. The marginal rate of substitution (MRS) is the slope of the indifference curve — how many units of one good a consumer will give up for one more unit of another while staying equally happy. The optimal bundle is where the budget line is tangent to the highest reachable indifference curve — the point where MRS equals the price ratio.
+NARRATION: Consumers reach their optimum where an indifference curve just touches the budget line.
+
+SLIDE 11 | Consumer Surplus and Willingness to Pay
+Willingness to pay (WTP) is the maximum price a buyer would pay for a unit of a good; it reflects the marginal benefit of that unit. Consumer surplus is the difference between WTP and the actual price paid. If a concert ticket sells for $80 and you would have paid up to $150, your consumer surplus is $70. Summing consumer surplus across all buyers gives the total benefit consumers receive from the market above and beyond what they pay, a key measure of market welfare.
+NARRATION: Consumer surplus is the gap between what you would pay and what you actually pay.
+
+SLIDE 12 | Producer Theory: Production Function and Marginal Product
+A production function shows the maximum output a firm can produce from given inputs of labor (L) and capital (K): Q = f(L, K). The marginal product of labor (MPL) is the extra output from hiring one more worker, holding capital constant. Diminishing marginal returns set in as more labor is added to a fixed capital stock — the tenth worker in a small kitchen adds less than the first. In the long run, all inputs are variable and firms can scale up or reorganize production.
+NARRATION: The production function maps inputs to output; marginal product diminishes as one input is added in excess.
+
+SLIDE 13 | Short-Run vs. Long-Run Costs
+In the short run, at least one input — typically capital — is fixed. Fixed costs (FC) do not vary with output; variable costs (VC) do; total cost (TC) = FC + VC. Average total cost (ATC) = TC/Q; average variable cost (AVC) = VC/Q; average fixed cost (AFC) = FC/Q. Marginal cost (MC) is the additional cost of producing one more unit. In the long run, all costs are variable: firms can choose plant size, renegotiate leases, and exit or enter the industry.
+NARRATION: In the short run, some costs are fixed; in the long run, all costs are variable.
+
+SLIDE 14 | Cost Curves and Their Shapes
+The marginal cost curve is U-shaped: it falls initially due to specialization and then rises due to diminishing returns. The ATC curve is also U-shaped and lies above the AVC curve by exactly AFC. The MC curve intersects both AVC and ATC at their minimums — a key relationship used to find the efficient scale of production. The minimum point on the ATC curve is called the efficient scale: the output level at which average cost is lowest.
+NARRATION: Marginal cost intersects average total cost at its minimum, marking the efficient scale of production.
+
+SLIDE 15 | Perfect Competition: Characteristics and Equilibrium
+A perfectly competitive market has many buyers and sellers, identical products, free entry and exit, and perfect information. No single firm can influence the price; each is a price-taker. In the short run, firms maximize profit by producing where P = MC. Economic profit attracts entry, driving price down until P = MC = ATC and profit is zero in the long run. Perfect competition is the benchmark for efficiency: it achieves both productive efficiency (production at minimum ATC) and allocative efficiency (P = MC).
+NARRATION: In perfect competition, free entry drives economic profit to zero in the long run.
+
+SLIDE 16 | Monopoly: Profit Maximization and Deadweight Loss
+A monopoly is the sole seller of a product with no close substitutes. The monopolist faces the entire downward-sloping market demand curve, so marginal revenue is less than price. Profit maximization requires producing where MR = MC, then charging the price that consumers will pay for that quantity from the demand curve. This results in a quantity below and a price above the competitive outcome, generating deadweight loss — a reduction in total surplus — because mutually beneficial transactions do not occur.
+NARRATION: Monopolies charge above marginal cost and produce too little, creating deadweight loss.
+
+SLIDE 17 | Price Discrimination
+Price discrimination occurs when a firm charges different prices to different buyers for the same good based on their willingness to pay. First-degree (perfect) discrimination charges each buyer their maximum WTP, capturing all consumer surplus as profit. Second-degree discrimination offers different prices for different quantities — bulk discounts. Third-degree discrimination segments the market by group: student discounts, senior fares, and airline business-class pricing are familiar examples. Price discrimination requires market power and the ability to prevent resale.
+NARRATION: Price discrimination lets firms with market power extract more consumer surplus by charging different prices to different buyers.
+
+SLIDE 18 | Monopolistic Competition and Product Differentiation
+Monopolistic competition features many sellers offering differentiated products — products that are similar but not identical. Each firm faces a downward-sloping demand curve for its variety and has some price-setting power. In the short run, firms can earn economic profit; in the long run, entry by competitors erodes profit to zero, but unlike perfect competition, the firm produces on the downward-sloping part of its ATC curve — excess capacity. Brand loyalty, advertising, and product design are key competitive tools in such markets (think coffee shops or fast-food restaurants).
+NARRATION: Monopolistic competitors differentiate their products and earn zero profit in the long run but maintain excess capacity.
+
+SLIDE 19 | Oligopoly and Strategic Behavior
+An oligopoly is a market dominated by a few large firms, each of which recognizes that its decisions affect rivals' profits. Strategic interdependence is the defining feature: firms must anticipate competitors' responses when setting prices or output. Game theory provides the analytical framework; the Nash equilibrium — named for John Nash — is an outcome where no player can improve their payoff by unilaterally changing strategy. The prisoners' dilemma illustrates why firms in a cartel (like OPEC) have an incentive to cheat on agreed output quotas, even though collusion would raise joint profits.
+NARRATION: Oligopoly firms must think strategically because each firm's choices affect the profits of its rivals.
+
+SLIDE 20 | Factor Markets: Labor Supply and Demand
+Factor markets allocate inputs — labor, land, and capital — to their uses. The demand for labor is a derived demand: firms hire workers because workers help produce goods that consumers want. A competitive firm hires labor up to the point where the wage equals the marginal revenue product of labor (MRPL = MPL × P). Labor supply reflects workers' choices between work and leisure; the supply curve of labor typically slopes upward, though a backward-bending supply curve is possible if higher wages induce workers to value leisure more once income is sufficiently high.
+NARRATION: Firms hire workers up to the point where the wage equals the marginal revenue product of labor.
+
+SLIDE 21 | Wage Determination and Minimum Wage Effects
+In a competitive labor market, wages are determined by the intersection of labor supply and demand. A minimum wage set above the equilibrium wage creates a surplus of labor — unemployment — because quantity supplied of labor exceeds quantity demanded. The employment effect is larger when labor demand is elastic. However, in a monopsony — a market with a single buyer of labor — a minimum wage can actually increase both wages and employment by counteracting the monopsonist's ability to suppress wages below the competitive level.
+NARRATION: A minimum wage above equilibrium creates unemployment in competitive labor markets but may help in monopsonistic ones.
+
+SLIDE 22 | Externalities: Negative and Positive
+A negative externality imposes a cost on third parties without compensation — a coal plant emitting sulfur dioxide that causes acid rain is the classic example. The socially optimal output is less than the private market output; the gap equals the external marginal cost. Pigovian taxes — equal to the external marginal cost — internalize the externality and move the market toward the social optimum. A positive externality confers benefits on third parties — vaccination reduces disease spread for everyone; subsidies can encourage socially optimal provision.
+NARRATION: Pigovian taxes on negative externalities and subsidies for positive externalities align private and social incentives.
+
+SLIDE 23 | Public Goods and the Free-Rider Problem
+A pure public good is both non-excludable (you cannot prevent consumption once provided) and non-rival (one person's use does not diminish availability for others). National defense, basic research, and flood control levees are examples. Because consumers cannot be excluded, no private firm can profitably sell the good — anyone who benefits without paying is a free rider. The free-rider problem leads to dramatic undersupply of public goods by private markets, justifying government provision funded by taxation.
+NARRATION: Non-excludability creates the free-rider problem, causing private markets to underprovide public goods.
+
+SLIDE 24 | Information Asymmetry: Adverse Selection and Moral Hazard
+Information asymmetry arises when one party in a transaction knows more than the other. Adverse selection occurs before a transaction: in the used-car market (George Akerlof's "market for lemons"), sellers know quality and buyers don't, so only low-quality cars trade — good cars are driven out. Moral hazard occurs after a transaction: once insured against fire, a homeowner may take less care to prevent fires. Solutions include signaling (warranties, credentials), screening (medical exams for life insurance), and deductibles.
+NARRATION: Adverse selection arises before a deal; moral hazard arises after — both stem from information asymmetry.
+
+SLIDE 25 | Market Failure and Government Intervention
+Market failure occurs when the free market allocates resources inefficiently: externalities, public goods, information asymmetry, and market power are the four main causes. Government interventions — taxes, subsidies, regulations, public provision, and antitrust law — aim to move outcomes closer to the social optimum. However, government failure is also possible: regulatory capture, poor information, and political incentives can make government intervention worse than the market failure it aimed to fix. Good policy analysis compares realistic markets with realistic government, not ideal markets or ideal government.
+NARRATION: Government intervention can correct market failures, but poorly designed policy can create failures of its own.
+
+SLIDE 26 | Behavioral Microeconomics: Biases and Heuristics
+Classical microeconomics assumes rational, self-interested, fully informed agents. Behavioral economics documents systematic departures: loss aversion means people dislike losing $100 more than they enjoy gaining $100; the endowment effect means people value things more once they own them; hyperbolic discounting means people overweight immediate rewards relative to future ones. These biases have practical applications — automatic enrollment in 401(k) plans exploits inertia to increase retirement savings, a "nudge" that preserves freedom of choice while improving outcomes.
+NARRATION: Behavioral economics shows that systematic biases shape real decisions in predictable ways.
+
+FACT: Profit is maximized where marginal revenue equals marginal cost.
+FACT: Price elasticity of demand equals the percentage change in quantity demanded divided by the percentage change in price.
+FACT: Consumer surplus is the area between the demand curve and the market price.
+FACT: In perfect competition, long-run economic profit is zero due to free entry.
+FACT: A monopolist produces where MR = MC but charges the price from the demand curve.
+FACT: Adverse selection occurs before a transaction; moral hazard occurs after.
+FACT: The Nash equilibrium is a strategy profile where no player can gain by unilaterally deviating.

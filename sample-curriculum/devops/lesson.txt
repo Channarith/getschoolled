@@ -1,0 +1,115 @@
+LESSON: DevOps Engineering
+LANGUAGE: en
+
+SLIDE 1 | What is DevOps and Why It Matters
+DevOps is a culture, set of practices, and toolchain that breaks down the traditional silos between software Development and IT Operations teams. Before DevOps, developers wrote code and threw it "over the wall" to operations, who deployed it on unpredictable schedules with manual steps — leading to slow releases, finger-pointing, and fragile systems. DevOps unites both teams around shared ownership of the full software delivery lifecycle: writing, building, deploying, and operating software. High-performing DevOps organizations deploy code thousands of times per day while maintaining higher reliability than teams that deploy monthly.
+NARRATION: DevOps breaks the wall between Dev and Ops so both teams own software delivery together.
+
+SLIDE 2 | The DevOps Lifecycle
+The DevOps lifecycle is often visualized as an infinity loop covering eight phases: Plan (define features and backlog), Code (write and review), Build (compile and package), Test (automated verification), Release (approve for deployment), Deploy (push to production), Operate (run and support), and Monitor (observe behavior and feed learnings back into planning). The infinity shape emphasizes that the cycle never stops — monitoring insights continuously feed the next planning cycle. Each phase has dedicated tools, and the goal is to automate as many handoffs as possible.
+NARRATION: DevOps is an infinity loop from planning through monitoring, with automation eliminating manual handoffs at every stage.
+
+SLIDE 3 | Version Control with Git
+Git is the universal version control system for DevOps. Every code change is committed to a repository with a message explaining the intent. Branches allow parallel streams of work without interfering with each other. A Pull Request (or Merge Request in GitLab) is a formal code review before changes merge. Git stores the full history of every file, so any change can be traced, reverted, or compared. Hosted platforms — GitHub, GitLab, Bitbucket — add collaboration features like code review comments, issue tracking, and CI/CD pipeline triggers.
+NARRATION: Git tracks every code change with full history so you can trace, review, or revert any modification.
+
+SLIDE 4 | Git Branching Strategies
+Git Flow uses long-lived branches: main (production), develop (integration), feature branches, release branches, and hotfix branches. It suits teams with scheduled release cycles. Trunk-Based Development (TBD) keeps a single long-lived branch (trunk or main) with all developers committing to it multiple times per day — short-lived feature branches are merged within a day or two. TBD enables continuous integration and is strongly correlated with high DevOps performance in the DORA research. Feature flags decouple code deployment from feature release, enabling TBD even for incomplete features.
+NARRATION: Trunk-based development — everyone merging to main daily — is the branching strategy of high-performing DevOps teams.
+
+SLIDE 5 | Continuous Integration
+Continuous Integration (CI) is the practice of every developer merging code to the shared trunk multiple times per day, with an automated build and test suite running on every merge. The goal is to detect integration failures within minutes rather than discovering them during a big-bang release. A CI server (Jenkins, GitHub Actions, GitLab CI) triggers a pipeline on every push: compile, run unit tests, run static analysis, build a deployable artifact. If any step fails, the pipeline fails and the developer is alerted immediately. The cardinal rule of CI: never leave the build broken.
+NARRATION: CI means every code push triggers an automated build and test run — a broken build must be fixed before anything else.
+
+SLIDE 6 | CI Tools: Jenkins, GitHub Actions, GitLab CI
+Jenkins is an open-source automation server with a vast plugin ecosystem — highly customizable but requires significant administration effort. Pipelines are defined in a Jenkinsfile using Groovy DSL. GitHub Actions is a cloud-native CI/CD platform built directly into GitHub, using YAML workflow files in .github/workflows/. It offers thousands of community-contributed Actions for common steps like checkout, setup-node, and docker-build. GitLab CI uses .gitlab-ci.yml files with a stages model (build, test, deploy) and runs on GitLab's shared runners or self-hosted ones. All three can trigger on push, pull request, tag, or schedule.
+NARRATION: Jenkins gives maximum flexibility; GitHub Actions and GitLab CI offer zero-infrastructure CI baked into your code host.
+
+SLIDE 7 | Continuous Delivery vs Continuous Deployment
+Continuous Delivery (CD) means every passing build is ready to deploy to production at any time with one click — but a human approves the final push. Continuous Deployment goes one step further: every passing build is deployed to production automatically with no human gate. Continuous Delivery is the more common enterprise choice because regulated environments, high-risk changes, or customer commitments require a human checkpoint. Continuous Deployment suits high-velocity consumer software like Netflix or Etsy. The key metric is lead time — how long from code commit to running in production.
+NARRATION: Continuous Delivery requires a human to approve the final push; Continuous Deployment removes even that gate.
+
+SLIDE 8 | Build Automation
+Build automation tools compile source code, resolve dependencies, run tests, and package the application into a deployable artifact. Maven is the standard for Java projects — it uses a pom.xml file to declare dependencies from Maven Central and defines lifecycle phases (compile, test, package, install, deploy). Gradle extends Maven with a Groovy/Kotlin DSL and incremental builds that skip unchanged modules. npm is the build and dependency tool for Node.js applications — npm install fetches dependencies, npm run build creates the production bundle. All three integrate directly into CI pipelines.
+NARRATION: Build tools like Maven, Gradle, and npm automate compilation, dependency resolution, and artifact creation.
+
+SLIDE 9 | The Automated Testing Pyramid
+The testing pyramid has three layers. Unit tests sit at the base — they test individual functions or classes in isolation, run in milliseconds, and should make up roughly 70% of your test suite. Integration tests sit in the middle — they test interactions between components like a service and its database, and are slower and more brittle. End-to-End (E2E) tests sit at the top — they drive the full application through a browser (Selenium, Playwright, Cypress) and are the slowest and most expensive to maintain. A healthy CI pipeline runs all three layers, failing fast on unit tests before even running E2E.
+NARRATION: Run unit tests first for fast feedback, integration tests next, and E2E tests last — the pyramid shape reflects what you should have most of.
+
+SLIDE 10 | Containerization with Docker
+Docker packages an application and all its dependencies — code, runtime, libraries, config — into a container image that runs identically on any machine with Docker installed. A Dockerfile defines the image: FROM specifies the base image (e.g., node:20-alpine), COPY adds application files, RUN executes build commands, and CMD specifies the startup command. docker build creates the image; docker run starts a container from it. docker-compose orchestrates multi-container applications locally — define a web service, a database, and a cache in one docker-compose.yml and start them all with docker-compose up.
+NARRATION: Docker packages your app and its dependencies into a container that runs the same everywhere.
+
+SLIDE 11 | Container Orchestration with Kubernetes
+Kubernetes (K8s) is the industry-standard platform for running containers at scale across a cluster of machines. A Pod is the smallest deployable unit — one or more containers that share networking and storage. A Deployment manages a set of identical Pod replicas and handles rolling updates without downtime. A Service exposes Pods on a stable IP address and DNS name — Pods come and go, but the Service endpoint is constant. An Ingress routes external HTTP/HTTPS traffic to Services based on hostname or URL path. Namespaces isolate resources within a cluster by team or environment.
+NARRATION: Kubernetes runs containers at scale by managing Pods, Deployments, Services, and routing in a shared cluster.
+
+SLIDE 12 | Infrastructure as Code with Terraform
+Infrastructure as Code (IaC) means defining cloud infrastructure (virtual machines, networks, databases, load balancers) in code files that can be version controlled, reviewed, and applied repeatedly. Terraform by HashiCorp is the most widely used IaC tool. You write .tf files declaring resources — an AWS EC2 instance, an S3 bucket, a VPC — and terraform apply provisions them. Terraform tracks the state of deployed resources in a state file and computes a diff (terraform plan) before making any changes, so you always know what will change before it does.
+NARRATION: Terraform lets you declare your entire cloud infrastructure as code so it can be reviewed, versioned, and reapplied exactly.
+
+SLIDE 13 | Configuration Management with Ansible
+While Terraform provisions infrastructure, Ansible configures it. Ansible is an agentless configuration management tool that uses SSH to connect to servers and execute Playbooks — YAML files that define the desired state of a machine. A Play contains Tasks: install nginx, copy a config file, enable and start the service. Ansible is idempotent — running a playbook twice produces the same result as running it once. Inventory files define which hosts to target and group them by environment (web servers, database servers). Ansible integrates naturally into CI/CD pipelines to configure freshly provisioned Terraform infrastructure.
+NARRATION: Ansible configures servers after Terraform provisions them, using YAML playbooks over plain SSH with no agents required.
+
+SLIDE 14 | Cloud Platforms for DevOps
+The three dominant cloud providers each offer a full DevOps toolchain. AWS provides CodePipeline for CI/CD, ECR for container images, EKS for managed Kubernetes, and CloudFormation for IaC. Azure DevOps Pipelines is deeply integrated with Microsoft tooling and Azure Kubernetes Service (AKS). Google Cloud offers Cloud Build, Artifact Registry, and GKE (Google Kubernetes Engine). DevOps engineers must understand compute (EC2/VM/GCE), object storage (S3/Blob/GCS), managed databases (RDS/SQL Database/Cloud SQL), and IAM permissions on at least one major platform.
+NARRATION: AWS, Azure, and GCP each offer managed CI/CD, container registries, Kubernetes, and IaC — pick one and go deep.
+
+SLIDE 15 | Microservices Architecture and 12-Factor Apps
+Microservices decompose a monolithic application into small, independently deployable services that communicate over APIs (typically HTTP/REST or gRPC). Each service owns its own database, deploys on its own schedule, and can be written in a different language. The 12-Factor App methodology defines principles for building cloud-native services: store config in environment variables (not code), treat logs as event streams, run processes as stateless, use backing services (databases, queues) as attached resources, and keep dev and production environments as similar as possible. Following 12-Factor makes services portable and easy to scale.
+NARRATION: Microservices split a large app into independent services; the 12-Factor principles make each service cloud-native and portable.
+
+SLIDE 16 | Monitoring and Observability
+Observability is achieved through three pillars: Metrics (numeric measurements over time — CPU usage, request rate, error rate), Logs (structured text records of events — application errors, audit trails), and Traces (records of a request's journey through multiple services). Prometheus is the standard for metrics collection — it scrapes targets on an interval and stores time-series data. Grafana builds dashboards from Prometheus data. The ELK Stack (Elasticsearch, Logstash, Kibana) aggregates and searches logs at scale. OpenTelemetry provides a vendor-neutral SDK for emitting metrics, logs, and traces from application code.
+NARRATION: Metrics, logs, and traces together give you full observability — you cannot fix what you cannot see.
+
+SLIDE 17 | Alerting and On-Call Practices
+Alerts fire when a metric crosses a threshold — for example, HTTP 5xx error rate above 1% for 5 minutes. Alerts route to an on-call engineer via PagerDuty, OpsGenie, or VictorOps. SLO (Service Level Objective) defines a target: 99.9% of requests return in under 200ms. SLI (Service Level Indicator) measures it: the actual percentage of requests meeting that threshold. SLA (Service Level Agreement) is the contractual commitment to customers. An error budget is 100% minus the SLO — if your SLO is 99.9%, you have a 0.1% error budget per month. When the error budget is spent, new feature deployments stop.
+NARRATION: SLOs define your reliability target; when your error budget runs out, new deployments pause until reliability recovers.
+
+SLIDE 18 | Site Reliability Engineering
+SRE (Site Reliability Engineering) is Google's approach to applying software engineering principles to operations. SREs automate toil — repetitive manual operational work — because every hour spent on toil is an hour not spent on reliability improvements. SRE teams set SLOs and use error budgets to mediate the tension between feature velocity and reliability: when reliability is high (budget is available), deploy fast; when it is low (budget is spent), slow down and fix. Google's SRE book is freely available online and is the foundational text of the discipline.
+NARRATION: SREs automate toil and use error budgets to balance feature speed against system reliability.
+
+SLIDE 19 | Security in DevOps: DevSecOps
+DevSecOps integrates security into every stage of the CI/CD pipeline rather than treating it as a final audit gate. SAST (Static Application Security Testing) tools like Semgrep or SonarQube scan source code for vulnerabilities before it is even compiled. DAST (Dynamic Application Security Testing) tools like OWASP ZAP test a running application by sending attack payloads. Container image scanning (Trivy, Snyk) checks base images and dependencies for known CVEs before deployment. Secrets scanning (truffleHog, GitGuardian) prevents API keys and passwords from being committed to Git.
+NARRATION: DevSecOps scans code, containers, and dependencies for vulnerabilities at every pipeline stage — not just at the end.
+
+SLIDE 20 | Feature Flags and Canary Deployments
+Feature flags (or feature toggles) decouple code deployment from feature release. Code for a new feature ships to production but stays hidden behind a flag — enabling gradual rollout, A/B testing, and instant rollback without a redeployment. LaunchDarkly, Flagsmith, and Unleash are dedicated feature flag platforms. A canary deployment routes a small percentage of live traffic (1-5%) to the new version before rolling it out fully, allowing real-world validation with limited blast radius. Blue-green deployments run two identical environments, switching all traffic instantly from old to new with instant rollback capability.
+NARRATION: Feature flags and canary deployments let you release gradually and roll back instantly without redeploying.
+
+SLIDE 21 | The Three Ways of DevOps
+Gene Kim's Three Ways from The Phoenix Project describe the core principles of DevOps. The First Way is Flow: optimize the left-to-right delivery of work from Dev to Ops to customer — reduce batch sizes, eliminate waste, and never pass defects downstream. The Second Way is Feedback: create fast, right-to-left feedback loops so problems are detected and corrected immediately — monitoring alerts and CI test failures are feedback loops. The Third Way is Continual Learning and Experimentation: build a culture where failure is treated as learning, experiments are encouraged, and knowledge is shared across the organization.
+NARRATION: DevOps rests on three pillars: fast flow of work, rapid feedback on quality, and a culture of continual learning.
+
+SLIDE 22 | Cultural Change and Psychological Safety
+Tools and automation are only half of DevOps — the other half is culture. Amy Edmondson's research on psychological safety shows that teams perform best when members feel safe to speak up about problems, ask questions, and admit mistakes without fear of punishment. In DevOps, blameless post-mortems replace blame-finding after incidents: the system is analyzed for contributing factors, not individuals. Organizations with high psychological safety also have higher deployment frequency and lower change failure rates according to the DORA State of DevOps reports.
+NARRATION: Blameless post-mortems and psychological safety are as critical to DevOps success as any tool.
+
+SLIDE 23 | DORA Metrics: Measuring DevOps Performance
+The DevOps Research and Assessment (DORA) group at Google identified four metrics that predict organizational performance. Deployment Frequency: how often code deploys to production (elite teams deploy on-demand, multiple times per day). Lead Time for Changes: time from code commit to running in production (elite: under one hour). Mean Time to Recover (MTTR): how quickly the team restores service after an incident (elite: under one hour). Change Failure Rate: the percentage of deployments causing a service degradation (elite: 0-15%). Track all four DORA metrics — they reveal your actual DevOps maturity more honestly than any self-assessment.
+NARRATION: Track the four DORA metrics — deployment frequency, lead time, MTTR, and change failure rate — to benchmark your DevOps performance objectively.
+
+SLIDE 24 | DevOps Toolchain Summary
+A modern DevOps toolchain combines purpose-built tools across the lifecycle. Planning: Jira or Linear. Code: Git with GitHub or GitLab. CI/CD: GitHub Actions, GitLab CI, or Jenkins. Artifact registry: JFrog Artifactory, ECR, or GitHub Packages. IaC: Terraform. Configuration: Ansible. Containers: Docker. Orchestration: Kubernetes (EKS, AKS, or GKE). Monitoring: Prometheus and Grafana. Logging: ELK or Loki. Alerting: PagerDuty. Security: Snyk or Trivy. Feature flags: LaunchDarkly. No single tool is indispensable — the pipeline architecture matters more than any individual choice. Avoid tool sprawl: each new tool is an integration to maintain.
+NARRATION: A DevOps toolchain spans planning, coding, building, testing, deploying, monitoring, and security — architect the pipeline before selecting tools.
+
+SLIDE 25 | Career Paths in DevOps and SRE
+DevOps Engineer roles focus on building and maintaining CI/CD pipelines, infrastructure automation, and developer tooling — most job postings expect strong Git, one cloud platform, Docker, Kubernetes, and Terraform experience. SRE roles emphasize reliability engineering: defining SLOs, leading incident response, building monitoring systems, and writing software to automate operational work — they typically require stronger software engineering skills and are compensated accordingly. Platform Engineering is a related emerging role: building internal developer platforms (IDPs) that abstract infrastructure complexity from application teams. All three paths command strong salaries with median US compensation between $130,000 and $180,000.
+NARRATION: DevOps Engineers build delivery pipelines, SREs own reliability, and Platform Engineers build the internal platforms developers depend on.
+
+SLIDE 26 | Getting Started in DevOps
+The most effective learning path for aspiring DevOps engineers: (1) Master Linux command line and shell scripting — almost everything in DevOps runs on Linux. (2) Learn Git deeply — branching, rebasing, conflict resolution. (3) Get comfortable with at least one cloud provider — AWS Certified Solutions Architect is the most recognized entry credential. (4) Build a Docker and Kubernetes project from scratch — don't just follow tutorials, deploy something real. (5) Write a CI pipeline in GitHub Actions for a personal project. (6) Write Terraform to provision that project's infrastructure. Document everything in public GitHub repositories — your portfolio matters more than your certifications in early interviews.
+NARRATION: Start with Linux, Git, and one cloud provider — then build real projects with Docker, Kubernetes, and Terraform and put them on GitHub.
+
+FACT: DevOps breaks the wall between Development and Operations so both teams share ownership of delivery and reliability.
+FACT: Trunk-based development — committing to main multiple times per day — is the branching strategy of high-performing teams.
+FACT: The testing pyramid has unit tests at the base (most), integration in the middle, and E2E at the top (fewest).
+FACT: Terraform provisions infrastructure; Ansible configures it — they are complementary, not competing tools.
+FACT: The three pillars of observability are metrics, logs, and traces.
+FACT: An error budget is 100% minus the SLO — when it runs out, new feature deployments pause.
+FACT: The four DORA metrics are deployment frequency, lead time for changes, MTTR, and change failure rate.
+FACT: Blameless post-mortems analyze systems and processes after incidents, not individual mistakes.

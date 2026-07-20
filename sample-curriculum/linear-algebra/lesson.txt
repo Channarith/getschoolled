@@ -1,0 +1,175 @@
+LESSON: Linear Algebra
+LANGUAGE: en
+
+SLIDE 1 | Welcome to Linear Algebra
+Linear algebra is the study of vectors, matrices, and linear transformations. It is one of the
+most widely applied areas of mathematics, powering machine learning, computer graphics,
+engineering, economics, and data science. Its key questions revolve around solving systems of
+equations and understanding structure in higher dimensions.
+NARRATION: Linear algebra provides the mathematical framework behind machine learning, computer graphics, and data science.
+
+SLIDE 2 | Systems of Linear Equations
+A system of linear equations is a collection of equations that must all be satisfied
+simultaneously. A system can have exactly one solution, infinitely many solutions, or no
+solution at all. Geometric intuition: each equation represents a line (in 2D) or a plane
+(in 3D), and solutions are their intersections.
+NARRATION: Every system of equations is either consistent with one or many solutions, or inconsistent with no solution.
+
+SLIDE 3 | Row Reduction and Echelon Form
+Row reduction uses three elementary row operations — swapping rows, multiplying a row by a
+nonzero scalar, and adding a multiple of one row to another — to transform a matrix into
+row echelon form (REF) or reduced row echelon form (RREF). The algorithm is called
+Gaussian elimination (or Gauss-Jordan for RREF).
+NARRATION: Row reduction systematically eliminates variables to simplify a system into a form that is easy to solve.
+
+SLIDE 4 | Matrix Notation and Basic Operations
+A matrix is a rectangular array of numbers. An m×n matrix has m rows and n columns. You can
+add two matrices of the same size by adding corresponding entries, and multiply a matrix by a
+scalar by scaling every entry. Subtraction and scalar operations follow the same element-wise rule.
+NARRATION: Matrices organize numbers in rows and columns; addition and scalar multiplication work entry by entry.
+
+SLIDE 5 | Matrix Multiplication
+The product AB is defined when the number of columns of A equals the number of rows of B.
+Entry (i, j) of AB is the dot product of the ith row of A with the jth column of B. Matrix
+multiplication is associative and distributes over addition, but it is not commutative in general.
+NARRATION: Matrix multiplication takes dot products of rows with columns; always check that the inner dimensions match.
+
+SLIDE 6 | The Inverse of a Matrix
+A square matrix A is invertible if there exists a matrix A⁻¹ such that AA⁻¹ = A⁻¹A = I,
+where I is the identity matrix. To find A⁻¹, augment A with I and row-reduce until the left
+side becomes I; the right side then holds A⁻¹. A matrix is invertible if and only if its
+determinant is nonzero.
+NARRATION: The inverse of a matrix undoes its effect; row-reduce the augmented matrix to compute it.
+
+SLIDE 7 | Determinants of 2×2 Matrices
+For a 2×2 matrix [[a, b], [c, d]], the determinant is det(A) = ad − bc. The determinant gives
+the signed area of the parallelogram spanned by the column vectors. A nonzero determinant
+means the matrix is invertible; a zero determinant means the columns are linearly dependent.
+NARRATION: The 2-by-2 determinant is ad minus bc and measures the area-scaling factor of the linear transformation.
+
+SLIDE 8 | Determinants of 3×3 Matrices
+A 3×3 determinant is computed by cofactor expansion along any row or column. Expanding along
+the first row gives det(A) = a₁₁C₁₁ + a₁₂C₁₂ + a₁₃C₁₃, where each cofactor C_{ij} is
+(−1)^{i+j} times the determinant of the 2×2 minor obtained by deleting row i and column j.
+NARRATION: Expand a 3-by-3 determinant along a row or column by multiplying each entry by its cofactor and summing.
+
+SLIDE 9 | Cramer's Rule
+For a square invertible system Ax = b, Cramer's Rule says the solution is x_i = det(A_i)/det(A),
+where A_i is the matrix A with its ith column replaced by b. Although computationally expensive
+for large systems, Cramer's Rule is elegant and useful for 2×2 and 3×3 systems.
+NARRATION: Cramer's Rule expresses each variable as a ratio of determinants, replacing the corresponding column with the right-hand side.
+
+SLIDE 10 | Vectors in Rⁿ
+A vector in Rⁿ is an ordered list of n real numbers. Vectors can be added component-wise and
+scaled by any real number. The zero vector is the additive identity. Geometrically, a vector
+represents a direction and magnitude, or equivalently a point in n-dimensional space.
+NARRATION: Vectors are lists of numbers you can add and scale; they represent points and directions in any number of dimensions.
+
+SLIDE 11 | Vector Spaces and Subspaces
+A vector space is a set of vectors closed under addition and scalar multiplication, satisfying
+ten axioms. A subspace is a subset that is itself a vector space (contains the zero vector, and
+is closed under addition and scalar multiplication). Key examples are the null space and column
+space of a matrix.
+NARRATION: A subspace must contain zero and be closed under addition and scaling — it is a flat structure passing through the origin.
+
+SLIDE 12 | Linear Independence
+A set of vectors {v₁, …, v_k} is linearly independent if the only solution to c₁v₁ + … + c_k v_k = 0
+is c₁ = … = c_k = 0. Otherwise the set is linearly dependent, meaning at least one vector can
+be written as a combination of the others. Independence tests reduce to row reduction.
+NARRATION: Vectors are linearly independent when no vector in the set can be built from the others using scaling and adding.
+
+SLIDE 13 | Span and Basis
+The span of a set of vectors is all possible linear combinations of those vectors. A basis for
+a subspace is a linearly independent set that spans the subspace. Every basis for a given
+subspace has the same number of vectors, which defines the dimension of that subspace.
+NARRATION: A basis is the minimal spanning set — just enough independent vectors to reach every point in the subspace.
+
+SLIDE 14 | Dimension, Rank, and Nullity
+The rank of a matrix A is the dimension of its column space (equal to the number of pivot
+columns after row reduction). The nullity is the dimension of the null space (solutions to
+Ax = 0). The Rank-Nullity Theorem states rank + nullity = n, where n is the number of columns.
+NARRATION: Rank plus nullity always equals the number of columns — this is the Rank-Nullity Theorem.
+
+SLIDE 15 | Linear Transformations
+A function T: Rⁿ → Rᵐ is a linear transformation if T(u + v) = T(u) + T(v) and T(cu) = cT(u)
+for all vectors u, v and scalar c. Every linear transformation can be represented by matrix
+multiplication: T(x) = Ax. Composition of transformations corresponds to matrix multiplication.
+NARRATION: Linear transformations preserve addition and scaling, and every one of them can be encoded as a matrix.
+
+SLIDE 16 | Null Space and Column Space
+The null space (kernel) of A is {x : Ax = 0}; it describes the inputs that map to zero. The
+column space (image) of A is the span of A's columns; it describes all possible outputs. Row
+reduction on A reveals both: pivot columns span the column space; free variables parameterize the null space.
+NARRATION: The null space is all inputs that get squashed to zero; the column space is all vectors the transformation can produce.
+
+SLIDE 17 | Eigenvalues and Eigenvectors
+A nonzero vector v is an eigenvector of A with eigenvalue λ if Av = λv. Eigenvalues are found
+by solving det(A − λI) = 0, the characteristic equation. Each eigenvalue then yields eigenvectors
+by solving (A − λI)v = 0. Eigenvectors point in directions that the transformation merely scales.
+NARRATION: Eigenvectors are special directions that a matrix only stretches or flips, never rotates — and eigenvalues give the scale factor.
+
+SLIDE 18 | Diagonalization
+A matrix A is diagonalizable if there exists an invertible matrix P (whose columns are
+eigenvectors) such that P⁻¹AP = D, where D is a diagonal matrix of eigenvalues. Diagonalization
+simplifies matrix powers: Aⁿ = PDⁿP⁻¹, making it easy to compute exponentials and
+long-run behaviors.
+NARRATION: Diagonalization rewrites a matrix in its eigenvector basis where it acts by simple scalings along each axis.
+
+SLIDE 19 | The Dot Product and Orthogonality
+The dot product of u and v is u · v = u₁v₁ + … + u_n v_n = |u||v|cos θ. Two vectors are
+orthogonal if their dot product is zero. The norm (length) of v is |v| = √(v · v). Orthogonality
+is the generalization of perpendicularity to any number of dimensions.
+NARRATION: Two vectors are orthogonal when their dot product is zero — a generalization of right angles to n dimensions.
+
+SLIDE 20 | Orthogonal Projections
+The orthogonal projection of vector b onto vector a is proj_a b = (b·a / a·a) a. This gives
+the component of b pointing in the direction of a. Projections onto subspaces are computed by
+multiplying with the projection matrix P = A(AᵀA)⁻¹Aᵀ, whose columns span the subspace.
+NARRATION: An orthogonal projection finds the closest point in a subspace to a given vector, measured by straight-line distance.
+
+SLIDE 21 | The Gram-Schmidt Process
+Given a basis {v₁, …, v_k} for a subspace, Gram-Schmidt constructs an orthonormal basis
+{e₁, …, e_k}. At each step, subtract from the next vector its projections onto all previous
+orthonormal vectors. The result is a set of mutually perpendicular unit vectors spanning the
+same subspace.
+NARRATION: Gram-Schmidt systematically removes components to build an orthogonal — and then normalized — basis step by step.
+
+SLIDE 22 | Least Squares Problems
+When the system Ax = b has no solution (overdetermined), the least-squares solution minimizes
+|Ax − b|². It satisfies the normal equations AᵀAx̂ = Aᵀb, so x̂ = (AᵀA)⁻¹Aᵀb. Least
+squares is the mathematical foundation of linear regression in statistics and machine learning.
+NARRATION: The least-squares solution finds the best approximate answer when no exact solution exists — minimizing total squared error.
+
+SLIDE 23 | Symmetric Matrices and the Spectral Theorem
+A matrix is symmetric if A = Aᵀ. The Spectral Theorem guarantees that every real symmetric
+matrix has an orthonormal basis of eigenvectors and all real eigenvalues. This means every
+symmetric matrix can be diagonalized as A = QDQᵀ, where Q is orthogonal and D is diagonal.
+NARRATION: Symmetric matrices are perfectly diagonalizable by an orthogonal matrix — their eigenvectors are always perpendicular.
+
+SLIDE 24 | Singular Value Decomposition (SVD)
+Every m×n matrix A can be factored as A = UΣVᵀ, where U and V are orthogonal matrices and Σ
+is a diagonal matrix of non-negative singular values. SVD generalizes eigendecomposition to
+non-square matrices and reveals the intrinsic geometry of any linear transformation.
+NARRATION: SVD decomposes any matrix into a rotation, a scaling along principal axes, and another rotation — exposing its true structure.
+
+SLIDE 25 | Applications in Data Science and Machine Learning
+Principal Component Analysis (PCA) uses SVD to reduce the dimensionality of data by keeping
+only the largest singular values. Linear regression uses least squares. Neural networks compose
+linear transformations with nonlinear activations. Understanding linear algebra unlocks
+deeper intuition for every machine learning algorithm.
+NARRATION: PCA, linear regression, and neural networks all rest on linear algebra; understanding the foundations unlocks the algorithms.
+
+SLIDE 26 | Applications in Computer Graphics
+Computer graphics use matrices to represent rotations, scaling, shearing, and perspective
+projection in 2D and 3D. A chain of transformations is a single matrix product. Homogeneous
+coordinates add an extra dimension to unify translation with other linear operations into one
+matrix multiplication.
+NARRATION: Every rotation, zoom, and perspective shift in a 3D game or animation is computed with matrix multiplication.
+
+FACT: The Rank-Nullity Theorem states that rank plus nullity equals the number of columns.
+FACT: A matrix is invertible if and only if its determinant is nonzero.
+FACT: Eigenvectors are directions unchanged by a transformation except for scaling by the eigenvalue.
+FACT: The Spectral Theorem guarantees an orthonormal eigenvector basis for every real symmetric matrix.
+FACT: SVD factors any matrix into U times Sigma times V-transpose.
+FACT: Least squares solves the normal equations A-transpose A x-hat equals A-transpose b.
+FACT: Gram-Schmidt converts any basis into an orthonormal one spanning the same subspace.

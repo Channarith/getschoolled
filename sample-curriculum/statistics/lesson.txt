@@ -1,0 +1,114 @@
+LESSON: Statistics and Data Analysis
+LANGUAGE: en
+
+SLIDE 1 | What Is Statistics?
+Statistics is the science of collecting, organizing, analyzing, and interpreting data to make decisions under uncertainty. It appears in medicine, business, government, sports, and virtually every field that uses data. There are two main branches: descriptive statistics, which summarize data, and inferential statistics, which draw conclusions beyond the data collected.
+NARRATION: Statistics turns raw numbers into meaningful conclusions about the world.
+
+SLIDE 2 | Types of Data
+Data is classified as categorical (qualitative) or quantitative. Categorical data places individuals into groups, such as favorite color or blood type. Quantitative data measures a numerical amount, and is further divided into discrete data (countable values, like the number of siblings) and continuous data (any value in a range, like height or temperature).
+NARRATION: Know your data type before choosing any graph or statistical summary.
+
+SLIDE 3 | Populations and Samples
+A population is the entire group of interest; a sample is a subset of that population. Because studying an entire population is usually impractical, we collect samples and use them to make inferences. The accuracy of those inferences depends critically on how the sample was selected.
+NARRATION: A sample gives us a window into the population — the quality of that window depends on how we chose the sample.
+
+SLIDE 4 | Sampling Methods
+A simple random sample gives every individual an equal chance of being chosen. Stratified sampling divides the population into groups (strata) and samples from each proportionally. Cluster sampling selects entire naturally occurring groups; systematic sampling picks every kth individual from a list. Each method has trade-offs between cost, feasibility, and the risk of bias.
+NARRATION: The sampling method determines whether results can be trusted to represent the whole population.
+
+SLIDE 5 | Bias in Sampling
+Sampling bias occurs when the method systematically favors certain individuals over others, making the sample unrepresentative. Voluntary response bias arises when participants choose themselves, as in online polls. Nonresponse bias occurs when selected individuals who do not respond differ systematically from those who do. Identifying and minimizing bias is essential for drawing valid conclusions.
+NARRATION: A biased sample leads to wrong conclusions no matter how large the sample is.
+
+SLIDE 6 | Displaying Categorical Data
+Bar charts and pie charts display the frequency or relative frequency of categorical variables. A bar chart uses bars whose heights represent counts or percentages; a pie chart uses slices proportional to each category's share. Bar charts are generally preferred because it is easier to compare bar heights than pie slice areas.
+NARRATION: Bar charts make category comparisons clear; pie charts show each category's share of the whole.
+
+SLIDE 7 | Displaying Quantitative Data — Histograms
+A histogram groups quantitative data into equal-width intervals called bins and draws bars whose heights represent frequencies. Unlike bar charts, the bars in a histogram touch, reflecting the continuous nature of the data. The shape of a histogram — symmetric, skewed left, skewed right, or bimodal — provides immediate insight into the distribution.
+NARRATION: The shape of a histogram reveals whether data is symmetric, skewed, or has multiple peaks.
+
+SLIDE 8 | Box Plots
+A box plot (box-and-whisker plot) summarizes data using five numbers: minimum, first quartile (Q1), median, third quartile (Q3), and maximum. The box spans Q1 to Q3 (the interquartile range), and the median is marked inside the box. Points beyond 1.5 times the IQR from the quartiles are plotted individually as suspected outliers.
+NARRATION: A box plot reveals the center, spread, and outliers of a dataset in a single compact display.
+
+SLIDE 9 | Scatter Plots and Association
+A scatter plot displays pairs of quantitative values as dots on a coordinate plane to examine the relationship between two variables. The pattern of dots suggests the direction (positive or negative), form (linear or curved), and strength of the association. Outliers and influential points are visible as dots far from the main cluster.
+NARRATION: Scatter plots show how two quantitative variables move together across individuals.
+
+SLIDE 10 | Measures of Center
+The mean (arithmetic average) adds all values and divides by n. The median is the middle value when data is sorted; it is resistant to outliers. The mode is the most frequent value and is most useful for categorical data. For skewed distributions, the median better represents a "typical" value than the mean.
+NARRATION: The mean is pulled by outliers; the median is not, making it more reliable for skewed data.
+
+SLIDE 11 | Measures of Spread
+The range is the maximum minus the minimum. The interquartile range (IQR = Q3 - Q1) measures the middle 50% of the data and resists outliers. Variance averages the squared deviations from the mean; standard deviation is the square root of variance and is in the original units. A larger standard deviation means values are more spread out from the center.
+NARRATION: Standard deviation measures how far values typically stray from the mean.
+
+SLIDE 12 | The Empirical Rule and Z-Scores
+For bell-shaped (normal) distributions, approximately 68% of data falls within one standard deviation of the mean, 95% within two, and 99.7% within three. A z-score measures how many standard deviations a value x lies from the mean: z = (x - mean) / standard deviation. Positive z-scores are above the mean; negative z-scores are below.
+NARRATION: The empirical rule and z-scores tell you exactly how unusual any data value is.
+
+SLIDE 13 | The Normal Distribution
+The normal distribution is a symmetric, bell-shaped curve completely described by its mean mu and standard deviation sigma. It models many natural phenomena such as heights, test scores, and measurement errors. The area under the normal curve between two values equals the probability that a randomly selected observation falls between them.
+NARRATION: The normal curve is the most important distribution in statistics because so many real datasets follow it.
+
+SLIDE 14 | Sampling Distributions and the Central Limit Theorem
+A sampling distribution is the distribution of a statistic (such as the sample mean) computed from many different samples of the same size. The Central Limit Theorem (CLT) states that for large enough sample sizes, the sampling distribution of the sample mean is approximately normal, regardless of the population's shape. The standard error of the mean is sigma / sqrt(n), showing that larger samples produce less variability.
+NARRATION: The Central Limit Theorem is why the normal distribution appears everywhere in inferential statistics.
+
+SLIDE 15 | Confidence Intervals for Means
+A confidence interval estimates a population parameter with a range of plausible values. A 95% confidence interval for a population mean is computed as sample mean ± (critical value) × (standard error). The interval means: if we repeated sampling many times, about 95% of constructed intervals would contain the true population mean.
+NARRATION: A confidence interval gives a range of values that plausibly contains the true population parameter.
+
+SLIDE 16 | Confidence Intervals for Proportions
+When estimating a population proportion p, the interval is p-hat ± z* · sqrt(p-hat(1 - p-hat)/n), where p-hat is the sample proportion and z* is the critical value (1.96 for 95% confidence). Larger sample sizes produce narrower, more precise intervals. Margin of error is the ± portion of the interval.
+NARRATION: Wider samples and higher confidence levels both change the width of a confidence interval.
+
+SLIDE 17 | Hypothesis Testing Framework
+Hypothesis testing starts with a null hypothesis (H₀) — usually a statement of no effect or no difference — and an alternative hypothesis (Hₐ). We compute a test statistic from sample data and find the p-value: the probability of seeing results at least as extreme as ours if H₀ were true. A small p-value (typically below 0.05) is evidence against H₀.
+NARRATION: The p-value measures how surprising your data would be if the null hypothesis were actually true.
+
+SLIDE 18 | Type I and Type II Errors
+A Type I error is rejecting a true null hypothesis (a false positive); its probability equals the significance level alpha. A Type II error is failing to reject a false null hypothesis (a false negative); its probability is called beta. The power of a test equals 1 - beta, measuring how often the test correctly detects a real effect. Balancing these errors requires careful choice of sample size and significance level.
+NARRATION: Type I is a false alarm; Type II is a missed signal — good study design minimizes both.
+
+SLIDE 19 | T-Tests
+A one-sample t-test compares a sample mean to a known or hypothesized population mean when sigma is unknown. A two-sample t-test compares means from two independent groups. Both use the t-distribution, which has heavier tails than the normal and depends on degrees of freedom. Larger samples make the t-distribution approach the normal distribution.
+NARRATION: T-tests are the go-to tool for comparing means when you do not know the population standard deviation.
+
+SLIDE 20 | Chi-Square Tests
+A chi-square goodness-of-fit test checks whether observed frequency counts match a hypothesized distribution. A chi-square test of independence tests whether two categorical variables are associated in a two-way table. The test statistic sums (observed - expected)² / expected over all cells; large values suggest the null hypothesis of independence or fit should be rejected.
+NARRATION: Chi-square tests compare observed counts to expected counts to detect departures from a hypothesized pattern.
+
+SLIDE 21 | Correlation and Causation
+The correlation coefficient r measures the strength and direction of the linear relationship between two quantitative variables, ranging from -1 to 1. A value near 1 indicates a strong positive linear relationship; near -1 indicates a strong negative one; near 0 indicates little linear association. Correlation does not imply causation: a lurking variable can drive both variables simultaneously.
+NARRATION: A strong correlation means two variables move together, not that one causes the other.
+
+SLIDE 22 | Linear Regression
+A least-squares regression line minimizes the sum of squared vertical distances from each point to the line. The equation is y-hat = a + bx, where b = r(s_y / s_x) is the slope and a is the y-intercept. The coefficient of determination R² gives the proportion of variability in y explained by the linear relationship with x; higher R² means the line fits better.
+NARRATION: The regression line predicts y from x using the line that best fits the data in the least-squares sense.
+
+SLIDE 23 | Probability Rules
+The probability of any event A satisfies 0 ≤ P(A) ≤ 1, and P(sample space) = 1. The complement rule states P(not A) = 1 - P(A). The addition rule for any two events is P(A or B) = P(A) + P(B) - P(A and B); for mutually exclusive events the intersection term disappears. The multiplication rule for independent events is P(A and B) = P(A) × P(B).
+NARRATION: The complement, addition, and multiplication rules are the three pillars of probability calculation.
+
+SLIDE 24 | Conditional Probability and Bayes' Theorem
+The conditional probability of A given B is P(A|B) = P(A and B) / P(B). Two events are independent when P(A|B) = P(A). Bayes' Theorem reverses the conditioning: P(A|B) = P(B|A) · P(A) / P(B). It is the foundation of medical testing (interpreting a positive test result), machine learning classifiers, and Bayesian statistics.
+NARRATION: Bayes' Theorem updates your belief about A after you learn that B has occurred.
+
+SLIDE 25 | Discrete Probability Distributions
+The binomial distribution models the number of successes in n independent trials each with probability p of success. Its mean is np and standard deviation is sqrt(np(1-p)). The geometric distribution models the number of trials until the first success. These distributions describe many real processes from quality control to genetics.
+NARRATION: The binomial counts successes in a fixed number of trials; the geometric counts trials until the first success.
+
+SLIDE 26 | Real-World Statistical Literacy
+Understanding statistics helps you evaluate news stories, medical studies, and survey results critically. Key red flags include small sample sizes, unrepresentative samples, confusing correlation with causation, and cherry-picking favorable time periods. A statistically literate citizen asks: who collected the data, how was the sample chosen, and what alternative explanations exist?
+NARRATION: Statistical literacy lets you ask the right questions about any data-driven claim you encounter.
+
+FACT: The mean is sensitive to outliers; the median is resistant to them.
+FACT: Standard deviation measures the typical distance of values from the mean.
+FACT: The empirical rule: 68-95-99.7 percent of normal data falls within 1, 2, and 3 standard deviations of the mean.
+FACT: The Central Limit Theorem guarantees the sample mean is approximately normal for large sample sizes.
+FACT: A p-value below 0.05 is conventionally taken as statistically significant evidence against the null hypothesis.
+FACT: Correlation r ranges from -1 to 1; values near 0 indicate little linear relationship.
+FACT: Bayes' Theorem reverses conditional probability: P(A|B) = P(B|A) P(A) / P(B).

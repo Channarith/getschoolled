@@ -1,0 +1,130 @@
+LESSON: Introduction to Economics
+LANGUAGE: en
+
+SLIDE 1 | What Is Economics?
+Economics is the social science that studies how individuals, firms, and governments allocate scarce resources to satisfy unlimited wants and needs. At its core, economics is about making choices: every time we decide to use a resource one way, we give up the opportunity to use it another way. The field is divided broadly into microeconomics, which examines individual actors and markets, and macroeconomics, which studies economy-wide phenomena like growth, unemployment, and inflation.
+NARRATION: Economics is the study of how people make choices under conditions of scarcity.
+
+SLIDE 2 | Scarcity: The Central Problem
+Scarcity means that the available supply of any resource — time, money, land, labor, or capital — is finite, while human desires are effectively unlimited. Because of scarcity, every individual and society must make trade-offs: producing more guns means producing fewer schools, and spending Saturday studying means not spending it at the beach. Scarcity is not the same as poverty; even the wealthiest person faces scarce time and must choose how to spend it.
+NARRATION: Scarcity forces every person and society to make choices about limited resources.
+
+SLIDE 3 | Opportunity Cost
+Opportunity cost is the value of the next-best alternative you give up when making a choice. If you spend $20,000 on tuition for one year of college, the opportunity cost is not just the money but everything else that money could have purchased — or the salary you forgo by not working full-time. Recognizing opportunity cost helps explain why people and firms behave the way they do, and why "free" things often are not truly free.
+NARRATION: Opportunity cost is the value of the best alternative you give up when you make a choice.
+
+SLIDE 4 | The Economic Way of Thinking
+Economists assume that individuals act rationally — weighing costs and benefits at the margin — and respond predictably to incentives. Marginal thinking means asking: what is the extra cost and extra benefit of one more unit? A firm hires another worker when the extra revenue that worker generates exceeds the extra wage cost. This framework, though a simplification, generates powerful and testable predictions about real-world behavior.
+NARRATION: Economists assume people compare extra costs and extra benefits when making decisions.
+
+SLIDE 5 | Incentives and Trade-offs
+An incentive is anything that motivates a person to act. Prices, wages, taxes, subsidies, and penalties all function as incentives. When gasoline taxes rise, people drive less and buy more fuel-efficient cars; when college tuition subsidies increase, enrollment rises. Every policy and every price change creates a new set of incentives and, therefore, new trade-offs — a point that shapes almost every economic analysis.
+NARRATION: Incentives change behavior; every policy redesigns the trade-offs people face.
+
+SLIDE 6 | Positive vs. Normative Economics
+Positive economics describes the world as it is, making statements that can be tested against data — for example, "raising the minimum wage by $2 reduces teenage employment by roughly 1 percent." Normative economics makes value judgments about what ought to be, such as "the minimum wage should be raised because low-wage workers deserve a living wage." Good economic analysis is grounded in positive claims, but policy debates inevitably involve normative disagreements about whose welfare matters most.
+NARRATION: Positive economics describes what is; normative economics prescribes what should be.
+
+SLIDE 7 | The Production Possibilities Frontier (PPF)
+The production possibilities frontier shows all combinations of two goods an economy can produce when using all its resources efficiently. Points on the curve are attainable and efficient; points inside the curve represent unused capacity; and points outside are currently unattainable. The PPF illustrates scarcity, trade-offs, opportunity cost (the slope), and economic growth — a technological improvement or resource expansion shifts the frontier outward.
+NARRATION: The PPF maps all efficient combinations of two goods an economy can produce.
+
+SLIDE 8 | Efficiency and the PPF
+Productive efficiency means producing at a point on the PPF — no resources are wasted. Allocative efficiency means producing the combination of goods most valued by society — the point on the PPF where the marginal benefit of each good equals its marginal cost. Real economies often operate inside the frontier due to unemployment or underused capital; understanding this gap motivates many macroeconomic policy debates.
+NARRATION: An economy is efficient when it produces on the frontier, not inside it.
+
+SLIDE 9 | Comparative Advantage and Specialization
+A person or nation has a comparative advantage in producing a good if they can do so at a lower opportunity cost than others — even if they are worse in absolute terms at producing everything. Portugal and England famously trade wine and cloth in David Ricardo's classic example: Portugal gives up less wine per cloth, so it specializes in wine, and trade makes both countries better off. Comparative advantage is the foundation of all gains from trade.
+NARRATION: Comparative advantage means producing what you give up the least to make.
+
+SLIDE 10 | Types of Economic Systems
+Market economies coordinate production and distribution through decentralized price signals; households and firms make independent decisions, and prices allocate resources. Command economies centralize decisions in government agencies, which set output targets and prices — the Soviet Union being the defining twentieth-century example. Most real-world economies are mixed, blending market mechanisms with government intervention in areas like healthcare, education, and environmental protection.
+NARRATION: Real economies mix market price signals with varying degrees of government direction.
+
+SLIDE 11 | How Markets Work: Buyers and Sellers
+A market is any arrangement through which buyers and sellers exchange goods, services, and resources. Markets can be physical (a farmers' market), virtual (Amazon), or conceptual (the market for mortgage-backed securities). Buyers seek to maximize value; sellers seek to maximize profit; and competition among them disciplines prices and quality. Markets aggregate millions of individual decisions into coherent outcomes with remarkable efficiency.
+NARRATION: Markets bring buyers and sellers together to exchange goods through prices.
+
+SLIDE 12 | The Circular Flow Model
+The circular flow model depicts the economy as a loop between households and firms. Households supply labor, land, and capital to firms through factor markets and receive wages, rent, and profit in return. Firms use those inputs to produce goods and services, which households purchase in product markets. Adding government and the rest of the world to this two-sector model captures taxes, transfer payments, imports, exports, and financial flows.
+NARRATION: The circular flow shows money and resources cycling between households and firms.
+
+SLIDE 13 | Demand: The Law and the Curve
+The law of demand states that, all else equal, when the price of a good rises, the quantity demanded falls — and vice versa. This inverse relationship arises because higher prices make consumers switch to substitutes and because each dollar buys less purchasing power. The demand curve plots price on the vertical axis and quantity demanded on the horizontal axis and slopes downward. Shifts in the entire curve — not movements along it — occur when income, tastes, prices of related goods, or expectations change.
+NARRATION: When prices rise, consumers buy less — that is the law of demand.
+
+SLIDE 14 | Supply: The Law and the Curve
+The law of supply states that producers offer more of a good at higher prices because higher prices make production more profitable. The supply curve slopes upward. It shifts when input costs change, technology improves, the number of sellers changes, or government policies like taxes and subsidies are altered. Distinguishing a movement along a supply curve (price change) from a shift of the curve (any other factor) is critical to correct market analysis.
+NARRATION: Higher prices motivate producers to supply more, shifting resources into profitable markets.
+
+SLIDE 15 | Market Equilibrium
+Equilibrium occurs where the quantity demanded equals the quantity supplied — the price at which buyers are willing to purchase exactly what sellers are willing to sell. If price is above equilibrium, a surplus develops and price falls; if price is below, a shortage develops and price rises. This self-correcting mechanism is what Adam Smith called the "invisible hand" — markets move prices toward equilibrium without any central coordinator.
+NARRATION: Equilibrium is the price where quantity demanded exactly matches quantity supplied.
+
+SLIDE 16 | Consumer Surplus and Producer Surplus
+Consumer surplus is the difference between what a buyer is willing to pay and what they actually pay; it measures the net benefit to consumers from participating in a market. Producer surplus is the difference between the price sellers receive and the minimum they would have accepted; it measures the net benefit to producers. Together, consumer plus producer surplus equals total economic surplus — a measure of how much value a market creates.
+NARRATION: Surpluses measure the value buyers and sellers gain from trading at the market price.
+
+SLIDE 17 | Price Controls: Ceilings and Floors
+A price ceiling sets a legal maximum price below the equilibrium, such as rent control in a city; it creates shortages because quantity demanded exceeds quantity supplied. A price floor sets a legal minimum above the equilibrium, such as the federal minimum wage; it creates surpluses (unemployment) because quantity supplied exceeds quantity demanded. Both distort the price signal and reduce total surplus, though they may achieve distributional goals that policymakers value.
+NARRATION: Price ceilings cause shortages; price floors cause surpluses.
+
+SLIDE 18 | Externalities and Market Failure
+An externality is a cost or benefit imposed on a third party who is not part of a transaction. Pollution from a factory is a negative externality — the firm does not pay for the harm it imposes on neighbors, so it overproduces. Education and vaccination generate positive externalities — the social benefit exceeds the private benefit, so the market underproduces them. Externalities are a form of market failure because prices do not reflect full social costs or benefits.
+NARRATION: Externalities cause markets to overproduce or underproduce relative to the social optimum.
+
+SLIDE 19 | Public Goods and Common Resources
+A public good is non-excludable (you cannot prevent people from using it) and non-rival (one person's use does not reduce availability for others) — examples include national defense and broadcast radio. Because no one can be charged for using a public good, private markets undersupply it, creating the free-rider problem. Common resources like fisheries and clean air are non-excludable but rival; without governance, they are overused — the "tragedy of the commons."
+NARRATION: Public goods and common resources both lead to market failures without government action.
+
+SLIDE 20 | The Role of Government in the Economy
+Governments intervene in markets for multiple reasons: correcting externalities through taxes and regulations, providing public goods, redistributing income, enforcing property rights and contracts, and stabilizing the macroeconomy. The optimal scope of government is itself a normative question on which economists disagree. Most economists accept some government role in correcting clear market failures while cautioning against regulation that creates greater inefficiencies than it resolves.
+NARRATION: Governments correct market failures, provide public goods, and enforce the rules of exchange.
+
+SLIDE 21 | GDP: Measuring Economic Output
+Gross Domestic Product is the total market value of all final goods and services produced within a country in a given period. It is measured by the expenditure approach as C + I + G + NX, where C is consumption, I is investment, G is government spending, and NX is net exports. Real GDP adjusts for inflation to allow comparisons across time; nominal GDP does not. GDP per capita is widely used as a rough proxy for living standards.
+NARRATION: GDP measures a nation's total output as the sum of consumption, investment, government, and net exports.
+
+SLIDE 22 | Unemployment: Types and Measurement
+The unemployment rate is the share of the labor force actively seeking work but without a job. Frictional unemployment arises from normal job searching; structural unemployment results from a mismatch between workers' skills and available jobs; and cyclical unemployment results from a downturn in economic activity. The natural rate of unemployment is the sum of frictional and structural unemployment, typically 4–5 percent in the U.S., and represents full employment in a macro sense.
+NARRATION: Unemployment is measured as the share of job-seekers without work.
+
+SLIDE 23 | Inflation: Causes and Effects
+Inflation is a sustained rise in the general price level, eroding purchasing power. It is measured by the Consumer Price Index (CPI) and the GDP deflator. Demand-pull inflation occurs when aggregate demand grows faster than supply; cost-push inflation arises from supply shocks like oil price spikes. Moderate, predictable inflation of around 2 percent is the Federal Reserve's target, because very low inflation risks deflation and very high inflation distorts price signals and redistributes wealth from creditors to debtors.
+NARRATION: Inflation measures how much the general price level rises over time.
+
+SLIDE 24 | The Business Cycle
+The business cycle describes the recurring expansion and contraction of economic activity around a long-run growth trend. During expansions, GDP rises, unemployment falls, and investment increases; at the peak, the economy is at maximum output. A recession is technically two consecutive quarters of falling real GDP; at the trough, output is lowest before recovery begins. Governments use fiscal and monetary policy to dampen the amplitude of cycles.
+NARRATION: The business cycle alternates between expansions and recessions around a growth trend.
+
+SLIDE 25 | Fiscal Policy: Government Spending and Taxes
+Fiscal policy is the use of government spending and taxation to influence economic activity. Expansionary fiscal policy — increasing spending or cutting taxes — stimulates aggregate demand during recessions, with the total impact amplified by the multiplier effect. Contractionary fiscal policy — cutting spending or raising taxes — cools an overheating economy. Critics note that fiscal policy lags — decisions are slow and take time to affect the economy — and may crowd out private investment.
+NARRATION: Fiscal policy uses taxes and spending to expand or contract economic activity.
+
+SLIDE 26 | Monetary Policy and Central Banks
+Monetary policy is conducted by a central bank — such as the U.S. Federal Reserve — through control of the money supply and interest rates. By lowering the federal funds rate, the Fed makes borrowing cheaper, stimulating investment and consumption. By raising rates, it cools demand and combats inflation. The Fed also uses open-market operations (buying and selling government bonds) and, in recent decades, quantitative easing — large-scale asset purchases to inject liquidity.
+NARRATION: Central banks use interest rates and money supply tools to stabilize prices and growth.
+
+SLIDE 27 | International Trade and Comparative Advantage
+Nations trade because specialization based on comparative advantage allows each country to consume beyond its own PPF. The United States exports aircraft and soybeans and imports electronics and apparel — reflecting relative cost advantages. Trade raises average incomes by expanding markets and competition, but it also creates winners and losers within countries, generating political conflict over trade policy, tariffs, and quotas.
+NARRATION: International trade lets countries consume more by specializing in what they produce cheapest.
+
+SLIDE 28 | Exchange Rates and the Balance of Payments
+An exchange rate is the price of one currency in terms of another. A stronger dollar makes U.S. exports more expensive and imports cheaper, reducing net exports. The balance of payments records all economic transactions between a country and the rest of the world: the current account captures trade in goods, services, and income; the capital account tracks financial flows. A current account deficit is always matched by a capital account surplus — the accounts balance by definition.
+NARRATION: Exchange rates determine how expensive a country's exports and imports are for the rest of the world.
+
+SLIDE 29 | Economic Growth and Development
+Long-run economic growth is driven by increases in the quantity and quality of labor, capital, and technology. The Solow growth model shows that capital accumulation alone leads to diminishing returns — sustained growth requires continuous technological progress. Economic development goes further, encompassing improvements in health, education, political institutions, and income equality. Countries that protect property rights, maintain rule of law, and invest in human capital tend to grow faster.
+NARRATION: Sustained growth requires not just capital accumulation but ongoing technological progress.
+
+SLIDE 30 | Behavioral Economics and Real-World Decision Making
+Traditional economics assumes fully rational agents; behavioral economics incorporates insights from psychology to explain systematic deviations from rationality. People exhibit loss aversion (losses hurt more than equivalent gains please), present bias (overweighting immediate rewards), and anchoring (over-relying on the first number they see). Richard Thaler and Cass Sunstein's concept of "nudges" — small changes to choice architecture like automatic enrollment in retirement savings — uses these biases to improve outcomes without restricting freedom.
+NARRATION: Behavioral economics shows that real people use mental shortcuts that sometimes lead to predictable mistakes.
+
+FACT: GDP equals C + I + G + NX, where NX is exports minus imports.
+FACT: Opportunity cost is the value of the next-best alternative foregone.
+FACT: Comparative advantage, not absolute advantage, determines the gains from trade.
+FACT: A price ceiling below equilibrium causes a shortage; a price floor above equilibrium causes a surplus.
+FACT: The natural rate of unemployment equals frictional plus structural unemployment.
+FACT: Externalities cause markets to produce at the wrong quantity relative to the social optimum.
+FACT: Behavioral economics incorporates psychological findings into economic models of decision making.

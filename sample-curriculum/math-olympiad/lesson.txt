@@ -1,0 +1,110 @@
+LESSON: Math Olympiad Challenges
+LANGUAGE: en
+
+SLIDE 1 | Introduction to Competition Mathematics
+Mathematical competitions reward creative thinking, deep pattern recognition, and elegant proof writing rather than mere computation speed. Contests range from local events like MATHCOUNTS to international championships like the International Mathematical Olympiad (IMO). Developing competition skills sharpens intuition and problem-solving versatility that benefit all of mathematics.
+NARRATION: Competition math trains you to find clever, elegant solutions rather than just grind through calculations.
+
+SLIDE 2 | Number Theory — Divisibility
+A positive integer a divides b if b = ka for some integer k, written a | b. Divisibility rules provide shortcuts: a number is divisible by 2 if its last digit is even, by 3 if its digit sum is divisible by 3, by 4 if its last two digits form a multiple of 4, and by 9 if its digit sum is divisible by 9. Mastering these rules speeds up prime factorization and factor-counting problems.
+NARRATION: Divisibility rules are fast shortcuts for breaking numbers apart without long division.
+
+SLIDE 3 | Primes and Prime Factorization
+A prime number has exactly two positive divisors: 1 and itself. Every integer greater than 1 factors uniquely into primes — this is the Fundamental Theorem of Arithmetic. The prime factorization n = p₁^(a₁) · p₂^(a₂) · … determines how many factors n has (multiply each exponent plus one) and other key properties.
+NARRATION: Prime factorization is the master key for solving nearly every number theory problem.
+
+SLIDE 4 | Greatest Common Divisor and Least Common Multiple
+The greatest common divisor (GCD) of two numbers is the largest integer dividing both; the least common multiple (LCM) is the smallest integer both divide. The Euclidean algorithm computes GCD(a, b) = GCD(b, a mod b) rapidly by repeated remainder steps. The product identity GCD(a,b) × LCM(a,b) = a × b links the two quantities.
+NARRATION: The Euclidean algorithm finds the GCD in only a handful of steps even for huge numbers.
+
+SLIDE 5 | Modular Arithmetic
+In modular arithmetic, a ≡ b (mod m) means m divides a - b. Addition, subtraction, and multiplication respect congruences: if a ≡ b and c ≡ d (mod m), then a + c ≡ b + d and ac ≡ bd (mod m). Fermat's Little Theorem states that if p is prime and p does not divide a, then a^(p-1) ≡ 1 (mod p), a powerful tool for simplifying large exponents.
+NARRATION: Modular arithmetic lets you find remainders of enormous expressions without computing the full value.
+
+SLIDE 6 | The Pigeonhole Principle
+The Pigeonhole Principle states that if n + 1 objects are placed in n containers, at least one container holds two or more objects. The generalized form says that if kn + 1 objects are in n containers, some container holds at least k + 1. Despite its simplicity, it is remarkably powerful: it proves that among any five integers, two must share the same remainder when divided by 4.
+NARRATION: If you have more objects than containers, some container must hold at least two.
+
+SLIDE 7 | Proof by Contradiction
+In proof by contradiction, you assume the opposite of what you want to prove and derive a logical impossibility. The classic example is the irrationality of √2: assume √2 = p/q in lowest terms, square both sides, and show p and q must both be even — contradicting lowest terms. This technique is especially powerful for "does not exist" or "is irrational" statements.
+NARRATION: Assume the opposite is true, then show that assumption destroys itself.
+
+SLIDE 8 | Proof by Mathematical Induction
+Induction proves a statement P(n) holds for all positive integers n by two steps: the base case (verify P(1)) and the inductive step (show P(k) implies P(k+1)). Strong induction allows assuming P(1), P(2), …, P(k) all hold before proving P(k+1), and is useful when the next case depends on several previous ones. Induction is the essential tool for proving formulas for sums and combinatorial identities.
+NARRATION: Induction is a domino effect: prove the first falls, then prove each domino knocks down the next.
+
+SLIDE 9 | The AM-GM Inequality
+The Arithmetic Mean – Geometric Mean (AM-GM) inequality states that for non-negative numbers a₁, a₂, …, aₙ, their arithmetic mean is at least their geometric mean, with equality when all values are equal. In two variables: (a + b)/2 ≥ √(ab). Competition problems use AM-GM to find minimum or maximum values of expressions subject to a constraint.
+NARRATION: AM-GM turns an optimization problem into an equality condition you can solve immediately.
+
+SLIDE 10 | The Cauchy-Schwarz Inequality
+The Cauchy-Schwarz inequality states that (a₁b₁ + a₂b₂ + … + aₙbₙ)² ≤ (a₁² + a₂² + … + aₙ²)(b₁² + b₂² + … + bₙ²), with equality when the sequences are proportional. In competition problems, it appears in disguise and can instantly bound complicated sums. Recognizing its pattern — a sum of products squared on the left, product of sums of squares on the right — is the key skill.
+NARRATION: Cauchy-Schwarz bounds products of sums and is a Swiss-army-knife inequality for competitions.
+
+SLIDE 11 | Stars and Bars
+The stars and bars technique counts the number of ways to distribute n identical objects into k distinct bins. The answer is C(n + k - 1, k - 1). It also counts non-negative integer solutions to x₁ + x₂ + … + x_k = n. Requiring each variable to be at least 1 is handled by a simple substitution before applying the formula.
+NARRATION: Stars and bars converts a counting distribution problem into a single combination formula.
+
+SLIDE 12 | Inclusion-Exclusion Principle
+Inclusion-exclusion counts elements in the union of several sets by alternately adding and subtracting sizes of intersections. For two sets: |A ∪ B| = |A| + |B| - |A ∩ B|. For three sets, subtract all pairwise intersections and add back the triple intersection. Inclusion-exclusion is essential for counting problems with forbidden patterns, such as derangements.
+NARRATION: Inclusion-exclusion adds overlapping regions back in and takes them out so nothing is double-counted.
+
+SLIDE 13 | Combinatorial Identities
+Pascal's Triangle encodes binomial coefficients C(n,r) and generates powerful identities. The Vandermonde identity states C(m+n,r) = sum of C(m,k)·C(n,r-k). The hockey stick identity sums a diagonal of Pascal's triangle. Proving these identities either algebraically or by double-counting (counting the same set two ways) is a fundamental competition technique.
+NARRATION: Combinatorial identities often have elegant double-counting proofs that reveal their deeper meaning.
+
+SLIDE 14 | Graph Theory Basics
+A graph consists of vertices (points) and edges (connections). A path visits each vertex at most once; a cycle returns to its starting vertex. In an undirected graph, the sum of all vertex degrees equals twice the number of edges. Graph theory appears in competition problems about networks, coloring, and traversal, including the Königsberg bridge problem that founded the field.
+NARRATION: Graph theory turns network and connectivity problems into precise mathematical objects.
+
+SLIDE 15 | Euclidean Geometry — Key Theorems
+Competition geometry draws on classical theorems: the Pythagorean theorem, properties of similar triangles, the angle bisector theorem, Ceva's theorem, and Menelaus's theorem. The inscribed angle theorem states that an inscribed angle is half the central angle subtending the same arc. Knowing which theorem to apply — and spotting the right auxiliary construction — separates quick solutions from long calculations.
+NARRATION: Auxiliary lines and classical theorems can turn a hard geometry problem into a one-step observation.
+
+SLIDE 16 | Power of a Point
+The Power of a Point theorem relates lengths of chords and secants through a fixed point with respect to a circle. For a point P outside a circle, PA · PB = PC · PD for any two secants through P. For a point inside, the same product equality holds with chords. This theorem links lengths elegantly and appears frequently in competition circle problems.
+NARRATION: Power of a Point gives a constant product for chord or secant lengths from any fixed point.
+
+SLIDE 17 | Triangle Inequality and Extremal Problems
+The triangle inequality states that in any triangle, the sum of any two sides exceeds the third side. Extremal problems ask for the maximum or minimum of some quantity given geometric or algebraic constraints. Common techniques include fixing one variable and optimizing over others, using symmetry to show the optimum is attained equally, and applying AM-GM or Cauchy-Schwarz.
+NARRATION: Extremal problems often reach their optimum at a symmetric or degenerate configuration.
+
+SLIDE 18 | Functional Equations
+A functional equation specifies a relationship that a function must satisfy for all inputs, such as f(x + y) = f(x) + f(y). Cauchy's functional equation has the only continuous solution f(x) = cx over the reals. Strategies for competition functional equations include substituting special values (0, 1, x = y), assuming a form such as linear or exponential, and proving injectivity or surjectivity.
+NARRATION: Plugging special values into a functional equation reveals the function's structure step by step.
+
+SLIDE 19 | Diophantine Equations
+A Diophantine equation seeks integer solutions. The linear equation ax + by = c has integer solutions if and only if GCD(a,b) divides c; solutions can be found via the extended Euclidean algorithm. For non-linear Diophantines such as x² - y² = n, factoring and modular constraints are the key tools. Pythagorean triples satisfy a² + b² = c² and are generated by the parametric formula a = m² - n², b = 2mn, c = m² + n².
+NARRATION: Diophantine equations are solved by combining factoring, modular constraints, and parametric families.
+
+SLIDE 20 | Quadratic Residues and Number Theory Tricks
+An integer a is a quadratic residue modulo p if x² ≡ a (mod p) has a solution. Quadratic residues appear in competition problems about when equations have solutions modulo primes. The last digit of a power cycles with a short period: 2¹ = 2, 2² = 4, 2³ = 8, 2⁴ = 6, 2⁵ = 2, repeating with period 4. Recognizing such cycles allows computing the last digit of huge powers instantly.
+NARRATION: Units digits of powers cycle with short periods, making last-digit problems easy once you spot the pattern.
+
+SLIDE 21 | Number Bases and Modular Tricks
+Writing numbers in different bases can reveal hidden structure. In base 2, bitwise operations and powers of 2 become transparent. Competition problems sometimes ask for the last two digits (work mod 100), or which digit is in a given position (work in the corresponding base). Converting between bases and spotting periodicity are practical skills.
+NARRATION: Changing the base you work in can transform a hard problem into a straightforward one.
+
+SLIDE 22 | Clever Algebraic Substitutions
+Substitutions like letting u = x + 1/x or t = (x - a)/b can dramatically simplify symmetric or reciprocal expressions. Sophie Germain's identity a⁴ + 4b⁴ = (a² + 2b² + 2ab)(a² + 2b² - 2ab) factors a sum that otherwise looks irreducible. Recognizing that a complicated expression is actually a perfect square, a difference of squares, or another recognizable form is a key competition skill.
+NARRATION: A well-chosen substitution can instantly collapse a page of algebra into a single clean expression.
+
+SLIDE 23 | Strategy for Competition Problem Sets
+Competition problem sets (AMC, AIME, Olympiad) typically order problems from easier to harder. Skim all problems first to identify the ones you can solve confidently, attempt those, then return to harder ones. On Olympiad exams requiring written proofs, clearly state your strategy before executing it, and verify boundary cases explicitly.
+NARRATION: Begin with problems you recognize, then return to harder ones with remaining time.
+
+SLIDE 24 | Famous Problems — AMC, AIME, MATHCOUNTS, IMO
+The AMC series tests algebra, geometry, number theory, and combinatorics at multiple difficulty levels. The AIME requires integer answers from 0 to 999 and involves deeper analysis. MATHCOUNTS prepares middle schoolers with mental math speed and elegance. The IMO presents six problems over two days, each requiring a multi-page proof, and is the pinnacle of secondary-school competition.
+NARRATION: Each competition level has its own style — knowing the format helps you train specifically for it.
+
+SLIDE 25 | Building Creative Mathematical Thinking
+Creative mathematics grows from curiosity: ask "what if I change this parameter?" or "can I generalize this result?" Keep a notebook of elegant solutions and surprising results. Collaboration, reading proofs written by others, and explaining your reasoning aloud all build the flexible thinking that competition mathematics demands and that research mathematics rewards lifelong.
+NARRATION: The habit of asking "why" and "what if" is what turns a student into a mathematical thinker.
+
+FACT: The Pigeonhole Principle guarantees that n+1 objects in n boxes means some box holds at least two objects.
+FACT: AM-GM: the arithmetic mean of non-negative numbers is always at least their geometric mean.
+FACT: Fermat's Little Theorem: if p is prime and p does not divide a, then a^(p-1) ≡ 1 (mod p).
+FACT: Stars and bars counts distributions of n identical objects into k bins as C(n+k-1, k-1).
+FACT: The sum of all vertex degrees in a graph equals twice the number of edges.
+FACT: Power of a Point: for any secant from an external point, the products of the two segment lengths are equal.
+FACT: A linear Diophantine equation ax + by = c has integer solutions exactly when GCD(a,b) divides c.
