@@ -69,6 +69,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "nav.brand": "Salareen",
     "nav.home": "Home",
     "nav.browse": "Browse",
+    "nav.saved": "Saved",
     "nav.kids": "Kids",
     "nav.corporate": "Corporate",
     "nav.forYou": "For You",
@@ -181,6 +182,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "es": {
     "nav.home": "Inicio",
     "nav.browse": "Explorar",
+    "nav.saved": "Guardado",
     "nav.forYou": "Para ti",
     "nav.kids": "Niños",
     "nav.corporate": "Empresas",
@@ -207,6 +209,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "fr": {
     "nav.home": "Accueil",
     "nav.browse": "Parcourir",
+    "nav.saved": "Sauvegardé",
     "nav.forYou": "Pour vous",
     "nav.kids": "Enfants",
     "nav.corporate": "Entreprise",
@@ -233,6 +236,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "de": {
     "nav.home": "Start",
     "nav.browse": "Stöbern",
+    "nav.saved": "Gespeichert",
     "nav.forYou": "Für dich",
     "nav.kids": "Kinder",
     "nav.corporate": "Unternehmen",
@@ -259,6 +263,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "it": {
     "nav.home": "Home",
     "nav.browse": "Esplora",
+    "nav.saved": "Salvato",
     "nav.forYou": "Per te",
     "nav.kids": "Bambini",
     "nav.corporate": "Aziende",
@@ -285,6 +290,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "pt": {
     "nav.home": "Início",
     "nav.browse": "Explorar",
+    "nav.saved": "Guardado",
     "nav.forYou": "Para você",
     "nav.kids": "Crianças",
     "nav.corporate": "Empresas",
@@ -311,6 +317,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "ru": {
     "nav.home": "Главная",
     "nav.browse": "Обзор",
+    "nav.saved": "Сохранено",
     "nav.forYou": "Для вас",
     "nav.kids": "Дети",
     "nav.corporate": "Бизнес",
@@ -336,6 +343,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "ar": {
     "nav.home": "الرئيسية",
     "nav.browse": "تصفّح",
+    "nav.saved": "محفوظ",
     "nav.forYou": "لك",
     "nav.kids": "الأطفال",
     "nav.corporate": "الشركات",
@@ -361,6 +369,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "hi": {
     "nav.home": "होम",
     "nav.browse": "ब्राउज़",
+    "nav.saved": "सहेजा गया",
     "nav.forYou": "आपके लिए",
     "nav.kids": "बच्चे",
     "nav.corporate": "कॉर्पोरेट",
@@ -386,6 +395,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "zh": {
     "nav.home": "首页",
     "nav.browse": "浏览",
+    "nav.saved": "已保存",
     "nav.forYou": "为你推荐",
     "nav.kids": "儿童",
     "nav.corporate": "企业",
@@ -411,6 +421,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "ja": {
     "nav.home": "ホーム",
     "nav.browse": "さがす",
+    "nav.saved": "保存済み",
     "nav.forYou": "あなたへ",
     "nav.kids": "キッズ",
     "nav.corporate": "法人",
@@ -436,6 +447,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "ko": {
     "nav.home": "홈",
     "nav.browse": "탐색",
+    "nav.saved": "저장됨",
     "nav.forYou": "추천",
     "nav.kids": "키즈",
     "nav.corporate": "기업",
@@ -462,6 +474,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "nav.brand": "Salareen",
     "nav.home": "Trang chủ",
     "nav.browse": "Khám phá",
+    "nav.saved": "Đã lưu",
     "nav.careers": "Nghề nghiệp",
     "nav.kids": "Trẻ em",
     "nav.corporate": "Doanh nghiệp",
@@ -574,6 +587,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
   "km": {
     "nav.home": "ដើម",
     "nav.browse": "រកមើល",
+    "nav.saved": "រក្សាទុក",
     "nav.forYou": "សម្រាប់អ្នក",
     "nav.kids": "កុមារ",
     "nav.corporate": "ក្រុមហ៊ុន",

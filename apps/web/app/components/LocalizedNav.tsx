@@ -51,7 +51,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
     <>
       <Link href="/">{t("nav.home")}</Link>
       <Link href="/browse">{t("nav.browse")}</Link>
-      <Link href="/my-list">{t("nav.myList", { defaultValue: "My List" })}</Link>
+      <Link href="/my-list">{t("nav.saved")}</Link>
       <Link href="/recommended">{t("nav.forYou")}</Link>
       <Link href="/kids">{t("nav.kids")}</Link>
       <Link href="/corporate">{t("nav.corporate")}</Link>
