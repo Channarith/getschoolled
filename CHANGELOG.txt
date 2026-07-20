@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.8 - Add 5 kids arcade games (Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz); add LinkedIn RapidAPI jobs provider with 25-req/month budget guard; add USAJobs, WeWorkRemotely, Jobspresso free job sources; update jobs page with new source badges; add RAPIDAPI_KEY to cluster.
 - 2026-07-20 - v0.27.7 - Careers: add Indeed RSS and RemoteOK job providers (free, no key); CompositeJobsProvider now includes Indeed + RemoteOK + Remotive + Arbeitnow when JOBS_LIVE=1; add LinkedIn/Indeed/ZipRecruiter/Glassdoor deep-link search widget on the jobs page; document RAPIDAPI_KEY path for full aggregation.
 - 2026-07-20 - v0.27.6 - Fix 6 more voice-loop audit bugs: mic leak on unmount, floor cue re-fires on every locale tick, confirmationTimerRef not nulled after firing, watchdog misses ws_room_snapshot, blocking ask path misses pending pop, chat reply switches to streaming LLM.
 - 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window.

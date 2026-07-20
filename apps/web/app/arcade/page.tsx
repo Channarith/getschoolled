@@ -154,6 +154,36 @@ export default function ArcadePage() {
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
+      {/* Kids' Games — fun, colorful learning adventures. */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(249,168,37,0.18), rgba(236,72,153,0.12))" }}>
+          <h3 style={{ marginTop: 0 }}>🎮 Kids&apos; Games</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Jeopardy, kart racing, creature catching, card matching, and Uno — education wrapped in fun.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/jeopardy?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#1e3a8a", color: "#fbbf24", fontWeight: 700 }}>
+              📺 Jeopardy!
+            </Link>
+            <Link href={`/arcade/kart-race?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 700 }}>
+              🏎️ Kart Race
+            </Link>
+            <Link href={`/arcade/creature-catch?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 700 }}>
+              🦊 Creature Catch
+            </Link>
+            <Link href={`/arcade/card-match?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0f766e", color: "#fff", fontWeight: 700 }}>
+              🃏 Card Match
+            </Link>
+            <Link href={`/arcade/uno-quiz?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#b91c1c", color: "#fff", fontWeight: 700 }}>
+              🎴 Uno Quiz
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
       {!round && (
         <>

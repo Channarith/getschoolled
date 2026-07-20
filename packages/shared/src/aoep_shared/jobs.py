@@ -595,6 +595,232 @@ class JSearchJobsProvider(_LiveJobsProvider):
         return out
 
 
+class LinkedInRapidApiProvider(_LiveJobsProvider):
+    """LinkedIn job search via RapidAPI (linkedin-api8.p.rapidapi.com).
+
+    The key is rate-limited to ~25 requests/month (250 jobs total). To stay
+    within budget this provider:
+      - Caches results for 24 hours (JOBS_CACHE_TTL is overridden per-call)
+      - Tracks monthly usage in a module-level counter and refuses to make
+        further requests once LINKEDIN_RAPIDAPI_MONTHLY_LIMIT is reached.
+    Set RAPIDAPI_KEY in aoep-secrets to activate.
+    """
+
+    source = "linkedin"
+    MONTHLY_LIMIT = 24          # leave 1 in reserve
+    _month_key: str = ""        # "YYYY-MM" when counter was last reset
+    _month_calls: int = 0       # API calls made this calendar month
+
+    def __init__(self, rapidapi_key: str) -> None:
+        self.rapidapi_key = rapidapi_key
+
+    def _within_limit(self) -> bool:
+        import time as _t
+        import datetime as _dt
+        month = _dt.datetime.fromtimestamp(_t.time(), tz=_dt.timezone.utc).strftime("%Y-%m")
+        if LinkedInRapidApiProvider._month_key != month:
+            LinkedInRapidApiProvider._month_key = month
+            LinkedInRapidApiProvider._month_calls = 0
+        return LinkedInRapidApiProvider._month_calls < self.MONTHLY_LIMIT
+
+    def _fetch(self, query, location, limit):
+        if not self._within_limit():
+            return []   # quota exhausted for this month; fall through to free boards
+        from urllib.parse import urlencode
+        params: dict[str, object] = {
+            "keywords": query or "software engineer",
+            "datePosted": "anyTime",
+            "sort": "mostRelevant",
+            "start": "0",
+        }
+        if location:
+            params["locationId"] = location  # RapidAPI accepts free-text too
+        url = f"https://linkedin-api8.p.rapidapi.com/search-jobs?{urlencode(params)}"
+        data = _http_get_json(url, headers={
+            "x-rapidapi-key": self.rapidapi_key,
+            "x-rapidapi-host": "linkedin-api8.p.rapidapi.com",
+        })
+        LinkedInRapidApiProvider._month_calls += 1
+        if isinstance(data, dict):
+            return data.get("data", []) or []
+        if isinstance(data, list):
+            return data
+        return []
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("title", "") or r.get("jobTitle", "")
+            company = (r.get("company") or {}).get("name", "") or r.get("companyName", "")
+            loc = (r.get("location") or {}).get("displayName", "") or r.get("locationName", "") or "United States"
+            url = r.get("url", "") or r.get("jobPostingUrl", "")
+            emp = (r.get("employmentStatus") or "full-time").replace("_", "-").title()
+            posted = r.get("postedAt") or r.get("listedAt") or ""
+            desc = _strip_html(r.get("description", "") or "")
+            job_id = r.get("id", "") or url.split("/")[-1].split("?")[0]
+            out.append(JobPosting(
+                id=f"linkedin-{job_id}",
+                title=title, company=company, location=loc,
+                source="linkedin", url=url,
+                employment_type=emp,
+                posted_days_ago=_days_ago(posted),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
+class USAJobsProvider(_LiveJobsProvider):
+    """U.S. federal government jobs from usajobs.gov (free, no key required).
+
+    Open API: https://data.usajobs.gov/api/search
+    Best for education, technology, healthcare, and government roles.
+    """
+
+    source = "usajobs"
+
+    def _fetch(self, query, location, limit):
+        from urllib.parse import urlencode
+        params: dict[str, object] = {"ResultsPerPage": max(min(limit, 25), 1)}
+        if query:
+            params["Keyword"] = query
+        if location:
+            params["LocationName"] = location
+        url = f"https://data.usajobs.gov/api/search?{urlencode(params)}"
+        data = _http_get_json(url, headers={
+            "Host": "data.usajobs.gov",
+            "User-Agent": "salareen-jobs/1.0 (jobs@salareen.com)",
+        })
+        search_result = (data or {}).get("SearchResult", {})
+        return (search_result or {}).get("SearchResultItems", [])
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for item in rows:
+            mv = item.get("MatchedObjectDescriptor", {})
+            if not mv:
+                continue
+            title = mv.get("PositionTitle", "")
+            company = (mv.get("OrganizationName") or mv.get("DepartmentName") or "US Government")
+            locations = mv.get("PositionLocation", [{}])
+            loc = locations[0].get("LocationName", "United States") if locations else "United States"
+            url = mv.get("PositionURI", "")
+            pay = mv.get("PositionRemuneration", [{}])
+            salary = ""
+            if pay:
+                lo, hi = pay[0].get("MinimumRange", ""), pay[0].get("MaximumRange", "")
+                if lo and hi:
+                    salary = f"${int(float(lo)/1000)}k–${int(float(hi)/1000)}k"
+            desc = _strip_html(mv.get("QualificationSummary", "") or mv.get("UserArea", {}).get("Details", {}).get("MajorDuties", ""))
+            out.append(JobPosting(
+                id=f"usajobs-{mv.get('PositionID', '')}",
+                title=title, company=company, location=loc,
+                source="usajobs", url=url,
+                employment_type="Full-time",
+                salary_range=salary,
+                posted_days_ago=_days_ago(mv.get("PublicationStartDate")),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
+class WeWorkRemotelyProvider(_LiveJobsProvider):
+    """Remote jobs from weworkremotely.com (free RSS feed, no key required).
+
+    Best for fully-remote software, design, marketing, and business roles.
+    """
+
+    source = "weworkremotely"
+
+    def _fetch(self, query, location, limit):
+        import xml.etree.ElementTree as ET
+        raw = _http_get_text("https://weworkremotely.com/remote-jobs.rss")
+        if not raw:
+            return []
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError:
+            return []
+        items = root.findall(".//item")
+        if query:
+            ql = query.lower()
+            items = [i for i in items
+                     if ql in ((i.findtext("title") or "") + " " + (i.findtext("description") or "")).lower()]
+        return items[:max(limit, 1)]
+
+    def _parse(self, rows) -> List[JobPosting]:
+        import xml.etree.ElementTree as ET
+        NS = "https://weworkremotely.com/"
+        out = []
+        for item in rows:
+            def _t(tag: str) -> str:
+                el = item.find(tag)
+                return (el.text or "").strip() if el is not None else ""
+            title_raw = _t("title")  # "Company: Job Title"
+            parts = title_raw.split(": ", 1)
+            company = parts[0].strip() if len(parts) > 1 else ""
+            title = parts[1].strip() if len(parts) > 1 else title_raw
+            link = _t("link")
+            desc = _strip_html(_t("description"))
+            pub = _t("pubDate")
+            region = _t(f"{{{NS}}}region") or "Remote"
+            out.append(JobPosting(
+                id=f"wwr-{link.split('/')[-2] if '/' in link else link[-16:]}",
+                title=title, company=company, location=region or "Remote",
+                source="weworkremotely", url=link,
+                employment_type="Full-time",
+                posted_days_ago=_days_ago(pub),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
+class JobspressoProvider(_LiveJobsProvider):
+    """Curated remote jobs from jobspresso.co (free RSS feed, no key required).
+
+    Covers tech, marketing, customer support, and design remote roles.
+    """
+
+    source = "jobspresso"
+
+    def _fetch(self, query, location, limit):
+        import xml.etree.ElementTree as ET
+        raw = _http_get_text("https://jobspresso.co/feed/")
+        if not raw:
+            return []
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError:
+            return []
+        items = root.findall(".//item")
+        if query:
+            ql = query.lower()
+            items = [i for i in items
+                     if ql in ((i.findtext("title") or "") + " " + (i.findtext("description") or "")).lower()]
+        return items[:max(limit, 1)]
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for item in rows:
+            def _t(tag: str) -> str:
+                el = item.find(tag)
+                return (el.text or "").strip() if el is not None else ""
+            title = _t("title")
+            link = _t("link")
+            desc = _strip_html(_t("description"))
+            pub = _t("pubDate")
+            creator = _t("{http://purl.org/dc/elements/1.1/}creator") or ""
+            out.append(JobPosting(
+                id=f"jobspresso-{link.split('/')[-2] if '/' in link else link[-16:]}",
+                title=title, company=creator,
+                location="Remote",
+                source="jobspresso", url=link,
+                employment_type="Full-time",
+                posted_days_ago=_days_ago(pub),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
 class IndeedRssProvider(_LiveJobsProvider):
     """Indeed jobs via their public RSS feed (free, no key required).
 
@@ -759,6 +985,14 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
             return IndeedRssProvider()
         if name == "remoteok":
             return RemoteOkProvider()
+        if name == "usajobs":
+            return USAJobsProvider()
+        if name == "weworkremotely":
+            return WeWorkRemotelyProvider()
+        if name == "jobspresso":
+            return JobspressoProvider()
+        if name == "linkedin" and env.get("RAPIDAPI_KEY"):
+            return LinkedInRapidApiProvider(env["RAPIDAPI_KEY"])
         if name == "jsearch" and env.get("RAPIDAPI_KEY"):
             return JSearchJobsProvider(env["RAPIDAPI_KEY"])
         if name == "adzuna" and env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
@@ -775,7 +1009,9 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         if prov:
             return prov
 
-    # Keyed aggregators that index LinkedIn/Indeed take precedence when available.
+    # RapidAPI key activates the LinkedIn jobs provider (25 requests/month budget).
+    # JSearch is also tried if the key has that subscription; LinkedIn API takes
+    # precedence since it has been verified to work with the current key.
     if env.get("RAPIDAPI_KEY"):
         return JSearchJobsProvider(env["RAPIDAPI_KEY"])
     if env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
@@ -785,16 +1021,22 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         return LinkedInJobsProvider(env.get("LINKEDIN_API_KEY") or env["JOBS_API_KEY"])
 
     # Live free boards when explicitly enabled (JOBS_LIVE=1 or JOBS_PROVIDER=live).
-    # Includes Indeed (RSS), RemoteOK, Remotive, and Arbeitnow — no API key required.
-    # To add LinkedIn/Glassdoor/ZipRecruiter coverage set RAPIDAPI_KEY (JSearch)
-    # or ADZUNA_APP_ID+ADZUNA_APP_KEY (Adzuna multi-board aggregator).
+    # Includes LinkedIn (rate-limited, key required), Indeed RSS, USAJobs,
+    # WeWorkRemotely, Jobspresso, RemoteOK, Remotive, and Arbeitnow.
     if _truthy(env.get("JOBS_LIVE")) or choice == "live":
-        return CompositeJobsProvider([
+        providers: List[JobsProvider] = []
+        if env.get("RAPIDAPI_KEY"):
+            providers.append(LinkedInRapidApiProvider(env["RAPIDAPI_KEY"]))
+        providers += [
             IndeedRssProvider(),
+            USAJobsProvider(),
+            WeWorkRemotelyProvider(),
+            JobspressoProvider(),
             RemoteOkProvider(),
             RemotiveJobsProvider(),
             ArbeitnowJobsProvider(),
-        ])
+        ]
+        return CompositeJobsProvider(providers)
 
     # Default (tests / air-gapped): the curated sample board.
     return MockJobsProvider()

@@ -18,6 +18,7 @@ function excerpt(text: string, max = 140): string {
 const SOURCE_ICON: Record<string, string> = {
   linkedin: "LinkedIn", indeed: "Indeed", glassdoor: "Glassdoor", ziprecruiter: "ZipRecruiter",
   remotive: "Remotive", arbeitnow: "Arbeitnow", remoteok: "RemoteOK",
+  usajobs: "USAJobs", weworkremotely: "We Work Remotely", jobspresso: "Jobspresso",
   adzuna: "Adzuna", jsearch: "JSearch", sample: "Demo board",
 };
 
@@ -29,6 +30,9 @@ const SOURCE_BADGE: Record<string, { bg: string; fg: string }> = {
   remotive: { bg: "#5b21b6", fg: "#ede9fe" },
   arbeitnow: { bg: "#334155", fg: "#e2e8f0" },
   remoteok: { bg: "#1d4ed8", fg: "#ffffff" },
+  usajobs: { bg: "#002868", fg: "#ffffff" },
+  weworkremotely: { bg: "#1e3a5f", fg: "#93c5fd" },
+  jobspresso: { bg: "#7c2d12", fg: "#fed7aa" },
   adzuna: { bg: "#7c3aed", fg: "#ffffff" },
   sample: { bg: "#1e293b", fg: "#94a3b8" },
 };
