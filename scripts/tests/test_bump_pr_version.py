@@ -77,8 +77,8 @@ def _many_pending(n: int) -> str:
 
 
 def test_auto_minor_when_over_threshold(monkeypatch, tmp_path):
-    # >8 pending changes auto-promotes a PATCH to a MINOR (0.x.0).
-    _setup(tmp_path, "0.15.0", _many_pending(9))
+    # >120 pending changes auto-promotes a PATCH to a MINOR (0.x.0).
+    _setup(tmp_path, "0.15.0", _many_pending(121))
     monkeypatch.delenv("AOEP_MINOR_BUMP_THRESHOLD", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert bump_pr.main([]) == 0
@@ -86,8 +86,8 @@ def test_auto_minor_when_over_threshold(monkeypatch, tmp_path):
 
 
 def test_no_auto_minor_at_or_below_threshold(monkeypatch, tmp_path):
-    # Exactly 8 pending changes stays a PATCH (strictly greater than triggers).
-    _setup(tmp_path, "0.15.0", _many_pending(8))
+    # Exactly 120 pending changes stays a PATCH (strictly greater than triggers).
+    _setup(tmp_path, "0.15.0", _many_pending(120))
     monkeypatch.delenv("AOEP_MINOR_BUMP_THRESHOLD", raising=False)
     monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert bump_pr.main([]) == 0
