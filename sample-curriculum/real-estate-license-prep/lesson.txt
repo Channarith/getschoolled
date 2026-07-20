@@ -1,0 +1,283 @@
+LESSON: Real Estate License Exam Prep
+LANGUAGE: en
+
+SLIDE 1 | Introduction to Real Estate Licensing
+Real estate agents must be licensed by their state to represent buyers and sellers in
+real estate transactions. The licensing exam has a national (uniform) portion and a
+state-specific portion. Topics include property ownership, contracts, agency law, fair
+housing, finance, and appraisal. Most states require pre-licensing education (typically
+60-150 hours), a background check, and passage of the state exam.
+NARRATION: The national portion of the exam tests principles that apply everywhere;
+the state portion tests your specific state's license law and regulations.
+
+SLIDE 2 | Types of Real Estate and Property Ownership
+Real property includes land and anything permanently attached to it, such as buildings,
+fences, and trees. Personal property (personalty or chattel) is movable property.
+Items permanently affixed to real property are called fixtures; the test for a fixture
+uses the acronym MARIA (Method of attachment, Adaptability, Relationship of the
+parties, Intention, and Agreement). Real estate ownership types include fee simple
+(most complete), life estate, and leasehold.
+NARRATION: When a dispute arises about whether an item stays with the house, courts
+use the MARIA test to determine if it is a fixture.
+
+SLIDE 3 | Freehold vs Leasehold Estates
+Freehold estates are ownership interests of indefinite duration. Fee simple absolute
+is the most complete form of ownership, with no restrictions on use or transfer. A
+fee simple defeasible can be lost if certain conditions occur. A life estate grants
+ownership for the duration of a named person's life; the remainderman receives the
+property after that person dies. Leasehold estates are non-ownership rental interests
+for a defined period, creating a landlord-tenant relationship.
+NARRATION: Fee simple absolute is what most homebuyers acquire; it is the broadest
+form of real property ownership with the fewest restrictions.
+
+SLIDE 4 | Legal Descriptions of Property
+Legal descriptions precisely identify a parcel of land for legal documents. The metes
+and bounds system describes boundaries by direction and distance, starting from a
+point of beginning (POB) and returning to it. The rectangular (government) survey
+system uses meridians, baselines, townships, and ranges to identify sections. The lot
+and block system (recorded plat) is used in subdivisions and references a recorded
+plat map. All three may appear on the exam.
+NARRATION: Metes and bounds is the oldest system, used in the original thirteen
+colonies; the rectangular survey system was created to describe the vast western
+territories.
+
+SLIDE 5 | Title and Types of Deeds
+Title is the legal right to own and use property. A deed is the document that
+transfers title from grantor (seller) to grantee (buyer). A general warranty deed
+offers the most protection, with the grantor warranting title against all claims.
+A special warranty deed warrants only against claims arising during the grantor's
+ownership. A quitclaim deed conveys whatever interest the grantor has with no
+warranties; used in divorce settlements and clearing clouds on title. A bargain and
+sale deed conveys title with implied but not expressed warranty.
+NARRATION: General warranty deeds provide the most buyer protection; quitclaim deeds
+provide the least.
+
+SLIDE 6 | Liens and Encumbrances
+An encumbrance is any claim, lien, charge, or liability attached to real property.
+Liens are financial encumbrances against a property. Specific liens attach to one
+property (mortgage, mechanic's lien, property tax lien). General liens attach to all
+property owned by the debtor (judgment lien, IRS lien). Liens are prioritized by
+date recorded, except property tax liens which take priority over all others. A
+mortgage must be paid off (satisfied) before clear title can be transferred.
+NARRATION: Property tax liens always take first priority; even a first mortgage is
+subordinate to an unpaid property tax lien.
+
+SLIDE 7 | Agency Relationships
+Agency is the legal relationship where one party (agent) acts on behalf of another
+(principal). A seller's agent (listing agent) represents the seller. A buyer's agent
+represents the buyer. Dual agency occurs when one agent represents both parties in
+the same transaction; it requires written consent from both parties and is illegal
+in some states. A transaction broker (non-agent) facilitates the transaction without
+representing either party. Sub-agents work under the listing broker.
+NARRATION: Dual agency creates a conflict of interest; the agent cannot fully advocate
+for either party, which is why it requires informed consent.
+
+SLIDE 8 | Fiduciary Duties - COALD
+An agent owes fiduciary duties to the principal, summarized by the acronym COALD:
+Confidentiality (do not share the client's personal information or motivation),
+Obedience (follow lawful instructions), Accounting (account for all money and property),
+Loyalty (put the client's interests first), and Disclosure (reveal all material facts).
+These duties are owed to the principal only, not to the other party in the transaction.
+NARRATION: Loyalty means the agent's interests and the other party's interests come
+second; the client's interests always come first.
+
+SLIDE 9 | Fair Housing Act and Protected Classes
+The Federal Fair Housing Act (1968) prohibits discrimination in the sale, rental, and
+financing of housing based on race, color, religion, national origin, sex, disability,
+and familial status (seven federal classes). Many states add additional protected
+classes such as sexual orientation, age, and source of income. Prohibited acts include
+steering (directing buyers to or away from certain neighborhoods), blockbusting
+(inducing panic selling), and redlining (refusing service in certain areas).
+NARRATION: Steering, blockbusting, and redlining are all Fair Housing violations even
+when the agent believes they are acting in the client's best interest.
+
+SLIDE 10 | Listing Agreements
+A listing agreement is a contract between a seller and a brokerage giving the broker
+the right to market the property. An exclusive right to sell listing pays the
+listing broker regardless of who finds the buyer; this is the most common type.
+An exclusive agency listing pays the broker only if the broker finds the buyer;
+the seller retains the right to sell without paying commission. An open listing is
+non-exclusive and may be given to multiple brokers; commission goes to whoever
+produces the buyer.
+NARRATION: Exclusive right to sell listings best protect the broker's interests;
+sellers prefer open listings but brokers rarely accept them.
+
+SLIDE 11 | MLS and Property Marketing
+The MLS (Multiple Listing Service) is a cooperative database shared among member
+brokers that allows them to cooperate in selling listed properties. The listing broker
+offers a commission split to buyer's brokers through the MLS. MLS input requires
+accurate data; misrepresentation in MLS listings violates REALTOR ethics codes.
+Marketing materials must include the brokerage name, comply with the National
+Association of REALTORS (NAR) Code of Ethics, and follow state license law rules
+on advertising.
+NARRATION: MLS cooperation multiplies a property's exposure by sharing it with every
+member broker's buyer pool; almost all residential listings are placed in the MLS.
+
+SLIDE 12 | Contract Essentials
+A valid real estate contract requires: mutual assent (offer and acceptance by legally
+competent parties), consideration (something of value exchanged by both parties),
+lawful purpose (legal objective), and must be in writing to be enforceable under
+the Statute of Frauds. An offer becomes a contract upon acceptance and communication
+of that acceptance back to the offeror. Counteroffers reject the original offer and
+create a new offer. Either party may withdraw an offer before acceptance.
+NARRATION: The Statute of Frauds requires real estate contracts to be in writing;
+oral agreements to buy or sell real estate are generally not enforceable in court.
+
+SLIDE 13 | Contingencies and Earnest Money
+Contingencies are conditions that must be satisfied for the contract to be binding.
+Common contingencies include financing (the buyer must obtain a mortgage), inspection
+(the property must pass inspection), and appraisal (the property must appraise at or
+above the purchase price). Earnest money is a deposit showing the buyer's good faith;
+it is typically held in the listing broker's escrow account. If the buyer defaults,
+the seller may retain the earnest money as liquidated damages.
+NARRATION: Contingencies protect the buyer; if a contingency fails, the buyer can
+back out and retrieve the earnest money.
+
+SLIDE 14 | The Closing Process
+Closing (settlement) is when title transfers from seller to buyer and funds are
+disbursed. The Closing Disclosure (CD) replaced the HUD-1 Settlement Statement for
+most transactions under TRID (TILA-RESPA Integrated Disclosure) rules. The CD must
+be delivered three business days before closing. Closing costs include lender fees,
+title insurance, prepaid interest, escrow setup, transfer taxes, and agent
+commissions. Prorations (property tax, HOA dues, rent) are calculated as of the
+closing date.
+NARRATION: TRID requires the Closing Disclosure to be delivered three business days
+before closing; last-minute changes may require a new three-day waiting period.
+
+SLIDE 15 | Financing Basics - Mortgage Types
+A conventional loan is not government-backed; it typically requires 20% down to
+avoid PMI (private mortgage insurance). FHA loans are government-insured and allow
+down payments as low as 3.5% but require mortgage insurance premiums. VA loans are
+available to eligible veterans with no down payment. USDA loans serve rural buyers
+with low to moderate incomes. Adjustable-rate mortgages (ARMs) have rates that
+change after an initial fixed period; fixed-rate mortgages maintain the same rate
+for the loan term.
+NARRATION: FHA loans help first-time buyers with smaller down payments, but mortgage
+insurance premiums add to the monthly cost throughout the loan term.
+
+SLIDE 16 | Mortgage Underwriting
+Underwriting evaluates a borrower's creditworthiness. Key factors are the Four Cs:
+Credit (credit score and history), Capacity (debt-to-income ratio, typically 43% or
+less), Capital (assets and reserves), and Collateral (property value via appraisal).
+A loan-to-value ratio (LTV) above 80% typically requires PMI. Lenders verify income
+through W-2s, pay stubs, and tax returns. Self-employed borrowers must provide two
+years of tax returns.
+NARRATION: The debt-to-income ratio compares monthly debt payments to gross monthly
+income; keeping it below 43% is the standard underwriting benchmark.
+
+SLIDE 17 | Property Valuation - Comparative Market Analysis
+A Comparative Market Analysis (CMA) estimates a property's market value by comparing
+it to recently sold similar properties (comps) in the same area. Agents perform CMAs
+to help sellers price their homes and buyers make competitive offers. Adjustments are
+made for differences in size, condition, location, and features. A CMA is not the same
+as a formal appraisal; only licensed appraisers may produce legally recognized
+appraisals for lenders.
+NARRATION: A CMA gives sellers realistic pricing guidance; overpricing leads to
+longer days on market and eventual price reductions.
+
+SLIDE 18 | The Three Approaches to Value
+Licensed appraisers use three approaches to estimate market value. The Sales Comparison
+Approach compares the subject property to recent sales of comparable properties and is
+most reliable for residential properties. The Income Approach values property based on
+its income-producing potential (Net Operating Income divided by the capitalization rate)
+and is used for rental and commercial properties. The Cost Approach estimates the cost
+to rebuild the improvements plus land value, less depreciation; used for special-use
+properties.
+NARRATION: Appraisers give the most weight to the approach that best fits the property
+type; the sales comparison approach is almost always primary for single-family homes.
+
+SLIDE 19 | License Law and Ethics
+Each state's real estate license law governs who must be licensed, license requirements,
+renewal, and grounds for discipline. Common violations include commingling (mixing
+client funds with personal funds), conversion (using client funds for personal use),
+misrepresentation, and practicing without a license. The NAR Code of Ethics requires
+REALTORS to treat all parties honestly, cooperate with other brokers, and put client
+interests first. Ethics violations are handled by local REALTOR associations.
+NARRATION: Commingling and conversion are among the most serious license violations;
+always keep client trust funds in a separate escrow account.
+
+SLIDE 20 | Property Management Basics
+Property managers oversee rental properties on behalf of owners. Responsibilities
+include setting rents, marketing vacancies, screening tenants, executing leases,
+collecting rent, maintaining the property, and handling evictions. The Americans with
+Disabilities Act (ADA) and Fair Housing Act impose requirements for reasonable
+accommodations and modifications for disabled tenants. Security deposits are regulated
+by state law; they must be held in separate accounts and returned within a specified
+period after move-out.
+NARRATION: Security deposit laws vary by state; failure to return deposits within the
+legal deadline can result in penalties of two to three times the deposit amount.
+
+SLIDE 21 | Environmental Issues in Real Estate
+Agents must disclose known material defects including environmental hazards. Lead-
+based paint disclosure is required for homes built before 1978. Asbestos is hazardous
+when disturbed; its presence must be disclosed. Radon is a radioactive gas that seeps
+from soil; testing and mitigation are available. Underground storage tanks (USTs) can
+contaminate soil. Wetlands are federally regulated; building in wetlands requires
+permits. Agents are not inspectors but must disclose known issues.
+NARRATION: Lead paint disclosure is a federal requirement; failure to provide the
+required disclosure form before contract can result in a $10,000 fine.
+
+SLIDE 22 | Land Use Controls
+Zoning ordinances are local laws that regulate land use by dividing areas into zones
+(residential, commercial, industrial, agricultural). Zoning changes require action
+by local government. A variance permits a deviation from zoning requirements. A
+nonconforming use is a pre-existing use that no longer conforms to current zoning.
+Eminent domain allows government to take private property for public use with just
+compensation. Deed restrictions (CC&Rs) are private land use controls enforced
+between property owners.
+NARRATION: Eminent domain requires just compensation to the property owner; it is
+not confiscation but a compelled purchase at market value.
+
+SLIDE 23 | Investment Real Estate Concepts
+Cap rate (capitalization rate) = Net Operating Income (NOI) / Property Value. A higher
+cap rate indicates higher risk or lower property value. Cash-on-cash return measures
+annual pre-tax cash flow as a percentage of the cash invested. Leverage uses borrowed
+money to increase return on equity. Depreciation (cost recovery) allows investors to
+deduct a portion of the property's cost each year for income tax purposes. A 1031
+exchange allows investors to defer capital gains taxes by reinvesting in like-kind
+property.
+NARRATION: The 1031 exchange is one of real estate investing's most powerful tax
+deferral tools; it allows investors to swap one property for another while deferring
+capital gains tax.
+
+SLIDE 24 | Real Estate Math Essentials
+Key formulas: Commission = Sales Price x Commission Rate. Profit/Loss = Selling Price
+minus (Purchase Price + Costs). Prorated amounts = (Annual amount / 365) x days.
+LTV = Loan Amount / Property Value. Mortgage payment tables or financial calculators
+are used for amortization. Area of a rectangle = length x width (in square feet).
+Converting square feet to acres: divide by 43,560. Practice all formulas because math
+questions appear on every state exam.
+NARRATION: One acre equals 43,560 square feet; memorize this conversion because it
+appears on virtually every real estate exam.
+
+SLIDE 25 | Exam Format and Preparation Strategy
+Most state real estate exams have 80-150 questions divided between national and state
+content, with a time limit of two to four hours. Passing scores are typically 70-75%.
+Exams are administered by PSI or Pearson VUE at testing centers. Use your pre-licensing
+course materials plus state-approved exam prep tools. Take at least 300-400 practice
+questions before your exam day. Focus on vocabulary, math formulas, and the nuances
+between similar-sounding concepts (e.g., general vs special warranty deed).
+NARRATION: Real estate exam questions often test your ability to distinguish between
+very similar concepts; reading carefully and knowing precise definitions is critical.
+
+SLIDE 26 | After the License - Getting Started
+After passing the exam, new licensees must affiliate with a licensed brokerage to
+activate their license. New agents typically start as buyer's agents. Mentorship
+programs and shadowing experienced agents accelerate learning. Build a sphere of
+influence (SOI) through networking, social media, and community involvement. Understand
+that most commission income arrives after 60-90 days in the pipeline; budget for this
+delay. Continuing education is required to renew your license every two to four years
+depending on the state.
+NARRATION: Your first six months will be slow as you build your pipeline; consistency
+in prospecting and follow-up determines whether you succeed in real estate.
+
+FACT: The seven protected classes under the Federal Fair Housing Act are race, color, religion, national origin, sex, disability, and familial status.
+FACT: A general warranty deed provides the most title protection for the buyer.
+FACT: Exclusive right to sell listings pay the broker regardless of who procures the buyer.
+FACT: The Statute of Frauds requires real estate contracts to be in writing to be enforceable.
+FACT: COALD stands for Confidentiality, Obedience, Accounting, Loyalty, and Disclosure.
+FACT: One acre equals 43,560 square feet.
+FACT: The Closing Disclosure must be delivered at least three business days before closing.
+FACT: Cap rate equals Net Operating Income divided by property value.
+FACT: A 1031 exchange allows investors to defer capital gains by reinvesting in like-kind property.
+FACT: Commingling means mixing client trust funds with personal or operating funds, which is illegal.

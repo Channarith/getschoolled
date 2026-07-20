@@ -1,0 +1,107 @@
+LESSON: Microsoft Word: From Basics to Pro
+LANGUAGE: en
+
+SLIDE 1 | The Word Interface
+The Word interface is organized into the Ribbon at the top, which groups commands into tabs like Home, Insert, Layout, and Review. The horizontal and vertical rulers help you set indents and tabs visually, while the Status Bar at the bottom shows word count, page number, and the current language. Switch between views using the View tab: Print Layout is the default for document editing, while Read Mode and Web Layout serve specific purposes.
+NARRATION: The Ribbon, ruler, and Status Bar are your main controls — learn where each lives before diving into documents.
+
+SLIDE 2 | Document Setup: Margins, Size, and Orientation
+Document setup lives under the Layout tab. Margins can be set to preset values like Normal (2.54 cm on each side) or customized precisely with Custom Margins. Page Size defaults to A4 or Letter depending on your region, and Orientation toggles between Portrait and Landscape. Getting these right before writing saves reformatting time later, especially for documents that must meet specific submission or print requirements.
+NARRATION: Set your margins, page size, and orientation before you start writing to avoid reformatting headaches later.
+
+SLIDE 3 | Sections and Section Breaks
+Section breaks allow different parts of one document to have different page setups — for example, a landscape table in the middle of a portrait report. Insert them from Layout > Breaks. A Next Page section break starts the new section on a new page; a Continuous section break starts it on the same page. Each section can have its own margins, headers, footers, and page numbering, which is essential for professional long documents.
+NARRATION: Section breaks let one document have different margins, orientations, and headers on different pages.
+
+SLIDE 4 | Styles and the Styles Pane
+Styles are the most important feature in Word. Applying Heading 1, Heading 2, and Heading 3 styles to your titles does three things at once: it formats the text consistently, feeds the Navigation Pane so you can jump between sections, and populates the Table of Contents automatically. Normal style controls your body text. Modify any style by right-clicking it in the Styles Pane and choosing Modify — every paragraph with that style updates instantly across the whole document.
+NARRATION: Applying Heading styles is not just about formatting — it powers your navigation pane and table of contents automatically.
+
+SLIDE 5 | Creating and Updating a Table of Contents
+Once your headings use the correct Heading styles, insert a Table of Contents from References > Table of Contents in seconds. Word builds it from your heading text and the page numbers they appear on. When the document changes, click inside the TOC and press F9 (or right-click and choose Update Field) to refresh it — there is no need to manually maintain page numbers or reorder entries.
+NARRATION: Press F9 inside your table of contents to refresh all page numbers and titles after editing the document.
+
+SLIDE 6 | The Navigation Pane
+The Navigation Pane (Ctrl+F, then click Headings) shows a collapsible outline of every Heading-styled paragraph in your document. Click any heading to jump there immediately, which is invaluable in documents longer than a few pages. You can also drag headings in the Navigation Pane to reorder entire sections without cutting and pasting. The Pages tab shows thumbnail previews of every page for quick visual navigation.
+NARRATION: The Navigation Pane lets you jump to any section and drag whole chapters into a new order in seconds.
+
+SLIDE 7 | Headers, Footers, and Page Numbers
+Double-click the top or bottom margin area to enter header and footer editing mode. Check "Different First Page" to leave the cover page blank and start the header on page two. Check "Different Odd and Even Pages" for book-style layouts where the page number appears on the outer edge of each page. To restart page numbering after a section break, go to Insert > Page Number > Format Page Numbers and set "Start at 1."
+NARRATION: Use Different First Page to keep your cover page clean while headers appear on every page after it.
+
+SLIDE 8 | Bookmarks and Cross-References
+A bookmark marks a specific location or selection in a document with a name you define, inserted via Insert > Bookmark. Cross-references automatically create a hyperlinked mention of another part of the document: "See Figure 3 on page 12." When the figure or page changes, right-click the cross-reference and Update Field to refresh the number. Together, bookmarks and cross-references make long technical documents self-maintaining and navigable.
+NARRATION: Cross-references update automatically when you refresh fields, so figure and section numbers are always correct.
+
+SLIDE 9 | Track Changes and Comments
+Track Changes (Ctrl+Shift+E) records every insertion, deletion, and format change with the author's name and timestamp, making collaborative editing transparent. Comments (Ctrl+Alt+M) add margin notes without altering the text. In the Review tab, use Accept/Reject All to process all changes at once, or step through them with the Next Change button. Set Show Markup to "All Markup" to see every tracked edit, or "No Markup" to preview the clean final version.
+NARRATION: Track Changes lets multiple editors mark up the same document and lets the author accept or reject each change individually.
+
+SLIDE 10 | Comparing and Combining Documents
+When two people edit the same document independently and you need to merge their changes, go to Review > Compare > Combine. Word creates a new document showing both sets of tracked changes, color-coded by author, alongside the original. Compare (without combining) shows the difference between two versions as tracked changes in a new document, which is useful for legal review or version auditing when you need a diff between two finalized copies.
+NARRATION: The Combine command merges two separately edited versions of the same document into one tracked-changes view.
+
+SLIDE 11 | Format Painter and Clearing Formatting
+The Format Painter copies formatting from one piece of text to another: click the painter button once to apply to one selection, or double-click to keep it active for multiple applications. Press Escape to release it. To strip all formatting from selected text and return it to the default Normal style, press Ctrl+Space (clears character formatting) or click "Clear All Formatting" (the A with eraser icon in the Home tab's Font group). This is the fastest way to clean up text pasted from a website or PDF.
+NARRATION: Double-click the Format Painter to stamp the same formatting onto multiple selections without clicking the button again.
+
+SLIDE 12 | Working with Tables
+Insert a table from Insert > Table and drag to select the dimensions, or use "Insert Table" to specify exact column and row counts. Merge cells by selecting multiple cells and choosing Merge Cells from the Layout tab. Resize columns by dragging borders or using Table Properties for precise widths. Convert existing text separated by tabs or commas into a table via Insert > Table > Convert Text to Table, which is a huge time-saver for data pasted from plain-text sources.
+NARRATION: Convert Tab- or comma-separated text into a table instantly using Insert Table then Convert Text to Table.
+
+SLIDE 13 | Images: Wrapping, Positioning, and Anchors
+When you insert an image, it defaults to In Line with Text, meaning it sits in the text flow like a character. Change the wrap mode to Square, Tight, or Through (via the Layout Options button next to the image) to let text flow around it. Every floating image has an anchor symbol showing which paragraph it is attached to — move the anchor by dragging it, otherwise the image will scroll to a different page if text shifts. Use the Position settings in the Layout tab for precise placement.
+NARRATION: Change image wrapping to Square or Tight to let text flow around it, then pin the anchor to prevent it from drifting.
+
+SLIDE 14 | SmartArt and Shapes
+SmartArt (Insert > SmartArt) creates professional diagrams — process flows, hierarchies, cycle diagrams, and matrices — that you fill with text and format with a theme. For more control, use individual shapes from Insert > Shapes. Group shapes together (select all then Ctrl+G) to move them as a unit. Align shapes precisely using the Align tools in the Drawing Format tab: Align Left, Distribute Horizontally, and Align Middle eliminate the need for manual eyeballing.
+NARRATION: Use Align and Distribute tools to line up shapes perfectly rather than trying to position them by eye.
+
+SLIDE 15 | Mail Merge
+Mail merge generates personalized letters, labels, or emails from a data source — typically an Excel spreadsheet. Start from Mailings > Start Mail Merge, connect to your data file, then insert Merge Fields like First Name and Address into the template. Preview Results shows you how each record will look, and Finish & Merge either prints all letters or creates a new document with all records separated by page breaks for review before printing.
+NARRATION: Mail merge turns one letter template and a spreadsheet into hundreds of personalized letters in minutes.
+
+SLIDE 16 | Templates and Custom Templates
+Templates save a document's styles, fonts, colors, and content as a starting point for new documents. Save any document as a Word Template (.dotx) and it appears in your New Document gallery. Store custom templates in the default Custom Office Templates folder so they appear under the Personal tab when creating new documents. A well-designed template enforces brand consistency, saves setup time, and prevents staff from reformatting documents from scratch every time.
+NARRATION: Save your brand-formatted document as a .dotx template so every new document starts with the right styles and fonts.
+
+SLIDE 17 | Macros in Word
+Word macros (recorded or written in VBA) automate repetitive tasks: inserting a standard disclaimer, reformatting a table, or batch-replacing incorrectly formatted text. Record a macro from View > Macros > Record Macro, assign it a keyboard shortcut, then perform the actions. Store macros in the Normal.dotm template to make them available in every document, or in a specific template to share them with a team. The Visual Basic Editor (Alt+F11) lets you edit the code to make macros more flexible.
+NARRATION: Assign a keyboard shortcut to a Word macro to execute a multi-step formatting task with a single key press.
+
+SLIDE 18 | Find and Replace with Wildcards
+Ctrl+H opens Find and Replace; check "Use wildcards" in More options to unlock pattern matching. The wildcard (?) matches any single character and (*) matches any string of characters. For example, find "([A-Z][a-z]+) ([A-Z][a-z]+)" and replace with "\2 \1" to swap first and last names throughout a document. You can also find and replace formatting: clear the Find field, click Format > Font, specify Bold, and replace with nothing to remove all bold formatting.
+NARRATION: Wildcard Find and Replace can reformat, reorder, and clean data patterns that would take hours to fix manually.
+
+SLIDE 19 | Footnotes, Endnotes, and Citations
+Footnotes appear at the bottom of the page where the reference mark appears; endnotes collect at the end of the document or section. Insert both from References > Insert Footnote / Insert Endnote. Word automatically numbers and renumbers them as you add or delete. For academic or professional writing, use References > Manage Sources to add citation sources and then Insert Citation to place them in the text — Word generates the bibliography from your source list in the style you choose (APA, MLA, Chicago, and others).
+NARRATION: Word's citation manager builds your bibliography automatically from sources you enter once in the source list.
+
+SLIDE 20 | Accessibility: Headings, Alt Text, and Reading Order
+An accessible Word document uses true Heading styles (not manually bolded text), provides alt text on every image (right-click the image and choose Edit Alt Text), and avoids using color alone to convey meaning. The Accessibility Checker (Review > Check Accessibility) flags issues and explains how to fix each one. Documents saved to PDF from Word carry these accessibility tags through to the PDF if you export correctly, making your content usable by screen readers.
+NARRATION: Run the Accessibility Checker before sharing any document to catch missing alt text and structural errors.
+
+SLIDE 21 | Exporting to PDF
+Export a Word document to PDF via File > Save As > PDF, or File > Export > Create PDF/XPS. In the Options dialog, check "Create bookmarks using Headings" to carry your heading structure into PDF bookmarks for navigation, and check "Document structure tags for accessibility." Uncheck "Bitmap text when fonts may not be embedded" to preserve searchable text. These settings ensure your PDF is professional, navigable, and accessible rather than a flat image.
+NARRATION: Export to PDF with heading bookmarks and accessibility tags so readers can navigate and screen readers can work.
+
+SLIDE 22 | Large Document Tips: Master Documents and Subdocuments
+Very long documents — theses, reports, manuals — can be split into subdocuments (one chapter per file) linked together by a master document. Edit each subdocument independently, and the master document assembles them with a unified table of contents and page numbering. While master documents have a reputation for instability in older Word versions, modern Word handles them reliably if you keep all files in the same folder and avoid editing them through the master while they are open separately.
+NARRATION: Split a very large document into subdocuments so multiple authors can edit different chapters simultaneously.
+
+SLIDE 23 | Word's Editor and Grammar Tool
+Word's Editor (the colored squiggles and the Editor pane under Review > Editor) goes far beyond basic spelling and grammar. It checks for clarity, conciseness, formality, punctuation conventions, and inclusive language. The Editor Score at the top of the pane gives an overall readability rating. For academic writing, set the writing style to Formal to catch contractions and passive-voice overuse; for business emails, Conversational is more appropriate.
+NARRATION: The Editor pane gives your document a readability score and flags clarity, tone, and conciseness issues automatically.
+
+SLIDE 24 | Co-Authoring via SharePoint and OneDrive
+When a Word document is saved to OneDrive or SharePoint, multiple people can edit it simultaneously and see each other's changes in real time, with each author's cursor shown in a different color. AutoSave (top-left toggle) saves every few seconds, eliminating the risk of losing work. Use the Version History (File > Info > Version History) to browse and restore any previous auto-saved version, which acts as a granular undo history going back weeks.
+NARRATION: Save your document to OneDrive to enable real-time co-authoring and automatic version history that goes back weeks.
+
+SLIDE 25 | Keyboard Shortcuts for Power Users
+Ctrl+Enter inserts a manual page break; Ctrl+Shift+N applies the Normal style instantly; F8 extends a selection (press it multiple times to expand to word, sentence, paragraph, document); Shift+F3 cycles selected text through lowercase, Title Case, and UPPERCASE; Alt+Shift+Arrow keys promote or demote heading levels in the Navigation Pane; Ctrl+[ and Ctrl+] decrease and increase font size by one point. These shortcuts speed up editing and formatting without breaking your writing flow.
+NARRATION: Shift+F3 cycles text through lowercase, Title Case, and uppercase without retyping a single letter.
+
+SLIDE 26 | Collaboration Best Practices
+Before sharing a document for review, strip personal metadata using File > Info > Check for Issues > Inspect Document, which removes hidden comments, revision history, and author names. Set editing restrictions under Review > Restrict Editing to limit reviewers to comments only, preventing accidental structural changes. When a document has gone through multiple reviewers, use Compare and Combine to consolidate everyone's tracked changes into a single master copy before final acceptance.
+NARRATION: Inspect and clean your document's metadata before sharing it externally to avoid exposing revision history or author names.
+

@@ -1369,6 +1369,9 @@ export type Enrollment = {
 export type Portfolio = {
   account: Account; students: StudentProfile[];
   enrollments: Enrollment[]; points_balance: number;
+  by_status?: Record<string, Enrollment[]>;
+  counts?: Record<string, number>;
+  tier?: string;
 };
 export type ConsumerPlan = {
   tier: string; display_name: string; price_usd: number;

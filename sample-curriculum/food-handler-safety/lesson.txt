@@ -1,0 +1,110 @@
+LESSON: Food Handler Safety Certification
+LANGUAGE: en
+
+SLIDE 1 | Why Food Safety Matters
+Foodborne illness affects an estimated 48 million Americans each year, resulting in 128,000 hospitalizations and 3,000 deaths. Common sources include improper food temperatures, poor personal hygiene, cross-contamination, and unsafe food sources. Food handlers are the last line of defense between potential hazards and the people who eat the food. Proper training and consistent practices can prevent most foodborne illness outbreaks.
+NARRATION: Forty-eight million Americans get foodborne illness each year — proper food handler practices prevent most outbreaks.
+
+SLIDE 2 | Personal Hygiene — Handwashing
+Effective handwashing is the single most important food safety practice. Hands must be washed with soap and warm water for at least 20 seconds before handling food, after handling raw meat or poultry, after using the restroom, after touching the face or hair, after handling garbage, and after any activity that could contaminate the hands. Hand sanitizer is not a substitute for handwashing in food service.
+NARRATION: Wash hands with soap and warm water for at least 20 seconds — hand sanitizer is not a substitute.
+
+SLIDE 3 | When to Change Gloves
+Single-use gloves provide an additional barrier between hands and food but must be used correctly. Change gloves when they become torn or contaminated, after handling raw meat before touching ready-to-eat food, after handling garbage, after touching the face, and when switching between tasks. Wearing gloves does not eliminate the need for handwashing — wash hands before putting on new gloves.
+NARRATION: Change gloves when they tear, after handling raw meat, and before switching tasks — always wash hands first.
+
+SLIDE 4 | Illness Policies
+Food handlers with certain symptoms must be excluded from working with food. Symptoms that require exclusion include vomiting, diarrhea, jaundice (yellowing of skin or eyes), and sore throat with fever. Certain diagnosed illnesses — including Salmonella Typhi, Shigella, Shiga toxin-producing E. coli, hepatitis A, and norovirus — also require exclusion. Employees must report relevant symptoms to their manager before starting work.
+NARRATION: Report vomiting, diarrhea, jaundice, or fever to your manager before starting your shift.
+
+SLIDE 5 | The Temperature Danger Zone
+Bacteria multiply rapidly between 41°F (5°C) and 135°F (57°C) — a range called the temperature danger zone. Within this range, bacteria can double in number every 20 minutes under ideal conditions. Potentially hazardous foods must spend no more than 4 hours total in the danger zone throughout their entire preparation and service life. Time and temperature are the two most important controls in food safety.
+NARRATION: Bacteria multiply rapidly between 41 and 135 degrees Fahrenheit — this is the temperature danger zone.
+
+SLIDE 6 | Cold Holding and Refrigeration
+Cold food must be maintained at 41°F (5°C) or below to prevent bacterial growth. Refrigerators should be checked with calibrated thermometers at least twice daily. Never overload a refrigerator, as this can impair air circulation and create warm spots. Raw animal proteins must be stored below ready-to-eat foods in the refrigerator, with whole cuts above ground meat and poultry at the bottom.
+NARRATION: Cold food must be held at 41°F or below, with raw proteins stored below ready-to-eat items.
+
+SLIDE 7 | Hot Holding
+Hot food must be maintained at 135°F (57°C) or above during service. Use food warmers, steam tables, and heat lamps to maintain hot holding temperatures, and check temperatures frequently with a calibrated thermometer. Hot holding equipment is not designed to reheat food — food should be reheated to the proper internal temperature before being placed in hot holding equipment.
+NARRATION: Hold hot food at 135 degrees or above, and check temperatures frequently with a calibrated thermometer.
+
+SLIDE 8 | Safe Minimum Cooking Temperatures
+Cooking food to the correct internal temperature destroys most harmful pathogens. Safe minimum temperatures are: poultry (165°F), ground meat (155°F), whole cuts of pork, beef, veal, and lamb (145°F with a 3-minute rest), fish and seafood (145°F), and eggs for immediate service (145°F). Always use a calibrated food thermometer inserted into the thickest part of the food.
+NARRATION: Poultry must reach 165°F, ground meat 155°F, and whole cuts of beef and pork 145°F.
+
+SLIDE 9 | FIFO — First In, First Out
+FIFO (First In, First Out) is the stock rotation method used to ensure older product is used before newer product. When receiving new inventory, place it behind or below existing stock of the same item so the older product is used first. Products should be clearly labeled with receipt dates and use-by dates. FIFO prevents spoilage and reduces the risk of serving expired food.
+NARRATION: Use FIFO rotation — put new stock behind old so the oldest product is always used first.
+
+SLIDE 10 | Proper Thawing Methods
+Thawing food at room temperature allows the outer layers to enter the temperature danger zone while the interior remains frozen. The four safe thawing methods are: in the refrigerator at 41°F or below, under cold running water (70°F or below), in the microwave (if food will be cooked immediately), and as part of the cooking process (e.g., cooking from frozen). Never thaw food on the counter.
+NARRATION: Thaw food safely in the refrigerator, under cold running water, in the microwave, or during cooking.
+
+SLIDE 11 | Cross-Contamination Prevention
+Cross-contamination occurs when harmful microorganisms are transferred from one food or surface to another. Prevent it by using separate cutting boards for raw meat and ready-to-eat foods, sanitizing equipment and surfaces between uses, storing raw proteins below ready-to-eat items, and never allowing raw meat juices to drip onto other foods. Color-coded cutting boards help prevent cross-contamination by visual cues.
+NARRATION: Prevent cross-contamination by using separate cutting boards and storing raw proteins below ready-to-eat foods.
+
+SLIDE 12 | Cleaning vs. Sanitizing
+Cleaning removes visible dirt and food particles from surfaces. Sanitizing reduces the number of microorganisms to safe levels. Both steps are necessary — sanitizing is ineffective on visibly dirty surfaces. The correct sequence is: scrape, wash with detergent, rinse, sanitize with an approved sanitizing solution at the correct concentration, and allow to air dry. Never dry wipe a sanitized surface.
+NARRATION: Clean removes dirt; sanitize reduces germs — both steps are required, in the correct sequence.
+
+SLIDE 13 | Sanitizer Concentration
+Sanitizers must be prepared at the correct concentration to be effective without leaving harmful residues on food-contact surfaces. Common sanitizers include chlorine bleach (200 ppm or as directed), quaternary ammonium compounds (per label instructions), and iodine solutions. Test strips should be used to verify concentration before each use. Sanitizer solutions should be changed when they become visibly dirty or fall below the minimum effective concentration.
+NARRATION: Test sanitizer concentration with test strips before each use to ensure it is effective and safe.
+
+SLIDE 14 | Allergen Awareness — The Big 9
+The FDA's Big 9 major food allergens are: milk, eggs, fish, shellfish, tree nuts, peanuts, wheat, soybeans, and sesame. Even trace amounts of an allergen can trigger a serious or life-threatening reaction in sensitized individuals. Food handlers must know which menu items contain allergens, prevent cross-contact, and communicate accurately with customers about allergen content. Cross-contact differs from cross-contamination — cleaning and sanitizing alone do not fully eliminate allergens.
+NARRATION: Know the Big 9 allergens and prevent cross-contact — allergens require more than just cleaning to eliminate.
+
+SLIDE 15 | Responding to Allergen Requests
+When a customer reports a food allergy, treat the request seriously every time. Verify which allergen is involved, review all ingredients in the requested dish, alert the kitchen team, use clean equipment and surfaces, and have a manager or senior staff member verify the preparation. Never guess about ingredients — if you are unsure, do not serve the item. Allergic reactions can be fatal.
+NARRATION: Take every allergen request seriously, verify all ingredients, and alert the kitchen before preparation.
+
+SLIDE 16 | Pest Prevention
+Pests — including rodents, cockroaches, and flies — can contaminate food and food-contact surfaces with bacteria and other pathogens. Pest prevention requires denying pests access (sealing gaps and cracks), food (storing food in sealed containers and cleaning up spills promptly), and shelter (eliminating clutter and harborage areas). Pest control should be performed by a licensed pest control operator, not with self-applied pesticides in food areas.
+NARRATION: Deny pests access, food, and shelter — and use a licensed pest control operator, not DIY pesticides.
+
+SLIDE 17 | Receiving Deliveries
+Inspect all deliveries before accepting them. Reject foods that show signs of temperature abuse (refrigerated items above 41°F, frozen items that are thawed or have ice crystals from refreezing), signs of pest damage, damaged or leaking packaging, or signs of spoilage. Check "use by" and "best by" dates. Document rejected deliveries and notify your manager. Never accept food from an unapproved source.
+NARRATION: Inspect every delivery for temperature, packaging integrity, and expiration dates before accepting.
+
+SLIDE 18 | Cold Chain Management
+The cold chain is the unbroken series of refrigerated production, storage, and distribution steps that maintains food at safe temperatures from the point of origin to the consumer. Breaks in the cold chain — such as leaving food unrefrigerated during transport or on a loading dock — can allow bacterial growth even if the food is subsequently refrigerated. Monitor temperatures at every step and document findings.
+NARRATION: The cold chain must remain unbroken from farm to table — document temperatures at every transfer point.
+
+SLIDE 19 | Labeling and Dating Food
+All prepared food must be properly labeled with the name of the food and the date it was prepared or opened. Ready-to-eat PHF (potentially hazardous food) prepared in-house must be used within 7 days when held at 41°F or below (the day of preparation counts as day 1). Items past their use-by date must be discarded, not sold or donated. Labels must be legible and affixed securely.
+NARRATION: Label all prepared food with its name and preparation date, and discard it after 7 days at 41°F.
+
+SLIDE 20 | Major Foodborne Illness Pathogens
+Key pathogens food handlers must know include: Salmonella (poultry, eggs, dairy), Listeria monocytogenes (deli meats, soft cheeses, ready-to-eat foods), Shiga toxin-producing E. coli (ground beef, raw produce), Campylobacter (poultry), hepatitis A (shellfish, ready-to-eat food), and norovirus (ready-to-eat food, contaminated water). Knowing the source foods and controls for each pathogen helps prevent illness.
+NARRATION: Salmonella, E. coli, Listeria, and norovirus are among the most dangerous foodborne pathogens.
+
+SLIDE 21 | Cooling Cooked Food Safely
+Hot food must be cooled from 135°F to 70°F within 2 hours, and then from 70°F to 41°F within an additional 4 hours — a total maximum cooling time of 6 hours. Use rapid cooling methods such as shallow pans, ice baths, ice paddles, or blast chillers. Stir food during cooling to release heat. Divide large batches into smaller portions to speed cooling.
+NARRATION: Cool hot food from 135 to 70 degrees within 2 hours, then to 41 degrees within 4 more hours.
+
+SLIDE 22 | Safe Reheating
+Previously cooked food must be reheated to 165°F within 2 hours before hot holding or serving. Reheating in a slow cooker or steam table is not acceptable because these devices cannot reach 165°F quickly enough. Use a microwave, stove, or oven for rapid reheating. Commercially packaged food that is ready-to-eat must be reheated to 135°F. Check internal temperature with a calibrated thermometer.
+NARRATION: Reheat previously cooked food to 165°F within 2 hours — slow cookers and steam tables are not acceptable.
+
+SLIDE 23 | Handling Customer Complaints About Food Safety
+If a customer reports a foodborne illness complaint, take it seriously, collect as much information as possible (what was consumed, when, symptoms), and notify your manager immediately. Do not discard any suspected food until management reviews the situation. Cooperate fully with any investigation by health authorities. Document all complaints and corrective actions taken.
+NARRATION: Take foodborne illness complaints seriously, preserve suspected food, and immediately notify your manager.
+
+SLIDE 24 | Health Inspections
+Health departments conduct routine and complaint-based inspections of food service establishments. Inspectors assess critical violations (those most likely to cause foodborne illness) and non-critical violations (those that support food safety but are less immediately dangerous). Critical violations require immediate correction. Maintaining good records, including temperature logs and training documentation, demonstrates proactive compliance.
+NARRATION: Health inspections assess critical violations — maintain temperature logs and training records to demonstrate compliance.
+
+SLIDE 25 | Your Role as a Food Handler
+As a food handler, you are directly responsible for the safety of the food you prepare and serve. Your daily practices — washing your hands, monitoring temperatures, preventing cross-contamination, and reporting illness — directly protect your customers from harm. Food safety is a professional and ethical obligation, not just a regulatory requirement. Make every food safety decision as if someone's life depends on it — because it might.
+NARRATION: Every food safety decision you make protects someone from potential harm — take that responsibility seriously.
+
+FACT: The temperature danger zone for bacterial growth is between 41°F and 135°F.
+FACT: Hands must be washed with soap and warm water for at least 20 seconds.
+FACT: Poultry must reach an internal temperature of 165°F to be safe.
+FACT: Ready-to-eat PHF prepared in-house must be used within 7 days when held at 41°F.
+FACT: The FDA's Big 9 major food allergens include milk, eggs, peanuts, tree nuts, wheat, soy, fish, shellfish, and sesame.
+FACT: Hot food must be cooled from 135°F to 41°F within a total of 6 hours.
+FACT: FIFO means First In, First Out — always use older stock before newer stock.

@@ -1,0 +1,247 @@
+LESSON: Driver's License Permit Test Prep
+LANGUAGE: en
+
+SLIDE 1 | Welcome to the Permit Test
+The driver's license permit test evaluates your knowledge of traffic laws, road signs,
+and safe driving practices. Most states require a written knowledge test before issuing
+a learner's permit. Questions come directly from your state's driver's handbook. This
+lesson covers the core topics tested in nearly every U.S. state.
+NARRATION: The permit test is based entirely on your state's driver's handbook; study
+it alongside this lesson for state-specific rules.
+
+SLIDE 2 | Rules of the Road - Right of Way
+Right of way determines who goes first at intersections and other conflict points. At
+an uncontrolled intersection, yield to traffic already in the intersection and to
+vehicles on your right. At a four-way stop, the first vehicle to arrive goes first;
+if tied, yield to the driver on your right. Always yield to emergency vehicles with
+lights and sirens activated by pulling to the right and stopping.
+NARRATION: When in doubt, yield; it is better to give up your right of way than to
+cause a collision.
+
+SLIDE 3 | Yielding and Merging
+Yield signs require you to slow and let crossing or merging traffic go first. When
+entering a highway from an on-ramp, yield to highway traffic and accelerate to match
+the flow of traffic before merging. When a lane ends and requires merging, the
+zipper method (alternate one car at a time) is the safe and courteous technique.
+Never force your way into traffic.
+NARRATION: Merging requires adjusting your speed to match traffic, not stopping on
+the on-ramp unless absolutely necessary.
+
+SLIDE 4 | Traffic Signs - Regulatory Signs
+Regulatory signs have a white background and tell you what you must or must not do.
+Examples include Stop (red octagon), Yield (red and white triangle), Speed Limit
+(white rectangle), Do Not Enter (red circle with white bar), One Way (black and
+white), and No U-Turn. These signs are legally enforceable; violating them can result
+in citations and accidents.
+NARRATION: Red means stop or prohibition; a red octagon is always a stop sign, and
+a red circle with a slash means the action is forbidden.
+
+SLIDE 5 | Traffic Signs - Warning Signs
+Warning signs have a yellow background with black symbols and alert you to hazards
+ahead. Common types include curve ahead, pedestrian crossing, school zone, railroad
+crossing, slippery when wet, and merging traffic. Diamond-shaped warning signs are
+the most common. They advise you to slow down and proceed with caution, not
+necessarily to stop.
+NARRATION: Yellow diamond signs warn of upcoming hazards; slow down and be prepared
+to react when you see them.
+
+SLIDE 6 | Traffic Signs - Guide Signs
+Guide signs provide directional and distance information. Green rectangular signs
+are used on highways and streets for route numbers and exit information. Blue signs
+indicate services such as fuel, food, and lodging. Brown signs indicate recreational
+areas, parks, and historic sites. White signs with black text show route markers and
+street names.
+NARRATION: Green signs guide you to destinations; blue signs show nearby services
+at the next exit.
+
+SLIDE 7 | Traffic Signals and Pavement Markings
+A green light means proceed if it is safe; a yellow (amber) light means the signal
+is changing to red, so stop if you can safely do so. A red light means stop completely
+before the stop line. A flashing red means treat it as a stop sign; a flashing yellow
+means slow and proceed with caution. White pavement lines separate traffic traveling
+the same direction; yellow lines separate opposing traffic.
+NARRATION: Yellow lines separate opposing traffic; white lines separate lanes moving
+in the same direction.
+
+SLIDE 8 | Speed Limits and Adjusting for Conditions
+Posted speed limits are maximums for ideal conditions. You must drive more slowly
+when roads are wet, icy, foggy, or under construction. Common default speed limits
+include 25 mph in residential areas, 35 mph on arterial roads, and 65-70 mph on
+interstate highways (varies by state). Never drive so fast that you cannot stop
+within your visible distance ahead.
+NARRATION: The speed limit is the maximum, not a target; always slow for weather,
+construction, and heavy traffic.
+
+SLIDE 9 | Following Distance and the 3-Second Rule
+Maintain a following distance of at least three seconds behind the vehicle ahead.
+To measure: pick a fixed object, note when the vehicle ahead passes it, then count
+seconds until you pass the same object. Increase to four or more seconds in rain, fog,
+or heavy traffic. Large trucks and motorcycles need extra following distance. Tailgating
+(following too closely) is a leading cause of rear-end collisions.
+NARRATION: The three-second rule gives you reaction time; poor weather means you need
+even more space between you and the car ahead.
+
+SLIDE 10 | Lane Changes and Passing Safely
+Before changing lanes: check mirrors, signal your intention, check the blind spot by
+looking over your shoulder, then move smoothly. Never change lanes in an intersection.
+Passing on two-lane roads requires a dashed yellow center line; never pass on a solid
+yellow line on your side. Only pass when you can see clearly and have enough room to
+complete the pass and return to your lane safely.
+NARRATION: Always signal before changing lanes; check your blind spot every time
+because mirrors have dead zones.
+
+SLIDE 11 | Turning Rules at Intersections
+Right turns: turn from the right lane into the right lane. Left turns: turn from the
+left lane into the left lane. Signal at least 100 feet before turning. Come to a
+complete stop at a red light before turning right on red (unless prohibited by a sign).
+Yield to pedestrians and oncoming traffic before turning left. U-turns are illegal
+where posted, in intersections with no U-turn signs, and in business districts in
+some states.
+NARRATION: Stay in your lane throughout the turn; turning too wide or cutting the
+corner are common test questions and real driving errors.
+
+SLIDE 12 | Roundabout Navigation
+Roundabouts are circular intersections where traffic flows counterclockwise. Yield
+to traffic already in the roundabout before entering. Choose the correct lane before
+entering based on your exit. Do not stop inside the roundabout. Signal when exiting
+but not when entering. Roundabouts reduce severe crashes because there are no
+head-on or high-speed right-angle collisions.
+NARRATION: Yield before entering the roundabout, then flow with traffic; exiting
+is the only time you signal in a roundabout.
+
+SLIDE 13 | Parking Rules
+Parallel parking requires positioning your vehicle parallel to the curb, within 12-18
+inches of it. Perpendicular parking uses spaces at 90 degrees to a curb or wall.
+Angle parking is similar at 30-60 degrees. Never park within 15 feet of a fire hydrant,
+20 feet of a crosswalk at an intersection, or 30 feet of a stop sign. Do not block
+driveways, fire lanes, or handicapped spaces without a valid placard.
+NARRATION: Fire hydrant clearance is 15 feet; blocking hydrants and fire lanes is
+both illegal and dangerous.
+
+SLIDE 14 | School Zones and School Buses
+School zones typically have reduced speed limits of 15-25 mph when children are
+present. Obey school zone speed limits during posted hours even if you see no children.
+When a school bus stops and displays flashing red lights and a stop arm, all traffic
+in both directions on an undivided road must stop at least 20 feet away. Traffic may
+proceed after the bus retracts its stop arm and the lights stop flashing.
+NARRATION: Failing to stop for a school bus is one of the most serious moving violations
+and carries heavy fines and license penalties.
+
+SLIDE 15 | Railroad Crossings
+Never cross railroad tracks when lights are flashing or the gate is lowering. Stop at
+least 15 feet from the nearest rail. Do not proceed until the train has fully passed
+and signals have stopped. Never race a train to a crossing. If your vehicle stalls on
+tracks, get out immediately and move away from the tracks at a 45-degree angle in
+the direction the train is coming from to avoid debris.
+NARRATION: A train cannot stop quickly; if your car is on the tracks, your safety
+is more important than the vehicle.
+
+SLIDE 16 | Sharing the Road with Large Trucks
+Large trucks have wide turning radii, long stopping distances, and large blind spots
+called "no-zones" on the front, rear, and both sides. Never cut in front of a truck
+and brake suddenly. Avoid lingering alongside a truck in its blind spot. When a truck
+is turning right, it may swing wide to the left first; do not squeeze between the truck
+and the curb. Give trucks extra space in all directions.
+NARRATION: If you cannot see the truck driver's mirrors, the driver cannot see you;
+stay out of the no-zones.
+
+SLIDE 17 | Sharing the Road with Motorcycles, Cyclists, and Pedestrians
+Motorcycles are easily hidden in blind spots and are vulnerable in crashes. Give them
+a full lane of space. Bicyclists may legally use the road and should be passed with at
+least three feet of clearance. Pedestrians always have the right of way in marked or
+unmarked crosswalks. At driveways and parking lots, yield to pedestrians before
+entering the roadway. Never block a crosswalk when stopped at a red light.
+NARRATION: Vulnerable road users depend on drivers to notice them; check blind spots
+twice around motorcycles and give cyclists the full three-foot buffer.
+
+SLIDE 18 | Driving Under the Influence
+The legal blood alcohol concentration (BAC) limit is 0.08% for adults in all U.S.
+states. For commercial drivers, the limit is 0.04%. For drivers under 21, most states
+enforce zero-tolerance laws (0.00-0.02%). DUI (driving under the influence) applies
+to alcohol, illegal drugs, and prescription medications that impair driving. Penalties
+include fines, license suspension, mandatory treatment, and jail time.
+NARRATION: Even one drink can impair reaction time; a designated driver or rideshare
+is always the safest option.
+
+SLIDE 19 | Seatbelt and Child Restraint Laws
+All states except New Hampshire require adult seatbelt use. Seatbelts reduce the risk
+of death in a crash by about 45%. Children must use age- and weight-appropriate car
+seats. Infants ride rear-facing until at least age 2 or the maximum weight of the
+seat. Older children use forward-facing seats, then booster seats, before transitioning
+to seatbelts alone when they fit properly (typically around age 8-12).
+NARRATION: Seatbelts save lives; car seats must be installed correctly and children
+must remain rear-facing as long as possible.
+
+SLIDE 20 | Distracted Driving
+Distracted driving includes any activity that takes your eyes, hands, or attention from
+driving. Texting is the most dangerous because it combines all three types of distraction.
+At 55 mph, five seconds of looking at your phone covers the length of a football field
+with your eyes closed. Most states ban handheld phone use while driving. Eating, adjusting
+the radio, and reaching for objects are also common distractions.
+NARRATION: No text or call is worth your life; use hands-free devices or pull over
+safely if you must use your phone.
+
+SLIDE 21 | Vehicle Safety Checks Before Driving
+Before driving, perform a BLOWS check: Brakes (test pedal firmness), Lights (headlights,
+tail, brake, and turn signals), Oil (check level when engine is cold), Water (coolant
+level), and Safety belts. Also check tire pressure and tread depth, mirrors, windshield
+wipers, and fuel level. Report any warning lights on the dashboard to a mechanic promptly.
+NARRATION: A quick pre-trip check catches problems before they become dangerous failures
+on the road.
+
+SLIDE 22 | What to Do in a Crash
+Move your vehicle to the side of the road if it is safe to do so and turn on hazard
+lights. Call 911 if anyone is injured. Exchange information with the other driver:
+name, address, phone number, driver's license number, insurance company, and policy
+number. Do not admit fault at the scene. If a crash involves an unattended vehicle or
+property, leave a written note and report it to police.
+NARRATION: Stay calm after a crash, prioritize medical help, and never admit fault;
+let insurance companies determine responsibility.
+
+SLIDE 23 | Adverse Weather Driving
+In rain, reduce speed, increase following distance, and turn on headlights. In fog,
+use low beams, not high beams, as high beams reflect back and reduce visibility.
+On ice and snow, accelerate and brake gently and increase following distance to eight
+to ten seconds. If your vehicle hydroplanes, ease off the gas and steer straight until
+tires regain traction. Never use cruise control on wet or icy roads.
+NARRATION: Hydroplaning means your tires are riding on water, not the road; gently
+ease off the gas and do not brake suddenly.
+
+SLIDE 24 | Night Driving and Headlight Rules
+Turn on headlights from 30 minutes after sunset to 30 minutes before sunrise and
+whenever visibility is less than 1,000 feet. Use high beams on dark rural roads with
+no oncoming traffic; dim them within 500 feet of an oncoming vehicle and 300 feet
+when following another vehicle. Dirty headlights and windshields significantly reduce
+night visibility; keep them clean.
+NARRATION: Most states require headlights whenever wipers are in use; when in doubt,
+turn them on.
+
+SLIDE 25 | License Exam Format and Tips
+The written permit test typically has 20-50 questions depending on the state, with a
+passing score of 70-80%. Questions cover signs, laws, and safe driving practices
+directly from the state driver's handbook. Take practice tests on your state's DMV
+website. Study road signs visually, not just by name. Read each question completely
+before answering; distractor answer choices are designed to catch common mistakes.
+NARRATION: Your state's DMV website often has free practice tests that use the same
+question style as the real exam; take them until you consistently score above 90%.
+
+SLIDE 26 | Expressway and Highway Driving
+Enter expressways by accelerating on the on-ramp to match traffic speed before
+merging. Use the left lane for passing only; return to the right lane after passing.
+Maintain safe following distances at highway speeds. Exit using the deceleration lane
+and signal early. Watch for minimum speed limit signs; driving too slowly on a highway
+is a violation and creates a hazard. Always stay alert at highway speeds where reaction
+time is critical.
+NARRATION: Highway driving requires forward planning; watch far ahead, plan your
+exits early, and keep a consistent speed in the right lane.
+
+FACT: The legal BAC limit for adult drivers is 0.08% in all U.S. states.
+FACT: Stop signs are always red octagons; they require a complete stop, not a rolling stop.
+FACT: Yellow diamond signs are warning signs indicating a hazard ahead.
+FACT: The three-second following distance rule should increase in poor weather.
+FACT: All traffic in both directions must stop for a school bus with red flashing lights on an undivided road.
+FACT: Pedestrians always have the right of way in marked and unmarked crosswalks.
+FACT: You must stay at least 15 feet from a fire hydrant when parking.
+FACT: Text messaging is the most dangerous distraction because it involves visual, manual, and cognitive distraction.
+FACT: Children should remain rear-facing in a car seat until at least age 2.
+FACT: Use low beams in fog; high beams reflect off fog and reduce visibility further.

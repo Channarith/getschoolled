@@ -1,0 +1,110 @@
+LESSON: Arithmetic Fundamentals
+LANGUAGE: en
+
+SLIDE 1 | Place Value
+Every digit in a number has a place value based on its position. In the number 4,572 the digit 4 is in the thousands place, 5 is in the hundreds place, 7 is in the tens place, and 2 is in the ones place. Understanding place value is the foundation for all arithmetic operations.
+NARRATION: Each digit's position tells you its value — thousands, hundreds, tens, and ones.
+
+SLIDE 2 | Addition
+Addition combines two or more numbers to find their total, called the sum. When adding multi-digit numbers, align them by place value and add column by column from right to left, carrying any value greater than nine to the next column. For example, 347 plus 285 equals 632.
+NARRATION: Line up the digits by place value and add from right to left, carrying when needed.
+
+SLIDE 3 | Subtraction
+Subtraction finds the difference between two numbers. Align numbers by place value and subtract from right to left, borrowing from the next column when the bottom digit is larger than the top. For example, 523 minus 178 equals 345.
+NARRATION: Subtract column by column from right to left, borrowing from the next place when needed.
+
+SLIDE 4 | Multiplication
+Multiplication is repeated addition — multiplying 6 by 4 means adding 6 four times. For multi-digit problems, multiply each digit of one number by each digit of the other, shifting one place value to the left for each new row, then add the partial products. Knowing times tables through 12 makes this much faster.
+NARRATION: Multiplication is fast repeated addition — learn your times tables to speed up every calculation.
+
+SLIDE 5 | Division
+Division splits a number into equal groups. The number being divided is the dividend, the number you divide by is the divisor, and the answer is the quotient. If the divisor does not go in evenly, the leftover amount is called the remainder.
+NARRATION: Division tells you how many equal groups fit into a number, with any leftover called a remainder.
+
+SLIDE 6 | Order of Operations — PEMDAS
+When an expression contains multiple operations, you must follow the correct order: Parentheses, Exponents, Multiplication and Division (left to right), then Addition and Subtraction (left to right). The acronym PEMDAS helps you remember this sequence. For example, 3 plus 2 times 4 equals 11, not 20, because multiplication comes before addition.
+NARRATION: Always solve Parentheses and Exponents first, then multiply and divide, then add and subtract.
+
+SLIDE 7 | Factors and Multiples
+A factor of a number divides into it evenly — the factors of 12 are 1, 2, 3, 4, 6, and 12. A multiple of a number is what you get by multiplying it by a whole number — the first multiples of 4 are 4, 8, 12, 16, and so on. Factors go down; multiples go up.
+NARRATION: Factors divide a number evenly; multiples are what you get by multiplying it by whole numbers.
+
+SLIDE 8 | Greatest Common Factor (GCF)
+The Greatest Common Factor of two numbers is the largest factor they share. To find the GCF of 24 and 36, list all factors of each: factors of 24 are 1, 2, 3, 4, 6, 8, 12, 24 and factors of 36 are 1, 2, 3, 4, 6, 9, 12, 18, 36. The largest factor in both lists is 12, so GCF(24, 36) = 12.
+NARRATION: The GCF is the biggest number that divides evenly into both numbers.
+
+SLIDE 9 | Least Common Multiple (LCM)
+The Least Common Multiple is the smallest number that is a multiple of two given numbers. List multiples of each number until you find one they share. For 4 and 6, multiples of 4 are 4, 8, 12, ... and multiples of 6 are 6, 12, ..., so LCM(4, 6) = 12. The LCM is useful when adding fractions with different denominators.
+NARRATION: The LCM is the smallest number that both numbers divide into evenly.
+
+SLIDE 10 | Prime Numbers
+A prime number has exactly two factors: 1 and itself. The first few primes are 2, 3, 5, 7, 11, 13, 17, and 19. The number 2 is the only even prime. A composite number has more than two factors, like 12 which has factors 1, 2, 3, 4, 6, and 12.
+NARRATION: A prime number can only be divided evenly by one and itself — two is the only even prime.
+
+SLIDE 11 | Prime Factorization
+Every composite number can be written as a product of prime numbers called its prime factorization. Use a factor tree: break the number into two factors, then break each factor until all branches are prime. For example, 60 = 2 × 2 × 3 × 5, or written with exponents, 2² × 3 × 5.
+NARRATION: Break any composite number down into a product of prime numbers using a factor tree.
+
+SLIDE 12 | Divisibility Rules
+Divisibility rules let you quickly check if a number divides evenly without doing the division. A number is divisible by 2 if it ends in 0, 2, 4, 6, or 8; by 3 if its digits sum to a multiple of 3; by 5 if it ends in 0 or 5; and by 10 if it ends in 0. Knowing these rules speeds up factoring and mental math.
+NARRATION: Divisibility rules let you check for even division at a glance without calculating.
+
+SLIDE 13 | Introduction to Fractions
+A fraction represents a part of a whole, written as a numerator over a denominator. The denominator tells how many equal parts the whole is split into, and the numerator tells how many parts you have. Fractions whose numerator is less than the denominator are called proper fractions.
+NARRATION: A fraction names part of a whole — the bottom counts total parts, the top counts yours.
+
+SLIDE 14 | Adding and Subtracting Fractions
+To add or subtract fractions, they must share the same denominator. If they do not, rewrite each fraction using the LCM of the denominators as a common denominator, then add or subtract the numerators. For example, 1/3 + 1/4 = 4/12 + 3/12 = 7/12.
+NARRATION: Give fractions a common denominator, then add or subtract the numerators.
+
+SLIDE 15 | Multiplying and Dividing Fractions
+To multiply fractions, multiply the numerators together and the denominators together — no common denominator needed. To divide, keep the first fraction, change the sign to multiplication, and flip the second fraction (take its reciprocal). For example, 2/3 ÷ 4/5 = 2/3 × 5/4 = 10/12 = 5/6.
+NARRATION: Multiply across top and bottom; to divide, flip the second fraction and multiply.
+
+SLIDE 16 | Decimals
+A decimal is another way to write a fraction whose denominator is a power of ten. The digits after the decimal point represent tenths, hundredths, thousandths, and so on. For example, 0.75 means 75 hundredths, which equals the fraction 3/4.
+NARRATION: Decimals are fractions with powers of ten as denominators — 0.75 equals three quarters.
+
+SLIDE 17 | Percentages
+A percent means "per hundred" and is a ratio out of 100. To convert a decimal to a percent, multiply by 100; to go from a percent back to a decimal, divide by 100. So 0.35 = 35%, and 60% = 0.60. Percentages are used everywhere, from test scores to sale prices.
+NARRATION: Percent means out of a hundred — multiply a decimal by 100 to get the percent.
+
+SLIDE 18 | Ratios and Proportions
+A ratio compares two quantities, written as a:b or a/b. A proportion states that two ratios are equal, such as 2/3 = 8/12. To solve a proportion for an unknown, use cross multiplication: if 2/3 = x/12, then 3x = 24, so x = 8.
+NARRATION: A proportion says two ratios are equal — cross multiply to find an unknown value.
+
+SLIDE 19 | Negative Numbers
+Negative numbers are less than zero and are written with a minus sign, like −5. On a number line, negative numbers appear to the left of zero. Adding a negative is the same as subtracting, and subtracting a negative is the same as adding. The product or quotient of two negatives is always positive.
+NARRATION: Negative numbers sit left of zero — two negatives multiplied always give a positive result.
+
+SLIDE 20 | Absolute Value
+The absolute value of a number is its distance from zero on a number line, always positive or zero. It is written with two vertical bars, so |−8| = 8 and |5| = 5. Absolute value is used whenever you care about size or distance but not direction.
+NARRATION: Absolute value is how far a number is from zero — it is always positive or zero.
+
+SLIDE 21 | Rounding and Estimation
+Rounding replaces a number with a nearby value that is easier to use. To round, look at the digit to the right of the place you are rounding to: if it is 5 or more, round up; if it is less than 5, round down. Estimation uses rounding to get a quick approximate answer before doing exact calculations.
+NARRATION: Look one digit to the right — five or more rounds up, four or less rounds down.
+
+SLIDE 22 | Mental Math Strategies
+Mental math strategies make calculations faster without pencil and paper. Breaking apart numbers (548 + 27 = 548 + 20 + 7), compensation (adding to make a round number then adjusting), and doubling and halving are all powerful techniques. Mastering these skills builds number sense and confidence.
+NARRATION: Break numbers apart, use round numbers, or double and halve to calculate quickly in your head.
+
+SLIDE 23 | Properties of Operations
+The commutative property means order does not change the result (3 + 5 = 5 + 3). The associative property means grouping does not matter ((2 + 3) + 4 = 2 + (3 + 4)). The distributive property lets you multiply a sum by spreading the multiplication across each addend: 4 × (3 + 5) = 4 × 3 + 4 × 5 = 32.
+NARRATION: Commutative, associative, and distributive properties make arithmetic flexible and efficient.
+
+SLIDE 24 | Word Problems
+Word problems describe real situations and ask you to find a missing value. Read carefully to identify what is known, what is unknown, and which operation connects them. Translate words like "total" or "sum" to addition, "difference" to subtraction, "times" to multiplication, and "split equally" to division.
+NARRATION: Translate the words to math: find what you know, what you need, and which operation connects them.
+
+SLIDE 25 | Real-World Applications
+Arithmetic is used every day — calculating a grocery bill uses addition, making change uses subtraction, doubling a recipe uses multiplication, and splitting a restaurant check uses division. Percentages appear in sales tax, tips, and discounts. Mastering these fundamentals prepares you for every level of mathematics and everyday life.
+NARRATION: Every arithmetic skill you learn shows up in real life — from shopping to cooking to splitting bills.
+
+FACT: The product of two negative numbers is always positive.
+FACT: The GCF of two numbers can be found by listing all their factors and choosing the largest shared one.
+FACT: PEMDAS stands for Parentheses, Exponents, Multiplication, Division, Addition, Subtraction.
+FACT: A prime number has exactly two factors: one and itself.
+FACT: To divide by a fraction, multiply by its reciprocal.
+FACT: Percent means per hundred — divide a percent by 100 to get the decimal equivalent.
+FACT: The absolute value of any real number is always greater than or equal to zero.

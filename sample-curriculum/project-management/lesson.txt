@@ -1,0 +1,115 @@
+LESSON: Project Management Fundamentals
+LANGUAGE: en
+
+SLIDE 1 | What is a Project?
+A project is a temporary endeavor undertaken to create a unique product, service, or result — it has a defined start, an end, and a specific objective. This distinguishes it from ongoing operations such as running a payroll system or managing a help desk, which are repetitive and continuous. For example, building a new e-commerce website is a project; maintaining and updating it afterward is an operation. Understanding this distinction shapes how you staff, fund, and govern the work.
+NARRATION: A project is temporary and unique; operations are repetitive and ongoing.
+
+SLIDE 2 | The Project Lifecycle
+Most projects move through five phases: Initiating (define the purpose and get authorization), Planning (develop the roadmap), Executing (do the work), Monitoring and Controlling (track progress and manage changes), and Closing (formally complete and hand off). Monitoring and Controlling runs in parallel with Executing — you never stop tracking while the team is building. The lifecycle provides structure but is not rigid: agile projects iterate through mini-cycles called sprints within the Executing phase.
+NARRATION: Every project flows through initiation, planning, execution, monitoring, and closure.
+
+SLIDE 3 | Identifying Stakeholders
+A stakeholder is anyone who can affect or be affected by the project's outcome. Start with a stakeholder register: list each person or group, their role, their level of interest, and their level of influence. A project sponsor has high influence but may have low day-to-day involvement; end users have high interest but low formal authority. Identify stakeholders early — discovering a critical decision-maker in month four of a six-month project is a common and avoidable failure.
+NARRATION: Find every stakeholder early — a missed influencer discovered late can derail any project.
+
+SLIDE 4 | Stakeholder Engagement
+The Stakeholder Engagement Plan documents how and how often you will communicate with each group. Plot stakeholders on a Power/Interest grid: High Power / High Interest stakeholders (your sponsor, key executives) require active management and frequent updates. High Power / Low Interest stakeholders need to be kept satisfied with brief executive summaries. Low Power / High Interest stakeholders should be kept informed. Low Power / Low Interest stakeholders need only minimal monitoring.
+NARRATION: Match your communication effort to each stakeholder's power and interest level.
+
+SLIDE 5 | The Project Charter
+The project charter formally authorizes the project and names the project manager. It documents the high-level objective, measurable success criteria, key deliverables, milestone dates, budget summary, major risks, and the sponsor's signature. Without a signed charter, the project manager has no authority to spend money or assign resources. The charter is intentionally high-level — detailed planning comes next. Keep it to one or two pages so sponsors actually read and sign it.
+NARRATION: The signed project charter is your license to lead — without it, you have no authority.
+
+SLIDE 6 | Scope Management and the WBS
+The scope statement defines what the project will and will not deliver. The Work Breakdown Structure (WBS) decomposes the total scope into smaller, manageable components down to the work package level — the lowest level that can be estimated, scheduled, and assigned. A WBS for a website project might break into Design, Development, Testing, and Launch phases, each with sub-deliverables. The WBS dictionary describes each work package, its owner, and its acceptance criteria.
+NARRATION: The WBS breaks all project work into chunks small enough to estimate and assign.
+
+SLIDE 7 | Scope Creep and Change Control
+Scope creep is the unauthorized addition of work without adjusting time, cost, or resources — it is one of the top causes of project failure. A formal change control process requires any request for additional scope to go through a Change Request form, be analyzed for impact, and be approved by a Change Control Board before work begins. Document every approved change in a change log. "While we're at it" requests from stakeholders are the most common source of creep.
+NARRATION: Every scope addition must go through a formal change request — nothing is free.
+
+SLIDE 8 | The Project Schedule and Gantt Charts
+A Gantt chart visualizes the project schedule as horizontal bars on a calendar timeline: tasks on the vertical axis, time on the horizontal axis. Dependencies between tasks are shown as arrows — Finish-to-Start means Task B cannot start until Task A finishes. Tools like Microsoft Project, Smartsheet, and Monday.com generate Gantt charts automatically from task data. A well-built Gantt shows task durations, dependencies, assigned resources, and milestone dates in one view.
+NARRATION: A Gantt chart shows what work happens when and which tasks depend on each other.
+
+SLIDE 9 | The Critical Path Method
+The Critical Path is the longest sequence of dependent tasks from project start to finish; any delay on the critical path delays the entire project. To find it, calculate the Early Start, Early Finish, Late Start, and Late Finish of every task using a forward and backward pass. Tasks where Early Start equals Late Start have zero float — those are on the critical path. A task off the critical path has float (slack), meaning it can slip without delaying the project end date.
+NARRATION: The critical path is the chain of tasks where any delay pushes back the project finish.
+
+SLIDE 10 | Resource Planning and the RACI Matrix
+A RACI matrix assigns roles to tasks: Responsible (does the work), Accountable (owns the outcome and must sign off — exactly one person per task), Consulted (provides input before the work), and Informed (notified after the work is done). For example, on a software deployment task the developer is Responsible, the IT manager is Accountable, the security team is Consulted, and the help desk is Informed. The RACI eliminates confusion about who makes the final call.
+NARRATION: RACI clarifies ownership — every task must have exactly one Accountable person.
+
+SLIDE 11 | Cost Estimation Techniques
+Bottom-up estimating breaks scope into the smallest components, estimates each individually, and sums them — the most accurate but most time-consuming method. Analogous estimating uses actuals from a similar past project — fast but less precise. Parametric estimating applies a statistical relationship, such as cost per square foot or cost per function point. Three-point estimating averages optimistic, most likely, and pessimistic estimates using the PERT formula: (O + 4M + P) / 6. Use the method that matches your level of scope detail.
+NARRATION: Bottom-up is the most accurate estimate; analogous is the fastest — pick based on what you know.
+
+SLIDE 12 | The Project Budget and Cost Baseline
+The cost baseline is the approved, time-phased budget — the S-curve of planned spending over the project life. It is the benchmark against which actual costs are measured. A contingency reserve (typically 5-15% of the budget) covers identified risks; a management reserve covers unknown unknowns and requires sponsor approval to access. Track actual costs weekly and compare them to the baseline; a growing gap is an early warning sign that needs immediate attention.
+NARRATION: The cost baseline is your budget benchmark — deviations from it demand an explanation.
+
+SLIDE 13 | Earned Value Management
+Earned Value Management (EVM) integrates scope, schedule, and cost into three numbers: Planned Value (PV) — the budgeted cost of work scheduled; Earned Value (EV) — the budgeted cost of work actually completed; and Actual Cost (AC) — the real cost incurred. Schedule Variance (SV) = EV - PV (negative means behind schedule). Cost Variance (CV) = EV - AC (negative means over budget). Schedule Performance Index (SPI) = EV / PV; Cost Performance Index (CPI) = EV / AC. A CPI below 1.0 means you are spending more than planned for every dollar of value delivered.
+NARRATION: EVM gives you three numbers — PV, EV, and AC — to know instantly if you are on time and on budget.
+
+SLIDE 14 | Risk Identification
+Risks are uncertain events or conditions that could affect project objectives positively (opportunities) or negatively (threats). Identify risks through brainstorming sessions, expert interviews, the risk register from past projects, and SWOT analysis. Document each risk in a Risk Register with a unique ID, description, category, probability, impact, and owner. A risk is not an issue — an issue is a risk that has already occurred. Record both in separate logs.
+NARRATION: Log every potential risk in a register before it becomes an issue you are forced to react to.
+
+SLIDE 15 | Risk Analysis and Response Strategies
+Qualitative risk analysis scores each risk by probability and impact (1-5 scale) and plots them on a probability-impact matrix to prioritize which risks need detailed analysis. Quantitative risk analysis uses Monte Carlo simulation or decision trees to assign dollar and schedule impact ranges. The four response strategies for threats are: Avoid (change the plan to eliminate the risk), Mitigate (reduce probability or impact), Transfer (shift the risk to a third party via insurance or contract), and Accept (acknowledge and either set aside contingency or do nothing). Opportunities use Exploit, Enhance, Share, and Accept.
+NARRATION: Avoid, mitigate, transfer, or accept every threat — never let a known risk go unaddressed.
+
+SLIDE 16 | Quality Management
+Quality planning defines what quality means for this project and how it will be measured — for a software project, that might be defect density below 0.5 per function point and 98% uptime. Quality Assurance (QA) audits processes to confirm the team is following the plan. Quality Control (QC) inspects deliverables against acceptance criteria. Cost of quality includes prevention costs (training, process design), appraisal costs (testing, inspection), and failure costs (rework, warranty). Preventing defects is always cheaper than fixing them later.
+NARRATION: Define quality criteria upfront — catching defects in testing is far cheaper than fixing them after launch.
+
+SLIDE 17 | Communication Planning
+Studies consistently show that project managers spend 90% of their time communicating. The Communication Management Plan documents who needs what information, in what format, how often, and through which channel. A weekly status report to the sponsor, a daily standup with the team, and a monthly steering committee deck are typical channels. Tailor the format to the audience: executives want a one-page dashboard with red/amber/green status; the team wants task-level detail. Silence in a project is rarely a good sign.
+NARRATION: Plan every communication — who needs what information, how often, and in which format.
+
+SLIDE 18 | Team Building and Leadership Styles
+Tuckman's model describes team development in five stages: Forming (polite uncertainty), Storming (conflict as roles are negotiated), Norming (rules and rhythms establish), Performing (high productivity), and Adjourning (winding down). Project managers must recognize the current stage and adapt their leadership style accordingly. Situational leadership theory recommends directing in Forming, coaching in Storming, supporting in Norming, and delegating in Performing. Conflict handled well in Storming accelerates the team's reach to Performing.
+NARRATION: Teams move through Forming, Storming, Norming, and Performing — your leadership style must shift at each stage.
+
+SLIDE 19 | Waterfall vs Agile vs Hybrid
+Waterfall executes phases sequentially — requirements, design, build, test, deploy — and works well when scope is fixed and change is costly, such as a bridge or regulatory system. Agile delivers working increments every 1-4 weeks, embraces change, and works well for software where requirements evolve. Hybrid blends both: use waterfall for infrastructure and governance, agile for the development tracks within the same program. The choice depends on clarity of requirements, tolerance for change, and customer availability to give feedback.
+NARRATION: Choose waterfall when scope is fixed, agile when it will evolve, and hybrid when you need both.
+
+SLIDE 20 | Scrum: Roles and Artifacts
+Scrum is the most widely used agile framework. The three roles are: Product Owner (owns the Product Backlog, prioritizes features by business value), Scrum Master (facilitates the process, removes impediments, coaches the team on Scrum), and Development Team (self-organizing, cross-functional, typically 3-9 people). The key artifacts are the Product Backlog (the prioritized list of all desired features), the Sprint Backlog (the subset selected for the current sprint), and the Increment (the working, potentially shippable product at sprint end).
+NARRATION: In Scrum the Product Owner sets priorities, the Scrum Master removes blockers, and the team builds.
+
+SLIDE 21 | Sprint Planning and Retrospectives
+A sprint is a fixed timebox — usually two weeks — that begins with Sprint Planning, where the team selects backlog items they commit to completing and breaks them into tasks. Each day the team holds a 15-minute Daily Scrum (standup) to coordinate. At sprint end, the Sprint Review demos the increment to stakeholders and gathers feedback. The Sprint Retrospective — often called the retro — is the team's structured reflection: what went well, what to improve, and what one action to take next sprint.
+NARRATION: The retrospective at sprint end is where teams get better — never skip it.
+
+SLIDE 22 | Kanban and Work-in-Progress Limits
+Kanban visualizes work as cards moving across columns on a board: To Do, In Progress, Done. The defining principle is WIP limits — a cap on how many items can be in any column at once, typically 2-3 per team member. WIP limits expose bottlenecks: when the In Progress column hits its limit, team members must help clear existing work instead of pulling new work. Unlike Scrum, Kanban has no sprints or fixed iterations — work flows continuously based on capacity.
+NARRATION: WIP limits force the team to finish work before starting new work, eliminating bottlenecks.
+
+SLIDE 23 | Project Status Reports and Dashboards
+A weekly status report should include: overall RAG status (Red/Amber/Green), accomplishments this period, planned activities next period, open issues and risks, schedule and budget variance summary, and decisions needed from leadership. Keep the executive summary to one paragraph. A project dashboard in a tool like Power BI or Jira provides real-time visibility into burn rate, velocity, milestone completion, and open defect counts. Dashboards supplement but do not replace written status reports.
+NARRATION: A good status report tells the sponsor what happened, what is next, and what they need to decide.
+
+SLIDE 24 | Issue Tracking and Escalation
+An issue is a risk that has materialized and is actively impacting the project. Log every issue in an Issue Log with an ID, description, priority, owner, and target resolution date. Minor issues are resolved by the project team; moderate issues are escalated to the project manager; high-priority issues that could affect scope, schedule, or budget go to the sponsor or steering committee. Escalation is not failure — it is the correct response to a problem exceeding your authority level.
+NARRATION: Escalate issues beyond your authority quickly — delay never makes them smaller.
+
+SLIDE 25 | Project Closure and Lessons Learned
+Project closure includes: verifying all deliverables are accepted, releasing resources, closing contracts, archiving project records, and conducting a lessons learned session. The lessons learned document captures what worked well, what did not, and specific recommendations for future projects — it is the organization's institutional memory. Many teams skip closure when they're eager to move on; this is a mistake that costs the next team the benefit of hard-won experience. Formal sign-off by the sponsor marks the official end of the project.
+NARRATION: Lessons learned are the project's gift to the future — document them before the team disperses.
+
+SLIDE 26 | PMP and CAPM Certification Overview
+The Project Management Professional (PMP) from PMI is the most recognized project management credential globally and requires 36 months of project leadership experience (with a four-year degree) plus 35 contact hours of PM education. The exam covers predictive, agile, and hybrid approaches. The Certified Associate in Project Management (CAPM) requires no experience but does require 23 contact hours — ideal for those early in their careers. Both exams require renewal every three years through professional development units (PDUs).
+NARRATION: The PMP requires experience and education; the CAPM is the right starting credential for early-career professionals.
+
+FACT: A project is temporary and unique; operations are repetitive and ongoing.
+FACT: The project charter authorizes the project and names the project manager.
+FACT: The WBS decomposes total scope down to the work package level for estimating and assigning.
+FACT: The critical path is the longest chain of dependent tasks — delay it and you delay the project.
+FACT: In EVM, a CPI below 1.0 means you are spending more than planned per dollar of value delivered.
+FACT: The four risk response strategies for threats are avoid, mitigate, transfer, and accept.
+FACT: Scrum has three roles: Product Owner, Scrum Master, and Development Team.
+FACT: WIP limits on a Kanban board prevent multitasking and expose process bottlenecks.

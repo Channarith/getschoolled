@@ -1,0 +1,110 @@
+LESSON: Forklift and Powered Industrial Truck Safety
+LANGUAGE: en
+
+SLIDE 1 | Why Forklift Safety Matters
+Forklifts and powered industrial trucks are essential in warehouses, manufacturing, and distribution environments, but they are also among the most dangerous pieces of equipment in those settings. OSHA estimates that forklifts cause approximately 85 fatalities and 34,900 serious injuries per year in the United States. Nearly all of these incidents are preventable through proper training, equipment maintenance, and safe operating practices.
+NARRATION: Forklifts cause approximately 85 deaths and nearly 35,000 serious injuries per year — virtually all are preventable.
+
+SLIDE 2 | OSHA Standard 29 CFR 1910.178
+The governing OSHA standard for powered industrial trucks in general industry is 29 CFR 1910.178. This standard covers design requirements, training and evaluation requirements, safe operating procedures, and maintenance. Employers must ensure that only trained, evaluated, and authorized operators use powered industrial trucks. Operators must also be re-evaluated and retrained at least every three years, or sooner if specific triggering events occur.
+NARRATION: OSHA standard 1910.178 requires that only trained and authorized operators use powered industrial trucks.
+
+SLIDE 3 | Types of Powered Industrial Trucks
+OSHA classifies powered industrial trucks into seven types based on their power source, use environment, and stability characteristics. Common types include sit-down counterbalanced forklifts, reach trucks, order pickers, pallet jacks, and rough-terrain forklifts. Each type has different stability characteristics, operating requirements, and training needs. Operators must be trained specifically for each type of truck they will operate.
+NARRATION: Operators must be specifically trained for each type of powered industrial truck they will operate.
+
+SLIDE 4 | Forklift Stability — The Stability Triangle
+The stability of a counterbalanced forklift depends on the relationship between the load, the truck, and the three points of support formed by the two front wheels and the center of the rear axle — the stability triangle. When the combined center of gravity of the truck and load moves outside this triangle, the forklift will tip. The stability triangle is the foundation of all load handling and speed decisions.
+NARRATION: A forklift tips when the combined center of gravity moves outside the stability triangle formed by its three support points.
+
+SLIDE 5 | Load Capacity and the Data Plate
+Every forklift has a data plate that specifies the maximum rated capacity, the load center (typically 24 inches from the face of the forks), and the capacity at various mast heights and tilt angles. The rated capacity applies only to the specified load center — as loads become longer or heavier, or as the mast is raised, the safe capacity decreases. Operators must consult the data plate before picking up any load and must never exceed rated capacity.
+NARRATION: Never exceed the rated capacity shown on the data plate — capacity decreases as loads are raised or positioned further from the forks.
+
+SLIDE 6 | Pre-Operation Inspection
+Before each shift, operators must perform a pre-operation inspection to identify defects that could affect safety. The inspection covers fluid levels (fuel, oil, coolant, hydraulic fluid), tires and wheels, forks and attachments, lights and horn, seatbelt and restraint device, brakes and steering, the mast and hydraulic system, and fire extinguisher if equipped. Any defects that affect safe operation must be reported, and the truck must be removed from service until repaired.
+NARRATION: Inspect the forklift before each shift and remove it from service if any safety-affecting defect is found.
+
+SLIDE 7 | Safe Operating Rules — Speed and Traffic
+Forklifts must be operated at a speed that permits safe stopping under all conditions. Operators should travel at a speed that allows them to stop within the operator's visibility range. Speed limits must be posted and obeyed. At intersections and other locations where vision is obstructed, operators must slow down, sound the horn, and proceed cautiously. Traveling too fast is one of the most common contributing factors in forklift incidents.
+NARRATION: Operate at a speed that permits safe stopping — slow down at intersections and always use the horn.
+
+SLIDE 8 | Pedestrian Safety
+Pedestrian-forklift interactions are the most common cause of fatal forklift incidents. Forklifts have poor visibility to the sides and rear, significant blind spots, and cannot stop quickly. Pedestrians in forklift operating areas must use designated walkways marked with floor tape or barriers, make eye contact with operators before entering forklift traffic lanes, and never assume an operator can see them. A forklift with a 5,000-pound capacity weighs at least 9,000 pounds and cannot stop quickly.
+NARRATION: Pedestrian-forklift interactions cause most fatalities — always use designated walkways and make eye contact with operators.
+
+SLIDE 9 | Pedestrian Safety Zones and Separation
+The most effective pedestrian safety measure is physical separation of people and forklifts — using barriers, designated pedestrian pathways, and separate entrances. Where full separation is not possible, visual management tools such as floor markings, convex mirrors, blue safety lights, and audible warning systems can help alert both operators and pedestrians to potential conflicts. Safety culture must support pedestrians' right to stop, step back, and wait.
+NARRATION: Physical separation of pedestrians and forklifts is the most effective safety measure available.
+
+SLIDE 10 | Traveling with a Load
+When traveling with a load, forks should be carried 6 to 10 inches above the ground and tilted back to stabilize the load. Operators should travel with a load in front of them on level surfaces, but should travel in reverse — with the load uphill — when ascending or descending ramps to maintain visibility and prevent the load from tipping forward. Never raise a load while traveling except at the point of placement or pickup.
+NARRATION: Travel with forks 6 to 10 inches off the ground and tilt forks back — never raise a load while moving.
+
+SLIDE 11 | Operating on Ramps and Grades
+On grades, a loaded forklift should always have the load facing uphill — meaning traveling forward up the ramp and in reverse down the ramp. An unloaded forklift should travel with the forks pointing downhill to improve visibility and stability. The forklift should never be turned on a ramp. Ramp slopes should be within the truck's rated grade-climbing ability, as specified on the data plate.
+NARRATION: On ramps, always position the load uphill — travel forward going up and in reverse going down.
+
+SLIDE 12 | Fuel Safety — LP Gas Forklifts
+LP (liquefied petroleum) gas forklifts are commonly used in warehouses and distribution centers. Cylinder exchanges must be performed in well-ventilated areas away from ignition sources. The operator must shut off the engine before exchanging a cylinder, inspect the cylinder for damage before installation, and secure the cylinder in the correct position. Full cylinders must be stored with the safety valve upright in a designated outdoor or well-ventilated area.
+NARRATION: Exchange LP cylinders with the engine off, in a ventilated area, away from all ignition sources.
+
+SLIDE 13 | Battery Charging Safety
+Electric forklifts are powered by lead-acid batteries that require regular charging. Battery charging must be done in a designated charging area with good ventilation, because charging generates explosive hydrogen gas. Operators must wear appropriate PPE (face shield, acid-resistant gloves, apron) when handling batteries. No smoking, open flames, or sparks near the charging area. Batteries must be neutralized with baking soda before cleaning acid spills.
+NARRATION: Charge forklift batteries in ventilated areas — hydrogen gas generated during charging is explosive.
+
+SLIDE 14 | Loading Dock Safety
+Loading docks are high-risk areas where forklifts, trucks, and pedestrians interact. Key safety practices include using wheel chocks to prevent truck movement during loading, securing trailer landing gear, using dock levelers correctly, ensuring the trailer is locked to the dock with a restraint device, and confirming the trailer is structurally sound before driving a forklift inside. Never drive a forklift off an unsecured trailer or dock.
+NARRATION: Always chock wheels, use dock restraints, and verify trailer integrity before driving a forklift inside.
+
+SLIDE 15 | Narrow Aisle Operations
+Narrow-aisle forklifts — including reach trucks and order pickers — are designed to operate in aisles as narrow as 8 feet. Their operating characteristics differ significantly from sit-down counterbalanced forklifts, and operators must receive specific training for narrow-aisle equipment. Aisle widths must be maintained consistently, and floor conditions must be smooth and level. Extra caution is required at aisle ends and intersections where visibility is limited.
+NARRATION: Narrow-aisle equipment requires specific training and extra caution at aisle ends and intersections.
+
+SLIDE 16 | Stacking and Unstacking Loads
+When stacking, approach the rack or stack slowly, square up the load and lift straight up before positioning, tilt the mast forward only at the placement point to level the load, and deposit the load gently. When unstacking, engage the load fully before lifting, back up straight before lowering forks, and ensure the load is stable before moving away. Never attempt to catch a falling load — back away immediately.
+NARRATION: Approach racks slowly, square up loads before stacking, and back away if a load begins to fall.
+
+SLIDE 17 | Forklift Tip-Over Response
+If a forklift begins to tip over, the operator must never jump off. Instead, hold on to the steering wheel firmly, brace both feet against the floor, lean away from the direction of fall, and stay inside the operator compartment. Forklift cabs are designed as a rollover protection structure (ROPS) that protects the operator if they remain inside. More fatalities result from operators jumping out than from remaining in the cab.
+NARRATION: If a forklift tips, stay in the cab, hold the wheel, lean away, and brace your feet — never jump out.
+
+SLIDE 18 | Operator Certification Requirements
+Under 29 CFR 1910.178(l), employers must ensure all forklift operators are trained before operating the equipment, evaluated on the specific equipment they will use, and re-evaluated at least every three years. Training must cover truck-related topics (controls, stability, capacity), workplace-related topics (surface conditions, pedestrians, ramp operation), and operator topics (situational awareness, pre-operation inspection). Training records must be maintained for each operator.
+NARRATION: OSHA requires forklift operator training, evaluation, and re-evaluation at least every three years.
+
+SLIDE 19 | When to Retrain Operators
+Operators must be retrained before the three-year requirement if: they are observed operating the truck unsafely, they are involved in an incident or near-miss, they have received an unsatisfactory evaluation, conditions in the workplace change in a way that affects safe operation, or they are assigned a different type of truck. Retraining is not punitive — it is a critical safety intervention.
+NARRATION: Retrain operators immediately after unsafe behavior, incidents, or changes in equipment or workplace conditions.
+
+SLIDE 20 | Attachments and Modifications
+Modifications or attachments to a forklift — such as side-shifters, rotating clamps, or extended fork arms — affect the truck's capacity, stability, and handling characteristics. Any attachment must be approved by the truck manufacturer, and the data plate must be updated to reflect the reduced capacity with the attachment installed. Homemade attachments are never acceptable. Operators must receive training specific to any attachment they will use.
+NARRATION: Forklift attachments reduce capacity — update the data plate and train operators before use.
+
+SLIDE 21 | Parking and Shutdown Procedures
+When parking, fully lower the forks to the floor and tilt them slightly forward. Set the parking brake, neutralize controls, and shut off the power before leaving the operator's position. Never park a forklift on a ramp or grade, in a fire exit or aisle, near fuel sources, or in a location that blocks emergency equipment. A forklift left unattended with the engine running and forks raised is an invitation to tragedy.
+NARRATION: When parking, fully lower forks, set the brake, shut off power, and never block exits or emergency equipment.
+
+SLIDE 22 | Incident Reporting
+All forklift incidents — including near-misses and property damage — must be reported promptly to the supervisor and documented. Near-misses are often referred to as "free lessons" — they reveal hazards that have not yet caused injury, allowing correction before someone is hurt. Organizations should conduct a root cause analysis for every incident and implement corrective actions to prevent recurrence, not simply assign blame.
+NARRATION: Report all forklift incidents and near-misses immediately — they are free lessons that prevent future injuries.
+
+SLIDE 23 | Maintenance and Inspection Requirements
+Forklifts must be maintained in safe operating condition at all times. Maintenance must be performed by trained technicians in accordance with the manufacturer's recommendations. Records of all inspections, maintenance, and repairs must be kept. When a forklift is found to need repair, it must be removed from service, tagged with an out-of-service notice, and not returned to service until repaired and re-inspected.
+NARRATION: Maintain forklifts per manufacturer recommendations and tag them out of service until repaired.
+
+SLIDE 24 | Environmental Conditions
+Environmental conditions significantly affect forklift safety. Wet floors reduce braking effectiveness and increase tip-over risk. Ice or oily surfaces can cause skidding. Uneven or damaged floors can destabilize loads. Fog, dim lighting, or cluttered aisles reduce visibility. Operators must adjust their speed and operating practices to match actual conditions — the rated capacity and operating rules assume normal conditions.
+NARRATION: Adjust speed and operating practices for wet floors, poor lighting, and other environmental hazards.
+
+SLIDE 25 | Forklift Safety Culture
+Forklift incidents are almost always preventable. A strong forklift safety culture starts with management commitment to safety over productivity, consistent enforcement of safety rules, encouragement of near-miss reporting, regular refresher training, and treating every close call as an opportunity for improvement. Every worker in a forklift operating area — operators and pedestrians alike — shares responsibility for the safety of everyone around them.
+NARRATION: Forklift safety requires management commitment, consistent rules, and shared responsibility from everyone in the area.
+
+FACT: OSHA estimates forklifts cause approximately 85 fatalities and 34,900 serious injuries per year.
+FACT: A forklift tips when the combined center of gravity moves outside the stability triangle.
+FACT: The rated capacity on the data plate decreases as loads are raised or positioned further from the forks.
+FACT: Operators must be re-evaluated and retrained at least every three years under 29 CFR 1910.178.
+FACT: If a forklift tips over, operators must stay in the cab — never jump out.
+FACT: LP gas forklift cylinder exchanges must be performed with the engine off in a well-ventilated area.
+FACT: Charging forklift batteries generates hydrogen gas, which is explosive — charging must occur in ventilated areas.

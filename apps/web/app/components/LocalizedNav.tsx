@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AUTH_EVENT, getToken, getFlag } from "../lib/api";
 import { useT } from "../lib/i18n";
 import ProfileMenu from "./ProfileMenu";
+import NavSearchBox from "./NavSearchBox";
 
 // Top navigation. Content tabs are gated when signed out. On narrow viewports
 // links collapse into a menu so the bar stays full-width and readable.
@@ -99,6 +100,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
             >
               {t("nav.aiInstructed")}
             </span>
+            <NavSearchBox />
             <ProfileMenu />
             <span className="version" title="App version">
               v{appVersion}

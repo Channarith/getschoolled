@@ -1,0 +1,110 @@
+LESSON: OSHA General Industry Safety
+LANGUAGE: en
+
+SLIDE 1 | What Is OSHA?
+The Occupational Safety and Health Administration (OSHA) was created by the Occupational Safety and Health Act of 1970. Its mission is to ensure safe and healthful working conditions for workers by setting and enforcing standards and by providing training, outreach, education, and assistance. OSHA covers most private sector employers and their workers in all 50 states.
+NARRATION: OSHA was created in 1970 to ensure safe and healthy working conditions for all workers.
+
+SLIDE 2 | OSHA's Mission and Scope
+OSHA sets legally enforceable standards that employers must follow to protect workers from known hazards. The agency also conducts workplace inspections, investigates complaints, and can issue citations and penalties for violations. Twenty-nine states operate their own OSHA-approved plans that must be at least as effective as the federal program.
+NARRATION: OSHA sets enforceable standards and conducts inspections to protect workers from hazards.
+
+SLIDE 3 | The General Duty Clause
+Section 5(a)(1) of the OSH Act, known as the General Duty Clause, requires employers to provide a workplace free from recognized hazards that are causing or are likely to cause death or serious physical harm. The General Duty Clause applies to hazards not covered by a specific OSHA standard. Employers cannot use the absence of a specific standard as an excuse for allowing dangerous conditions.
+NARRATION: The General Duty Clause requires employers to address all recognized hazards, even those without a specific standard.
+
+SLIDE 4 | Employee Rights Under OSHA
+Workers have the right to a safe workplace, to receive information and training about hazards and standards, and to review records of work-related injuries and illnesses. Employees may file a complaint with OSHA if they believe their employer is not following OSHA rules, and they are protected from retaliation for doing so. Workers also have the right to refuse work that presents an imminent danger of death or serious injury.
+NARRATION: Workers have rights to a safe workplace, safety information, and protection from retaliation.
+
+SLIDE 5 | Employer Responsibilities
+Employers must comply with all applicable OSHA standards, provide required personal protective equipment at no cost to workers, post the OSHA job safety and health poster in the workplace, and report any work-related fatality within 8 hours and any inpatient hospitalization, amputation, or eye loss within 24 hours. Employers must also keep required records of work-related injuries and illnesses.
+NARRATION: Employers must comply with OSHA standards, provide PPE, post notices, and report serious incidents.
+
+SLIDE 6 | Hazard Identification and Assessment
+Identifying hazards is the foundation of any safety program. Employers should conduct regular workplace surveys, analyze injury and illness records, review safety data sheets, and solicit input from employees about potential dangers. Hazards can be physical, chemical, biological, ergonomic, or psychosocial. Once identified, hazards should be controlled using the hierarchy of controls: elimination, substitution, engineering controls, administrative controls, and PPE.
+NARRATION: Identify hazards through surveys and worker input, then control them using the hierarchy of controls.
+
+SLIDE 7 | The Hierarchy of Controls
+The hierarchy of controls prioritizes hazard reduction methods from most to least effective. Elimination removes the hazard entirely; substitution replaces it with something less dangerous. Engineering controls physically isolate people from the hazard using enclosures, ventilation, or machine guards. Administrative controls change how work is performed through policies and procedures. PPE is the last line of defense.
+NARRATION: The hierarchy of controls prioritizes eliminating hazards over managing workers' exposure to them.
+
+SLIDE 8 | OSHA Recordkeeping — The 300 Log
+Employers with 10 or more employees in most industries must maintain the OSHA Form 300 (Log of Work-Related Injuries and Illnesses), Form 300A (Annual Summary), and Form 301 (Injury and Illness Incident Report). Work-related injuries and illnesses must be recorded within 7 days of learning about the event. The annual summary must be posted from February 1 through April 30 of the following year.
+NARRATION: Most employers must keep the OSHA 300 Log and post the annual summary from February through April.
+
+SLIDE 9 | Personal Protective Equipment (PPE)
+OSHA's PPE standards (29 CFR 1910, Subpart I) require employers to assess the workplace for hazards that necessitate PPE, select appropriate PPE, provide it free of charge, and train employees on its proper use. Common types include hard hats, safety glasses, hearing protection, respirators, gloves, and high-visibility vests. PPE must be properly fitted, maintained, and replaced when worn or damaged.
+NARRATION: Employers must provide appropriate PPE at no cost and train workers on how to use it correctly.
+
+SLIDE 10 | Lockout/Tagout — Energy Control
+The Lockout/Tagout (LOTO) standard (29 CFR 1910.147) protects workers who service or maintain machines and equipment from unexpected energization or startup. Before performing maintenance, workers must isolate the machine from all energy sources, apply a lockout or tagout device, and verify that the energy has been released. Approximately 50,000 injuries each year are prevented by LOTO programs.
+NARRATION: Lockout/tagout procedures prevent injuries by isolating equipment from energy before maintenance.
+
+SLIDE 11 | Electrical Safety
+Electrical hazards — including shock, arc flash, and fire — cause hundreds of fatalities and thousands of injuries each year. OSHA's electrical standards (29 CFR 1910, Subpart S) require that electrical equipment be properly installed, maintained, and grounded. Workers must use appropriate PPE and insulated tools when working near energized parts, and unqualified persons must maintain minimum approach distances.
+NARRATION: Electrical standards require proper grounding, insulated tools, and safe approach distances.
+
+SLIDE 12 | Walking-Working Surfaces
+Slips, trips, and falls are among the most common workplace injuries. OSHA's walking-working surfaces standards (29 CFR 1910, Subpart D) require that floors, aisles, and work platforms be kept clean, dry, and free of obstructions. Fixed ladders, portable ladders, and scaffolding must meet specific construction and load requirements. Fall protection is required at heights of four feet in general industry.
+NARRATION: Keep floors clear and dry, and provide fall protection at four feet or higher in general industry.
+
+SLIDE 13 | Emergency Action Plans
+OSHA requires employers with 10 or more employees to have a written emergency action plan (EAP) that covers procedures for reporting emergencies, evacuation routes and procedures, and accountability for employees after evacuation. The plan must designate assembly areas, assign responsibilities, and address procedures for critical operations that cannot be immediately shut down. Employers must conduct regular emergency drills.
+NARRATION: Emergency action plans must cover evacuation routes, responsibilities, and regular drills.
+
+SLIDE 14 | Hearing Conservation
+Exposure to loud noise over time causes permanent, irreversible hearing loss. OSHA's Hearing Conservation standard (29 CFR 1910.95) requires employers to implement a hearing conservation program when workers are exposed to an 8-hour time-weighted average of 85 decibels or more. Programs must include noise monitoring, audiometric testing, hearing protection, training, and recordkeeping.
+NARRATION: At 85 decibels or higher over 8 hours, employers must implement a full hearing conservation program.
+
+SLIDE 15 | Respiratory Protection
+When engineering and administrative controls cannot adequately reduce airborne hazards, OSHA's Respiratory Protection standard (29 CFR 1910.134) requires employers to provide appropriate respirators, establish a written respiratory protection program, and train workers. Workers must be medically evaluated before wearing a respirator and fit-tested annually for tight-fitting facepieces. Improper respirator use can create a false sense of security.
+NARRATION: Respirators require a written program, medical evaluation, and annual fit testing.
+
+SLIDE 16 | Machine Guarding
+Unguarded machinery is one of the most serious workplace hazards. OSHA's Machine Guarding standard (29 CFR 1910, Subpart O) requires that any machine part, function, or process that may cause injury must be safeguarded. Guards must be strong enough to withstand use and prevent contact with the hazard while allowing safe lubrication and maintenance. Workers must never remove or bypass machine guards.
+NARRATION: All machine hazard points must be guarded, and workers must never bypass safety guards.
+
+SLIDE 17 | Hazard Communication (HazCom)
+OSHA's Hazard Communication standard (29 CFR 1910.1200), also known as HazCom or the "Right to Know" law, requires chemical manufacturers to evaluate hazards and communicate information via Safety Data Sheets (SDS) and container labels. Employers must maintain a list of hazardous chemicals, keep SDS accessible, and train workers to recognize and handle chemical hazards safely.
+NARRATION: HazCom requires chemical labeling, Safety Data Sheets, and worker training on chemical hazards.
+
+SLIDE 18 | OSHA Inspections
+OSHA compliance officers may conduct inspections without advance notice. Inspections are prioritized by: imminent danger situations, fatalities and hospitalizations, worker complaints, referrals, and programmed inspections of high-hazard industries. During an inspection, the compliance officer will present credentials, conduct an opening conference, walk through the workplace, and hold a closing conference to discuss findings.
+NARRATION: OSHA inspections can occur without notice and prioritize imminent dangers and worker complaints.
+
+SLIDE 19 | Citations and Penalties
+After an inspection, OSHA may issue citations for violations. Types of violations include: other-than-serious, serious, willful, and repeated. Penalty amounts are adjusted annually; as of recent years, penalties for willful or repeated violations can reach $15,625 or more per violation per day. Employers may contest citations by submitting a Notice of Contest within 15 working days.
+NARRATION: Willful or repeated OSHA violations can result in penalties exceeding fifteen thousand dollars per violation.
+
+SLIDE 20 | Confined Space Entry
+Permit-required confined spaces contain or have the potential to contain a serious hazard. OSHA's Confined Space standard (29 CFR 1910.146) requires employers to identify all permit-required spaces, post warning signs, and establish a written program that includes entry permits, attendants, authorized entrants, and rescue procedures. Atmospheric testing must be done before and continuously during entry.
+NARRATION: Entry into permit-required confined spaces requires permits, attendants, and continuous atmospheric monitoring.
+
+SLIDE 21 | Chemical Exposure Limits
+OSHA has established Permissible Exposure Limits (PELs) for hundreds of chemicals. PELs represent the maximum concentration of a substance to which most workers can be exposed during an 8-hour workday without adverse effects. When exposure levels approach PELs, employers must implement engineering controls and administrative measures before relying on respiratory protection. The American Conference of Governmental Industrial Hygienists (ACGIH) publishes Threshold Limit Values (TLVs) that are often more protective.
+NARRATION: Permissible Exposure Limits set the maximum chemical concentrations workers can be safely exposed to.
+
+SLIDE 22 | Ergonomics and Musculoskeletal Hazards
+Musculoskeletal disorders (MSDs) — including back injuries, carpal tunnel syndrome, and tendinitis — account for a large share of workplace injuries. While OSHA does not have a specific ergonomics standard, the General Duty Clause requires employers to address ergonomic hazards. Effective programs include workstation assessments, job rotation, mechanical assists, and early symptom reporting.
+NARRATION: Ergonomic hazards cause many workplace injuries and must be addressed under the General Duty Clause.
+
+SLIDE 23 | Bloodborne Pathogens
+OSHA's Bloodborne Pathogens standard (29 CFR 1910.1030) applies to workers who are exposed to blood or other potentially infectious materials. It requires employers to develop an Exposure Control Plan, provide hepatitis B vaccines, use engineering controls such as sharps disposal containers, train workers annually, and maintain exposure records. This standard is especially relevant in healthcare, first response, and janitorial settings.
+NARRATION: The Bloodborne Pathogens standard protects healthcare and other workers from exposure to infectious materials.
+
+SLIDE 24 | Safety and Health Programs
+Effective safety and health programs reduce injuries, illnesses, and fatalities while improving productivity and morale. OSHA's recommended program elements include management leadership, worker participation, hazard identification and assessment, hazard prevention and control, education and training, and program evaluation. OSHA's voluntary Voluntary Protection Program (VPP) recognizes employers with exemplary safety programs.
+NARRATION: Strong safety programs combine management commitment, worker participation, and continuous improvement.
+
+SLIDE 25 | Your Role in Workplace Safety
+Every worker plays a critical role in maintaining a safe workplace. This means following safety rules and procedures, wearing required PPE, reporting hazards and near-misses, participating in training, and never taking shortcuts that compromise safety. You have the legal right to refuse work that presents an imminent danger — use it if you need to.
+NARRATION: Every worker has both the right and the responsibility to report hazards and refuse imminently dangerous work.
+
+FACT: OSHA was established by the Occupational Safety and Health Act of 1970.
+FACT: The General Duty Clause requires employers to address all recognized hazards, even without a specific standard.
+FACT: Lockout/tagout procedures prevent approximately 50,000 injuries per year.
+FACT: Fall protection is required at heights of four feet in general industry.
+FACT: Workers are protected from retaliation for exercising their OSHA rights.
+FACT: The OSHA 300 Log annual summary must be posted from February 1 through April 30.
+FACT: Willful or repeated OSHA violations can result in penalties exceeding $15,000 per violation.

@@ -518,7 +518,7 @@ def jobs_parse(req: ParseJobRequest) -> dict:
 
 
 @app.get("/jobs")
-def jobs_list(q: str | None = None, location: str | None = None, limit: int = 50) -> dict:
+def jobs_list(q: str | None = None, location: str | None = None, limit: int = 500) -> dict:
     """Open roles from the job market (LinkedIn/other via provider; sample offline)."""
     from aoep_shared.jobs import get_jobs_provider
 
@@ -1900,6 +1900,27 @@ class ValueProjectionRequest(BaseModel):
     users_by_region: dict[str, int]
     arpu_usd_per_year: float | None = None
     paid_conversion: float | None = None
+
+
+@app.get("/scholar/search")
+def scholar_search(q: str, limit: int = 5) -> dict:
+    """Search Google Scholar for publications relevant to a topic.
+
+    Used to enrich course content with cited academic sources. Requires
+    ``RAPIDAPI_KEY`` in the environment (sourced from ``aoep-secrets``).
+    Results are cached for 1 hour. Returns up to ``limit`` publication dicts,
+    each with: title, authors, year, abstract, url, citations.
+    """
+    from aoep_shared.scholar import get_scholar_provider
+
+    provider = get_scholar_provider()
+    if provider is None:
+        raise HTTPException(
+            status_code=503,
+            detail="RAPIDAPI_KEY not configured; Google Scholar search unavailable",
+        )
+    results = provider.search_publications(q, max_results=max(1, min(limit, 20)))
+    return {"query": q, "count": len(results), "publications": results}
 
 
 @app.post("/market/projection")

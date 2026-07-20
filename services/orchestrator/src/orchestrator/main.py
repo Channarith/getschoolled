@@ -1310,6 +1310,7 @@ async def _class_cleanup_loop() -> None:
 @app.on_event("startup")
 async def _orchestrator_startup() -> None:
     import asyncio
+    import logging as _log
 
     # Capture the running loop so background threads (e.g. the streamed AI-host
     # answer, which runs a blocking LLM generator in a threadpool) can push
@@ -1318,6 +1319,19 @@ async def _orchestrator_startup() -> None:
     _seed_group_classes()
     _cleanup_expired_classes()  # sweep once at boot
     app.state._class_cleanup_task = asyncio.create_task(_class_cleanup_loop())
+
+    _lg = _log.getLogger(__name__)
+    _orch_key = os.environ.get("ASSESSMENT_SIGNING_KEY") or os.environ.get("AUTH_SIGNING_KEY")
+    if not _orch_key:
+        _lg.warning(
+            "Neither ASSESSMENT_SIGNING_KEY nor AUTH_SIGNING_KEY is set on the orchestrator. "
+            "Assessment tokens will be signed with the insecure development default key."
+        )
+    elif not os.environ.get("ASSESSMENT_SIGNING_KEY") and os.environ.get("AUTH_SIGNING_KEY"):
+        _lg.info(
+            "ASSESSMENT_SIGNING_KEY not set — orchestrator will sign assessment tokens "
+            "with AUTH_SIGNING_KEY. Ensure the identity service uses the same key."
+        )
 
 
 def _group_store() -> GroupClassStore:
@@ -2715,6 +2729,62 @@ def leave_live_room(
     return room.to_dict()
 
 
+_chat_reply_last: dict[str, float] = {}  # room:pid -> last reply timestamp
+_CHAT_REPLY_COOLDOWN_S = 8.0  # minimum seconds between Theodore replies per participant
+# room_id -> (timestamp, participant_id): track when a floor holder enters
+# the confirmation-pending state so the tick watchdog can auto-release if
+# the client disconnects before calling finish-turn.
+_confirmation_pending: dict[str, tuple[float, str]] = {}
+
+
+def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
+    """Reply to a learner chat message from Theodore in a background thread."""
+    import time as _time
+    key = f"{room_id}:{participant_id}"
+    now = _time.time()
+    if now - _chat_reply_last.get(key, 0) < _CHAT_REPLY_COOLDOWN_S:
+        return
+    _chat_reply_last[key] = now
+
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        if room.status == "ended" or not room.session_id:
+            return
+        sessions = get_sessions()
+        learner = room.get_participant(participant_id)
+        name = learner.name if learner else "the learner"
+        lang = (learner.language if learner else None) or "en"
+        # Ask Theodore to reply conversationally to the chat message.
+        prompt = (
+            f"{name} said in the class chat: \"{text}\"\n\n"
+            "Respond briefly and warmly in one or two sentences. "
+            "Stay on the topic of the lesson if relevant, otherwise be friendly and encouraging."
+        )
+        try:
+            chunks = []
+            for chunk in sessions.ask_stream(room.session_id, prompt, language=lang):
+                if chunk:
+                    chunks.append(chunk)
+            reply_text = "".join(chunks).strip()
+            if not reply_text:
+                reply_text = (sessions.ask(room.session_id, prompt, language=lang).text or "").strip()
+        except Exception:  # noqa: BLE001
+            return
+        if not reply_text:
+            return
+        host_msg = store.post_host_message(room_id, reply_text)
+        from aoep_shared.live_room_ws import ws_chat  # noqa: E402
+        _broadcast_threadsafe(room_id, ws_chat(asdict(host_msg), room_id=room_id))
+        # Also broadcast as a host_delta so the TTS effect fires for all participants.
+        _broadcast_threadsafe(
+            room_id,
+            ws_host_delta(text=reply_text, done=True, asker=name, room_id=room_id),
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @app.post("/api/live-rooms/{room_id}/chat")
 def live_room_chat(
     room_id: str,
@@ -2734,6 +2804,11 @@ def live_room_chat(
         room_id,
         ws_chat(asdict(msg), room_id=room_id),
     )
+    # Trigger Theodore to reply to the learner's chat message in the background.
+    if req.text.strip():
+        background.add_task(
+            _chat_theodore_reply, room_id, req.participant_id, req.text.strip()
+        )
     return {"message": asdict(msg), "room": store.require(room_id).to_dict()}
 
 
@@ -2832,6 +2907,7 @@ def live_room_finish_turn(
             raise LiveRoomError("no one has the floor")
         mod = _mod_key_for(room, req.moderator_key, authorization)
         store.finish_turn(room_id, pid, moderator_key=mod)
+        _confirmation_pending.pop(room_id, None)  # clear watchdog on normal finish
     except (KeyError, LiveRoomError) as exc:
         raise _live_room_http_error(exc)
     return {"room": store.require(room_id).to_dict()}
@@ -3043,6 +3119,8 @@ def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
 
     This is what makes "join Q&A queue" get handled — the class already pauses
     auto-advance while the queue is non-empty; here Theodore actually replies.
+    Also serves as the server-side watchdog: if a floor holder is stuck in the
+    confirmation-pending state for >30 s (client disconnected), auto-releases.
     """
     store = _live_rooms()
     try:
@@ -3051,6 +3129,24 @@ def _address_queue(room_id: str, background: BackgroundTasks) -> "dict | None":
         return None
     if room.status != "live" or not room.presenting:
         return None
+
+    # Server-side safety net: release the floor if the client disconnected while
+    # waiting for confirmation. Timestamps live in _confirmation_pending (below).
+    import time as _time
+    pending = _confirmation_pending.get(room_id)
+    if pending:
+        pending_at, pending_pid = pending
+        if (_time.time() - pending_at) > 30:
+            _confirmation_pending.pop(room_id, None)
+            try:
+                store.finish_turn(room_id, pending_pid)
+                from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
+                _broadcast_threadsafe(
+                    room_id,
+                    ws_room_snapshot(store.require(room_id).to_dict(), room_id=room_id),
+                )
+            except Exception:  # noqa: BLE001
+                pass
     from aoep_shared.live_room_ws import ws_room_snapshot  # noqa: E402
 
     entry = store.next_unanswered_question(room_id)
@@ -3229,6 +3325,7 @@ def live_room_ask(room_id: str, req: LiveRoomAskRequest) -> dict:
             f"@{learner.name} {answer.text}",
         )
         store.finish_turn(room_id, req.participant_id)
+        _confirmation_pending.pop(room_id, None)
     except KeyError:
         raise HTTPException(status_code=404, detail="teaching session not found")
     except LiveRoomError as exc:
@@ -3318,12 +3415,25 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
     elif buf.strip():
         _broadcast_threadsafe(room_id, ws_host_delta(text=buf.strip(), asker=name, room_id=room_id))
 
-    host_msg = store.post_host_message(room_id, f"@{name} {text}") if text else None
-    try:
-        store.finish_turn(room_id, participant_id)
-    except LiveRoomError:
-        pass
+    # Append a confirmation prompt so the learner always gets a chance to
+    # follow up before the floor is released.
+    confirmation_prompt = "Does that answer your question?"
+    if text:
+        _broadcast_threadsafe(
+            room_id,
+            ws_host_delta(text=" " + confirmation_prompt, asker=name, room_id=room_id),
+        )
+    full_text = (text + " " + confirmation_prompt).strip() if text else ""
+
+    host_msg = store.post_host_message(room_id, f"@{name} {full_text}") if full_text else None
+    # Do NOT release the floor yet. Signal the client to hold the mic open for
+    # the learner's yes/no confirmation. The client calls finish-turn once the
+    # learner confirms. Stamp a server-side watchdog so the tick can auto-release
+    # after 30 s if the client disconnects before calling finish-turn.
+    import time as _time
+    _confirmation_pending[room_id] = (_time.time(), participant_id)
     room_dict = store.require(room_id).to_dict()
+    yield {"type": "awaiting_confirmation", "asker": name, "confirmation": confirmation_prompt}
     _broadcast_threadsafe(
         room_id,
         ws_host_delta(
@@ -3331,6 +3441,7 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
             message=asdict(host_msg) if host_msg else None,
             asker=name,
             room_id=room_id,
+            awaiting_confirmation=True,
         ),
     )
     _broadcast_threadsafe(room_id, ws_room_snapshot(room_dict, room_id=room_id))

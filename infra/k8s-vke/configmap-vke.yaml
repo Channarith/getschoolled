@@ -38,9 +38,10 @@ data:
   DEFAULT_ADMIN_EMAIL: "admin@salareen.com"
   DEFAULT_ADMIN_USERNAME: "admin"
   SEED_QA_ACCOUNTS: "1"
-  # Careers: real job openings from public boards (free) + keyed aggregators
-  # (RAPIDAPI_KEY / ADZUNA_*) for LinkedIn/Indeed-sourced listings. Falls back to
-  # the curated board if the cluster has no egress.
+  # Careers: real job openings from Indeed RSS, RemoteOK, Remotive, and Arbeitnow
+  # (all free, no key required). To add LinkedIn/Glassdoor/ZipRecruiter listings
+  # via JSearch set RAPIDAPI_KEY in aoep-secrets; for Adzuna set ADZUNA_APP_ID +
+  # ADZUNA_APP_KEY. Both keys live in the out-of-band aoep-secrets Secret.
   JOBS_LIVE: "1"
   ORCHESTRATOR_URL: "https://api.salareen.com"
   # Browser-facing API bases. Same-origin RELATIVE prefixes by default: the web

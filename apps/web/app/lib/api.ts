@@ -531,6 +531,20 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+/** Bookmark a course to My List (status="saved"). Idempotent. */
+export async function saveForLater(courseId: string, title: string): Promise<Enrollment> {
+  return enrollCourse(courseId, title, "saved");
+}
+
+/** Remove a course from My List (deletes the enrollment entirely). */
+export async function unsaveForLater(courseId: string): Promise<void> {
+  await jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}`, {
+      method: "DELETE", headers: authHeaders(),
+    })
+  );
+}
+
 // Update an enrollment's status. On the FIRST transition to "passed" the
 // identity service awards reward points (scaled by level + score + hands-on),
 // and returns the new points_balance. Idempotent: re-passing doesn't re-award.
@@ -778,12 +792,11 @@ export type JobMatch = {
   covered: string[]; missing: string[]; coverage_pct: number; recommended_path: string[];
 };
 
-export async function listJobs(q?: string, location?: string): Promise<{ source: string; count: number; jobs: JobPosting[] }> {
-  const p = new URLSearchParams();
+export async function listJobs(q?: string, location?: string, limit = 500): Promise<{ source: string; count: number; jobs: JobPosting[] }> {
+  const p = new URLSearchParams({ limit: String(limit) });
   if (q) p.set("q", q);
   if (location) p.set("location", location);
-  const qs = p.toString();
-  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
+  return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs?${p.toString()}`, { cache: "no-store" }));
 }
 export async function getJobMatch(jobId: string): Promise<JobMatch> {
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" }));
@@ -2115,6 +2128,7 @@ export type LiveRoomAskStreamResult = {
   room?: LiveRoomState;
   text?: string;
   host_message?: { text?: string } | null;
+  awaitingConfirmation?: boolean;
 };
 
 export async function liveRoomAskStream(
@@ -2160,8 +2174,11 @@ export async function liveRoomAskStream(
           queue_position: (ev.queue_position as number) ?? 0,
           room: ev.room as LiveRoomState | undefined,
         };
+      } else if (ev.type === "awaiting_confirmation") {
+        result = { ...result, awaitingConfirmation: true };
       } else if (ev.type === "done") {
         result = {
+          ...result,               // preserve awaitingConfirmation set by the preceding event
           queued: false,
           room: ev.room as LiveRoomState | undefined,
           text: (ev.text as string) ?? "",

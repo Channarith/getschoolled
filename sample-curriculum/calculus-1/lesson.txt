@@ -1,0 +1,166 @@
+LESSON: Calculus I
+LANGUAGE: en
+
+SLIDE 1 | Welcome to Calculus I
+Calculus is the mathematics of change and accumulation. Calculus I focuses on two big ideas:
+the derivative, which measures how fast something changes, and the integral, which measures
+how much accumulates. Both ideas grow from the single concept of a limit.
+NARRATION: Calculus studies change and accumulation, and everything in it flows from the idea of a limit.
+
+SLIDE 2 | Limits Intuitively
+The limit of a function f(x) as x approaches a is the value f(x) gets closer and closer to,
+even if f(a) itself is undefined. We write this as lim_{x→a} f(x) = L. Limits let us talk
+rigorously about instantaneous rates and areas under curves.
+NARRATION: A limit asks what value a function approaches as the input gets closer and closer to a target.
+
+SLIDE 3 | Limit Laws
+If the limits of f and g both exist as x approaches a, then the limit of their sum, difference,
+product, or quotient (when the denominator's limit is nonzero) equals the corresponding
+operation on the individual limits. These laws let you evaluate most limits by substitution.
+NARRATION: Limit laws let you break a complicated limit into simpler pieces you can evaluate separately.
+
+SLIDE 4 | Computing Limits — Algebraic Techniques
+When direct substitution produces 0/0 (an indeterminate form), try factoring and canceling,
+rationalizing with a conjugate, or applying a known trigonometric limit such as
+lim_{x→0} (sin x)/x = 1. Simplify the expression first, then substitute.
+NARRATION: Factor, cancel, or use known special limits to resolve indeterminate zero-over-zero forms.
+
+SLIDE 5 | One-Sided Limits
+The left-hand limit lim_{x→a⁻} f(x) considers only x-values approaching a from below, and the
+right-hand limit lim_{x→a⁺} considers only x-values from above. The two-sided limit exists if
+and only if both one-sided limits exist and are equal.
+NARRATION: The two-sided limit exists only when the function approaches the same value from both directions.
+
+SLIDE 6 | Limits at Infinity
+As x → +∞ or x → −∞, we ask what value (if any) f(x) approaches. If lim_{x→∞} f(x) = L,
+then y = L is a horizontal asymptote. For rational functions, divide every term by the highest
+power of x in the denominator to find the limit at infinity.
+NARRATION: Horizontal asymptotes come from limits at infinity, found by comparing the degrees of numerator and denominator.
+
+SLIDE 7 | Continuity
+A function f is continuous at x = a if f(a) is defined, lim_{x→a} f(x) exists, and the limit
+equals f(a). There are three main types of discontinuity: removable (a hole), jump (the two
+one-sided limits differ), and infinite (the function blows up to ±∞).
+NARRATION: Continuity means no holes, no jumps, and no blow-ups — the graph can be drawn without lifting your pencil.
+
+SLIDE 8 | The Definition of the Derivative
+The derivative of f at x is defined as f'(x) = lim_{h→0} [f(x+h) − f(x)] / h, the limit of
+the difference quotient. Geometrically it gives the slope of the tangent line to the graph at
+that point, and physically it gives the instantaneous rate of change.
+NARRATION: The derivative is the limit of the slope of secant lines as the two points get infinitely close together.
+
+SLIDE 9 | Derivative Notation
+Leibniz notation writes the derivative as dy/dx or d/dx[f(x)], emphasizing the ratio of
+infinitesimal changes. Prime notation writes f'(x) or y'. Higher derivatives are written
+f''(x), f'''(x), or d²y/dx². All notations describe the same object.
+NARRATION: dy/dx and f-prime-of-x both mean the derivative; choose whichever notation fits the context.
+
+SLIDE 10 | The Power Rule
+For any real constant n, the derivative of x^n is nx^{n−1}. This single rule handles polynomials,
+roots (written as fractional exponents), and reciprocals (written as negative exponents). For
+example, the derivative of x³ is 3x², and the derivative of √x = x^{1/2} is (1/2)x^{-1/2}.
+NARRATION: Bring the exponent down as a coefficient and reduce the exponent by one — that is the power rule.
+
+SLIDE 11 | The Product and Quotient Rules
+The product rule states (fg)' = f'g + fg'. The quotient rule states (f/g)' = (f'g − fg') / g².
+Remember the quotient rule with the phrase "low d-high minus high d-low, over low squared."
+Both rules are derived from the limit definition of the derivative.
+NARRATION: The product rule adds two terms; the quotient rule subtracts them and divides by the denominator squared.
+
+SLIDE 12 | The Chain Rule
+If y = f(g(x)), then dy/dx = f'(g(x)) · g'(x). The chain rule says: differentiate the outside
+function (leaving the inside alone), then multiply by the derivative of the inside. For
+example, d/dx[sin(x²)] = cos(x²) · 2x.
+NARRATION: The chain rule multiplies the derivative of the outer function by the derivative of the inner function.
+
+SLIDE 13 | Derivatives of Trigonometric Functions
+The basic trig derivatives are d/dx[sin x] = cos x and d/dx[cos x] = −sin x. From these,
+using the quotient rule, d/dx[tan x] = sec²x, d/dx[cot x] = −csc²x,
+d/dx[sec x] = sec x tan x, and d/dx[csc x] = −csc x cot x.
+NARRATION: Sine goes to cosine; cosine goes to negative sine — the other four follow from the quotient rule.
+
+SLIDE 14 | Derivatives of Exponential and Logarithmic Functions
+The natural exponential function has the remarkable property d/dx[eˣ] = eˣ: it equals its own
+derivative. The natural logarithm satisfies d/dx[ln x] = 1/x. For other bases,
+d/dx[aˣ] = aˣ ln a and d/dx[log_a x] = 1/(x ln a).
+NARRATION: e to the x is its own derivative, and the derivative of ln x is simply one over x.
+
+SLIDE 15 | Implicit Differentiation
+When a relation between x and y is given implicitly (not solved for y), differentiate both sides
+with respect to x, treating y as a function of x and applying the chain rule to every term
+involving y, then solve the resulting equation for dy/dx.
+NARRATION: Implicit differentiation lets you find dy/dx even when y is tangled together with x in one equation.
+
+SLIDE 16 | Related Rates
+In a related-rates problem, two or more quantities change with time and are related by an
+equation. Differentiate that equation implicitly with respect to time t, substitute known rates
+and values, and solve for the unknown rate. Always define variables and draw a diagram first.
+NARRATION: Related rates use implicit differentiation with respect to time to connect the rates at which quantities change.
+
+SLIDE 17 | Absolute and Local Extrema
+A function has a local (relative) maximum or minimum at a point where it changes from
+increasing to decreasing or vice versa. An absolute extremum is the largest or smallest value
+over a given interval. Candidates for absolute extrema are critical points and endpoints.
+NARRATION: Extrema occur at critical points where the derivative is zero or undefined, and at the endpoints of closed intervals.
+
+SLIDE 18 | The Mean Value Theorem
+If f is continuous on [a, b] and differentiable on (a, b), then there exists at least one c in
+(a, b) where f'(c) = [f(b) − f(a)] / (b − a). The MVT says the instantaneous rate of change
+must equal the average rate of change at some interior point.
+NARRATION: The Mean Value Theorem guarantees a point where the tangent line is parallel to the secant line across the interval.
+
+SLIDE 19 | First Derivative Test
+Find all critical numbers where f'(x) = 0 or f'(x) is undefined. If f' changes from positive
+to negative at a critical number, that point is a local maximum. If f' changes from negative
+to positive, it is a local minimum. If f' does not change sign, it is neither.
+NARRATION: The first derivative test classifies critical points by watching whether the derivative changes sign.
+
+SLIDE 20 | Concavity and the Second Derivative Test
+f is concave up where f'' > 0 and concave down where f'' < 0. A point where concavity changes
+is an inflection point. The second derivative test says: if f'(c) = 0 and f''(c) > 0, then c
+is a local minimum; if f''(c) < 0, it is a local maximum.
+NARRATION: A positive second derivative means concave up (like a cup); negative means concave down (like a cap).
+
+SLIDE 21 | L'Hopital's Rule
+If lim_{x→a} f(x)/g(x) produces an indeterminate form 0/0 or ∞/∞, then under mild conditions
+lim_{x→a} f(x)/g(x) = lim_{x→a} f'(x)/g'(x). Differentiate numerator and denominator
+separately (not using the quotient rule) and take the limit again.
+NARRATION: L'Hopital's rule replaces an indeterminate limit with the limit of the ratio of derivatives.
+
+SLIDE 22 | Optimization Problems
+To optimize a quantity: (1) write a primary equation for what you want to maximize or minimize,
+(2) use a constraint to eliminate a variable, (3) differentiate and find critical points, and
+(4) verify you have a maximum or minimum using the first or second derivative test.
+NARRATION: Optimization means translating a word problem into a function and then finding where its derivative is zero.
+
+SLIDE 23 | Antiderivatives and Indefinite Integrals
+An antiderivative of f is any function F such that F'(x) = f(x). The indefinite integral
+∫f(x)dx = F(x) + C represents the entire family of antiderivatives, where C is the constant of
+integration. For example, ∫x² dx = x³/3 + C.
+NARRATION: An antiderivative reverses differentiation, and the plus C accounts for any constant that differentiation erases.
+
+SLIDE 24 | Riemann Sums and the Definite Integral
+The definite integral ∫_a^b f(x)dx is defined as the limit of Riemann sums: divide [a, b] into
+n subintervals, evaluate f at a sample point in each, multiply by the subinterval width, and
+sum as n → ∞. Geometrically this gives the net signed area between f and the x-axis.
+NARRATION: A definite integral is the limit of a sum of thin rectangles as the rectangles become infinitely narrow.
+
+SLIDE 25 | The Fundamental Theorem of Calculus
+Part 1: If F(x) = ∫_a^x f(t)dt, then F'(x) = f(x) — differentiation undoes integration.
+Part 2: ∫_a^b f(x)dx = F(b) − F(a) for any antiderivative F of f. Together these two parts
+reveal that differentiation and integration are inverse processes.
+NARRATION: The Fundamental Theorem is the deepest result in calculus: it shows that derivatives and integrals are inverses.
+
+SLIDE 26 | Curve Sketching with Calculus
+A complete curve sketch uses: the domain, intercepts, symmetry, asymptotes (from limits),
+intervals of increase/decrease (from f'), local extrema, concavity (from f''), and inflection
+points. Calculus transforms curve sketching from guesswork into systematic analysis.
+NARRATION: By combining first and second derivative information, you can sketch any differentiable function accurately.
+
+FACT: The derivative measures the instantaneous rate of change of a function.
+FACT: The chain rule applies whenever you differentiate a composition of functions.
+FACT: L'Hopital's rule handles 0/0 and infinity/infinity indeterminate forms.
+FACT: The Fundamental Theorem connects differentiation and integration as inverse operations.
+FACT: Concavity is determined by the sign of the second derivative.
+FACT: The constant of integration C appears in every indefinite integral.
+FACT: The Mean Value Theorem guarantees a tangent line parallel to the secant line somewhere in the interval.

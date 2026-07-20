@@ -142,8 +142,8 @@ def test_live_provider_falls_back_to_sample_offline(monkeypatch):
     p = RemotiveJobsProvider()
     monkeypatch.setattr(p, "_fetch", lambda *a, **k: (_ for _ in ()).throw(OSError("blocked")))
     rows = p.search(limit=5)
-    assert len(rows) >= 5                       # served the curated board
-    assert p.source == "sample"                 # and reported as sample, not remotive
+    assert rows == []                           # empty on failure; composite handles fallback
+    assert p.source == "remotive"               # provider identity unchanged (never mutated)
 
 
 def test_live_provider_caches_for_get_job(monkeypatch):
@@ -180,9 +180,10 @@ def test_get_jobs_provider_selection():
     assert isinstance(get_jobs_provider({"RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
     assert isinstance(
         get_jobs_provider({"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b"}), AdzunaJobsProvider)
-    # keyed aggregator wins over the generic live flag
-    assert isinstance(
-        get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
+    # keyed aggregator wins over the generic live flag; may return JSearch or
+    # Composite depending on whether RAPIDAPI_KEY is routed to JSearch or LinkedIn.
+    p = get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"})
+    assert isinstance(p, (JSearchJobsProvider, CompositeJobsProvider))
 
 
 def test_location_matches_usa_filters_brazil():

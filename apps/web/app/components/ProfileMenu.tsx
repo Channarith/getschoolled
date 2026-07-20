@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { clearToken, getToken, lockAdmin, setPreview } from "../lib/api";
+import { invalidatePortfolioCache } from "./BookmarkButton";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
 import LanguagePicker from "./LanguagePicker";
@@ -45,6 +46,7 @@ export default function ProfileMenu() {
 
   function signOut() {
     clearToken();
+    invalidatePortfolioCache(); // clear cross-user stale saved-course state
     setPreview(false);   // back to the gated landing, not the preview catalog
     lockAdmin();         // drop operator access on sign-out
     setLoggedIn(false);
@@ -90,6 +92,7 @@ export default function ProfileMenu() {
           {loggedIn ? (
             <>
               <Link role="menuitem" href="/account" style={itemStyle}>👤 {t("profile.account")}</Link>
+              <Link role="menuitem" href="/my-list" style={itemStyle}>🔖 {t("nav.saved")}</Link>
               <Link role="menuitem" href="/rewards" style={itemStyle}>⭐ {t("profile.rewards")}</Link>
               <Link role="menuitem" href="/backgrounds" style={itemStyle}>🎨 {t("profile.themes")}</Link>
               <Link role="menuitem" href="/download" style={itemStyle}>📱 {t("profile.getApp")}</Link>

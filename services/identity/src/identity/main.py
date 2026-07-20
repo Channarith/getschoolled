@@ -45,11 +45,19 @@ def _bootstrap_on_startup() -> None:
 @app.on_event("startup")
 def _startup_seed_accounts() -> None:
     _bootstrap_on_startup()
+    import logging as _log
+    _lg = _log.getLogger(__name__)
     if os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT) == _AUTH_KEY_DEFAULT:
-        import logging
-        logging.getLogger(__name__).warning(
+        _lg.warning(
             "AUTH_SIGNING_KEY is not set — using the insecure development default. "
             "Set this environment variable before deploying."
+        )
+    if "ASSESSMENT_SIGNING_KEY" in os.environ and "AUTH_SIGNING_KEY" not in os.environ:
+        _lg.warning(
+            "ASSESSMENT_SIGNING_KEY is set but AUTH_SIGNING_KEY is not. "
+            "The orchestrator falls back to AUTH_SIGNING_KEY when signing assessment tokens; "
+            "if it is also unset on the orchestrator, token verification will fail. "
+            "Set ASSESSMENT_SIGNING_KEY on both services or set AUTH_SIGNING_KEY as the common fallback."
         )
 # Arcade: live game rounds (answer keys kept server-side) + submitted guard.
 app.state.game_rounds = {}
@@ -497,6 +505,14 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     except KeyError:
         raise HTTPException(status_code=404, detail="not enrolled in that course")
     return {**enr.model_dump(), "points_balance": app.state.accounts.points_balance(acct.id)}
+
+
+@app.delete("/enrollments/{course_id}")
+def delete_enrollment(course_id: str, acct=Depends(current_account)) -> dict:
+    """Remove a course from the learner's list entirely (e.g. un-save a bookmark)."""
+    acct.enrollments.pop(course_id, None)
+    app.state.accounts._persist()
+    return {"ok": True, "course_id": course_id}
 
 
 # --------------------------------------------------------------------------- #

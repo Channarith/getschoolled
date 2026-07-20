@@ -44,9 +44,7 @@ export function canAwardCourseCompletion(opts: {
   passDecisionToken: string | null | undefined;
 }): boolean {
   if (!opts.requireVerifiedPass) return true;
-  if (opts.passDecisionToken) return true;
-  // Summative was taken but not passed — still block silent “passed” awards.
-  return false;
+  return Boolean(opts.passDecisionToken);
 }
 
 export function isSummativeCompleted(

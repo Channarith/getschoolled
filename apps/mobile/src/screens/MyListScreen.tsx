@@ -6,10 +6,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { listAudioCourses, type AudioCourseRow } from "../api";
+import { getPortfolio, listAudioCourses, setEnrollmentStatus, type AudioCourseRow } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
-import { getMyList, toggleMyList } from "../storage";
 import { useT } from "../i18n";
 import { categoryGradient, theme } from "../theme";
 
@@ -22,19 +21,32 @@ export default function MyListScreen({ onOpenCourse }: {
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
 
   const load = async () => {
-    const ids = await getMyList();
-    if (ids.length === 0) { setRows([]); setLoading(false); setRefreshing(false); return; }
     try {
-      const all = await listAudioCourses(undefined, undefined, 100, locale);
+      // Fetch saved course IDs from the server, then hydrate from the audio catalog.
+      const [portfolio, all] = await Promise.all([
+        getPortfolio(),
+        listAudioCourses(undefined, undefined, 200, locale),
+      ]);
+      const savedIds = new Set(
+        (portfolio.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)
+      );
       const lookup = new Map(all.courses.map((c) => [c.id, c]));
-      setRows(ids.map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
-    } finally { setLoading(false); setRefreshing(false); }
+      setRows([...savedIds].map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
   useEffect(() => { void load(); }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = async (id: string) => {
-    await toggleMyList(id);
+    // Optimistic UI update then sync to server.
     setRows((r) => r.filter((c) => c.id !== id));
+    try {
+      await setEnrollmentStatus(id, "enrolled"); // revert saved → enrolled (no title overwrite)
+    } catch {
+      void load(); // revert on error
+    }
   };
 
   if (loading) {

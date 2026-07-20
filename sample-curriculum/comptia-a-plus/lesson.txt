@@ -1,0 +1,248 @@
+LESSON: CompTIA A+ IT Certification Prep
+LANGUAGE: en
+
+SLIDE 1 | What is CompTIA A+?
+CompTIA A+ is an entry-level IT certification that validates foundational skills in
+hardware, software, networking, and troubleshooting. It is vendor-neutral and
+recognized by employers worldwide. The exam consists of two parts: Core 1 (220-1101)
+and Core 2 (220-1102).
+NARRATION: CompTIA A+ proves you have the core IT skills employers look for, covering
+both hardware and software across two separate exams.
+
+SLIDE 2 | The Central Processing Unit (CPU)
+The CPU is the brain of the computer. It executes instructions by fetching, decoding,
+and executing them in a cycle. Key specs include clock speed (GHz), number of cores,
+cache size (L1, L2, L3), and socket type. Common manufacturers are Intel and AMD.
+NARRATION: The CPU performs all calculations; understand clock speed, core count, and
+socket compatibility when selecting or replacing one.
+
+SLIDE 3 | RAM - Random Access Memory
+RAM is volatile short-term memory used by the CPU to store active data. Common types
+include DDR4 and DDR5. Key specs are speed (MHz), capacity (GB), and form factor
+(DIMM for desktops, SO-DIMM for laptops). More RAM allows more programs to run
+simultaneously.
+NARRATION: RAM is temporary working memory; when the power goes off, its contents
+are lost.
+
+SLIDE 4 | Storage Devices
+Storage devices hold data persistently. HDDs (hard disk drives) use spinning magnetic
+platters and are slower but cheaper per gigabyte. SSDs (solid-state drives) use flash
+memory and are much faster. NVMe SSDs connect via PCIe for maximum speed. Optical
+drives read CDs, DVDs, and Blu-ray discs.
+NARRATION: SSDs have replaced HDDs in most modern systems because of their speed and
+durability.
+
+SLIDE 5 | Motherboards
+The motherboard is the main circuit board that connects all components. Key features
+include the CPU socket type, chipset, RAM slots (DIMMs), expansion slots (PCIe), SATA
+ports for storage, USB headers, and the BIOS/UEFI firmware chip. Form factors include
+ATX, Micro-ATX, and Mini-ITX.
+NARRATION: The motherboard is the backbone of the system; every component must be
+compatible with its socket and slot types.
+
+SLIDE 6 | Power Supply Units (PSU)
+The PSU converts AC power from the wall to DC power for components. Rated in watts,
+it must supply enough power for all components. The 80 Plus rating indicates
+efficiency. Connectors include 24-pin ATX for the motherboard, 8-pin EPS for the CPU,
+and PCIe connectors for GPUs.
+NARRATION: Always calculate total system wattage before choosing a PSU to avoid
+underpowering your build.
+
+SLIDE 7 | Laptop vs Desktop Components
+Laptops use smaller, more power-efficient components. They include integrated batteries,
+SO-DIMM RAM, M.2 SSDs, and often have soldered CPUs. Desktops use full-size ATX
+components and are easier to upgrade. Laptop screens, keyboards, and touchpads are
+integrated and require specialized tools to service.
+NARRATION: Servicing laptops requires care because components are compact, often
+proprietary, and more fragile than desktop parts.
+
+SLIDE 8 | Display Technologies
+LCD (liquid crystal display) panels use a backlight and are the most common type.
+IPS panels offer better color and viewing angles. TN panels are faster but have
+narrower angles. VA panels provide high contrast. OLED displays produce light
+per pixel, enabling true blacks. Resolution terms include HD (1280x720), FHD
+(1920x1080), and 4K (3840x2160).
+NARRATION: Understanding panel types helps you choose the right display for gaming,
+design, or general office use.
+
+SLIDE 9 | Printers and Imaging Devices
+Laser printers use toner and a heated fuser to bond images to paper; they are fast
+and economical for text. Inkjet printers spray liquid ink and excel at photos.
+Thermal printers use heat-sensitive paper for receipts. Impact printers (dot matrix)
+strike a ribbon against paper. Scanners and MFPs (multifunction printers) combine
+printing, scanning, and copying.
+NARRATION: Know the print process for each type: laser uses a drum and fuser, inkjet
+uses liquid ink cartridges.
+
+SLIDE 10 | Mobile Devices
+Mobile devices include smartphones, tablets, e-readers, smartwatches, and fitness
+trackers. They use ARM processors for power efficiency. Common connectivity features
+include Wi-Fi, Bluetooth, NFC, cellular (4G LTE, 5G), and GPS. Mobile OS choices
+are Android and iOS. Technicians must understand synchronization, mobile device
+management (MDM), and app stores.
+NARRATION: Mobile devices are everywhere in the enterprise; understanding MDM and
+synchronization is essential for A+ technicians.
+
+SLIDE 11 | Networking Fundamentals - TCP/IP
+TCP/IP is the protocol suite that powers the internet. IP addresses identify devices
+on a network; IPv4 uses 32-bit addresses (e.g., 192.168.1.1) and IPv6 uses 128-bit
+addresses. TCP provides reliable, connection-oriented communication. UDP is faster
+and connectionless, used for streaming. Common ports include HTTP (80), HTTPS (443),
+FTP (21), SSH (22), and DNS (53).
+NARRATION: TCP/IP is the language of the internet; memorize key port numbers because
+they appear heavily on the exam.
+
+SLIDE 12 | The OSI Model
+The OSI model has seven layers: Physical (cables and signals), Data Link (MAC
+addresses, switches), Network (IP addresses, routers), Transport (TCP/UDP, ports),
+Session (establishing connections), Presentation (encryption, formatting), and
+Application (HTTP, FTP, DNS). Use the mnemonic "Please Do Not Throw Sausage Pizza
+Away" to remember the order from bottom to top.
+NARRATION: The OSI model is a framework for understanding how data travels; each
+layer has specific protocols and devices.
+
+SLIDE 13 | Wi-Fi Standards
+IEEE 802.11 defines wireless networking. Key standards: 802.11a/g (54 Mbps),
+802.11n (Wi-Fi 4, 600 Mbps, 2.4 and 5 GHz), 802.11ac (Wi-Fi 5, multi-gigabit,
+5 GHz), and 802.11ax (Wi-Fi 6, improved density and efficiency). The 2.4 GHz band
+has longer range but is more congested; 5 GHz is faster with shorter range. Security
+protocols progress from WEP (weak) to WPA2 and WPA3 (recommended).
+NARRATION: Know each Wi-Fi generation's speed and frequency; Wi-Fi 6 is the current
+best standard for home and enterprise networks.
+
+SLIDE 14 | Network Hardware
+Routers connect different networks and direct traffic using IP addresses. Switches
+connect devices within a LAN using MAC addresses. Hubs broadcast to all ports and
+are obsolete. Access points extend wireless coverage. Modems convert ISP signals to
+Ethernet. Cables include Cat5e (1 Gbps), Cat6 (10 Gbps short run), and fiber optic
+for long distances.
+NARRATION: Routers work at Layer 3 with IP; switches work at Layer 2 with MAC
+addresses.
+
+SLIDE 15 | Windows OS Basics
+Windows is the dominant desktop OS. Key tools include Device Manager (hardware
+drivers), Task Manager (processes, performance), Control Panel and Settings, Registry
+Editor (regedit), and Command Prompt or PowerShell. File system types include NTFS
+(modern, supports permissions) and FAT32 (older, limited to 4 GB files). Windows
+editions include Home, Pro, and Enterprise with different features.
+NARRATION: A+ technicians must navigate Windows confidently, from installing drivers
+to editing the registry.
+
+SLIDE 16 | macOS and Linux Basics
+macOS is Apple's Unix-based OS used on Mac computers. Key features include Finder,
+System Preferences, Time Machine backups, and the Terminal for command-line access.
+Linux is open-source and available in distributions like Ubuntu and CentOS. Common
+Linux commands include ls (list), cd (change directory), chmod (permissions), and
+sudo (superuser). Both are important for the A+ Core 2 exam.
+NARRATION: Linux skills are increasingly valuable; know basic terminal commands and
+the difference between user and root permissions.
+
+SLIDE 17 | Virtualization
+Virtualization allows multiple operating systems to run on one physical host using
+a hypervisor. Type 1 hypervisors (bare-metal) run directly on hardware, such as
+VMware ESXi. Type 2 hypervisors run within a host OS, such as VirtualBox and
+VMware Workstation. VMs (virtual machines) share physical CPU, RAM, and storage.
+Benefits include isolation, snapshots, and efficient resource use.
+NARRATION: Virtualization lets one machine act as many; snapshots allow you to roll
+back a VM to a previous state.
+
+SLIDE 18 | Cloud Computing
+Cloud computing delivers computing resources over the internet. Service models include
+IaaS (Infrastructure as a Service, e.g., virtual servers), PaaS (Platform as a
+Service, e.g., app hosting), and SaaS (Software as a Service, e.g., Google Workspace).
+Deployment models include public, private, hybrid, and community clouds. Benefits
+include scalability, reduced capital expense, and accessibility.
+NARRATION: Know the three cloud service models and deployment types; they appear
+on both Core 1 and Core 2.
+
+SLIDE 19 | Cybersecurity Threats
+Common threats include phishing (deceptive emails), social engineering (manipulating
+users), man-in-the-middle attacks (intercepting traffic), denial-of-service (DoS)
+flooding a server, SQL injection targeting databases, and ransomware encrypting files
+for payment. Zero-day exploits target unpatched vulnerabilities. Physical threats
+include shoulder surfing and tailgating.
+NARRATION: Understanding attack types helps you recognize and prevent them; social
+engineering exploits people, not technology.
+
+SLIDE 20 | Malware Types and Removal
+Malware (malicious software) types include viruses (attach to files), worms (self-
+replicate across networks), Trojans (disguised as legitimate software), spyware
+(monitors activity), adware (unwanted ads), ransomware (encrypts for ransom), and
+rootkits (hide in the OS). Removal steps: disconnect from network, boot to safe mode,
+run anti-malware, delete quarantined files, patch and update, and verify clean.
+NARRATION: Memorize the malware types and follow the removal process in order; safe
+mode prevents malware from loading at startup.
+
+SLIDE 21 | Operational Procedures
+Operational procedures include change management (documenting and approving changes),
+incident response (identifying and containing breaches), disaster recovery planning,
+and backup strategies (full, incremental, differential). Data destruction methods
+include overwriting, degaussing, and physical shredding. Documentation types include
+network diagrams, asset inventories, and standard operating procedures (SOPs).
+NARRATION: Change management prevents unauthorized changes; always document what
+you do and why.
+
+SLIDE 22 | Troubleshooting Methodology
+CompTIA defines six troubleshooting steps: identify the problem (question the user,
+gather information), establish a theory of probable cause, test the theory, establish
+an action plan, implement the solution, verify functionality, and document the
+outcome. Always reproduce the problem before fixing it and consider multiple causes.
+NARRATION: Follow the six steps in order; documenting the solution helps future
+technicians facing the same problem.
+
+SLIDE 23 | Safety Practices
+Electrostatic discharge (ESD) can destroy components; use anti-static wrist straps
+and mats when working inside computers. Unplug equipment before servicing. High-
+voltage components such as CRT monitors and laser printer drums can hold lethal
+charges even when unplugged. Use proper lifting techniques for heavy equipment. SDS
+(Safety Data Sheets) provide hazard information for chemicals.
+NARRATION: ESD is invisible but destructive; always ground yourself before touching
+components inside a computer.
+
+SLIDE 24 | Environmental Controls and Disposal
+Data centers require proper temperature (68-77 F), humidity (40-60%), and airflow
+management using hot-aisle/cold-aisle configurations. HVAC systems and UPS
+(uninterruptible power supplies) protect equipment. Dispose of batteries, toner
+cartridges, and electronics through proper e-waste recycling programs. Never pour
+chemicals down drains; follow local regulations and SDS guidelines.
+NARRATION: Batteries and toner cannot go in regular trash; improper disposal is
+both an environmental hazard and a legal violation.
+
+SLIDE 25 | Core 1 Exam Tips (220-1101)
+Core 1 covers mobile devices, networking, hardware, virtualization, and cloud
+computing. It contains 90 questions answered in 90 minutes; the passing score is
+675 out of 900. Question types include multiple choice, drag-and-drop, and
+performance-based simulations (PBQs). Focus heavily on networking ports, cable
+types, connector types, and wireless standards. Practice PBQs using free online
+simulators.
+NARRATION: Core 1 is hardware-heavy; memorize connector types, cable specs, and
+port numbers before exam day.
+
+SLIDE 26 | Core 2 Exam Tips (220-1102)
+Core 2 covers operating systems, security, software troubleshooting, and operational
+procedures. It also has 90 questions in 90 minutes with a 700 out of 900 passing
+score. Study Windows command-line tools, Active Directory basics, encryption types,
+and the malware removal process. For security, know the CIA triad (Confidentiality,
+Integrity, Availability) and common attack mitigation strategies.
+NARRATION: Core 2 is software and security focused; the CIA triad underpins almost
+every security question on the exam.
+
+SLIDE 27 | Study Plan and Practice Exams
+Create a study schedule over 8-12 weeks using the official CompTIA study guide and
+free resources such as Professor Messer's videos. Take practice exams under timed
+conditions to simulate the real test. Review every wrong answer and understand why
+the correct answer is right. Join study groups and forums such as Reddit's
+r/CompTIA. Schedule your exam through Pearson VUE.
+NARRATION: Practice exams under real timing are the most effective study tool; review
+wrong answers thoroughly rather than just retaking tests.
+
+FACT: CompTIA A+ requires passing two exams: Core 1 (220-1101) and Core 2 (220-1102).
+FACT: The passing score for Core 1 is 675 and for Core 2 is 700 on a 900-point scale.
+FACT: Each exam has up to 90 questions answered in 90 minutes.
+FACT: ESD can permanently damage computer components; always use an anti-static wrist strap.
+FACT: The OSI model has seven layers; remember them with "Please Do Not Throw Sausage Pizza Away."
+FACT: TCP port 80 is HTTP, 443 is HTTPS, 22 is SSH, 21 is FTP, and 53 is DNS.
+FACT: DDR5 is the latest generation of desktop RAM and is faster than DDR4.
+FACT: NVMe SSDs connect via PCIe and are the fastest consumer storage option.
+FACT: The CIA triad stands for Confidentiality, Integrity, and Availability.
+FACT: CompTIA A+ certification is valid for three years; renewal requires CEUs or retesting.

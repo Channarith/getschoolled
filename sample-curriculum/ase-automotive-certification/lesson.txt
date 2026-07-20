@@ -1,0 +1,268 @@
+LESSON: ASE Automotive Service Excellence Certification
+LANGUAGE: en
+
+SLIDE 1 | What is ASE Certification?
+ASE (Automotive Service Excellence) certifications are the industry standard for
+proving automotive technician competency. Founded in 1972, ASE tests and certifies
+professionals in automobile, truck, collision repair, and service consultant roles.
+Most employers require ASE certification; many customers specifically request ASE-
+certified technicians. Certification requires passing a written test and demonstrating
+two years of hands-on work experience.
+NARRATION: ASE certification is proof that you know your trade; employers and
+customers trust the ASE seal as a mark of quality.
+
+SLIDE 2 | ASE Test Series Overview
+The automobile technician series includes A1 (Engine Repair), A2 (Automatic
+Transmission/Transaxle), A3 (Manual Drive Train and Axles), A4 (Suspension and
+Steering), A5 (Brakes), A6 (Electrical/Electronic Systems), A7 (Heating and Air
+Conditioning), A8 (Engine Performance), and A9 (Light Vehicle Diesel Engines).
+Advanced certifications include L1 (Advanced Engine Performance Specialist), L2
+(Electronic Diesel Engine Diagnosis), L3 (Light Duty Hybrid/Electric Vehicle), and
+G1 (Auto Maintenance and Light Repair).
+NARRATION: Earning all A-series certifications plus L1 makes you an ASE Master
+Automobile Technician, the highest designation in the field.
+
+SLIDE 3 | Engine Repair Fundamentals - Engine Construction
+Internal combustion engines convert fuel energy into mechanical work. Key components
+include the cylinder block (engine's main structure), pistons (reciprocate to compress
+and transfer force), connecting rods (link pistons to the crankshaft), the crankshaft
+(converts reciprocating motion to rotation), and the cylinder head (contains valves,
+combustion chamber, and in many engines the camshaft). The head gasket seals between
+block and head.
+NARRATION: A blown head gasket allows coolant and combustion gases to mix, causing
+overheating and engine damage; it is one of the most common A1 diagnosis topics.
+
+SLIDE 4 | Valvetrain and Timing
+The valvetrain controls the opening and closing of intake and exhaust valves. It
+includes camshafts, lifters (tappets), pushrods (on OHV engines), rocker arms, and
+valves. OHC (overhead cam) engines place the camshaft in the cylinder head. DOHC
+engines have two camshafts per head, one for intake and one for exhaust. The timing
+belt or chain synchronizes the crankshaft and camshaft. A broken timing belt can
+cause catastrophic engine damage on interference engines.
+NARRATION: Timing belt replacement at the manufacturer's interval prevents interference
+engine destruction; missing this service is an expensive mistake.
+
+SLIDE 5 | Engine Seals, Gaskets, and Lubrication
+Engine seals prevent oil and coolant leaks. Common seals include crankshaft front and
+rear main seals, valve stem seals (control oil consumption), and intake manifold
+gaskets. The oil pump draws oil from the sump and circulates it under pressure to
+bearings, the valvetrain, and other moving parts. Oil viscosity (e.g., 5W-30) indicates
+cold and hot flow characteristics. Regular oil changes prevent sludge and bearing wear.
+NARRATION: Low oil pressure is a critical warning; driving with low oil pressure
+will destroy bearings within minutes.
+
+SLIDE 6 | Engine Performance - Fuel Injection Systems
+Modern vehicles use electronic fuel injection (EFI). The ECM (Engine Control Module)
+calculates fuel delivery based on inputs from sensors including the Mass Airflow (MAF)
+sensor, Manifold Absolute Pressure (MAP) sensor, Throttle Position Sensor (TPS),
+Oxygen sensors (O2), and Engine Coolant Temperature (ECT) sensor. Port injection
+sprays fuel at the intake valve; direct injection sprays fuel directly into the
+combustion chamber for better efficiency.
+NARRATION: The ECM is the brain of fuel injection; faulty sensors send bad data to
+the ECM, causing rich or lean conditions.
+
+SLIDE 7 | Ignition Systems
+Modern ignition systems use coil-on-plug (COP) or coil-near-plug designs with no
+distributor. The PCM controls ignition timing electronically. Spark plugs ignite the
+air-fuel mixture; they should be replaced per manufacturer intervals. A misfiring
+cylinder sets a P030X DTC (X = cylinder number). Ignition timing advance improves
+power and efficiency but too much advance causes detonation (knock), which can
+damage pistons.
+NARRATION: A misfire code like P0301 means cylinder 1 is misfiring; check the spark
+plug, ignition coil, and fuel injector for that cylinder.
+
+SLIDE 8 | Emissions Systems
+Exhaust emissions are controlled by the catalytic converter, EGR (Exhaust Gas
+Recirculation) valve, EVAP (Evaporative Emission Control) system, PCV (Positive
+Crankcase Ventilation) valve, and oxygen sensors. The catalytic converter converts
+CO, HC, and NOx into CO2, H2O, and N2. A failing cat causes P0420/P0430 codes.
+The EVAP system captures fuel vapors from the tank; a loose gas cap is the most
+common cause of EVAP codes.
+NARRATION: P0420 (catalyst efficiency below threshold) is one of the most common
+check engine codes; it usually means the catalytic converter needs replacement.
+
+SLIDE 9 | Automatic Transmissions and Transaxles
+An automatic transmission uses a torque converter instead of a clutch to transfer
+engine power, and planetary gear sets controlled by hydraulic and electronic solenoids
+to select gear ratios. The TCM (Transmission Control Module) controls shift timing
+based on throttle position, speed, and load. Common issues include slipping,
+shuddering, and harsh shifts. Automatic transmission fluid (ATF) type must match
+manufacturer specification exactly.
+NARRATION: Using the wrong ATF type can damage clutch packs and shift solenoids;
+always verify the correct fluid before servicing.
+
+SLIDE 10 | Manual Drivetrain and Axles
+Manual transmissions use a friction clutch operated by the driver to engage and
+disengage engine power during gear changes. Synchronizers allow smooth gear engagement
+without grinding. Clutch components include the pressure plate, clutch disc, throwout
+bearing, and flywheel. CV (constant velocity) joints on front-wheel-drive vehicles
+allow the axle to flex while maintaining constant speed; a clicking noise in turns
+indicates a failing outer CV joint.
+NARRATION: A clicking sound during tight turns is the classic sign of a worn outer
+CV joint; replace the CV axle before complete failure.
+
+SLIDE 11 | Suspension and Steering Systems
+The suspension system absorbs road impacts and keeps tires in contact with the road.
+Components include springs (coil, leaf, torsion bar), shock absorbers, struts, control
+arms, and ball joints. Worn ball joints or tie rod ends cause steering looseness and
+create unsafe handling. Wheel alignment angles (camber, caster, toe) affect tire wear
+and handling. Power steering uses hydraulic or electric assistance to reduce steering
+effort.
+NARRATION: Uneven tire wear is often a symptom of alignment or suspension issues;
+always inspect suspension components before performing an alignment.
+
+SLIDE 12 | Brake Systems - Disc Brakes
+Disc brakes use a caliper to squeeze brake pads against a rotor to slow the vehicle.
+Floating calipers use one piston; fixed calipers use multiple pistons for better
+performance. Brake pad friction material transfers to the rotor surface during break-
+in. Minimum rotor thickness is stamped on the rotor; rotors thinner than spec must
+be replaced. Brake dust and heat are hazards during disc brake service.
+NARRATION: Always measure rotor thickness after resurfacing; a rotor at minimum
+thickness must be replaced, not turned.
+
+SLIDE 13 | Brake Systems - Drum Brakes and ABS
+Drum brakes use wheel cylinders to push brake shoes against the inside of a rotating
+drum. They are typically used on the rear wheels of economy vehicles. Self-adjusters
+maintain proper shoe-to-drum clearance. ABS (Anti-lock Braking System) uses wheel
+speed sensors to detect lockup and rapidly modulates brake pressure to maintain
+steering control during hard stops. ABS codes are stored separately from powertrain
+codes.
+NARRATION: ABS allows you to steer while braking hard; without ABS, a locked wheel
+means you lose the ability to steer away from an obstacle.
+
+SLIDE 14 | Brake System Hydraulics and Safety
+The master cylinder converts pedal force to hydraulic pressure. Brake lines carry
+fluid to calipers and wheel cylinders. A spongy pedal indicates air in the system;
+a low pedal that firms up with pumping suggests a failing master cylinder. Brake fluid
+is hygroscopic and absorbs moisture over time, lowering its boiling point. DOT 3, 4,
+and 5.1 are glycol-based; DOT 5 is silicone-based and must not be mixed with glycol
+fluids.
+NARRATION: Never mix DOT 5 silicone fluid with DOT 3 or 4 glycol fluid; mixing causes
+the fluid to gel and brakes to fail catastrophically.
+
+SLIDE 15 | Electrical Systems - Battery and Charging
+The battery provides starting current and stabilizes electrical system voltage. Battery
+capacity is measured in CCA (Cold Cranking Amps) and reserve capacity. The alternator
+recharges the battery during operation, typically outputting 13.5-14.5 volts. A
+charging system below 13 volts indicates a failing alternator or poor connections. Battery
+load testing reveals internal weakness that a simple voltage test can miss.
+NARRATION: A battery may read 12.6 volts at rest but fail under load; always load-test
+a battery before condemning the charging system.
+
+SLIDE 16 | Electrical Systems - Starting and Lighting
+The starting system includes the battery, ignition switch, neutral safety switch (or
+clutch switch), starter relay or solenoid, and starter motor. A click with no crank
+indicates a bad solenoid or dead battery; no click at all points to the relay, switch,
+or safety switch. Vehicle lighting uses a combination of incandescent, halogen, HID
+(xenon), and LED bulbs. LED headlights draw less current and last longer but require
+proper aiming.
+NARRATION: Diagnose starting problems systematically: verify battery voltage, then
+test the relay, then the solenoid, then the starter motor itself.
+
+SLIDE 17 | Heating and Air Conditioning (A7)
+Vehicle HVAC systems use the same refrigeration cycle as home AC. The compressor is
+belt-driven and controlled by a magnetic clutch. R-134a is the refrigerant in most
+pre-2021 vehicles; newer vehicles may use R-1234yf. Technicians must be EPA 609
+certified to purchase and handle automotive refrigerants. Heater cores use engine
+coolant to heat the passenger compartment. Blend doors control temperature mixing.
+NARRATION: EPA 609 is the automotive equivalent of Section 608; it is required to
+purchase refrigerant for vehicle AC service.
+
+SLIDE 18 | Engine Maintenance Services
+Routine engine maintenance includes oil and filter changes (every 5,000-10,000 miles
+for synthetic oil), air filter inspection, fuel filter replacement, spark plug replacement,
+coolant system flush, timing belt replacement (if equipped), serpentine belt inspection,
+and PCV valve replacement. Following manufacturer maintenance schedules prevents
+breakdowns. Neglecting maintenance is the leading cause of premature engine failure.
+NARRATION: Regular oil changes are the single most important maintenance service;
+clean oil protects bearing surfaces from metal-to-metal contact.
+
+SLIDE 19 | OBD-II Diagnostics and Scan Tools
+OBD-II (On-Board Diagnostics II) became mandatory on all U.S. vehicles starting in
+1996. The system monitors hundreds of parameters and stores Diagnostic Trouble Codes
+(DTCs) when a fault is detected. The MIL (Malfunction Indicator Lamp, or check engine
+light) illuminates when an emissions-related fault is stored. Scan tools connect to
+the OBD-II port (DLC) under the dashboard to read codes, view live data, and perform
+active tests.
+NARRATION: The OBD-II port is always within 18 inches of the steering wheel; it is your
+primary diagnostic gateway to the vehicle's computer systems.
+
+SLIDE 20 | Reading and Diagnosing DTCs
+DTCs have a five-character format: a letter (P for powertrain, B for body, C for
+chassis, U for network) followed by four digits. The second character (0 or 1)
+indicates generic or manufacturer-specific. Common codes include P0300 (random
+misfire), P0171 (system lean bank 1), P0420 (catalyst efficiency), and P0455 (EVAP
+large leak). Always research the code and follow a diagnostic procedure rather than
+replacing parts blindly.
+NARRATION: A DTC identifies the system with the fault, not necessarily the failed
+part; diagnose the root cause before replacing components.
+
+SLIDE 21 | Customer Service in Automotive
+Building customer trust is critical in automotive service. Always explain repairs in
+plain language, provide written estimates before beginning work, and obtain customer
+authorization. Inform customers of any additional findings discovered during service.
+Avoid high-pressure upselling; recommend maintenance items honestly. Keep the service
+area clean, return vehicles cleaner than received, and follow up after repairs to
+ensure satisfaction.
+NARRATION: Repeat customers and referrals are the lifeblood of a shop; excellent
+communication builds the trust that keeps customers coming back.
+
+SLIDE 22 | Shop Safety
+OSHA regulations govern workplace safety in automotive shops. Use personal protective
+equipment (PPE) including safety glasses, gloves, and hearing protection. Lift vehicles
+only on designated lift points shown in the service manual. Never work under a vehicle
+supported only by a floor jack; always use jack stands. Keep the shop floor clean and
+dry to prevent slips. Dispose of used oil, coolant, and brake fluid at approved
+recycling facilities.
+NARRATION: A shop injury costs you time and money; PPE, proper lifting techniques,
+and a clean workspace prevent the majority of shop accidents.
+
+SLIDE 23 | ASE Exam Format and Preparation
+ASE exams are administered by Prometric at authorized testing centers. Each A-series
+exam has 40-80 multiple-choice questions. The passing score is approximately 70%.
+Questions are based on the ASE task list for each test. Study using official ASE study
+guides, Delmar's ASE test prep books, and free practice tests at the ASE website.
+The exam covers theory, diagnosis, and service procedures. Hands-on experience is
+the best preparation.
+NARRATION: The ASE exam tests both knowledge and the ability to apply it; two years
+of hands-on experience before testing dramatically improves pass rates.
+
+SLIDE 24 | Hybrid and Electric Vehicle Basics (L3)
+Hybrid vehicles combine an internal combustion engine with one or more electric motors
+and a high-voltage battery pack. High-voltage systems in hybrids typically operate
+at 144-650 volts and require special precautions. Always wear Class 0 high-voltage
+gloves when working near orange high-voltage cables. The L3 certification covers
+diagnosis and repair of hybrid and EV systems including battery management, electric
+motor service, and regenerative braking.
+NARRATION: High-voltage systems can kill in milliseconds; never assume a hybrid or EV
+is safe to touch without proper PPE and training.
+
+SLIDE 25 | Fuel Systems and Fuel Trim
+The fuel system delivers pressurized fuel from the tank to the injectors. Components
+include the fuel pump, filter, fuel pressure regulator, and injectors. Fuel trim is
+the ECM's long-term correction to the fuel delivery calculation. Positive fuel trim
+(LTFT +) means the engine is running lean; the ECM is adding fuel. Negative fuel trim
+means the engine runs rich; the ECM is reducing fuel. Fuel trim outside plus or minus
+10% indicates a problem.
+NARRATION: Fuel trim is a window into engine health; high positive trim often points
+to a vacuum leak or failing fuel pump.
+
+SLIDE 26 | ASE Recertification
+ASE certifications are valid for five years. To recertify, you must pass the current
+version of each exam before your certification expires. ASE sends renewal notices in
+advance. Staying current with technology is important because vehicle systems change
+rapidly. Consider advancing to L1, L2, or L3 specialist certifications after earning
+the A-series to increase your value and earning potential.
+NARRATION: Recertification every five years keeps your skills current with evolving
+technology; expired ASE certificates cannot be displayed or claimed.
+
+FACT: ASE A-series certifications cover nine areas from engine repair through heating and air conditioning.
+FACT: Earning all A-series certifications plus L1 makes you an ASE Master Automobile Technician.
+FACT: ASE certification requires passing a test and proving two years of hands-on work experience.
+FACT: A P030X DTC indicates a cylinder misfire; the X digit identifies the cylinder number.
+FACT: OBD-II became mandatory on all U.S. vehicles from the 1996 model year.
+FACT: Brake fluid is hygroscopic; it absorbs moisture over time, lowering its boiling point.
+FACT: Never mix DOT 5 silicone brake fluid with DOT 3 or DOT 4 glycol-based fluid.
+FACT: High-voltage systems in hybrids operate at 144-650 volts and require Class 0 high-voltage gloves.
+FACT: ASE certifications are valid for five years and must be renewed by retesting.
+FACT: Fuel trim outside plus or minus 10% indicates a fueling system problem requiring diagnosis.

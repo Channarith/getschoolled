@@ -968,6 +968,7 @@ Format: newest first. No markdown per project convention.
   main-thread FAULT (check authorizationStatus first via
   ensureForegroundLocationPermission). CI: renamed duplicate test_run.py files that
   broke pytest collection. Release tooling: rolled the stale CHANGELOG [unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window.
   block that had pinned bump_pr_version.py to MINOR on every run, so routine PRs
   are PATCH bumps again.
 
@@ -3787,8 +3788,10 @@ Format: newest first. No markdown per project convention.
 
 [0.3.1] - 2026-06-18
 - fix(changelog): repair changelog rolling. build_release.py only recognized a
-  dated "[unreleased] - <date>" header, so the bare "[unreleased]" header was
-  never rolled into a release: real notes piled up under [unreleased] while the
+  dated "[unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window. - <date>" header, so the bare "[unreleased]" header was
+  never rolled into a release: real notes piled up under [unreleased]
+- 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window. while the
   bot appended empty "[0.2.x] - release build (no itemized changes)" sections.
   The regex now matches both forms; the corrupted cascade was collapsed and the
   accumulated notes consolidated into [0.3.0].

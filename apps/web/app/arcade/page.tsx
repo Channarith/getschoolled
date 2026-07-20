@@ -29,6 +29,13 @@ const KIND_BADGE: Record<string, string> = {
   shape_drop: "🧱", stocks: "📈", challenge: "🤖",
 };
 
+const DEFAULT_AGE_GROUPS = [
+  { id: "kids",  name: "Kids",   range: "5–8"  },
+  { id: "tween", name: "Tweens", range: "9–12" },
+  { id: "teen",  name: "Teens",  range: "13–17"},
+  { id: "adult", name: "Adults", range: "18+"  },
+];
+
 function subjectLabel(cat: GamesCatalog | null, id: string): string {
   const loc = cat?.subjects_localized?.find((s) => s.id === id);
   return loc?.name ?? id.replace(/_/g, " ");
@@ -64,6 +71,10 @@ export default function ArcadePage() {
       .then((r) => setLeaders(r.leaders)).catch(() => setLeaders([]));
   }, [lbSubject, lbAge]);
   useEffect(() => { loadLeaders(); }, [loadLeaders]);
+
+  // Sync the leaderboard age filter with the picker age group so the
+  // leaderboard visibly responds when the user switches age group.
+  useEffect(() => { setLbAge(ageGroup); }, [ageGroup]);
 
   const finish = useCallback(async () => {
     if (!round) return;
@@ -142,6 +153,55 @@ export default function ArcadePage() {
       </p>
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
+
+      {/* Kids' Games — fun, colorful learning adventures. */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(249,168,37,0.18), rgba(236,72,153,0.12))" }}>
+          <h3 style={{ marginTop: 0 }}>🎮 Kids&apos; Games</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Jeopardy, kart racing, creature catching, card matching, and Uno — education wrapped in fun.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/jeopardy?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#1e3a8a", color: "#fbbf24", fontWeight: 700 }}>
+              📺 Jeopardy!
+            </Link>
+            <Link href={`/arcade/kart-race?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#dc2626", color: "#fff", fontWeight: 700 }}>
+              🏎️ Kart Race
+            </Link>
+            <Link href={`/arcade/creature-catch?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 700 }}>
+              🦊 Creature Catch
+            </Link>
+            <Link href={`/arcade/card-match?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0f766e", color: "#fff", fontWeight: 700 }}>
+              🃏 Card Match
+            </Link>
+            <Link href={`/arcade/uno-quiz?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#b91c1c", color: "#fff", fontWeight: 700 }}>
+              🎴 Uno Quiz
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Discovery Games */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(139,92,246,0.12))" }}>
+          <h3 style={{ marginTop: 0 }}>🔍 Discovery Games</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Spot differences, find hidden items, and reveal stunning artwork by answering questions.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/spot-difference?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#0891b2", color: "#fff", fontWeight: 700 }}>
+              🔍 Spot the Difference
+            </Link>
+            <Link href={`/arcade/hidden-items?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 700 }}>
+              🕵️ Find the Hidden Items
+            </Link>
+            <Link href={`/arcade/photo-reveal?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 700 }}>
+              🖼️ Photo Reveal
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
       {!round && (
@@ -254,12 +314,16 @@ export default function ArcadePage() {
           </div>
           <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>{t("arcade.ageGroup")}</div>
           <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
-            {cat?.age_groups.map((a) => (
+            {(cat?.age_groups?.length ? cat.age_groups : DEFAULT_AGE_GROUPS).map((a) => (
               <button key={a.id} onClick={() => setAgeGroup(a.id)} title={a.range}
-                style={{ opacity: ageGroup === a.id ? 1 : 0.55,
-                  background: ageGroup === a.id ? "#0ea5e9" : undefined,
-                  color: ageGroup === a.id ? "#fff" : undefined }}>
-                {a.name} <span style={{ fontSize: 11, opacity: 0.8 }}>({a.range})</span>
+                style={{
+                  background: ageGroup === a.id ? "#0ea5e9" : "transparent",
+                  color: ageGroup === a.id ? "#fff" : "var(--text)",
+                  border: ageGroup === a.id ? "2px solid #0ea5e9" : "2px solid var(--border)",
+                  opacity: 1,
+                  cursor: "pointer",
+                }}>
+                {a.name} <span style={{ fontSize: 11, opacity: 0.75 }}>({a.range})</span>
               </button>
             ))}
           </div>

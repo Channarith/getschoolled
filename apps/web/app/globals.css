@@ -463,6 +463,157 @@ a {
 
 /* Legacy .nav rules removed — see .site-header / .nav above */
 
+/* ---- Netflix-style nav search -------------------------------------------- */
+.nav-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nav-search-btn {
+  background: transparent;
+  border: none;
+  color: #dbe2f0;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.nav-search-btn:hover {
+  opacity: 0.75;
+}
+
+.nav-search-expanded {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: nav-search-in 0.2s ease;
+}
+
+@keyframes nav-search-in {
+  from { opacity: 0; width: 0; }
+  to   { opacity: 1; width: 180px; }
+}
+
+.nav-search-input {
+  width: 180px;
+  background: rgba(30, 38, 68, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  color: #e8ecf6;
+  font-size: 13px;
+  padding: 5px 12px;
+  outline: none;
+  transition: border-color 0.15s, width 0.2s;
+}
+.nav-search-input:focus {
+  border-color: rgba(110, 168, 254, 0.7);
+}
+.nav-search-input::placeholder {
+  color: rgba(200, 210, 230, 0.45);
+}
+
+.nav-search-close {
+  background: transparent;
+  border: none;
+  color: #9aa6c2;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.nav-search-close:hover {
+  color: #dbe2f0;
+}
+
+.nav-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: #141a30;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  overflow: hidden;
+  animation: nav-search-dropdown-in 0.18s ease;
+}
+
+@keyframes nav-search-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.nav-search-loading,
+.nav-search-empty {
+  padding: 14px 16px;
+  color: #9aa6c2;
+  font-size: 13px;
+}
+
+.nav-search-section {
+  padding: 6px 0;
+}
+.nav-search-section + .nav-search-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.nav-search-section-label {
+  padding: 6px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6ea8fe;
+}
+
+.nav-search-result {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.nav-search-result:hover {
+  background: rgba(110, 168, 254, 0.08);
+}
+
+.nav-search-result-title {
+  color: #dbe2f0;
+  font-size: 13px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-search-result-meta {
+  color: #9aa6c2;
+  font-size: 11px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .nav-search-input {
+    width: 140px;
+  }
+  .nav-search-dropdown {
+    right: -60px;
+    width: 260px;
+  }
+}
+
 .card {
   /* Semi-transparent so the wallpaper shows through (no solid navy block). */
   background: color-mix(in srgb, var(--panel) 62%, transparent);

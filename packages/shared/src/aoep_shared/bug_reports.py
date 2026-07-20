@@ -113,19 +113,17 @@ def _github_json(
     token: str,
     payload: Dict[str, Any],
 ) -> Dict[str, Any]:
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        method=method,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "User-Agent": "salareen-bug-reporter",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310
+    body = json.dumps(payload).encode("utf-8") if method.upper() not in ("GET", "HEAD") else None
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": "salareen-bug-reporter",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=body, method=method, headers=headers)
+    with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
         return dict(json.loads(response.read().decode("utf-8")))
 
 
@@ -144,13 +142,101 @@ def _create_github_issue(
     return str(result.get("html_url", ""))
 
 
+# GitHub Contents API rejects files larger than 1 MB; use the Git blobs API
+# (which accepts up to 100 MB) for anything bigger.
+_GITHUB_CONTENTS_MAX_BYTES = 900_000
+
+
+def _upload_one_screenshot(
+    data: bytes,
+    repo: str,
+    repo_path: str,
+    token: str,
+) -> str:
+    """Upload a single file to the repo and return its html_url."""
+    api_path = urllib.parse.quote(repo_path, safe="/")
+    b64 = base64.b64encode(data).decode("ascii")
+
+    if len(data) <= _GITHUB_CONTENTS_MAX_BYTES:
+        # Small file — Contents API (single PUT, no tree wiring needed).
+        result = _github_json(
+            "PUT",
+            f"https://api.github.com/repos/{repo}/contents/{api_path}",
+            token,
+            {"message": f"Add {repo_path}", "content": b64},
+        )
+        return str((result.get("content") or {}).get("html_url", ""))
+
+    # Large file — Git Data API: create blob → get default branch → create tree
+    # → create commit → update ref.
+    blob = _github_json(
+        "POST",
+        f"https://api.github.com/repos/{repo}/git/blobs",
+        token,
+        {"content": b64, "encoding": "base64"},
+    )
+    blob_sha = str(blob.get("sha", ""))
+    if not blob_sha:
+        raise ValueError("blob creation returned no sha")
+
+    # Get the current HEAD sha and tree sha.
+    repo_info = _github_json(
+        "GET",  # type: ignore[arg-type]
+        f"https://api.github.com/repos/{repo}",
+        token,
+        {},
+    )
+    default_branch = str(repo_info.get("default_branch", "main"))
+    ref_data = _github_json(
+        "GET",  # type: ignore[arg-type]
+        f"https://api.github.com/repos/{repo}/git/ref/heads/{default_branch}",
+        token,
+        {},
+    )
+    head_sha = str((ref_data.get("object") or {}).get("sha", ""))
+    commit_data = _github_json(
+        "GET",  # type: ignore[arg-type]
+        f"https://api.github.com/repos/{repo}/git/commits/{head_sha}",
+        token,
+        {},
+    )
+    base_tree_sha = str((commit_data.get("tree") or {}).get("sha", ""))
+
+    tree = _github_json(
+        "POST",
+        f"https://api.github.com/repos/{repo}/git/trees",
+        token,
+        {
+            "base_tree": base_tree_sha,
+            "tree": [{"path": repo_path, "mode": "100644", "type": "blob", "sha": blob_sha}],
+        },
+    )
+    new_commit = _github_json(
+        "POST",
+        f"https://api.github.com/repos/{repo}/git/commits",
+        token,
+        {
+            "message": f"Add large screenshot for {repo_path}",
+            "tree": str(tree.get("sha", "")),
+            "parents": [head_sha],
+        },
+    )
+    _github_json(
+        "PATCH",
+        f"https://api.github.com/repos/{repo}/git/refs/heads/{default_branch}",
+        token,
+        {"sha": str(new_commit.get("sha", ""))},
+    )
+    return f"https://github.com/{repo}/blob/{default_branch}/{repo_path}"
+
+
 def _upload_private_screenshots(
     report: BugReport,
     root: Path,
     repo: str,
     token: str,
 ) -> tuple[List[str], List[str]]:
-    """Commit screenshots to the private QA repo and return operator-only links."""
+    """Upload screenshots to the private QA repo and return operator-only links."""
     links: List[str] = []
     errors: List[str] = []
     for filename in report.attachments:
@@ -158,22 +244,11 @@ def _upload_private_screenshots(
         try:
             data = path.read_bytes()
             repo_path = f"bug-report-attachments/{report.id}/{filename}"
-            api_path = urllib.parse.quote(repo_path, safe="/")
-            result = _github_json(
-                "PUT",
-                f"https://api.github.com/repos/{repo}/contents/{api_path}",
-                token,
-                {
-                    "message": f"Add screenshot for {report.id}",
-                    "content": base64.b64encode(data).decode("ascii"),
-                },
-            )
-            content = result.get("content") or {}
-            url = str(content.get("html_url", ""))
+            url = _upload_one_screenshot(data, repo, repo_path, token)
             if url:
-                links.append(f"- [{filename}]({url})")
+                links.append(f"- ![{filename}]({url})")
             else:
-                errors.append(f"{filename}: GitHub returned no attachment URL")
+                errors.append(f"{filename}: upload returned no URL")
         except (OSError, ValueError, urllib.error.HTTPError) as exc:
             errors.append(f"{filename}: {str(exc)[:200]}")
     return links, errors

@@ -34,7 +34,7 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 
 export default function HomeScreen({
   onOpenCourse, onOpenCategory, onOpenCareers, onOpenGroupClasses, onOpenLiveClass, onOpenLiveRooms,
-  onOpenLanguages, onOpenRewards, guestMode = false,
+  onOpenLanguages, onOpenRewards, onOpenSearch, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
@@ -44,6 +44,7 @@ export default function HomeScreen({
   onOpenLiveRooms?: () => void;
   onOpenLanguages?: () => void;
   onOpenRewards?: () => void;
+  onOpenSearch?: () => void;
   guestMode?: boolean;
 }) {
   const { t, locale } = useT();
@@ -151,15 +152,27 @@ export default function HomeScreen({
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.heroInner}>
-          <AnimatedPressable
-            accessibilityRole="button"
-            accessibilityLabel="Show Bayon Buddy mascot"
-            onPress={() => setShowMascot(true)}
-            style={styles.logoButton}
-          >
-            <Image source={LOGO_MARK} style={styles.logoImg} resizeMode="contain" />
-            <Text style={styles.logoText}>Salareen</Text>
-          </AnimatedPressable>
+          <View style={styles.heroTopRow}>
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel="Show Bayon Buddy mascot"
+              onPress={() => setShowMascot(true)}
+              style={styles.logoButton}
+            >
+              <Image source={LOGO_MARK} style={styles.logoImg} resizeMode="contain" />
+              <Text style={styles.logoText}>Salareen</Text>
+            </AnimatedPressable>
+            {onOpenSearch && (
+              <AnimatedPressable
+                accessibilityRole="button"
+                accessibilityLabel="Search"
+                onPress={onOpenSearch}
+                style={styles.searchButton}
+              >
+                <Text style={styles.searchIcon}>&#x1F50D;</Text>
+              </AnimatedPressable>
+            )}
+          </View>
           <Text style={styles.kicker}>{t("home.kicker")}</Text>
           <Text style={styles.hero}>{t("home.hero")}</Text>
           <Text style={styles.heroSub}>
@@ -325,9 +338,23 @@ const styles = StyleSheet.create({
   heroBanner: { minHeight: 340, justifyContent: "flex-end" },
   heroImage: { opacity: 0.95 },
   heroInner: { paddingHorizontal: theme.spacing.screenX, paddingTop: 56, paddingBottom: 24 },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
   logoButton: {
     alignItems: "center", alignSelf: "flex-start", flexDirection: "row",
-    gap: 10, marginBottom: 14,
+    gap: 10,
+  },
+  searchButton: {
+    padding: 6,
+    borderRadius: theme.radius.md,
+    backgroundColor: "rgba(30,38,68,0.65)",
+  },
+  searchIcon: {
+    fontSize: 18,
   },
   logoImg: { height: 44, width: 44, ...theme.shadow.hero },
   logoText: { color: theme.colors.text, fontSize: 15, fontWeight: "800", letterSpacing: 1 },

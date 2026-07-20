@@ -1,0 +1,273 @@
+LESSON: Pharmacy Technician Certification Prep (PTCE/ExCPT)
+LANGUAGE: en
+
+SLIDE 1 | Role of the Pharmacy Technician
+Pharmacy technicians assist pharmacists in dispensing medications, managing inventory,
+processing prescriptions, and serving patients. Technicians may work in retail,
+hospital, long-term care, mail-order, and specialty pharmacy settings. The pharmacist
+supervises all technician work and is responsible for final verification. Technicians
+must demonstrate accuracy, attention to detail, and strong communication skills.
+NARRATION: Pharmacy technicians are essential team members; your accuracy directly
+affects patient safety every single day.
+
+SLIDE 2 | Pharmacy Law Overview
+Federal pharmacy law establishes the minimum standards; state law may be stricter.
+The Federal Food, Drug, and Cosmetic Act (FDCA) governs drug safety and labeling.
+The Drug Enforcement Administration (DEA) regulates controlled substances. The
+Combat Methamphetamine Epidemic Act (CMEA) limits pseudoephedrine sales. OBRA 90
+(Omnibus Budget Reconciliation Act) requires pharmacists to offer counseling to
+Medicaid patients. State boards of pharmacy issue licenses and set technician ratios.
+NARRATION: Always know which law is more restrictive; when federal and state law
+conflict, follow the stricter standard.
+
+SLIDE 3 | Controlled Substance Schedules
+The DEA classifies controlled substances into five schedules based on medical use
+and abuse potential. Schedule I (e.g., heroin, LSD) has no accepted medical use.
+Schedule II (e.g., oxycodone, amphetamine, fentanyl) has high abuse potential with
+accepted medical use. Schedule III (e.g., codeine combinations, anabolic steroids)
+has moderate potential. Schedule IV (e.g., benzodiazepines, tramadol) has lower
+potential. Schedule V (e.g., cough preparations with small amounts of codeine) has
+the lowest potential.
+NARRATION: Schedule II drugs require the strictest controls; they cannot be refilled
+and require a new written or electronic prescription each time.
+
+SLIDE 4 | Prescription Requirements and Processing
+A valid prescription must include the patient's name, date written, prescriber's name
+and DEA number (for controlled substances), drug name and strength, quantity,
+directions for use, and the prescriber's signature. Technicians verify completeness,
+enter data into the pharmacy system, retrieve and count the medication, label the
+vial, and present to the pharmacist for final verification. Oral prescriptions for
+non-controlled drugs may be taken by a technician.
+NARRATION: Never dispense a prescription with missing information; always verify
+completeness before processing to prevent errors and legal violations.
+
+SLIDE 5 | Dosage Calculations - Ratios and Proportions
+Pharmacy calculations use ratio and proportion to find unknown quantities. If a
+medication is available as 250 mg per 5 mL, and the dose is 500 mg, set up the
+proportion: 250/5 = 500/X. Cross-multiply: 250X = 2500, so X = 10 mL. This method
+works for any concentration-based calculation. Always include units in your work
+to catch errors, and double-check every calculation.
+NARRATION: Setting up proportions correctly and canceling units is the most reliable
+way to solve dosage calculations; show your work to catch mistakes.
+
+SLIDE 6 | Dosage Calculations - IV Flow Rates
+IV flow rate calculations determine how quickly to infuse an IV solution. The formula
+is: mL per hour = (volume in mL / time in hours). For drop rate: drops per minute =
+(volume in mL x drop factor in gtt/mL) / time in minutes. Common drop factors are 10,
+15, or 60 gtt/mL depending on the tubing type. Infusion pumps handle most calculations
+automatically but technicians must verify the programmed rate.
+NARRATION: A calculation error on an IV can deliver a fatal dose or fail to treat
+a life-threatening condition; verify every IV order twice.
+
+SLIDE 7 | Brand vs Generic Drugs
+Generic drugs contain the same active ingredient, strength, dosage form, and route
+of administration as the brand-name drug. They must be bioequivalent, meaning they
+are absorbed into the bloodstream at the same rate and extent. Generics cost 80-85%
+less than brand drugs on average. The Orange Book (FDA publication) lists approved
+generic equivalents. Some drugs are dispense-as-written (DAW), meaning the brand
+must be dispensed as written by the prescriber.
+NARRATION: DAW codes on a prescription tell you whether substitution is allowed;
+always check the DAW code before substituting a generic.
+
+SLIDE 8 | Top 200 Drugs Overview
+Pharmacy technician exams require familiarity with the most commonly dispensed
+medications. Key drug classes include statins (atorvastatin/Lipitor for cholesterol),
+ACE inhibitors (lisinopril for blood pressure), beta-blockers (metoprolol for heart
+conditions), SSRIs (sertraline/Zoloft for depression), proton pump inhibitors
+(omeprazole/Prilosec for acid reflux), metformin (for type 2 diabetes), albuterol
+(for asthma), and amoxicillin (antibiotic). Know brand and generic names, common
+doses, and drug class.
+NARRATION: The top 200 drugs are a foundation of technician knowledge; memorize
+the generic name, brand name, and drug class for each.
+
+SLIDE 9 | Drug Interactions and Contraindications
+Drug interactions occur when one drug alters the effect of another. Pharmacokinetic
+interactions affect absorption, distribution, metabolism, or excretion. Pharmacodynamic
+interactions alter the drug's effect at the target site. Warfarin has hundreds of
+clinically significant interactions because it is metabolized by CYP450 enzymes.
+Contraindications are conditions in which a drug should not be used, such as ACE
+inhibitors in pregnancy. The pharmacist screens for interactions; technicians should
+flag unusual combinations.
+NARRATION: Drug interaction checking is automated in pharmacy software, but
+technicians must understand the concepts to recognize flagged alerts correctly.
+
+SLIDE 10 | Sterile Compounding - Aseptic Technique
+Sterile compounding prepares IV admixtures, injections, and ophthalmic solutions
+that must be free of microbial contamination. All sterile compounding is done in a
+laminar airflow workbench (LAFW) or a biological safety cabinet (BSC) using ISO Class
+5 air quality. Technicians must perform hand hygiene, don gown, gloves, mask, and
+hair cover before entering the clean room. Swab all injection surfaces with 70%
+isopropyl alcohol and allow to dry before use.
+NARRATION: One contamination error in sterile compounding can cause a patient to
+develop a life-threatening infection; there is zero tolerance for technique shortcuts.
+
+SLIDE 11 | USP 795 and USP 797 Standards
+USP 795 governs non-sterile compounding, setting standards for facilities, equipment,
+training, and beyond-use dating. USP 797 governs sterile compounding and sets stricter
+requirements for clean room design, personnel training, environmental monitoring, and
+beyond-use dates based on risk level. Category 1 CSPs (compounded sterile preparations)
+have shorter beyond-use dates than Category 2 CSPs made under full USP 797 conditions.
+NARRATION: USP 797 compliance is strictly enforced by state boards; failure to comply
+can result in pharmacy closure and patient harm.
+
+SLIDE 12 | Non-Sterile Compounding
+Non-sterile compounding prepares oral solutions, creams, ointments, suppositories,
+and capsules from raw ingredients or commercial products. Technicians must use
+calibrated equipment, verified formulas, and appropriate excipients. Beyond-use dates
+(BUDs) for non-sterile preparations are shorter than manufactured drug expiration
+dates because stability data is limited. Documentation of every compounded preparation
+must be kept in a compounding log.
+NARRATION: Compounding allows pharmacies to prepare medications not commercially
+available, such as custom strengths or flavored pediatric preparations.
+
+SLIDE 13 | Medication Dispensing Errors and Prevention
+Common dispensing errors include wrong drug, wrong dose, wrong patient, wrong route,
+and wrong time. The Five Rights (Right Patient, Right Drug, Right Dose, Right Route,
+Right Time) provide a safety checklist. Bar-code medication administration (BCMA)
+systems in hospitals scan both the patient's wristband and the medication before
+administration. Look-alike/sound-alike (LASA) drug pairs such as hydroxyzine and
+hydralazine require special labeling and storage separation.
+NARRATION: LASA drugs cause preventable deaths; separate them in storage and use
+tall-man lettering (e.g., hydrOXYzine vs hydrALAzine) to distinguish them.
+
+SLIDE 14 | Point-of-Sale and Insurance Billing
+Pharmacy technicians process insurance claims through pharmacy management software
+using BIN (Bank Identification Number), PCN (Processor Control Number), and group and
+member ID numbers from the patient's insurance card. Rejections may occur for reasons
+such as refill too soon, prior authorization required, or formulary exclusion. Technicians
+resolve common rejections by overriding refill-too-soon errors (with appropriate
+justification) or directing the patient to contact their insurer.
+NARRATION: Prior authorization (PA) rejections require the prescriber to justify the
+medication to the insurance company; the pharmacy cannot override this on its own.
+
+SLIDE 15 | Inventory Management
+Pharmacies use FIFO (First In, First Out) to rotate stock so older products are
+dispensed first. Check expiration dates during inventory audits and remove expired
+products promptly. Controlled substances require perpetual inventory records updated
+with each receipt and dispensing. The pharmacy must conduct a biennial DEA inventory
+of all Schedule II substances. Automated dispensing cabinets (ADCs) in hospitals
+track controlled substance use electronically.
+NARRATION: Controlled substance inventory discrepancies must be investigated and
+reported to the DEA if theft or loss is suspected.
+
+SLIDE 16 | Communication with Pharmacists and Patients
+Effective communication with supervising pharmacists includes promptly reporting any
+prescription discrepancies, patient concerns, or system alerts. With patients, use
+clear and respectful language, confirm the patient's identity using name and date of
+birth, and direct all clinical questions to the pharmacist. Active listening and
+empathy are essential when patients are anxious about medications. Never provide
+clinical advice outside your scope of practice.
+NARRATION: Your scope of practice does not include counseling patients on drug
+therapy; redirect clinical questions to the pharmacist every time.
+
+SLIDE 17 | HIPAA in the Pharmacy
+HIPAA (Health Insurance Portability and Accountability Act) protects patient health
+information (PHI). Pharmacies may not share PHI without patient authorization except
+for treatment, payment, and health care operations. Prescription information may not
+be shared with family members without the patient's consent. Keep computer screens
+shielded from public view, speak quietly when discussing patient information, and
+shred all paper PHI. HIPAA violations carry civil and criminal penalties.
+NARRATION: Never share a patient's prescription information with anyone other than
+the patient without specific authorization; this includes family members.
+
+SLIDE 18 | Medication Storage Requirements
+Most medications are stored at controlled room temperature (59-77 degrees F). Some
+require refrigeration (36-46 degrees F), such as insulin, vaccines, and certain eye
+drops. Frozen medications must be kept at -13 to 14 degrees F. Light-sensitive
+medications are stored in amber vials or opaque packaging. Nitroglycerin must be
+stored in glass containers with a metal cap. Humidity must be controlled to prevent
+degradation.
+NARRATION: Insulin stored at room temperature longer than 28 days loses potency;
+always check storage requirements for each medication.
+
+SLIDE 19 | Pharmacy Math - Percentage and Concentration
+Percent weight-in-weight (w/w) means grams of active ingredient per 100 grams of
+preparation. Percent weight-in-volume (w/v) means grams per 100 mL. A 1% hydrocortisone
+cream contains 1 g of hydrocortisone per 100 g of cream. Alligation is used to
+calculate the proportion of two concentrations to mix in order to achieve a desired
+intermediate concentration. Specific gravity relates weight to volume for liquids.
+NARRATION: Alligation is the compounding technician's most powerful math tool; use it
+when you need to combine two different concentrations of the same drug.
+
+SLIDE 20 | Pharmacy Technician Certification Exams
+The PTCE (Pharmacy Technician Certification Exam) is administered by PTCB (Pharmacy
+Technician Certification Board). It has 90 questions (80 scored, 10 unscored) answered
+in 110 minutes, with a passing score of 1400 on a 1600-point scale. The ExCPT (Exam
+for the Certification of Pharmacy Technicians) is administered by NHA and covers the
+same content domains. Both exams require renewal every two years with continuing
+education.
+NARRATION: The PTCE and ExCPT cover the same core content; choose based on your
+employer's preference or state requirements.
+
+SLIDE 21 | Pharmacology Basics - Drug Actions
+Drugs produce their effects by binding to receptors, enzymes, or transport proteins.
+Agonists activate receptors to produce a response; antagonists block receptors to
+prevent a response. Partial agonists produce a submaximal response. Drug potency
+refers to the dose required for a given effect; drug efficacy refers to the maximum
+effect achievable. Understanding these concepts helps technicians interpret drug
+interaction alerts and recognize why certain drug combinations are prescribed.
+NARRATION: Knowing basic pharmacology helps you understand why drugs interact; an
+antagonist that blocks a receptor will oppose the effect of an agonist for the same
+receptor.
+
+SLIDE 22 | Medication Reconciliation and Transitions of Care
+Medication reconciliation compares a patient's medication orders at every transition
+of care (admission, transfer, discharge) to identify discrepancies. Hospital pharmacy
+technicians often assist pharmacists with reconciliation by gathering medication
+histories from patients and care facilities. Errors at care transitions are a leading
+cause of adverse drug events. Accurate medication lists prevent duplicate therapy,
+omissions, and dangerous interactions after discharge.
+NARRATION: Medication reconciliation saves lives at care transitions; accurate
+medication history gathering is one of the most important skills a hospital technician
+can develop.
+
+SLIDE 23 | Specialty Pharmacy and High-Alert Medications
+Specialty pharmacies dispense complex, often injectable medications for conditions
+such as cancer, multiple sclerosis, HIV, and rheumatoid arthritis. These drugs are
+expensive, require special handling, and often need patient education and monitoring.
+High-alert medications (insulin, anticoagulants, concentrated electrolytes, opioids,
+and chemotherapy) have the highest risk of causing serious harm when used in error.
+ISMP guidelines require double-checks and special storage for high-alert drugs.
+NARRATION: Chemotherapy and anticoagulants are the most frequently cited high-alert
+drugs in error reports; pharmacies require independent double-checks before dispensing.
+
+SLIDE 24 | Drug Recalls and Safety Alerts
+The FDA issues drug recalls when a medication is found to be defective, contaminated,
+or mislabeled. Class I recalls involve serious health risks or death; Class II involve
+temporary adverse effects; Class III involve no significant health hazard. Pharmacies
+must identify and quarantine recalled products immediately, notify affected patients,
+and document the response. Technicians play a key role in checking inventory against
+recall notices.
+NARRATION: When a Class I recall notice arrives, stop dispensing the recalled lot
+immediately and contact affected patients right away.
+
+SLIDE 25 | Technician Ethics and Professionalism
+Pharmacy technicians must maintain honesty, integrity, and confidentiality. Never
+substitute an unapproved generic, falsify records, or override a safety alert without
+authorization. Report suspected drug diversion to the pharmacist or compliance officer.
+Self-diversion (stealing controlled substances) is a federal crime resulting in loss
+of certification, license, and employment, plus criminal prosecution. Uphold
+professional boundaries with patients and coworkers at all times.
+NARRATION: Drug diversion destroys careers and harms patients; report suspicions
+through proper channels rather than looking the other way.
+
+SLIDE 26 | Exam Preparation Strategies
+Begin studying at least eight weeks before your exam date. Use PTCB's official
+practice exam and the NHA ExCPT practice tests. Focus on dosage calculations,
+the top 200 drugs, controlled substance law, and compounding standards, which are
+consistently high-weighted content areas. Create flashcards for drug brand/generic
+pairs and DEA schedules. Join pharmacy technician study groups online. Review
+your weak areas weekly until you consistently score 80% or above on practice exams.
+NARRATION: Pharmacy math is the area where most candidates struggle; practice
+calculations daily until they feel automatic.
+
+FACT: The PTCE has 90 questions answered in 110 minutes with a passing scale score of 1400 out of 1600.
+FACT: Schedule II drugs cannot be refilled and require a new prescription each time.
+FACT: The Five Rights are Right Patient, Right Drug, Right Dose, Right Route, and Right Time.
+FACT: FIFO (First In, First Out) means older stock is used before newer stock to prevent expiration.
+FACT: USP 797 governs sterile compounding standards including clean room design and beyond-use dating.
+FACT: A 1% concentration means 1 gram of active ingredient per 100 mL (w/v) or per 100 g (w/w).
+FACT: HIPAA protects patient health information; PHI may not be shared without authorization except for treatment, payment, and operations.
+FACT: Class I drug recalls involve a serious health risk or risk of death and require immediate action.
+FACT: High-alert medications include insulin, anticoagulants, concentrated electrolytes, opioids, and chemotherapy.
+FACT: PTCB certification must be renewed every two years with continuing education credits.

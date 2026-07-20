@@ -4,11 +4,13 @@
   <img src="apps/web/public/bayon-mark.webp" alt="Salareen Bayon Buddy — a secular Khmer-inspired study buddy holding the golden S medallion with a bodhi leaf" width="200" />
 </p>
 
-Salareen (referred to as AI Classroom across parts of the codebase) is a
-multi-service education platform for live AI-taught classes, mobile Drive Mode
-audio lessons, adaptive learning, language learning, rewards, careers-to-skills
-matching, compliance controls, and third-party integrations. The same codebase
-runs local, cloud, or edge by environment configuration only.
+Salareen is a multi-service AI education platform with **600+ courses** spanning
+live AI-taught classes, Drive Mode audio lessons, 27-language learning, adaptive
+learning, an educational arcade, careers matching, and more. Courses cover
+mathematics (Arithmetic through Differential Equations), economics, professional
+skills (Power BI, SAP, DevOps, Excel, UX Design, Cybersecurity), arts, film,
+music, business, finance, technology, and every core academic subject. The same
+codebase runs local, cloud, or edge by environment configuration only.
 
 ## Our Story
 
@@ -36,19 +38,53 @@ One AI learning platform, many ways to learn:
 | Privately-trained tutor agent | Our own education model, grounded in a curated knowledge base |
 | Homework grader | Grades typed or handwritten work with rationale + citations |
 | Human-in-the-loop courses | AI teaches; a human reviews/approves where it matters |
-| Live group courses | Scheduled, synchronous classes |
-| Private on-demand courses | Self-paced lessons any time |
-| Drive Mode (audio agent) | Eyes-free audio classes for commutes |
-| Mobile apps | Android & iOS (Expo) |
-| AI adaptive learning + profiles | Per-learner mastery tracking and sequencing |
-| Machine vision (camera & voice) | Opt-in recognition that can run on-device |
-| Mini-games arcade | Subject mini-games, geometry/stocks canvases, Challenge the AI duels, and leaderboards |
-| Rewards & points | Points, prizes, and redemptions |
-| Course scraper / harvester | Builds fresh courses from the open web |
+| Live group courses | Scheduled, synchronous classes with real-time Q&A floor control and voice confirmation loop |
+| Solo (1:1) classes | Self-paced lessons with Theodore — same Salareen live room, scaled to one learner; Pause/Resume for breaks |
+| Drive Mode (audio agent) | Eyes-free audio courses for commutes — 500+ topics across 39 categories, all >30 min |
+| My List | Bookmark any course for later — synced across web and mobile |
+| Netflix-style search | Magnifying-glass search in the nav finds courses, games, and settings instantly |
+| Educational arcade | 20+ games: Jeopardy, Kart Race, Creature Catch, Card Match, Uno Quiz, geometry/stocks canvases, Challenge the AI duels, Connect Four, Number Duel, and more |
+| Kids Academy | Age-gated section with cartoon artwork, subject filtering (no adult/professional content), and kid-safe courses |
+| Careers & Jobs | Job board (LinkedIn, Indeed, USAJobs, WeWorkRemotely, Jobspresso + free RSS sources), JD parsing, skill-gap analysis |
+| Bug reports | In-app floating bug reporter with screenshot capture; reports create GitHub Issues automatically |
+| Mobile apps | Android & iOS (Expo) — Drive Mode, My List, Search, live rooms, arcade, language learning |
+| AI adaptive learning + profiles | Per-learner mastery tracking, readiness scoring, and adaptive sequencing |
+| Machine vision (camera & voice) | Opt-in attention tracking, obscene content detection, tiredness detection |
+| Rewards & points | Points, prizes, and redemptions tied to course completions and arcade performance |
+| Course scraper / harvester | Builds fresh courses from the open web; Google Scholar integration for academic content |
 | Knowledge base (RAG) | Keeps answers grounded and citable |
-| Integrations | LMS, finance, and cloud connectors |
-| 27 languages | Multilingual delivery and language learning (UI fully localized in 14; all 27 supported via ASR + translation + speech, with more UI localization rolling out) |
+| Integrations | LMS, finance, cloud connectors, Google Scholar, RapidAPI |
+| 27 languages | Multilingual delivery and language learning (UI fully localized in 14; all 27 supported via ASR + translation + speech) |
 | Humanoid-robot ready | The same teaching brain can drive an embodied tutor |
+
+## Course catalog
+
+Salareen ships **600+ courses** across live-class lessons, Drive Mode audio, arcade games, and language learning:
+
+### Live-class lessons (87 courses, 25-30 slides each)
+
+| Track | Courses |
+| --- | --- |
+| **Mathematics** | Arithmetic, Algebra I & II, Geometry, Trigonometry, Calculus I & II, Linear Algebra, Differential Equations, Problem-Solving Math, Math Olympiad, Statistics |
+| **Economics** | Introduction to Economics, Microeconomics, Macroeconomics |
+| **Professional skills** | Microsoft Power BI, Project Management, SAP Fundamentals, DevOps Engineering, Digital Marketing, UX Design, Cybersecurity, IT Fundamentals |
+| **Microsoft Office** | Excel Tips & Tricks, Microsoft Word, Microsoft PowerPoint |
+| **Health & Growth** | Personal Well-being |
+| **Programming** | Python 01–12 (intro through OOP), Intro to Science |
+| **Corporate / AI** | AI Fluency Essentials, AI-Powered Productivity, AI Solutions Builder, AI Product Engineering, AI Transformation Architect, AI & ML Fellowship, Java Software Engineering, DevOps Engineering Upskiller, Applied Data Engineering, Data Fellowship, Data Insights & Business Decisions |
+| **Safety & Skills** | Aviation Emergency Basics, IFR Emergency Procedures, Nursing Judgment, First Responder Essentials, Emergency & Critical Thinking, Cyber Incident Response, Rapid Decision Making, Situational Awareness |
+| **Science** | Intro to Photosynthesis, Intro to Physics |
+| **Math** | Intro to Fractions |
+
+### Drive Mode audio courses (500+ topics, 39 categories, all >30 min)
+
+History · Science & Nature · Business & Career · Personal Finance · Health & Wellness · Technology · Focus & Philosophy · Arts & Culture · Productivity & Study · True Stories & Biographies · Geography & World · World Cultures · Cooking & Food · Civics & Law · Sports & Games · Arts & Film · Music & Instruments · Business & Finance · TED Talks · Programming & Software · Data Science & AI · Psychology · Law & Legal Studies · Healthcare & Medicine · Engineering Fundamentals · Writing & Communication · Environment & Sustainability · Social Sciences · Space & Astronomy · Mathematics Advanced · Parenting & Child Development · Finance & Investing · Entrepreneurship · Language & Linguistics · Architecture & Design · Nutrition & Food Science · Film & Media Studies · Music Theory & History · Personal Development
+
+### Language learning (81 courses)
+27 languages × 3 lesson types (Essential Phrases, Everyday Conversation, Travel Survival)
+
+### Educational arcade games (20+ games)
+Jeopardy! · Kart Race · Creature Catch · Card Match · Uno Quiz · Cosmic Catch · Solar Quiz 3D · Potion Lab · Geo Blocks · Geometry Blocks · Geometry Tetris · Shape Stack · Shape Drop · Stock Rush · Stock Trader · Market Catch · Market Moves · Market Mogul · Challenge the AI Hub (Quiz Duel · Tic-Tac-Toe · Connect Four · Number Duel · Grid Master · AI Duel)
 
 ## Brand
 
@@ -142,22 +178,30 @@ Additional screenshots live in `docs/screens/`.
 
 | Area | Status | Key surfaces |
 | --- | --- | --- |
-| Live class | Session start, slide advance, RAG Q&A, grounding, confidence, dispute reporting, HIL queue; Solo (1:1) opens the same Salareen live-room classroom as group classes, scaled to the AI host + one learner | `apps/web/app/class`, `apps/web/app/live-room`, `services/orchestrator` |
-| Live rooms & group classes | Salareen LiveKit rooms (participant grid, single-speaker Q&A mutex, gifts/reactions, moderation), scheduled group classes, auto start/advance and auto-end with a courteous multilingual "class complete" farewell | `services/orchestrator`, `apps/web/app/live-room`, `aoep_shared/live_room.py` |
-| Curriculum | Catalog, search/facets, decks, scenes, RAG, validation, corrections, homework, audio courses | `services/curriculum` |
-| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List, progress, notifications, i18n, live rooms, EAS profiles | `apps/mobile` |
+| Live class (solo & group) | Session start, slide advance, RAG Q&A with floor-request voice loop (Theodore speaks learner's name → mic opens → confirmation loop → slides resume); Pause/Resume for solo; "Say it out loud" / "Repeat after me" auto-opens mic; chat auto-reply from Theodore | `apps/web/app/class`, `apps/web/app/live-room`, `services/orchestrator` |
+| Live rooms & group classes | Salareen LiveKit rooms (participant grid, single-speaker Q&A mutex, gifts/reactions, moderation), scheduled group classes, auto start/advance/end | `services/orchestrator`, `apps/web/app/live-room`, `aoep_shared/live_room.py` |
+| Assessment & retention | Server-authoritative checkpoints (formative, summative, retention); accessibility format selection (audio/video/game/text); verified pass tokens; spaced-retrieval schedule; drive-mode caption overrides | `packages/shared/src/aoep_shared/assessment_policy.py`, `services/orchestrator` |
+| Course catalog (600+) | 87 live-class lessons, 500+ Drive Mode audio topics (39 categories), 81 language courses, 20+ arcade games; all courses >30 min / >30 segments | `sample-curriculum/`, `aoep_shared/audio_courses.py`, `aoep_shared/audio_topic_data.py` |
+| My List | Bookmark courses for later (web + mobile); synced to identity service; ＋/✓ button on every course card; `/my-list` page | `apps/web/app/my-list`, `apps/web/app/components/BookmarkButton.tsx` |
+| Search | Netflix-style magnifying-glass search in nav (courses, games, settings); mobile SearchScreen; debounced 300ms, grouped results | `apps/web/app/components/NavSearchBox.tsx`, `apps/mobile/src/screens/SearchScreen.tsx` |
+| Kids Academy | Age-gated `/kids` with subject-based content filter (blocks AI/professional courses); cartoon SVG gradient artwork; per-subject emoji badges | `packages/shared/src/aoep_shared/learnable/index.py`, `apps/web/app/kids` |
+| Course artwork | Subject-aware poster system: arcade/kids → inline SVG cartoon gradients (offline, accurate); 50+ subject-specific Unsplash photos for all other courses | `apps/web/app/lib/courseArtwork.ts` |
+| Arcade (20+ games) | Jeopardy!, Kart Race, Creature Catch, Card Match, Uno Quiz plus geometry/stocks canvases, Challenge the AI duels, Connect Four, Number Duel, Grid Master, AI Duel, Cosmic Catch, Solar Quiz 3D, Potion Lab, and more; age group selector fixed | `apps/web/app/arcade/` |
+| Bug reports → GitHub Issues | Floating 🐛 reporter with screenshot capture; auto-creates private (full) + public (redacted) GitHub Issues; screenshots stored and linked inline | `packages/shared/src/aoep_shared/bug_reports.py`, `services/memory` |
+| Careers & Jobs | 8 job sources: LinkedIn (RapidAPI, rate-limited), Indeed Scraper API, Indeed RSS, USAJobs, WeWorkRemotely, Jobspresso, RemoteOK, Remotive, Arbeitnow; "Also search on" deep-links to LinkedIn/Indeed/ZipRecruiter/Glassdoor | `packages/shared/src/aoep_shared/jobs.py`, `apps/web/app/jobs` |
+| Google Scholar | Academic publication search via RapidAPI; `/scholar/search` endpoint in curriculum service; 1-hour cache | `packages/shared/src/aoep_shared/scholar.py` |
+| Mobile | Expo app, Drive Mode (voice profiles, Hey Sala, driving detection), Netflix-style rails, My List (server-synced), Search screen, progress, notifications, i18n, live rooms | `apps/mobile` |
 | Onboarding & billing | Netflix-style first-time wizard (plan, payment, profile); standard vs VIP membership; sign-in audit | `apps/web/app/onboarding`, `apps/web/app/billing`, `services/identity` |
 | Ads | Tier-gated web ad slots; house inventory locally; Google AdSense / Ad Manager / Meta via `AD_NETWORK` env | `aoep_shared/ad_networks.py`, `services/billing` |
-| Language learning | 27 supported language codes including Turkish and Khmer; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
-| Language delivery | Each learner's preferred language is stored on their account and follows them across web + mobile; the AI teacher answers in the language they speak | `services/identity`, `services/orchestrator`, `aoep_shared/languages.py` |
-| Careers | Job board, skill coverage, JD parsing, certification class matching | `/jobs`, curriculum jobs APIs |
-| Accounts | Signup/login, session tokens, students, portfolio, profile context sharing, rewards | `services/identity` |
+| Language learning | 27 supported language codes; rich/starter tiers; exercises/pronunciation hooks | `aoep_shared/language_learning.py`, `services/speech` |
+| Language delivery | Preferred language stored per account, follows learner across web + mobile; AI teacher answers in learner's language | `services/identity`, `services/orchestrator` |
+| Accounts | Signup/login (email validation hardened), session tokens, students, portfolio, profile context sharing, rewards, My List | `services/identity` |
 | Payments | 50 payment methods across 13 processors; sandbox/local and provider-routed cloud paths | `docs/payments.txt`, `services/billing` |
-| Integrations | Signed webhooks, LMS/LTI/OneRoster/AGS, finance webhooks, cloud notify/calendar/SSO, API clients | `services/integrations` |
-| Ops | `/version`, `/__meta`, telemetry, metrics, flags, testsupport, rate limits, ETags, load tests | shared service middleware + `qa/` |
+| Integrations | Signed webhooks, LMS/LTI/OneRoster/AGS, finance webhooks, cloud notify/calendar/SSO, RapidAPI (LinkedIn jobs, Indeed, Google Scholar), API clients | `services/integrations` |
+| Ops | `/version`, `/__meta`, telemetry, metrics, flags, rate limits, ETags, load tests; auto-minor version bump threshold 120 | shared service middleware + `qa/` |
 | Compliance | Legal notices, disclaimer gate, privacy/DPA, consent, retention, regional policy, internal auth gates | `legal/`, `services/memory` |
 | Scale/hosting | Docker compose, k8s manifests, HPAs/PDBs/Ingress/Redis, Terraform skeletons, hosting plan | `infra/`, `docs/hosting.txt`, `docs/scalability.txt` |
-| Vultr VKE | Provider overlay for Vultr Container Registry, VKE ingress hosts, Vultr Object Storage, and VKE block-storage constraints | `infra/k8s-vke` |
+| Vultr VKE | Provider overlay for Vultr Container Registry, VKE ingress, Vultr Object Storage, bug-report GitHub token, RapidAPI key in secrets | `infra/k8s-vke` |
 
 Known live-class frontier: Salareen live rooms (LiveKit grid, Q&A mutex, gifts,
 auto start/advance/end), group-class scheduling, the Director, TeachingBrain,
@@ -493,7 +537,7 @@ transcript all run without it.
 | `training` | Education-LLM fine-tuning scaffold (dataset export, QLoRA config, promote/runbooks) — not an HTTP service |
 | `voices` | Registered clone-voice reference assets used by the presenter (`--tts-engine clone`) |
 | `scripts` | Dev/ops helpers (run local services, deploy, present/harvest, pipeline validation, voice tools) |
-| `sample-curriculum` | Bundled offline lessons/decks used by the local teaching loop |
+| `sample-curriculum` | 87 live-class lessons: full math track (Algebra through Differential Equations), economics, professional skills (Power BI, SAP, DevOps, Digital Marketing, UX, Cybersecurity, Excel/Word/PowerPoint), corporate/AI tracks, safety training, and more |
 | `qa` | Regression gate, stress, and load-test harnesses (`make qa`, `make stress`) |
 | `infra/compose` | Local Docker compose stack and scaling overlay |
 | `infra/k8s` | Kubernetes base manifests (kustomize): Deployments/Services, HPA/PDB, Ingress (+ per-service API routes), Redis, configmap |

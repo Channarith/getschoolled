@@ -1043,8 +1043,11 @@ export default function ClassPage() {
                   style={{ marginTop: 8 }}
                   onClick={() => {
                     setAssessmentResult(null);
+                    // Use the last known slide index; fall back to total-1 so the
+                    // summative (due at the final slide) is never gated out by a 0 fallback.
+                    const idx = slide?.index ?? (view?.lesson.slides.length ?? 1) - 1;
                     const summative = findDueSummativeCheckpoint(
-                      assessmentPolicy, slide?.index ?? 0, completedCheckpointsRef.current,
+                      assessmentPolicy, idx, completedCheckpointsRef.current,
                     );
                     if (summative) void openCheckpoint(summative);
                   }}

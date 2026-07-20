@@ -1,0 +1,279 @@
+LESSON: CPR and First Aid Certification
+LANGUAGE: en
+
+SLIDE 1 | Why CPR and First Aid Matter
+Cardiac arrest kills more than 350,000 Americans outside of hospitals each year. When
+CPR is started within two minutes of cardiac arrest, survival rates can double or
+triple. Basic first aid skills allow bystanders to stabilize injuries, stop bleeding,
+and support breathing until emergency medical services arrive. CPR and first aid
+certification is required for many jobs in healthcare, education, childcare, and fitness.
+NARRATION: Every minute without CPR after cardiac arrest reduces the chance of survival
+by seven to ten percent; bystander action is the most important factor in survival.
+
+SLIDE 2 | Recognizing a Cardiac Emergency
+Cardiac arrest occurs when the heart suddenly stops beating effectively. Signs include
+sudden collapse, unresponsiveness, no normal breathing (may see gasping or agonal
+breathing), and no pulse. A heart attack (myocardial infarction) is caused by a
+blocked artery and may or may not lead to cardiac arrest. Heart attack symptoms include
+chest pain or pressure, pain radiating to the arm or jaw, shortness of breath,
+nausea, and cold sweats. Call 911 immediately for either.
+NARRATION: Agonal gasping is not normal breathing; if someone collapses and is not
+responding normally, assume cardiac arrest and start CPR.
+
+SLIDE 3 | Calling 911 and the Chain of Survival
+The American Heart Association's Chain of Survival has six links: recognize the
+emergency and call 911, perform CPR immediately, use an AED as soon as available,
+transfer to advanced emergency care, hospital care, and recovery. Every link matters.
+When calling 911, stay on the line, provide your location first, describe what happened,
+and follow dispatcher instructions. In large groups, designate a specific person to call
+911 and another to get the AED.
+NARRATION: Calling 911 is always the first step; early CPR and early defibrillation
+are the two actions that most directly save lives.
+
+SLIDE 4 | Adult CPR Technique
+For adult CPR: confirm the scene is safe, check for responsiveness (tap shoulders and
+shout), call 911 or send someone to do so, and retrieve an AED if available. Place
+the heel of one hand on the center of the chest (lower half of sternum), place the
+other hand on top, and compress at least two inches deep at a rate of 100-120 per
+minute. Allow full chest recoil between compressions. Minimize interruptions; limit
+pauses to less than 10 seconds.
+NARRATION: Push hard and fast with full chest recoil; rate of 100-120 per minute is
+roughly the tempo of the song Stayin' Alive by the Bee Gees.
+
+SLIDE 5 | Rescue Breaths and Compression-Only CPR
+If trained and willing, give rescue breaths: tilt the head back, lift the chin, pinch
+the nose, and seal your mouth over the victim's. Give one breath over one second,
+watch for chest rise, then give the second breath. With rescue breaths, the ratio is
+30 compressions to 2 breaths. If you are unwilling or unable to give rescue breaths,
+hands-only CPR (compression-only) is effective for adult cardiac arrest and recommended
+by the AHA. Continue until AED arrives or EMS takes over.
+NARRATION: Compression-only CPR is better than no CPR at all; for adults, the oxygen
+already in the blood can sustain vital organs during the first minutes of resuscitation.
+
+SLIDE 6 | Child and Infant CPR Differences
+For children aged 1 to puberty: use one or two hands for compressions, compress
+about two inches deep, and give rescue breaths at a 30:2 ratio for one rescuer or
+15:2 for two rescuers. For infants under one year old: use two fingers (or two thumb
+encircling technique for two rescuers), compress about 1.5 inches deep over the
+center of the chest just below the nipple line. Infant and child cardiac arrest is
+more often caused by respiratory failure than heart disease.
+NARRATION: Children and infants most often arrest due to breathing problems, not
+heart disease; rescue breaths are especially important for pediatric victims.
+
+SLIDE 7 | AED Use
+An AED (Automated External Defibrillator) delivers a shock to restore a normal heart
+rhythm. Steps: Power on the AED, Attach the pads to bare skin as shown in the diagrams
+(one below the right collarbone, one on the left side below the armpit), Analyze
+(stand clear, let the AED analyze the heart rhythm), and Shock if advised (stand clear
+and press the shock button). Resume CPR immediately after the shock. AEDs are designed
+for untrained users and will not shock a normal heart rhythm.
+NARRATION: AEDs are safe and easy to use; the machine guides you with voice prompts
+and will only shock if it detects a shockable rhythm.
+
+SLIDE 8 | Choking in Adults - Heimlich Maneuver
+A choking adult may clutch their throat (universal choking sign), cannot speak, cough,
+or breathe effectively. Ask "Are you choking?" If yes and they cannot cough forcefully,
+perform abdominal thrusts (Heimlich maneuver): stand behind the victim, make a fist
+just above the navel, grasp the fist with your other hand, and give quick upward and
+inward thrusts until the object is expelled or the victim loses consciousness.
+If conscious, continue thrusts until successful.
+NARRATION: If the victim can cough forcefully, encourage them to keep coughing; only
+intervene with abdominal thrusts if they cannot cough, speak, or breathe.
+
+SLIDE 9 | Choking in Children and Infants
+For a choking child over one year, use the same Heimlich maneuver as for adults but
+adjust force proportionally. For a choking infant under one year: hold the infant face-
+down on your forearm, give five firm back blows between the shoulder blades with the
+heel of your hand, then turn the infant face-up and give five chest thrusts with two
+fingers on the center of the chest. Alternate back blows and chest thrusts until the
+object is expelled. Never perform blind finger sweeps.
+NARRATION: Never do a blind finger sweep in an infant's mouth; you may push the
+object deeper into the airway.
+
+SLIDE 10 | Bleeding Control - Direct Pressure
+Severe bleeding can cause death within minutes. Apply firm, direct pressure with a
+clean cloth or bandage and do not remove it; add more material on top if blood soaks
+through. Maintain pressure continuously for at least 10-15 minutes. Elevate the wound
+above the heart if possible and if there is no suspected fracture. Pressure dressings
+help maintain sustained compression. After stopping severe bleeding, treat for shock
+and call 911 if not already done.
+NARRATION: Do not remove the blood-soaked cloth; removing it disrupts the clot; add
+more material on top and keep pressing firmly.
+
+SLIDE 11 | Tourniquet Application
+Tourniquets are used when direct pressure fails to control life-threatening limb
+bleeding, such as traumatic amputations. Apply the tourniquet two to three inches
+above the wound (not over a joint). Tighten until bleeding stops. Note the time of
+application and do not remove the tourniquet in the field. Commercial tourniquets such
+as the CAT (Combat Application Tourniquet) are preferred. In an emergency, an
+improvised tourniquet can be made from a wide cloth and a stick as a windlass.
+NARRATION: Write the time of tourniquet application on the patient or tourniquet so
+emergency medical personnel know how long it has been in place.
+
+SLIDE 12 | Shock Recognition and Treatment
+Shock occurs when the body cannot circulate enough blood to meet its needs. Signs
+include pale, cool, and clammy skin; rapid, weak pulse; rapid breathing; confusion;
+and nausea. Causes include severe bleeding, severe allergic reaction, heart failure,
+and spinal injury. Treatment: call 911, have the victim lie flat, keep them warm,
+elevate legs 8-12 inches if no spinal injury is suspected, and monitor breathing.
+Do not give anything to eat or drink.
+NARRATION: Shock is a medical emergency even if the person looks alert; the body
+is compensating but can decompensate rapidly without treatment.
+
+SLIDE 13 | Burns - Classification and Treatment
+First-degree burns affect only the outer skin layer (epidermis); they appear red and
+painful, like a sunburn. Second-degree burns affect the dermis; they cause blisters,
+intense pain, and moist appearance. Third-degree burns destroy all skin layers and
+may appear white, brown, or black with little or no pain due to nerve destruction.
+For minor burns, cool with cool running water for 10-20 minutes. Never use ice, butter,
+or toothpaste. Cover loosely with a sterile bandage. Seek medical care for burns larger
+than three inches, burns on the face, hands, feet, or genitals, or any third-degree burn.
+NARRATION: Cool water cools the burn and reduces damage; ice constricts blood vessels
+and increases tissue damage.
+
+SLIDE 14 | Fractures and Splinting
+A fracture is a broken bone. Signs include pain, swelling, deformity, bruising, and
+inability to use the affected limb. Do not attempt to straighten a deformed fracture.
+Immobilize the injury in the position found using a splint that extends beyond the
+joints above and below the fracture site. Check circulation, sensation, and movement
+(CSM) before and after splinting. Open fractures (bone through skin) are at high risk
+for infection; cover the wound with a clean dressing.
+NARRATION: Splinting an in-place fracture prevents movement that causes additional
+tissue damage and pain; always check CSM after applying a splint.
+
+SLIDE 15 | Head and Spinal Injuries
+Suspect a spinal injury after any significant trauma to the head, neck, or back, or
+any high-energy mechanism (car crash, fall from height, diving accident). Do not move
+the victim unless they are in immediate danger. Maintain manual in-line stabilization
+of the head and neck. Signs of head injury include confusion, unequal pupils, vomiting,
+increasing drowsiness, and clear fluid from nose or ears (sign of skull fracture).
+Monitor breathing; airway management takes priority over spinal precautions if needed.
+NARRATION: Moving a patient with a spinal injury can cause permanent paralysis; only
+move if the scene is unsafe or the airway requires it.
+
+SLIDE 16 | Allergic Reactions and Anaphylaxis
+Anaphylaxis is a severe, life-threatening allergic reaction. Triggers include foods
+(peanuts, shellfish), insect stings, latex, and medications. Signs include hives,
+facial swelling, throat tightening, difficulty breathing, drop in blood pressure, and
+loss of consciousness. Epinephrine auto-injectors (EpiPen) are the first-line
+treatment; inject into the outer thigh. Call 911 even after epinephrine because
+symptoms may return. Have the patient sit upright if breathing is difficult or lie
+flat if in shock.
+NARRATION: Epinephrine must be given immediately in anaphylaxis; antihistamines like
+Benadryl are not fast enough to reverse a severe anaphylactic reaction.
+
+SLIDE 17 | Stroke Recognition - FAST
+Stroke occurs when blood flow to part of the brain is interrupted. Use the FAST
+acronym: Face drooping (ask the person to smile - is one side drooping?), Arm weakness
+(ask them to raise both arms - does one drift down?), Speech difficulty (ask them to
+repeat a phrase - is it slurred or strange?), and Time to call 911. Note the time
+symptoms began; clot-dissolving medication is most effective within the first few hours.
+Act FAST because every minute of untreated stroke destroys about two million brain cells.
+NARRATION: Do not give aspirin for stroke; the most common type is ischemic but some
+strokes are hemorrhagic, and aspirin would make a bleeding stroke worse.
+
+SLIDE 18 | Heat Emergencies
+Heat cramps are painful muscle spasms from excessive sweating and electrolyte loss;
+treat with rest, cool environment, and fluid replacement. Heat exhaustion occurs when
+the body overheats with heavy sweating, weakness, pale and moist skin, and nausea;
+move to a cool place, remove excess clothing, apply cool wet cloths, and give cool
+fluids if conscious. Heatstroke is a life-threatening emergency where the body stops
+sweating, skin becomes hot and dry or red, and confusion or unconsciousness occurs;
+call 911 and cool the victim aggressively with ice water or cool wet towels.
+NARRATION: Heatstroke is a true emergency; the core temperature is rising out of
+control and aggressive cooling must begin immediately while waiting for EMS.
+
+SLIDE 19 | Hypothermia
+Hypothermia occurs when the body loses heat faster than it can produce it, causing
+core temperature to drop below 95 degrees F. Signs progress from shivering and
+clumsiness to confusion, loss of shivering, and unconsciousness. Remove the victim
+from the cold, replace wet clothing with dry insulation, and cover with blankets
+including the head. Handle gently to avoid triggering cardiac arrhythmias. Give warm
+fluids if the victim is conscious and alert. Call 911 for moderate to severe hypothermia.
+NARRATION: Hypothermia victims may appear dead but can survive with proper rewarming;
+do not assume death until the victim has been warmed and still shows no signs of life.
+
+SLIDE 20 | Poisoning
+Poisoning can occur through ingestion, inhalation, skin contact, or injection. For
+ingested poisons, call Poison Control (1-800-222-1222 in the U.S.) or 911 immediately.
+Do not induce vomiting unless directed by Poison Control; some substances cause more
+damage coming back up. For inhaled poisons (carbon monoxide, fumes), move the victim
+to fresh air immediately and call 911. For skin or eye contact with chemicals, flush
+with large amounts of cool water for 15-20 minutes.
+NARRATION: Poison Control provides free, expert guidance 24 hours a day; always call
+them or 911 before giving any treatment for poisoning.
+
+SLIDE 21 | Seizures
+A seizure is caused by abnormal electrical activity in the brain. Tonic-clonic (grand
+mal) seizures involve muscle stiffening followed by rhythmic jerking. During a seizure:
+protect the person from injury by clearing the area, cushion the head, time the
+seizure, and position on their side after jerking stops to prevent choking. Do not
+restrain movement, do not put anything in the mouth, and do not give water or food
+until fully alert. Call 911 if the seizure lasts more than five minutes, another
+follows, or the person does not regain consciousness.
+NARRATION: Never put anything in a seizing person's mouth; contrary to myth, it is
+impossible to swallow your tongue during a seizure.
+
+SLIDE 22 | Diabetic Emergencies
+Hypoglycemia (low blood sugar) occurs when blood sugar drops too low, causing
+shakiness, sweating, confusion, and weakness. If the victim is conscious and able to
+swallow, give 15-20 grams of fast-acting carbohydrates (glucose tablets, juice, or
+regular soda). Wait 15 minutes and re-check; if no improvement, repeat. Hyperglycemia
+(high blood sugar) develops gradually and causes increased thirst, urination, fruity
+breath, and fatigue. Hyperglycemia requires medical treatment; call 911 for any
+unconscious diabetic patient.
+NARRATION: When unsure whether a diabetic emergency is high or low blood sugar, give
+sugar anyway; it helps a hypoglycemic patient and does not significantly harm a
+hyperglycemic one.
+
+SLIDE 23 | Consent and Good Samaritan Laws
+Before providing first aid to a conscious adult, obtain expressed consent by identifying
+yourself, explaining what you will do, and asking permission. Consent is implied for
+unconscious victims, children when parents cannot be reached, and victims who cannot
+respond. Good Samaritan laws protect bystanders who provide reasonable assistance in
+good faith from legal liability in most states. These laws typically require that help
+be given voluntarily, without gross negligence, and without expectation of payment.
+NARRATION: Good Samaritan protection encourages bystanders to help; acting is almost
+always legally protected as long as you act reasonably and in good faith.
+
+SLIDE 24 | CPR for Special Circumstances
+For a drowning victim, begin CPR with rescue breaths first (five initial breaths) then
+follow standard 30:2 CPR. For a victim in a wheelchair, transfer to a firm, flat
+surface before compressions if possible. For a pregnant victim, use standard CPR but
+tilt the patient slightly to the left to relieve pressure on the vena cava from the
+uterus. For an AED, do not use on infants under one year (unless pediatric pads are
+available); remove a medication patch from the chest before applying AED pads.
+NARRATION: Pregnancy CPR uses the same technique but shift the patient left; this
+prevents the uterus from compressing the vein returning blood to the heart.
+
+SLIDE 25 | Certification Renewal Requirements
+CPR and first aid certifications from the American Heart Association and American Red
+Cross are valid for two years. Renewal requires a refresher course, which is typically
+shorter than the initial course. Healthcare providers follow AHA BLS (Basic Life Support)
+standards, which include two-rescuer CPR, bag-mask ventilation, and AED use with
+advanced integration. Some workplaces require annual recertification or skills checks
+to maintain competency. Keep your card accessible and check the expiration date.
+NARRATION: Skills decay without practice; many certified providers also attend annual
+skills drills even when not required for recertification.
+
+SLIDE 26 | Putting It All Together - Scene Safety and Priority of Care
+Before approaching any emergency: ensure scene safety (look for traffic, fire, electrical
+hazards, or violence). If the scene is unsafe, do not enter; call 911 and wait for
+responders. Priority of care when multiple victims are present: those with life-
+threatening conditions (cardiac arrest, severe bleeding) come first. Always protect
+yourself with PPE (gloves and face shield) when available. After every emergency, seek
+support; witnessing or responding to traumatic events can have lasting psychological
+effects.
+NARRATION: Scene safety is always step one; a rescuer who becomes a second victim
+reduces the help available to the original victim.
+
+FACT: Bystander CPR can double or triple a cardiac arrest victim's chance of survival.
+FACT: Adult CPR compression depth is at least two inches at a rate of 100-120 per minute.
+FACT: The AED acronym stands for Automated External Defibrillator.
+FACT: FAST stands for Face, Arms, Speech, Time and is used to identify stroke.
+FACT: Call Poison Control at 1-800-222-1222 for poisoning guidance in the United States.
+FACT: Epinephrine auto-injectors are the first-line treatment for anaphylaxis.
+FACT: A tourniquet should be applied two to three inches above the wound and never over a joint.
+FACT: Never put anything in the mouth of a person who is having a seizure.
+FACT: AHA and Red Cross CPR certifications are valid for two years.
+FACT: Good Samaritan laws protect bystanders who help in good faith without expectation of payment.
