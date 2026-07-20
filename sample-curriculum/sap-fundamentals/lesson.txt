@@ -1,0 +1,111 @@
+LESSON: SAP Fundamentals
+LANGUAGE: en
+
+SLIDE 1 | What is SAP?
+SAP stands for Systems, Applications & Products in Data Processing — a German software company founded in 1972 that today provides enterprise resource planning (ERP) software used by over 400,000 organizations worldwide. SAP software integrates business processes across finance, procurement, manufacturing, sales, and human resources into a single system with a shared database. When an order is created in SAP Sales, inventory in Warehousing and receivables in Finance update automatically — eliminating the data silos that plague disconnected systems.
+NARRATION: SAP integrates every business process into one system so data flows automatically across departments.
+
+SLIDE 2 | SAP's Role in Enterprise Resource Planning
+ERP systems replace a collection of standalone departmental tools with a unified platform where all transactions share a common data model. Before SAP, a manufacturer might run a separate system for purchasing, another for accounting, and a spreadsheet for inventory — reconciling them was manual and error-prone. SAP's ERP eliminates these reconciliation efforts: one goods receipt transaction simultaneously updates inventory quantity, triggers a vendor liability in Accounts Payable, and reduces the open purchase order in Purchasing.
+NARRATION: ERP replaces disconnected departmental tools with one system where every transaction updates all affected records instantly.
+
+SLIDE 3 | From SAP R/3 to SAP S/4HANA
+SAP R/3, released in 1992, established the three-tier client/server architecture that defined enterprise software for decades. SAP ECC (ERP Central Component) extended R/3 and became the dominant deployment through the 2000s and 2010s. SAP S/4HANA, launched in 2015, is the current generation: it runs exclusively on the SAP HANA in-memory database, offers a simplified data model that removes aggregation tables, and introduces the SAP Fiori user experience. SAP will end mainstream maintenance for ECC in 2027, making S/4HANA migration a top priority for most large enterprises.
+NARRATION: S/4HANA is SAP's current platform, running on the HANA in-memory database with a simplified data model.
+
+SLIDE 4 | SAP Architecture: Application, Database, and Presentation Layers
+SAP follows a three-tier architecture. The presentation layer is what users see — the SAP GUI client software or a Fiori web browser. The application layer is the SAP application server (AS ABAP), which processes business logic and handles all transactions. The database layer stores all business data; in S/4HANA this is exclusively SAP HANA. In older landscapes the application and database servers are separate machines; HANA supports them running on the same appliance. Understanding this architecture matters for sizing, troubleshooting, and security.
+NARRATION: SAP has three tiers: the user interface, the application server that runs logic, and the database that stores data.
+
+SLIDE 5 | SAP Module Overview
+SAP's functional areas are organized into modules. FI (Financial Accounting) manages the general ledger, accounts payable, and accounts receivable. CO (Controlling) handles internal cost reporting. MM (Materials Management) covers purchasing and inventory. SD (Sales and Distribution) handles orders and billing. PP (Production Planning) manages manufacturing. HCM (Human Capital Management) covers HR and payroll. PM (Plant Maintenance) tracks equipment. QM (Quality Management) enforces quality inspection. PS (Project System) manages project accounting. All modules share the same database and post to FI in real time.
+NARRATION: Each SAP module owns a business domain, and all of them post to Finance automatically.
+
+SLIDE 6 | SAP HANA: The In-Memory Database
+SAP HANA stores all data in RAM rather than reading from disk, reducing query times from minutes to seconds for complex analytical queries over billions of rows. HANA uses column-based storage, which compresses data by a factor of 5-10x compared to row-based databases, making large datasets fit in memory. HANA also eliminates the need for pre-aggregated totals tables — in legacy SAP, aggregate tables like BSEG and KONV had to be rebuilt periodically. S/4HANA's simplified data model removes these aggregates entirely, shrinking database footprints by 50-90%.
+NARRATION: HANA stores data in RAM and columns rather than disk and rows, making analytical queries dramatically faster.
+
+SLIDE 7 | Navigating the SAP GUI
+The SAP GUI (transaction SAPGUI) is the traditional desktop client. Every function in SAP has a Transaction Code (T-code): ME21N to create a purchase order, FB60 to enter a vendor invoice, VA01 to create a sales order. Enter a T-code in the command field at the top left and press Enter. The Favorites menu saves frequently used T-codes. You can run multiple sessions simultaneously (System > Create Session). Most users work the same 10-15 T-codes daily — master those first before exploring the full menu structure.
+NARRATION: Every SAP function has a T-code — type it in the command field and press Enter to launch it instantly.
+
+SLIDE 8 | SAP Fiori UX
+SAP Fiori is the modern, role-based user experience launched with S/4HANA. Instead of a dense GUI with hundreds of fields, Fiori presents simplified apps optimized for specific tasks — Approve Purchase Orders, Post Vendor Invoice, Display Sales Order. Apps launch from the Fiori Launchpad, a tile-based home screen similar to a smartphone. Fiori apps run in any browser and on mobile devices. The three app types are Transactional (create/change/display), Analytical (real-time charts and KPIs from HANA), and Fact Sheet (master data overview with navigation links).
+NARRATION: SAP Fiori replaces the dense GUI with simple, role-based apps that run in any browser.
+
+SLIDE 9 | SAP Fiori Design Principles
+SAP Fiori was designed around five principles: Role-based (show only what the user's role needs), Adaptive (works on desktop, tablet, and phone), Simple (one primary use case per app, minimal clicks), Coherent (consistent patterns across all apps), and Delightful (visually clean and responsive). These principles explain why a Fiori app for approving purchase orders shows only the fields an approver needs — not the 60-field creation screen. Developers building custom apps must follow Fiori design guidelines to maintain this consistency.
+NARRATION: Fiori apps are role-based, simple, and consistent — one task done well per app.
+
+SLIDE 10 | Organizational Structures in SAP
+SAP uses a hierarchy of organizational units. The Client is the highest level — a self-contained system with its own data; clients 100, 200, and 300 are typically Development, Quality, and Production. The Company Code is a legal entity with its own financial statements (e.g., one per country). The Plant is a manufacturing or distribution location within a company code. The Storage Location is a physical area within a plant. In SD, the Sales Organization, Distribution Channel, and Division control sales-specific structures. Assigning transactions to the correct org unit is mandatory.
+NARRATION: Client, Company Code, Plant, and Storage Location form SAP's organizational hierarchy — every transaction must be assigned to the right level.
+
+SLIDE 11 | Master Data in SAP
+Master data is the core reference data that business transactions depend on. The Material Master contains details about every product: description, unit of measure, storage conditions, accounting data, and MRP planning parameters — all organized in views assigned to specific org levels. The Vendor Master holds supplier name, address, bank details, payment terms, and purchasing data. The Customer Master holds buyer information, credit limits, and sales area data. Maintaining accurate master data is the foundation of clean transactional data — garbage in, garbage out applies directly.
+NARRATION: Master data — materials, vendors, and customers — is the foundation every SAP transaction is built on.
+
+SLIDE 12 | The Procure-to-Pay Process in SAP MM
+The Procure-to-Pay (P2P) cycle in SAP MM follows these steps: (1) Purchase Requisition (PR) — internal request for goods or services, T-code ME51N; (2) Purchase Order (PO) — formal order to vendor, ME21N; (3) Goods Receipt (GR) — confirmation that goods arrived, MIGO; (4) Invoice Verification — matching vendor invoice to PO and GR (the three-way match), MIRO; (5) Payment — vendor payment processed in FI via F110 automatic payment run. Each step creates an accounting document that automatically posts to the general ledger.
+NARRATION: P2P moves from purchase request to purchase order to goods receipt to invoice to payment, each step posting to Finance.
+
+SLIDE 13 | The Order-to-Cash Process in SAP SD
+The Order-to-Cash (O2C) cycle starts with customer contact and ends with payment collection: (1) Inquiry and Quotation — optional pre-sales steps; (2) Sales Order — customer agreement captured in VA01; (3) Delivery — picking and packing in the warehouse, VL01N; (4) Goods Issue — inventory reduced and COGS posted, VL02N; (5) Billing — invoice sent to customer, VF01; (6) Payment — customer payment posted in FI, incoming payment F-28. Like P2P, each step flows automatically to Financial Accounting, eliminating manual journal entries.
+NARRATION: O2C flows from sales order through delivery and billing to customer payment, all integrated with Finance.
+
+SLIDE 14 | Financial Accounting in SAP FI
+SAP FI manages external financial reporting. The General Ledger (GL) is the central record of all financial transactions (FS10N to view balances). Accounts Payable (AP) tracks what you owe vendors — every goods receipt and invoice creates AP postings automatically from MM. Accounts Receivable (AR) tracks what customers owe you — billing from SD posts AR automatically. The New GL in S/4HANA provides real-time document splitting by profit center or segment, enabling statutory and management reports from a single ledger without reconciliation.
+NARRATION: SAP FI integrates GL, AP, and AR so every operational transaction automatically creates the correct accounting entry.
+
+SLIDE 15 | Controlling in SAP CO
+SAP CO handles internal cost management and profitability analysis — data not shared externally. Cost Centers collect overhead costs like departmental salaries and rent (KSB1 to report). Profit Centers represent business segments for internal P&L reporting. Internal Orders collect costs for specific activities like a marketing campaign. Product Costing calculates the standard cost of manufactured goods. Profitability Analysis (CO-PA) analyzes profit by customer, product, region, or sales channel. CO integrates tightly with FI — cost postings flow to CO in real time.
+NARRATION: SAP CO tracks internal costs by cost center, profit center, and internal order for management reporting.
+
+SLIDE 16 | SAP BW/4HANA for Analytics and Reporting
+SAP BW/4HANA is SAP's data warehouse optimized for HANA, designed for complex analytics and historical reporting across all SAP and non-SAP systems. It extracts data from S/4HANA via DataSources, transforms and loads it into InfoProviders, and serves it to SAP Analytics Cloud or third-party BI tools. Standard BW content delivers pre-built extractors, data models, and queries for Finance, Logistics, and HR. BW is appropriate when you need consolidated reporting across multiple SAP systems or need to blend SAP data with external sources.
+NARRATION: BW/4HANA is SAP's data warehouse for complex cross-system analytics built on top of HANA.
+
+SLIDE 17 | SAP Basis Administration Basics
+SAP Basis is the technical foundation that keeps the SAP system running. Basis administrators manage the system landscape (DEV, QA, PRD), apply support packages (patches), monitor system performance via transaction SM66 and SM50, manage background jobs (SM37), and administer the database. The Transport Management System (TMS, transaction STMS) controls how configuration and ABAP code moves between landscape tiers — DEV to QA to PRD. No code or configuration should ever be changed directly in Production; it must be transported through the landscape.
+NARRATION: Basis administrators manage the technical infrastructure and control how changes move safely from Development to Production.
+
+SLIDE 18 | SAP Integration with External Systems
+SAP integrates with external systems through multiple technologies. IDocs (Intermediate Documents) are SAP's proprietary XML-like message format for asynchronous data exchange — used heavily for EDI with trading partners. BAPIs (Business Application Programming Interfaces) are function modules exposed as stable APIs for synchronous integration. RFC (Remote Function Call) enables program-to-program communication. Modern S/4HANA integration uses OData APIs via SAP Integration Suite (formerly Cloud Platform Integration) for RESTful connections to cloud applications like Salesforce or Ariba.
+NARRATION: IDocs handle batch EDI, BAPIs handle synchronous calls, and OData APIs connect SAP to modern cloud apps.
+
+SLIDE 19 | SAP Roles and Authorizations
+SAP uses a role-based authorization concept. Roles contain a collection of authorization objects — technical permission checks that control which transactions, organizational units, and activities a user can access. Single roles are combined into composite roles for assignment to users. Transaction SU01 manages user accounts; PFCG manages roles. The Segregation of Duties (SoD) principle requires that no single user can both create a vendor and approve a payment — SAP Access Control (GRC) audits and enforces SoD rules, which is critical for SOX compliance.
+NARRATION: SAP roles bundle transaction permissions, and SoD rules prevent any one user from having conflicting access.
+
+SLIDE 20 | SAP S/4HANA Cloud vs On-Premise
+SAP S/4HANA comes in two deployment models. On-Premise gives full customization control — organizations can write custom ABAP, modify standard processes, and manage their own upgrades — but carries full infrastructure responsibility and higher total cost. S/4HANA Cloud (Public Edition) is a multi-tenant SaaS offering managed entirely by SAP, with quarterly automatic upgrades and pre-configured best-practice processes. Cloud restricts customization to approved extensions and side-by-side integration. Private Cloud sits between the two: dedicated infrastructure managed by SAP or a partner with more configuration flexibility than Public Cloud.
+NARRATION: On-premise offers maximum customization; cloud offers managed upgrades and lower infrastructure cost — choose based on your need for custom development.
+
+SLIDE 21 | SAP Implementation Methodologies
+ASAP (Accelerated SAP) was the classic waterfall methodology: Preparation, Business Blueprint, Realization, Final Preparation, Go-Live. SAP Activate replaced it for S/4HANA deployments. Activate uses fit-to-standard workshops where the client explores SAP best-practice processes before deciding what to configure versus customize. It follows agile sprints: Discover, Prepare, Explore, Realize, Deploy, Run. SAP delivers pre-built Best Practice content (configuration, test scripts, training materials) to accelerate each phase. Activate reduces implementation timelines by starting with a working system and adjusting, rather than building from scratch.
+NARRATION: SAP Activate starts with pre-built best practices and adjusts in sprints, replacing the old blueprint-then-build approach.
+
+SLIDE 22 | Common SAP Certifications
+SAP offers Associate, Professional, and Master certifications across functional and technical tracks. C_TERP10 (SAP Certified Associate — Business Foundation and Integration with SAP S/4HANA) is the entry-level cross-module certification covering the integration of all core modules. C_TS4FI (SAP Certified Associate — SAP S/4HANA for Financial Accounting) focuses on the FI module for finance professionals. Technical certifications cover ABAP development (C_TAW12), SAP Basis (C_TADM55), and SAP BTP. Certifications are valid for one year and must be renewed by passing the delta exam covering new release features.
+NARRATION: The C_TERP10 is the recommended first SAP certification — it covers how all modules integrate together.
+
+SLIDE 23 | Real-World SAP Project Roles
+A Functional Consultant designs and configures SAP to match business requirements in a specific module (FI, MM, SD) — they bridge business and IT without needing to write code. A Technical Consultant (ABAP Developer) writes custom code using SAP's proprietary programming language for reports, user exits, and enhancements. A Basis Administrator manages the technical infrastructure — system installation, transport management, performance tuning. A Project Manager coordinates all workstreams. Solution Architects design the overall system landscape and integration strategy. Most large SAP implementations require all five roles working in parallel.
+NARRATION: SAP projects need functional consultants to configure, ABAP developers to customize, and Basis admins to keep the system running.
+
+SLIDE 24 | Career Paths in the SAP Ecosystem
+Entry-level SAP professionals typically start as junior functional or technical consultants, earning proficiency in one module and one industry. Mid-level consultants lead workstreams independently and mentor juniors. Senior consultants and solution architects command six-figure salaries and lead multi-module or multi-system programs. SAP skills are in extremely high demand driven by the global wave of ECC-to-S/4HANA migrations underway through 2027. Independent SAP contractors can charge $150-$300+ per hour for specialized skills. The SAP partner ecosystem — Deloitte, Accenture, IBM, Capgemini — employs hundreds of thousands of SAP professionals globally.
+NARRATION: SAP skills are in high demand globally, driven by millions of companies migrating to S/4HANA before the 2027 ECC end-of-maintenance deadline.
+
+SLIDE 25 | SAP and the Intelligent Enterprise
+SAP's vision is the Intelligent Enterprise — an organization where SAP S/4HANA serves as the core ERP, SAP Analytics Cloud provides planning and business intelligence, SAP Integration Suite connects all applications, and SAP Business Technology Platform (BTP) enables extensions and custom development without modifying core SAP code. Embedded AI features include automatic payment matching, predictive material requirements planning, and anomaly detection in financial postings. Understanding this broader platform ecosystem is increasingly important as customers shift from standalone ERP to integrated intelligent systems.
+NARRATION: SAP's Intelligent Enterprise vision connects the core ERP with analytics, integration, and AI on the Business Technology Platform.
+
+FACT: SAP stands for Systems, Applications and Products in Data Processing, founded in Germany in 1972.
+FACT: SAP HANA stores data in memory using columnar compression, making it 5-10x more compact than row-based databases.
+FACT: Every SAP transaction has a T-code; type it in the command field and press Enter to launch it.
+FACT: The Procure-to-Pay cycle ends with three-way matching of the purchase order, goods receipt, and vendor invoice.
+FACT: SAP CO handles internal cost management; SAP FI handles external financial reporting.
+FACT: The Transport Management System (STMS) controls how changes move from Development to Quality to Production.
+FACT: No single user should be able to both create a vendor and approve payments — this violates Segregation of Duties.
+FACT: SAP Activate methodology starts with pre-built Best Practice content and refines in agile sprints.

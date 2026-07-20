@@ -40,7 +40,8 @@ def test_jobs_search_filter():
 def test_job_detail_matches_courses_with_coverage():
     _seed()
     m = client.get("/jobs/job-data").json()  # sql, excel, data-analysis, statistics
-    # The expanded audio catalog may outrank seeded catalog courses in top-N results.
+    # The expanded audio catalog may now match this job better than the seeded
+    # catalog courses, so we check coverage/path rather than specific IDs.
     assert len(m["matched_courses"]) > 0
     assert 0 < m["coverage_pct"] <= 100
     assert m["recommended_path"]
@@ -69,6 +70,7 @@ def test_jobs_live_mode_falls_back_gracefully(monkeypatch):
     populated board rather than erroring."""
     _seed()
     monkeypatch.setenv("JOBS_LIVE", "1")
+    # Block ALL outbound HTTP (both JSON and text/RSS) to simulate blocked egress.
     import aoep_shared.jobs as jobs_mod
     _block = lambda *a, **k: (_ for _ in ()).throw(OSError("blocked"))  # noqa: E731
     monkeypatch.setattr(jobs_mod, "_http_get_json", _block)

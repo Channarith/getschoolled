@@ -1,0 +1,166 @@
+LESSON: Calculus II
+LANGUAGE: en
+
+SLIDE 1 | Welcome to Calculus II
+Calculus II extends the ideas of Calculus I into more advanced integration techniques, infinite
+series, and new coordinate systems. By the end you will be able to compute complex integrals,
+test whether infinite sums converge, and model curves with parametric and polar equations.
+NARRATION: Calculus II deepens integration skills and explores infinite series, parametric equations, and polar coordinates.
+
+SLIDE 2 | Review of the Fundamental Theorem of Calculus
+The Fundamental Theorem links differentiation and integration. Part 1 says d/dx[∫_a^x f(t)dt]
+= f(x). Part 2 says ∫_a^b f(x)dx = F(b) − F(a), where F is any antiderivative of f. Every
+integration technique in this course ultimately relies on this bridge between the two operations.
+NARRATION: The Fundamental Theorem lets us evaluate definite integrals by finding antiderivatives instead of computing limit sums.
+
+SLIDE 3 | U-Substitution
+U-substitution reverses the chain rule. Set u equal to an inside function, compute du, rewrite
+the entire integral in terms of u, integrate, then substitute back. For definite integrals you
+can change the limits to u-limits and avoid back-substitution.
+NARRATION: U-substitution is the most fundamental integration technique; always look for a function and its derivative inside the integral.
+
+SLIDE 4 | Integration by Parts
+Integration by parts follows the formula ∫u dv = uv − ∫v du, derived from the product rule.
+Choose u as the function that simplifies when differentiated (the LIATE priority order helps:
+Logarithm, Inverse trig, Algebraic, Trigonometric, Exponential).
+NARRATION: Integration by parts trades a hard integral for a simpler one by splitting the integrand into two factors.
+
+SLIDE 5 | Trigonometric Integrals
+Integrals of the form ∫sinⁿx cosᵐx dx use Pythagorean identities to reduce odd powers. When
+both powers are even, use the half-angle identities sin²x = (1 − cos 2x)/2 and
+cos²x = (1 + cos 2x)/2 to lower the degrees before integrating.
+NARRATION: Strip off one factor to use a Pythagorean identity, or use half-angle identities to reduce even powers.
+
+SLIDE 6 | Trigonometric Substitution
+For integrands containing √(a²−x²), √(a²+x²), or √(x²−a²), substitute x = a sin θ,
+x = a tan θ, or x = a sec θ respectively. These substitutions remove the radical and replace
+it with a simpler trig expression that can be integrated.
+NARRATION: Trigonometric substitution eliminates square roots by replacing the variable with an appropriate trig function.
+
+SLIDE 7 | Partial Fraction Decomposition
+Any proper rational function (degree of numerator less than denominator) can be written as a
+sum of simpler fractions called partial fractions. Factor the denominator completely into linear
+and irreducible quadratic factors, set up the decomposition, and solve for the constants.
+NARRATION: Partial fractions break a complicated rational function into simple pieces that are easy to integrate individually.
+
+SLIDE 8 | Improper Integrals
+An integral is improper if the interval is infinite or if the integrand has a vertical asymptote
+inside the interval. Evaluate by replacing the problem endpoint with a limit variable and
+computing the limiting value. If the limit exists and is finite, the integral converges.
+NARRATION: Improper integrals replace infinity or a discontinuity with a limit and ask whether that limit is finite.
+
+SLIDE 9 | Area Between Curves
+The area between y = f(x) and y = g(x) on [a, b] (with f ≥ g) is ∫_a^b [f(x) − g(x)] dx.
+Find the intersection points to determine the limits of integration. When curves cross, split the
+integral at each crossing and take the absolute difference in each piece.
+NARRATION: Subtract the lower curve from the upper curve and integrate to find the area trapped between them.
+
+SLIDE 10 | Volume by Disk and Washer Methods
+When a region is rotated about a horizontal or vertical axis, the volume can be found by the
+disk method: V = π∫[R(x)]² dx, or the washer method when there is a hole:
+V = π∫([R(x)]² − [r(x)]²) dx, where R and r are the outer and inner radii.
+NARRATION: Slice the solid into thin disks or washers, compute each circular cross-section's area, and integrate along the axis.
+
+SLIDE 11 | Volume by the Shell Method
+The shell method integrates cylindrical shells instead of disks. For rotation about the y-axis,
+V = 2π∫x f(x) dx. The shell method is often simpler when the washer method would require
+solving for x in terms of y. Choose the method that gives simpler limits and integrand.
+NARRATION: The shell method wraps thin cylindrical shells around the axis and integrates their volumes.
+
+SLIDE 12 | Arc Length
+The length of a curve y = f(x) from x = a to x = b is L = ∫_a^b √(1 + [f'(x)]²) dx.
+This formula comes from summing the lengths of tiny hypotenuses along the curve. For parametric
+curves, replace ds with √((dx/dt)² + (dy/dt)²) dt.
+NARRATION: Arc length integrates infinitesimal hypotenuses along the curve using the Pythagorean theorem.
+
+SLIDE 13 | Work and Fluid Force
+Work done by a variable force F(x) over a displacement from a to b is W = ∫_a^b F(x) dx.
+Fluid force on a submerged plate uses F = ρg∫ depth · width dy, where ρ is the fluid density.
+Both problems reduce to setting up and evaluating a definite integral with a physical meaning.
+NARRATION: Physics applications of integration compute work from a variable force and fluid pressure from a submerged surface.
+
+SLIDE 14 | Sequences
+A sequence is an ordered list of numbers {a_n}. A sequence converges if lim_{n→∞} a_n = L
+for some finite L; otherwise it diverges. Squeeze theorem, L'Hopital's rule (applied to the
+continuous version), and geometric sequence formulas are the main convergence tools.
+NARRATION: A sequence converges if its terms approach a single finite value as n goes to infinity.
+
+SLIDE 15 | Series and the Concept of Convergence
+An infinite series is the sum ∑_{n=1}^{∞} a_n = lim_{N→∞} S_N, where S_N = a_1 + … + a_N
+is the Nth partial sum. If this limit exists and is finite, the series converges to that value.
+The simplest test: if lim_{n→∞} a_n ≠ 0, the series must diverge (Divergence Test).
+NARRATION: A series converges when its partial sums approach a finite limit; if the terms don't go to zero, it diverges immediately.
+
+SLIDE 16 | Geometric Series
+A geometric series has the form ∑ar^n. It converges if and only if |r| < 1, and its sum is
+a/(1 − r). Geometric series appear in finance (present value calculations), probability, and
+as building blocks for more complex power series.
+NARRATION: A geometric series converges to a over one minus r whenever the common ratio r has absolute value less than one.
+
+SLIDE 17 | The Integral Test
+If f is positive, continuous, and decreasing, then ∑f(n) and ∫f(x)dx either both converge
+or both diverge. The p-series ∑1/n^p converges if p > 1 and diverges if p ≤ 1. The integral
+test gives a rigorous connection between series and improper integrals.
+NARRATION: The integral test compares a series to an improper integral; they share the same convergence behavior.
+
+SLIDE 18 | Comparison Tests
+The Direct Comparison Test says: if 0 ≤ a_n ≤ b_n and ∑b_n converges, then ∑a_n converges;
+if ∑a_n diverges, so does ∑b_n. The Limit Comparison Test compares lim a_n/b_n to a positive
+constant, then concludes both series share the same convergence behavior.
+NARRATION: Comparison tests bound an unknown series between known convergent or divergent ones to determine its fate.
+
+SLIDE 19 | Alternating Series and Absolute Convergence
+An alternating series ∑(−1)^n b_n converges if b_n is decreasing and b_n → 0. A series is
+absolutely convergent if ∑|a_n| converges, and conditionally convergent if it converges but
+not absolutely. Absolute convergence implies convergence, but not vice versa.
+NARRATION: An alternating series converges when its terms decrease in absolute value to zero, even if it's not absolutely convergent.
+
+SLIDE 20 | Ratio and Root Tests
+The Ratio Test computes L = lim |a_{n+1}/a_n|: if L < 1 the series converges absolutely;
+if L > 1 it diverges. The Root Test computes L = lim |a_n|^{1/n} and applies the same
+criteria. Both tests are especially powerful for series involving factorials or exponentials.
+NARRATION: The Ratio Test divides consecutive terms; the Root Test takes nth roots — both look for a limit less than one.
+
+SLIDE 21 | Power Series and Radius of Convergence
+A power series is ∑c_n(x − a)^n. It converges absolutely inside an interval (a − R, a + R)
+where R is the radius of convergence, found by the Ratio or Root Test on the coefficients.
+At the endpoints you must test separately using other convergence tests.
+NARRATION: A power series converges inside a symmetric interval around its center; the radius of that interval is R.
+
+SLIDE 22 | Taylor and Maclaurin Series
+The Taylor series of f centered at a is ∑[f^{(n)}(a)/n!](x − a)^n. Centered at 0 it is called
+a Maclaurin series. Key examples: e^x = ∑x^n/n!, sin x = ∑(−1)^n x^{2n+1}/(2n+1)!,
+cos x = ∑(−1)^n x^{2n}/(2n)!, and 1/(1−x) = ∑x^n.
+NARRATION: A Taylor series represents a function as an infinite polynomial whose coefficients encode the function's derivatives at a point.
+
+SLIDE 23 | Parametric Equations
+A curve is described parametrically by x = f(t), y = g(t). The slope of the tangent line is
+dy/dx = (dy/dt)/(dx/dt). The arc length of a parametric curve is ∫√((dx/dt)² + (dy/dt)²) dt.
+Parametric equations can represent curves that are not functions of x alone.
+NARRATION: Parametric equations trace a curve by giving x and y separately as functions of a third parameter t.
+
+SLIDE 24 | Polar Curves and Area
+In polar coordinates, r = f(θ) describes a curve. The area enclosed by a polar curve from
+θ = α to θ = β is A = (1/2)∫_α^β [f(θ)]² dθ. For the area between two polar curves use
+(1/2)∫[r_outer² − r_inner²] dθ. Common shapes include roses, limacons, and the cardioid.
+NARRATION: Polar area sweeps out pie-slice sectors whose areas are integrated over the angular variable theta.
+
+SLIDE 25 | Introduction to Differential Equations — Separable Type
+A differential equation involves an unknown function and its derivatives. A separable equation
+can be written as dy/dx = g(x)h(y). Separate variables — all y terms on one side, all x terms
+on the other — then integrate both sides and solve for y with an arbitrary constant C.
+NARRATION: Separate the variables, integrate both sides, and solve for y to find the general solution of a separable equation.
+
+SLIDE 26 | Applications of Differential Equations
+Separable differential equations model exponential growth and decay (dP/dt = kP), Newton's law
+of cooling, and simple mixing problems. The general solution is P = P_0 e^{kt}; k > 0 gives
+growth and k < 0 gives decay. An initial condition pins down the particular solution.
+NARRATION: Exponential growth and decay are modeled by the simple separable equation dy/dt equals k times y.
+
+FACT: Integration by parts follows the formula u dv = uv minus the integral of v du.
+FACT: A geometric series with |r| < 1 sums to a divided by one minus r.
+FACT: The p-series converges when p is greater than one and diverges when p is one or less.
+FACT: The Ratio Test checks whether the limit of consecutive term ratios is less than one.
+FACT: A Taylor series centered at zero is called a Maclaurin series.
+FACT: Polar area uses one-half the integral of r-squared with respect to theta.
+FACT: Separable differential equations are solved by moving all y terms to one side and all x terms to the other before integrating.

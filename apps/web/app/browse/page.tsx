@@ -12,6 +12,7 @@ import {
   type LearnableItem,
 } from "../lib/api";
 import { CoursePosterImg } from "../components/CoursePosterImg";
+import BookmarkButton from "../components/BookmarkButton";
 import { useT } from "../lib/i18n";
 
 export default function BrowsePage() {
@@ -173,11 +174,12 @@ export default function BrowsePage() {
               {c.drive_safe && <span className="pill" style={{ color: "#16a34a" }}>{t("browse.driveSafe")}</span>}
             </div>
             <p className="muted" style={{ marginTop: 6 }}>{c.preview || c.subtitle}</p>
-            <div className="row" style={{ marginTop: 8, gap: 8 }}>
+            <div className="row" style={{ marginTop: 8, gap: 8, alignItems: "center" }}>
               <button type="button" onClick={() => openItem(c)}>{t("browse.open")}</button>
               {c.source === "catalog" && (
                 <button type="button" onClick={() => onEnroll(c)}>{t("browse.enroll")}</button>
               )}
+              <BookmarkButton courseId={c.source_id} title={c.title} size={18} style={{ marginLeft: "auto" }} />
             </div>
             </div>
           </div>

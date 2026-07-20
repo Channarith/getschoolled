@@ -196,6 +196,42 @@ CATEGORY: Dict[str, Dict[str, str]] = {
         "ja": "スポーツとゲーム", "ko": "스포츠와 게임", "vi": "Thể thao & Trò chơi",
         "km": "កីឡា និង ល្បែង",
     },
+    "Arts & Film": {
+        "en": "Arts & Film", "es": "Arte y Cine",
+        "fr": "Arts et Cinéma", "de": "Kunst & Film",
+        "it": "Arte e Cinema", "pt": "Arte e Cinema",
+        "ru": "Искусство и кино", "ar": "الفنون والسينما",
+        "hi": "कला और फिल्म", "zh": "艺术与电影",
+        "ja": "芸術と映画", "ko": "예술과 영화", "vi": "Nghệ thuật & Điện ảnh",
+        "km": "សិល្បៈ និង ភាពយន្ត",
+    },
+    "Music & Instruments": {
+        "en": "Music & Instruments", "es": "Música e Instrumentos",
+        "fr": "Musique et Instruments", "de": "Musik & Instrumente",
+        "it": "Musica e Strumenti", "pt": "Música e Instrumentos",
+        "ru": "Музыка и инструменты", "ar": "الموسيقى والآلات",
+        "hi": "संगीत और वाद्ययंत्र", "zh": "音乐与乐器",
+        "ja": "音楽と楽器", "ko": "음악과 악기", "vi": "Âm nhạc & Nhạc cụ",
+        "km": "តន្ត្រី និង គ្រឿងតន្ត្រី",
+    },
+    "Business & Finance": {
+        "en": "Business & Finance", "es": "Negocios y Finanzas",
+        "fr": "Affaires et Finance", "de": "Business & Finanzen",
+        "it": "Affari e Finanza", "pt": "Negócios e Finanças",
+        "ru": "Бизнес и финансы", "ar": "الأعمال والمالية",
+        "hi": "व्यापार और वित्त", "zh": "商业与金融",
+        "ja": "ビジネスとファイナンス", "ko": "비즈니스와 금융", "vi": "Kinh doanh & Tài chính",
+        "km": "អាជីវកម្ម និង ហិរញ្ញវត្ថុ",
+    },
+    "TED Talks": {
+        "en": "TED Talks", "es": "Charlas TED",
+        "fr": "Conférences TED", "de": "TED Talks",
+        "it": "Conferenze TED", "pt": "Palestras TED",
+        "ru": "Лекции TED", "ar": "محادثات TED",
+        "hi": "TED टॉक्स", "zh": "TED演讲",
+        "ja": "TEDトーク", "ko": "TED 강연", "vi": "Bài nói TED",
+        "km": "ការនិយាយ TED",
+    },
 }
 
 

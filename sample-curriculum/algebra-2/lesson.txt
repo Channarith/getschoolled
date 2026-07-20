@@ -1,0 +1,114 @@
+LESSON: Algebra II
+LANGUAGE: en
+
+SLIDE 1 | Review of Linear Functions
+A linear function has the form f(x) = mx + b and produces a straight-line graph. The slope m tells you how fast the output changes per unit of input, and the y-intercept b is the function's value when x = 0. Reviewing linear functions grounds you before exploring the more complex function families in Algebra II.
+NARRATION: Linear functions make straight lines — review slope and y-intercept before moving to harder functions.
+
+SLIDE 2 | Absolute Value Equations and Inequalities
+The absolute value |x| equals the distance from x to zero, so |x| = 5 gives x = 5 or x = −5. For inequalities, |x| < 5 means −5 < x < 5 (a connected interval), while |x| > 5 means x < −5 or x > 5 (two separate rays). Isolate the absolute value expression before splitting into cases.
+NARRATION: Absolute value inequalities split into a connected interval or two separate rays depending on the sign.
+
+SLIDE 3 | Quadratic Functions and Parabolas
+A quadratic function has the form f(x) = ax² + bx + c and its graph is a U-shaped curve called a parabola. If a > 0 the parabola opens upward with a minimum vertex; if a < 0 it opens downward with a maximum vertex. The axis of symmetry passes through the vertex at x = −b / (2a).
+NARRATION: A quadratic function makes a parabola — its vertex is either the lowest or highest point on the curve.
+
+SLIDE 4 | Solving Quadratics by Factoring
+To solve a quadratic by factoring, set the equation equal to zero, factor the expression, then set each factor equal to zero (Zero Product Property). For example, x² + 5x + 6 = 0 factors as (x + 2)(x + 3) = 0, giving solutions x = −2 and x = −3. Factoring works when the quadratic factors neatly over integers.
+NARRATION: Factor the quadratic, set each factor equal to zero, and solve — that is the Zero Product Property.
+
+SLIDE 5 | Completing the Square
+Completing the square converts ax² + bx + c into vertex form a(x − h)² + k by adding and subtracting (b/2a)² inside the expression. The vertex is then (h, k). For example, x² + 6x + 5 = 0 becomes (x + 3)² = 4, so x + 3 = ±2, giving x = −1 or x = −5.
+NARRATION: Complete the square to find the vertex and solve a quadratic that does not factor easily.
+
+SLIDE 6 | The Quadratic Formula and Discriminant
+Any quadratic ax² + bx + c = 0 can be solved with the quadratic formula: x = (−b ± √(b² − 4ac)) / (2a). The discriminant b² − 4ac reveals the nature of the solutions: positive means two real solutions, zero means one repeated real solution, and negative means two complex solutions. Memorize this formula — it always works.
+NARRATION: The quadratic formula always works — the discriminant tells you how many real solutions exist.
+
+SLIDE 7 | Complex and Imaginary Numbers
+The imaginary unit i is defined as √(−1), so i² = −1. A complex number has the form a + bi, where a is the real part and b is the imaginary part. Complex numbers arise as solutions to quadratics with a negative discriminant, such as x² + 4 = 0, which gives x = ±2i.
+NARRATION: When the discriminant is negative, solutions involve i equals the square root of negative one.
+
+SLIDE 8 | Polynomial Long Division
+Polynomial long division works just like numerical long division — divide, multiply, subtract, and bring down — but with polynomial terms. It allows you to divide a higher-degree polynomial by a lower-degree one. For example, (x² + 5x + 6) ÷ (x + 2) = x + 3 with no remainder.
+NARRATION: Divide, multiply, subtract, and bring down — polynomial long division mirrors number long division.
+
+SLIDE 9 | Synthetic Division
+Synthetic division is a shortcut for dividing a polynomial by a linear factor of the form (x − c). Write only the coefficients, drop the first one, then alternately multiply by c and add. Synthetic division is faster than long division for this common case and is the basis of the Remainder Theorem.
+NARRATION: Synthetic division is a quick shortcut for dividing by a linear factor — write coefficients only.
+
+SLIDE 10 | The Factor Theorem
+The Factor Theorem states that (x − c) is a factor of a polynomial p(x) if and only if p(c) = 0. This means that once you find a zero of the polynomial, you have found a factor. Use synthetic division to confirm and reduce the polynomial to find remaining factors or zeros.
+NARRATION: If plugging in c gives zero, then x minus c is a factor — that is the Factor Theorem.
+
+SLIDE 11 | Graphing Polynomial Functions
+The degree of a polynomial determines the general shape of its graph — an even degree opens up or down on both ends, while an odd degree goes in opposite directions. The zeros of the polynomial are the x-intercepts, and multiplicities affect whether the graph crosses or just touches the axis. The leading coefficient determines end behavior.
+NARRATION: Degree and leading coefficient control end behavior; zeros tell you where the graph crosses the x-axis.
+
+SLIDE 12 | Exponential Functions
+An exponential function has the form f(x) = a · bˣ, where b > 0 and b ≠ 1. When b > 1 the function models exponential growth, and when 0 < b < 1 it models exponential decay. Exponential functions appear in finance, biology, and physics to describe quantities that grow or shrink by a constant percentage over time.
+NARRATION: Exponential functions grow or decay by a constant ratio — b greater than one grows, b less than one decays.
+
+SLIDE 13 | Logarithms and Their Properties
+A logarithm is the inverse of an exponential: logb(x) = y means bʸ = x. Key properties include the product rule (log(mn) = log m + log n), the quotient rule (log(m/n) = log m − log n), and the power rule (log(mⁿ) = n log m). The common log uses base 10 and the natural log ln uses base e ≈ 2.718.
+NARRATION: A logarithm asks what exponent you need — use log properties to expand or condense expressions.
+
+SLIDE 14 | Solving Exponential and Logarithmic Equations
+To solve an exponential equation, take the log of both sides to bring the exponent down. To solve a logarithmic equation, convert to exponential form and solve. For example, 2ˣ = 32 gives x log 2 = log 32, so x = log 32 / log 2 = 5. Always check solutions for domain restrictions.
+NARRATION: Take logs to solve exponential equations; convert to exponential form to solve logarithmic ones.
+
+SLIDE 15 | Rational Functions and Asymptotes
+A rational function is the ratio of two polynomials, p(x) / q(x). Vertical asymptotes occur where the denominator equals zero. Horizontal asymptotes depend on the degrees of the numerator and denominator — equal degrees give the ratio of leading coefficients, lesser numerator degree gives y = 0, and greater numerator degree means no horizontal asymptote.
+NARRATION: Rational functions have asymptotes where the denominator is zero or where degrees control end behavior.
+
+SLIDE 16 | Systems of Equations in Three Variables
+A system of three equations in three variables can be solved by elimination or substitution, reducing it step by step to a system of two variables, then one. A solution is an ordered triple (x, y, z). These systems arise in real-world problems involving three unknown quantities, such as mixture or investment problems.
+NARRATION: Eliminate one variable at a time to reduce a three-variable system to a solvable pair.
+
+SLIDE 17 | Matrices and Matrix Operations
+A matrix is a rectangular array of numbers arranged in rows and columns. Matrices can be added or subtracted element by element if they have the same dimensions. Matrix multiplication is row by column — the number of columns in the first must equal the number of rows in the second. Matrices are used to represent and solve systems of equations efficiently.
+NARRATION: Add matrices element by element; multiply them row by column — dimensions must be compatible.
+
+SLIDE 18 | Arithmetic Sequences and Series
+An arithmetic sequence is a list where each term increases by a constant amount called the common difference d. The nth term is given by aₙ = a₁ + (n − 1)d. The sum of the first n terms of an arithmetic series is Sₙ = n/2 × (a₁ + aₙ). These appear in salary schedules and staircase problems.
+NARRATION: Arithmetic sequences add the same amount each step — use the formula to find any term or sum.
+
+SLIDE 19 | Geometric Sequences and Series
+In a geometric sequence, each term is multiplied by a constant ratio r. The nth term is aₙ = a₁ · rⁿ⁻¹. The sum of the first n terms is Sₙ = a₁(1 − rⁿ) / (1 − r) when r ≠ 1. If |r| < 1, an infinite geometric series converges to S = a₁ / (1 − r), which models compound interest and population growth.
+NARRATION: Geometric sequences multiply by the same ratio — if the ratio is small enough, an infinite sum converges.
+
+SLIDE 20 | The Binomial Theorem
+The Binomial Theorem gives a formula for expanding (a + b)ⁿ without multiplying repeatedly. Each term has the form C(n, k) · aⁿ⁻ᵏ · bᵏ, where C(n, k) is a binomial coefficient found in Pascal's Triangle. For example, (x + 2)³ = x³ + 6x² + 12x + 8. This theorem is central to combinatorics and probability.
+NARRATION: The Binomial Theorem uses Pascal's Triangle coefficients to expand any power of a binomial.
+
+SLIDE 21 | Conic Sections — Circles and Ellipses
+A conic section is a curve formed by slicing a double cone with a plane. A circle has the equation (x − h)² + (y − k)² = r², centered at (h, k) with radius r. An ellipse is a stretched circle with equation (x − h)²/a² + (y − k)²/b² = 1 — its longer axis is determined by which denominator is larger.
+NARRATION: Circles and ellipses are conic sections — a circle has equal axes, an ellipse has two different ones.
+
+SLIDE 22 | Conic Sections — Parabolas and Hyperbolas
+A parabola (as a conic) has the equation (y − k)² = 4p(x − h) or (x − h)² = 4p(y − k), with focus and directrix p units from the vertex. A hyperbola has two separate branches and the equation (x − h)²/a² − (y − k)²/b² = 1 (horizontal) or (y − k)²/a² − (x − h)²/b² = 1 (vertical). Asymptotes pass through the center.
+NARRATION: Parabolas and hyperbolas complete the four conic sections — each has a defining focus-and-directrix property.
+
+SLIDE 23 | Probability Fundamentals
+Probability measures how likely an event is, expressed as a number between 0 (impossible) and 1 (certain). The probability of an event A is P(A) = number of favorable outcomes / total outcomes. The complement rule says P(not A) = 1 − P(A). For mutually exclusive events, P(A or B) = P(A) + P(B).
+NARRATION: Probability is favorable outcomes divided by total outcomes — the complement is one minus that value.
+
+SLIDE 24 | Real-World Applications of Quadratics
+Quadratic equations model projectile motion — the height of a thrown ball follows h(t) = −16t² + v₀t + h₀, where v₀ is initial velocity and h₀ is initial height. Finding when the ball hits the ground means solving h(t) = 0. Quadratics also model area problems, profit maximization, and the shape of suspension bridges.
+NARRATION: Quadratics model projectile motion and area problems — set the function equal to zero to find key moments.
+
+SLIDE 25 | Real-World Applications of Exponentials
+Compound interest follows A = P(1 + r/n)^(nt), where P is principal, r is annual rate, n is compounding periods per year, and t is time in years. Continuous compounding uses A = Pe^(rt). Exponentials also model population growth, radioactive decay, and viral spread — any process where growth rate is proportional to current size.
+NARRATION: Compound interest and population growth both follow exponential formulas — the rate applies to the current total.
+
+SLIDE 26 | Putting It All Together
+Algebra II connects many powerful mathematical ideas: solving equations in multiple ways, modeling the world with functions, and understanding the structure of polynomials and data. Each topic you have studied — from quadratics to logarithms to conic sections — prepares you for pre-calculus, statistics, and beyond. Mathematics is a unified language, and every skill builds on the last.
+NARRATION: Every Algebra II concept connects — quadratics, exponentials, and conics are all part of one mathematical language.
+
+FACT: The discriminant b squared minus 4ac tells you how many real solutions a quadratic equation has.
+FACT: i squared equals negative one — this is the definition of the imaginary unit.
+FACT: A logarithm and an exponential are inverse operations of each other.
+FACT: The Factor Theorem states that x minus c is a factor if and only if p(c) equals zero.
+FACT: An arithmetic sequence adds a constant; a geometric sequence multiplies by a constant.
+FACT: The four conic sections are the circle, ellipse, parabola, and hyperbola.
+FACT: Compound interest uses A equals P times (1 plus r over n) raised to the power nt.

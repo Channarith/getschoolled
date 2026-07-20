@@ -1,0 +1,114 @@
+LESSON: Algebra I
+LANGUAGE: en
+
+SLIDE 1 | Variables and Expressions
+A variable is a letter that represents an unknown or changing quantity, such as x or y. An algebraic expression combines variables, numbers, and operations — for example, 3x + 5 or 2a − 7. Expressions do not have an equals sign; they represent a value that depends on the variable.
+NARRATION: A variable holds an unknown value — combine it with numbers and operations to form an expression.
+
+SLIDE 2 | Evaluating Expressions
+To evaluate an expression, substitute a specific number for each variable and then simplify using the order of operations. For example, if x = 4, then 3x + 5 = 3(4) + 5 = 12 + 5 = 17. Always follow PEMDAS when simplifying after substitution.
+NARRATION: Replace each variable with its value, then simplify step by step using order of operations.
+
+SLIDE 3 | Writing Equations
+An equation is a mathematical statement that two expressions are equal, connected by an equals sign. Translating a word problem into an equation is a key algebra skill — "a number plus seven equals fifteen" becomes x + 7 = 15. Identifying the unknown and choosing the right operation is the first step to solving.
+NARRATION: An equation says two things are equal — translate words into symbols to set it up.
+
+SLIDE 4 | Solving One-Step Equations
+A one-step equation requires a single operation to isolate the variable. Use the inverse operation to undo what is being done to the variable: if x + 7 = 15, subtract 7 from both sides to get x = 8. Whatever you do to one side of an equation you must do to the other.
+NARRATION: Undo the operation on the variable by applying its inverse to both sides of the equation.
+
+SLIDE 5 | Solving Two-Step Equations
+A two-step equation requires two inverse operations to isolate the variable. Work in reverse order of operations: undo addition or subtraction first, then undo multiplication or division. For example, 2x + 3 = 11 — subtract 3 to get 2x = 8, then divide by 2 to get x = 4.
+NARRATION: Undo addition or subtraction first, then undo multiplication or division to solve in two steps.
+
+SLIDE 6 | Solving Multi-Step Equations
+Multi-step equations may require combining like terms, using the distributive property, and applying multiple inverse operations. Like terms have the same variable and exponent — combine them by adding their coefficients. For example, 3x + 2x − 4 = 11 simplifies to 5x − 4 = 11, then x = 3.
+NARRATION: Distribute, combine like terms, and then apply inverse operations one step at a time.
+
+SLIDE 7 | Inequalities and Number Line Graphs
+An inequality uses symbols like <, >, ≤, or ≥ to compare expressions. Solving an inequality follows the same steps as solving an equation, with one important rule: multiplying or dividing by a negative number flips the inequality sign. Graph the solution on a number line using an open circle for strict inequalities and a closed circle for ≤ or ≥.
+NARRATION: Solve inequalities like equations, but flip the sign whenever you multiply or divide by a negative.
+
+SLIDE 8 | Absolute Value Equations
+The absolute value of an expression equals its distance from zero, so |x| = 5 means x = 5 or x = −5. To solve an absolute value equation, isolate the absolute value, then write two separate equations — one positive and one negative — and solve each. Always check both solutions in the original equation.
+NARRATION: An absolute value equation has two cases — one positive and one negative — so check both solutions.
+
+SLIDE 9 | Writing and Solving Proportions
+A proportion states that two ratios are equal: a/b = c/d. Cross multiply to solve for an unknown — if 3/4 = x/20, then 4x = 60, so x = 15. Proportions are used to solve scale problems, unit conversions, and rate comparisons.
+NARRATION: Cross multiply in a proportion to find the unknown value in one quick step.
+
+SLIDE 10 | Percent Problems Using Equations
+Percent problems can be set up as equations: percent × whole = part. To find a percent of a number, convert the percent to a decimal and multiply. To find what percent one number is of another, divide and multiply by 100. For example, what percent of 80 is 20? That is 20/80 = 0.25 = 25%.
+NARRATION: Translate percent problems into equations using percent times whole equals part.
+
+SLIDE 11 | The Coordinate Plane
+The coordinate plane has a horizontal x-axis and a vertical y-axis that meet at the origin (0, 0). Any point is described by an ordered pair (x, y) — move x units horizontally and y units vertically from the origin. The axes divide the plane into four quadrants numbered I through IV.
+NARRATION: Every point on the coordinate plane has an x and y address called an ordered pair.
+
+SLIDE 12 | Slope and Rate of Change
+Slope measures the steepness and direction of a line, calculated as rise over run — the change in y divided by the change in x. A positive slope rises from left to right; a negative slope falls. A horizontal line has slope zero and a vertical line has undefined slope. Slope equals (y₂ − y₁) / (x₂ − x₁).
+NARRATION: Slope is rise over run — how many units up or down for every unit you move to the right.
+
+SLIDE 13 | Slope-Intercept Form
+The equation y = mx + b is called slope-intercept form, where m is the slope and b is the y-intercept (where the line crosses the y-axis). This form makes graphing easy: start at the y-intercept, then use the slope to find a second point. For example, y = 2x + 3 has slope 2 and crosses the y-axis at (0, 3).
+NARRATION: In y equals mx plus b, m is the slope and b tells you where the line crosses the y-axis.
+
+SLIDE 14 | Point-Slope Form
+Point-slope form is y − y₁ = m(x − x₁), used when you know the slope m and one point (x₁, y₁) on the line. This form is useful when the y-intercept is not given directly. You can always convert point-slope form to slope-intercept form by solving for y.
+NARRATION: Point-slope form lets you write a line's equation when you know the slope and any one point.
+
+SLIDE 15 | Standard Form of Linear Equations
+Standard form is written as Ax + By = C, where A, B, and C are integers and A is non-negative. Both intercepts are easy to find from standard form: set x = 0 to find the y-intercept, and set y = 0 to find the x-intercept. Standard form is useful for quickly finding both intercepts and graphing the line.
+NARRATION: Standard form Ax plus By equals C makes it easy to find where the line crosses both axes.
+
+SLIDE 16 | Introduction to Systems of Equations
+A system of equations is two or more equations with the same variables. The solution is the point (x, y) that makes all equations true at the same time. Systems can have one solution (lines intersect), no solution (parallel lines), or infinitely many solutions (the same line).
+NARRATION: A system's solution is the point where all the equations are true simultaneously.
+
+SLIDE 17 | Solving Systems by Substitution
+In the substitution method, solve one equation for a variable and substitute that expression into the other equation. For example, if y = 2x and x + y = 9, substitute to get x + 2x = 9, so x = 3 and y = 6. Always substitute back to find the second variable.
+NARRATION: Solve one equation for a variable, then substitute that expression into the other equation.
+
+SLIDE 18 | Solving Systems by Elimination
+In elimination, add or subtract the equations to cancel one variable. Multiply one or both equations by a constant first if needed to make coefficients match. For example, x + y = 10 and x − y = 4 add together to give 2x = 14, so x = 7 and then y = 3.
+NARRATION: Add or subtract the equations to eliminate one variable, then solve for the remaining one.
+
+SLIDE 19 | Graphing Systems of Equations
+Graph each equation in the system on the same coordinate plane. The point where the lines intersect is the solution. If the lines are parallel they never meet — no solution. If they are the same line — infinitely many solutions. Graphing gives a visual picture of the system's behavior.
+NARRATION: Graph both lines and look for where they cross — that intersection is the solution.
+
+SLIDE 20 | Systems of Inequalities
+A system of inequalities consists of two or more inequalities with the same variables. The solution is the region of the coordinate plane where the shaded areas of both inequalities overlap. Graph each inequality and shade the correct side, then identify the overlapping region.
+NARRATION: Shade each inequality's region and the overlap is the solution to the system.
+
+SLIDE 21 | Introduction to Polynomials
+A polynomial is an expression with one or more terms, each consisting of a coefficient and a variable raised to a whole-number exponent. Polynomials are named by their number of terms: monomial (one term), binomial (two), and trinomial (three). The degree of a polynomial is the highest exponent of any term.
+NARRATION: Polynomials are expressions with terms like 3x squared — named by how many terms they have.
+
+SLIDE 22 | Adding and Subtracting Polynomials
+To add or subtract polynomials, combine like terms — terms with the same variable and exponent. When subtracting, distribute the negative sign to every term in the second polynomial before combining. For example, (3x² + 2x) − (x² − 5x) = 3x² + 2x − x² + 5x = 2x² + 7x.
+NARRATION: Combine like terms to add polynomials; distribute the negative sign before subtracting.
+
+SLIDE 23 | Multiplying Polynomials — FOIL
+FOIL stands for First, Outer, Inner, Last and is a method for multiplying two binomials. Multiply each pair of terms, then combine like terms. For example, (x + 3)(x + 5) = x² + 5x + 3x + 15 = x² + 8x + 15. For polynomials with more terms, distribute every term of the first by every term of the second.
+NARRATION: FOIL means First, Outer, Inner, Last — multiply every pair of terms, then combine like terms.
+
+SLIDE 24 | Factoring by GCF
+Factoring is the reverse of multiplying — you find the factors of a polynomial. Always look for the Greatest Common Factor first: find the largest factor shared by all terms and factor it out. For example, 6x² + 9x = 3x(2x + 3). Factoring by GCF simplifies expressions and is the first step in solving many equations.
+NARRATION: Always factor out the greatest common factor first before trying any other method.
+
+SLIDE 25 | Factoring Trinomials
+To factor a trinomial of the form x² + bx + c, find two numbers that multiply to c and add to b. For example, x² + 7x + 12 factors as (x + 3)(x + 4) because 3 × 4 = 12 and 3 + 4 = 7. Factoring trinomials is essential for solving quadratic equations.
+NARRATION: Find two numbers that multiply to c and add to b, then write the trinomial as two binomials.
+
+SLIDE 26 | Real-World Linear Models
+Linear equations model real-world situations where one quantity changes at a constant rate relative to another. For example, a taxi that charges $3 plus $2 per mile can be modeled as y = 2x + 3, where y is the total cost and x is the number of miles. The slope represents the rate of change and the y-intercept is the starting value.
+NARRATION: Slope is the constant rate of change and the y-intercept is the starting value in any linear model.
+
+FACT: The slope of a line equals rise over run — change in y divided by change in x.
+FACT: In y = mx + b, m is the slope and b is the y-intercept.
+FACT: When multiplying or dividing an inequality by a negative number, flip the inequality sign.
+FACT: FOIL stands for First, Outer, Inner, Last — a method for multiplying two binomials.
+FACT: A system of parallel lines has no solution because the lines never intersect.
+FACT: Always factor out the GCF before attempting other factoring methods.
+FACT: An absolute value equation splits into two separate equations — one positive and one negative.

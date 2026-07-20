@@ -531,6 +531,20 @@ export async function enrollCourse(courseId: string, title: string, status = "en
   );
 }
 
+/** Bookmark a course to My List (status="saved"). Idempotent. */
+export async function saveForLater(courseId: string, title: string): Promise<Enrollment> {
+  return enrollCourse(courseId, title, "saved");
+}
+
+/** Remove a course from My List by setting status back to "enrolled" if
+ *  the user has already started it, otherwise delete via the status update. */
+export async function unsaveForLater(courseId: string): Promise<void> {
+  await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/status`, {
+    method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ status: "enrolled" }),
+  });
+}
+
 // Update an enrollment's status. On the FIRST transition to "passed" the
 // identity service awards reward points (scaled by level + score + hands-on),
 // and returns the new points_balance. Idempotent: re-passing doesn't re-award.

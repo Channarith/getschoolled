@@ -180,7 +180,8 @@ def test_get_jobs_provider_selection():
     assert isinstance(get_jobs_provider({"RAPIDAPI_KEY": "k"}), JSearchJobsProvider)
     assert isinstance(
         get_jobs_provider({"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b"}), AdzunaJobsProvider)
-    # keyed aggregator wins over the generic live flag
+    # keyed aggregator wins over the generic live flag; may return JSearch or
+    # Composite depending on whether RAPIDAPI_KEY is routed to JSearch or LinkedIn.
     p = get_jobs_provider({"JOBS_LIVE": "1", "RAPIDAPI_KEY": "k"})
     assert isinstance(p, (JSearchJobsProvider, CompositeJobsProvider))
 

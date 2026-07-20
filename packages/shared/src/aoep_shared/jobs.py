@@ -821,6 +821,98 @@ class JobspressoProvider(_LiveJobsProvider):
         return out
 
 
+class IndeedScraperProvider(_LiveJobsProvider):
+    """Indeed jobs via the Indeed Scraper API on RapidAPI.
+
+    POST https://indeed-scraper-api.p.rapidapi.com/api/job
+    Needs RAPIDAPI_KEY. Free tier allows ~10 calls/day; this provider
+    tracks usage in a module-level day counter and stops once the limit
+    is reached (falling through to the free RSS feed instead).
+    """
+
+    source = "indeed-api"
+    DAILY_LIMIT = 10
+    _day_key: str = ""
+    _day_calls: int = 0
+
+    def __init__(self, rapidapi_key: str) -> None:
+        self.rapidapi_key = rapidapi_key
+
+    def _within_limit(self) -> bool:
+        import datetime as _dt
+        day = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
+        if IndeedScraperProvider._day_key != day:
+            IndeedScraperProvider._day_key = day
+            IndeedScraperProvider._day_calls = 0
+        return IndeedScraperProvider._day_calls < self.DAILY_LIMIT
+
+    def _fetch(self, query, location, limit):
+        if not self._within_limit():
+            return []
+        payload = _json.dumps({
+            "scraper": {
+                "maxRows": min(limit, 15),
+                "query": query or "software engineer",
+                "location": location or "United States",
+                "jobType": "fulltime",
+                "radius": "50",
+                "sort": "relevance",
+                "fromDays": "7",
+                "country": "us",
+            }
+        }).encode("utf-8")
+        req = _urlreq.Request(
+            "https://indeed-scraper-api.p.rapidapi.com/api/job",
+            data=payload,
+            headers={
+                "User-Agent": _USER_AGENT,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "x-rapidapi-host": "indeed-scraper-api.p.rapidapi.com",
+                "x-rapidapi-key": self.rapidapi_key,
+            },
+        )
+        with _urlreq.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
+            data = _json.loads(resp.read().decode("utf-8", "replace"))
+        IndeedScraperProvider._day_calls += 1
+        if isinstance(data, dict):
+            for key in ("jobs", "results", "data"):
+                if isinstance(data.get(key), list):
+                    return data[key]
+        if isinstance(data, list):
+            return data
+        return []
+
+    def _parse(self, rows) -> List[JobPosting]:
+        out = []
+        for r in rows:
+            title = r.get("title", "") or r.get("jobTitle", "")
+            company = (r.get("company", "") or r.get("companyName", "")
+                       or r.get("employer", "") or "")
+            location_raw = (r.get("location", "") or r.get("jobLocation", "")
+                            or "United States")
+            link = r.get("url", "") or r.get("link", "") or r.get("jobUrl", "")
+            desc = _strip_html(r.get("description", "")
+                               or r.get("jobDescription", "") or "")
+            pub = (r.get("datePosted", "") or r.get("posted", "")
+                   or r.get("date", "") or "")
+            salary = r.get("salary", "") or r.get("salaryRange", "") or ""
+            job_id = (r.get("id", "") or r.get("jobId", "")
+                      or (link.split("jk=")[-1].split("&")[0] if "jk=" in link
+                          else link[-20:]))
+            out.append(JobPosting(
+                id=f"indeed-api-{job_id}",
+                title=title, company=company,
+                location=location_raw or "United States",
+                source="indeed-api", url=link,
+                employment_type="Full-time",
+                salary_range=str(salary),
+                posted_days_ago=_days_ago(pub),
+                category=_category_for(title),
+                skills=_derive_skills(title, desc), description=desc))
+        return out
+
+
 class IndeedRssProvider(_LiveJobsProvider):
     """Indeed jobs via their public RSS feed (free, no key required).
 
@@ -981,6 +1073,8 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
             return RemotiveJobsProvider()
         if name == "arbeitnow":
             return ArbeitnowJobsProvider()
+        if name in ("indeed-api", "indeed_api") and env.get("RAPIDAPI_KEY"):
+            return IndeedScraperProvider(env["RAPIDAPI_KEY"])
         if name == "indeed":
             return IndeedRssProvider()
         if name == "remoteok":
@@ -1009,10 +1103,10 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         if prov:
             return prov
 
-    # RapidAPI key activates the LinkedIn jobs provider (25 requests/month budget).
-    # JSearch is also tried if the key has that subscription; LinkedIn API takes
-    # precedence since it has been verified to work with the current key.
-    if env.get("RAPIDAPI_KEY"):
+    # RapidAPI key activates JSearch as the single provider when JOBS_LIVE is not
+    # set. When JOBS_LIVE=1 is also present, fall through to the composite block
+    # below so IndeedScraperProvider (and other boards) are included as well.
+    if env.get("RAPIDAPI_KEY") and not _truthy(env.get("JOBS_LIVE")):
         return JSearchJobsProvider(env["RAPIDAPI_KEY"])
     if env.get("ADZUNA_APP_ID") and env.get("ADZUNA_APP_KEY"):
         return AdzunaJobsProvider(env["ADZUNA_APP_ID"], env["ADZUNA_APP_KEY"],
@@ -1027,8 +1121,12 @@ def get_jobs_provider(env: Optional[dict] = None) -> JobsProvider:
         providers: List[JobsProvider] = []
         if env.get("RAPIDAPI_KEY"):
             providers.append(LinkedInRapidApiProvider(env["RAPIDAPI_KEY"]))
+            # IndeedScraperProvider replaces IndeedRssProvider when the key is set
+            # (higher-quality structured data; limited to 10 calls/day on free tier).
+            providers.append(IndeedScraperProvider(env["RAPIDAPI_KEY"]))
+        else:
+            providers.append(IndeedRssProvider())
         providers += [
-            IndeedRssProvider(),
             USAJobsProvider(),
             WeWorkRemotelyProvider(),
             JobspressoProvider(),

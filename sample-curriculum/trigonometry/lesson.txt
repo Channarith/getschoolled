@@ -1,0 +1,172 @@
+LESSON: Trigonometry
+LANGUAGE: en
+
+SLIDE 1 | Welcome to Trigonometry
+Trigonometry is the branch of mathematics that studies relationships between the sides and
+angles of triangles. It extends far beyond triangles, powering everything from engineering
+and navigation to music, light waves, and computer graphics.
+NARRATION: Trigonometry connects angles and lengths, and its tools appear everywhere in science and technology.
+
+SLIDE 2 | Angles in Standard Position
+An angle is in standard position when its vertex sits at the origin and its initial side lies
+along the positive x-axis. The terminal side rotates counterclockwise for positive angles and
+clockwise for negative angles.
+NARRATION: Place the angle at the origin with its starting ray on the positive x-axis, then rotate to form the angle.
+
+SLIDE 3 | Degree and Radian Measure
+Degrees divide a full rotation into 360 equal parts. Radians measure angles by the arc length
+on a unit circle, so a full rotation equals 2π radians. To convert, use the fact that π radians
+equals 180 degrees.
+NARRATION: Radians relate an angle to arc length; pi radians is 180 degrees.
+
+SLIDE 4 | Arc Length and Sector Area
+For a circle of radius r, the arc length s subtended by a central angle θ (in radians) is
+s = rθ. The area of the corresponding sector is A = (1/2)r²θ. Both formulas require the
+angle to be in radians.
+NARRATION: Arc length equals radius times angle in radians, and sector area is one-half r-squared theta.
+
+SLIDE 5 | The Unit Circle
+The unit circle is a circle of radius 1 centered at the origin. Any point on it has coordinates
+(cos θ, sin θ), where θ is the angle in standard position. Memorizing key points on the unit
+circle is the foundation of trigonometry.
+NARRATION: Every point on the unit circle gives you the cosine and sine of the corresponding angle directly.
+
+SLIDE 6 | The Six Trigonometric Functions
+For an angle θ in standard position with a point (x, y) on its terminal side at distance r from
+the origin: sin θ = y/r, cos θ = x/r, tan θ = y/x. The reciprocals are csc θ = r/y,
+sec θ = r/x, and cot θ = x/y.
+NARRATION: Sine, cosine, and tangent are the core three; cosecant, secant, and cotangent are their reciprocals.
+
+SLIDE 7 | Trig Values of Special Angles
+For 0°, 30°, 45°, 60°, and 90° (and their radian equivalents 0, π/6, π/4, π/3, π/2), the
+sine and cosine values follow a pattern: sin values are √0/2, √1/2, √2/2, √3/2, √4/2.
+Knowing these by heart makes calculations fast and reliable.
+NARRATION: The special angle values follow a neat square-root pattern that is worth memorizing.
+
+SLIDE 8 | Reference Angles
+The reference angle is the acute angle formed between the terminal side and the x-axis. It is
+always positive and between 0° and 90°. You find the trig value of any angle by computing the
+trig value of its reference angle and attaching the correct sign based on the quadrant.
+NARRATION: Find the reference angle first, then adjust the sign according to which quadrant you are in.
+
+SLIDE 9 | Signs in the Four Quadrants — ASTC
+In Quadrant I all six functions are positive. In Quadrant II only sine (and cosecant) are
+positive. In Quadrant III only tangent (and cotangent) are positive. In Quadrant IV only
+cosine (and secant) are positive. The mnemonic "All Students Take Calculus" helps.
+NARRATION: Remember "All Students Take Calculus" to recall which functions are positive in each quadrant.
+
+SLIDE 10 | Graphing the Sine Function
+The graph of y = sin x is a smooth wave that passes through the origin, reaches a maximum of 1
+at x = π/2, returns to 0 at x = π, falls to −1 at x = 3π/2, and completes one full cycle at
+x = 2π. The pattern repeats forever in both directions.
+NARRATION: Sine starts at zero, rises to one, falls to negative one, and returns to zero over one full period of 2π.
+
+SLIDE 11 | Graphing the Cosine Function
+The graph of y = cos x looks identical to sine but shifted left by π/2. It starts at 1 when
+x = 0, falls to 0 at x = π/2, reaches −1 at x = π, and returns to 1 at x = 2π. Both sine
+and cosine have period 2π and range [−1, 1].
+NARRATION: Cosine starts at its maximum of one and has the same wave shape as sine, shifted left by a quarter period.
+
+SLIDE 12 | Amplitude and Period
+For y = A sin(Bx) or y = A cos(Bx), the amplitude is |A|, which is the distance from the
+midline to the peak. The period is 2π/|B|, the length of one complete cycle. Changing A
+stretches or compresses the graph vertically; changing B stretches or compresses it horizontally.
+NARRATION: Amplitude sets the height of the wave; period sets how long one full cycle takes.
+
+SLIDE 13 | Phase Shift and Vertical Shift
+The full form y = A sin(B(x − C)) + D shifts the graph horizontally by C units (right if C > 0)
+and vertically by D units. C is the phase shift and D is the vertical shift (midline). Together
+these four parameters give complete control over the sine or cosine wave.
+NARRATION: The phase shift moves the wave left or right, and the vertical shift moves the midline up or down.
+
+SLIDE 14 | Graphing the Tangent Function
+The graph of y = tan x has vertical asymptotes wherever cos x = 0, that is at x = π/2 + nπ.
+Between consecutive asymptotes, the function increases from −∞ to +∞. The period of tangent is
+π, half that of sine and cosine.
+NARRATION: Tangent has a period of pi and shoots to infinity at each vertical asymptote where cosine is zero.
+
+SLIDE 15 | Reciprocal Functions: Cosecant, Secant, Cotangent
+The graphs of csc x and sec x have U-shaped arches (called hyperbola-like curves) that touch
+the sine and cosine graphs at their peaks and troughs. Cotangent is a decreasing curve with
+period π, mirroring tangent. All three are undefined wherever their denominators equal zero.
+NARRATION: Cosecant and secant have arch-shaped graphs that exist only where sine and cosine are nonzero.
+
+SLIDE 16 | Inverse Trigonometric Functions
+The inverse functions arcsin, arccos, and arctan undo the trig functions. Because sine and
+cosine are not one-to-one over all real numbers, their inverses are defined on restricted
+domains: arcsin on [−π/2, π/2], arccos on [0, π], and arctan on (−π/2, π/2).
+NARRATION: Inverse trig functions give you the angle when you know the ratio, using carefully restricted domains.
+
+SLIDE 17 | Pythagorean Identities
+The fundamental Pythagorean identity is sin²θ + cos²θ = 1. Dividing through by cos²θ gives
+tan²θ + 1 = sec²θ, and dividing by sin²θ gives 1 + cot²θ = csc²θ. These three identities are
+the backbone of trigonometric simplification and proof.
+NARRATION: Sin squared plus cos squared equals one — this identity and its two siblings are essential tools.
+
+SLIDE 18 | Quotient and Reciprocal Identities
+The quotient identities state that tan θ = sin θ / cos θ and cot θ = cos θ / sin θ. The
+reciprocal identities define csc θ = 1/sin θ, sec θ = 1/cos θ, and cot θ = 1/tan θ. These
+definitions let you rewrite any trig expression in terms of sine and cosine.
+NARRATION: Tangent is sine over cosine, and each of the other functions is a simple ratio or reciprocal.
+
+SLIDE 19 | Sum and Difference Identities
+The sum formulas are sin(A ± B) = sin A cos B ± cos A sin B and
+cos(A ± B) = cos A cos B ∓ sin A sin B. These allow you to evaluate trig functions at angles
+not on the standard list by splitting them into sums of familiar angles.
+NARRATION: Sum and difference identities let you evaluate angles like 75 degrees by splitting them into 45 plus 30.
+
+SLIDE 20 | Double-Angle and Half-Angle Formulas
+The double-angle formulas are sin 2θ = 2 sin θ cos θ and cos 2θ = cos²θ − sin²θ (with two
+equivalent alternate forms). The half-angle formulas express sin(θ/2) and cos(θ/2) in terms
+of cos θ. These are derived directly from the sum identities.
+NARRATION: Double-angle formulas compress two-angle expressions; half-angle formulas are their inverse.
+
+SLIDE 21 | Solving Trigonometric Equations
+To solve equations like sin x = 1/2, first find the reference angle, then list all angles in
+[0, 2π) that satisfy the equation, and finally add the general period (2πn or πn for tangent)
+for the complete infinite solution set. Always check that solutions fit any stated domain.
+NARRATION: Find reference angles, identify all solutions in one period, then write the general solution with the period added.
+
+SLIDE 22 | The Law of Sines
+In any triangle with sides a, b, c opposite angles A, B, C respectively, the Law of Sines
+states a/sin A = b/sin B = c/sin C. It is used to solve triangles when you know two angles and
+a side (AAS or ASA) or two sides and a non-included angle (SSA, the ambiguous case).
+NARRATION: The Law of Sines links each side to the sine of its opposite angle in a constant ratio.
+
+SLIDE 23 | The Law of Cosines
+The Law of Cosines generalizes the Pythagorean theorem: c² = a² + b² − 2ab cos C. Use it
+when you know three sides (SSS) or two sides and the included angle (SAS). When C = 90°,
+the formula reduces exactly to the Pythagorean theorem.
+NARRATION: The Law of Cosines is the Pythagorean theorem extended to any triangle, not just right triangles.
+
+SLIDE 24 | Area Formulas Using Trigonometry
+The area of a triangle with two sides a, b and included angle C is K = (1/2)ab sin C. This
+formula works even when the height is not given directly. Combined with Heron's formula, it
+gives flexible tools for computing triangle area from various combinations of known parts.
+NARRATION: Multiply one-half times two sides times the sine of the included angle to get a triangle's area.
+
+SLIDE 25 | Polar Coordinates
+In polar coordinates a point is described by (r, θ), where r is the distance from the origin
+and θ is the angle from the positive x-axis. The conversion relations are x = r cos θ and
+y = r sin θ, with r² = x² + y² and θ = arctan(y/x) adjusted for the correct quadrant.
+NARRATION: Polar coordinates describe a point by its distance and direction rather than horizontal and vertical position.
+
+SLIDE 26 | De Moivre's Theorem
+De Moivre's theorem states that (r(cos θ + i sin θ))ⁿ = rⁿ(cos nθ + i sin nθ). Written in
+exponential form using Euler's formula, this becomes (re^{iθ})ⁿ = rⁿe^{inθ}. It is a powerful
+tool for computing powers and roots of complex numbers.
+NARRATION: De Moivre's theorem lets you raise a complex number in polar form to any power by multiplying the angle.
+
+SLIDE 27 | Real-World Applications of Trigonometry
+Trigonometry models periodic phenomena: sound and light waves use sine functions, engineers
+analyze alternating current with amplitude and phase shift, and navigators use the law of sines
+and cosines to plot courses. Architects apply trig to calculate roof pitches and structural loads.
+NARRATION: From ocean waves to GPS navigation, trigonometry is the mathematical language of cycles and directions.
+
+FACT: One full rotation equals 2π radians or 360 degrees.
+FACT: The unit circle has radius 1 and gives cos and sin for every angle.
+FACT: sin²θ + cos²θ = 1 is the fundamental Pythagorean identity.
+FACT: The period of sine and cosine is 2π; the period of tangent is π.
+FACT: The Law of Cosines reduces to the Pythagorean theorem when the angle is 90 degrees.
+FACT: De Moivre's theorem connects complex number exponentiation with angle multiplication.
+FACT: Amplitude is the absolute value of the coefficient A in y = A sin(Bx).
