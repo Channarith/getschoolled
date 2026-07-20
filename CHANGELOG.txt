@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-20 - v0.27.4 - Live room interactive voice loop: Theodore says learner's name when granting floor; detects "Say it out loud"/"Repeat after me" phrases and auto-opens mic; appends "Does that answer your question?" to every answer and holds the floor open for yes/no confirmation before releasing; Theodore auto-replies to class chat messages; solo class gets Pause/Resume instead of Close Session, and Leave now ends the session cleanly.
 - 2026-07-20 - v0.27.3 - Fix low-contrast banners in live room (adaptation monitor, insecure-origin, camera-note now use opaque high-contrast backgrounds); hide social sign-in config message from users on plain HTTP.
 - 2026-07-20 - v0.27.2 - Fix bug-report GitHub delivery: use Git blobs API for screenshots >900 KB (Contents API rejects >1 MB), fix GET requests in _github_json to omit body, add migrate_bugs_to_github.py script to back-fill existing reports to GitHub Issues.
 - 2026-07-20 - v0.27.1 - Raise auto-minor bump threshold to 120 (patch), fix eight assessment security/correctness bugs (PR #339), fix four more assessment bugs including drive-mode accessibility bypass and retry-button null-slide.

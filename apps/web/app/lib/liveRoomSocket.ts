@@ -51,6 +51,7 @@ export type HostAnswer = {
   asker: string;
   done: boolean;
   id: number;
+  awaitingConfirmation?: boolean;
 };
 
 export function useLiveRoomSocket(
@@ -178,7 +179,13 @@ export function useLiveRoomSocket(
                   .replace(/^@\S+\s*/, "")
                   .trim();
                 hostBufRef.current = "";
-                setHostAnswer({ text: finalText, asker, done: true, id: ++hostSeqRef.current });
+                setHostAnswer({
+                  text: finalText,
+                  asker,
+                  done: true,
+                  id: ++hostSeqRef.current,
+                  awaitingConfirmation: Boolean(payload.awaiting_confirmation),
+                });
                 // Fade the live bubble a few seconds after the answer completes.
                 hostClearTimer.current = setTimeout(() => setHostAnswer(null), 8000);
               } else if (!chunk) {

@@ -2370,6 +2370,42 @@ def leave_live_room(
     return room.to_dict()
 
 
+def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
+    """Reply to a learner chat message from Theodore in a background thread."""
+    store = _live_rooms()
+    try:
+        room = store.require(room_id)
+        if room.status == "ended" or not room.session_id:
+            return
+        sessions = get_sessions()
+        learner = room.get_participant(participant_id)
+        name = learner.name if learner else "the learner"
+        lang = (learner.language if learner else None) or "en"
+        # Ask Theodore to reply conversationally to the chat message.
+        prompt = (
+            f"{name} said in the class chat: \"{text}\"\n\n"
+            "Respond briefly and warmly in one or two sentences. "
+            "Stay on the topic of the lesson if relevant, otherwise be friendly and encouraging."
+        )
+        try:
+            answer = sessions.ask(room.session_id, prompt, language=lang)
+            reply_text = (answer.text or "").strip()
+        except Exception:  # noqa: BLE001
+            return
+        if not reply_text:
+            return
+        host_msg = store.post_host_message(room_id, reply_text)
+        from aoep_shared.live_room_ws import ws_chat  # noqa: E402
+        _broadcast_threadsafe(room_id, ws_chat(asdict(host_msg), room_id=room_id))
+        # Also broadcast as a host_delta so the TTS effect fires for all participants.
+        _broadcast_threadsafe(
+            room_id,
+            ws_host_delta(text=reply_text, done=True, asker=name, room_id=room_id),
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @app.post("/api/live-rooms/{room_id}/chat")
 def live_room_chat(
     room_id: str,
@@ -2389,6 +2425,11 @@ def live_room_chat(
         room_id,
         ws_chat(asdict(msg), room_id=room_id),
     )
+    # Trigger Theodore to reply to the learner's chat message in the background.
+    if req.text.strip():
+        background.add_task(
+            _chat_theodore_reply, room_id, req.participant_id, req.text.strip()
+        )
     return {"message": asdict(msg), "room": store.require(room_id).to_dict()}
 
 
@@ -2973,12 +3014,22 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
     elif buf.strip():
         _broadcast_threadsafe(room_id, ws_host_delta(text=buf.strip(), asker=name, room_id=room_id))
 
-    host_msg = store.post_host_message(room_id, f"@{name} {text}") if text else None
-    try:
-        store.finish_turn(room_id, participant_id)
-    except LiveRoomError:
-        pass
+    # Append a confirmation prompt so the learner always gets a chance to
+    # follow up before the floor is released.
+    confirmation_prompt = "Does that answer your question?"
+    if text:
+        _broadcast_threadsafe(
+            room_id,
+            ws_host_delta(text=" " + confirmation_prompt, asker=name, room_id=room_id),
+        )
+    full_text = (text + " " + confirmation_prompt).strip() if text else ""
+
+    host_msg = store.post_host_message(room_id, f"@{name} {full_text}") if full_text else None
+    # Do NOT release the floor yet. Signal the client to hold the mic open for
+    # the learner's yes/no confirmation. The client must call finish-turn once
+    # the learner confirms (or a 30-second timeout fires on the client side).
     room_dict = store.require(room_id).to_dict()
+    yield {"type": "awaiting_confirmation", "asker": name, "confirmation": confirmation_prompt}
     _broadcast_threadsafe(
         room_id,
         ws_host_delta(
@@ -2986,6 +3037,7 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
             message=asdict(host_msg) if host_msg else None,
             asker=name,
             room_id=room_id,
+            awaiting_confirmation=True,
         ),
     )
     _broadcast_threadsafe(room_id, ws_room_snapshot(room_dict, room_id=room_id))

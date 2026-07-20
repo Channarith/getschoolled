@@ -593,6 +593,13 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const recognitionRef = useRef<SpeechRec | null>(null);
   const spokenFinalRef = useRef("");
   const leftVoluntarily = useRef(false);
+  // Confirmation loop: after Theodore answers, keep the mic open so the learner
+  // can confirm ("yes") or ask a follow-up before the floor is released.
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Pause state for solo classes — the class keeps the session alive but stops
+  // narration and auto-advance until the learner resumes.
+  const [paused, setPaused] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
 
@@ -951,7 +958,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     setAiAudioOn(false);
     setBusy(true);
     try {
-      await leaveLiveRoom(roomId, me.id);
+      // For solo classes, leaving = ending: close the session so it doesn't linger.
+      if (isSolo && canModerate) {
+        await liveRoomEnd(roomId, moderatorKey);
+      } else {
+        await leaveLiveRoom(roomId, me.id);
+      }
       window.location.href = soloExitHref(roomId, room);
     } catch (e) {
       setError(friendlyError(e, "Could not leave"));
@@ -1204,12 +1216,37 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // floor. With nothing captured, just hand the floor back.
   async function doneSpeaking() {
     if (!me) return;
-    const question = (spokenFinalRef.current || spokenText || askDraft).trim();
+    const spoken = (spokenFinalRef.current || spokenText || askDraft).trim();
     stopListening();
+    if (confirmationTimerRef.current) {
+      clearTimeout(confirmationTimerRef.current);
+      confirmationTimerRef.current = null;
+    }
+
+    // If we're in the confirmation loop, check whether the learner said yes/no.
+    if (awaitingConfirmation) {
+      setAwaitingConfirmation(false);
+      const affirm = /\b(yes|yeah|yep|yup|got it|thanks|thank you|that.?s right|perfect|great|sure|ok|okay|confirmed|correct)\b/i;
+      if (!spoken || affirm.test(spoken)) {
+        // Confirmed — release the floor and resume slides.
+        setBusy(true);
+        try {
+          const pid = room?.floor_participant_id || me.id;
+          setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
+        } catch (e) {
+          setError(friendlyError(e, "Couldn't release the floor"));
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+      // Didn't confirm — treat what they said as a follow-up question.
+    }
+
     setBusy(true);
     try {
-      if (question) {
-        const res = await liveRoomAskStream(roomId, me.id, question, { language: narrationLocale });
+      if (spoken) {
+        const res = await liveRoomAskStream(roomId, me.id, spoken, { language: narrationLocale });
         if (res.room) setRoom(res.room);
         setAskDraft("");
         setSpokenText("");
@@ -1335,7 +1372,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const slideNarration = room?.slide?.narration;
   const slideBody = room?.slide?.body;
   useEffect(() => {
-    if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null) {
+    if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null || paused) {
       cancelSpeech();
       if (!classLive) spokenSlideRef.current = null;
       return;
@@ -1349,17 +1386,37 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (text) {
       cancelSpeech();  // stop the previous slide's narration before the new one
       const spokenFor = slideIdx;
+      // Detect interactive prompts embedded in the slide narration. When Theodore
+      // says "Say it out loud", "Repeat after me", or "Your turn", pause the
+      // auto-advance and open the learner's mic instead.
+      const triggerPhrases = /\b(say it out loud|repeat after me|your turn|speak it back|say this out loud)\b/i;
+      const hasTrigger = triggerPhrases.test(text);
       void buildNarrationSpeakOptions(narrationLocale).then((base) => {
-        // Leaving / Close can resolve after cancelSpeech(); do not restart audio.
         if (leftVoluntarily.current || roomRef.current?.status === "ended" || !classLive) return;
         speakNaturally(text, {
           ...base,
-          // Advance the instant the AI finishes narrating this slide (not after a
-          // timed estimate). The moderator's client drives it; everyone else
-          // follows via the room state. Guarded so we don't skip past a learner
-          // who has (or is waiting for) the floor, and only while still on this
-          // slide. The server's timed dwell remains a fallback if audio is muted.
           onend: () => {
+            if (hasTrigger && isSoloLiveRoom(roomId, roomRef.current)) {
+              // Open the mic for the learner to speak the prompted phrase.
+              void startListening();
+              // Auto-close after 12 s and treat whatever was said as a response.
+              confirmationTimerRef.current = setTimeout(() => {
+                const spoken = spokenFinalRef.current.trim();
+                stopListening();
+                if (spoken) {
+                  void liveRoomAskStream(roomId, me?.id ?? "", spoken, { language: narrationLocale })
+                    .then((res) => { if (res.room) setRoom(res.room); })
+                    .catch(() => undefined);
+                } else {
+                  // Nothing heard — advance normally.
+                  const r = roomRef.current;
+                  if (canModerate && r?.presenting && r?.status !== "ended" && spokenSlideRef.current === spokenFor) {
+                    void liveRoomAdvance(roomId, moderatorKey).then((next) => setRoom(next)).catch(() => undefined);
+                  }
+                }
+              }, 12_000);
+              return;
+            }
             const r = roomRef.current;
             if (
               canModerate &&
@@ -1376,11 +1433,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       });
     }
   }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
-      canModerate, moderatorKey, roomId]);
+      canModerate, moderatorKey, roomId, paused, me?.id, startListening, stopListening]);
 
   // Theodore's streamed answer (from the room WebSocket host_delta frames):
   // speak it out loud once, when it finishes, for every participant (including
-  // the asker). Slide narration resumes afterward via its own effect.
+  // the asker). When awaiting_confirmation is set, the floor holder's mic is
+  // kept open after speaking so they can say yes/no before the floor releases.
   const hostAnswer = socket.hostAnswer;
   const spokenAnswerIdRef = useRef(0);
   useEffect(() => {
@@ -1390,12 +1448,34 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!aiAudioOn || !aiAudioUnlocked) return;
     if (roomRef.current?.status === "ended" || leftVoluntarily.current) return;
     const text = hostAnswer.text;
+    const needsConfirmation = hostAnswer.awaitingConfirmation;
+    const isFloorHolder = roomRef.current?.floor_participant_id === me?.id;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
       if (leftVoluntarily.current || roomRef.current?.status === "ended") return;
       cancelSpeech();
-      speakNaturally(text, base);
+      speakNaturally(text, {
+        ...base,
+        onend: () => {
+          if (!needsConfirmation || !isFloorHolder) return;
+          // Floor holder: open mic for yes/no confirmation.
+          setAwaitingConfirmation(true);
+          void startListening();
+          // Auto-release the floor after 15 s if no response.
+          confirmationTimerRef.current = setTimeout(() => {
+            stopListening();
+            setAwaitingConfirmation(false);
+            const pid = roomRef.current?.floor_participant_id || me?.id || "";
+            if (pid) {
+              liveRoomFinishTurn(roomId, pid, moderatorKey)
+                .then((r) => setRoom(r))
+                .catch(() => undefined);
+            }
+          }, 15_000);
+        },
+      });
     });
-  }, [hostAnswer, aiAudioOn, aiAudioUnlocked, narrationLocale]);
+  }, [hostAnswer, aiAudioOn, aiAudioUnlocked, narrationLocale, me?.id,
+      startListening, stopListening, roomId, moderatorKey]);
 
   // Session ended (Close / timer): mute AI and kill any in-flight narration so
   // the farewell overlay is silent.
@@ -1408,19 +1488,30 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // Always stop narration when leaving the room.
   useEffect(() => () => cancelSpeech(), []);
 
-  // When this learner is granted the floor, open the mic to capture their spoken
-  // question; when they lose it (or leave), stop listening and clear the draft.
+  // When this learner is granted the floor, Theodore first says their name and
+  // invites them to speak, then opens the mic once the cue finishes.
   useEffect(() => {
-    if (hasFloor) {
-      void startListening();
-    } else {
+    if (hasFloor && !awaitingConfirmation) {
+      const firstName = (me?.name || "").split(" ")[0] || "there";
+      const cue = `${firstName}, please ask your question.`;
+      cancelSpeech();
+      void buildNarrationSpeakOptions(narrationLocale).then((base) => {
+        if (!roomRef.current?.floor_participant_id) return;
+        speakNaturally(cue, { ...base, onend: () => { void startListening(); } });
+      });
+    } else if (!hasFloor) {
       stopListening();
       setSpokenText("");
       spokenFinalRef.current = "";
       setMicNote("");
+      setAwaitingConfirmation(false);
+      if (confirmationTimerRef.current) {
+        clearTimeout(confirmationTimerRef.current);
+        confirmationTimerRef.current = null;
+      }
     }
     return () => stopListening();
-  }, [hasFloor, startListening, stopListening]);
+  }, [hasFloor, awaitingConfirmation, me?.name, narrationLocale, startListening, stopListening]);
 
   async function banLearner(participantId: string, name: string) {
     if (!canModerate) return;
@@ -3141,7 +3232,24 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </button>
           )
         ) : null}
-        {canModerate ? (
+        {canModerate && isSolo ? (
+          <button
+            onClick={() => {
+              if (paused) {
+                setPaused(false);
+                spokenSlideRef.current = null; // re-trigger narration on resume
+              } else {
+                cancelSpeech();
+                setPaused(true);
+              }
+            }}
+            disabled={busy}
+            title={paused ? "Resume the class" : "Pause the class and come back later"}
+            style={{ background: paused ? "#15803d" : "#6d28d9", color: "#fff" }}
+          >
+            {paused ? "▶ Resume class" : "⏸ Pause class"}
+          </button>
+        ) : canModerate ? (
           <button
             onClick={() => void closeSession()}
             disabled={busy}

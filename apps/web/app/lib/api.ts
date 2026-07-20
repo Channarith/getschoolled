@@ -1965,6 +1965,7 @@ export type LiveRoomAskStreamResult = {
   room?: LiveRoomState;
   text?: string;
   host_message?: { text?: string } | null;
+  awaitingConfirmation?: boolean;
 };
 
 export async function liveRoomAskStream(
@@ -2010,6 +2011,8 @@ export async function liveRoomAskStream(
           queue_position: (ev.queue_position as number) ?? 0,
           room: ev.room as LiveRoomState | undefined,
         };
+      } else if (ev.type === "awaiting_confirmation") {
+        result = { ...result, awaitingConfirmation: true };
       } else if (ev.type === "done") {
         result = {
           queued: false,

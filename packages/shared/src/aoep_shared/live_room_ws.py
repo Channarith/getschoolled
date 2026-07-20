@@ -124,6 +124,7 @@ def ws_host_delta(
     message: Optional[dict] = None,
     asker: str = "",
     room_id: str = "",
+    awaiting_confirmation: bool = False,
 ) -> dict:
     """Incremental AI-host (Theodore) answer streaming to the whole room.
 
@@ -131,9 +132,12 @@ def ws_host_delta(
     the end of the answer and carries the final ``message`` (the posted host chat
     message) so late/other participants render the same finalized answer. ``asker``
     is the learner Theodore is answering, for a "answering @Name…" affordance.
+    ``awaiting_confirmation`` signals the floor holder to keep their mic open for
+    a yes/no confirmation before the floor is released.
     """
     return ws_event(
         LiveRoomWsEvent.HOST_DELTA,
-        {"text": text, "done": done, "message": message, "asker": asker},
+        {"text": text, "done": done, "message": message, "asker": asker,
+         "awaiting_confirmation": awaiting_confirmation},
         room_id=room_id,
     )
