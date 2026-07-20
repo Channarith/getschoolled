@@ -774,7 +774,6 @@ export default function ClassRoom({
         !canAwardCourseCompletion({
           requireVerifiedPass: mustVerifyPass,
           passDecisionToken,
-          summativeCompleted: false,
         })
       ) {
         const summative = findDueSummativeCheckpoint(
