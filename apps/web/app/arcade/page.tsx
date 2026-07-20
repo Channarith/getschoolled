@@ -184,6 +184,25 @@ export default function ArcadePage() {
         </div>
       )}
 
+      {/* Discovery Games */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(139,92,246,0.12))" }}>
+          <h3 style={{ marginTop: 0 }}>🔍 Discovery Games</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Spot differences, find hidden items, and reveal stunning artwork by answering questions.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/spot-difference?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#0891b2", color: "#fff", fontWeight: 700 }}>
+              🔍 Spot the Difference
+            </Link>
+            <Link href={`/arcade/hidden-items?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 700 }}>
+              🕵️ Find the Hidden Items
+            </Link>
+            <Link href={`/arcade/photo-reveal?age=${ageGroup}`} style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 700 }}>
+              🖼️ Photo Reveal
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
       {!round && (
         <>
