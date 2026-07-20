@@ -3,9 +3,33 @@
 // BookmarkButton — save/unsave a course to My List.
 // Renders a ＋ / ✓ icon that toggles the "saved" enrollment status.
 // Passes the auth check silently; shows nothing when logged out.
+//
+// Uses a module-level shared promise so N cards on one page make exactly ONE
+// GET /portfolio request (deduplication), avoiding 429 rate-limit errors.
 
 import { useEffect, useState } from "react";
 import { getPortfolio, getToken, saveForLater, unsaveForLater } from "../lib/api";
+
+// Shared in-flight portfolio fetch: all instances reuse the same promise for
+// 30 seconds, then the cache is cleared so the next mount gets fresh data.
+let _portfolioPromise: Promise<Set<string>> | null = null;
+let _portfolioExpiry = 0;
+
+function getSharedSavedIds(): Promise<Set<string>> {
+  const now = Date.now();
+  if (_portfolioPromise && now < _portfolioExpiry) return _portfolioPromise;
+  _portfolioExpiry = now + 30_000; // cache for 30 s
+  _portfolioPromise = getPortfolio()
+    .then((p) => new Set((p.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)))
+    .catch(() => new Set<string>());
+  return _portfolioPromise;
+}
+
+/** Call this after saving/unsaving so the next mount gets fresh data. */
+export function invalidatePortfolioCache() {
+  _portfolioPromise = null;
+  _portfolioExpiry = 0;
+}
 
 type Props = {
   courseId: string;
@@ -22,12 +46,10 @@ export default function BookmarkButton({ courseId, title, size = 22, style }: Pr
   useEffect(() => {
     if (!getToken()) return;
     setVisible(true);
-    getPortfolio()
-      .then((p) => {
-        const savedIds = (p.by_status?.saved ?? []).map((e) => e.course_id);
-        setSaved(savedIds.includes(courseId));
-      })
-      .catch(() => { /* no-op if not logged in */ });
+    // Use shared deduped fetch — all N cards on the page share one request.
+    getSharedSavedIds()
+      .then((ids) => setSaved(ids.has(courseId)))
+      .catch(() => { /* silent */ });
   }, [courseId]);
 
   if (!visible) return null;
@@ -45,6 +67,7 @@ export default function BookmarkButton({ courseId, title, size = 22, style }: Pr
         await saveForLater(courseId, title);
         setSaved(true);
       }
+      invalidatePortfolioCache(); // force fresh fetch on next mount
     } catch { /* silent */ } finally {
       setBusy(false);
     }

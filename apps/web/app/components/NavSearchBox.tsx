@@ -206,11 +206,23 @@ export default function NavSearchBox() {
                   className="nav-search-result"
                   role="option"
                   aria-selected="false"
-                  onClick={() => navigate(`/browse?q=${encodeURIComponent(item.title)}`)}
+                  onClick={() => navigate(
+                    item.deep_link ||
+                    (item.format === "audio" ? `/drive?course=${encodeURIComponent(item.source_id)}` :
+                     item.format === "live_class" ? `/class?lesson=${encodeURIComponent(item.source_id)}` :
+                     item.format === "game" ? `/arcade?subject=${encodeURIComponent(item.source_id)}` :
+                     item.format === "language" ? `/languages?code=${encodeURIComponent(item.source_id)}` :
+                     `/browse?q=${encodeURIComponent(item.title)}`)
+                  )}
                 >
                   <span className="nav-search-result-title">{item.title}</span>
                   {item.category && (
-                    <span className="nav-search-result-meta">{item.category}</span>
+                    <span className="nav-search-result-meta">
+                      {item.format === "audio" ? "🎧 Audio" :
+                       item.format === "live_class" ? "🎓 Live Class" :
+                       item.format === "game" ? "🎮 Game" :
+                       item.category}
+                    </span>
                   )}
                 </button>
               ))}
