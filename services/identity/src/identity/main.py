@@ -507,6 +507,14 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     return {**enr.model_dump(), "points_balance": app.state.accounts.points_balance(acct.id)}
 
 
+@app.delete("/enrollments/{course_id}")
+def delete_enrollment(course_id: str, acct=Depends(current_account)) -> dict:
+    """Remove a course from the learner's list entirely (e.g. un-save a bookmark)."""
+    acct.enrollments.pop(course_id, None)
+    app.state.accounts._persist()
+    return {"ok": True, "course_id": course_id}
+
+
 # --------------------------------------------------------------------------- #
 # Student sub-profiles (one account, multiple learners) + Foresight inputs
 # --------------------------------------------------------------------------- #

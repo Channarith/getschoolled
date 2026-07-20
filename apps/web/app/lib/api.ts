@@ -536,13 +536,13 @@ export async function saveForLater(courseId: string, title: string): Promise<Enr
   return enrollCourse(courseId, title, "saved");
 }
 
-/** Remove a course from My List by setting status back to "enrolled" if
- *  the user has already started it, otherwise delete via the status update. */
+/** Remove a course from My List (deletes the enrollment entirely). */
 export async function unsaveForLater(courseId: string): Promise<void> {
-  await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}/status`, {
-    method: "POST", headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ status: "enrolled" }),
-  });
+  await jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/enrollments/${encodeURIComponent(courseId)}`, {
+      method: "DELETE", headers: authHeaders(),
+    })
+  );
 }
 
 // Update an enrollment's status. On the FIRST transition to "passed" the

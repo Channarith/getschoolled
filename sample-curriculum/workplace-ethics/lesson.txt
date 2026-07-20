@@ -1,0 +1,110 @@
+LESSON: Workplace Ethics and Integrity
+LANGUAGE: en
+
+SLIDE 1 | What Is Business Ethics?
+Business ethics refers to the application of ethical principles and moral standards to business activities. It encompasses how companies and individuals treat customers, employees, suppliers, competitors, and the broader community. Ethical behavior goes beyond legal compliance — it asks not just "Is this legal?" but "Is this right?" Organizations with strong ethical cultures build lasting trust with stakeholders and avoid costly legal and reputational crises.
+NARRATION: Business ethics asks not just whether something is legal, but whether it is the right thing to do.
+
+SLIDE 2 | The Ethics Triangle
+The ethics triangle frames decisions along three dimensions: the law (what is legally permissible), company policy (what the organization's rules require), and personal values (what you believe is right). Truly ethical behavior is aligned on all three. When you find yourself in a situation where something is technically legal and not explicitly prohibited by policy but still feels wrong, trust that instinct — it is your values guiding you.
+NARRATION: Ethical decisions align what is legal, what policy requires, and what your own values say is right.
+
+SLIDE 3 | Why Ethics Culture Matters
+Research consistently shows that companies with strong ethical cultures outperform their peers financially, experience lower employee turnover, and attract better talent. Ethical lapses — even those involving a small number of individuals — can cause lasting reputational damage, regulatory sanctions, and loss of customer trust. Every employee's behavior contributes to the organization's ethical culture, for better or worse.
+NARRATION: Strong ethical cultures outperform peers financially and attract better talent while reducing legal risk.
+
+SLIDE 4 | Conflicts of Interest
+A conflict of interest arises when an employee's personal interests could improperly influence their professional judgment or actions. Examples include awarding a contract to a company in which you hold an investment, hiring a family member for a position you oversee, or doing side work for a competitor. Employees must disclose actual or potential conflicts of interest to their manager or ethics office, even if they believe the conflict would not affect their decisions.
+NARRATION: Disclose any situation where personal interests could influence your professional judgment or decisions.
+
+SLIDE 5 | Gifts, Entertainment, and Gratuities
+Giving or receiving gifts, meals, entertainment, or other items of value can create conflicts of interest or the appearance of improper influence. Most organizations have policies limiting the value of gifts employees may give or receive. As a general rule, only accept items of nominal value that would be comfortable to report to your manager, and never accept anything that appears intended to influence a business decision.
+NARRATION: Only accept gifts of nominal value that you would be comfortable disclosing to your manager.
+
+SLIDE 6 | Confidentiality and Trade Secrets
+Employees routinely access confidential business information, including pricing strategies, customer lists, product development plans, financial data, and personnel information. This information must not be shared with unauthorized parties inside or outside the company, must be protected from inadvertent disclosure, and must not be used for personal gain. Trade secret protections survive employment — confidentiality obligations continue after an employee leaves the company.
+NARRATION: Protect confidential business information and trade secrets — your obligations continue after you leave the company.
+
+SLIDE 7 | Anti-Bribery and the FCPA
+The Foreign Corrupt Practices Act (FCPA) prohibits U.S. companies and individuals from bribing foreign government officials to obtain or retain business. Violations can result in criminal fines, imprisonment, and civil penalties for both the company and individuals involved. Anti-bribery compliance requires conducting due diligence on third-party agents and distributors, maintaining accurate books and records, and never approving "facilitation payments" through unofficial channels.
+NARRATION: The FCPA prohibits bribing foreign officials — violations result in criminal penalties for individuals and companies.
+
+SLIDE 8 | Anti-Corruption Best Practices
+Avoiding corruption requires establishing clear policies, training employees and third parties, maintaining meticulous records, and creating a culture where pressure to cut ethical corners is called out rather than accommodated. Red flags for corruption include requests to use third-party intermediaries without clear business justification, unusual payment terms, payments in cash or to personal accounts, and pressure to approve transactions without proper documentation.
+NARRATION: Meticulous records, trained third parties, and a speak-up culture are the best defenses against corruption.
+
+SLIDE 9 | Whistleblower Protections
+Employees who report suspected misconduct — whether to internal ethics channels or to government agencies — are protected from retaliation under numerous federal and state laws. The Sarbanes-Oxley Act, the Dodd-Frank Act, and the False Claims Act each provide specific protections and, in some cases, financial rewards for whistleblowers. Retaliation against a whistleblower is independently illegal and can result in significant damages.
+NARRATION: Employees who report misconduct in good faith are legally protected from retaliation.
+
+SLIDE 10 | Reporting Misconduct Internally
+Most organizations provide multiple channels for reporting ethical concerns, including direct conversations with managers, HR reporting, ethics hotlines, and anonymous reporting portals. Employees should use whichever channel they feel most comfortable with. Internal reporting gives the organization the opportunity to investigate and correct problems quickly. Many organizations have policies that protect good-faith reporters from any adverse employment action.
+NARRATION: Use whichever reporting channel you are comfortable with — good-faith reporters are protected from retaliation.
+
+SLIDE 11 | Ethics Hotlines and Anonymous Reporting
+Ethics hotlines — whether operated internally or by a third-party provider — allow employees to report concerns anonymously. Studies show that hotlines significantly increase the rate at which misconduct is reported and detected early. Effective hotlines are well-publicized, accessible 24/7, available in multiple languages, and generate prompt investigations with feedback to reporters on the outcome where possible.
+NARRATION: Ethics hotlines allow anonymous reporting and significantly increase early detection of misconduct.
+
+SLIDE 12 | Social Media and Professional Reputation
+Employees' public social media activity can reflect on the organization even when posted on personal accounts. Comments that are discriminatory, harassing, or that disclose confidential information can result in disciplinary action or termination. Many organizations have social media policies that establish expectations for employee conduct online. Before posting, ask yourself whether the content could harm your organization's reputation or your own career.
+NARRATION: Personal social media posts can reflect on your employer — review your organization's social media policy.
+
+SLIDE 13 | Use of Company Resources
+Company resources — including computers, phones, vehicles, software, supplies, and time — are provided for business purposes. Personal use of company resources beyond what is expressly permitted by policy is generally considered misuse and may constitute theft or fraud depending on the circumstances and extent. Even small misuses, such as excessive personal use of company internet or printing, can accumulate and erode trust.
+NARRATION: Use company resources for business purposes and within the limits your employer's policy allows.
+
+SLIDE 14 | Intellectual Property
+Intellectual property (IP) — including inventions, software code, written works, brand identifiers, and trade secrets created by employees during employment — typically belongs to the employer. Employees must not use organizational IP for personal benefit or share it without authorization. Employees must also respect others' IP rights by not using unlicensed software, reproducing copyrighted material, or misappropriating competitors' IP.
+NARRATION: Work product created during employment belongs to your employer — do not use or share it without authorization.
+
+SLIDE 15 | Financial Integrity and Accurate Records
+Accurate books and records are both a legal requirement (Sarbanes-Oxley, FCPA) and an ethical obligation. Employees must never falsify expense reports, manipulate financial data, create fictitious transactions, or approve payments for goods or services not received. Even small inaccuracies in financial records can be signs of deeper problems and can expose the organization to audit findings, regulatory sanctions, and reputational damage.
+NARRATION: Never falsify expense reports or financial records — accurate books are both a legal and ethical requirement.
+
+SLIDE 16 | Data Privacy and Ethics
+Handling personal data about customers, patients, employees, or business partners with care is an ethical responsibility as well as a legal one. Ethical data stewardship means collecting only what is necessary, using it only for stated purposes, protecting it from unauthorized access, and being transparent with people about how it is used. Employees must follow all data privacy policies and never access personal data out of curiosity.
+NARRATION: Handle personal data ethically — collect only what is necessary, protect it, and use it only for stated purposes.
+
+SLIDE 17 | Tone at the Top
+Research on organizational misconduct consistently shows that ethical culture is established primarily by the behavior of senior leaders. When leaders model ethical behavior, acknowledge mistakes openly, reward speaking up, and hold everyone — including themselves — accountable to the same standards, employees at all levels internalize those values. Ethical failures in organizations are rarely solely the actions of a few bad actors — they usually reflect a cultural failure that starts at the top.
+NARRATION: Leaders set the ethical tone — when leaders model integrity, it cascades through the entire organization.
+
+SLIDE 18 | Middle Management's Role
+Middle managers are the most direct interpreters of organizational values for frontline employees. They can either reinforce an ethical culture or undermine it, depending on the messages — explicit and implicit — they send daily. A manager who pressures employees to "do whatever it takes" to meet a goal is communicating that results matter more than integrity. Ethical managers reward the right behaviors, not just the right outcomes.
+NARRATION: Middle managers directly shape employee behavior — ethical managers reward the right behaviors, not just results.
+
+SLIDE 19 | Ethical Decision-Making Frameworks
+Several frameworks can help navigate difficult ethical decisions. The Utilitarian approach asks which action produces the greatest good for the greatest number. The Deontological approach focuses on duties and rules regardless of outcomes. The Virtue Ethics approach asks what a person of good character would do. The Stakeholder approach considers all affected parties. In practice, ethical decision-making often draws on multiple frameworks simultaneously.
+NARRATION: Ethical decision frameworks — including utilitarian, deontological, and stakeholder approaches — help navigate difficult choices.
+
+SLIDE 20 | Pressure and Rationalization
+Most ethical violations are not committed by inherently bad people — they are committed by people who face intense pressure and rationalize their behavior. Common rationalizations include "everyone does it," "it's not hurting anyone," "I'll fix it later," and "I was told to do it." Recognizing these rationalizations in your own thinking is an important early warning sign that you may be about to cross an ethical line.
+NARRATION: Rationalizations like 'everyone does it' are warning signs that you are about to make an unethical choice.
+
+SLIDE 21 | Environmental and Social Responsibility
+Workplace ethics extends beyond individual conduct to the organization's responsibilities to the environment and society. Ethical companies minimize their environmental impact, treat their supply chain workers fairly, contribute positively to the communities in which they operate, and are transparent with stakeholders about their environmental, social, and governance (ESG) practices. Employees can participate in these efforts through sustainable work practices and involvement in community programs.
+NARRATION: Ethical organizations extend their responsibilities to the environment, supply chain workers, and the broader community.
+
+SLIDE 22 | Antitrust and Fair Competition
+Antitrust laws prohibit agreements and practices that restrict competition, such as price fixing, market allocation, and bid rigging. Employees must never discuss prices, customers, territories, or competitive strategy with competitors — even informally. A casual conversation at a trade show or via email that touches on competitive terms can expose both the individual and the company to criminal prosecution.
+NARRATION: Never discuss prices, customers, or competitive strategy with competitors — antitrust violations carry criminal penalties.
+
+SLIDE 23 | Insider Trading
+Insider trading — buying or selling securities based on material, non-public information — is illegal under securities laws. Information is "material" if a reasonable investor would consider it important in making an investment decision. Employees who access non-public financial information about their own company or about companies with whom it does business must never trade on that information or tip off others who might.
+NARRATION: Never trade securities or tip others based on material non-public information — insider trading is a federal crime.
+
+SLIDE 24 | Living the Code of Conduct
+Most organizations publish a Code of Conduct or Code of Ethics that articulates the organization's values and behavioral expectations. The code is not a checklist to be consulted only when a problem arises — it is a document that reflects what the organization stands for. Employees are expected to read and understand the code, ask questions when it is unclear, and report violations when they occur.
+NARRATION: Read, understand, and live your organization's Code of Conduct — it reflects what your company stands for.
+
+SLIDE 25 | Building Your Personal Ethical Compass
+Beyond organizational policies and legal requirements, each employee has a personal ethical compass shaped by their values, principles, and character. Strengthening your ethical compass means being honest with yourself about your motivations, seeking out perspectives that challenge your assumptions, learning from ethical mistakes rather than hiding them, and committing to continuous improvement. Ethical people are made through consistent choices, not declarations.
+NARRATION: Your personal ethical compass is strengthened through consistent honest choices, reflection, and continuous learning.
+
+FACT: The Foreign Corrupt Practices Act prohibits bribing foreign government officials to obtain or retain business.
+FACT: Employees who report misconduct in good faith are legally protected from retaliation under numerous federal laws.
+FACT: Conflicts of interest must be disclosed even if you believe they would not affect your decisions.
+FACT: The Dodd-Frank Act provides financial rewards to whistleblowers who report securities violations.
+FACT: Insider trading — trading based on material non-public information — is a federal crime.
+FACT: Price fixing and market allocation agreements with competitors violate antitrust laws and carry criminal penalties.
+FACT: Work product created during employment typically belongs to the employer, not the employee.

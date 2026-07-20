@@ -296,8 +296,10 @@ _CACHE_TTL = int(os.environ.get("JOBS_CACHE_TTL", "900"))   # 15 min
 _USER_AGENT = "SalareenCareers/1.0 (+https://salareen.com)"
 
 # Live results cached by id so /jobs/{id} (the course-match view) resolves jobs
-# that aren't in SAMPLE_JOBS.
+# that aren't in SAMPLE_JOBS. Capped at 5000 entries to prevent unbounded growth
+# in long-running processes under JOBS_LIVE=1 with diverse queries.
 _LIVE_BY_ID: Dict[str, JobPosting] = {}
+_LIVE_BY_ID_MAX = 5000
 # TTL cache: key -> (expires_at, postings).
 _RESULT_CACHE: Dict[str, tuple] = {}
 
@@ -389,6 +391,11 @@ def _cache_put(key: str, postings: List[JobPosting]) -> None:
     _RESULT_CACHE[key] = (_time.time() + _CACHE_TTL, postings)
     for j in postings:
         _LIVE_BY_ID[j.id] = j
+    # Evict oldest half when cap is hit to prevent unbounded memory growth.
+    if len(_LIVE_BY_ID) > _LIVE_BY_ID_MAX:
+        evict = list(_LIVE_BY_ID.keys())[: _LIVE_BY_ID_MAX // 2]
+        for k in evict:
+            _LIVE_BY_ID.pop(k, None)
 
 
 class JobsProvider(abc.ABC):

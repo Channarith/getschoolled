@@ -13,6 +13,19 @@ from aoep_shared.language_learning import language_list
 from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
 from .models import LearnableItem
 
+CERTIFIABLE_LESSONS = {
+    "sexual-harassment-prevention": ("Salareen", 1.0),
+    "osha-general-safety": ("OSHA", 2.0),
+    "fire-safety-training": ("Salareen", 0.5),
+    "hipaa-privacy-security": ("HHS", 2.0),
+    "food-handler-safety": ("ServSafe", 1.5),
+    "diversity-equity-inclusion": ("Salareen", 1.0),
+    "workplace-ethics": ("Salareen", 1.0),
+    "osha-forklift-safety": ("OSHA", 1.0),
+    "cybersecurity": ("Salareen", 1.5),
+    "devops": ("Salareen", 2.0),
+}
+
 
 def _load_course_packs() -> List[dict]:
     """Course records merged from content packs (kind=courses)."""
@@ -135,6 +148,12 @@ def _from_lesson(lesson: Any) -> LearnableItem:
     tags = ["live-class"]
     if lesson_id.startswith("python"):
         tags.append("python")
+    certifiable = False
+    certification_body = ""
+    ceu_credits = 0.0
+    if lesson_id in CERTIFIABLE_LESSONS:
+        certification_body, ceu_credits = CERTIFIABLE_LESSONS[lesson_id]
+        certifiable = True
     return LearnableItem(
         id=f"lesson:{lesson_id}",
         source="lesson",
@@ -151,6 +170,9 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         preview=preview,
         deep_link=f"/class?lesson={lesson_id}",
         popularity=10,
+        certifiable=certifiable,
+        certification_body=certification_body,
+        ceu_credits=ceu_credits,
     )
 
 
@@ -307,9 +329,15 @@ def search_learnable(
             "arts & film", "music & instruments", "geography & world", "geography",
             "health & wellness", "cooking & food", "cooking", "sports & games",
             "sports", "focus & philosophy", "world cultures", "true stories & biographies",
-            "mathematics", "math", "languages", "stem", "animals",
+            "mathematics", "math", "languages", "animals",
             "civics & law", "productivity & study", "kids", "children",
+            # Note: "stem" removed — it is a substring of "systems" and would let
+            # adult technical courses (computer systems, etc.) pass the kids filter.
         })
+        import re as _re
+        _kids_cat_pattern = _re.compile(
+            r"\b(" + "|".join(_re.escape(k) for k in _KIDS_CATEGORIES) + r")\b"
+        )
         _KIDS_TITLE_BLOCK = (
             "ai fluency", "machine learning", "deep learning", "neural network",
             "devops", "sap ", "power bi", "microeconomics", "macroeconomics",
@@ -341,7 +369,7 @@ def search_learnable(
                 return False
             # Non-catalog items (audio, lesson, program, game): use category-based
             # allow-list so the auto-generated audio catalog still appears.
-            if any(k in cat_low for k in _KIDS_CATEGORIES):
+            if _kids_cat_pattern.search(cat_low):
                 return True
             # Tags can explicitly mark something kids-safe.
             tags_low = " ".join(c.tags or []).lower()
@@ -541,6 +569,9 @@ def _item_as_catalog_dict(item: LearnableItem) -> dict:
         "format": item.format,
         "deep_link": item.deep_link,
         "global_id": item.id,
+        "certifiable": item.certifiable,
+        "certification_body": item.certification_body,
+        "ceu_credits": item.ceu_credits,
     }
     base["thumbnail"] = resolve_course_poster_from_mapping({**base, "format": item.format})
     return base

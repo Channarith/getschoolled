@@ -28,6 +28,9 @@ class LearnableItem(BaseModel):
     hands_on: bool = False
     drive_safe: bool = False
     access_tier: str = "free"
+    certifiable: bool = False        # course can award a completion certificate
+    certification_body: str = ""     # e.g. "OSHA", "ServSafe", "HIPAA", "Salareen"
+    ceu_credits: float = 0.0         # continuing education units awarded on completion
     preview: str = ""
     deep_link: str = ""
     popularity: int = 0
