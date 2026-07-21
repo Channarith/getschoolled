@@ -83,6 +83,8 @@ export default function LessonScreen({
   const assessmentStartingRef = useRef(false);
   const finishingRef = useRef(false);
   const submittingRef = useRef(false);
+  const quizSubmittingRef = useRef(false);
+  const mountedRef = useRef(true);
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
@@ -129,6 +131,7 @@ export default function LessonScreen({
     })();
     return () => {
       alive = false;
+      mountedRef.current = false;
       Speech.stop();
     };
   }, [lessonId, classType, account]);
@@ -148,9 +151,9 @@ export default function LessonScreen({
     void buildNarrationSpeakOptions(locale).then((base) => {
       speakNatural(text, {
         ...base,
-        onDone: () => setNarrating(false),
-        onStopped: () => setNarrating(false),
-        onError: () => setNarrating(false),
+        onDone: () => { if (mountedRef.current) setNarrating(false); },
+        onStopped: () => { if (mountedRef.current) setNarrating(false); },
+        onError: () => { if (mountedRef.current) setNarrating(false); },
       });
     });
   }
@@ -255,7 +258,6 @@ export default function LessonScreen({
         completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
       }
       setAssessmentResult(result);
-      setAssessmentRun(null);
       if (result.attempt_result_token && account) {
         recordAssessmentAttempt(studentIdRef.current, result.attempt_result_token).catch(() => {});
       }
@@ -268,6 +270,7 @@ export default function LessonScreen({
           if (surveyRes.enabled && surveyRes.template) setSurveyTpl(surveyRes.template);
         } catch { /* optional */ }
       }
+      setAssessmentRun(null);
     } finally {
       submittingRef.current = false;
     }
@@ -311,9 +314,9 @@ export default function LessonScreen({
       void buildNarrationSpeakOptions(locale).then((base) => {
         speakNatural(r.text, base);
       });
-      if (r.prompt) setQuestion(r.prompt);
+      if (r.prompt && mountedRef.current) setQuestion(r.prompt);
     } catch (e) {
-      setError((e as Error).message);
+      if (mountedRef.current) setError((e as Error).message);
     }
   }
 
@@ -340,6 +343,8 @@ export default function LessonScreen({
 
   async function onQuizAnswer(idx: number) {
     if (!view || !quiz || quizGrade) return;
+    if (quizSubmittingRef.current) return;
+    quizSubmittingRef.current = true;
     setQuizPick(idx);
     try {
       const g = await gradeQuiz({
@@ -351,6 +356,8 @@ export default function LessonScreen({
       setQuizGrade(g);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      quizSubmittingRef.current = false;
     }
   }
 

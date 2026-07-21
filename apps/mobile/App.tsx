@@ -210,11 +210,13 @@ function AppInner() {
 
   useEffect(() => {
     if (!authenticated) return;
-    void bootstrap();
+    const guard = { cancelled: false };
+    const subs: { remove(): void }[] = [];
+    void bootstrap(guard, subs);
     void syncDrivingDetection();
     return () => {
-      subRef.current?.remove();
-      respRef.current?.remove();
+      guard.cancelled = true;
+      subs.forEach(s => s.remove());
       void stopDrivingDetection();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -285,7 +287,7 @@ function AppInner() {
     } catch {}
   }
 
-  async function bootstrap() {
+  async function bootstrap(guard?: { cancelled: boolean }, subs?: { remove(): void }[]) {
     installNotificationHandler();
     void syncStudentProfile();
     try {
@@ -313,7 +315,7 @@ function AppInner() {
       }
     };
 
-    subRef.current = Notifications.addNotificationReceivedListener((n) => {
+    const receivedSub = Notifications.addNotificationReceivedListener((n) => {
       const c = n.request.content;
       setBanner({
         kind: "live", title: c.title || "AI Classroom",
@@ -332,7 +334,10 @@ function AppInner() {
         },
       });
     });
-    respRef.current = Notifications.addNotificationResponseReceivedListener((resp) => {
+    subRef.current = receivedSub;
+    if (guard?.cancelled) { receivedSub.remove(); subRef.current = null; } else { subs?.push(receivedSub); }
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener((resp) => {
       const data = (resp.notification.request.content.data || {}) as
         { courseId?: string; deepLink?: string };
       if (data.courseId) {
@@ -341,6 +346,8 @@ function AppInner() {
         handleDeepLink(data.deepLink);
       } else { setTab("notifications"); }
     });
+    respRef.current = responseSub;
+    if (guard?.cancelled) { responseSub.remove(); respRef.current = null; } else { subs?.push(responseSub); }
 
     void refreshUnreadAndAlerts();
   }

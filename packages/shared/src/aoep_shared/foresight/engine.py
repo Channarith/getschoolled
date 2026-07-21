@@ -223,14 +223,15 @@ class ForesightEngine:
         self.W_route = _xavier(rng, (len(C), d))
         self.b_route = np.zeros(len(C))
         self.adapters = {c: _xavier(rng, (d, d)) for c in C}
+        # Lock that serializes forward() calls in predict_batch so that
+        # concurrent threads don't race on mutable engine state (e.g. if
+        # set_pattern_library() is called from another thread mid-batch).
+        # Must be initialized before set_pattern_library() which acquires it.
+        self._forward_lock = threading.Lock()
         # Pattern library (set via set_pattern_library); defaults to a small random one.
         self.set_pattern_library(_xavier(rng, (8, d)))
         self.heads: Dict[str, _HeadBase] = {}
         self.graph_head: Optional[RelationalGraphHead] = None
-        # Lock that serializes forward() calls in predict_batch so that
-        # concurrent threads don't race on mutable engine state (e.g. if
-        # set_pattern_library() is called from another thread mid-batch).
-        self._forward_lock = threading.Lock()
 
     # --- configuration ---------------------------------------------------- #
     def set_pattern_library(self, P: np.ndarray) -> None:
@@ -239,8 +240,11 @@ class ForesightEngine:
         dp = P.shape[1]
         W_P = _xavier(self._rng, (dp, d))
         U_P = _xavier(self._rng, (dp, d))
-        self.K_P = P @ W_P
-        self.V_P = P @ U_P
+        new_K_P = P @ W_P
+        new_V_P = P @ U_P
+        with self._forward_lock:
+            self.K_P = new_K_P
+            self.V_P = new_V_P
 
     def add_head(self, head: _HeadBase) -> "ForesightEngine":
         self.heads[head.name] = head
@@ -278,16 +282,18 @@ class ForesightEngine:
         return alpha @ V_P, alpha
 
     def forward(self, X: np.ndarray, *, candidates: Optional[np.ndarray] = None) -> ForesightOutput:
-        # Snapshot pattern-library references under the lock so a concurrent
-        # set_pattern_library() call can't swap K_P/V_P mid-computation.
+        # Snapshot all mutable engine state under the lock so that a concurrent
+        # set_pattern_library() or add_head() call can't race mid-computation.
         with self._forward_lock:
             K_P, V_P = self.K_P, self.V_P
+            heads_snapshot = list(self.heads.items())
+            graph_head_snapshot = self.graph_head
         H = self.encode(X)
         F = pool(H, self.config.pool_mode, self.pool_query)
         route, pi = self.route(F)
         F_tilde = self.mixture(F, pi)                  # routed, adapter-mixed state
         results: Dict[str, HeadResult] = {}
-        for name, head in self.heads.items():
+        for name, head in heads_snapshot:
             Gk, alpha = self.grouped_summary(F_tilde, head, K_P, V_P)
             if isinstance(head, RankingHead):
                 if candidates is None:
@@ -296,9 +302,9 @@ class ForesightEngine:
             else:
                 results[name] = head.compute(F_tilde, Gk, alpha)
         graph = None
-        if self.graph_head is not None:
-            Gk, _ = self.grouped_summary(F_tilde, self.graph_head, K_P, V_P)
-            graph = self.graph_head.compute_graph(H, Gk)
+        if graph_head_snapshot is not None:
+            Gk, _ = self.grouped_summary(F_tilde, graph_head_snapshot, K_P, V_P)
+            graph = graph_head_snapshot.compute_graph(H, Gk)
         top = max(route, key=route.get) if route else "general"
         return ForesightOutput(route=route, route_top=top, heads=results, graph=graph, F=F)
 

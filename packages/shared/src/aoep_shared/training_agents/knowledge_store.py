@@ -246,14 +246,16 @@ class KnowledgeStore:
                     like = f"%{q_escaped}%"
                     params += [like, like, like, like]
             if domain:
-                sql += "AND " + ("f.domains" if use_fts else "domains") + " LIKE ? "
-                params.append(f"%,{domain},%")
+                domain_escaped = domain.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                sql += "AND " + ("f.domains" if use_fts else "domains") + " LIKE ? ESCAPE '\\' "
+                params.append(f"%,{domain_escaped},%")
             if category:
                 sql += "AND " + ("f.category" if use_fts else "category") + " = ? "
                 params.append(category)
             if source:
-                sql += "AND " + ("f.source" if use_fts else "source") + " LIKE ? "
-                params.append(f"%{source}%")
+                source_escaped = source.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                sql += "AND " + ("f.source" if use_fts else "source") + " LIKE ? ESCAPE '\\' "
+                params.append(f"%{source_escaped}%")
             sql += "ORDER BY " + ("f.id" if use_fts else "id") + " "
             if limit is not None:
                 sql += "LIMIT ? OFFSET ? "
@@ -282,18 +284,23 @@ class KnowledgeStore:
             like = f"%{q_escaped}%"
             params += [like, like, like, like]
         if domain:
-            sql += "AND domains LIKE ? "
-            params.append(f"%,{domain},%")
+            domain_escaped = domain.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            sql += "AND domains LIKE ? ESCAPE '\\' "
+            params.append(f"%,{domain_escaped},%")
         if category:
             sql += "AND category = ? "
             params.append(category)
         if source:
-            sql += "AND source LIKE ? "
-            params.append(f"%{source}%")
+            source_escaped = source.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            sql += "AND source LIKE ? ESCAPE '\\' "
+            params.append(f"%{source_escaped}%")
         sql += "ORDER BY id "
         if limit is not None:
             sql += "LIMIT ? OFFSET ? "
             params += [limit, offset]
+        elif offset:
+            sql += "LIMIT -1 OFFSET ? "
+            params.append(offset)
         rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 

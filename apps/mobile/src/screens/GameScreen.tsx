@@ -52,6 +52,7 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
   const [potionActive, setPotionActive] = useState(false);
   const [leaders, setLeaders] = useState<Leader[]>([]);
   const startedAt = useRef(0);
+  const finishingRef = useRef(false);
 
   useAndroidBack(() => {
     if (potionActive) {
@@ -102,6 +103,8 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
 
   const finish = useCallback(async () => {
     if (!round) return;
+    if (finishingRef.current) return;
+    finishingRef.current = true;
     const elapsed = (Date.now() - startedAt.current) / 1000;
     setLoading(true);
     setError("");
@@ -119,6 +122,7 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
       }
     } finally {
       setLoading(false);
+      finishingRef.current = false;
     }
   }, [round, t]);
 

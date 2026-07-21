@@ -33,30 +33,39 @@ export default function RecommendedPage() {
   const [result, setResult] = useState<ForesightResult | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   useEffect(() => {
+    let ctrl: AbortController | null = null;
     const sync = () => {
+      ctrl?.abort();
+      ctrl = new AbortController();
+      const signal = ctrl.signal;
       const authed = Boolean(getToken());
       setLoggedIn(authed);
+      setAuthResolved(true);
       if (authed) {
         listStudents().then((r) => {
+          if (signal.aborted) return;
           setStudents(r.students);
           if (r.students.length) setSelected(r.students[0].id);
-        }).catch((e) => setError(String(e)));
+        }).catch((e) => { if (!signal.aborted) setError(String(e)); });
       }
     };
     sync();
     window.addEventListener(AUTH_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
+      ctrl?.abort();
       window.removeEventListener(AUTH_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
 
   const applyHomeFallback = useCallback(async (base: ForesightResult, studentId: string) => {
+    const ctrl = new AbortController();
     try {
-      const rails = await getHomeFeed(false, locale);
+      const rails = await getHomeFeed(false, locale, ctrl.signal);
       const popular = rails.find((r) => r.key === "popular")?.courses
         ?? rails.find((r) => (r.courses ?? []).length)?.courses
         ?? [];
@@ -105,7 +114,7 @@ export default function RecommendedPage() {
     return () => controller.abort();
   }, [selected, students, locale, applyHomeFallback]);
 
-  if (!loggedIn) {
+  if (authResolved && !loggedIn) {
     return (
       <main className="container">
         <h1>{t("recommended.title")}</h1>

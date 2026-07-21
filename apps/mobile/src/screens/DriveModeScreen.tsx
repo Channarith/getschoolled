@@ -135,7 +135,7 @@ export default function DriveModeScreen({
     setAssistantOpen(false);
     const gen = ++playGenRef.current;   // new playback generation
     stopAllTts();
-    if (i >= c.segments.length) {
+    if (i < 0 || i >= c.segments.length) {
       setPlaying(false);
       void onCompleted(c);
       return;

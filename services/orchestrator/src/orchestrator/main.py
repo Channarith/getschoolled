@@ -384,21 +384,28 @@ def api_reengage(session_id: str, _=Depends(require_internal)) -> Reengagement:
         raise HTTPException(status_code=404, detail="unknown session")
 
 
-_assessment_start_locks: dict[str, _threading.Lock] = {}
+from collections import OrderedDict as _ODict  # noqa: E402
+
+_assessment_start_locks: _ODict[str, _threading.Lock] = _ODict()
 _assessment_locks_mu = _threading.Lock()
 _MAX_ASSESSMENT_LOCKS = 5_000
 
 
 def _assessment_lock_for(key: str) -> _threading.Lock:
     with _assessment_locks_mu:
-        if len(_assessment_start_locks) >= _MAX_ASSESSMENT_LOCKS:
-            _assessment_start_locks.clear()
-        return _assessment_start_locks.setdefault(key, _threading.Lock())
+        if key in _assessment_start_locks:
+            _assessment_start_locks.move_to_end(key)
+            return _assessment_start_locks[key]
+        lk = _threading.Lock()
+        _assessment_start_locks[key] = lk
+        if len(_assessment_start_locks) > _MAX_ASSESSMENT_LOCKS:
+            _assessment_start_locks.popitem(last=False)  # evict oldest, never in-flight
+        return lk
 
 
 _AGENT_REWARD_POINTS = int(os.environ.get("AGENT_REWARD_POINTS", "10"))
 _AGENT_REWARD_SESSION_CAP = int(os.environ.get("AGENT_REWARD_SESSION_CAP", "30"))
-_session_reward_total: dict[str, int] = {}
+_session_reward_total: _ODict[str, int] = _ODict()
 _reward_lock = _threading.Lock()
 _MAX_SESSION_REWARD_ENTRIES = 10_000
 
@@ -411,7 +418,7 @@ def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
         return
     with _reward_lock:
         if len(_session_reward_total) >= _MAX_SESSION_REWARD_ENTRIES:
-            _session_reward_total.clear()
+            _session_reward_total.pop(next(iter(_session_reward_total)))  # evict oldest
         awarded = _session_reward_total.get(session_id, 0)
         if awarded >= _AGENT_REWARD_SESSION_CAP:
             return
@@ -989,6 +996,27 @@ def _assessment_account_id(authorization: str) -> str:
     return str(claims.get("sub", "")).strip() if claims else ""
 
 
+def _identity_profile_from_auth(authorization: str):
+    """Return (account_id, profile_ns) where profile_ns has display_name and email.
+
+    Decodes the bearer token locally — same key as _assessment_account_id — and
+    exposes the name/email claims so callers can build a human-readable label
+    without a network round-trip to an identity service.
+    """
+    from aoep_shared.auth import verify_token  # noqa: E402
+    key = os.environ.get("AUTH_SIGNING_KEY", "dev-auth-signing-key").encode()
+    bearer = (authorization or "").strip()
+    if bearer.lower().startswith("bearer "):
+        bearer = bearer[7:].strip()
+    claims = verify_token(bearer, key) if bearer else {}
+
+    class _ProfileNS:
+        display_name: str = claims.get("name") or claims.get("display_name") or ""  # type: ignore[assignment]
+        email: str = claims.get("email") or ""  # type: ignore[assignment]
+
+    return str(claims.get("sub", "")).strip(), _ProfileNS()
+
+
 @app.post("/assessment/checkpoints/start")
 def assessment_checkpoint_start(
     req: PolicyAssessmentStartRequest,
@@ -1131,7 +1159,9 @@ def assessment_checkpoint_submit(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    app.state.assessment_results.append(result)
+    _submit_lock_key = f"{run['student_id']}:{run['course_id']}:{run['policy'].checkpoint_id}"
+    with _assessment_lock_for(_submit_lock_key):
+        app.state.assessment_results.append(result)
     memory = get_sessions().memory
     for evidence in result.item_evidence:
         memory.record_behavior(
@@ -2789,7 +2819,8 @@ def leave_live_room(
     return room.to_dict()
 
 
-_chat_reply_last: dict[str, float] = {}  # room:pid -> last reply timestamp
+_chat_reply_last: _ODict[str, float] = _ODict()  # room:pid -> last reply timestamp
+_CHAT_REPLY_LAST_MAX = 5_000
 _CHAT_REPLY_COOLDOWN_S = 8.0  # minimum seconds between Theodore replies per participant
 import threading as _threading  # noqa: E402
 _chat_reply_lock = _threading.Lock()  # guards _chat_reply_last to prevent TOCTOU races
@@ -2808,6 +2839,8 @@ def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
         if now - _chat_reply_last.get(key, 0) < _CHAT_REPLY_COOLDOWN_S:
             return
         _chat_reply_last[key] = now
+        if len(_chat_reply_last) > _CHAT_REPLY_LAST_MAX:
+            _chat_reply_last.popitem(last=False)  # evict oldest entry
 
     store = _live_rooms()
     try:
@@ -2829,7 +2862,7 @@ def _chat_theodore_reply(room_id: str, participant_id: str, text: str) -> None:
             for chunk in sessions.ask_stream(room.session_id, prompt, language=lang):
                 if chunk:
                     chunks.append(chunk)
-            reply_text = "".join(chunks).strip()
+            reply_text = "".join(str(c) if isinstance(c, dict) else c for c in chunks).strip()
             if not reply_text:
                 reply_text = (sessions.ask(room.session_id, prompt, language=lang).text or "").strip()
         except Exception:  # noqa: BLE001
@@ -3499,7 +3532,7 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
                 continue
             streamed.append(chunk)
             yield {"type": "delta", "text": chunk}
-            buf += chunk
+            buf += str(chunk) if isinstance(chunk, dict) else chunk
             segments, buf = _split_finished_sentences(buf)
             for seg in segments:
                 _broadcast_threadsafe(
@@ -4175,12 +4208,15 @@ from aoep_shared.cognitive_trainer import (  # noqa: E402
 )
 
 _cognitive_trainer = CognitiveTrainer()
-_cognitive_profiles: dict[str, CognitiveLearnerProfile] = {}
+_cognitive_profiles: _ODict[str, CognitiveLearnerProfile] = _ODict()
+_MAX_COGNITIVE_PROFILES = 10_000
 
 
 def _get_profile(learner_id: str) -> CognitiveLearnerProfile:
     if learner_id not in _cognitive_profiles:
         _cognitive_profiles[learner_id] = _cognitive_trainer.create_profile(learner_id)
+        if len(_cognitive_profiles) > _MAX_COGNITIVE_PROFILES:
+            _cognitive_profiles.popitem(last=False)  # evict oldest entry
     return _cognitive_profiles[learner_id]
 
 

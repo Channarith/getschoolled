@@ -217,7 +217,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type=ctype or "audio/wav",
                             headers={**headers, "X-TTS-Engine": "cosyvoice"})
-        except (cosyvoice_tts.CosyVoiceError, ValueError):
+        except Exception:
             pass  # fall through to ElevenLabs / edge-tts / client fallback
 
     from aoep_shared import elevenlabs_tts

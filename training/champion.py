@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
+import tempfile as _tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,9 +25,13 @@ class ChampionRegistry:
 
     def _load(self) -> Dict:
         p = Path(self.path)
-        if p.is_file():
-            return json.loads(p.read_text(encoding="utf-8"))
-        return {"champion": None, "metrics": {}, "history": []}
+        if not p.exists():
+            return {"champion": None, "metrics": {}, "history": []}
+        with open(p, "r", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_SH)
+            content = f.read()
+            fcntl.flock(f, fcntl.LOCK_UN)
+        return json.loads(content) if content.strip() else {"champion": None, "metrics": {}, "history": []}
 
     def _save(self, data: Dict) -> None:
         p = Path(self.path)
@@ -54,9 +60,11 @@ class ChampionRegistry:
             data["history"].append({"name": name, "metrics": metrics or {}, "ts": time.time()})
             data["champion"] = name
             data["metrics"] = metrics or {}
-            f.seek(0)
-            json.dump(data, f, indent=2)
-            f.truncate()
+            p_dir = Path(self.path).parent
+            with _tempfile.NamedTemporaryFile(mode="w", dir=p_dir, delete=False, suffix=".tmp", encoding="utf-8") as tf:
+                json.dump(data, tf, indent=2)
+                tmp_path = tf.name
+            os.replace(tmp_path, self.path)
         return data
 
     def revert(self, name: Optional[str] = None) -> Dict:
@@ -82,9 +90,11 @@ class ChampionRegistry:
             data["champion"] = target["name"]
             data["metrics"] = target.get("metrics", {})
             data["history"].append({**target, "ts": time.time(), "reverted": True})
-            f.seek(0)
-            json.dump(data, f, indent=2)
-            f.truncate()
+            p_dir = Path(self.path).parent
+            with _tempfile.NamedTemporaryFile(mode="w", dir=p_dir, delete=False, suffix=".tmp", encoding="utf-8") as tf:
+                json.dump(data, tf, indent=2)
+                tmp_path = tf.name
+            os.replace(tmp_path, self.path)
         return data
 
 

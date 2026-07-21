@@ -66,6 +66,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = ap.parse_args(argv)
 
+    if args.eval_split > 0 and not args.eval_out:
+        print("WARNING: --eval-split set but --eval-out not provided; eval examples will be discarded", file=sys.stderr)
+
     sessions = json.loads(Path(args.inp).read_text(encoding="utf-8"))
     examples = _examples_from_sessions(sessions)
     if not examples:
@@ -83,7 +86,10 @@ def main(argv: list[str] | None = None) -> int:
         for line in Path(args.corrections).read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line:
-                correction_rows.append(json.loads(line))
+                try:
+                    correction_rows.append(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    print(f"WARNING: skipping malformed corrections line: {exc}", file=sys.stderr)
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

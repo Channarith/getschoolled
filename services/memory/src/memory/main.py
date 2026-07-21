@@ -36,7 +36,10 @@ from .store import MemoryStore
 app = create_service("memory")
 app.state.store = MemoryStore()
 
+# BUG 8 FIX: bounded dedup set (max 50 000 entries before a clear).
+# BUG 9 FIX: lock prevents TOCTOU race between the membership check and the add.
 _submitted_surveys: set[tuple] = set()
+_submitted_surveys_lock = threading.Lock()
 _mastery_locks: dict[str, threading.Lock] = {}
 _mastery_lock = threading.Lock()
 app.state.acceptances = AcceptanceStore()
@@ -60,19 +63,17 @@ def _bug_reports() -> BugReportStore:
     return store
 
 
-def _admin_secret() -> str:
-    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
-
-
 def _accepted_admin_secrets() -> list[str]:
     """Secrets that unlock the admin surfaces.
 
-    Accepts the configured ADMIN_SECRET and, as a convenience, the platform admin
-    password (DEFAULT_ADMIN_PASSWORD, default 88888888) so operators can use the
-    same credential they log in with on the Feature Flags page.
+    Reads ADMIN_SECRET from the environment; returns an empty list when the
+    variable is unset or blank so that no default credential is ever accepted.
+
+    BUG 7 FIX: removed the hardcoded "88888888" fallback — it permanently
+    unlocked admin surfaces regardless of the operator's configuration.
     """
-    secrets = [_admin_secret(), os.environ.get("DEFAULT_ADMIN_PASSWORD", "88888888")]
-    return [s for s in secrets if s]
+    secret = os.environ.get("ADMIN_SECRET", "")
+    return [secret] if secret else []
 
 
 def require_admin_header(x_admin_secret: str = Header(default="")) -> str:
@@ -102,13 +103,13 @@ class MasteryUpdate(BaseModel):
     correct: bool
 
 
-@app.post("/students")
+@app.post("/students", dependencies=[Depends(require_internal)])
 def upsert_student(req: StudentUpsert) -> dict:
     mem = app.state.store.upsert_student(req.student_id, req.display_name)
     return {"student_id": mem.student_id, "display_name": mem.display_name}
 
 
-@app.post("/consent")
+@app.post("/consent", dependencies=[Depends(require_internal)])
 def record_consent(req: ConsentUpsert) -> dict:
     record = ConsentRecord(
         student_id=req.student_id,
@@ -122,7 +123,7 @@ def record_consent(req: ConsentUpsert) -> dict:
     return {"student_id": req.student_id, "scope": req.scope, "granted": req.granted}
 
 
-@app.get("/consent/{student_id}/{scope}")
+@app.get("/consent/{student_id}/{scope}", dependencies=[Depends(require_internal)])
 def has_consent(student_id: str, scope: ConsentScope) -> dict:
     return {
         "student_id": student_id,
@@ -300,9 +301,15 @@ def survey_submit(req: SurveySubmit) -> dict:
     # Only deduplicate when a student_id is present; anonymous submissions are unrestricted.
     if req.student_id:
         key = (req.course_id, req.student_id)
-        if key in _submitted_surveys:
-            raise HTTPException(status_code=409, detail="survey already submitted")
-        _submitted_surveys.add(key)
+        # BUG 8 + 9 FIX: hold the lock for the entire check-then-add so two
+        # concurrent requests for the same key cannot both pass the membership
+        # test; clear the set when it exceeds 50 000 entries to stay bounded.
+        with _submitted_surveys_lock:
+            if key in _submitted_surveys:
+                raise HTTPException(status_code=409, detail="survey already submitted")
+            if len(_submitted_surveys) > 50_000:
+                _submitted_surveys.clear()
+            _submitted_surveys.add(key)
     try:
         resp = app.state.surveys.submit(SurveyResponse(**req.model_dump()))
     except ValueError as exc:
@@ -538,9 +545,13 @@ def test_seed(req: SeedRequest, _: str = Depends(require_admin_header)) -> dict:
     return {"seeded": seeded}
 
 
-@app.post("/mastery")
+@app.post("/mastery", dependencies=[Depends(require_internal)])
 def update_mastery(req: MasteryUpdate) -> dict:
     with _mastery_lock:
+        # BUG 10 FIX: cap _mastery_locks at 10 000 entries to prevent unbounded
+        # growth when many distinct student IDs are seen over the process lifetime.
+        if len(_mastery_locks) >= 10_000:
+            _mastery_locks.clear()
         student_lock = _mastery_locks.setdefault(req.student_id, threading.Lock())
     with student_lock:
         score = app.state.store.update_mastery(req.student_id, req.topic, req.correct)
@@ -557,7 +568,7 @@ class BehaviorEvent(BaseModel):
     saw_slide: bool = False
 
 
-@app.post("/behavior")
+@app.post("/behavior", dependencies=[Depends(require_internal)])
 def record_behavior(req: BehaviorEvent) -> dict:
     app.state.store.record_behavior(
         req.student_id,
@@ -571,7 +582,7 @@ def record_behavior(req: BehaviorEvent) -> dict:
     return {"student_id": req.student_id, "topic": req.topic, "recorded": True}
 
 
-@app.get("/learner/{student_id}/{topic}")
+@app.get("/learner/{student_id}/{topic}", dependencies=[Depends(require_internal)])
 def learner_signals(student_id: str, topic: str) -> dict:
     """Aggregated learning-behavior signals used by the adaptive policy."""
     s = app.state.store.learner_signals(student_id, topic)

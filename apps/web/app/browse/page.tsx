@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  AUTH_EVENT,
   enrollCourse,
   getLearnFacets,
   getToken,
@@ -34,11 +35,20 @@ export default function BrowsePage() {
   const sourceLabel = (s: string) => t(`browse.source.${s}`) !== `browse.source.${s}` ? t(`browse.source.${s}`) : s;
 
   useEffect(() => {
-    const authed = Boolean(getToken());
-    setLoggedIn(authed);
-    setAuthResolved(true);
-    if (!authed) return;
-    getLearnFacets().then(setFacets).catch(() => setFacets(null));
+    const sync = () => {
+      const authed = Boolean(getToken());
+      setLoggedIn(authed);
+      setAuthResolved(true);
+      if (!authed) return;
+      getLearnFacets().then(setFacets).catch(() => setFacets(null));
+    };
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   useEffect(() => {

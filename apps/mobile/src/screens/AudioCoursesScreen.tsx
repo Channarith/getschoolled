@@ -56,6 +56,7 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
 
   useEffect(() => {
     setLoading(true);
+    setError("");
     // Drive Mode is eyes-free: only audio courses (never live/interactive/game).
     const params: Record<string, string> = { limit: "80", format: "audio" };
     if (cat) params.category = cat;
@@ -70,12 +71,16 @@ export default function AudioCoursesScreen({ onOpen, initialCategory }: Props) {
   const chips = useMemo(() => ["", ...cats], [cats]);
 
   const onToggleSave = async (id: string) => {
-    const saved = await toggleMyList(id);
-    setSavedSet((s) => {
-      const next = new Set(s);
-      if (saved) next.add(id); else next.delete(id);
-      return next;
-    });
+    try {
+      const saved = await toggleMyList(id);
+      setSavedSet((s) => {
+        const next = new Set(s);
+        if (saved) next.add(id); else next.delete(id);
+        return next;
+      });
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   const openItem = (item: LearnableItem) => {
