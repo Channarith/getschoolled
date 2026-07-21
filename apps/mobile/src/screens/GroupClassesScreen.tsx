@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Alert, Linking, Modal, RefreshControl, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
 import {
@@ -60,6 +60,12 @@ export default function GroupClassesScreen({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const [filterAudience, setFilterAudience] = useState<string>("all");
+  const [filterRating, setFilterRating] = useState(false);
+  const [filterFree, setFilterFree] = useState(false);
+  const [sortBy, setSortBy] = useState<"soon" | "rating" | "seats">("soon");
+  const [schedAudience, setSchedAudience] = useState("general");
   const [busyId, setBusyId] = useState("");
   const [started, setStarted] = useState<GroupClassStart | null>(null);
   const [registerTarget, setRegisterTarget] = useState<GroupClassRow | null>(null);
@@ -226,6 +232,7 @@ export default function GroupClassesScreen({
         capacity: schedPlatform === "salareen" ? roomSize - 1 : Number(schedCapacity) || 12,
         room_size: schedPlatform === "salareen" ? roomSize : undefined,
         language: lesson?.language ?? "en",
+        audience: schedAudience,
       });
       setShowSchedule(false);
       setSchedTitle("");
@@ -266,6 +273,25 @@ export default function GroupClassesScreen({
     }
   }
 
+  const filtered = useMemo(() => {
+    let list = rows;
+    const ql = q.trim().toLowerCase();
+    if (ql) list = list.filter(gc =>
+      gc.title.toLowerCase().includes(ql) ||
+      (gc.instructor_name || "").toLowerCase().includes(ql) ||
+      (gc.language || "").toLowerCase().includes(ql)
+    );
+    if (filterAudience !== "all") list = list.filter(gc => (gc.audience || "general") === filterAudience);
+    if (filterRating) list = list.filter(gc => (gc.instructor_stats?.review_avg ?? gc.review_avg ?? 0) >= 4);
+    if (filterFree) list = list.filter(gc => !gc.payment_required);
+    if (sortBy === "rating") list = [...list].sort((a, b) =>
+      (b.instructor_stats?.review_avg ?? b.review_avg ?? 0) - (a.instructor_stats?.review_avg ?? a.review_avg ?? 0)
+    );
+    else if (sortBy === "seats") list = [...list].sort((a, b) => b.seats_left - a.seats_left);
+    else list = [...list].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    return list;
+  }, [rows, q, filterAudience, filterRating, filterFree, sortBy]);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
@@ -274,13 +300,53 @@ export default function GroupClassesScreen({
       </View>
       <Text style={styles.lead}>{t("group.intro")}</Text>
       <View style={styles.topActions}>
-        <PrimaryButton label={t("group.scheduleCta")} onPress={() => setShowSchedule(true)} variant="brand" />
+        <PrimaryButton label="🎓 Host a Class" onPress={() => setShowSchedule(true)} variant="brand" />
         <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
       </View>
       {loading && !refreshing ? (
         <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 24 }} />
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {/* Search */}
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search classes, instructors…"
+          placeholderTextColor={theme.colors.muted}
+          value={q}
+          onChangeText={setQ}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+      </View>
+      {/* Filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}>
+        {["all","general","kids","professional","corporate"].map(aud => (
+          <TouchableOpacity key={aud} onPress={() => setFilterAudience(aud)}
+            style={[{ borderRadius: 20, borderWidth: 1, borderColor: filterAudience === aud ? theme.colors.accent : theme.colors.border, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, backgroundColor: filterAudience === aud ? "rgba(110,168,254,0.15)" : "rgba(255,255,255,0.04)" }]}>
+            <Text style={{ color: filterAudience === aud ? "#fff" : theme.colors.muted, fontSize: 13, fontWeight: "600" }}>
+              {aud === "all" ? "All" : aud === "kids" ? "👶 Kids" : aud.charAt(0).toUpperCase() + aud.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity onPress={() => setFilterRating(v => !v)}
+          style={[{ borderRadius: 20, borderWidth: 1, borderColor: filterRating ? theme.colors.accent : theme.colors.border, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, backgroundColor: filterRating ? "rgba(110,168,254,0.15)" : "rgba(255,255,255,0.04)" }]}>
+          <Text style={{ color: filterRating ? "#fff" : theme.colors.muted, fontSize: 13, fontWeight: "600" }}>⭐ 4+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setFilterFree(v => !v)}
+          style={[{ borderRadius: 20, borderWidth: 1, borderColor: filterFree ? theme.colors.accent : theme.colors.border, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, backgroundColor: filterFree ? "rgba(110,168,254,0.15)" : "rgba(255,255,255,0.04)" }]}>
+          <Text style={{ color: filterFree ? "#fff" : theme.colors.muted, fontSize: 13, fontWeight: "600" }}>Free</Text>
+        </TouchableOpacity>
+      </ScrollView>
+      {/* Sort row */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: theme.spacing.screenX }}>
+        {([["soon","Starting Soon"],["rating","Top Rated"],["seats","Most Seats"]] as const).map(([val, label]) => (
+          <TouchableOpacity key={val} onPress={() => setSortBy(val)}
+            style={[{ borderRadius: 20, borderWidth: 1, borderColor: sortBy === val ? theme.colors.accent : theme.colors.border, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8, backgroundColor: sortBy === val ? "rgba(110,168,254,0.15)" : "rgba(255,255,255,0.04)" }]}>
+            <Text style={{ color: sortBy === val ? "#fff" : theme.colors.muted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
       <ScrollView
         contentContainerStyle={styles.list}
         refreshControl={
@@ -290,7 +356,7 @@ export default function GroupClassesScreen({
         {rows.length === 0 && !loading ? (
           <Text style={styles.meta}>{t("group.empty")}</Text>
         ) : null}
-        {rows.map((gc) => {
+        {filtered.map((gc) => {
           const busy = busyId === gc.id;
           const platform = PLATFORM_LABEL[gc.platform] ?? gc.platform;
           const isAdmin = Boolean(account?.is_admin);
@@ -305,6 +371,7 @@ export default function GroupClassesScreen({
                 {gc.status === "live" ? <Text style={styles.liveBadge}>● {t("group.live")}</Text> : null}
               </View>
               <Text style={styles.cardTitle}>{gc.title}</Text>
+              {gc.language && gc.language !== "en" ? <Text style={styles.meta}>{gc.language.toUpperCase()} · {gc.audience ? gc.audience.charAt(0).toUpperCase() + gc.audience.slice(1) : "General"}</Text> : null}
               <Text style={styles.meta}>{fmtTime(gc.start_time)}</Text>
               <Text style={styles.meta}>
                 {t("group.seatsLeft")}: {gc.seats_left}/{gc.capacity}
@@ -476,6 +543,17 @@ export default function GroupClassesScreen({
               <TextInput style={styles.input} placeholder={t("group.scheduleRoomSize")}
                 placeholderTextColor={theme.colors.muted} value={schedRoomSize} onChangeText={setSchedRoomSize}
                 keyboardType="number-pad" />
+              <Text style={styles.formLabel}>Audience</Text>
+              <View style={styles.segRow}>
+                {["general","kids","professional","corporate"].map(aud => (
+                  <TouchableOpacity key={aud} onPress={() => setSchedAudience(aud)}
+                    style={[styles.seg, schedAudience === aud && styles.segOn]}>
+                    <Text style={[styles.segText, schedAudience === aud && styles.segTextOn]}>
+                      {aud === "kids" ? "👶 Kids" : aud.charAt(0).toUpperCase() + aud.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <View style={styles.actions}>
                 <PrimaryButton label={t("group.cancel")} onPress={() => setShowSchedule(false)} variant="ghost" />
                 <PrimaryButton label={t("group.scheduleSubmit")} onPress={() => void submitSchedule()}
@@ -522,4 +600,20 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, marginBottom: 6,
   },
   lessonPickOn: { borderColor: theme.colors.accent, backgroundColor: "rgba(110,168,254,0.1)" },
+  searchWrap: {
+    marginHorizontal: theme.spacing.screenX,
+    marginBottom: 10,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: 12,
+  },
+  searchInput: { color: theme.colors.text, fontSize: 14, paddingVertical: 10 },
+  formLabel: { color: theme.colors.muted, fontSize: 12, fontWeight: "700", marginTop: 12, marginBottom: 6 },
+  segRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  seg: { borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 5 },
+  segOn: { borderColor: theme.colors.accent, backgroundColor: "rgba(110,168,254,0.15)" },
+  segText: { color: theme.colors.muted, fontSize: 13 },
+  segTextOn: { color: "#fff", fontWeight: "700" },
 });
