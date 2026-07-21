@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, FlatList, RefreshControl,
   StyleSheet, Text, View,
@@ -19,6 +19,7 @@ export default function MyListScreen({ onOpenCourse }: {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
+  const loadAliveRef = useRef<{ current: boolean }>({ current: false });
 
   const load = async (aliveObj: { current: boolean }) => {
     try {
@@ -42,6 +43,7 @@ export default function MyListScreen({ onOpenCourse }: {
   };
   useEffect(() => {
     const alive = { current: true };
+    loadAliveRef.current = alive;
     void load(alive);
     return () => { alive.current = false; };
   }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -71,7 +73,13 @@ export default function MyListScreen({ onOpenCourse }: {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); const alive = { current: true }; void load(alive); }}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadAliveRef.current.current = false;
+            const alive = { current: true };
+            loadAliveRef.current = alive;
+            void load(alive);
+          }}
           tintColor={theme.colors.netflix}
         />
       }

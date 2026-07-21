@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from "react-native";
@@ -29,6 +29,12 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -70,13 +76,14 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
             setError("");
             try {
               const rows = await listLessons();
+              if (!mountedRef.current) return;
               setLessons(rows);
               if (rows.length && !lessonId) setLessonId(rows[0].lesson_id);
             } catch (e) {
+              if (!mountedRef.current) return;
               setError((e as Error).message);
             } finally {
-              setLoading(false);
-              setRefreshing(false);
+              if (mountedRef.current) { setLoading(false); setRefreshing(false); }
             }
           }}
           tintColor={theme.colors.netflix}

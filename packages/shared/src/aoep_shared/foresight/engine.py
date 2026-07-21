@@ -269,19 +269,26 @@ class ForesightEngine:
             np.zeros(self.config.d),
         )
 
-    def grouped_summary(self, F: np.ndarray, head: _HeadBase) -> Tuple[np.ndarray, np.ndarray]:
+    def grouped_summary(
+        self, F: np.ndarray, head: _HeadBase,
+        K_P: np.ndarray, V_P: np.ndarray,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         Qk = head.Wq @ F
-        alpha = softmax((Qk @ self.K_P.T) / np.sqrt(self.config.d))
-        return alpha @ self.V_P, alpha
+        alpha = softmax((Qk @ K_P.T) / np.sqrt(self.config.d))
+        return alpha @ V_P, alpha
 
     def forward(self, X: np.ndarray, *, candidates: Optional[np.ndarray] = None) -> ForesightOutput:
+        # Snapshot pattern-library references under the lock so a concurrent
+        # set_pattern_library() call can't swap K_P/V_P mid-computation.
+        with self._forward_lock:
+            K_P, V_P = self.K_P, self.V_P
         H = self.encode(X)
         F = pool(H, self.config.pool_mode, self.pool_query)
         route, pi = self.route(F)
         F_tilde = self.mixture(F, pi)                  # routed, adapter-mixed state
         results: Dict[str, HeadResult] = {}
         for name, head in self.heads.items():
-            Gk, alpha = self.grouped_summary(F_tilde, head)
+            Gk, alpha = self.grouped_summary(F_tilde, head, K_P, V_P)
             if isinstance(head, RankingHead):
                 if candidates is None:
                     continue
@@ -290,7 +297,7 @@ class ForesightEngine:
                 results[name] = head.compute(F_tilde, Gk, alpha)
         graph = None
         if self.graph_head is not None:
-            Gk, _ = self.grouped_summary(F_tilde, self.graph_head)
+            Gk, _ = self.grouped_summary(F_tilde, self.graph_head, K_P, V_P)
             graph = self.graph_head.compute_graph(H, Gk)
         top = max(route, key=route.get) if route else "general"
         return ForesightOutput(route=route, route_top=top, heads=results, graph=graph, F=F)
@@ -302,9 +309,7 @@ class ForesightEngine:
         the heavy linear algebra). A CUDA backend batches these on-device."""
         from concurrent.futures import ThreadPoolExecutor
 
-        def _run(X: np.ndarray) -> ForesightOutput:
-            with self._forward_lock:
-                return self.forward(X, candidates=candidates)
-
         with ThreadPoolExecutor(max_workers=max_workers) as pool_exec:
-            return list(pool_exec.map(_run, inputs))
+            return list(pool_exec.map(
+                lambda X: self.forward(X, candidates=candidates), inputs
+            ))

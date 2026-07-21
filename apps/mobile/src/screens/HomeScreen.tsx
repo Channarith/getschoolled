@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Image, ImageBackground, Modal, RefreshControl, ScrollView,
   StyleSheet, Text, View,
@@ -61,6 +61,8 @@ export default function HomeScreen({
   const [streakDays, setStreakDays] = useState(0);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [showMascot, setShowMascot] = useState(false);
+  // Tracks the alive object for whichever load is currently in-flight (effect or refresh).
+  const loadAliveRef = useRef<{ current: boolean }>({ current: false });
   const load = async (aliveObj: { current: boolean }) => {
     setError("");
     try {
@@ -114,6 +116,7 @@ export default function HomeScreen({
   // and segment headings re-render in the new locale.
   useEffect(() => {
     const alive = { current: true };
+    loadAliveRef.current = alive;
     setLoading(true);
     void load(alive);
     return () => { alive.current = false; };
@@ -144,7 +147,13 @@ export default function HomeScreen({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); const alive = { current: true }; void load(alive); }}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadAliveRef.current.current = false; // cancel any in-flight load
+            const alive = { current: true };
+            loadAliveRef.current = alive;
+            void load(alive);
+          }}
           tintColor={theme.colors.netflix}
         />
       }
