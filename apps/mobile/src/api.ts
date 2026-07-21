@@ -508,6 +508,7 @@ export type GroupClassRow = {
   language?: string;
   audience?: string;
   instructor_account_id?: string;
+  created_by_account_id?: string;
   price_per_user_usd?: number;
   commission_rate?: number;
   payment_required?: boolean;

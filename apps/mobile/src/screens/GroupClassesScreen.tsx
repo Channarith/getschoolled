@@ -360,10 +360,16 @@ export default function GroupClassesScreen({
           const busy = busyId === gc.id;
           const platform = PLATFORM_LABEL[gc.platform] ?? gc.platform;
           const isAdmin = Boolean(account?.is_admin);
-          // A full class is grayed out (not joinable) for everyone except the
-          // administrator, who can still drop in to monitor the session.
+          // The class host can open their own class (non-admin instructors included).
+          const myAccountId = account?.id;
+          const isHost = myAccountId && (
+            myAccountId === gc.instructor_account_id ||
+            myAccountId === gc.created_by_account_id
+          );
+          const canOpen = isAdmin || Boolean(isHost);
+          // A full class is grayed out (not joinable) for everyone except the host/admin.
           const full = gc.seats_left <= 0;
-          const joinBlocked = full && !isAdmin;
+          const joinBlocked = full && !canOpen;
           return (
             <GlassPanel key={gc.id} style={styles.card}>
               <View style={styles.badgeRow}>
@@ -415,9 +421,9 @@ export default function GroupClassesScreen({
                   disabled={busy}
                   variant="ghost"
                 />
-                {isAdmin ? (
+                {canOpen ? (
                   <PrimaryButton
-                    label={t("group.openClass")}
+                    label={isHost && !isAdmin ? "🎓 Open My Class" : t("group.openClass")}
                     onPress={() => void handleStart(gc)}
                     loading={busy}
                     disabled={busy}
