@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   completeOnboarding,
@@ -23,9 +23,16 @@ const STEPS = ["Your info", "Choose plan", "Payment", "Who's learning"];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  // Restore step from localStorage so closing the tab mid-flow doesn't lose progress.
+  const [step, setStep] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = localStorage.getItem("onboarding_step");
+    return saved ? Number(saved) : 0;
+  });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // busyRef guards against double-clicks before React commits the disabled state.
+  const busyRef = useRef(false);
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [plan, setPlan] = useState("free");
@@ -35,6 +42,11 @@ export default function OnboardingPage() {
     line1: "", line2: "", city: "", state: "", postal_code: "", country: "US",
     card_number: "", exp_month: 12, exp_year: new Date().getFullYear() + 2, cvv: "",
   });
+
+  // Persist step to localStorage whenever it changes.
+  useEffect(() => {
+    localStorage.setItem("onboarding_step", String(step));
+  }, [step]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -53,44 +65,52 @@ export default function OnboardingPage() {
   const needsPayment = plan !== "free";
 
   async function nextFromInfo() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true); setError("");
     try {
       await submitOnboardingProfile({ display_name: displayName, phone });
       setStep(1);
     } catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   }
 
   async function nextFromPlan() {
+    if (busyRef.current) return;
     if (!needsPayment) {
+      busyRef.current = true;
       setBusy(true); setError("");
       try {
         await selectOnboardingPlan(plan);
         setStep(3);
       } catch (e) { setError(String(e)); }
-      finally { setBusy(false); }
+      finally { busyRef.current = false; setBusy(false); }
       return;
     }
     setStep(2);
   }
 
   async function nextFromBilling() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true); setError("");
     try {
       await submitOnboardingBilling({ ...billing, phone });
       await selectOnboardingPlan(plan);
       setStep(3);
     } catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   }
 
   async function finish() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true); setError("");
     try {
       await completeOnboarding({ learner_name: learnerName, age_band: ageBand });
       router.push("/");
     } catch (e) { setError(String(e)); }
-    finally { setBusy(false); }
+    finally { busyRef.current = false; setBusy(false); }
   }
 
   return (
@@ -172,6 +192,9 @@ export default function OnboardingPage() {
         {step === 2 && (
           <>
             <h2 style={{ marginTop: 0 }}>Payment details</h2>
+            {/* SECURITY: This must be replaced with Stripe.js Elements before production.
+                Never send raw card data through your backend. Use Stripe.js tokenization
+                so card numbers are sent directly to Stripe and never touch this server. */}
             <p className="muted" style={{ fontSize: 13 }}>
               Card is validated (Luhn + expiry). In production, payment runs through Stripe — we never store full card numbers.
             </p>

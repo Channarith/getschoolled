@@ -9,6 +9,7 @@ serving-side complement of the runtime OptimizationLedger.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import time
 from dataclasses import dataclass
@@ -41,30 +42,46 @@ class ChampionRegistry:
         return self._load().get("history", [])
 
     def promote(self, name: str, metrics: Optional[Dict] = None) -> Dict:
-        data = self._load()
-        data["history"].append({"name": name, "metrics": metrics or {}, "ts": time.time()})
-        data["champion"] = name
-        data["metrics"] = metrics or {}
-        self._save(data)
+        p = Path(self.path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "a+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            f.seek(0)
+            content = f.read()
+            data = json.loads(content) if content.strip() else {"champion": None, "metrics": {}, "history": []}
+            data["history"].append({"name": name, "metrics": metrics or {}, "ts": time.time()})
+            data["champion"] = name
+            data["metrics"] = metrics or {}
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.truncate()
         return data
 
     def revert(self, name: Optional[str] = None) -> Dict:
         """Roll the champion back to a named prior entry, or the previous one."""
-        data = self._load()
-        hist = data["history"]
-        if name is not None:
-            match = [h for h in hist if h["name"] == name]
-            if not match:
-                raise KeyError(f"no prior champion named {name!r}")
-            target = match[-1]
-        else:
-            if len(hist) < 2:
-                raise KeyError("no previous champion to revert to")
-            target = hist[-2]
-        data["champion"] = target["name"]
-        data["metrics"] = target.get("metrics", {})
-        data["history"].append({**target, "ts": time.time(), "reverted": True})
-        self._save(data)
+        p = Path(self.path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "a+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            f.seek(0)
+            content = f.read()
+            data = json.loads(content) if content.strip() else {"champion": None, "metrics": {}, "history": []}
+            hist = data["history"]
+            if name is not None:
+                match = [h for h in hist if h["name"] == name]
+                if not match:
+                    raise KeyError(f"no prior champion named {name!r}")
+                target = match[-1]
+            else:
+                if len(hist) < 2:
+                    raise KeyError("no previous champion to revert to")
+                target = hist[-2]
+            data["champion"] = target["name"]
+            data["metrics"] = target.get("metrics", {})
+            data["history"].append({**target, "ts": time.time(), "reverted": True})
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.truncate()
         return data
 
 

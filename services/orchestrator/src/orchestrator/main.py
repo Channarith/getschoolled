@@ -45,6 +45,7 @@ app.state.assessment_runs = {}
 app.state.assessment_results = []
 
 import os  # noqa: E402
+import threading as _threading  # noqa: E402
 
 from aoep_shared.hil import (  # noqa: E402
     AutonomyLevel,
@@ -77,14 +78,17 @@ def disclosure(persona: str = "friendly", human_of_record: str | None = None) ->
 # Live-class teaching loop (web-facing). Built lazily so /health and the other
 # endpoints don't pay curriculum/RAG load cost unless a class is used.
 _sessions: TeachingSessions | None = None
+_sessions_lock = _threading.Lock()
 
 
 def get_sessions() -> TeachingSessions:
     global _sessions
     if _sessions is None:
-        _sessions = TeachingSessions(
-            app.state.factory, memory_base_url=app.state.config.memory_base_url
-        )
+        with _sessions_lock:
+            if _sessions is None:
+                _sessions = TeachingSessions(
+                    app.state.factory, memory_base_url=app.state.config.memory_base_url
+                )
     return _sessions
 
 
@@ -372,9 +376,17 @@ def api_reengage(session_id: str, _=Depends(require_internal)) -> Reengagement:
         raise HTTPException(status_code=404, detail="unknown session")
 
 
+_assessment_start_locks: dict[str, _threading.Lock] = {}
+
+
+def _assessment_lock_for(key: str) -> _threading.Lock:
+    return _assessment_start_locks.setdefault(key, _threading.Lock())
+
+
 _AGENT_REWARD_POINTS = int(os.environ.get("AGENT_REWARD_POINTS", "10"))
 _AGENT_REWARD_SESSION_CAP = int(os.environ.get("AGENT_REWARD_SESSION_CAP", "30"))
 _session_reward_total: dict[str, int] = {}
+_reward_lock = _threading.Lock()
 
 
 def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
@@ -383,11 +395,11 @@ def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
         return
     if len(question.strip()) < 12:   # ignore trivial/empty questions
         return
-    awarded = _session_reward_total.get(session_id, 0)
-    if awarded >= _AGENT_REWARD_SESSION_CAP:
-        return
-    pts = min(_AGENT_REWARD_POINTS, _AGENT_REWARD_SESSION_CAP - awarded)
-    _session_reward_total[session_id] = awarded + pts
+    with _reward_lock:
+        if _session_reward_total.get(session_id, 0) >= _AGENT_REWARD_SESSION_CAP:
+            return
+        pts = min(_AGENT_REWARD_POINTS, _AGENT_REWARD_SESSION_CAP - _session_reward_total.get(session_id, 0))
+        _session_reward_total[session_id] = _session_reward_total.get(session_id, 0) + pts
     from aoep_shared.auth import sign_token
 
     reason = "Great question — keep engaging!"
@@ -1022,16 +1034,18 @@ def assessment_checkpoint_start(
     # restart all prior attempts are lost and attempt_number always starts at 1,
     # bypassing max_attempts. TODO: persist assessment_results to a durable store
     # (DB/Redis) to enforce the attempt limit correctly across restarts.
-    previous = [
-        result for result in app.state.assessment_results
-        if result.student_id == req.student_id
-        and result.course_id == course_id
-        and result.checkpoint_id == req.checkpoint_id
-    ]
-    attempt_number = len(previous) + 1
-    if attempt_number > policy.max_attempts:
-        raise HTTPException(status_code=409, detail="maximum checkpoint attempts exceeded")
-    run_id = f"assess-{uuid.uuid4().hex[:16]}"
+    _lock_key = f"{req.student_id}:{course_id}:{req.checkpoint_id}"
+    with _assessment_lock_for(_lock_key):
+        previous = [
+            result for result in app.state.assessment_results
+            if result.student_id == req.student_id
+            and result.course_id == course_id
+            and result.checkpoint_id == req.checkpoint_id
+        ]
+        attempt_number = len(previous) + 1
+        if attempt_number > policy.max_attempts:
+            raise HTTPException(status_code=409, detail="maximum checkpoint attempts exceeded")
+        run_id = f"assess-{uuid.uuid4().hex[:16]}"
     ksb_by_item, domain_by_item = _assessment_ksb_maps(course_id, items)
     if req.stage == AssessmentStage.SUMMATIVE:
         policy.required_domains = sorted(

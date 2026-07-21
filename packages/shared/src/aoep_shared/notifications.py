@@ -234,7 +234,7 @@ def _stable_id(*parts: str) -> str:
 
 
 def _iso(ts: _dt.datetime) -> str:
-    return ts.replace(microsecond=0, tzinfo=_dt.timezone.utc).isoformat()
+    return ts.astimezone(_dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
 def build_feed(
@@ -267,7 +267,8 @@ def build_feed(
     # inside notification text ("New audio class: <title>") render in
     # the same language as the framing.
     catalog = build_catalog(locale)
-    fresh = [c for c in catalog if c.id not in completed][:120]
+    in_progress_set = set(in_progress)
+    fresh = [c for c in catalog if c.id not in completed and c.id not in in_progress_set][:120]
 
     matched = []
     if interests_l:
@@ -280,7 +281,7 @@ def build_feed(
     for offset, c in enumerate(pool[:3]):
         ts = base - _dt.timedelta(minutes=15 * (offset + 1))
         items.append(NotificationItem(
-            id=_stable_id("new", student_id, c.id),
+            id=_stable_id("new", student_id, c.id, base.date().isoformat()),
             kind="new_class",
             title=_tr(locale, "new_class.title", title=c.title),
             body=_tr(locale, "new_class.body",
@@ -291,7 +292,7 @@ def build_feed(
             icon="sparkle",
         ))
 
-    by_id = {c.id: c for c in catalog}
+    by_id = {c.id: c for c in catalog if c.id not in completed}
     for offset, cid in enumerate(in_progress[:3]):
         c = by_id.get(cid)
         if c is None:

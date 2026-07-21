@@ -305,6 +305,7 @@ export default function LiveRoomScreen({
   // snapshot is unchanged so we don't re-render the whole screen every 3s on an
   // idle tick (a source of slow-timer jank).
   const lastRoomSigRef = useRef("");
+  const leftRef = useRef(false);
   const applyRoom = useCallback((next: LiveRoomState) => {
     setRoom((previous) => {
       // Socket/action snapshots are public by design. Preserve profile fields
@@ -374,10 +375,12 @@ export default function LiveRoomScreen({
   }, [moderatorKey, roomId]);
 
   useEffect(() => {
-    void refresh().finally(() => setLoading(false));
+    let alive = true;
+    void refresh().finally(() => { if (alive) setLoading(false); });
     void getLiveGiftCatalog()
-      .then((c) => setGiftCatalog(c.gifts))
-      .catch(() => setGiftCatalog([]));
+      .then((c) => { if (alive) setGiftCatalog(c.gifts); })
+      .catch(() => { if (alive) setGiftCatalog([]); });
+    return () => { alive = false; };
   }, [roomId]);
 
   // Heartbeat the room clock so a mobile-only group class still auto-starts,
@@ -751,10 +754,22 @@ export default function LiveRoomScreen({
   const leaveAndBack = () => {
     stopSpeech();
     if (participantId) {
+      leftRef.current = true;
       void leaveLiveRoom(roomId, participantId).catch(() => undefined);
     }
     onBack();
   };
+
+  // Ensure leave is called on unmount even if the user navigates away without
+  // tapping Leave explicitly (e.g. hardware back, deep link). Skip if leaveAndBack
+  // already fired to avoid a redundant double-call.
+  useEffect(() => {
+    return () => {
+      if (roomId && participantId && !leftRef.current) {
+        void leaveLiveRoom(roomId, participantId).catch(() => {});
+      }
+    };
+  }, [roomId, participantId]);
   useAndroidBackTo(leaveAndBack);
 
   // When the class ends (its allotted time expired), count down and then excuse
@@ -951,7 +966,7 @@ export default function LiveRoomScreen({
       <GlassPanel style={styles.hero}>
         <Text style={styles.presenterHost} numberOfLines={1}>
           🎓 {room?.host?.name ?? "Theodore (AI Host)"}
-          {room?.presenting ? ` · Slide ${(room?.slide.index ?? 0) + 1}` : " · Welcome"}
+          {room?.presenting ? ` · Slide ${(room?.slide?.index ?? 0) + 1}` : " · Welcome"}
         </Text>
         <ScrollView style={styles.heroScroll} contentContainerStyle={styles.heroContent}>
           <Text
@@ -960,7 +975,7 @@ export default function LiveRoomScreen({
               { fontSize: presenterTitleSize, lineHeight: presenterTitleSize * 1.18 },
             ]}
           >
-            {room?.presenting ? room?.slide.title : "Welcome to Transparent AI"}
+            {room?.presenting ? room?.slide?.title : "Welcome to Transparent AI"}
           </Text>
           <Text
             style={[
@@ -969,7 +984,7 @@ export default function LiveRoomScreen({
             ]}
           >
             {room?.presenting
-              ? (room?.slide.narration || room?.slide.body)
+              ? (room?.slide?.narration || room?.slide?.body)
               : room?.welcome_message}
           </Text>
         </ScrollView>

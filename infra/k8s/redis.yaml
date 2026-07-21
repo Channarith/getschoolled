@@ -63,6 +63,18 @@ spec:
             - "256mb"
             - --maxmemory-policy
             - volatile-lru
+            # Require password authentication. The password is sourced from the
+            # aoep-secrets Secret (key: redis-password). After adding auth, also
+            # update REDIS_URL in the ConfigMap to include the password:
+            #   redis://:$(REDIS_PASSWORD)@redis.aoep.svc.cluster.local:6379/0
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aoep-secrets
+                  key: redis-password
           ports: [{ containerPort: 6379, name: redis }]
           volumeMounts:
             - name: redis-data

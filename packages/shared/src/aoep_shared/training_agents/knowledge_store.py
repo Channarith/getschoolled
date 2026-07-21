@@ -238,8 +238,12 @@ class KnowledgeStore:
             else:
                 sql = "SELECT fact, source, reference, category, url FROM facts WHERE 1=1 "
                 if q:
-                    sql += "AND (fact LIKE ? OR source LIKE ? OR reference LIKE ? OR keywords LIKE ?) "
-                    like = f"%{q}%"
+                    sql += (
+                        "AND (fact LIKE ? ESCAPE '\\' OR source LIKE ? ESCAPE '\\' "
+                        "OR reference LIKE ? ESCAPE '\\' OR keywords LIKE ? ESCAPE '\\') "
+                    )
+                    q_escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                    like = f"%{q_escaped}%"
                     params += [like, like, like, like]
             if domain:
                 sql += "AND " + ("f.domains" if use_fts else "domains") + " LIKE ? "
@@ -270,8 +274,12 @@ class KnowledgeStore:
         sql = "SELECT fact, source, reference, category, url FROM facts WHERE 1=1 "
         params: List[object] = []
         if q:
-            sql += "AND (fact LIKE ? OR source LIKE ? OR reference LIKE ? OR keywords LIKE ?) "
-            like = f"%{q}%"
+            sql += (
+                "AND (fact LIKE ? ESCAPE '\\' OR source LIKE ? ESCAPE '\\' "
+                "OR reference LIKE ? ESCAPE '\\' OR keywords LIKE ? ESCAPE '\\') "
+            )
+            q_escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            like = f"%{q_escaped}%"
             params += [like, like, like, like]
         if domain:
             sql += "AND domains LIKE ? "
@@ -327,11 +335,19 @@ class KnowledgeStore:
             conn.close()
 
     def status(self) -> dict:
+        if self.backend == "sqlite":
+            conn = self._connect()
+            try:
+                fts5 = self._detect_fts(conn)
+            finally:
+                conn.close()
+        else:
+            fts5 = False
         return {
             "backend": self.backend,
             "persistent": self.persistent,
             "db_path": str(self.path) if self.backend == "sqlite" else "",
-            "fts5": self._detect_fts(self._connect()) if self.backend == "sqlite" else False,
+            "fts5": fts5,
             "count": self.total(),
             "signature": corpus_signature(),
         }

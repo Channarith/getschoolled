@@ -42,7 +42,7 @@ def load_yaml(path: str) -> dict:
 
 def read_jsonl(path: str) -> List[Dict]:
     rows: List[Dict] = []
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
             line = line.strip()
             if line:

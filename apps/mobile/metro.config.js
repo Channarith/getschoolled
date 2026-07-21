@@ -78,4 +78,29 @@ config.watcher = {
   healthCheck: { enabled: false },
 };
 
+// RN 0.74 ships many platform files as *.ios.js / *.android.js only (no *.web.js
+// / *.js). Expo web still walks into those modules for some graphs; fall back to
+// the iOS variant so the bundle can load instead of 500ing on the first miss.
+const priorResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const resolve = (plat) => {
+    if (typeof priorResolveRequest === "function") {
+      return priorResolveRequest(context, moduleName, plat);
+    }
+    return context.resolveRequest(context, moduleName, plat);
+  };
+  if (platform === "web") {
+    try {
+      return resolve("web");
+    } catch (webErr) {
+      try {
+        return context.resolveRequest(context, moduleName, "ios");
+      } catch {
+        throw webErr;
+      }
+    }
+  }
+  return resolve(platform);
+};
+
 module.exports = config;

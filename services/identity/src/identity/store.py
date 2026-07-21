@@ -672,12 +672,14 @@ class AccountStore:
                     ref: str = "", nonce: Optional[str] = None) -> tuple[int, int]:
         """Credit an AI-agent reward voucher to an account. Returns
         (new_balance, points_earned). Idempotent on the voucher nonce so a
-        re-submitted voucher does not double-credit."""
+        re-submitted voucher does not double-credit. A missing nonce is treated
+        as a blank string so every grant is always idempotency-checked."""
         acct = self._by_id[account_id]
-        if nonce and nonce in self._used_grant_nonces:
+        nonce = nonce or ""
+        nonce_key = f"{ref}\x00{nonce}"
+        if nonce_key in self._used_grant_nonces:
             return acct.points.balance, 0
-        if nonce:
-            self._used_grant_nonces.add(nonce)
+        self._used_grant_nonces.add(nonce_key)
         acct.points.earn(points, reason=reason, ref=ref)
         self._persist()
         return acct.points.balance, points
@@ -758,13 +760,13 @@ class AccountStore:
             key = lambda r: r["game_points"]  # noqa: E731
         rows.sort(key=key, reverse=True)
         out = []
+        rank = 1
         prev_score: Optional[int] = None
-        prev_rank = 0
-        for i, r in enumerate(rows[:limit], start=1):
+        for i, r in enumerate(rows[:limit]):
             score = key(r)
-            rank = i if score != prev_score else prev_rank
-            prev_score = score
-            prev_rank = rank
+            if score != prev_score:
+                rank = i + 1
+                prev_score = score
             out.append({"rank": rank, "name": r["name"], "account_id": r["account_id"],
                         "score": score, "game_points": r["game_points"],
                         "games_played": r["games_played"]})

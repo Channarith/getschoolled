@@ -17,6 +17,18 @@ spec:
             - name: retention-purge
               image: aoep/memory:latest
               command: ["python3", "scripts/retention_purge.py"]
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "250m"
+                  memory: "256Mi"
               env:
                 - name: MEMORY_URL
                   value: "http://memory:8000"
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: aoep-secrets
+                      key: DATABASE_URL

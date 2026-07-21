@@ -9,7 +9,7 @@ export default function MyListPage() {
   const [items, setItems] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [loggedIn, setLoggedIn] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
     if (!getToken()) { setLoggedIn(false); setLoading(false); return; }
@@ -20,10 +20,12 @@ export default function MyListPage() {
   }, []);
 
   async function remove(courseId: string) {
-    setItems((prev) => prev.filter((e) => e.course_id !== courseId));
-    try { await unsaveForLater(courseId); } catch { /* re-add on error */
-      const p = await getPortfolio().catch(() => null);
-      if (p) setItems(p.by_status?.saved ?? []);
+    const prev = items;
+    setItems((r) => r.filter((e) => e.course_id !== courseId));
+    try {
+      await unsaveForLater(courseId);
+    } catch {
+      setItems(prev); // revert optimistic removal on error
     }
   }
 

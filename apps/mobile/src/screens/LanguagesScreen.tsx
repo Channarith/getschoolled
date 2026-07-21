@@ -30,6 +30,8 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Guards callbacks after unmount so stale STT/TTS closures don't update state.
+  const mountedRef = useRef(true);
   // Latest passing target/course for the STT result callback (avoids stale closure).
   const targetRef = useRef<string>("");
   const codeRef = useRef<string>("");
@@ -43,8 +45,16 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Stop mic + narration when leaving the screen.
-  useEffect(() => () => { stopVoiceListening(); stopSpeech(); }, []);
+  // Stop mic + narration when leaving the screen; mark unmounted so stale
+  // voice callbacks (onResult/onEnd/onError) don't fire into unmounted state.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopVoiceListening();
+      stopSpeech();
+    };
+  }, []);
 
   const openCourse = useCallback(async (code: string) => {
     setError("");
@@ -123,16 +133,21 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     const ok = await startVoiceListening({
       locale: codeRef.current || "en",
       onResult: (transcript) => {
+        if (!mountedRef.current) return;
         setHeard(transcript);
         void checkPronunciation(transcript);
       },
       onError: (code) => {
+        if (!mountedRef.current) return;
         setListening(false);
         if (code === "permission_denied") setError(t("languages.micDenied"));
         else if (code === "unavailable") setError(t("languages.micUnavailable"));
         else if (code === "no-speech") setError(t("languages.micNoSpeech"));
       },
-      onEnd: () => setListening(false),
+      onEnd: () => {
+        if (!mountedRef.current) return;
+        setListening(false);
+      },
     });
     if (!ok) setListening(false);
   }

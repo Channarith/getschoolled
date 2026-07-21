@@ -613,11 +613,12 @@ export type ForesightResult = {
 export async function recommendForProfile(args: {
   student_id?: string; mastery: Record<string, number>;
   completed_course_ids?: string[]; interests?: string[]; top_n?: number;
-}): Promise<ForesightResult> {
+}, signal?: AbortSignal): Promise<ForesightResult> {
   return jsonOrThrow(
     await fetch(`${CURRICULUM_URL}/recommend`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify(args),
+      signal,
     })
   );
 }
@@ -647,11 +648,11 @@ export type LearnSearchResult = {
 
 export type HomeRail = { key: string; title: string; courses: CatalogCourse[] };
 
-export async function getHomeFeed(kids = false, locale = "en"): Promise<HomeRail[]> {
+export async function getHomeFeed(kids = false, locale = "en", signal?: AbortSignal): Promise<HomeRail[]> {
   const qs = new URLSearchParams({ locale });
   if (kids) qs.set("kids", "true");
   const r = await jsonOrThrow<{ rails: HomeRail[] }>(
-    await fetch(`${CURRICULUM_URL}/home?${qs}`, { cache: "no-store" }),
+    await fetch(`${CURRICULUM_URL}/home?${qs}`, { cache: "no-store", signal }),
   );
   return r.rails;
 }

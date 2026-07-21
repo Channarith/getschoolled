@@ -106,6 +106,11 @@ def _lock_for(session_id: str) -> threading.Lock:
     return _advance_locks.setdefault(session_id, threading.Lock())
 
 
+def _evict_session_lock(session_id: str) -> None:
+    """Remove the advance lock for a session when it ends to prevent unbounded growth."""
+    _advance_locks.pop(session_id, None)
+
+
 def _offline_answer(question: str, context: List[str]) -> str:
     if context:
         snippet = " ".join(" ".join(context).split())[:400]
@@ -238,6 +243,7 @@ class TeachingSessions:
         return self.lesson_for(session_id).slides[session.current_slide]
 
     def advance(self, session_id: str) -> Slide:
+        # WARNING: cross-replica race; use Redis INCR for multi-replica deployments
         with _lock_for(session_id):
             session = self._require(session_id)
             lesson = self.lesson_for(session_id)
@@ -356,6 +362,8 @@ class TeachingSessions:
         on the full text at the end, and ``corrected`` flags when the guarded
         answer differs from what was streamed.
         """
+        # NOTE: session is captured here and may be stale if another request
+        # modifies it concurrently. This is inherent to the current snapshot design.
         session = self._require(session_id)
         messages, context, norm, _tone = self._ask_prompt(session, question, language, dialect)
         streamed: list[str] = []

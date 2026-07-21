@@ -513,10 +513,15 @@ class StatusUpdate(BaseModel):
     score: float | None = None
     level: str | None = None
     hands_on: bool | None = None
+    pass_decision_token: str | None = None
 
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
+    # Require verified assessment token for PASSED status
+    if req.status == EnrollmentStatus.PASSED and not req.pass_decision_token:
+        raise HTTPException(status_code=422, detail="pass_decision_token required for PASSED status")
+    # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
             acct.id, course_id, req.status, score=req.score, level=req.level,

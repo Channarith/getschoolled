@@ -82,6 +82,7 @@ export default function LessonScreen({
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
   const assessmentStartingRef = useRef(false);
   const finishingRef = useRef(false);
+  const submittingRef = useRef(false);
   const interstitial = useInterstitial(account?.tier);
   const advanceCountRef = useRef(0);
   const MIDROLL_EVERY_ADVANCES = 4;
@@ -246,23 +247,29 @@ export default function LessonScreen({
   }
 
   async function onAssessmentSubmitted(result: AssessmentSubmitResult) {
-    const checkpointId = result.attempt.checkpoint_id;
-    if (result.attempt.passed || result.attempt.stage === "formative") {
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
-    }
-    setAssessmentResult(result);
-    setAssessmentRun(null);
-    if (result.attempt_result_token && account) {
-      recordAssessmentAttempt(studentIdRef.current, result.attempt_result_token).catch(() => {});
-    }
-    if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
-    if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
-      await awardVerifiedPass(result.pass_decision_token);
-      try {
-        const surveyRes = await getPostClassSurvey(view?.lesson.lesson_id, account?.tier);
-        if (surveyRes.enabled && surveyRes.template) setSurveyTpl(surveyRes.template);
-      } catch { /* optional */ }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      const checkpointId = result.attempt.checkpoint_id;
+      if (result.attempt.passed || result.attempt.stage === "formative") {
+        completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+      }
+      setAssessmentResult(result);
+      setAssessmentRun(null);
+      if (result.attempt_result_token && account) {
+        recordAssessmentAttempt(studentIdRef.current, result.attempt_result_token).catch(() => {});
+      }
+      if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
+      if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
+        completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+        await awardVerifiedPass(result.pass_decision_token);
+        try {
+          const surveyRes = await getPostClassSurvey(view?.lesson.lesson_id, account?.tier);
+          if (surveyRes.enabled && surveyRes.template) setSurveyTpl(surveyRes.template);
+        } catch { /* optional */ }
+      }
+    } finally {
+      submittingRef.current = false;
     }
   }
 
@@ -386,49 +393,53 @@ export default function LessonScreen({
   async function onFinish() {
     if (finishingRef.current) return;
     finishingRef.current = true;
-    if (!view || assessmentRun) { finishingRef.current = false; return; }
-    const idx = slide?.index ?? view.lesson.slides.length - 1;
-    if (await maybeOpenDueCheckpoint(idx, true)) return;
-    // Mobile professional courses: prefer verified pass when policy has a summative.
-    const hasSummative = assessmentPolicy.some((cp) => cp.stage === "summative");
-    if (
-      hasSummative
-      && !canAwardCourseCompletion({
-        requireVerifiedPass: true,
-        passDecisionToken,
-      })
-    ) {
-      const summative = findDueSummativeCheckpoint(
-        assessmentPolicy, idx, completedCheckpointsRef.current,
-      );
-      if (summative) {
-        await openCheckpoint(summative);
-        return;
-      }
-      const finalCp = assessmentPolicy.find((cp) => cp.stage === "summative");
-      if (finalCp) {
-        completedCheckpointsRef.current = new Set(
-          [...completedCheckpointsRef.current].filter((id) => id !== finalCp.checkpoint_id),
-        );
-        await openCheckpoint(finalCp as AssessmentCheckpointSpec);
-        return;
-      }
-      setError("Pass the end-of-course assessment to finish this course.");
-      return;
-    }
-    if (passDecisionToken && account) {
-      await awardVerifiedPass(passDecisionToken);
-    } else {
-      await awardCompletion();
-    }
     try {
-      const res = await getPostClassSurvey(view.lesson.lesson_id, account?.tier);
-      if (res.enabled && res.template) {
-        setSurveyTpl(res.template);
+      if (!view || assessmentRun) { return; }
+      const idx = slide?.index ?? view.lesson.slides.length - 1;
+      if (await maybeOpenDueCheckpoint(idx, true)) return;
+      // Mobile professional courses: prefer verified pass when policy has a summative.
+      const hasSummative = assessmentPolicy.some((cp) => cp.stage === "summative");
+      if (
+        hasSummative
+        && !canAwardCourseCompletion({
+          requireVerifiedPass: true,
+          passDecisionToken,
+        })
+      ) {
+        const summative = findDueSummativeCheckpoint(
+          assessmentPolicy, idx, completedCheckpointsRef.current,
+        );
+        if (summative) {
+          await openCheckpoint(summative);
+          return;
+        }
+        const finalCp = assessmentPolicy.find((cp) => cp.stage === "summative");
+        if (finalCp) {
+          completedCheckpointsRef.current = new Set(
+            [...completedCheckpointsRef.current].filter((id) => id !== finalCp.checkpoint_id),
+          );
+          await openCheckpoint(finalCp as AssessmentCheckpointSpec);
+          return;
+        }
+        setError("Pass the end-of-course assessment to finish this course.");
         return;
       }
-    } catch { /* optional */ }
-    onBack();
+      if (passDecisionToken && account) {
+        await awardVerifiedPass(passDecisionToken);
+      } else {
+        await awardCompletion();
+      }
+      try {
+        const res = await getPostClassSurvey(view.lesson.lesson_id, account?.tier);
+        if (res.enabled && res.template) {
+          setSurveyTpl(res.template);
+          return;
+        }
+      } catch { /* optional */ }
+      onBack();
+    } finally {
+      finishingRef.current = false;
+    }
   }
 
   async function onSurveySubmit(answers: Record<string, string | number | boolean>) {

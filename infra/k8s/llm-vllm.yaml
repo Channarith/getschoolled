@@ -35,7 +35,12 @@ spec:
               value: "/models/aoep-base-edu"
           ports: [{ containerPort: 8000 }]
           resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
             limits:
+              cpu: "4"
+              memory: "16Gi"
               nvidia.com/gpu: 1
           volumeMounts:
             - name: model-weights

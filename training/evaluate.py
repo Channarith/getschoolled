@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import re
+import sys
 from typing import Dict, List
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -128,7 +129,10 @@ def main(argv: list[str] | None = None) -> int:
         text = tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
         scores.append(token_f1(text, row["response"]))
 
-    mean = sum(scores) / len(scores) if scores else 0.0
+    if not scores:
+        print("ERROR: eval file is empty", file=sys.stderr)
+        return 1
+    mean = sum(scores) / len(scores)
     print(json.dumps({"n": len(scores), "token_f1": round(mean, 4)}))
     return 0
 

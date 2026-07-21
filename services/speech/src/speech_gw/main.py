@@ -8,6 +8,8 @@ the offline tests.
 
 from __future__ import annotations
 
+import os
+
 from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
@@ -36,8 +38,11 @@ def languages() -> LanguagesResponse:
 
 @app.get("/tts/engine", response_model=TtsEngineResponse)
 def tts_engine(language: str) -> TtsEngineResponse:
-    provider = app.state.factory.speech()
-    return TtsEngineResponse(language=language, engine=provider.tts_engine(language))
+    try:
+        provider = app.state.factory.speech()
+        return TtsEngineResponse(language=language, engine=provider.tts_engine(language))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"speech provider unavailable: {exc}")
 
 
 def _active_tts_engine() -> str:
@@ -126,7 +131,17 @@ def tts_instructors() -> dict:
 @app.get("/tts")
 def tts_get(text: str, language: str = "en", voice_style: str = "standard",
             voice: str = "", instructor: str = "", slang: bool = True) -> Response:
-    """GET variant so mobile (expo-av) can load audio directly from a URI."""
+    """GET variant so mobile (expo-av) can load audio directly from a URI.
+
+    NOTE: passing lesson text as a URL query parameter exposes it in server
+    logs. This is a known issue; prefer POST /tts for sensitive text.
+    """
+    # Limit query-param text length to reduce log exposure of lesson content.
+    if len(text) > 1000:
+        raise HTTPException(
+            status_code=413,
+            detail="text exceeds 1000-character limit for GET /tts; use POST /tts instead",
+        )
     return _render_tts(text, language=language, voice_style=voice_style, voice=voice,
                        instructor=instructor, slang=slang)
 
@@ -150,8 +165,6 @@ def _render_tts(text: str, *, language: str, voice_style: str,
     text = (text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    if len(text) > 5000:
-        text = text[:5000]
     cfg = app.state.config
     headers = {"Cache-Control": "no-store"}
 
@@ -172,6 +185,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
         voice_style = persona.voice_style
 
     # Regional slang: rewrite the narration in the voice's dialect flavor.
+    # Applied BEFORE truncation so the expansion doesn't push us past the limit.
     if slang and chosen and chosen.dialect:
         try:
             from aoep_shared.dialect import humanize_narration
@@ -180,11 +194,20 @@ def _render_tts(text: str, *, language: str, voice_style: str,
         except Exception:
             pass  # slang is best-effort; never fail narration over it
 
+    # Truncate after slang expansion so provider character limits are respected.
+    if len(text) > 5000:
+        text = text[:5000]
+
     # 0) CosyVoice 2 (self-hosted) is preferred when configured. The instructor's
     #    tone hint becomes the natural-language instruction (instruct2 mode).
     from aoep_shared import cosyvoice_tts
 
-    if cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", "")):
+    try:
+        cosyvoice_ready = cosyvoice_tts.cosyvoice_configured(getattr(cfg, "cosyvoice_url", ""))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid cosyvoice_url: {exc}")
+
+    if cosyvoice_ready:
         try:
             audio, ctype = cosyvoice_tts.synthesize(
                 text, base_url=cfg.cosyvoice_url, language=speak_lang,
@@ -194,7 +217,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
             )
             return Response(content=audio, media_type=ctype or "audio/wav",
                             headers={**headers, "X-TTS-Engine": "cosyvoice"})
-        except cosyvoice_tts.CosyVoiceError:
+        except (cosyvoice_tts.CosyVoiceError, ValueError):
             pass  # fall through to ElevenLabs / edge-tts / client fallback
 
     from aoep_shared import elevenlabs_tts
@@ -220,7 +243,9 @@ def _render_tts(text: str, *, language: str, voice_style: str,
 
     from aoep_shared.meeting.natural_tts import synthesize_neural
 
-    tmp = Path(tempfile.mkstemp(suffix=".mp3")[1])
+    _fd, _tmp_str = tempfile.mkstemp(suffix=".mp3")
+    os.close(_fd)  # close immediately; we only need the path
+    tmp = Path(_tmp_str)
     try:
         if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice,
                              rate=edge_rate, pitch=edge_pitch):
@@ -312,6 +337,8 @@ def translate(req: TranslateRequest) -> dict:
     except NotImplementedError as exc:
         # Pair is valid; the NLLB model just isn't loaded in this environment.
         raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"translation failed: {exc}")
     return {"source": req.source, "target": req.target, "text": translated}
 
 
