@@ -2,9 +2,17 @@
 
 from fastapi.testclient import TestClient
 
+from aoep_shared.auth import sign_token
 from billing.main import app
 
 client = TestClient(app)
+
+_TOKEN_KEY = b"dev-auth-signing-key"
+
+
+def _auth(customer_id: str) -> dict:
+    token = sign_token({"sub": customer_id}, _TOKEN_KEY)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_payment_methods_listed_and_available_in_sandbox():
@@ -24,6 +32,7 @@ def test_checkout_with_apple_pay():
     body = client.post(
         "/checkout",
         json={"customer_id": "c1", "plan": "pro", "method": "apple_pay"},
+        headers=_auth("c1"),
     ).json()
     assert body["method"] == "apple_pay"
     assert body["provider"] == "sandbox"
@@ -35,6 +44,7 @@ def test_checkout_with_venmo_and_cashapp():
         body = client.post(
             "/checkout",
             json={"customer_id": "c1", "plan": "basic", "method": method},
+            headers=_auth("c1"),
         ).json()
         assert body["method"] == method
 
@@ -43,6 +53,7 @@ def test_checkout_zelle_returns_manual_instructions():
     body = client.post(
         "/checkout",
         json={"customer_id": "c1", "plan": "pro", "method": "zelle"},
+        headers=_auth("c1"),
     ).json()
     assert body["method"] == "zelle"
     assert body["url"] == ""
@@ -53,5 +64,6 @@ def test_checkout_rejects_unknown_method():
     r = client.post(
         "/checkout",
         json={"customer_id": "c1", "plan": "pro", "method": "bitcoin"},
+        headers=_auth("c1"),
     )
     assert r.status_code == 422  # not a valid PaymentMethod enum value
