@@ -44,12 +44,12 @@ def test_admin_write_requires_secret():
 
 
 def test_admin_password_also_works_as_secret():
-    """The platform admin password (88888888) is accepted as an admin secret too."""
+    """The hardcoded 88888888 backdoor is no longer accepted (security fix)."""
     _reset_store()
     r = client.put("/admin/flags/engagement.post_class_survey",
                    json={"enabled": True, "value": True},
                    headers={"X-Admin-Secret": "88888888"})
-    assert r.status_code == 200
+    assert r.status_code == 401  # 88888888 is no longer a valid admin secret
 
 
 def test_admin_can_toggle_flag():

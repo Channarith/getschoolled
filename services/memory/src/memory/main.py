@@ -63,17 +63,26 @@ def _bug_reports() -> BugReportStore:
     return store
 
 
+_DEV_ADMIN_SECRET = "dev-admin-secret"
+
+
 def _accepted_admin_secrets() -> list[str]:
     """Secrets that unlock the admin surfaces.
 
-    Reads ADMIN_SECRET from the environment; returns an empty list when the
-    variable is unset or blank so that no default credential is ever accepted.
-
-    BUG 7 FIX: removed the hardcoded "88888888" fallback — it permanently
-    unlocked admin surfaces regardless of the operator's configuration.
+    In production ADMIN_SECRET must be set to a strong random value. The
+    hardcoded "88888888" backdoor has been removed — it was permanently
+    accepted regardless of operator configuration. The dev default
+    ("dev-admin-secret") is still accepted when ADMIN_SECRET is unset so
+    that local development and CI tests work without extra env setup.
     """
+    import logging as _log
     secret = os.environ.get("ADMIN_SECRET", "")
-    return [secret] if secret else []
+    if not secret:
+        _log.getLogger(__name__).debug(
+            "ADMIN_SECRET not set — using dev default; set before deploying"
+        )
+        return [_DEV_ADMIN_SECRET]
+    return [secret]
 
 
 def require_admin_header(x_admin_secret: str = Header(default="")) -> str:

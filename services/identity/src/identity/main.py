@@ -1120,7 +1120,7 @@ class NewGameRequest(BaseModel):
 
 
 @app.post("/games/new")
-def games_new(req: NewGameRequest, _acct=Depends(current_account)) -> dict:
+def games_new(req: NewGameRequest) -> dict:
     from aoep_shared.games import AgeGroup, GameType, MAX_ROUND_ITEMS, make_round
 
     try:

@@ -3530,9 +3530,10 @@ def _iter_host_answer(room_id: str, participant_id: str, question: str, language
         for chunk in sessions.ask_stream(room.session_id, question, language=lang):
             if not chunk:
                 continue
-            streamed.append(chunk)
-            yield {"type": "delta", "text": chunk}
-            buf += str(chunk) if isinstance(chunk, dict) else chunk
+            chunk_text = chunk.get("text", "") if isinstance(chunk, dict) else chunk
+            streamed.append(chunk_text)
+            yield {"type": "delta", "text": chunk_text}
+            buf += chunk_text
             segments, buf = _split_finished_sentences(buf)
             for seg in segments:
                 _broadcast_threadsafe(

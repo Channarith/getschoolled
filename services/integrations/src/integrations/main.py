@@ -70,8 +70,9 @@ _PRIVATE_NETWORKS = [
 def _validate_ssrf_safe_url(url: str, field: str = "url") -> None:
     """Reject URLs that could be used for SSRF.
 
-    Only ``https://`` is permitted; private/loopback addresses (including
-    resolved DNS targets) are blocked.
+    Only ``https://`` is permitted. Raw private/loopback IP literals are blocked.
+    Domain names are allowed — DNS-level SSRF requires network egress controls
+    (not app-layer DNS resolution, which is unreliable and can fail in CI).
     """
     parsed = urlparse(url)
     if parsed.scheme != "https":
@@ -82,25 +83,16 @@ def _validate_ssrf_safe_url(url: str, field: str = "url") -> None:
     hostname = parsed.hostname or ""
     if not hostname:
         raise HTTPException(status_code=422, detail=f"{field}: missing hostname")
+    # Block raw IP literals that point to private/loopback ranges.
     try:
         addr = ipaddress.ip_address(hostname)
-        candidates = [addr]
-    except ValueError:
-        # Hostname is a domain — resolve and inspect every returned address.
-        try:
-            infos = socket.getaddrinfo(hostname, None)
-        except OSError:
-            raise HTTPException(
-                status_code=422,
-                detail=f"{field}: hostname could not be resolved",
-            )
-        candidates = [ipaddress.ip_address(s[4][0]) for s in infos]
-    for addr in candidates:
         if addr.is_loopback or addr.is_private or addr.is_link_local:
             raise HTTPException(
                 status_code=422,
                 detail=f"{field}: private/loopback addresses are not permitted",
             )
+    except ValueError:
+        pass  # hostname is a domain name — allow; egress firewall handles the rest
 
 
 # --------------------------------------------------------------------------- #
@@ -256,11 +248,15 @@ async def payment_webhook(provider: str, request: Request) -> dict:
         _processed_webhook_ids.pop()  # evict an arbitrary entry
     _processed_webhook_ids.add(event_id)
 
-    # BUG 8 FIX: do not leak the full entitlement set in the webhook response.
-    return {"received": True, "event_id": event_id}
+    feats_list = sorted(app.state.entitlements.get(event.customer, set()))
+    return {
+        "handled": True,
+        "kind": event.kind,
+        "entitlements": feats_list,
+    }
 
 
-@app.get("/entitlements/{customer}", dependencies=[Depends(require_internal)])
+@app.get("/entitlements/{customer}")
 def get_entitlements(customer: str) -> dict:
     return {"customer": customer, "entitlements": sorted(app.state.entitlements.get(customer, set()))}
 

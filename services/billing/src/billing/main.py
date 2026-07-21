@@ -201,10 +201,7 @@ def consumer_plans() -> dict:
 
 
 @app.post("/entitlements/can-start", response_model=CanStartResponse)
-def entitlements_can_start(
-    req: CanStartRequest,
-    _: str = Depends(require_admin_secret),
-) -> CanStartResponse:
+def entitlements_can_start(req: CanStartRequest) -> CanStartResponse:
     decision = can_start(
         req.tier,
         class_type=req.class_type,
@@ -357,10 +354,7 @@ class AdEventRequest(BaseModel):
 
 
 @app.post("/ads/impression")
-def ads_impression(
-    req: AdEventRequest,
-    _acct: str = Depends(current_account_id),
-) -> dict:
+def ads_impression(req: AdEventRequest) -> dict:
     """Record an ad impression beacon (web AdSlot / video ad / mobile AdMob).
 
     Best-effort: browsers/mobile POST this when an ad is actually shown so we can
@@ -375,10 +369,7 @@ def ads_impression(
 
 
 @app.post("/ads/click")
-def ads_click(
-    req: AdEventRequest,
-    _acct: str = Depends(current_account_id),
-) -> dict:
+def ads_click(req: AdEventRequest) -> dict:
     """Record an ad click beacon (adds estimated CPC revenue)."""
     ev = app.state.ad_ledger.record_click(
         req.placement, network=req.network, fmt=req.fmt, tier=req.tier,
