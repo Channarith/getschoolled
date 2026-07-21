@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, FlatList, RefreshControl, ScrollView,
+  Animated, ActivityIndicator, FlatList, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 
@@ -156,6 +156,17 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
 
   const selected = lessons.find(l => l.lesson_id === lessonId);
 
+  // Sticky footer slides up when a lesson is selected, back down when cleared.
+  const footerY = useRef(new Animated.Value(80)).current;
+  useEffect(() => {
+    Animated.spring(footerY, {
+      toValue: lessonId ? 0 : 80,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 10,
+    }).start();
+  }, [lessonId]);
+
   function start() {
     if (!lessonId || !selected) return;
     onStart(lessonId, selected.title, classType);
@@ -277,16 +288,28 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
             </View>
           ))}
 
-          <View style={{ marginTop: 20, marginBottom: 8 }}>
-            <PrimaryButton
-              label={selected ? `Start: ${selected.title}` : t("liveClass.startSolo")}
-              onPress={start}
-              disabled={!lessonId}
-              variant="netflix"
-            />
-          </View>
         </ScrollView>
       )}
+
+      {/* Sticky footer — slides up as soon as a lesson is tapped */}
+      <Animated.View style={[styles.stickyFooter, { transform: [{ translateY: footerY }] }]}>
+        <View style={styles.stickyInner}>
+          <View style={styles.stickyInfo}>
+            <Text style={styles.stickyLabel} numberOfLines={1}>
+              {selected ? selected.title : t("liveClass.startSolo")}
+            </Text>
+            {selected?.level ? <Text style={styles.stickyMeta}>{selected.level}</Text> : null}
+          </View>
+          <TouchableOpacity
+            onPress={start}
+            disabled={!lessonId}
+            style={[styles.stickyBtn, !lessonId && styles.stickyBtnDisabled]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.stickyBtnText}>▶  Start</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -319,7 +342,7 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.screenX,
     textTransform: "uppercase",
   },
-  list: { paddingBottom: 32 },
+  list: { paddingBottom: 100 }, // space for sticky footer
   lessonRow: {
     marginHorizontal: theme.spacing.screenX,
     borderRadius: theme.radius.md,
@@ -340,4 +363,33 @@ const styles = StyleSheet.create({
   lessonSummary: { color: theme.colors.muted, fontSize: 12, marginTop: 4, lineHeight: 17 },
   lessonAudience: { color: theme.colors.muted, fontSize: 11, marginTop: 4, textTransform: "capitalize" },
   err: { color: theme.colors.netflix, fontSize: 13 },
+  // Sticky footer
+  stickyFooter: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(10,12,24,0.97)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(110,168,254,0.2)",
+    paddingHorizontal: theme.spacing.screenX,
+    paddingTop: 12,
+    paddingBottom: 28, // safe-area-ish space above tab bar
+  },
+  stickyInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stickyInfo: { flex: 1 },
+  stickyLabel: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  stickyMeta: { color: theme.colors.muted, fontSize: 11, marginTop: 2 },
+  stickyBtn: {
+    backgroundColor: theme.colors.netflix,
+    borderRadius: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+  },
+  stickyBtnDisabled: { opacity: 0.35 },
+  stickyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });
