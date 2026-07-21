@@ -285,6 +285,7 @@ function ParticipantTile({
   onToggleAudio,
   fill,
   showAdminProfile,
+  presenceFaceCount,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -308,6 +309,8 @@ function ParticipantTile({
   fill?: boolean;
   /** Private readiness details; only set for a verified room moderator/admin. */
   showAdminProfile?: boolean;
+  /** Face count from on-device presence probe; -1 = not probed, 0 = absent, >0 = present. Only set for isMe tile. */
+  presenceFaceCount?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -435,6 +438,59 @@ function ParticipantTile({
           {isHost ? "🎓" : initials(p.name)}
         </div>
       )}
+      {isMe && cameraOn && hasVideo ? (() => {
+        const detected = presenceFaceCount !== undefined && presenceFaceCount > 0;
+        const notYetProbed = presenceFaceCount === undefined || presenceFaceCount === -1;
+        const color = notYetProbed ? "rgba(255,255,255,0.25)" : detected ? "#22c55e" : "#f59e0b";
+        const pulseStyle = !detected && !notYetProbed ? {
+          animation: "presence-pulse 1.5s ease-in-out infinite",
+        } : {};
+        return (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+              zIndex: 5,
+            }}
+          >
+            <svg
+              viewBox="0 0 60 90"
+              width={large ? 72 : 48}
+              height={large ? 108 : 72}
+              fill="none"
+              style={{ opacity: detected ? 0.35 : 0.75, ...pulseStyle, transition: "opacity 0.4s" }}
+            >
+              <circle cx="30" cy="20" r="13" stroke={color} strokeWidth="2.5" />
+              <path
+                d="M6 78 C6 56 15 46 30 46 C45 46 54 56 54 78"
+                stroke={color}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            {!detected && !notYetProbed ? (
+              <div style={{
+                marginTop: 4,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#f59e0b",
+                background: "rgba(0,0,0,0.6)",
+                borderRadius: 6,
+                padding: "2px 8px",
+                letterSpacing: 0.3,
+              }}>
+                Keep your face in view 👁
+              </div>
+            ) : null}
+          </div>
+        );
+      })() : null}
       {onToggleAudio ? (
         <button
           type="button"
@@ -612,6 +668,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const presenceProbeVideoRef = useRef<HTMLVideoElement | null>(null);
   const presenceEngineRef = useRef<VisionEngine | null>(null);
   const presenceProbeBusyRef = useRef(false);
+  const [presenceFaceCount, setPresenceFaceCount] = useState<number>(-1);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -876,7 +933,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       cameraOn &&
       localStream
     );
-    if (!enabled) return;
+    if (!enabled) {
+      setPresenceFaceCount(-1);
+      return;
+    }
     let cancelled = false;
     const run = async () => {
       if (cancelled || presenceProbeBusyRef.current) return;
@@ -888,6 +948,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           presenceEngineRef.current = await createVisionEngine();
         }
         const faces = presenceEngineRef.current.detectAndEmbed(source);
+        setPresenceFaceCount(faces.length);
         let present = faces.length > 0;
         let livenessState: "live" | "unknown" | "spoof" | "absent" = present ? "unknown" : "absent";
         let livenessScore = 0;
@@ -2153,6 +2214,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           78% { opacity: 1; transform: translate(-50%, -55%) scale(1); }
           100% { opacity: 0; transform: translate(-50%, -90%) scale(1.35); }
         }
+        @keyframes presence-pulse {
+          0%, 100% { opacity: 0.75; }
+          50% { opacity: 0.35; }
+        }
       `}</style>
 
       {error && (
@@ -2706,6 +2771,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                   isMe={p.id === me?.id}
+                  presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
                   cameraOn={p.id === me?.id ? cameraOn : undefined}
                   onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
                   audioMuted={locallyMutedIds.has(p.id)}

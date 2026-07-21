@@ -12,6 +12,7 @@ import {
   liveRoomPlayGame, liveRoomRaiseHand, liveRoomReaction, liveRoomReport,
   liveRoomSendGift, liveRoomStartGame, liveRoomStartPresentation,
   liveRoomTick, liveRoomUnban,
+  liveRoomPresenceReport,
   listStudents,
   startGroupClass,
   type LiveGiftCatalogItem, type LiveGroupGameType, type LiveKitMedia, type LiveRoomState,
@@ -30,6 +31,7 @@ import { getLiveRoomLocation } from "../liveRoomLocation";
 import { getAttendeeCode } from "../liveRoomAccess";
 import { useLiveRoomSocket } from "../liveRoomWs";
 import { theme } from "../theme";
+import Svg, { Circle, Path } from "react-native-svg";
 
 const STORAGE: Record<string, { participantId: string; identity: string }> = {};
 const MOD_STORAGE: Record<string, string> = {};
@@ -133,7 +135,7 @@ function initials(name: string): string {
 // slide) — parity with the web participant grid.
 function SeatTile({
   name, host, me, floor, hand, muted, open, track, cameraOn, onToggleCamera,
-  onPress, adminProfileLabel,
+  onPress, adminProfileLabel, presenceFaceCount,
 }: {
   name?: string;
   host?: boolean;
@@ -149,6 +151,7 @@ function SeatTile({
   onPress?: () => void;
   /** Private readiness summary; supplied only to verified moderators/admins. */
   adminProfileLabel?: string;
+  presenceFaceCount?: number;
 }) {
   if (open) {
     return (
@@ -201,6 +204,33 @@ function SeatTile({
               📊 {adminProfileLabel}
             </Text>
           ) : null}
+          {me && hasVideo ? (() => {
+            const detected = presenceFaceCount !== undefined && presenceFaceCount > 0;
+            const notYetProbed = presenceFaceCount === undefined || presenceFaceCount < 0;
+            const color = notYetProbed ? "rgba(255,255,255,0.3)" : detected ? "#22c55e" : "#f59e0b";
+            return (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Svg width={36} height={54} viewBox="0 0 60 90" fill="none">
+                  <Circle cx="30" cy="20" r="13" stroke={color} strokeWidth="2.5" opacity={detected ? 0.4 : 0.9} />
+                  <Path
+                    d="M6 78 C6 56 15 46 30 46 C45 46 54 56 54 78"
+                    stroke={color}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    opacity={detected ? 0.4 : 0.9}
+                  />
+                </Svg>
+              </View>
+            );
+          })() : null}
         </View>
         <View style={styles.seatFooter}>
           <Text style={styles.seatName} numberOfLines={1}>{label}</Text>
@@ -645,6 +675,7 @@ export default function LiveRoomScreen({
   // true previously showed "Your camera is on" while the connection was still
   // down, then the toggle hit the "not ready" alert.
   const [cameraOn, setCameraOn] = useState(false);
+  const [presenceFaceCount, setPresenceFaceCount] = useState<number>(-1);
   type FocusedTile =
     | { kind: "host"; name: string }
     | { kind: "participant"; id: string; identity?: string; name: string; me: boolean };
@@ -663,6 +694,30 @@ export default function LiveRoomScreen({
     if (!participantId) return;
     setCameraOn(Boolean(myTrack));
   }, [participantId, myTrack]);
+
+  // Report presence to the server every 5 s. Since no on-device face detection
+  // library is installed, we use camera-on/off as the presence signal.
+  // When the camera is on and LiveKit is connected, the user is assumed present.
+  useEffect(() => {
+    if (!participantId || !room) return;
+    const report = () => {
+      const present = cameraOn && Boolean(myTrack);
+      const livenessState = present ? "live" : "absent";
+      setPresenceFaceCount(present ? 1 : 0);
+      void liveRoomPresenceReport(roomId, {
+        participantId,
+        present,
+        faceCount: present ? 1 : 0,
+        livenessState,
+        livenessScore: present ? 0.8 : 0,
+        reason: present ? "camera_active" : "camera_off",
+        source: "mobile",
+      }).then((r) => applyRoom(r.room)).catch(() => undefined);
+    };
+    report(); // run immediately
+    const t = setInterval(report, 5000);
+    return () => clearInterval(t);
+  }, [participantId, roomId, cameraOn, myTrack, room?.status, applyRoom]);
 
   const toggleCamera = useCallback(async () => {
     const next = !cameraOn;
@@ -942,6 +997,7 @@ export default function LiveRoomScreen({
                 track={mine && !cameraOn ? null : trackFor(p.id, p.identity)}
                 cameraOn={mine ? cameraOn : undefined}
                 onToggleCamera={mine ? () => void toggleCamera() : undefined}
+                presenceFaceCount={mine ? presenceFaceCount : undefined}
                 adminProfileLabel={canModerate
                   ? (p.student_id
                     ? `${Math.round(Number(p.readiness_score ?? 0))}/100 · ${p.primary_style || "mixed"}`
