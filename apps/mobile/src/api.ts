@@ -479,6 +479,10 @@ export type LessonRow = {
   title: string;
   language?: string;
   audience?: string;
+  track?: string;
+  level?: string;
+  role?: string;
+  summary?: string;
 };
 
 export type GroupClassRow = {
@@ -501,7 +505,10 @@ export type GroupClassRow = {
   audit_required?: boolean;
   audit_status?: string;
   instructor_name?: string;
+  language?: string;
+  audience?: string;
   instructor_account_id?: string;
+  created_by_account_id?: string;
   price_per_user_usd?: number;
   commission_rate?: number;
   payment_required?: boolean;
@@ -544,6 +551,7 @@ export type ScheduleGroupClassInput = {
   capacity?: number;
   room_size?: number;
   language?: string;
+  audience?: string;
   marketplace_listing?: boolean;
   audit_required?: boolean;
   credentials_summary?: string;
@@ -709,8 +717,13 @@ export type LiveGroupGame = {
 
 export type LiveKitMedia = { room: string; identity: string; token: string; url: string };
 
-export async function listLessons(): Promise<LessonRow[]> {
-  return get<LessonRow[]>(ORCHESTRATOR_URL, "/api/lessons");
+export async function listLessons(opts?: { q?: string; language?: string; audience?: string }): Promise<LessonRow[]> {
+  const p = new URLSearchParams();
+  if (opts?.q) p.set("q", opts.q);
+  if (opts?.language) p.set("language", opts.language);
+  if (opts?.audience) p.set("audience", opts.audience);
+  const qs = p.toString();
+  return get<LessonRow[]>(ORCHESTRATOR_URL, `/api/lessons${qs ? `?${qs}` : ""}`);
 }
 
 export async function listGroupClasses(upcoming = true): Promise<GroupClassRow[]> {

@@ -143,6 +143,7 @@ class GroupClass:
     capacity: int = 100
     room_size: int = 6  # Salareen grid: 4, 6, or 9 total seats including AI host
     language: str = "en"
+    audience: str = "general"
     description: str = ""
     created_by_account_id: str = ""
     instructor_account_id: str = ""

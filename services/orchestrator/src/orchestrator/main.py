@@ -183,8 +183,16 @@ class AskRequest(BaseModel):
 
 
 @app.get("/api/lessons", response_model=list[Lesson])
-def api_lessons() -> list[Lesson]:
-    return get_sessions().list_lessons()
+def api_lessons(q: str = "", language: str = "", audience: str = "") -> list[Lesson]:
+    lessons = get_sessions().list_lessons()
+    if q:
+        q_lower = q.lower()
+        lessons = [l for l in lessons if q_lower in l.title.lower() or q_lower in (l.audience or "").lower() or q_lower in (l.track or "").lower()]
+    if language:
+        lessons = [l for l in lessons if l.language == language]
+    if audience:
+        lessons = [l for l in lessons if l.audience == audience]
+    return lessons
 
 
 @app.get("/api/lessons/{lesson_id}/ksb", response_model=CourseKSB)
@@ -1426,6 +1434,7 @@ class ScheduleGroupClassRequest(BaseModel):
     capacity: int = 100
     room_size: int = 6
     language: str = "en"
+    audience: str = "general"
     description: str = ""
     marketplace_listing: bool = False
     audit_required: bool = False

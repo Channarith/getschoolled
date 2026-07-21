@@ -882,7 +882,20 @@ export default function ClassPage() {
               </div>
             )}
 
-            <div className="row">
+            <div style={{
+              position: "sticky",
+              bottom: 0,
+              background: "rgba(255,255,255,0.97)",
+              backdropFilter: "blur(8px)",
+              borderTop: "1px solid #e2e8f0",
+              margin: "0 -20px -20px",
+              padding: "12px 20px",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              alignItems: "center",
+              zIndex: 40,
+            }}>
               <button onClick={onAdvance} disabled={busy}>
                 Next slide →
               </button>
@@ -900,7 +913,7 @@ export default function ClassPage() {
                 style={{ background: "#111", color: "#fff" }}>
                 Finish class
               </button>
-              <span className="muted">Session {view.session.session_id}</span>
+              <span className="muted" style={{ marginLeft: "auto" }}>Session {view.session.session_id}</span>
             </div>
           </div>
 

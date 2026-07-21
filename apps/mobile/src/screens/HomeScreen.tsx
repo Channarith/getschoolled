@@ -200,7 +200,7 @@ export default function HomeScreen({
             ) : null}
             {onOpenLanguages ? (
               <HomeAction
-                icon="language-outline"
+                icon="mic-outline"
                 label={t("home.navLanguages")}
                 onPress={onOpenLanguages}
               />
