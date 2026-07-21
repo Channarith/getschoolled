@@ -42,8 +42,10 @@ export default function BottomTabs({
           const isActive = tab.id === active;
           const color = isActive ? "#fff" : theme.colors.muted;
           return (
+            // Outer View owns flex:1 so the Pressable/AnimatedPressable always
+            // fills its equal share of the bar regardless of content size.
+            <View key={tab.id} style={styles.tabSlot}>
             <AnimatedPressable
-              key={tab.id}
               testID={`tab-${tab.id}`}
               onPress={() => onChange(tab.id)}
               accessibilityRole="tab"
@@ -69,6 +71,7 @@ export default function BottomTabs({
               </Text>
               {isActive ? <View style={styles.activeDot} /> : null}
             </AnimatedPressable>
+            </View>
           );
         })}
       </View>
@@ -84,8 +87,14 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   bar: { flexDirection: "row", paddingHorizontal: 4 },
-  tab: {
+  // tabSlot owns flex:1 so it always fills an equal share of the bar width.
+  // AnimatedPressable's inner Animated.View receives tab's visual/padding styles.
+  tabSlot: {
     flex: 1,
+    alignItems: "center",
+  },
+  tab: {
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
