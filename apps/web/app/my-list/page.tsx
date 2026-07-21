@@ -14,18 +14,21 @@ export default function MyListPage() {
   useEffect(() => {
     if (!getToken()) { setLoggedIn(false); setLoading(false); return; }
     getPortfolio()
-      .then((p) => setItems(p.by_status?.saved ?? []))
+      .then((p) => {
+        setLoggedIn(true);
+        setItems(p.by_status?.saved ?? []);
+      })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, []);
 
   async function remove(courseId: string) {
-    const prev = items;
+    const snapshot = items;
     setItems((r) => r.filter((e) => e.course_id !== courseId));
     try {
       await unsaveForLater(courseId);
     } catch {
-      setItems(prev); // revert optimistic removal on error
+      setItems(snapshot); // revert optimistic removal on error
     }
   }
 

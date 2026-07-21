@@ -213,7 +213,7 @@ function SeatTile({
                 pointerEvents="none"
                 style={{
                   position: "absolute",
-                  inset: 0,
+                  top: 0, left: 0, right: 0, bottom: 0,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -336,6 +336,8 @@ export default function LiveRoomScreen({
   // idle tick (a source of slow-timer jank).
   const lastRoomSigRef = useRef("");
   const leftRef = useRef(false);
+  const joiningRef = useRef(false);
+  const togglingHandRef = useRef(false);
   const applyRoom = useCallback((next: LiveRoomState) => {
     setRoom((previous) => {
       // Socket/action snapshots are public by design. Preserve profile fields
@@ -388,9 +390,12 @@ export default function LiveRoomScreen({
 
   const refresh = async () => {
     try {
-      setRoom(await getLiveRoom(roomId, modKey));
+      const next = await getLiveRoom(roomId, modKey);
+      if (leftRef.current) return;
+      setRoom(next);
       setError("");
     } catch (e) {
+      if (leftRef.current) return;
       const msg = (e as Error).message;
       // Room not open yet (never started, or the server was restarted). Show a
       // human message instead of a raw "404 Not Found"; joining will (re)open it.
@@ -554,8 +559,11 @@ export default function LiveRoomScreen({
   const openChat = () => { setChatSeen(chatLen); setSheet("chat"); };
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
+    if (joiningRef.current) return;
+    joiningRef.current = true;
     const joinName = (nameOverride ?? name).trim();
     if (!joinName) {
+      joiningRef.current = false;
       setError("Enter your name");
       return;
     }
@@ -632,6 +640,7 @@ export default function LiveRoomScreen({
       setError(msg);
     } finally {
       setBusy(false);
+      joiningRef.current = false;
     }
   }
 
@@ -795,6 +804,8 @@ export default function LiveRoomScreen({
   // on raised hands in turn; only the floor holder is actually heard.
   const toggleHand = async () => {
     if (!participantId || hasFloor) return;
+    if (togglingHandRef.current) return;
+    togglingHandRef.current = true;
     try {
       if (inQueue) {
         setRoom(await liveRoomLeaveQueue(roomId, participantId));
@@ -803,6 +814,8 @@ export default function LiveRoomScreen({
       }
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      togglingHandRef.current = false;
     }
   };
 
@@ -832,11 +845,16 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!classEnded || !participantId) return;
     setEndLeft(CLASS_END_COUNTDOWN);
+    let remaining = CLASS_END_COUNTDOWN;
     const iv = setInterval(() => {
-      setEndLeft((n) => {
-        if (n <= 1) { clearInterval(iv); leaveAndBack(); return 0; }
-        return n - 1;
-      });
+      remaining -= 1;
+      setEndLeft(remaining);
+      // Side effects belong here — not inside the setState updater — so React
+      // never runs navigation or timer teardown inside a render-phase function.
+      if (remaining <= 0) {
+        clearInterval(iv);
+        leaveAndBack();
+      }
     }, 1000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -891,8 +909,8 @@ export default function LiveRoomScreen({
       {socket.presenceToast ? (
         <View style={styles.toast}>
           <Text style={styles.toastText}>
-            {socket.presenceToast.kind === "join" ? "👋" : "👋"}{" "}
-            {socket.presenceToast.name} {socket.presenceToast.kind === "join" ? "joined" : "left"}
+            {socket.presenceToast.name}{" "}
+            {socket.presenceToast.kind === "join" ? "👋 joined" : "👋 left"}
           </Text>
         </View>
       ) : null}
@@ -1265,7 +1283,7 @@ export default function LiveRoomScreen({
                   label={game.label}
                   onPress={() => void liveRoomStartGame(
                     roomId, modKey, game.type, game.prompt, game.answer, 25,
-                  ).then((r) => setRoom(r.room))}
+                  ).then((r) => setRoom(r.room)).catch((e) => setError(String(e)))}
                 />
               ))}
             </View>
@@ -1289,7 +1307,8 @@ export default function LiveRoomScreen({
                       if (!participantId) return;
                       void liveRoomPlayGame(roomId, participantId, {
                         answer: gameResponse.trim(), cell: i,
-                      }).then((r) => { setRoom(r.room); setGameResponse(""); });
+                      }).then((r) => { setRoom(r.room); setGameResponse(""); })
+                        .catch((e) => setError(String(e)));
                     }}
                   >
                     <Text style={styles.gameCellText}>{mark || "·"}</Text>
@@ -1316,7 +1335,8 @@ export default function LiveRoomScreen({
                         ? { letter: gameResponse.trim().slice(0, 1) }
                         : { answer: gameResponse.trim() };
                       void liveRoomPlayGame(roomId, participantId, action)
-                        .then((r) => { setRoom(r.room); setGameResponse(""); });
+                        .then((r) => { setRoom(r.room); setGameResponse(""); })
+                        .catch((e) => setError(String(e)));
                     }}
                   />
                 ) : null}
@@ -1414,8 +1434,12 @@ export default function LiveRoomScreen({
               label="Done speaking"
               onPress={async () => {
                 if (!participantId) return;
-                setRoom(await liveRoomFinishTurn(roomId, participantId, modKey));
-                setSheet(null);
+                try {
+                  setRoom(await liveRoomFinishTurn(roomId, participantId, modKey));
+                  setSheet(null);
+                } catch (e) {
+                  setError(String(e));
+                }
               }}
             />
           ) : null}
@@ -1469,7 +1493,10 @@ export default function LiveRoomScreen({
                 {p.role !== "host" && p.id !== participantId ? (
                   <View style={styles.personActions}>
                     {modKey ? (
-                      <Pressable onPress={async () => setRoom(await liveRoomBan(roomId, p.id, modKey))}>
+                      <Pressable onPress={async () => {
+                        try { setRoom(await liveRoomBan(roomId, p.id, modKey)); }
+                        catch (e) { Alert.alert("Block failed", String(e)); }
+                      }}>
                         <Text style={styles.linkDanger}>Block</Text>
                       </Pressable>
                     ) : null}
@@ -1506,12 +1533,18 @@ export default function LiveRoomScreen({
                     }}
                   />
                 ) : null}
-                <PrimaryButton label="Call next" onPress={async () => setRoom(await liveRoomCallNext(roomId, modKey))} />
+                <PrimaryButton label="Call next" onPress={async () => {
+                  try { setRoom(await liveRoomCallNext(roomId, modKey)); }
+                  catch (e) { setError(String(e)); }
+                }} />
                 {room?.floor_participant_id ? (
                   <PrimaryButton
                     label="End turn"
                     variant="ghost"
-                    onPress={async () => setRoom(await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey))}
+                    onPress={async () => {
+                      try { setRoom(await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey)); }
+                      catch (e) { setError(String(e)); }
+                    }}
                   />
                 ) : null}
                 <PrimaryButton
@@ -1537,10 +1570,16 @@ export default function LiveRoomScreen({
                 <View key={rep.id} style={styles.personRow}>
                   <Text style={styles.meta} numberOfLines={2}>{rep.reported_name} ({rep.category}) — {rep.reason}</Text>
                   <View style={styles.personActions}>
-                    <Pressable onPress={async () => setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey))}>
+                    <Pressable onPress={async () => {
+                      try { setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey)); }
+                      catch (e) { Alert.alert("Block failed", String(e)); }
+                    }}>
                       <Text style={styles.linkDanger}>Block</Text>
                     </Pressable>
-                    <Pressable onPress={async () => setRoom(await liveRoomDismissReport(roomId, rep.id, modKey))}>
+                    <Pressable onPress={async () => {
+                      try { setRoom(await liveRoomDismissReport(roomId, rep.id, modKey)); }
+                      catch (e) { Alert.alert("Dismiss failed", String(e)); }
+                    }}>
                       <Text style={styles.linkMuted}>Dismiss</Text>
                     </Pressable>
                   </View>
@@ -1555,7 +1594,10 @@ export default function LiveRoomScreen({
               {(room?.banned ?? []).map((b) => (
                 <View key={b.identity} style={styles.personRow}>
                   <Text style={styles.meta}>{b.name}</Text>
-                  <Pressable onPress={async () => setRoom(await liveRoomUnban(roomId, b.identity, modKey))}>
+                  <Pressable onPress={async () => {
+                    try { setRoom(await liveRoomUnban(roomId, b.identity, modKey)); }
+                    catch (e) { Alert.alert("Unblock failed", String(e)); }
+                  }}>
                     <Text style={styles.linkMuted}>Unblock</Text>
                   </Pressable>
                 </View>

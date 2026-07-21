@@ -46,8 +46,9 @@ def verify_password(password: str, encoded: str) -> bool:
         algo, iters, salt_b64, hash_b64 = encoded.split("$")
         if algo != _ALGO:
             return False
+        iterations = min(int(iters), 1_000_000)  # cap to prevent DoS via malicious stored hash
         dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"),
-                                 _b64d(salt_b64), int(iters))
+                                 _b64d(salt_b64), iterations)
     except (ValueError, TypeError):
         return False
     return hmac.compare_digest(_b64e(dk), hash_b64)
@@ -57,7 +58,13 @@ def verify_password(password: str, encoded: str) -> bool:
 # Session tokens
 # --------------------------------------------------------------------------- #
 def sign_token(payload: dict, key: bytes, *, ttl_s: int = 86_400) -> str:
-    body = {**payload, "iat": int(time.time()), "exp": int(time.time()) + ttl_s}
+    # TODO: callers MUST include a "kind" or "purpose" claim (e.g. kind="auth" or
+    # kind="password_reset") and verify_token callers MUST assert that claim, so that
+    # tokens issued for one purpose cannot be accepted for another.
+    now = int(time.time())
+    iat = now
+    exp = now + ttl_s
+    body = {**payload, "iat": iat, "exp": exp}
     raw = _b64e(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8"))
     sig = _b64e(hmac.new(key, raw.encode("ascii"), hashlib.sha256).digest())
     return f"{raw}.{sig}"
@@ -75,6 +82,8 @@ def verify_token(token: str, key: bytes, *, now: Optional[float] = None) -> Opti
         body = json.loads(_b64d(raw))
     except (ValueError, json.JSONDecodeError):
         return None
-    if float(body.get("exp", 0)) < (now if now is not None else time.time()):
+    exp = body.get("exp")
+    exp_f = float(exp) if exp is not None else 0.0
+    if exp_f < (now if now is not None else time.time()):
         return None
     return body

@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time as _time
+
+_log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level state for security controls
 # ---------------------------------------------------------------------------
+
+# Size cap for unbounded in-process sets / dicts.  When any collection exceeds
+# this limit the oldest / all entries are evicted to prevent memory exhaustion.
+_MAX_AUTH_SET_SIZE = 100_000
 
 # Bug 4: TOTP replay prevention — track (account_id, code) pairs accepted in
 # the last 90 seconds so the same code cannot be used twice in one window.
@@ -20,6 +27,30 @@ def _purge_used_totp() -> None:
     expired = [k for k, ts in list(_used_totp.items()) if now - ts > _TOTP_TTL]
     for k in expired:
         _used_totp.pop(k, None)
+    # Hard size cap: if TTL purge wasn't enough, drop the oldest half.
+    if len(_used_totp) > _MAX_AUTH_SET_SIZE:
+        _log.warning("_used_totp exceeded %d entries; evicting oldest half", _MAX_AUTH_SET_SIZE)
+        cutoff = len(_used_totp) // 2
+        for k in list(_used_totp.keys())[:cutoff]:
+            _used_totp.pop(k, None)
+
+
+def _bounded_set_add(s: set, value: str, name: str) -> None:
+    """Add *value* to set *s*, clearing the entire set when the size cap is hit."""
+    if len(s) >= _MAX_AUTH_SET_SIZE:
+        _log.warning("%s exceeded %d entries; clearing to prevent memory exhaustion", name, _MAX_AUTH_SET_SIZE)
+        s.clear()
+    s.add(value)
+
+
+def _bounded_dict_add(d: dict, key: str, value, name: str) -> None:
+    """Set d[key]=value, evicting the oldest half of *d* when the size cap is hit."""
+    if len(d) >= _MAX_AUTH_SET_SIZE:
+        _log.warning("%s exceeded %d entries; evicting oldest half", name, _MAX_AUTH_SET_SIZE)
+        cutoff = len(d) // 2
+        for k in list(d.keys())[:cutoff]:
+            d.pop(k, None)
+    d[key] = value
 
 
 # Bug 7: 2FA brute-force lockout — after 5 wrong codes the mfa_token is burned.
@@ -143,9 +174,9 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             raise HTTPException(status_code=401, detail="2FA not enabled")
         if not verify_totp(acct.totp_secret, req.code):
             # Bug 7: Track failures per mfa_token; burn after 5 attempts.
-            _mfa_fail_counts[req.mfa_token] = _mfa_fail_counts.get(req.mfa_token, 0) + 1
+            _bounded_dict_add(_mfa_fail_counts, req.mfa_token, _mfa_fail_counts.get(req.mfa_token, 0) + 1, "_mfa_fail_counts")
             if _mfa_fail_counts[req.mfa_token] >= 5:
-                _mfa_burned.add(req.mfa_token)
+                _bounded_set_add(_mfa_burned, req.mfa_token, "_mfa_burned")
                 _mfa_fail_counts.pop(req.mfa_token, None)
             ctx = _ctx(request)
             app.state.accounts.record_login_event(
@@ -195,7 +226,7 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             acct.failed_logins = 0
             acct.locked_until = None
         # Mark token as used so it cannot be replayed.
-        _used_reset_tokens.add(req.token)
+        _bounded_set_add(_used_reset_tokens, req.token, "_used_reset_tokens")
         return {"reset": True}
 
     @app.post("/auth/2fa/setup")

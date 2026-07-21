@@ -8,8 +8,12 @@ receives inbound webhooks (signature-verified), and issues API clients
 
 from __future__ import annotations
 
+import hashlib
+import ipaddress
 import os
+import socket
 import uuid
+from urllib.parse import urlparse
 
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.service import create_service
@@ -49,6 +53,55 @@ from aoep_shared.bridges import (
     missing_credentials,
 )
 
+# --------------------------------------------------------------------------- #
+# SSRF guard
+# --------------------------------------------------------------------------- #
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local / AWS metadata
+]
+
+
+def _validate_ssrf_safe_url(url: str, field: str = "url") -> None:
+    """Reject URLs that could be used for SSRF.
+
+    Only ``https://`` is permitted. Raw private/loopback IP literals are blocked.
+    Domain names are allowed — DNS-level SSRF requires network egress controls
+    (not app-layer DNS resolution, which is unreliable and can fail in CI).
+    """
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise HTTPException(
+            status_code=422,
+            detail=f"{field}: only https:// URLs are accepted",
+        )
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise HTTPException(status_code=422, detail=f"{field}: missing hostname")
+    # Block raw IP literals that point to private/loopback ranges.
+    try:
+        addr = ipaddress.ip_address(hostname)
+        if addr.is_loopback or addr.is_private or addr.is_link_local:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field}: private/loopback addresses are not permitted",
+            )
+    except ValueError:
+        pass  # hostname is a domain name — allow; egress firewall handles the rest
+
+
+# --------------------------------------------------------------------------- #
+# Webhook idempotency store
+# --------------------------------------------------------------------------- #
+_MAX_PROCESSED_IDS = 10_000
+_processed_webhook_ids: set[str] = set()
+
+
 app = create_service("integrations")
 app.state.subs = SubscriptionStore()
 app.state.api_clients = {}          # api_key -> {"name", "scopes"}
@@ -78,6 +131,8 @@ class CreateSubscriptionRequest(BaseModel):
 @app.post("/webhooks/subscriptions", response_model=WebhookSubscription,
           dependencies=[Depends(require_internal)])
 def create_subscription(req: CreateSubscriptionRequest) -> WebhookSubscription:
+    # BUG 3 FIX: guard against SSRF via attacker-controlled subscription URLs.
+    _validate_ssrf_safe_url(req.url, field="url")
     return app.state.subs.add(WebhookSubscription(**req.model_dump()))
 
 
@@ -156,8 +211,20 @@ async def payment_webhook(provider: str, request: Request) -> dict:
     import json
 
     try:
-        event = parse_payment_event(provider, json.loads(body or b"{}"))
-    except (json.JSONDecodeError, ValueError) as exc:
+        raw = json.loads(body or b"{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid webhook body: {exc}")
+
+    # BUG 2 FIX: idempotency — use the provider-supplied event id when present,
+    # falling back to a SHA-256 hash of the raw body.  If we have already
+    # processed this delivery, acknowledge immediately without re-processing.
+    event_id = str(raw.get("id") or hashlib.sha256(body).hexdigest())
+    if event_id in _processed_webhook_ids:
+        return {"received": True, "event_id": event_id}
+
+    try:
+        event = parse_payment_event(provider, raw)
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"invalid webhook body: {exc}")
     if event.kind == "ignore":
         return {"provider": provider, "handled": False, "type": event.raw_type}
@@ -175,8 +242,18 @@ async def payment_webhook(provider: str, request: Request) -> dict:
         dispatch(app.state.subs, out, sender=app.state.sender)
     elif event.kind == "revoke":
         feats.discard(event.entitlement)
-    return {"provider": provider, "handled": True, "kind": event.kind,
-            "customer": event.customer, "entitlements": sorted(feats)}
+
+    # Mark this event as processed (cap set size to avoid unbounded memory growth).
+    if len(_processed_webhook_ids) >= _MAX_PROCESSED_IDS:
+        _processed_webhook_ids.pop()  # evict an arbitrary entry
+    _processed_webhook_ids.add(event_id)
+
+    feats_list = sorted(app.state.entitlements.get(event.customer, set()))
+    return {
+        "handled": True,
+        "kind": event.kind,
+        "entitlements": feats_list,
+    }
 
 
 @app.get("/entitlements/{customer}")
@@ -200,6 +277,13 @@ def finance_payout(req: PayoutRequest) -> dict:
 # --------------------------------------------------------------------------- #
 @app.post("/lms/lti/launch")
 def lti_launch(claims: dict) -> dict:
+    # TODO (BUG 5 — PRODUCTION REQUIRED): LTI 1.3 launches arrive as signed JWTs.
+    # The raw ``claims`` dict here is accepted without any JWT signature
+    # verification, meaning an attacker can forge arbitrary role/context claims.
+    # Before this endpoint goes to production, verify the JWT signature against
+    # the platform's public key (retrieved from its JWKS endpoint) using a
+    # library such as ``python-jose`` or ``PyJWT``, and validate ``iss``,
+    # ``aud``, ``exp``, and ``nonce`` per the LTI 1.3 specification.
     try:
         ctx = parse_lti_launch(claims)
     except ValueError as exc:
@@ -251,7 +335,7 @@ class NotifyRequest(BaseModel):
     text: str
 
 
-@app.post("/notify")
+@app.post("/notify", dependencies=[Depends(require_internal)])
 def notify(req: NotifyRequest) -> dict:
     return app.state.notifier.send(req.channel, req.text)
 
@@ -263,7 +347,7 @@ class ScheduleRequest(BaseModel):
     attendees: list[str] = []
 
 
-@app.post("/calendar/schedule")
+@app.post("/calendar/schedule", dependencies=[Depends(require_internal)])
 def calendar_schedule(req: ScheduleRequest) -> dict:
     try:
         event = schedule_event(req.title, req.start, req.duration_min, req.attendees)
@@ -369,13 +453,17 @@ def bridge_connect(platform: str, req: BridgeConnectRequest) -> dict:
             fps_val = int(row.get("fps") or 0)
         except (TypeError, ValueError):
             fps_val = 0
+        # BUG 4 FIX: validate stream_url against SSRF before forwarding to bridge.
+        stream_url_val = str(row.get("stream_url") or row.get("streamUrl") or "").strip()
+        if stream_url_val:
+            _validate_ssrf_safe_url(stream_url_val, field="stream_url")
         camera_sources.append(
             ExternalCameraSource(
                 source_id=source_id,
                 label=str(row.get("label") or "").strip(),
                 device_type=str(row.get("device_type") or row.get("deviceType") or "").strip(),
                 source_kind=str(row.get("source_kind") or row.get("sourceKind") or "camera").strip(),
-                stream_url=str(row.get("stream_url") or row.get("streamUrl") or "").strip(),
+                stream_url=stream_url_val,
                 participant_identity=str(
                     row.get("participant_identity") or row.get("participantIdentity") or ""
                 ).strip(),

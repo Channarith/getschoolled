@@ -108,6 +108,7 @@ export default function OnboardingPage() {
     setBusy(true); setError("");
     try {
       await completeOnboarding({ learner_name: learnerName, age_band: ageBand });
+      localStorage.removeItem("onboarding_step");
       router.push("/");
     } catch (e) { setError(String(e)); }
     finally { busyRef.current = false; setBusy(false); }

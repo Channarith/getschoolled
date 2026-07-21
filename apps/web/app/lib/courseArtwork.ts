@@ -17,7 +17,7 @@ export type CoursePosterInput = {
 
 // ── Unsplash photo IDs keyed by subject ────────────────────────────────────
 const POSTERS: Record<string, string> = {
-  default:          "1503676260728-1c00da094a0b",   // books / open book
+  default:          "1524995997946-a1176921f0c3",   // open textbook on desk (neutral)
   mathematics:      "1635070041078-e363dbe005cb",   // chalkboard with equations
   algebra:          "1635070041078-e363dbe005cb",
   calculus:         "1635070041078-e363dbe005cb",
@@ -88,6 +88,55 @@ const POSTERS: Record<string, string> = {
   "microsoft excel":"1551288049-bebda4e38f71",
   "microsoft word": "1455390582262-044cdead277a",
   "microsoft powerpoint": "1516321318423-f06f85e504b3",
+  // ── Compliance & Workplace Safety ───────────────────────────────────────
+  "sexual harassment": "1521737604082-cef6ad4e2052",  // professional workplace
+  harassment:         "1521737604082-cef6ad4e2052",
+  compliance:         "1589829545856-d10d557cf95f",   // gavel / legal
+  osha:               "1578662996442-48f60103fc96",   // hard hat / safety
+  "fire safety":      "1544376664-80b17f09d399",      // fire extinguisher
+  "food safety":      "1567620905732-2d1ec7ab7445",   // food handling / kitchen
+  "food handler":     "1567620905732-2d1ec7ab7445",
+  hipaa:              "1576091160550-2173dba999ef",   // medical / healthcare
+  healthcare:         "1576091160550-2173dba999ef",
+  nursing:            "1576091160550-2173dba999ef",
+  pharmacy:           "1576091160550-2173dba999ef",
+  medical:            "1576091160550-2173dba999ef",
+  "workplace ethics": "1521737604082-cef6ad4e2052",
+  ethics:             "1521737604082-cef6ad4e2052",
+  "diversity":        "1529156069-d5a5ee5e8e26",      // diverse group of people
+  "equity":           "1529156069-d5a5ee5e8e26",
+  dei:                "1529156069-d5a5ee5e8e26",
+  // ── Nonprofit, Parenting & Social Categories ────────────────────────────
+  nonprofit:          "1529156069-d5a5ee5e8e26",      // community / people
+  "nonprofit management": "1529156069-d5a5ee5e8e26",
+  advocacy:           "1529156069-d5a5ee5e8e26",
+  fundraising:        "1529156069-d5a5ee5e8e26",
+  parenting:          "1476703829951-26b5d83cf8d7",   // parent and child
+  "child development":"1476703829951-26b5d83cf8d7",
+  "family":           "1476703829951-26b5d83cf8d7",
+  // ── Automotive, Transport & Safety Certs ────────────────────────────────
+  "driver":           "1449965408869-00c4efcebe50",   // car dashboard / road
+  driving:            "1449965408869-00c4efcebe50",
+  automotive:         "1449965408869-00c4efcebe50",
+  aviation:           "1436891620584-47fd0e3e04a9",   // cockpit / plane
+  "real estate":      "1560518883-ce09059eeffa",      // house / property
+  hvac:               "1517420879524-86d64ac2f339",   // engineering / technical
+  "security guard":   "1555636222-cae831e670b3",      // security professional
+  "situational awareness": "1555636222-cae831e670b3",
+  "emergency":        "1582719468-702e6f92f86b",      // first responders
+  "first responder":  "1582719468-702e6f92f86b",
+  cpr:                "1582719468-702e6f92f86b",
+  // ── Leadership, HR, Communication ───────────────────────────────────────
+  leadership:         "1522202176988-66273c2fd55f",   // meeting / boardroom
+  communication:      "1573497491208-6b1acb260507",   // people talking
+  "public speaking":  "1573497491208-6b1acb260507",
+  negotiation:        "1573497491208-6b1acb260507",
+  "decision making":  "1573497491208-6b1acb260507",
+  "rapid decision":   "1573497491208-6b1acb260507",
+  // ── Digital & Design ────────────────────────────────────────────────────
+  photography:        "1502920917128-1aa500764349",   // camera
+  design:             "1561070791-2526d30994b5",      // wireframe / design
+  marketing:          "1432888498266-38ffec3eaf0a",   // social media / phone
 };
 
 // ── Keyword → poster key rules (checked in order against full title+category+tags blob) ─
@@ -159,6 +208,57 @@ const TITLE_RULES: [string, string][] = [
   ["excel",          "microsoft excel"],
   ["word ",          "microsoft word"],
   ["powerpoint",     "microsoft powerpoint"],
+  // Compliance & workplace safety
+  ["sexual harass",  "sexual harassment"],
+  ["harassment",     "harassment"],
+  ["osha",           "osha"],
+  ["fire safety",    "fire safety"],
+  ["fire extinguish","fire safety"],
+  ["food safety",    "food safety"],
+  ["food handler",   "food handler"],
+  ["food handling",  "food safety"],
+  ["hipaa",          "hipaa"],
+  ["nursing",        "nursing"],
+  ["pharmacy",       "pharmacy"],
+  ["medical ",       "medical"],
+  ["healthcare",     "healthcare"],
+  ["workplace ethics","workplace ethics"],
+  ["diversity",      "diversity"],
+  ["equity inclus",  "equity"],
+  // Nonprofit & social
+  ["nonprofit",      "nonprofit"],
+  ["non-profit",     "nonprofit"],
+  ["advocacy",       "advocacy"],
+  ["fundrais",       "fundraising"],
+  ["donor",          "nonprofit"],
+  ["grant writ",     "nonprofit"],
+  ["volunteer",      "nonprofit"],
+  ["parenting",      "parenting"],
+  ["child develop",  "child development"],
+  ["early childhood","child development"],
+  // Transport, safety, real estate
+  ["driver",         "driver"],
+  ["driving",        "driving"],
+  ["automotive",     "automotive"],
+  ["aviation",       "aviation"],
+  ["flight",         "aviation"],
+  ["real estate",    "real estate"],
+  ["hvac",           "hvac"],
+  ["security guard", "security guard"],
+  ["situational aware","situational awareness"],
+  ["emergency",      "emergency"],
+  ["first respond",  "first responder"],
+  ["cpr",            "cpr"],
+  // Leadership, communication
+  ["leadership",     "leadership"],
+  ["communic",       "communication"],
+  ["public speak",   "public speaking"],
+  ["negotiat",       "negotiation"],
+  ["decision mak",   "decision making"],
+  // Design, photography, marketing
+  ["photograph",     "photography"],
+  ["ux design",      "ux design"],
+  ["digital market", "digital marketing"],
 ];
 
 // ── Cartoon-style gradient poster for kids / arcade (pure CSS, no CDN) ─────

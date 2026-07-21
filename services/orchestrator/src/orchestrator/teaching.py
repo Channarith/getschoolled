@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import threading
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
@@ -99,16 +100,27 @@ class SessionCounters:
     last_attention: float = 1.0
 
 
-_advance_locks: dict[str, threading.Lock] = {}
+_advance_locks: OrderedDict[str, threading.Lock] = OrderedDict()
+_advance_locks_mu = threading.Lock()
+_MAX_ADVANCE_LOCKS = 10_000
 
 
 def _lock_for(session_id: str) -> threading.Lock:
-    return _advance_locks.setdefault(session_id, threading.Lock())
+    with _advance_locks_mu:
+        if session_id in _advance_locks:
+            _advance_locks.move_to_end(session_id)
+            return _advance_locks[session_id]
+        lk = threading.Lock()
+        _advance_locks[session_id] = lk
+        if len(_advance_locks) > _MAX_ADVANCE_LOCKS:
+            _advance_locks.popitem(last=False)  # evict oldest, never in-flight
+        return lk
 
 
 def _evict_session_lock(session_id: str) -> None:
     """Remove the advance lock for a session when it ends to prevent unbounded growth."""
-    _advance_locks.pop(session_id, None)
+    with _advance_locks_mu:
+        _advance_locks.pop(session_id, None)
 
 
 def _offline_answer(question: str, context: List[str]) -> str:
@@ -208,6 +220,13 @@ class TeachingSessions:
 
     def get_session(self, session_id: str) -> SessionState:
         return self._require(session_id)
+
+    def delete_session(self, session_id: str) -> None:
+        """End and remove a session, cleaning up all associated in-process state."""
+        self.store.delete(session_id)
+        self._directors.pop(session_id, None)
+        self._counters.pop(session_id, None)
+        _evict_session_lock(session_id)
 
     def director_for(self, session_id: str) -> Director:
         """The persistent Director for this session (created on demand for
@@ -364,6 +383,12 @@ class TeachingSessions:
         """
         # NOTE: session is captured here and may be stale if another request
         # modifies it concurrently. This is inherent to the current snapshot design.
+        # TODO: This is a compare-and-swap (CAS) hazard. The session snapshot taken
+        # here can become stale during the streaming loop (e.g., if advance() or
+        # another ask_stream call saves a newer version to the store), and the
+        # subsequent _record_qa() call will silently overwrite those concurrent
+        # writes with the old snapshot's history. Fix requires a CAS loop or
+        # per-session lock covering the full read-modify-write in _record_qa().
         session = self._require(session_id)
         messages, context, norm, _tone = self._ask_prompt(session, question, language, dialect)
         streamed: list[str] = []

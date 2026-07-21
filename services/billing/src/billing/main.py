@@ -7,6 +7,7 @@ creation via the PaymentProvider (Stripe in cloud, sandbox stub local).
 
 from __future__ import annotations
 
+import logging as _log
 import os
 import threading
 import time
@@ -33,7 +34,12 @@ _AUTH_KEY_DEFAULT = "dev-auth-signing-key"
 
 
 def _token_key() -> bytes:
-    return os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT).encode()
+    _key = os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT)
+    if _key == _AUTH_KEY_DEFAULT:
+        _log.getLogger(__name__).warning(
+            "AUTH_SIGNING_KEY is not set — using insecure dev default"
+        )
+    return _key.encode()
 
 
 def current_account_id(authorization: str = Header(default="")) -> str:
@@ -42,11 +48,19 @@ def current_account_id(authorization: str = Header(default="")) -> str:
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
-    return claims.get("sub", "")
+    acct_id = claims.get("sub", "")
+    if not acct_id:
+        raise HTTPException(status_code=401, detail="invalid token: missing sub claim")
+    return acct_id
 
 
 def _admin_secret() -> str:
-    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+    _secret = os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+    if _secret == "dev-admin-secret":
+        _log.getLogger(__name__).warning(
+            "ADMIN_SECRET is not set — using insecure dev default"
+        )
+    return _secret
 
 
 def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
@@ -60,6 +74,24 @@ def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
 _checkout_cache: dict[tuple, tuple] = {}
 _checkout_cache_lock = threading.Lock()
 _CHECKOUT_CACHE_TTL = 60.0  # seconds
+
+# Per-key locks to prevent TOCTOU races on concurrent checkout requests.
+_checkout_locks: dict[str, threading.Lock] = {}
+_checkout_locks_mu = threading.Lock()
+_MAX_CHECKOUT_LOCKS = 2000
+
+
+def _checkout_lock_for(key: str) -> threading.Lock:
+    """Return (or create) a per-key Lock, evicting old entries if the dict
+    would exceed _MAX_CHECKOUT_LOCKS to bound memory."""
+    with _checkout_locks_mu:
+        if key not in _checkout_locks:
+            if len(_checkout_locks) >= _MAX_CHECKOUT_LOCKS:
+                # Evict all current locks (simple strategy — keys are
+                # short-lived, so clearing is safe and bounded).
+                _checkout_locks.clear()
+            _checkout_locks.setdefault(key, threading.Lock())
+        return _checkout_locks[key]
 
 
 def _get_cached_checkout(customer_id: str, plan: str, method: str = ""):
@@ -247,28 +279,33 @@ def checkout(
     if req.customer_id != acct_id:
         raise HTTPException(status_code=403, detail="customer_id does not match authenticated user")
 
-    # Return cached session if the same (customer_id, plan, method) was processed recently.
-    cached = _get_cached_checkout(req.customer_id, req.plan.value, req.method or "")
-    if cached is not None:
-        return cached
+    # Hold a per-(customer_id, plan, method) lock while checking the cache and
+    # calling Stripe to prevent concurrent requests from creating duplicate sessions.
+    _lock_key = f"{req.customer_id}:{req.plan.value}:{req.method or ''}"
+    with _checkout_lock_for(_lock_key):
+        # Re-check cache inside the lock so the second concurrent request
+        # returns the result written by the first rather than calling Stripe again.
+        cached = _get_cached_checkout(req.customer_id, req.plan.value, req.method or "")
+        if cached is not None:
+            return cached
 
-    payment = app.state.factory.payment()
-    try:
-        session = payment.create_checkout(
-            customer_id=req.customer_id, plan=req.plan.value, method=req.method
+        payment = app.state.factory.payment()
+        try:
+            session = payment.create_checkout(
+                customer_id=req.customer_id, plan=req.plan.value, method=req.method
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        except NotImplementedError as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
+        resp = CheckoutResponse(
+            session_id=session.session_id,
+            url=session.url,
+            provider=session.provider,
+            method=session.method,
+            instructions=session.instructions,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except NotImplementedError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    resp = CheckoutResponse(
-        session_id=session.session_id,
-        url=session.url,
-        provider=session.provider,
-        method=session.method,
-        instructions=session.instructions,
-    )
-    _cache_checkout(req.customer_id, req.plan.value, resp, req.method or "")
+        _cache_checkout(req.customer_id, req.plan.value, resp, req.method or "")
     return resp
 
 

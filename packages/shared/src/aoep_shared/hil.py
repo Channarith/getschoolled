@@ -56,9 +56,9 @@ def should_escalate(
     confidence_threshold: float = 0.5,
 ) -> bool:
     """Whether an AI action must be routed to a human before delivery."""
-    if autonomy is AutonomyLevel.HUMAN_LED:
+    if autonomy == AutonomyLevel.HUMAN_LED:
         return True
-    if autonomy is AutonomyLevel.SUGGEST:
+    if autonomy == AutonomyLevel.SUGGEST:
         return True
     # AUTONOMOUS: only escalate on a concrete trigger.
     if student_requested:
@@ -73,7 +73,7 @@ def should_escalate(
 
 
 class ReviewItem(BaseModel):
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)  # full 128-bit UUID
     kind: ReviewKind
     payload: dict = Field(default_factory=dict)
     ai_confidence: float = 1.0
@@ -103,7 +103,7 @@ class ReviewQueue:
     def list(self, status: Optional[ReviewStatus] = None) -> List[ReviewItem]:
         items = list(self._items.values())
         if status is not None:
-            items = [i for i in items if i.status is status]
+            items = [i for i in items if i.status == status]
         return items
 
     def pending(self) -> List[ReviewItem]:
@@ -120,18 +120,24 @@ class ReviewQueue:
         item = self._items.get(item_id)
         if item is None:
             raise KeyError(item_id)
+        if item.status != ReviewStatus.PENDING:
+            raise ValueError(f"item {item_id!r} already decided (status={item.status!r})")
+        # TODO: decided_by must be tied to an authenticated account_id, not a freeform string.
         item.decided_by = decided_by
         if action == "approve":
             item.status = ReviewStatus.APPROVED
         elif action == "edit":
+            if edited_payload is None:
+                raise ValueError("edit requires edited_payload")
             item.status = ReviewStatus.EDITED
-            item.final_payload = edited_payload or {}
+            item.final_payload = edited_payload
         elif action == "reject":
             item.status = ReviewStatus.REJECTED
         elif action == "takeover":
+            if edited_payload is None:
+                raise ValueError("takeover requires edited_payload")
             item.status = ReviewStatus.TAKEN_OVER
-            if edited_payload is not None:
-                item.final_payload = edited_payload
+            item.final_payload = edited_payload
         else:
             raise ValueError(f"unknown action {action!r}")
         return item

@@ -299,6 +299,17 @@ class IngestUrlRequest(BaseModel):
 
 @app.post("/ingest/url", response_model=Deck)
 def ingest_url(req: IngestUrlRequest) -> Deck:
+    from urllib.parse import urlparse as _urlparse
+    _parsed = _urlparse(req.url)
+    if _parsed.scheme not in ("http", "https") or not _parsed.netloc:
+        raise HTTPException(status_code=422, detail="url must be an http/https URL with a hostname")
+    import ipaddress as _ipaddress
+    try:
+        addr = _ipaddress.ip_address(_parsed.hostname)
+        if addr.is_private or addr.is_loopback or addr.is_link_local:
+            raise HTTPException(status_code=422, detail="url must not point to a private/loopback address")
+    except ValueError:
+        pass  # hostname is a domain, not an IP — allow
     try:
         import requests  # lazy/runtime
     except ImportError:
@@ -374,7 +385,7 @@ class CreateCourseRequest(BaseModel):
     core_skill: bool = False
 
 
-@app.post("/courses", response_model=Course)
+@app.post("/courses", response_model=Course, dependencies=[Depends(require_internal)])
 def create_course(req: CreateCourseRequest) -> Course:
     return app.state.catalog.create_course(Course(**req.model_dump()))
 
@@ -615,12 +626,11 @@ def audio_course(course_id: str, locale: str = "en",
     return out
 
 
-@app.post("/admin/harvest-drive-topic")
+@app.post("/admin/harvest-drive-topic", dependencies=[Depends(require_internal)])
 def harvest_drive_topic(
     topic: str,
     force: bool = False,
     no_llm: bool = False,
-    _auth: str | None = None,
 ) -> dict:
     """Harvest and cache rich audio content for one drive-mode topic.
 
@@ -661,7 +671,7 @@ def harvest_drive_topic(
     }
 
 
-@app.post("/admin/harvest-drive-all")
+@app.post("/admin/harvest-drive-all", dependencies=[Depends(require_internal)])
 def harvest_drive_all(
     no_llm: bool = False,
     force: bool = False,
@@ -700,7 +710,7 @@ def harvest_drive_all(
     return {"status": "started", "topics": len(topics)}
 
 
-@app.get("/admin/harvest-drive-status")
+@app.get("/admin/harvest-drive-status", dependencies=[Depends(require_internal)])
 def harvest_drive_status() -> dict:
     """Return the harvest status (cached topics, word counts, durations)."""
     from aoep_shared.drive_topic_harvest import _db, _all_topics, MIN_SEGMENTS_TO_ACCEPT
@@ -1047,7 +1057,7 @@ def get_course(course_id: str) -> Course:
     return _course_from_learnable_item(item)
 
 
-@app.delete("/courses/{course_id}")
+@app.delete("/courses/{course_id}", dependencies=[Depends(require_internal)])
 def delete_course(course_id: str) -> dict:
     if not app.state.catalog.delete_course(course_id):
         raise HTTPException(status_code=404, detail="unknown course")
@@ -1063,7 +1073,7 @@ class CreateProgramRequest(BaseModel):
     delivery_mode: DeliveryMode = DeliveryMode.AI
 
 
-@app.post("/programs", response_model=Program)
+@app.post("/programs", response_model=Program, dependencies=[Depends(require_internal)])
 def create_program(req: CreateProgramRequest) -> Program:
     return app.state.catalog.create_program(Program(**req.model_dump()))
 
@@ -1084,7 +1094,7 @@ def get_program(program_id: str) -> Program:
     return program
 
 
-@app.delete("/programs/{program_id}")
+@app.delete("/programs/{program_id}", dependencies=[Depends(require_internal)])
 def delete_program(program_id: str) -> dict:
     if not app.state.catalog.delete_program(program_id):
         raise HTTPException(status_code=404, detail="unknown program")
@@ -1231,7 +1241,7 @@ async def bulk_corrections(
     return {"count": len(items), "ids": [c.id for c in items]}
 
 
-@app.get("/corrections", response_model=list[Correction])
+@app.get("/corrections", response_model=list[Correction], dependencies=[Depends(require_internal)])
 def list_corrections(status: str | None = None) -> list[Correction]:
     items = list(app.state.corrections.values())
     if status:
@@ -1239,7 +1249,7 @@ def list_corrections(status: str | None = None) -> list[Correction]:
     return items
 
 
-@app.get("/corrections/{correction_id}", response_model=Correction)
+@app.get("/corrections/{correction_id}", response_model=Correction, dependencies=[Depends(require_internal)])
 def get_correction(correction_id: str) -> Correction:
     c = app.state.corrections.get(correction_id)
     if c is None:
@@ -1279,6 +1289,9 @@ def apply_correction(correction_id: str) -> dict:
     c = app.state.corrections.get(correction_id)
     if c is None:
         raise HTTPException(status_code=404, detail="unknown correction")
+    # TODO(race): check-then-act race — another request could change c.status between
+    # the check below and the c.status = APPLIED assignment at the end of this function.
+    # A proper fix requires a DB transaction or an in-process lock around this block.
     if c.status != CorrectionStatus.APPROVED:
         raise HTTPException(status_code=409, detail="correction must be approved before apply")
 
@@ -1336,7 +1349,7 @@ def _verdict_dict(v) -> dict:
     }
 
 
-@app.post("/validate/claim")
+@app.post("/validate/claim", dependencies=[Depends(require_internal)])
 def validate_claim_endpoint(req: ValidateClaimRequest) -> dict:
     engines = app.state.factory.search_engines()
     return _verdict_dict(validate_claim(req.text, engines, max_results=req.max_results))
@@ -1836,7 +1849,7 @@ class TelemetryRecordRequest(BaseModel):
     metrics: dict = {}
 
 
-@app.post("/scoring/telemetry")
+@app.post("/scoring/telemetry", dependencies=[Depends(require_internal)])
 def scoring_telemetry_record(req: TelemetryRecordRequest) -> dict:
     from aoep_shared.course_scoring import TelemetrySample
 

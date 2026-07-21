@@ -64,6 +64,11 @@ def _startup_seed_accounts() -> None:
             "AUTH_SIGNING_KEY is not set — using the insecure development default. "
             "Set this environment variable before deploying."
         )
+    if os.environ.get("ADMIN_SECRET", _ADMIN_SECRET_DEFAULT) == _ADMIN_SECRET_DEFAULT:
+        _lg.warning(
+            "ADMIN_SECRET is not set — using the insecure development default. "
+            "Set this environment variable before deploying."
+        )
     if "ASSESSMENT_SIGNING_KEY" in os.environ and "AUTH_SIGNING_KEY" not in os.environ:
         _lg.warning(
             "ASSESSMENT_SIGNING_KEY is set but AUTH_SIGNING_KEY is not. "
@@ -89,6 +94,9 @@ def current_account(authorization: str = Header(default="")):
     claims = verify_token(token, _token_key()) if token else None
     if not claims:
         raise HTTPException(status_code=401, detail="invalid or expired session")
+    purpose = claims.get("purpose")
+    if purpose in ("mfa_pending", "profile_share"):
+        raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
@@ -102,8 +110,11 @@ def require_admin_account(acct=Depends(current_account)):
     return acct
 
 
+_ADMIN_SECRET_DEFAULT = "dev-admin-secret"
+
+
 def _admin_secret() -> str:
-    return os.environ.get("ADMIN_SECRET", "dev-admin-secret")
+    return os.environ.get("ADMIN_SECRET", _ADMIN_SECRET_DEFAULT)
 
 
 def require_admin_secret(x_admin_secret: str = Header(default="")) -> str:
@@ -227,22 +238,6 @@ def signup(req: SignupRequest, request: Request) -> dict:
     return _session(acct)
 
 
-@app.post("/auth/login")
-def login(req: LoginRequest, request: Request) -> dict:
-    info = _client_info(request)
-    acct = app.state.accounts.by_email(req.email)
-    if acct and acct.locked_until and acct.locked_until > time.time():
-        raise HTTPException(status_code=429, detail="account temporarily locked; try again later")
-    acct = app.state.accounts.authenticate(req.email, req.password, **info)
-    if acct is None:
-        raise HTTPException(status_code=401, detail="invalid email or password")
-    return _session(acct)
-
-
-@app.get("/auth/login-history")
-def login_history(acct=Depends(current_account)) -> dict:
-    return {"events": app.state.accounts.login_history(acct.id)}
-
 
 @app.get("/auth/onboarding-status")
 def onboarding_status(acct=Depends(current_account)) -> dict:
@@ -318,6 +313,8 @@ def change_password(req: PasswordChange, acct=Depends(current_account)) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     app.state.accounts.set_password(acct.id, req.new_password)
+    # TODO: revoke all existing session tokens for this account on password change.
+    # Currently active tokens remain valid until they expire, which is a security risk.
     return {"changed": True}
 
 
@@ -528,6 +525,9 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
         token_student = str(claims.get("student_id", ""))
         if token_student and token_student not in acct.students:
             raise HTTPException(status_code=403, detail="pass_decision_token belongs to another account")
+        token_course = str(claims.get("course_id", ""))
+        if token_course and token_course != course_id:
+            raise HTTPException(status_code=403, detail="pass_decision_token is for a different course")
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
@@ -543,7 +543,11 @@ def delete_enrollment(course_id: str, acct=Depends(current_account)) -> dict:
     """Remove a course from the learner's list entirely (e.g. un-save a bookmark)."""
     if course_id not in acct.enrollments:
         raise HTTPException(status_code=404, detail="enrollment not found")
-    acct.enrollments.pop(course_id)
+    removed = acct.enrollments.pop(course_id)
+    # TODO: if removed.points_awarded is True, record course_id in a per-account
+    # awarded-course set (e.g. acct._awarded_course_ids) so that re-enrollment cannot
+    # re-award points for the same course. Without this guard, deleting and re-enrolling
+    # allows duplicate point awards. Requires a store-level schema change.
     app.state.accounts._persist()
     return {"ok": True, "course_id": course_id}
 
@@ -879,7 +883,7 @@ def admin_student_readiness(
     store = app.state.accounts
     found = None
     owner = None
-    for acct in store.list_accounts() if hasattr(store, "list_accounts") else []:
+    for acct in store.list_all_accounts() if hasattr(store, "list_all_accounts") else []:
         prof = acct.students.get(student_id) if hasattr(acct, "students") else None
         if prof is not None:
             found = prof

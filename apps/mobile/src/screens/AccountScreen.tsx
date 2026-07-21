@@ -34,7 +34,8 @@ export default function AccountScreen({
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newLearner, setNewLearner] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
   const [learnersOpen, setLearnersOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -63,7 +64,8 @@ export default function AccountScreen({
   async function addLearner() {
     const name = newLearner.trim();
     if (!name) return;
-    setBusy(true);
+    setError("");
+    setAddBusy(true);
     try {
       const s = await createStudent(name);
       setStudents((prev) => [...prev, s]);
@@ -72,12 +74,12 @@ export default function AccountScreen({
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      setAddBusy(false);
     }
   }
 
   async function updatePassword() {
-    setBusy(true);
+    setPwBusy(true);
     setError("");
     try {
       await changePassword(curPw, newPw);
@@ -86,7 +88,7 @@ export default function AccountScreen({
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      setPwBusy(false);
     }
   }
 
@@ -132,7 +134,7 @@ export default function AccountScreen({
           value={newLearner}
           onChangeText={setNewLearner}
         />
-        <PrimaryButton label={t("account.add")} onPress={() => void addLearner()} loading={busy} variant="brand" />
+        <PrimaryButton label={t("account.add")} onPress={() => void addLearner()} loading={addBusy} variant="brand" />
       </View>
       <Text style={styles.section}>{t("account.password")}</Text>
       <GlassPanel style={styles.card}>
@@ -141,7 +143,7 @@ export default function AccountScreen({
         <TextInput style={styles.input} secureTextEntry placeholder={t("account.newPw")}
           placeholderTextColor={theme.colors.muted} value={newPw} onChangeText={setNewPw} />
         <PrimaryButton label={t("account.changePw")} onPress={() => void updatePassword()}
-          loading={busy} variant="netflix" />
+          loading={pwBusy} variant="netflix" />
       </GlassPanel>
       <PrimaryButton label={t("account.refresh")} onPress={() => { void refreshAccount(); void load(); }} variant="ghost" />
     </ScrollView>

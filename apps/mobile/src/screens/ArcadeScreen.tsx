@@ -38,21 +38,26 @@ export default function ArcadeScreen({ onOpenSubject, onBack }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = async (alive?: { current: boolean }) => {
     setError("");
     try {
-      setCat(await getGamesCatalog(locale));
+      const result = await getGamesCatalog(locale);
+      if (!alive || alive.current) setCat(result);
     } catch (e) {
-      setError(t("arcade.error", { error: String(e) }));
+      if (!alive || alive.current) setError(t("arcade.error", { error: String(e) }));
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!alive || alive.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
   useEffect(() => {
+    const alive = { current: true };
     setLoading(true);
-    void load();
+    void load(alive);
+    return () => { alive.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 

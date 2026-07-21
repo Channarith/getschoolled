@@ -78,13 +78,17 @@ def read_jsonl(path: str) -> List[Dict]:
     with open(path, "r", encoding="utf-8") as fh:
         for line in fh:
             if line.strip():
-                rows.append(json.loads(line))
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    print(f"WARNING: skipping malformed JSONL line: {exc}", file=sys.stderr)
     return rows
 
 
 def _prompt(row: Dict) -> str:
     ctx = ", ".join(f"{k}={v}" for k, v in row.get("context", {}).items())
-    return f"### Audience:\n{ctx}\n\n### Question:\n{row['instruction']}\n\n### Answer:\n"
+    instruction = row.get("instruction", "")
+    return f"### Audience:\n{ctx}\n\n### Question:\n{instruction}\n\n### Answer:\n"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -96,6 +100,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-new-tokens", type=int, default=128)
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     args = ap.parse_args(argv)
+
+    rows = read_jsonl(args.eval)
+    if not rows:
+        print("ERROR: eval file is empty", file=sys.stderr)
+        return 1
 
     if args.offline:
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -120,14 +129,16 @@ def main(argv: list[str] | None = None) -> int:
         model = PeftModel.from_pretrained(model, args.adapter)
     model.to(device).eval()
 
-    rows = read_jsonl(args.eval)
     scores: List[float] = []
     for row in rows:
         inputs = tok(_prompt(row), return_tensors="pt").to(device)
         with torch.no_grad():
             out = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
         text = tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-        scores.append(token_f1(text, row["response"]))
+        if not row.get("response"):
+            print("WARNING: skipping row without 'response' field", file=sys.stderr)
+            continue
+        scores.append(token_f1(text, row.get("response", "")))
 
     if not scores:
         print("ERROR: eval file is empty", file=sys.stderr)

@@ -172,13 +172,13 @@ export default function ClassPage() {
     const chunks = splitForSpeech(text);
     if (!chunks.length) return;
     setSpeaking(true);
-    const finish = () => { stopSpeechKeepAlive(); setSpeaking(false); };
+    const onSpeakEnd = () => { stopSpeechKeepAlive(); setSpeaking(false); };
     chunks.forEach((chunk, i) => {
       const u = new SpeechSynthesisUtterance(chunk);
       u.rate = 1;
       if (i === 0) speechRef.current = u;
-      if (i === chunks.length - 1) u.onend = finish;
-      u.onerror = finish;
+      if (i === chunks.length - 1) u.onend = onSpeakEnd;
+      u.onerror = onSpeakEnd;
       window.speechSynthesis.speak(u);
     });
     // Defeat Chrome's ~15s speechSynthesis auto-stop so the whole answer is read.
@@ -290,6 +290,7 @@ export default function ClassPage() {
 
   async function doStart() {
     setError("");
+    setFinish(null);
     setBusy(true);
     try {
       const v = await startSession(lessonId, classType, getStudentId());
@@ -400,30 +401,38 @@ export default function ClassPage() {
   }
 
   async function onAssessmentSubmitted(result: AssessmentSubmitResult) {
-    const checkpointId = result.attempt.checkpoint_id;
-    if (result.attempt.passed || result.attempt.stage === "formative") {
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
-    }
-    setAssessmentResult(result);
-    setAssessmentRun(null);
-    const sid = studentProfile?.id;
-    if (result.attempt_result_token && sid && getToken()) {
-      recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
-    }
-    if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
-    if (result.attempt.stage === "summative" && result.course_decision?.passed === false) {
-      // Clear stale token only on a definitive summative FAILED decision.
-      setPassDecisionToken(null);
-    }
-    if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
-      completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
-      await awardVerifiedPass(result.pass_decision_token);
-      const surveyRes = await getPostClassSurvey().catch(() => null);
-      if (surveyRes?.enabled && surveyRes.template) {
-        setSurvey(surveyRes.template);
-        setSurveyAnswers({});
-        setSurveyDone(false);
+    setBusy(true);
+    try {
+      const checkpointId = result.attempt.checkpoint_id;
+      if (result.attempt.passed || result.attempt.stage === "formative") {
+        completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
       }
+      setAssessmentResult(result);
+      const sid = studentProfile?.id;
+      if (result.attempt_result_token && sid && getToken()) {
+        recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
+      }
+      if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
+      if (result.attempt.stage === "summative" && result.course_decision?.passed === false) {
+        // Clear stale token only on a definitive summative FAILED decision.
+        setPassDecisionToken(null);
+      }
+      if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
+        completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
+        await awardVerifiedPass(result.pass_decision_token);
+        // TODO: edge case — if summative passed but no survey, view may need explicit clearing (else { setView(null) })
+        const surveyRes = await getPostClassSurvey().catch(() => null);
+        if (surveyRes?.enabled && surveyRes.template) {
+          setSurvey(surveyRes.template);
+          setSurveyAnswers({});
+          setSurveyDone(false);
+        }
+      }
+      // setAssessmentRun(null) placed here — AFTER awardVerifiedPass completes — so the
+      // Finish button cannot become active during the async gap (BUG 1 fix).
+      setAssessmentRun(null);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -450,6 +459,7 @@ export default function ClassPage() {
 
   async function doAdvance() {
     if (!view || assessmentRun) return;
+    setError("");
     setBusy(true);
     try {
       const s = await advance(view.session.session_id);
@@ -495,6 +505,7 @@ export default function ClassPage() {
   // topic == lesson_id keeps quiz/grade and the live-loop signals on one key.
   async function onQuiz() {
     if (!view) return;
+    setError("");
     setBusy(true);
     try {
       const passages = view.lesson.slides.map((s) => `${s.title}: ${s.body}`);
@@ -552,6 +563,7 @@ export default function ClassPage() {
   // End the class: run summative when due, then reward verified pass.
   async function onFinish() {
     if (!view || assessmentRun) return;
+    setError("");
     setBusy(true);
     try {
       const idx = slide?.index ?? view.lesson.slides.length - 1;
@@ -566,12 +578,17 @@ export default function ClassPage() {
       } else {
         await awardCompletion();
       }
-      const res = await getPostClassSurvey();
-      if (res.enabled && res.template) {
-        setSurvey(res.template);
-        setSurveyAnswers({});
-        setSurveyDone(false);
-      } else {
+      try {
+        const res = await getPostClassSurvey();
+        if (res.enabled && res.template) {
+          setSurvey(res.template);
+          setSurveyAnswers({});
+          setSurveyDone(false);
+        } else {
+          setView(null);
+        }
+      } catch {
+        // getPostClassSurvey is optional; swallow errors so class completion is not blocked
         setView(null);
       }
     } catch (e) {
@@ -655,6 +672,7 @@ export default function ClassPage() {
 
   async function onAsk() {
     if (!view || !question.trim()) return;
+    setError("");
     const q = question.trim();
     setQuestion("");
     setChat((c) => [...c, { role: "student", text: q }]);

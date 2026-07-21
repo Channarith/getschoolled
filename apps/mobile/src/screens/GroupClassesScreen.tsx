@@ -115,26 +115,39 @@ export default function GroupClassesScreen({
   async function handleJoin(gc: GroupClassRow) {
     setError("");
     if (gc.needs_bridge && gc.meeting_url) {
-      const ok = await Linking.canOpenURL(gc.meeting_url);
-      if (!ok) {
-        setError(t("group.cannotOpenMeeting"));
-        return;
+      try {
+        const ok = await Linking.canOpenURL(gc.meeting_url);
+        if (!ok) {
+          setError(t("group.cannotOpenMeeting"));
+          return;
+        }
+        await Linking.openURL(gc.meeting_url);
+      } catch (e) {
+        setError((e as Error).message);
       }
-      await Linking.openURL(gc.meeting_url);
       return;
     }
     if (gc.platform === "salareen" || gc.live_room_id) {
       if (gc.payment_required || gc.attendee_code_required) {
         let attendeeCode = getAttendeeCode(gc.id);
         if (!attendeeCode) {
-          const checkout = await checkoutGroupClass(
-            gc.id,
-            account?.display_name || "Learner",
-            account?.email || "",
-          );
-          const paid = await confirmGroupClassPayment(gc.id, checkout.checkout.session_id);
-          attendeeCode = paid.attendee_code || "";
-          setAttendeeCode(gc.id, attendeeCode);
+          setBusyId(gc.id);
+          try {
+            const checkout = await checkoutGroupClass(
+              gc.id,
+              account?.display_name || "Learner",
+              account?.email || "",
+            );
+            const paid = await confirmGroupClassPayment(gc.id, checkout.checkout.session_id);
+            attendeeCode = paid.attendee_code || "";
+            setAttendeeCode(gc.id, attendeeCode);
+          } catch (e) {
+            setError((e as Error).message);
+            setBusyId("");
+            return;
+          } finally {
+            setBusyId("");
+          }
         }
       }
       // A Salareen room only exists on the server once the class has been
@@ -146,7 +159,7 @@ export default function GroupClassesScreen({
         try {
           const geo = await getLiveRoomLocation();
           const res = await startGroupClass(gc.id, geo);
-          const roomId = res.bridge.live_room_id || res.bridge.livekit_room || roomIdFor(gc);
+          const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || res.bridge.livekit_room || roomIdFor(gc);
           const attendeeCode = getAttendeeCode(gc.id);
           if (attendeeCode) setAttendeeCode(roomId, attendeeCode);
           void load();
@@ -212,7 +225,11 @@ export default function GroupClassesScreen({
 
   async function openStartedMeeting() {
     if (!started?.class.meeting_url) return;
-    await Linking.openURL(started.class.meeting_url);
+    try {
+      await Linking.openURL(started.class.meeting_url);
+    } catch (e) {
+      setError((e as Error).message);
+    }
   }
 
   async function submitSchedule() {
@@ -471,7 +488,7 @@ export default function GroupClassesScreen({
             />
             <View style={styles.actions}>
               <PrimaryButton label={t("group.cancel")} onPress={() => setRegisterTarget(null)} variant="ghost" />
-              <PrimaryButton label={t("group.register")} onPress={() => void submitRegister()} variant="netflix" />
+              <PrimaryButton label={t("group.register")} onPress={() => void submitRegister()} disabled={Boolean(busyId)} variant="netflix" />
             </View>
           </GlassPanel>
         </View>
