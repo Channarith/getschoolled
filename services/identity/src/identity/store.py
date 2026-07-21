@@ -676,7 +676,7 @@ class AccountStore:
         as a blank string so every grant is always idempotency-checked."""
         acct = self._by_id[account_id]
         nonce = nonce or ""
-        nonce_key = f"{ref}\x00{nonce}"
+        nonce_key = f"{account_id}\x00{ref}\x00{nonce}"
         if nonce_key in self._used_grant_nonces:
             return acct.points.balance, 0
         self._used_grant_nonces.add(nonce_key)

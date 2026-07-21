@@ -522,10 +522,12 @@ def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_accoun
     # Omitting the token is still allowed (Drive/live-class completions don't issue tokens).
     # TODO: make token mandatory once all completion paths issue signed tokens.
     if req.pass_decision_token:
-        try:
-            _assessment_account_id(req.pass_decision_token)
-        except HTTPException:
+        claims = verify_token(req.pass_decision_token, _assessment_signing_key())
+        if not claims or claims.get("kind") != "assessment_pass":
             raise HTTPException(status_code=403, detail="invalid pass_decision_token")
+        token_student = str(claims.get("student_id", ""))
+        if token_student and token_student not in acct.students:
+            raise HTTPException(status_code=403, detail="pass_decision_token belongs to another account")
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(

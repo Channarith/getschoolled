@@ -377,16 +377,22 @@ def api_reengage(session_id: str, _=Depends(require_internal)) -> Reengagement:
 
 
 _assessment_start_locks: dict[str, _threading.Lock] = {}
+_assessment_locks_mu = _threading.Lock()
+_MAX_ASSESSMENT_LOCKS = 5_000
 
 
 def _assessment_lock_for(key: str) -> _threading.Lock:
-    return _assessment_start_locks.setdefault(key, _threading.Lock())
+    with _assessment_locks_mu:
+        if len(_assessment_start_locks) >= _MAX_ASSESSMENT_LOCKS:
+            _assessment_start_locks.clear()
+        return _assessment_start_locks.setdefault(key, _threading.Lock())
 
 
 _AGENT_REWARD_POINTS = int(os.environ.get("AGENT_REWARD_POINTS", "10"))
 _AGENT_REWARD_SESSION_CAP = int(os.environ.get("AGENT_REWARD_SESSION_CAP", "30"))
 _session_reward_total: dict[str, int] = {}
 _reward_lock = _threading.Lock()
+_MAX_SESSION_REWARD_ENTRIES = 10_000
 
 
 def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
@@ -396,10 +402,13 @@ def _maybe_grant_reward(session_id: str, question: str, answer: Answer) -> None:
     if len(question.strip()) < 12:   # ignore trivial/empty questions
         return
     with _reward_lock:
-        if _session_reward_total.get(session_id, 0) >= _AGENT_REWARD_SESSION_CAP:
+        if len(_session_reward_total) >= _MAX_SESSION_REWARD_ENTRIES:
+            _session_reward_total.clear()
+        awarded = _session_reward_total.get(session_id, 0)
+        if awarded >= _AGENT_REWARD_SESSION_CAP:
             return
-        pts = min(_AGENT_REWARD_POINTS, _AGENT_REWARD_SESSION_CAP - _session_reward_total.get(session_id, 0))
-        _session_reward_total[session_id] = _session_reward_total.get(session_id, 0) + pts
+        pts = min(_AGENT_REWARD_POINTS, _AGENT_REWARD_SESSION_CAP - awarded)
+        _session_reward_total[session_id] = awarded + pts
     from aoep_shared.auth import sign_token
 
     reason = "Great question — keep engaging!"

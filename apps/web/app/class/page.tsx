@@ -411,8 +411,8 @@ export default function ClassPage() {
       recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
     }
     if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
-    if (result.course_decision?.passed === false) {
-      // Clear stale token only on a definitive FAILED decision, not when course_decision is absent.
+    if (result.attempt.stage === "summative" && result.course_decision?.passed === false) {
+      // Clear stale token only on a definitive summative FAILED decision.
       setPassDecisionToken(null);
     }
     if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
