@@ -137,7 +137,6 @@ const POSTERS: Record<string, string> = {
   photography:        "1502920917128-1aa500764349",   // camera
   design:             "1561070791-2526d30994b5",      // wireframe / design
   marketing:          "1432888498266-38ffec3eaf0a",   // social media / phone
-  sap:                "1461749280684-dccba630e2f6",
 };
 
 // ── Keyword → poster key rules (checked in order against full title+category+tags blob) ─
