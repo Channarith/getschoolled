@@ -41,15 +41,18 @@ def test_user_routes_are_rate_limited_and_429(monkeypatch):
         return {"ok": True}
 
     client = TestClient(app)
-    statuses = [client.get("/work", headers={"x-user-id": "u1"}).status_code for _ in range(6)]
+    # Rate limiting is IP-based (X-User-Id is not trusted for limit identity).
+    # TestClient shares a single IP, so all requests hit the same bucket.
+    statuses = [client.get("/work").status_code for _ in range(6)]
     assert statuses[:3] == [200, 200, 200]
     assert 429 in statuses
-    blocked = client.get("/work", headers={"x-user-id": "u1"})
+    blocked = client.get("/work")
     assert blocked.status_code == 429
     assert blocked.headers["retry-after"]
     assert blocked.headers["x-ratelimit-limit"] == "3"
-    fresh = client.get("/work", headers={"x-user-id": "u2"})
-    assert fresh.status_code == 200
+    # A different X-User-Id header does NOT get its own bucket — still blocked.
+    also_blocked = client.get("/work", headers={"x-user-id": "u2"})
+    assert also_blocked.status_code == 429
 
 
 def test_disabled_via_env(monkeypatch):

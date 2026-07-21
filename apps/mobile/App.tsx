@@ -43,6 +43,7 @@ import GroupClassesScreen from "./src/screens/GroupClassesScreen";
 import LiveClassScreen from "./src/screens/LiveClassScreen";
 import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
+import ArcadeScreen from "./src/screens/ArcadeScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
 import RewardsScreen from "./src/screens/RewardsScreen";
@@ -84,6 +85,9 @@ function AppInner() {
   const [showGroupClasses, setShowGroupClasses] = useState(false);
   const [showLiveClass, setShowLiveClass] = useState(false);
   const [showLiveRooms, setShowLiveRooms] = useState(false);
+  const [showArcade, setShowArcade] = useState(false);
+  const [gameFromArcade, setGameFromArcade] = useState(false);
+  const [gameTypeHint, setGameTypeHint] = useState<string | null>(null);
   const [liveRoomsOrigin, setLiveRoomsOrigin] = useState<"solo" | "group" | null>(null);
   const [liveRoomOrigin, setLiveRoomOrigin] = useState<"solo" | "group" | "liveRooms" | null>(null);
   const [liveRoomId, setLiveRoomId] = useState<string | null>(null);
@@ -166,6 +170,9 @@ function AppInner() {
       setShowGroupClasses(false);
       setShowLiveClass(false);
       setShowLiveRooms(false);
+      setShowArcade(false);
+      setGameFromArcade(false);
+      setGameTypeHint(null);
       setLiveRoomsOrigin(null);
       setLiveRoomOrigin(null);
       setLiveRoomId(null);
@@ -197,7 +204,7 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, liveRoomId, gameSubject,
+  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, showArcade, liveRoomId, gameSubject,
     activeLesson, showRewards, showAccount, showSecurity, showBilling, showLanguages, showBugReport, fade]);
 
   useEffect(() => {
@@ -356,7 +363,12 @@ function AppInner() {
     setBrowseCategory(category); setOpenCourseId(null); setTab("drive");
   };
 
-  const openGame = (subject: string) => setGameSubject(subject);
+  const openGame = (subject: string, fromArcade = false, gameType?: string) => {
+    setGameFromArcade(fromArcade);
+    setGameTypeHint(gameType || null);
+    setShowArcade(false);
+    setGameSubject(subject);
+  };
   const openLesson = (
     id: string, title: string, preview?: string, classType: "solo" | "group" = "group",
   ) => setActiveLesson({ id, title, preview, classType });
@@ -366,6 +378,9 @@ function AppInner() {
     setShowGroupClasses(false);
     setShowLiveClass(false);
     setShowLiveRooms(false);
+    setShowArcade(false);
+    setGameFromArcade(false);
+    setGameTypeHint(null);
     setLiveRoomId(null);
     setGameSubject(null);
     setActiveLesson(null);
@@ -392,9 +407,11 @@ function AppInner() {
             ? "live-class"
             : showLiveRooms
               ? "live-rooms"
-              : gameSubject
-                ? `game:${gameSubject}`
-                : `tab:${tab}`;
+              : showArcade
+                ? "arcade"
+                : gameSubject
+                  ? `game:${gameSubject}`
+                  : `tab:${tab}`;
 
   async function openBugReporter() {
     if (bugCaptureBusy) return;
@@ -428,7 +445,7 @@ function AppInner() {
   }
 
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
-    && !showLiveRooms && !gameSubject && !activeLesson
+    && !showLiveRooms && !showArcade && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
     && !showSearch && !showBugReport;
 
@@ -481,7 +498,25 @@ function AppInner() {
     );
   } else if (gameSubject) {
     screen = (
-      <GameScreen subject={gameSubject} onBack={() => setGameSubject(null)} />
+      <GameScreen
+        subject={gameSubject}
+        initialGameType={gameTypeHint || undefined}
+        onBack={() => {
+          setGameSubject(null);
+          setGameTypeHint(null);
+          if (gameFromArcade) {
+            setShowArcade(true);
+            setGameFromArcade(false);
+          }
+        }}
+      />
+    );
+  } else if (showArcade) {
+    screen = (
+      <ArcadeScreen
+        onOpenSubject={(subject, gameType) => openGame(subject, true, gameType)}
+        onBack={() => setShowArcade(false)}
+      />
     );
   } else if (activeLesson) {
     screen = (
@@ -576,7 +611,7 @@ function AppInner() {
       <HomeScreen
         onOpenCourse={openCourse}
         onOpenCategory={openCategory}
-        onOpenCareers={() => setTab("careers")}
+        onOpenArcade={() => setShowArcade(true)}
         onOpenGroupClasses={() => setShowGroupClasses(true)}
         onOpenLiveClass={() => setShowLiveClass(true)}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
@@ -604,8 +639,6 @@ function AppInner() {
       : (
         <AudioCoursesScreen
           onOpen={openCourse}
-          onOpenGame={openGame}
-          onOpenLesson={openLesson}
           initialCategory={browseCategory}
         />
       );

@@ -1,8 +1,16 @@
 from fastapi.testclient import TestClient
 
+from aoep_shared.auth import sign_token
 from billing.main import app
 
 client = TestClient(app)
+
+_TOKEN_KEY = b"dev-auth-signing-key"
+
+
+def _auth(customer_id: str) -> dict:
+    token = sign_token({"sub": customer_id}, _TOKEN_KEY)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health():
@@ -44,7 +52,8 @@ def test_can_start_pro_allows_solo_all_langs():
 
 def test_checkout_local_uses_sandbox():
     body = client.post(
-        "/checkout", json={"customer_id": "cust_1", "plan": "pro"}
+        "/checkout", json={"customer_id": "cust_1", "plan": "pro"},
+        headers=_auth("cust_1"),
     ).json()
     assert body["provider"] == "sandbox"
     assert body["session_id"].startswith("cs_sandbox_")

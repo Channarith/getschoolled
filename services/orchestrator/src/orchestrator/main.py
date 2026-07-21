@@ -29,7 +29,7 @@ from aoep_shared.assessment_policy import (
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import BackgroundTasks, Depends, Header, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, Depends, Header, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
@@ -278,7 +278,7 @@ def api_start_session(req: StartSessionRequest) -> SessionView:
 
 
 @app.get("/api/sessions/{session_id}", response_model=SessionView)
-def api_get_session(session_id: str) -> SessionView:
+def api_get_session(session_id: str, _=Depends(require_internal)) -> SessionView:
     sessions = get_sessions()
     try:
         state = sessions.get_session(session_id)
@@ -292,7 +292,7 @@ def api_get_session(session_id: str) -> SessionView:
 
 
 @app.post("/api/sessions/{session_id}/advance", response_model=Slide)
-def api_advance(session_id: str) -> Slide:
+def api_advance(session_id: str, _=Depends(require_internal)) -> Slide:
     try:
         return get_sessions().advance(session_id)
     except KeyError:
@@ -300,11 +300,12 @@ def api_advance(session_id: str) -> Slide:
 
 
 @app.post("/api/sessions/{session_id}/ask/stream")
-def api_ask_stream(session_id: str, req: AskRequest):
+async def api_ask_stream(session_id: str, req: AskRequest, request: Request, _=Depends(require_internal)):
     """Server-Sent Events stream of the conversational agent's answer for the
     real-time voice assistant (start speaking on the first tokens). Each event is
     `data: {json}\\n\\n`; a final {"type":"done", ...} carries the guarded answer +
     grounding metadata. Powered by the Nemotron agent when configured."""
+    import asyncio
     import json as _json
 
     from fastapi.responses import StreamingResponse
@@ -315,8 +316,10 @@ def api_ask_stream(session_id: str, req: AskRequest):
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown session")
 
-    def _events():
+    async def _events():
         for event in sessions.ask_stream(session_id, req.text, language=req.language):
+            if await request.is_disconnected():
+                break
             yield f"data: {_json.dumps(event)}\n\n"
 
     return StreamingResponse(_events(), media_type="text/event-stream",
@@ -324,7 +327,7 @@ def api_ask_stream(session_id: str, req: AskRequest):
 
 
 @app.post("/api/sessions/{session_id}/ask", response_model=Answer)
-def api_ask(session_id: str, req: AskRequest) -> Answer:
+def api_ask(session_id: str, req: AskRequest, _=Depends(require_internal)) -> Answer:
     sessions = get_sessions()
     try:
         answer = sessions.ask(session_id, req.text, language=req.language)
@@ -360,7 +363,7 @@ def api_ask(session_id: str, req: AskRequest) -> Answer:
 
 
 @app.post("/api/sessions/{session_id}/reengage", response_model=Reengagement)
-def api_reengage(session_id: str) -> Reengagement:
+def api_reengage(session_id: str, _=Depends(require_internal)) -> Reengagement:
     """Re-engage a drifting learner (the REENGAGING beat): a slide-grounded recap
     + prompt. Deterministic; no model server required."""
     try:

@@ -319,9 +319,12 @@ class FlagStore:
             pct = st.rollout_pct if st.rollout_pct is not None else int(base or 0)
             return _bucket(key, subject or "anon") < pct
         if spec.type is FlagType.BOOL:
-            if st.rollout_pct is not None and st.rollout_pct < 100:
-                if _bucket(key, subject or "anon") >= st.rollout_pct:
+            if st.rollout_pct is not None:
+                if st.rollout_pct < 100 and _bucket(key, subject or "anon") >= st.rollout_pct:
                     return False
+                # Bucket passed (or pct==100) — return True regardless of base
+                if st.rollout_pct > 0:
+                    return True
             return bool(base)
         return base  # STRING / INT
 

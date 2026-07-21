@@ -110,6 +110,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
               className="nav-toggle"
               aria-expanded={menuOpen}
               aria-controls="site-nav-menu"
+              aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
               onClick={() => setMenuOpen((o) => !o)}
             >
               {menuOpen ? "✕" : "☰"}

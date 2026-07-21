@@ -62,9 +62,9 @@ _checkout_cache_lock = threading.Lock()
 _CHECKOUT_CACHE_TTL = 60.0  # seconds
 
 
-def _get_cached_checkout(customer_id: str, plan: str):
+def _get_cached_checkout(customer_id: str, plan: str, method: str = ""):
     """Return cached CheckoutResponse if created within TTL, else None."""
-    key = (customer_id, plan)
+    key = (customer_id, plan, method)
     with _checkout_cache_lock:
         entry = _checkout_cache.get(key)
         if entry and (time.time() - entry[0]) < _CHECKOUT_CACHE_TTL:
@@ -74,8 +74,8 @@ def _get_cached_checkout(customer_id: str, plan: str):
     return None
 
 
-def _cache_checkout(customer_id: str, plan: str, response) -> None:
-    key = (customer_id, plan)
+def _cache_checkout(customer_id: str, plan: str, response, method: str = "") -> None:
+    key = (customer_id, plan, method)
     with _checkout_cache_lock:
         _checkout_cache[key] = (time.time(), response)
 
@@ -247,8 +247,8 @@ def checkout(
     if req.customer_id != acct_id:
         raise HTTPException(status_code=403, detail="customer_id does not match authenticated user")
 
-    # Bug 1: Return cached session if the same (customer_id, plan) was processed recently.
-    cached = _get_cached_checkout(req.customer_id, req.plan.value)
+    # Return cached session if the same (customer_id, plan, method) was processed recently.
+    cached = _get_cached_checkout(req.customer_id, req.plan.value, req.method or "")
     if cached is not None:
         return cached
 
@@ -268,7 +268,7 @@ def checkout(
         method=session.method,
         instructions=session.instructions,
     )
-    _cache_checkout(req.customer_id, req.plan.value, resp)
+    _cache_checkout(req.customer_id, req.plan.value, resp, req.method or "")
     return resp
 
 

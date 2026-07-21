@@ -908,7 +908,12 @@ def course_view(course_id: str) -> dict:
     """Record a view/open to feed the 'Popular now' rail."""
     c = app.state.catalog.bump_popularity(course_id)
     if c is None:
-        raise HTTPException(status_code=404, detail="unknown course")
+        # Try learnable index (audio courses, drive courses)
+        from curriculum.learnable_service import find_item
+        item = find_item(_learnable_index(), source_id=course_id) or find_item(_learnable_index(), global_id=course_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="unknown course")
+        return {"course_id": course_id, "popularity": 0}
     return {"course_id": course_id, "popularity": c.popularity}
 
 
@@ -1036,7 +1041,7 @@ def get_course(course_id: str) -> Course:
     course = app.state.catalog.get_course(course_id)
     if course is not None:
         return course
-    item = find_item(_learnable_index(), source_id=course_id)
+    item = find_item(_learnable_index(), source_id=course_id) or find_item(_learnable_index(), global_id=course_id)
     if item is None:
         raise HTTPException(status_code=404, detail="unknown course")
     return _course_from_learnable_item(item)

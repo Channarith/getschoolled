@@ -14,7 +14,6 @@ import {
   recordProgress, toggleMyList,
 } from "../storage";
 import { fireCompletionAlert } from "../notifications";
-import { useFocusEffect } from "@react-navigation/native";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { configureServerTts, speakNatural, stopSpeech as stopAllTts, warmVoices, setServerVoice, setServerInstructor } from "../tts";
@@ -37,9 +36,7 @@ export default function DriveModeScreen({
 }: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
   useAndroidBackTo(() => { stopAllTts(); onBack(); });
-  useFocusEffect(useCallback(() => {
-    return () => { stopAllTts(); };
-  }, []));
+  useEffect(() => { return () => { stopAllTts(); }; }, []);
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);

@@ -19,6 +19,20 @@ export const CLOUD_BASE_URL = (
   extra.cloudBaseUrl || "https://www.salareen.com"
 ).replace(/\/$/, "");
 
+/** Next.js web app origin — arcade canvas/WebGL games live here. */
+function webAppBase(): string {
+  if (extra.webAppUrl?.startsWith("http")) {
+    return extra.webAppUrl.replace(/\/$/, "");
+  }
+  if (DEPLOY_MODE === "local") {
+    const h = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+    return `http://${h}:3000`;
+  }
+  return CLOUD_BASE_URL;
+}
+
+export const WEB_APP_URL = webAppBase();
+
 /** Direct Vultr cluster twin — used when www.salareen.com is unreachable. */
 export const CLOUD_FAILOVER_BASE_URL = (
   extra.cloudFailoverBaseUrl || "https://api.salareen.com"

@@ -210,7 +210,7 @@ function DrivePageInner() {
     speak(`${c.segments[i].heading}. ${c.segments[i].text}`, () => {
       if (playGenRef.current === gen) playSeg(c, i + 1);
     });
-  }, [speak, course]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speak]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replayCurrentSegment = useCallback(() => {
     if (!course) return;
@@ -337,6 +337,7 @@ function DrivePageInner() {
     clearResumeTimer();
     stopVoiceRecognition();
     stopAmbientListening();
+    setAutoListen(false);
     playGenRef.current++;               // stop for good: no auto-advance
     cancelSpeech();
     setPlaying(false);
@@ -355,11 +356,11 @@ function DrivePageInner() {
   }
 
   function resumeAfterAssistant(delayMs = 0) {
-    if (!course) return;
+    if (!courseRef.current) return;
     clearResumeTimer();
     const go = () => {
       setAssistantOpen(false);
-      playSeg(course, seg);
+      if (courseRef.current) playSeg(courseRef.current, segRef.current);
     };
     if (delayMs > 0) {
       setAssistantStatus(t("drive.resumingIn", { seconds: Math.round(delayMs / 1000) }));
@@ -645,7 +646,7 @@ function DrivePageInner() {
     }
     if (/\b(next|skip ahead)\b/.test(lower)) {
       setAssistantAnswer(t("drive.skipAnswer"));
-      playSeg(course, Math.min(seg + 1, course.segments.length - 1));
+      playSeg(course, seg + 1);
       return;
     }
     if (/\b(previous|back|repeat)\b/.test(lower)) {
@@ -721,12 +722,12 @@ function DrivePageInner() {
             </div>
           </div>
           <div className="row" style={{ gap: 12 }}>
-            <button onClick={() => playSeg(course, Math.max(0, seg - 1))} style={BIG}>⏮</button>
+            <button type="button" aria-label={t("drive.prevSegment")} onClick={() => playSeg(course, Math.max(0, seg - 1))} style={BIG}>⏮</button>
             {playing
-              ? <button onClick={pause} style={{ ...BIG, background: "#f59e0b" }}>{t("drive.pause")}</button>
-              : <button onClick={resume} style={{ ...BIG, background: "#16a34a", color: "#fff" }}>{t("drive.play")}</button>}
-            <button onClick={() => playSeg(course, seg + 1)} style={BIG}>⏭</button>
-            <button onClick={stop} style={{ ...BIG, background: "#e11d48", color: "#fff" }}>⏹</button>
+              ? <button type="button" aria-label={t("drive.pause")} onClick={pause} style={{ ...BIG, background: "#f59e0b" }}>{t("drive.pause")}</button>
+              : <button type="button" aria-label={t("drive.play")} onClick={resume} style={{ ...BIG, background: "#16a34a", color: "#fff" }}>{t("drive.play")}</button>}
+            <button type="button" aria-label={t("drive.nextSegment")} onClick={() => playSeg(course, seg + 1)} style={BIG}>⏭</button>
+            <button type="button" aria-label={t("drive.stop")} onClick={stop} style={{ ...BIG, background: "#e11d48", color: "#fff" }}>⏹</button>
             {supportsSpeechRecognition() && !micDenied ? (
               <button
                 onClick={() => void toggleAutoListen()}

@@ -148,7 +148,7 @@ export default function CreatureCatch() {
         }, 1300);
       } else {
         setFeedback(`❌ Wrong! ${newHp} chance${newHp === 1 ? "" : "s"} left.`);
-        setQIdx((q) => Math.min(q + 1, qPool.length - 1));
+        setQIdx((q) => (q + 1) % qPool.length);
       }
     }
   }

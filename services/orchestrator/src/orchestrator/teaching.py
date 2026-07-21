@@ -8,6 +8,7 @@ retrieved passages) so the live demo works without a running model server.
 
 from __future__ import annotations
 
+import threading
 import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional
@@ -98,6 +99,13 @@ class SessionCounters:
     last_attention: float = 1.0
 
 
+_advance_locks: dict[str, threading.Lock] = {}
+
+
+def _lock_for(session_id: str) -> threading.Lock:
+    return _advance_locks.setdefault(session_id, threading.Lock())
+
+
 def _offline_answer(question: str, context: List[str]) -> str:
     if context:
         snippet = " ".join(" ".join(context).split())[:400]
@@ -179,7 +187,7 @@ class TeachingSessions:
             slide_indices = plan_slide_indices(lesson.slides, session_budget_min)
             planned_duration = planned_duration_minutes(len(slide_indices))
         session = SessionState(
-            session_id=uuid.uuid4().hex[:12],
+            session_id=uuid.uuid4().hex[:20],
             class_type=class_type,
             lesson_id=lesson_id,
             student_id=student_id,
@@ -230,22 +238,23 @@ class TeachingSessions:
         return self.lesson_for(session_id).slides[session.current_slide]
 
     def advance(self, session_id: str) -> Slide:
-        session = self._require(session_id)
-        lesson = self.lesson_for(session_id)
-        last = len(lesson.slides) - 1
-        session.current_slide = min(session.current_slide + 1, last)
-        self.store.save(session)
-        counters = self.counters_for(session_id)
-        counters.slides_seen += 1
-        counters.slides_since_quiz += 1
-        if counters.student_id:
-            # Behavior here is keyed by lesson_id; the quiz/grade loop keys by its
-            # request topic, so callers must pass topic == lesson_id for the two
-            # signal streams to merge for the same learner+topic.
-            self.memory.record_behavior(
-                counters.student_id, session.lesson_id, saw_slide=True
-            )
-        return self.current_slide(session_id)
+        with _lock_for(session_id):
+            session = self._require(session_id)
+            lesson = self.lesson_for(session_id)
+            last = len(lesson.slides) - 1
+            session.current_slide = min(session.current_slide + 1, last)
+            self.store.save(session)
+            counters = self.counters_for(session_id)
+            counters.slides_seen += 1
+            counters.slides_since_quiz += 1
+            if counters.student_id:
+                # Behavior here is keyed by lesson_id; the quiz/grade loop keys by its
+                # request topic, so callers must pass topic == lesson_id for the two
+                # signal streams to merge for the same learner+topic.
+                self.memory.record_behavior(
+                    counters.student_id, session.lesson_id, saw_slide=True
+                )
+            return self.current_slide(session_id)
 
     def _ask_prompt(self, session, question: str, language: str, dialect: str | None):
         """Shared retrieval + prompt build for ask() and ask_stream()."""
@@ -362,18 +371,20 @@ class TeachingSessions:
             raw = humanize_narration(_offline_answer(question, context), dialect, language=language)
             yield {"type": "delta", "text": raw}
         safe_text, report = guard_answer(raw, context, question=question)
-        self._record_qa(session, question, safe_text)
-        yield {
-            "type": "done",
-            "text": safe_text,
-            "citations": context,
-            "language": language,
-            "understood": norm.glossed,
-            "grounded": report.grounded,
-            "hallucination_risk": report.hallucination_risk,
-            "unsupported": report.unsupported,
-            "corrected": safe_text.strip() != raw.strip(),
-        }
+        try:
+            yield {
+                "type": "done",
+                "text": safe_text,
+                "citations": context,
+                "language": language,
+                "understood": norm.glossed,
+                "grounded": report.grounded,
+                "hallucination_risk": report.hallucination_risk,
+                "unsupported": report.unsupported,
+                "corrected": safe_text.strip() != raw.strip(),
+            }
+        finally:
+            self._record_qa(session, question, safe_text)
 
     def reengage(self, session_id: str) -> Reengagement:
         """A deterministic, slide-grounded re-engagement beat (the REENGAGING

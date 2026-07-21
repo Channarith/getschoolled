@@ -206,6 +206,7 @@ class BannedUser:
     reason: str = ""
     banned_at: str = ""
     banned_by: str = AI_HOST_NAME
+    account_id: str = ""
 
     def __post_init__(self) -> None:
         self.identity = (self.identity or "").strip()
@@ -1020,6 +1021,11 @@ class LiveRoomStore:
             banned = room.banned[ident]
             detail = banned.reason or "You have been removed from this class."
             raise BannedError(detail)
+        # Also reject banned account IDs regardless of identity string
+        if acct and any(
+            b.account_id == acct for b in room.banned.values() if b.account_id
+        ):
+            raise BannedError("You have been removed from this class.")
         for p in room.participants.values():
             if not p.is_host and p.identity == ident:
                 if acct:
@@ -1082,7 +1088,7 @@ class LiveRoomStore:
         if p.is_host:
             raise LiveRoomError("the AI host cannot leave")
         name = p.name
-        self._remove_from_queue(room_id, participant_id)
+        self._remove_from_queue(room, participant_id)
         self._clear_rate(room_id, participant_id)
         del room.participants[participant_id]
         room.viewer_count = room.learner_count
@@ -1140,8 +1146,7 @@ class LiveRoomStore:
         self._commit(room)
         return msg
 
-    def _remove_from_queue(self, room_id: str, participant_id: str) -> None:
-        room = self.require(room_id)
+    def _remove_from_queue(self, room: "LiveRoom", participant_id: str) -> None:
         if room.floor_participant_id == participant_id:
             room.floor_participant_id = ""
         room.speaking_queue = [
@@ -1241,7 +1246,7 @@ class LiveRoomStore:
         if room.floor_participant_id == participant_id:
             self.finish_turn(room_id, participant_id)
             return
-        self._remove_from_queue(room_id, participant_id)
+        self._remove_from_queue(room, participant_id)
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
@@ -1815,7 +1820,17 @@ class LiveRoomStore:
             if moderator_key:
                 raise LiveRoomError("this learner does not have the floor")
             return
-        p = room.get_participant(participant_id)
+        try:
+            p = room.get_participant(participant_id)
+        except (KeyError, LiveRoomError):
+            # Participant already left — still clear floor state
+            room.floor_participant_id = ""
+            for entry in room.speaking_queue:
+                if entry.participant_id == participant_id and entry.status == QUEUE_SPEAKING:
+                    entry.status = QUEUE_DONE
+            room._reindex_waiting()
+            self._commit(room)
+            return
         for entry in room.speaking_queue:
             if entry.participant_id == participant_id and entry.status == QUEUE_SPEAKING:
                 entry.status = QUEUE_DONE
@@ -2014,10 +2029,11 @@ class LiveRoomStore:
             name=target.name,
             reason=reason or "Removed for disruptive behavior.",
             banned_by=AI_HOST_NAME,
+            account_id=target.account_id or "",
         )
         room.banned[target.identity] = entry
         name = target.name
-        self._remove_from_queue(room_id, participant_id)
+        self._remove_from_queue(room, participant_id)
         del room.participants[participant_id]
         room.chat.append(
             ChatMessage(

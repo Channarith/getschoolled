@@ -6,13 +6,13 @@ import { searchLearnable, getGamesCatalog, type LearnableItem } from "../lib/api
 
 // Static settings pages that are searchable. Admin, flags, and password-required
 // pages are intentionally excluded.
+// Link only to real routes — /account has no ?tab= routing (see account/page.tsx).
 const SETTINGS_ITEMS = [
-  { title: "Account settings", href: "/account", keywords: "profile email password name" },
-  { title: "Language", href: "/account?tab=language", keywords: "locale language translate" },
-  { title: "Voice & Audio", href: "/account?tab=voice", keywords: "voice tts audio narration speed" },
-  { title: "Notifications", href: "/account?tab=notifications", keywords: "email push notification" },
-  { title: "Subscription", href: "/account?tab=subscription", keywords: "plan billing tier upgrade" },
-  { title: "Accessibility", href: "/account?tab=accessibility", keywords: "captions screen reader assistive" },
+  { title: "Account settings", href: "/account", keywords: "profile email password name membership" },
+  { title: "Language practice", href: "/languages", keywords: "locale language translate learn" },
+  { title: "Voice & narration", href: "/drive", keywords: "voice tts audio narration instructor speed" },
+  { title: "Billing & plans", href: "/billing", keywords: "plan billing tier upgrade subscription" },
+  { title: "Rewards", href: "/rewards", keywords: "points redeem prizes" },
   { title: "Download app", href: "/download", keywords: "mobile ios android app" },
 ];
 

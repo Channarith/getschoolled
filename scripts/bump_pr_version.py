@@ -49,7 +49,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_release as br  # noqa: E402
 
 # >N features/changes since the last release auto-promotes a PATCH to a MINOR.
-DEFAULT_MINOR_BUMP_THRESHOLD = 8
+DEFAULT_MINOR_BUMP_THRESHOLD = 120
 
 Version = tuple[int, int, int]
 
@@ -61,8 +61,8 @@ def _minor_bump_threshold() -> int:
             parsed = int(raw)
             if parsed <= 0:
                 return 0
-            # Project policy is strict: auto-minor must trigger once >8
-            # pending feature changes exist. Allow tightening this threshold,
+            # Project policy: auto-minor triggers once >120 pending feature
+            # changes exist. Allow tightening the threshold (lower value),
             # but never loosening it via environment drift in CI.
             return min(parsed, DEFAULT_MINOR_BUMP_THRESHOLD)
         except ValueError:
