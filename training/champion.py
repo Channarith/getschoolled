@@ -44,9 +44,11 @@ class ChampionRegistry:
     def promote(self, name: str, metrics: Optional[Dict] = None) -> Dict:
         p = Path(self.path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        with open(p, "a+", encoding="utf-8") as f:
+        # Use r+ (not a+): in a+ mode writes always go to EOF even after seek(0).
+        if not p.exists():
+            p.write_text(json.dumps({"champion": None, "metrics": {}, "history": []}))
+        with open(p, "r+", encoding="utf-8") as f:
             fcntl.flock(f, fcntl.LOCK_EX)
-            f.seek(0)
             content = f.read()
             data = json.loads(content) if content.strip() else {"champion": None, "metrics": {}, "history": []}
             data["history"].append({"name": name, "metrics": metrics or {}, "ts": time.time()})
@@ -61,9 +63,10 @@ class ChampionRegistry:
         """Roll the champion back to a named prior entry, or the previous one."""
         p = Path(self.path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        with open(p, "a+", encoding="utf-8") as f:
+        if not p.exists():
+            p.write_text(json.dumps({"champion": None, "metrics": {}, "history": []}))
+        with open(p, "r+", encoding="utf-8") as f:
             fcntl.flock(f, fcntl.LOCK_EX)
-            f.seek(0)
             content = f.read()
             data = json.loads(content) if content.strip() else {"champion": None, "metrics": {}, "history": []}
             hist = data["history"]

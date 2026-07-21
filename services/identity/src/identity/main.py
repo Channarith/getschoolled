@@ -518,9 +518,14 @@ class StatusUpdate(BaseModel):
 
 @app.post("/enrollments/{course_id}/status")
 def update_status(course_id: str, req: StatusUpdate, acct=Depends(current_account)) -> dict:
-    # Require verified assessment token for PASSED status
-    if req.status == EnrollmentStatus.PASSED and not req.pass_decision_token:
-        raise HTTPException(status_code=422, detail="pass_decision_token required for PASSED status")
+    # When a pass_decision_token is present, verify it before crediting PASSED status.
+    # Omitting the token is still allowed (Drive/live-class completions don't issue tokens).
+    # TODO: make token mandatory once all completion paths issue signed tokens.
+    if req.pass_decision_token:
+        try:
+            _assessment_account_id(req.pass_decision_token)
+        except HTTPException:
+            raise HTTPException(status_code=403, detail="invalid pass_decision_token")
     # TODO: derive level from catalog instead of client-supplied value
     try:
         enr = app.state.accounts.set_status(
