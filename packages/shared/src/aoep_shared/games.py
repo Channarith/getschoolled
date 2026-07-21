@@ -585,7 +585,11 @@ def score_round(rnd: GameRound, answers: Dict[str, object],
         for m in rnd.mcqs:
             if ai_ans.get(m.id) == m.answer_index:
                 ai_correct += 1
-        if correct > ai_correct:
+        if correct == 0:
+            # Zero correct is always a loss — you can't tie with nothing.
+            versus_outcome = "lose"
+            versus_bonus = 0
+        elif correct > ai_correct:
             versus_outcome = "win"
             versus_bonus = 35 + (correct - ai_correct) * 5
         elif correct == ai_correct:
