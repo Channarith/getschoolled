@@ -621,6 +621,10 @@ function AppInner() {
           setLiveRoomsOrigin("solo");
           setShowLiveRooms(true);
         }}
+        onOpenGroupClasses={() => {
+          setShowLiveClass(false);
+          setShowGroupClasses(true);
+        }}
         onBack={() => setShowLiveClass(false)}
       />
     );

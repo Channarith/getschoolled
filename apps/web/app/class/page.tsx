@@ -839,6 +839,15 @@ export default function ClassPage() {
               Start class
             </button>
           </div>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span className="muted" style={{ fontSize: 13 }}>Want to host your own class for a group?</span>
+            <a href="/group-classes" style={{
+              background: "#6366f1", color: "#fff", borderRadius: 8,
+              padding: "7px 16px", fontSize: 13, fontWeight: 700, textDecoration: "none",
+            }}>
+              🎓 Host a Class
+            </a>
+          </div>
         </div>
       )}
 

@@ -16,6 +16,7 @@ export type LiveClassMode = "solo" | "group";
 type Props = {
   onStart: (lessonId: string, title: string, classType: LiveClassMode) => void;
   onOpenLiveRooms: () => void;
+  onOpenGroupClasses?: () => void;
   onBack: () => void;
 };
 
@@ -68,7 +69,7 @@ function StarRating({ score, count }: { score: number; count: number }) {
   );
 }
 
-export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Props) {
+export default function LiveClassScreen({ onStart, onOpenLiveRooms, onOpenGroupClasses, onBack }: Props) {
   const { t, locale } = useT();
   useAndroidBackTo(onBack);
   const classType: LiveClassMode = "solo";
@@ -182,6 +183,13 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
         <Text style={styles.sub}>{t("liveClass.sub")}</Text>
         <View style={styles.liveRoomsAction}>
           <PrimaryButton label={t("live.browseCta")} onPress={onOpenLiveRooms} variant="ghost" />
+          {onOpenGroupClasses ? (
+            <PrimaryButton
+              label="🎓 Host a Class"
+              onPress={onOpenGroupClasses}
+              variant="brand"
+            />
+          ) : null}
         </View>
       </View>
 

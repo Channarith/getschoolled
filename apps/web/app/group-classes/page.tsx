@@ -62,7 +62,7 @@ export default function GroupClassesPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(true); // open by default — this page IS the host-a-class page
   const [started, setStarted] = useState<GroupClassStart | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
   const [isAdmin, setIsAdmin] = useState(false);    // platform admin can join a full class to monitor
@@ -215,10 +215,40 @@ export default function GroupClassesPage() {
 
   return (
     <main className="container page-one group-page">
-      <h1>{t("group.title")}</h1>
-      <p className="muted" style={{ margin: "0 0 16px", lineHeight: 1.5 }}>
-        {t("group.intro")}
-      </p>
+      {/* Hero: Host a Class CTA */}
+      <div style={{
+        background: "linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",
+        borderRadius: 16,
+        padding: "28px 32px",
+        marginBottom: 24,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 20,
+        flexWrap: "wrap",
+      }}>
+        <div>
+          <h1 style={{ margin: 0, color: "#fff", fontSize: 26 }}>🎓 Host a Class</h1>
+          <p style={{ margin: "6px 0 0", color: "#94a3b8", fontSize: 14, lineHeight: 1.5 }}>
+            Schedule your own live class with the AI teacher. Students join, you facilitate — AI handles the content.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowForm((s) => !s)}
+          style={{
+            background: showForm ? "rgba(255,255,255,0.1)" : "#6366f1",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "10px 22px",
+            fontWeight: 700,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {showForm ? "▲ Hide form" : "🎓 Host a Class"}
+        </button>
+      </div>
 
       {!loggedIn && <SignInToUse />}
 
@@ -229,15 +259,9 @@ export default function GroupClassesPage() {
         </div>
       )}
 
-      <div className="row" style={{ margin: "12px 0" }}>
-        <button onClick={() => setShowForm((s) => !s)}>
-          {showForm ? t("group.hideForm") : t("group.scheduleCta")}
-        </button>
-      </div>
-
       {showForm && (
         <div className="card group-schedule-panel">
-          <h3 style={{ marginTop: 0 }}>{t("group.scheduleCta")}</h3>
+          <h3 style={{ marginTop: 0 }}>Schedule your class</h3>
           <div style={{ display: "grid", gap: 10 }}>
             <label>
               <div className="muted">{t("group.fTitle")}</div>
