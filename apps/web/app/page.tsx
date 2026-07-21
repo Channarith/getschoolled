@@ -31,14 +31,18 @@ export default function HomePage() {
 
   useEffect(() => {
     let alive = true;
+    let feedController = new AbortController();
     const sync = () => {
+      feedController.abort();
+      feedController = new AbortController();
+      const signal = feedController.signal;
       const authed = Boolean(getToken());
       setLoggedIn(authed);
       setAuthResolved(true);
       if (authed) {
-        getHomeFeed(false, locale)
+        getHomeFeed(false, locale, signal)
           .then((r) => { if (!alive) return; setRails(r); })
-          .catch((e) => { if (!alive) return; setError(String(e)); });
+          .catch((e) => { if (!alive || signal.aborted) return; setError(String(e)); });
         getMe()
           .then((m) => { if (!alive) return; setTier(m.tier || "free"); })
           .catch(() => { if (!alive) return; setTier("free"); });
@@ -52,6 +56,7 @@ export default function HomePage() {
     window.addEventListener("storage", sync);
     return () => {
       alive = false;
+      feedController.abort();
       window.removeEventListener(AUTH_EVENT, sync);
       window.removeEventListener("storage", sync);
     };

@@ -296,6 +296,22 @@ function AppInner() {
       }
     } catch {}
 
+    const handleDeepLink = (deepLink: string) => {
+      if (deepLink === "aiclassroom://drive") {
+        setTab("drive"); setOpenCourseId(null);
+      } else if (deepLink === "aiclassroom://group" || deepLink === "aiclassroom://groupclasses") {
+        setShowGroupClasses(true);
+      } else if (deepLink === "aiclassroom://live" || deepLink === "aiclassroom://liverooms") {
+        setShowLiveRooms(true);
+      } else if (deepLink === "aiclassroom://lesson") {
+        setShowLiveClass(true);
+      } else if (deepLink === "aiclassroom://rewards") {
+        setShowRewards(true);
+      } else {
+        setTab("notifications");
+      }
+    };
+
     subRef.current = Notifications.addNotificationReceivedListener((n) => {
       const c = n.request.content;
       setBanner({
@@ -307,8 +323,8 @@ function AppInner() {
           if (data.courseId) {
             setOpenCourseId(data.courseId);
             setTab("drive");
-          } else if (data.deepLink === "aiclassroom://drive") {
-            setTab("drive"); setOpenCourseId(null);
+          } else if (data.deepLink) {
+            handleDeepLink(data.deepLink);
           } else {
             setTab("notifications");
           }
@@ -320,8 +336,8 @@ function AppInner() {
         { courseId?: string; deepLink?: string };
       if (data.courseId) {
         setOpenCourseId(data.courseId); setTab("drive");
-      } else if (data.deepLink === "aiclassroom://drive") {
-        setTab("drive"); setOpenCourseId(null);
+      } else if (data.deepLink) {
+        handleDeepLink(data.deepLink);
       } else { setTab("notifications"); }
     });
 
@@ -493,7 +509,14 @@ function AppInner() {
       <SearchScreen
         onBack={() => setShowSearch(false)}
         onOpenCourse={(id) => { setShowSearch(false); openCourse(id); }}
-        onOpenSettings={(section) => { setShowSearch(false); setShowAccount(true); }}
+        onOpenSettings={(section) => {
+          setShowSearch(false);
+          if (section === "account") {
+            requireAuth(() => setShowAccount(true));
+          } else {
+            setTab("settings");
+          }
+        }}
       />
     );
   } else if (gameSubject) {

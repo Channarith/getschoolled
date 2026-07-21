@@ -333,8 +333,8 @@ export default function GroupClassesScreen({
               ) : null}
               <View style={styles.actions}>
                 {/* One button: first join opens + hosts the class; later joins
-                    drop into the running room. No separate register/start step.
-                    A full class is grayed out except for the admin (monitor). */}
+                    drop into the running room. A full class is grayed out except
+                    for the admin (monitor). */}
                 <PrimaryButton
                   label={joinBlocked ? t("group.full") : t("group.join")}
                   onPress={() => void handleJoin(gc)}
@@ -342,6 +342,21 @@ export default function GroupClassesScreen({
                   disabled={busy || joinBlocked}
                   variant="brand"
                 />
+                <PrimaryButton
+                  label={t("group.register")}
+                  onPress={() => promptRegister(gc)}
+                  disabled={busy}
+                  variant="ghost"
+                />
+                {isAdmin ? (
+                  <PrimaryButton
+                    label={t("group.openClass")}
+                    onPress={() => void handleStart(gc)}
+                    loading={busy}
+                    disabled={busy}
+                    variant="netflix"
+                  />
+                ) : null}
                 <PrimaryButton
                   label="Rate"
                   onPress={() => void handleReview(gc, 5)}

@@ -45,7 +45,10 @@ export default function CareersScreen({ onBack, onOpenCourse }: Props) {
       .finally(() => setLoading(false));
   }, [q, loc]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const t = setTimeout(() => void refresh(), 300);
+    return () => clearTimeout(t);
+  }, [refresh]);
 
   const openJob = async (id: string) => {
     setMatchLoading(true);
@@ -70,7 +73,7 @@ export default function CareersScreen({ onBack, onOpenCourse }: Props) {
             </View>
           </AnimatedPressable>
         ) : null}
-        <Text style={styles.kicker}>{t("careers.title")}</Text>
+        <Text style={styles.kicker}>{t("tab.careers")}</Text>
         <Text style={styles.title}>{t("careers.title")}</Text>
         <Text style={styles.sub}>
           {t("careers.sub")}

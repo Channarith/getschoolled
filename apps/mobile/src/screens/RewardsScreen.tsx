@@ -75,10 +75,11 @@ export default function RewardsScreen({ onBack }: { onBack: () => void }) {
   }, [prizes, selectedPrizeId]);
 
   const selectedPrize = prizes.find((p) => p.id === selectedPrizeId) ?? null;
-  const historyRows = summary?.ledger.slice(0, 12).map((e, i) => ({
+  const ledger = summary?.ledger ?? [];
+  const historyRows = ledger.slice(0, 12).map((e, i) => ({
     key: `${e.ts}-${i}`,
     label: `${e.delta > 0 ? "+" : ""}${e.delta} · ${formatRewardReason(e.reason)}${formatRewardRef(e.ref)}`,
-  })) ?? [];
+  }));
   const selectedHistory = historyRows.find((h) => h.key === selectedHistoryKey) ?? historyRows[0] ?? null;
 
   async function redeem(id: string) {
@@ -86,7 +87,9 @@ export default function RewardsScreen({ onBack }: { onBack: () => void }) {
     setError("");
     try {
       const r = await redeemReward(id);
-      setSummary((s) => s ? { ...s, balance: r.balance } : s);
+      if (r?.balance != null) {
+        setSummary((s) => s ? { ...s, balance: r.balance } : s);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {

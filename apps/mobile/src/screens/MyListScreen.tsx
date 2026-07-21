@@ -20,8 +20,7 @@ export default function MyListScreen({ onOpenCourse }: {
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
 
-  const load = async () => {
-    let alive = true;
+  const load = async (aliveObj: { current: boolean }) => {
     try {
       // Fetch saved course IDs from the server, then hydrate from the audio catalog.
       const [portfolio, all] = await Promise.all([
@@ -32,22 +31,29 @@ export default function MyListScreen({ onOpenCourse }: {
         (portfolio.by_status?.saved ?? []).map((e: { course_id: string }) => e.course_id)
       );
       const lookup = new Map(all.courses.map((c) => [c.id, c]));
+      if (!aliveObj.current) return;
       setRows([...savedIds].map((id) => lookup.get(id)).filter(Boolean) as AudioCourseRow[]);
     } catch {
-      if (alive) setRows([]);
+      if (!aliveObj.current) return;
+      // Do not wipe rows on load error — keep existing rows visible.
     } finally {
-      if (alive) { setLoading(false); setRefreshing(false); }
+      if (aliveObj.current) { setLoading(false); setRefreshing(false); }
     }
   };
-  useEffect(() => { void load(); }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const alive = { current: true };
+    void load(alive);
+    return () => { alive.current = false; };
+  }, [locale]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const remove = async (id: string) => {
     // Optimistic UI update then sync to server.
+    const prev = rows; // snapshot before optimistic update
     setRows((r) => r.filter((c) => c.id !== id));
     try {
       await deleteEnrollment(id); // DELETE the enrollment entirely (un-save bookmark)
     } catch {
-      void load(); // revert on error
+      setRows(prev); // restore snapshot, do not call load() (which can wipe rows on error)
     }
   };
 
@@ -65,7 +71,7 @@ export default function MyListScreen({ onOpenCourse }: {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); void load(); }}
+          onRefresh={() => { setRefreshing(true); const alive = { current: true }; void load(alive); }}
           tintColor={theme.colors.netflix}
         />
       }

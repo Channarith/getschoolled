@@ -30,22 +30,24 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
-    setError("");
-    try {
-      const rows = await listLessons();
-      setLessons(rows);
-      if (rows.length && !lessonId) setLessonId(rows[0].lesson_id);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      setError("");
+      try {
+        const rows = await listLessons();
+        if (!alive) return;
+        setLessons(rows);
+        if (rows.length && !lessonId) setLessonId(rows[0].lesson_id);
+      } catch (e) {
+        if (!alive) return;
+        setError((e as Error).message);
+      } finally {
+        if (alive) { setLoading(false); setRefreshing(false); }
+      }
+    };
     void load();
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -63,7 +65,20 @@ export default function LiveClassScreen({ onStart, onOpenLiveRooms, onBack }: Pr
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); void load(); }}
+          onRefresh={async () => {
+            setRefreshing(true);
+            setError("");
+            try {
+              const rows = await listLessons();
+              setLessons(rows);
+              if (rows.length && !lessonId) setLessonId(rows[0].lesson_id);
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setLoading(false);
+              setRefreshing(false);
+            }
+          }}
           tintColor={theme.colors.netflix}
         />
       }

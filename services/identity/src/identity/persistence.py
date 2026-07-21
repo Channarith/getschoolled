@@ -122,6 +122,7 @@ def dump_state(store: "AccountStore") -> dict:
         "id_by_email": dict(store._id_by_email),
         "game_stats": store._game_stats,
         "used_grant_nonces": sorted(store._used_grant_nonces),
+        "submitted_game_ids": {aid: list(gids) for aid, gids in store._submitted_game_ids.items()},
     }
 
 
@@ -137,6 +138,10 @@ def load_state(store: "AccountStore", payload: dict) -> None:
     store._id_by_email.update(payload.get("id_by_email", {}))
     store._game_stats.update(payload.get("game_stats", {}))
     store._used_grant_nonces.update(payload.get("used_grant_nonces", []))
+    store._submitted_game_ids = {
+        aid: set(gids)
+        for aid, gids in payload.get("submitted_game_ids", {}).items()
+    }
 
 
 def load_from_redis(store: "AccountStore") -> bool:
@@ -168,6 +173,8 @@ def load_from_redis_with_retry(store: "AccountStore", *, attempts: int = 5, dela
 
 
 def save_to_redis(store: "AccountStore") -> bool:
+    # WARNING: last-writer-wins — concurrent replicas can overwrite each other's
+    # state. Atomic updates would require Lua scripts with optimistic locking (WATCH/MULTI/EXEC).
     client = _redis_client()
     if client is None:
         return not redis_configured()

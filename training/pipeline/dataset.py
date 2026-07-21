@@ -121,6 +121,10 @@ def class_session_to_examples(
             i += 2
         else:
             i += 1
+    if rewards is not None and len(rewards) != pair_idx:
+        raise ValueError(
+            f"rewards length {len(rewards)} != pairs length {pair_idx}"
+        )
     return examples
 
 

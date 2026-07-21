@@ -45,7 +45,7 @@ export default function BrowsePage() {
     if (!loggedIn) return;
     const controller = new AbortController();
     searchLearnable({ ...filters, limit: "80" }, locale, controller.signal)
-      .then((r) => { if (controller.signal.aborted) return; setItems(r.items); setTotal(r.total); })
+      .then((r) => { if (controller.signal.aborted) return; setError(""); setItems(r.items); setTotal(r.total); })
       .catch((e) => { if (controller.signal.aborted) return; setError(String(e)); });
     return () => controller.abort();
   }, [filters, loggedIn, locale]);

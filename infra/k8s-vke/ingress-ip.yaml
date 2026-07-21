@@ -53,3 +53,50 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: web, port: { number: 80 } } }
+---
+# API service routes with path-prefix rewrite for the bare LoadBalancer IP.
+# Mirrors the aoep-apis host rules in ingress-vke.yaml so that
+# http://45.63.91.80/<svc>/... is forwarded to the correct backend with the
+# /<svc> prefix stripped (rewrite-target: /$2). This must be a separate Ingress
+# from aoep-ip because nginx only allows one rewrite-target per Ingress resource.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aoep-ip-apis
+  namespace: aoep
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /curriculum(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: curriculum, port: { number: 8000 } } }
+          - path: /identity(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: identity, port: { number: 8000 } } }
+          - path: /memory(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: memory, port: { number: 8000 } } }
+          - path: /speech(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: speech, port: { number: 8000 } } }
+          - path: /billing(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: billing, port: { number: 8000 } } }
+          - path: /integrations(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: integrations, port: { number: 8000 } } }
+          - path: /perception(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: perception, port: { number: 8000 } } }
+          - path: /orchestrator(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend: { service: { name: orchestrator, port: { number: 8000 } } }

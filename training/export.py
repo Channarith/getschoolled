@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from pipeline.dataset import AudienceContext, TrainingExample, class_session_to_examples
+from pipeline.dataset import AudienceContext, TrainingExample, class_session_to_examples, redact_protected
 
 
 def _examples_from_sessions(sessions: list) -> List[TrainingExample]:
@@ -91,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         for ex in train:
             fh.write(json.dumps(ex.to_dict(), ensure_ascii=False) + "\n")
         for row in correction_rows:
+            # Redact protected attributes before writing to training data.
+            row = redact_protected(row)
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     written = len(train) + len(correction_rows)
     print(f"wrote {written} train examples ({len(correction_rows)} from corrections) -> {args.out}")

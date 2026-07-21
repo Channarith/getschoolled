@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator, Image, ImageBackground, Modal, RefreshControl, ScrollView,
   StyleSheet, Text, View,
@@ -61,9 +61,7 @@ export default function HomeScreen({
   const [streakDays, setStreakDays] = useState(0);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [showMascot, setShowMascot] = useState(false);
-  const loadAliveRef = useRef(true);
-
-  const load = async () => {
+  const load = async (aliveObj: { current: boolean }) => {
     setError("");
     try {
       const [cont, savedIds, allCats, all, interests] = await Promise.all([
@@ -82,7 +80,7 @@ export default function HomeScreen({
           ? { ...c, title: fresh.title, category: fresh.category }
           : c;
       });
-      if (!loadAliveRef.current) return;
+      if (!aliveObj.current) return;
       setContinueRows(refreshedContinue);
       setCats(allCats.categories);
       const savedIdSet = new Set(savedIds);
@@ -103,22 +101,22 @@ export default function HomeScreen({
       } else { setSavedRows([]); }
 
       const streak = await getStreak();
-      if (!loadAliveRef.current) return;
+      if (!aliveObj.current) return;
       setStreakDays(streak.days);
     } catch (e) {
-      if (loadAliveRef.current) setError(t("home.error", { error: String(e) }));
+      if (aliveObj.current) setError(t("home.error", { error: String(e) }));
     } finally {
-      if (loadAliveRef.current) { setLoading(false); setRefreshing(false); }
+      if (aliveObj.current) { setLoading(false); setRefreshing(false); }
     }
   };
 
   // Reload whenever the user switches language so titles, categories,
   // and segment headings re-render in the new locale.
   useEffect(() => {
-    loadAliveRef.current = true;
+    const alive = { current: true };
     setLoading(true);
-    void load();
-    return () => { loadAliveRef.current = false; };
+    void load(alive);
+    return () => { alive.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
@@ -146,7 +144,7 @@ export default function HomeScreen({
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => { setRefreshing(true); void load(); }}
+          onRefresh={() => { setRefreshing(true); const alive = { current: true }; void load(alive); }}
           tintColor={theme.colors.netflix}
         />
       }

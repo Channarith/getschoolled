@@ -22,6 +22,7 @@ light (numpy only) so it can be ported and re-used across products.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -226,6 +227,10 @@ class ForesightEngine:
         self.set_pattern_library(_xavier(rng, (8, d)))
         self.heads: Dict[str, _HeadBase] = {}
         self.graph_head: Optional[RelationalGraphHead] = None
+        # Lock that serializes forward() calls in predict_batch so that
+        # concurrent threads don't race on mutable engine state (e.g. if
+        # set_pattern_library() is called from another thread mid-batch).
+        self._forward_lock = threading.Lock()
 
     # --- configuration ---------------------------------------------------- #
     def set_pattern_library(self, P: np.ndarray) -> None:
@@ -256,7 +261,13 @@ class ForesightEngine:
 
     def mixture(self, F: np.ndarray, pi: np.ndarray) -> np.ndarray:
         """F_tilde = sum_c pi(c|F) A_c F."""
-        return sum(pi[i] * (self.adapters[c] @ F) for i, c in enumerate(self.taxonomy))
+        # Use np.zeros as the start value so that an empty taxonomy returns a
+        # float-typed zero vector instead of Python int 0, which would cause
+        # downstream type errors when the result is used in numpy operations.
+        return sum(
+            (pi[i] * (self.adapters[c] @ F) for i, c in enumerate(self.taxonomy)),
+            np.zeros(self.config.d),
+        )
 
     def grouped_summary(self, F: np.ndarray, head: _HeadBase) -> Tuple[np.ndarray, np.ndarray]:
         Qk = head.Wq @ F
@@ -291,5 +302,9 @@ class ForesightEngine:
         the heavy linear algebra). A CUDA backend batches these on-device."""
         from concurrent.futures import ThreadPoolExecutor
 
+        def _run(X: np.ndarray) -> ForesightOutput:
+            with self._forward_lock:
+                return self.forward(X, candidates=candidates)
+
         with ThreadPoolExecutor(max_workers=max_workers) as pool_exec:
-            return list(pool_exec.map(lambda X: self.forward(X, candidates=candidates), inputs))
+            return list(pool_exec.map(_run, inputs))

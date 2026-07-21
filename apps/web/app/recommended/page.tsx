@@ -84,18 +84,25 @@ export default function RecommendedPage() {
   useEffect(() => {
     const prof = students.find((s) => s.id === selected);
     if (!prof) return;
+    const controller = new AbortController();
     setError("");
-    recommendForProfile({
-      student_id: prof.id, mastery: prof.mastery,
-      completed_course_ids: prof.completed_course_ids, interests: prof.interests,
-    })
+    recommendForProfile(
+      { student_id: prof.id, mastery: prof.mastery,
+        completed_course_ids: prof.completed_course_ids, interests: prof.interests },
+      controller.signal,
+    )
       .then((r) => {
+        if (controller.signal.aborted) return;
         if (r.recommendations.length === 0) {
           return applyHomeFallback(r, prof.id);
         }
         setResult(r);
       })
-      .catch(() => applyHomeFallback(homeFeedToResult(students, prof.id), prof.id));
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        applyHomeFallback(homeFeedToResult(students, prof.id), prof.id);
+      });
+    return () => controller.abort();
   }, [selected, students, locale, applyHomeFallback]);
 
   if (!loggedIn) {

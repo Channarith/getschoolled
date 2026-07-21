@@ -160,7 +160,11 @@ def signals_from_events(
     accuracy_window: int = 10,
 ) -> LearnerSignals:
     """Aggregate raw behavior events into :class:`LearnerSignals`."""
-    outcomes = (quiz_outcomes or [])[-accuracy_window:]
+    all_outcomes = quiz_outcomes or []
+    if accuracy_window > 0:
+        outcomes = all_outcomes[-accuracy_window:]
+    else:
+        outcomes = all_outcomes
     accuracy = (sum(1 for o in outcomes if o) / len(outcomes)) if outcomes else 0.5
     latencies = response_latencies_s or []
     avg_latency = (sum(latencies) / len(latencies)) if latencies else 5.0

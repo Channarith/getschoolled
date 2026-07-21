@@ -337,7 +337,9 @@ export default function ClassPage() {
     } catch (e) {
       const msg = String(e);
       const contentUnavailable = msg.includes("422") || msg.toLowerCase().includes("too little");
-      if (contentUnavailable) {
+      // Don't bypass the summative gate on 422 — only skip formative checkpoints
+      // when course content is too thin to generate assessment items.
+      if (contentUnavailable && cp.stage !== "summative") {
         completedCheckpointsRef.current.add(cp.checkpoint_id);
       }
       setError(msg);
@@ -409,8 +411,8 @@ export default function ClassPage() {
       recordAssessmentAttempt(sid, result.attempt_result_token).catch(() => {});
     }
     if (result.pass_decision_token) setPassDecisionToken(result.pass_decision_token);
-    if (result.attempt.stage === "summative" && !result.course_decision?.passed) {
-      // Clear stale token so it can't be re-used on the next finish attempt.
+    if (result.course_decision?.passed === false) {
+      // Clear stale token only on a definitive FAILED decision, not when course_decision is absent.
       setPassDecisionToken(null);
     }
     if (result.attempt.stage === "summative" && result.course_decision?.passed && result.pass_decision_token) {
@@ -894,7 +896,7 @@ export default function ClassPage() {
                 style={{ background: "#eef2ff", color: "#4338ca", border: "1px solid #6366f1" }}>
                 🎯 Quiz me
               </button>
-              <button onClick={onFinish} disabled={busy}
+              <button onClick={onFinish} disabled={busy || finish !== null}
                 style={{ background: "#111", color: "#fff" }}>
                 Finish class
               </button>
@@ -1010,7 +1012,7 @@ export default function ClassPage() {
                 placeholder="e.g. What gas do plants release?"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onAsk()}
+                onKeyDown={(e) => e.key === "Enter" && !busy && onAsk()}
               />
               <button onClick={onAsk} disabled={busy || !question.trim()}>
                 Ask

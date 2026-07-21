@@ -60,6 +60,11 @@ spec:
           # Mutable :latest tag -> always re-pull so a rollout picks up new code
           # (IfNotPresent would keep a stale node-cached image).
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -120,6 +125,11 @@ spec:
         - name: speech
           image: ghcr.io/aoep/speech:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -160,6 +170,11 @@ spec:
         - name: perception
           image: ghcr.io/aoep/perception:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -193,6 +208,11 @@ spec:
         - name: memory
           image: ghcr.io/aoep/memory:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -233,6 +253,11 @@ spec:
         - name: curriculum
           image: ghcr.io/aoep/curriculum:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -266,6 +291,11 @@ spec:
         - name: billing
           image: ghcr.io/aoep/billing:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -314,6 +344,11 @@ spec:
         - name: identity
           image: ghcr.io/aoep/identity:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -356,6 +391,11 @@ spec:
         - name: integrations
           image: ghcr.io/aoep/integrations:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: aoep-config }
@@ -396,6 +436,11 @@ spec:
         - name: web
           image: ghcr.io/aoep/web:latest
           imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
           ports: [{ containerPort: 3000 }]
           envFrom: [ { configMapRef: { name: aoep-config } } ]
           resources:
