@@ -2,10 +2,9 @@ import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated, AppState, I18nManager, Pressable, SafeAreaView, StyleSheet, Text, View,
+  Animated, AppState, I18nManager, Platform, Pressable, SafeAreaView, StyleSheet, Text, View,
 } from "react-native";
 import { useAndroidBack, useAndroidBackTo } from "./src/hooks/useAndroidBack";
-import { captureRef } from "react-native-view-shot";
 
 import AmbientBackground from "./src/components/AmbientBackground";
 import Banner, { type BannerPayload } from "./src/components/Banner";
@@ -52,6 +51,7 @@ import SecurityScreen from "./src/screens/SecurityScreen";
 import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SearchScreen from "./src/screens/SearchScreen";
+import DemoScreen from "./src/screens/DemoScreen";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
@@ -99,6 +99,7 @@ function AppInner() {
   const [showBilling, setShowBilling] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
   const [bugCapture, setBugCapture] = useState<BugScreenshotUpload | null>(null);
@@ -434,21 +435,25 @@ function AppInner() {
     setBugCaptureBusy(true);
     let screenshot: BugScreenshotUpload | null = null;
     try {
-      const dataUri = await captureRef(captureViewRef, {
-        format: "jpg",
-        quality: 0.5,
-        result: "data-uri",
-        handleGLSurfaceViewOnAndroid: true,
-      });
-      const dataBase64 = dataUri.split(",", 2)[1] || "";
-      // Drop oversized captures so /memory/bugs does not fail mid-upload.
-      const approxBytes = Math.floor((dataBase64.replace(/=+$/, "").length * 3) / 4);
-      if (dataBase64 && approxBytes <= 1_500_000) {
-        screenshot = {
-          filename: "app-screen.jpg",
-          content_type: "image/jpeg",
-          data_base64: dataBase64,
-        };
+      if (Platform.OS !== "web") {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { captureRef } = require("react-native-view-shot") as typeof import("react-native-view-shot");
+        const dataUri = await captureRef(captureViewRef, {
+          format: "jpg",
+          quality: 0.5,
+          result: "data-uri",
+          handleGLSurfaceViewOnAndroid: true,
+        });
+        const dataBase64 = dataUri.split(",", 2)[1] || "";
+        // Drop oversized captures so /memory/bugs does not fail mid-upload.
+        const approxBytes = Math.floor((dataBase64.replace(/=+$/, "").length * 3) / 4);
+        if (dataBase64 && approxBytes <= 1_500_000) {
+          screenshot = {
+            filename: "app-screen.jpg",
+            content_type: "image/jpeg",
+            data_base64: dataBase64,
+          };
+        }
       }
     } catch {
       // Some native surfaces (camera/video) cannot be snapshotted. The report
@@ -737,12 +742,51 @@ function AppInner() {
     );
   }
 
+  if (showDemo && !showBugReport) {
+    return (
+      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
+        <StatusBar style="light" />
+        <AmbientBackground />
+        <DemoScreen
+          onSelectCourse={async (courseId, title) => {
+            await enterGuestBrowse();
+            setShowDemo(false);
+            setOpenCourseId(courseId);
+            setTab("drive");
+          }}
+          onOpenFeature={async (featureId) => {
+            await enterGuestBrowse();
+            setShowDemo(false);
+            if (featureId === "drive") setTab("drive");
+            else if (featureId === "arcade") setShowArcade(true);
+            else if (featureId === "languages") setShowLanguages(true);
+            else if (featureId === "solo") setShowLiveClass(true);
+            else setTab("home");
+          }}
+          onEnterFullApp={async () => {
+            await enterGuestBrowse();
+            setShowDemo(false);
+          }}
+        />
+        {floatingBugButton}
+      </SafeAreaView>
+    );
+  }
+
   if (!inApp && !showBugReport) {
     return (
       <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthScreen onBrowseGuest={() => void enterGuestBrowse()} />
+        <Pressable
+          onPress={() => setShowDemo(true)}
+          style={styles.demoBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Sales demo mode"
+        >
+          <Text style={styles.demoBtnText}>✨ Sales Demo</Text>
+        </Pressable>
         {floatingBugButton}
       </SafeAreaView>
     );
@@ -787,6 +831,18 @@ function AppInner() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
+  demoBtn: {
+    position: "absolute",
+    bottom: 32,
+    alignSelf: "center",
+    backgroundColor: "rgba(99,102,241,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(99,102,241,0.45)",
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  demoBtnText: { color: "#a5b4fc", fontSize: 14, fontWeight: "700", letterSpacing: 0.5 },
   floatingBug: {
     position: "absolute",
     right: 14,
