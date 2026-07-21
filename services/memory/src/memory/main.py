@@ -297,10 +297,12 @@ class SurveySubmit(BaseModel):
 
 @app.post("/survey/post-class")
 def survey_submit(req: SurveySubmit) -> dict:
-    key = (req.course_id, req.student_id or "")
-    if key in _submitted_surveys:
-        raise HTTPException(status_code=409, detail="survey already submitted")
-    _submitted_surveys.add(key)
+    # Only deduplicate when a student_id is present; anonymous submissions are unrestricted.
+    if req.student_id:
+        key = (req.course_id, req.student_id)
+        if key in _submitted_surveys:
+            raise HTTPException(status_code=409, detail="survey already submitted")
+        _submitted_surveys.add(key)
     try:
         resp = app.state.surveys.submit(SurveyResponse(**req.model_dump()))
     except ValueError as exc:
