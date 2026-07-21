@@ -1180,7 +1180,7 @@ def games_submit(req: SubmitGameRequest, acct=Depends(current_account)) -> dict:
 
 @app.get("/games/leaderboard")
 def games_leaderboard(subject: str | None = None, age_group: str | None = None,
-                      limit: int = 20, _acct=Depends(current_account)) -> dict:
+                      limit: int = 20) -> dict:
     return {"subject": subject, "age_group": age_group,
             "leaders": app.state.accounts.leaderboard(
                 subject=subject, age_group=age_group, limit=limit)}
