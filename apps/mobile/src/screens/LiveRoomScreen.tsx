@@ -10,6 +10,7 @@ import {
   liveRoomChat, liveRoomDismissReport, liveRoomEnd, liveRoomFinishTurn, liveRoomFollowHost, liveRoomLeaveQueue,
   liveRoomMediaToken,
   liveRoomPlayGame, liveRoomRaiseHand, liveRoomReaction, liveRoomReport,
+  liveRoomCallSpecific, liveRoomMuteParticipant,
   liveRoomSendGift, liveRoomStartGame, liveRoomStartPresentation,
   liveRoomTick, liveRoomUnban,
   liveRoomPresenceReport,
@@ -80,7 +81,8 @@ function farewellFor(locale: string): string {
 
 // Which pop-up sheet (if any) is open. Everything except the presenter lives in a
 // sheet so the small phone screen stays focused on the teacher/slide.
-type SheetKind = null | "chat" | "ask" | "react" | "gifts" | "games" | "more";
+type SheetKind = null | "chat" | "ask" | "react" | "gifts" | "games" | "more"
+                      | "host-class" | "host-slides" | "host-quiz";
 
 // A single tab in the bottom action bar: a large tappable icon + tiny caption,
 // with an optional unread/position badge and an active (highlighted) state.
@@ -325,6 +327,12 @@ export default function LiveRoomScreen({
   const [chatSeen, setChatSeen] = useState(0);
   const chatSeenInit = useRef(false);
   const [joinedModKey, setJoinedModKey] = useState("");
+  // Host-only: quiz builder fields and screen share toggle.
+  const [quizQuestion, setQuizQuestion] = useState("");
+  const [quizAnswer, setQuizAnswer] = useState("");
+  const [quizType, setQuizType] = useState<LiveGroupGameType>("multiple_choice");
+  const [quizPoints, setQuizPoints] = useState("25");
+  const [screenShareOn, setScreenShareOn] = useState(false);
   const modKey = moderatorKey || joinedModKey || MOD_STORAGE[roomId] || "";
   const classEnded = room?.status === "ended";
   // Can this viewer start/drive the class? The room's first-seat admin (holds the
@@ -498,6 +506,8 @@ export default function LiveRoomScreen({
   useEffect(() => {
     if (!participantId) return;
     if (room?.status === "ended") return;
+    // Teacher is presenting their own content — skip AI narration of chat.
+    if (canModerate) return;
     const chat = room?.chat ?? [];
     // Newest message spoken BY Theodore that isn't the slide-narration echo
     // ("📖 …", already spoken via the slide effect) or a system "Room" note.
@@ -668,13 +678,16 @@ export default function LiveRoomScreen({
 
   const me = room?.participants.find((p) => p.id === participantId);
   const hasFloor = room?.floor_participant_id === participantId;
+  const raisedHands = (room?.participants ?? []).filter(
+    (p) => p.hand_raised && p.id !== room?.floor_participant_id,
+  ).length;
   const liveKitUsable = isLiveKitMediaUsable(media);
   const liveKitDowngraded = isLiveKitMediaDowngraded(media);
 
   // Single shared LiveKit connection for the whole room: one connection maps each
   // participant's video track to their seat (self-view under "You", every remote
   // learner under their own name), so a group class shows MULTIPLE live feeds.
-  const { trackFor, ensureCameraToggle, connected: liveKitConnected, connectError } = useLiveKitRoom(
+  const { trackFor, ensureCameraToggle, toggleScreenShare, connected: liveKitConnected, connectError } = useLiveKitRoom(
     media,
     room?.participants ?? [],
     hasFloor,
@@ -1039,7 +1052,9 @@ export default function LiveRoomScreen({
       {/* Presenter hero fills the screen; everything else opens from the bar. */}
       <GlassPanel style={styles.hero}>
         <Text style={styles.presenterHost} numberOfLines={1}>
-          🎓 {room?.host?.name ?? "Theodore (AI Host)"}
+          🎓 {canModerate
+            ? (account?.display_name ?? "You (Host)")
+            : (room?.host?.name ?? "Theodore (AI Host)")}
           {room?.presenting ? ` · Slide ${(room?.slide?.index ?? 0) + 1}` : " · Welcome"}
         </Text>
         <ScrollView style={styles.heroScroll} contentContainerStyle={styles.heroContent}>
@@ -1085,90 +1100,58 @@ export default function LiveRoomScreen({
         ) : null}
       </GlassPanel>
 
-      {/* Host / admin bar — Start / Next + Close (no Delete; Close ends the session). */}
+      {/* Bottom bar — two distinct layouts: teacher control panel vs. student bar. */}
       {canModerate ? (
-        <View style={styles.hostBar}>
-          {!room?.presenting ? (
-            <Pressable
-              style={({ pressed }) => [styles.hostBtn, styles.hostBtnPrimary, pressed && styles.hostBtnPressed]}
-              onPress={() => {
-                void (async () => {
-                  try {
-                    setRoom(await liveRoomStartPresentation(roomId, modKey));
-                  } catch (e) {
-                    setError((e as Error).message);
-                  }
-                })();
-              }}
-            >
-              <Text style={styles.hostBtnText}>🎬 Start class</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [styles.hostBtn, pressed && styles.hostBtnPressed]}
-              onPress={() => {
-                void (async () => {
-                  try {
-                    setRoom(await liveRoomAdvance(roomId, modKey));
-                  } catch (e) {
-                    setError((e as Error).message);
-                  }
-                })();
-              }}
-            >
-              <Text style={styles.hostBtnText}>▶ Next slide</Text>
-            </Pressable>
-          )}
-          <Pressable
-            style={({ pressed }) => [styles.hostBtn, styles.hostBtnWarn, pressed && styles.hostBtnPressed]}
-            onPress={() => {
-              Alert.alert(
-                "Close session",
-                "End this class for everyone?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Close",
-                    style: "destructive",
-                    onPress: () => {
-                      void (async () => {
-                        try {
-                          stopSpeech();
-                          setRoom(await liveRoomEnd(roomId, modKey));
-                        } catch (e) {
-                          setError((e as Error).message);
-                        }
-                      })();
-                    },
-                  },
-                ],
-              );
-            }}
-          >
-            <Text style={styles.hostBtnText}>⛔ Close</Text>
-          </Pressable>
+        <View style={styles.actionBar}>
+          <IconTab
+            icon="👥"
+            label="Class"
+            badge={raisedHands || undefined}
+            active={sheet === "host-class"}
+            onPress={() => setSheet("host-class")}
+          />
+          <IconTab
+            icon="🎬"
+            label="Slides"
+            active={sheet === "host-slides"}
+            onPress={() => setSheet("host-slides")}
+          />
+          <IconTab
+            icon="🎯"
+            label="Quiz"
+            active={sheet === "host-quiz" || Boolean(room?.group_game)}
+            onPress={() => setSheet("host-quiz")}
+          />
+          <IconTab
+            icon="💬"
+            badge={unread || undefined}
+            active={sheet === "chat"}
+            onPress={openChat}
+          />
+          <IconTab
+            icon="⚙️"
+            active={sheet === "more"}
+            onPress={() => setSheet("more")}
+          />
         </View>
-      ) : null}
-
-      {/* Bottom action bar — icons reveal chat / ask / react / gifts / more. */}
-      <View style={styles.actionBar}>
-        {/* Obvious icons go label-less; Ask and the raise-hand toggle keep a
-            short caption because the glyph alone is ambiguous / stateful. */}
-        <IconTab icon="💬" badge={unread || undefined} onPress={openChat} />
-        <IconTab icon="❓" label="Ask" onPress={() => setSheet("ask")} />
-        <IconTab
-          icon="✋"
-          label={hasFloor ? "Live" : inQueue ? "Lower" : "Hand"}
-          active={inQueue || hasFloor}
-          badge={myPos || undefined}
-          disabled={hasFloor}
-          onPress={() => void toggleHand()}
-        />
-        <IconTab icon="😀" onPress={() => setSheet("react")} />
-        <IconTab icon="🎁" onPress={() => setSheet("gifts")} />
-        <IconTab icon="🎮" onPress={() => setSheet("games")} />
-        <IconTab icon="⋯" onPress={() => setSheet("more")} />
-      </View>
+      ) : (
+        <View style={styles.actionBar}>
+          <IconTab icon="💬" badge={unread || undefined} onPress={openChat} />
+          <IconTab icon="❓" label="Ask" onPress={() => setSheet("ask")} />
+          <IconTab
+            icon="✋"
+            label={hasFloor ? "Live" : inQueue ? "Lower" : "Hand"}
+            active={inQueue || hasFloor}
+            badge={myPos || undefined}
+            disabled={hasFloor}
+            onPress={() => void toggleHand()}
+          />
+          <IconTab icon="😀" onPress={() => setSheet("react")} />
+          <IconTab icon="🎁" onPress={() => setSheet("gifts")} />
+          <IconTab icon="🎮" onPress={() => setSheet("games")} />
+          <IconTab icon="⋯" onPress={() => setSheet("more")} />
+        </View>
+      )}
 
       {/* ---- Chat ---- */}
       <BottomSheet visible={sheet === "chat"} title="Chat" onClose={() => setSheet(null)}>
@@ -1411,6 +1394,344 @@ export default function LiveRoomScreen({
             </Pressable>
           ))}
         </View>
+      </BottomSheet>
+
+      {/* ---- Host: Class (participant management, Q&A, moderation) ---- */}
+      <BottomSheet visible={sheet === "host-class"} title={`Class · ${(room?.participants ?? []).filter(p => p.role !== "host").length} students`} onClose={() => setSheet(null)}>
+        <ScrollView style={styles.sheetScroll}>
+          {/* Q&A queue */}
+          {(room?.speaking_queue?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Q&amp;A Queue</Text>
+              {room?.floor_holder ? (
+                <View style={styles.hostPersonRow}>
+                  <Text style={styles.hostPersonName} numberOfLines={1}>🎤 {room.floor_holder.name}</Text>
+                  <Pressable onPress={async () => {
+                    try { setRoom(await liveRoomFinishTurn(roomId, room.floor_participant_id!, modKey)); }
+                    catch (e) { setError(String(e)); }
+                  }}>
+                    <Text style={styles.hostActionLink}>End Turn</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {(room?.speaking_queue ?? []).filter((e) => e.status === "waiting").map((e) => (
+                <View key={e.id} style={styles.hostPersonRow}>
+                  <View style={styles.hostPersonInfo}>
+                    <Text style={styles.hostPersonName} numberOfLines={1}>✋ #{e.position} {e.name}</Text>
+                    {e.question ? <Text style={styles.meta} numberOfLines={1}>&ldquo;{e.question}&rdquo;</Text> : null}
+                  </View>
+                  <Pressable onPress={async () => {
+                    try { setRoom(await liveRoomCallSpecific(roomId, e.participant_id, modKey)); }
+                    catch { try { setRoom(await liveRoomCallNext(roomId, modKey)); } catch (e2) { setError(String(e2)); } }
+                  }}>
+                    <Text style={styles.hostCallLink}>📞 Call On</Text>
+                  </Pressable>
+                </View>
+              ))}
+              <PrimaryButton label="Call Next" variant="brand" onPress={async () => {
+                try { setRoom(await liveRoomCallNext(roomId, modKey)); }
+                catch (e) { setError(String(e)); }
+              }} />
+            </View>
+          ) : (
+            <View style={styles.sheetSection}>
+              <Text style={styles.meta}>No raised hands yet. Students tap ✋ to join the Q&amp;A queue.</Text>
+            </View>
+          )}
+
+          {/* Class intelligence panel */}
+          {Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
+            <View style={[styles.sheetSection, styles.adminProfilePanel]}>
+              <Text style={styles.cardTitle}>🧠 Class Readiness</Text>
+              <Text style={styles.adminProfileText}>
+                Mean {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
+                {" · "}{(room?.audience_profile?.dominant_styles ?? []).join(", ") || "mixed styles"}
+              </Text>
+              {(room?.audience_profile?.adaptation_hints ?? []).map((h) => (
+                <Text key={h} style={styles.adminProfileHint}>• {h}</Text>
+              ))}
+            </View>
+          ) : null}
+
+          {/* All students */}
+          <View style={styles.sheetSection}>
+            <Text style={styles.cardTitle}>Students</Text>
+            {(room?.participants ?? []).filter((p) => p.role !== "host").map((p) => (
+              <View key={p.id} style={styles.hostPersonRow}>
+                <View style={styles.hostPersonInfo}>
+                  <Text style={styles.hostPersonName} numberOfLines={1}>
+                    {p.id === room?.floor_participant_id ? "🎤 " : p.hand_raised ? "✋ " : ""}
+                    {p.name}{p.id === participantId ? " (you)" : ""}
+                  </Text>
+                  {p.student_id ? (
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {Math.round(Number(p.readiness_score ?? 0))}/100 · {p.primary_style || "mixed"}
+                    </Text>
+                  ) : null}
+                </View>
+                {p.id !== participantId ? (
+                  <View style={styles.hostPersonActions}>
+                    {p.id === room?.floor_participant_id ? (
+                      <Pressable onPress={async () => {
+                        try { setRoom(await liveRoomFinishTurn(roomId, p.id, modKey)); }
+                        catch (e) { setError(String(e)); }
+                      }}>
+                        <Text style={styles.hostActionLink}>End Turn</Text>
+                      </Pressable>
+                    ) : p.hand_raised ? (
+                      <Pressable onPress={async () => {
+                        try { setRoom(await liveRoomCallSpecific(roomId, p.id, modKey)); }
+                        catch { try { setRoom(await liveRoomCallNext(roomId, modKey)); } catch (e) { setError(String(e)); } }
+                      }}>
+                        <Text style={styles.hostCallLink}>📞</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable onPress={() => setFocusedTile({ kind: "participant", id: p.id, identity: p.identity, name: p.name, me: false })}>
+                      <Text style={styles.hostActionLink}>🔍</Text>
+                    </Pressable>
+                    <Pressable onPress={async () => {
+                      try { setRoom(await liveRoomMuteParticipant(roomId, p.id, modKey, !p.muted_by_host)); }
+                      catch (e) { setError(String(e)); }
+                    }}>
+                      <Text style={styles.hostActionLink}>{p.muted_by_host ? "🔊" : "🔇"}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => Alert.alert(
+                      `Remove ${p.name}`,
+                      "Choose an action:",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Kick (temporary)", onPress: async () => {
+                          try { setRoom(await liveRoomBan(roomId, p.id, modKey, "kicked")); }
+                          catch (e) { setError(String(e)); }
+                        }},
+                        { text: "Block permanently", style: "destructive", onPress: async () => {
+                          try { setRoom(await liveRoomBan(roomId, p.id, modKey)); }
+                          catch (e) { setError(String(e)); }
+                        }},
+                      ],
+                    )}>
+                      <Text style={styles.linkDanger}>✕</Text>
+                    </Pressable>
+                    <Pressable onPress={async () => {
+                      if (!participantId) return;
+                      try { await liveRoomReport(roomId, participantId, p.id, "Reported by teacher", "other"); }
+                      catch (e) { setError(String(e)); }
+                    }}>
+                      <Text style={styles.linkMuted}>⚠️</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+
+          {/* Reports */}
+          {modKey && (room?.reports?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Reports</Text>
+              {(room?.reports ?? []).map((rep) => (
+                <View key={rep.id} style={styles.hostPersonRow}>
+                  <Text style={styles.meta} numberOfLines={2}>{rep.reported_name} — {rep.reason}</Text>
+                  <View style={styles.hostPersonActions}>
+                    <Pressable onPress={async () => {
+                      try { setRoom(await liveRoomBan(roomId, rep.reported_participant_id, modKey)); }
+                      catch (e) { Alert.alert("Block failed", String(e)); }
+                    }}>
+                      <Text style={styles.linkDanger}>Block</Text>
+                    </Pressable>
+                    <Pressable onPress={async () => {
+                      try { setRoom(await liveRoomDismissReport(roomId, rep.id, modKey)); }
+                      catch (e) { setError(String(e)); }
+                    }}>
+                      <Text style={styles.linkMuted}>Dismiss</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Blocked */}
+          {modKey && (room?.banned?.length ?? 0) > 0 ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>Blocked</Text>
+              {(room?.banned ?? []).map((b) => (
+                <View key={b.identity} style={styles.hostPersonRow}>
+                  <Text style={styles.meta}>{b.name}</Text>
+                  <Pressable onPress={async () => {
+                    try { setRoom(await liveRoomUnban(roomId, b.identity, modKey)); }
+                    catch (e) { Alert.alert("Unblock failed", String(e)); }
+                  }}>
+                    <Text style={styles.linkMuted}>Unblock</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </ScrollView>
+      </BottomSheet>
+
+      {/* ---- Host: Slides (presentation + screen controls) ---- */}
+      <BottomSheet visible={sheet === "host-slides"} title="Presentation" onClose={() => setSheet(null)}>
+        <View style={styles.controls}>
+          {!room?.presenting ? (
+            <PrimaryButton
+              label="🎬 Start Class"
+              variant="netflix"
+              onPress={async () => {
+                try { setRoom(await liveRoomStartPresentation(roomId, modKey)); setSheet(null); }
+                catch (e) { setError((e as Error).message); }
+              }}
+            />
+          ) : (
+            <PrimaryButton
+              label="▶ Next Slide"
+              variant="brand"
+              onPress={async () => {
+                try { setRoom(await liveRoomAdvance(roomId, modKey)); setSheet(null); }
+                catch (e) { setError((e as Error).message); }
+              }}
+            />
+          )}
+          <PrimaryButton
+            label={screenShareOn ? "🖥 Stop Screen Share" : "🖥 Share Screen"}
+            variant="ghost"
+            onPress={async () => {
+              const ok = await toggleScreenShare(!screenShareOn);
+              if (ok) {
+                setScreenShareOn(!screenShareOn);
+              } else {
+                Alert.alert(
+                  "Screen Share",
+                  "Screen sharing requires the Salareen native app with screen capture permission enabled. It may not be available in all builds.",
+                );
+              }
+            }}
+          />
+          <PrimaryButton
+            label={cameraOn ? "📷 Turn Camera Off" : "📹 Show My Camera"}
+            variant="ghost"
+            onPress={() => void toggleCamera()}
+          />
+          <PrimaryButton
+            label="⛔ End Session"
+            variant="ghost"
+            onPress={() => Alert.alert(
+              "End Class",
+              "End this session for all students?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "End", style: "destructive", onPress: async () => {
+                  try { stopSpeech(); setRoom(await liveRoomEnd(roomId, modKey)); setSheet(null); }
+                  catch (e) { setError((e as Error).message); }
+                }},
+              ],
+            )}
+          />
+        </View>
+      </BottomSheet>
+
+      {/* ---- Host: Quiz & Games ---- */}
+      <BottomSheet visible={sheet === "host-quiz"} title="Quiz & Games" onClose={() => setSheet(null)}>
+        <ScrollView style={styles.sheetScroll}>
+          {/* Active game */}
+          {room?.group_game ? (
+            <View style={styles.sheetSection}>
+              <Text style={styles.cardTitle}>
+                Active: {room.group_game.type.replaceAll("_", " ")} · {room.group_game.points} pts
+              </Text>
+              <Text style={styles.gamePrompt}>{room.group_game.prompt}</Text>
+              <Text style={styles.meta}>Status: {room.group_game.status}</Text>
+              {room.group_game.winner_name ? (
+                <Text style={styles.gameWinner}>🏆 {room.group_game.winner_name} wins!</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Custom quiz builder */}
+          <View style={styles.sheetSection}>
+            <Text style={styles.cardTitle}>Launch a Quiz</Text>
+            <TextInput
+              style={[styles.input, { marginBottom: 8 }]}
+              placeholder="Question…"
+              placeholderTextColor={theme.colors.muted}
+              value={quizQuestion}
+              onChangeText={setQuizQuestion}
+              multiline
+            />
+            <TextInput
+              style={[styles.input, { marginBottom: 8 }]}
+              placeholder="Correct answer…"
+              placeholderTextColor={theme.colors.muted}
+              value={quizAnswer}
+              onChangeText={setQuizAnswer}
+            />
+            <TextInput
+              style={[styles.input, { marginBottom: 8 }]}
+              placeholder="Points (default 25)"
+              placeholderTextColor={theme.colors.muted}
+              value={quizPoints}
+              onChangeText={setQuizPoints}
+              keyboardType="number-pad"
+            />
+            <Text style={styles.hostSectionLabel}>Type</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {(["multiple_choice", "true_false", "quiz_race", "fill_blank", "word_scramble", "hot_seat"] as const).map((t) => (
+                <Pressable key={t} onPress={() => setQuizType(t)}
+                  style={[styles.quizTypeChip, quizType === t && styles.quizTypeChipOn]}>
+                  <Text style={[styles.meta, quizType === t && styles.quizTypeChipTextOn]}>
+                    {t.replaceAll("_", " ")}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <PrimaryButton
+              label="🚀 Launch Quiz"
+              variant="netflix"
+              disabled={!quizQuestion.trim() || !quizAnswer.trim() || busy}
+              loading={busy}
+              onPress={async () => {
+                if (!quizQuestion.trim() || !quizAnswer.trim()) return;
+                setBusy(true);
+                try {
+                  await liveRoomStartGame(roomId, modKey, quizType, quizQuestion.trim(), quizAnswer.trim(), Number(quizPoints) || 25);
+                  setQuizQuestion("");
+                  setQuizAnswer("");
+                  setSheet(null);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </View>
+
+          {/* Quick launch from library */}
+          <View style={styles.sheetSection}>
+            <Text style={styles.cardTitle}>Quick Launch</Text>
+            {GAME_LIBRARY.map((g) => (
+              <Pressable
+                key={g.label}
+                style={styles.hostQuickLaunchBtn}
+                disabled={busy}
+                onPress={async () => {
+                  setBusy(true);
+                  try {
+                    await liveRoomStartGame(roomId, modKey, g.type, g.prompt, g.answer, 25);
+                    setSheet(null);
+                  } catch (e) {
+                    setError((e as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Text style={styles.meta}>{g.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
       </BottomSheet>
 
       {/* ---- More: follow, people, Q&A, host controls, moderation ---- */}
@@ -1813,6 +2134,34 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 2,
   },
+  // Teacher control panel styles
+  hostPersonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  hostPersonInfo: { flex: 1, gap: 2, minWidth: 0 },
+  hostPersonName: { color: theme.colors.text, fontSize: 13, fontWeight: "600" },
+  hostPersonActions: { flexDirection: "row", gap: 10, alignItems: "center", flexShrink: 0 },
+  hostCallLink: { color: theme.colors.accent, fontSize: 13, fontWeight: "700" },
+  hostActionLink: { color: theme.colors.muted, fontSize: 13, fontWeight: "600" },
+  hostSectionLabel: { color: theme.colors.muted, fontSize: 11, fontWeight: "700", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  quizTypeChip: {
+    borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 12, paddingVertical: 5, marginRight: 8,
+  },
+  quizTypeChipOn: { borderColor: theme.colors.accent, backgroundColor: "rgba(110,168,254,0.15)" },
+  quizTypeChipTextOn: { color: "#fff", fontWeight: "700" as const },
+  hostQuickLaunchBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  // End teacher styles
   hostBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
