@@ -1700,7 +1700,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     if (!room) return;
     if (room.status === "ended") return;
     const welcome = room.welcome_message?.trim();
-    if (!welcome || room.presenting || !aiAudioOn || !aiAudioUnlocked) return;
+    if (!welcome || room.presenting || !aiAudioOn || !aiAudioUnlocked || canModerate) return;
     if (welcomeSpokenRef.current === room.room_id) return;
     welcomeSpokenRef.current = room.room_id;
     void buildNarrationSpeakOptions(narrationLocale).then((base) => {
@@ -1720,7 +1720,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const slideNarration = room?.slide?.narration;
   const slideBody = room?.slide?.body;
   useEffect(() => {
-    if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null || paused) {
+    // Self-hosted class: the teacher presents the slides themselves — Theodore
+    // must NOT read them aloud. Cancel any in-progress speech and stay silent.
+    if (!aiAudioOn || !aiAudioUnlocked || !classLive || slideIdx == null || paused || canModerate) {
       cancelSpeech();
       if (!classLive) spokenSlideRef.current = null;
       return;
