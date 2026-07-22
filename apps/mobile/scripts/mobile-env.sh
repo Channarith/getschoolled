@@ -8,7 +8,8 @@ export EXPO_NO_TELEMETRY="${EXPO_NO_TELEMETRY:-1}"
 # Do NOT set CI=1 here. Launch scripts pass --port 8081 (no port prompt) and set
 # CI=false so Metro watch mode works and Expo Go can open the project.
 # EXPO_OFFLINE is set by launch scripts after Expo Go is installed (uses local
-# expo/bundledNativeModules.json — avoids hang on expo.dev fetch).
+# expo/bundledNativeModules.json — avoids hang on expo.dev fetch). mobile-expo.sh
+# also auto-sets EXPO_OFFLINE=1 when https://expo.dev is unreachable.
 
 export MOBILE_DEPLOY_MODE="${MOBILE_DEPLOY_MODE:-cloud}"
 export MOBILE_CLOUD_BASE_URL="${MOBILE_CLOUD_BASE_URL:-https://www.salareen.com}"

@@ -1,6 +1,8 @@
 import { StyleSheet, View } from "react-native";
+import Constants from "expo-constants";
 
 import { ensureLiveKitGlobals } from "../polyfills/liveKitGlobals";
+import { hasExpoNativeModule } from "../nativeModules";
 
 // Type-only imports are erased at build time (no runtime require), so they do NOT
 // pull LiveKit/WebRTC into the launch bundle.
@@ -9,26 +11,46 @@ import type { VideoView as LKVideoView } from "@livekit/react-native";
 export type LiveKitRN = typeof import("@livekit/react-native");
 export type LiveKitClient = typeof import("livekit-client");
 
-// `@livekit/react-native` runs polyfills + WebRTC global setup at IMPORT time and
-// pulls in a large native dependency graph. Importing it eagerly during app
-// launch can throw and crash the whole app on startup. Load it lazily the first
-// time a live room actually mounts, and cache the modules. Guarded so a load
-// failure degrades to the emoji fallback instead of taking down the app.
+// `@livekit/react-native` + `@livekit/react-native-webrtc` touch NativeModules
+// (WebRTCModule) at require-time and registerGlobals() patches getUserMedia.
+// Expo Go does not ship those natives — requiring them redboxes the whole app.
+// Gate before any require so live rooms degrade to emoji tiles instead.
 let rnMod: LiveKitRN | null = null;
 let clientMod: LiveKitClient | null = null;
+let unavailable = false;
 
+/** True when a native binary with LiveKit/WebRTC is present (dev client / EAS). */
+export function isLiveKitNativeAvailable(): boolean {
+  // Expo Go (store client) never includes WebRTC / LiveKit native modules.
+  if (Constants.appOwnership === "expo") return false;
+  if (Constants.executionEnvironment === "storeClient") return false;
+  return hasExpoNativeModule("WebRTCModule");
+}
+
+/**
+ * Lazily load LiveKit. Returns null in Expo Go / when WebRTC is missing so
+ * callers can fall back without a redbox.
+ */
 export function loadLiveKit(): { rn: LiveKitRN; client: LiveKitClient } | null {
+  if (unavailable) return null;
   if (rnMod && clientMod) return { rn: rnMod, client: clientMod };
+  if (!isLiveKitNativeAvailable()) {
+    unavailable = true;
+    return null;
+  }
   try {
     // Hermes (iOS + Android) lacks TextEncoder/TextDecoder/DOMException at
     // module-eval time; install them before any LiveKit require.
     ensureLiveKitGlobals();
     rnMod = require("@livekit/react-native") as LiveKitRN;
-    // WebRTC globals + URL/streams shims must exist before livekit-client runs.
-    rnMod.registerGlobals();
+    // Skip autoConfigureAudioSession — iosCategoryEnforce wraps getUserMedia and
+    // can throw asynchronously when WebRTC is partially present. We configure
+    // AVAudioSession ourselves via liveKitAudio.ts.
+    rnMod.registerGlobals({ autoConfigureAudioSession: false });
     clientMod = require("livekit-client") as LiveKitClient;
     return { rn: rnMod, client: clientMod };
   } catch {
+    unavailable = true;
     rnMod = null;
     clientMod = null;
     return null;

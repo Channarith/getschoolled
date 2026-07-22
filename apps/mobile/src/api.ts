@@ -545,6 +545,7 @@ export type ScheduleGroupClassInput = {
   title: string;
   lesson_id: string;
   start_time: string;
+  description?: string;
   platform?: string;
   meeting_url?: string;
   duration_min?: number;

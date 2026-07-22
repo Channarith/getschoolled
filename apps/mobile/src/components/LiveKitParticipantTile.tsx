@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 
-import { ensureLiveKitGlobals } from "../polyfills/liveKitGlobals";
 import { theme } from "../theme";
+import { loadLiveKit } from "./liveKitRuntime";
 
 // Type-only imports are erased at build time (no runtime require), so they do NOT
 // pull LiveKit/WebRTC into the launch bundle.
@@ -27,36 +27,6 @@ type Props = {
 /** Always use the front / selfie camera for live-class profile tiles. */
 const SELFIE_CAMERA = { facingMode: "user" as const };
 
-// `@livekit/react-native` runs polyfills + WebRTC global setup at IMPORT time and
-// pulls in a large native/web dependency graph. Importing it eagerly executes all
-// of that during app launch (via App -> LiveRoomScreen -> this tile), which can
-// throw and crash the whole app on startup. Load it lazily the first time a tile
-// actually mounts inside a live room, and cache the modules. Guarded so a load
-// failure degrades to the emoji fallback instead of taking down the app.
-type LiveKitRN = typeof import("@livekit/react-native");
-type LiveKitClient = typeof import("livekit-client");
-
-let rnMod: LiveKitRN | null = null;
-let clientMod: LiveKitClient | null = null;
-
-function loadLiveKit(): { rn: LiveKitRN; client: LiveKitClient } | null {
-  if (rnMod && clientMod) return { rn: rnMod, client: clientMod };
-  try {
-    // Hermes (iOS + Android) lacks TextEncoder/TextDecoder/DOMException at
-    // module-eval time; install them before any LiveKit require.
-    ensureLiveKitGlobals();
-    rnMod = require("@livekit/react-native") as LiveKitRN;
-    // WebRTC globals + URL/streams shims must exist before livekit-client runs.
-    rnMod.registerGlobals();
-    clientMod = require("livekit-client") as LiveKitClient;
-    return { rn: rnMod, client: clientMod };
-  } catch {
-    rnMod = null;
-    clientMod = null;
-    return null;
-  }
-}
-
 /** LiveKit video tile with emoji fallback when connection fails (offline/dev). */
 export default function LiveKitParticipantTile({
   media,
@@ -67,6 +37,7 @@ export default function LiveKitParticipantTile({
 }: Props) {
   const [livekitReady, setLivekitReady] = useState(false);
   const [track, setTrack] = useState<object | null>(null);
+  const [VideoView, setVideoView] = useState<typeof LKVideoView | undefined>(undefined);
 
   useEffect(() => {
     if (!media?.url || !media.token) {
@@ -80,16 +51,14 @@ export default function LiveKitParticipantTile({
       setTrack(null);
       return;
     }
-    const { AudioSession, registerGlobals } = lk.rn;
+    const { AudioSession } = lk.rn;
     const { Room, RoomEvent, Track } = lk.client;
+    setVideoView(() => lk.rn.VideoView);
 
     let cancelled = false;
     let room: LKRoom | null = null;
     void (async () => {
       try {
-        // registerGlobals() already ran synchronously in loadLiveKit(); repeat is
-        // harmless if a future caller skips that path.
-        registerGlobals();
         // LiveKit docs: iOS needs an active AVAudioSession before mic/camera.
         if (Platform.OS === "ios") {
           await AudioSession.startAudioSession();
@@ -134,8 +103,6 @@ export default function LiveKitParticipantTile({
     };
   }, [media?.url, media?.token, canPublish]);
 
-  const VideoView: typeof LKVideoView | undefined = rnMod?.VideoView;
-
   if (livekitReady && track && VideoView) {
     return (
       <View style={[styles.tile, large && styles.large]}>
@@ -163,11 +130,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
     overflow: "hidden",
   },
   large: { width: 160, height: 180 },
-  emoji: { fontSize: 36, marginBottom: 24 },
+  emoji: { fontSize: 96 },
   name: {
     position: "absolute",
     bottom: 6,

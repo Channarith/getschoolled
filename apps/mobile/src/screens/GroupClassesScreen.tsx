@@ -13,7 +13,7 @@ import {
   reviewGroupClass,
   scheduleGroupClass,
   startGroupClass,
-  type GroupClassRow, type GroupClassStart, type LessonRow,
+  type GroupClassRow, type LessonRow,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -67,7 +67,6 @@ export default function GroupClassesScreen({
   const [sortBy, setSortBy] = useState<"soon" | "rating" | "seats">("soon");
   const [schedAudience, setSchedAudience] = useState("general");
   const [busyId, setBusyId] = useState("");
-  const [started, setStarted] = useState<GroupClassStart | null>(null);
   const [registerTarget, setRegisterTarget] = useState<GroupClassRow | null>(null);
   const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
@@ -75,12 +74,11 @@ export default function GroupClassesScreen({
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [schedTitle, setSchedTitle] = useState("");
   const [schedLessonId, setSchedLessonId] = useState("");
-  const [schedPlatform, setSchedPlatform] = useState("salareen");
-  const [schedMeetingUrl, setSchedMeetingUrl] = useState("");
   const [schedStart, setSchedStart] = useState(() => defaultStartDate());
   const [schedDuration, setSchedDuration] = useState("45");
-  const [schedCapacity, setSchedCapacity] = useState("12");
   const [schedRoomSize, setSchedRoomSize] = useState("6");
+  const [schedDescription, setSchedDescription] = useState("");
+  const [schedPrice, setSchedPrice] = useState("");
 
   const load = async () => {
     setError("");
@@ -163,8 +161,8 @@ export default function GroupClassesScreen({
           const attendeeCode = getAttendeeCode(gc.id);
           if (attendeeCode) setAttendeeCode(roomId, attendeeCode);
           void load();
-          // First person in opens + hosts the class (gets the moderator key).
-          onOpenRoom(roomId, res.bridge.moderator_key || "");
+          // Students join without the moderator key regardless of who starts the room.
+          onOpenRoom(roomId, "");
         } catch (e) {
           setError((e as Error).message);
         } finally {
@@ -202,33 +200,16 @@ export default function GroupClassesScreen({
     try {
       const geo = await getLiveRoomLocation();
       const res = await startGroupClass(gc.id, geo);
-      setStarted(res);
-      await load();
+      const roomId = res.bridge.live_room_id
+        || res.bridge.livekit?.room
+        || res.bridge.livekit_room
+        || `class-${gc.id}`;
+      void load();
+      onOpenRoom(roomId, res.bridge.moderator_key || "");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusyId("");
-    }
-  }
-
-  function openStartedRoom() {
-    if (!started) return;
-    const gc = started.class;
-    const roomId = started.bridge.live_room_id
-      || started.bridge.livekit?.room
-      || started.bridge.livekit_room
-      || `class-${gc.id}`;
-    const modKey = started.bridge.moderator_key || "";
-    setStarted(null);
-    onOpenRoom(roomId, modKey);
-  }
-
-  async function openStartedMeeting() {
-    if (!started?.class.meeting_url) return;
-    try {
-      await Linking.openURL(started.class.meeting_url);
-    } catch (e) {
-      setError((e as Error).message);
     }
   }
 
@@ -238,22 +219,27 @@ export default function GroupClassesScreen({
     setError("");
     try {
       const lesson = lessons.find((l) => l.lesson_id === schedLessonId);
-      const roomSize = Number(schedRoomSize) || 6;
+      const roomSize = Math.min(Math.max(Number(schedRoomSize) || 6, 1), 6);
+      const priceRaw = Number(schedPrice.trim());
+      const price = schedPrice.trim() && !Number.isNaN(priceRaw) ? priceRaw : undefined;
       await scheduleGroupClass({
         title: schedTitle.trim() || lesson?.title || "Group class",
+        description: schedDescription.trim() || undefined,
         lesson_id: schedLessonId,
-        platform: schedPlatform,
-        meeting_url: schedMeetingUrl.trim(),
+        platform: "salareen",
         start_time: schedStart.toISOString(),
         duration_min: Number(schedDuration) || 45,
-        capacity: schedPlatform === "salareen" ? roomSize - 1 : Number(schedCapacity) || 12,
-        room_size: schedPlatform === "salareen" ? roomSize : undefined,
+        capacity: roomSize - 1,
+        room_size: roomSize,
         language: lesson?.language ?? "en",
         audience: schedAudience,
+        price_per_user_usd: price,
+        payment_required: price != null && price > 0,
       });
       setShowSchedule(false);
       setSchedTitle("");
-      setSchedMeetingUrl("");
+      setSchedDescription("");
+      setSchedPrice("");
       setSchedStart(defaultStartDate());
       await load();
     } catch (e) {
@@ -422,38 +408,23 @@ export default function GroupClassesScreen({
                 </Text>
               ) : null}
               <View style={styles.actions}>
-                {/* One button: first join opens + hosts the class; later joins
-                    drop into the running room. A full class is grayed out except
-                    for the admin (monitor). */}
-                <PrimaryButton
-                  label={joinBlocked ? t("group.full") : t("group.join")}
-                  onPress={() => void handleJoin(gc)}
-                  loading={busy}
-                  disabled={busy || joinBlocked}
-                  variant="brand"
-                />
-                <PrimaryButton
-                  label={t("group.register")}
-                  onPress={() => promptRegister(gc)}
-                  disabled={busy}
-                  variant="ghost"
-                />
                 {canOpen ? (
                   <PrimaryButton
-                    label={isHost && !isAdmin ? "🎓 Open My Class" : t("group.openClass")}
+                    label="🎓 Start My Class"
                     onPress={() => void handleStart(gc)}
                     loading={busy}
                     disabled={busy}
                     variant="netflix"
                   />
-                ) : null}
-                <PrimaryButton
-                  label="Rate"
-                  onPress={() => void handleReview(gc, 5)}
-                  loading={busy}
-                  disabled={busy}
-                  variant="ghost"
-                />
+                ) : (
+                  <PrimaryButton
+                    label={joinBlocked ? t("group.full") : t("group.join")}
+                    onPress={() => void handleJoin(gc)}
+                    loading={busy}
+                    disabled={busy || joinBlocked}
+                    variant="brand"
+                  />
+                )}
               </View>
             </GlassPanel>
           );
@@ -494,51 +465,19 @@ export default function GroupClassesScreen({
         </View>
       </Modal>
 
-      <Modal
-        visible={started !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStarted(null)}
-      >
-        <View style={styles.modalScrim}>
-          <GlassPanel style={styles.modalCard}>
-            <Text style={styles.cardTitle}>{t("group.startedTitle")}</Text>
-            {started?.bridge.note ? (
-              <Text style={styles.meta}>{started.bridge.note}</Text>
-            ) : null}
-            {started?.class.title ? (
-              <Text style={styles.meta}>{started.class.title}</Text>
-            ) : null}
-            <View style={styles.actionsCol}>
-              {started?.bridge.needs_bridge && started.class.meeting_url ? (
-                <PrimaryButton
-                  label={t("group.openMeeting")}
-                  onPress={() => void openStartedMeeting()}
-                  variant="brand"
-                />
-              ) : null}
-              <PrimaryButton
-                label={t("group.openClass")}
-                onPress={openStartedRoom}
-                variant="netflix"
-              />
-              <PrimaryButton
-                label={t("group.close")}
-                onPress={() => setStarted(null)}
-                variant="ghost"
-              />
-            </View>
-          </GlassPanel>
-        </View>
-      </Modal>
-
       <Modal visible={showSchedule} transparent animationType="slide" onRequestClose={() => setShowSchedule(false)}>
         <View style={styles.modalScrim}>
           <ScrollView contentContainerStyle={{ padding: 16 }}>
             <GlassPanel style={styles.modalCard}>
               <Text style={styles.cardTitle}>{t("group.scheduleCta")}</Text>
-              <TextInput style={styles.input} placeholder={t("group.scheduleTitle")}
+              <TextInput style={styles.input} placeholder="Class title"
                 placeholderTextColor={theme.colors.muted} value={schedTitle} onChangeText={setSchedTitle} />
+              <TextInput style={[styles.input, styles.inputMultiline]}
+                placeholder="Description (what will students learn?)"
+                placeholderTextColor={theme.colors.muted}
+                value={schedDescription} onChangeText={setSchedDescription}
+                multiline numberOfLines={3} textAlignVertical="top" />
+              <Text style={styles.formLabel}>Lesson</Text>
               {lessons.map((l) => (
                 <AnimatedPressable
                   key={l.lesson_id}
@@ -548,24 +487,24 @@ export default function GroupClassesScreen({
                   <Text style={styles.meta}>{l.title}</Text>
                 </AnimatedPressable>
               ))}
-              <TextInput style={styles.input} placeholder="Platform (salareen/zoom/teams/meet)"
-                placeholderTextColor={theme.colors.muted} value={schedPlatform} onChangeText={setSchedPlatform} />
-              <TextInput style={styles.input} placeholder={t("group.scheduleMeeting")}
-                placeholderTextColor={theme.colors.muted} value={schedMeetingUrl} onChangeText={setSchedMeetingUrl} />
               <StartTimeField
                 value={schedStart}
                 onChange={setSchedStart}
                 label={t("group.scheduleWhen")}
               />
-              <TextInput style={styles.input} placeholder={t("group.scheduleDuration")}
+              <TextInput style={styles.input} placeholder="Duration (minutes, e.g. 45)"
                 placeholderTextColor={theme.colors.muted} value={schedDuration} onChangeText={setSchedDuration}
                 keyboardType="number-pad" />
-              <TextInput style={styles.input} placeholder={t("group.scheduleCapacity")}
-                placeholderTextColor={theme.colors.muted} value={schedCapacity} onChangeText={setSchedCapacity}
+              <TextInput style={styles.input} placeholder="Max students (1–6)"
+                placeholderTextColor={theme.colors.muted} value={schedRoomSize}
+                onChangeText={(v) => {
+                  const n = Number(v);
+                  if (!v || (n >= 1 && n <= 6)) setSchedRoomSize(v);
+                }}
                 keyboardType="number-pad" />
-              <TextInput style={styles.input} placeholder={t("group.scheduleRoomSize")}
-                placeholderTextColor={theme.colors.muted} value={schedRoomSize} onChangeText={setSchedRoomSize}
-                keyboardType="number-pad" />
+              <TextInput style={styles.input} placeholder="Price per student in USD (leave blank for free)"
+                placeholderTextColor={theme.colors.muted} value={schedPrice} onChangeText={setSchedPrice}
+                keyboardType="decimal-pad" />
               <Text style={styles.formLabel}>Audience</Text>
               <View style={styles.segRow}>
                 {["general","kids","professional","corporate"].map(aud => (
@@ -619,6 +558,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10,
     padding: 12, color: theme.colors.text, backgroundColor: "rgba(0,0,0,0.2)",
   },
+  inputMultiline: { minHeight: 72, paddingTop: 12 },
   lessonPick: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, marginBottom: 6,
   },

@@ -12,8 +12,30 @@ MOBILE_ROOT="$ROOT"
 
 mobile_deps_ensure_metro_local || exit 1
 
-# Stale Metro cache can 500 after materializing symlinked deps.
-rm -rf node_modules/.cache/metro .expo/metro 2>/dev/null || true
+# Auto-offline when expo.dev is unreachable (corporate proxy / sandbox returns
+# "Blocked by…" and Expo crashes with SyntaxError on JSON.parse). Launch scripts
+# already set EXPO_OFFLINE=1; this covers bare `mobile-expo.sh start`.
+if [ -z "${EXPO_OFFLINE:-}" ]; then
+  if ! curl -fsS --max-time 2 "https://expo.dev" >/dev/null 2>&1; then
+    export EXPO_OFFLINE=1
+    echo "==> EXPO_OFFLINE=1 (expo.dev unreachable — skip native-module version fetch)"
+  fi
+fi
+
+# Only wipe Metro cache when the caller asked for a clean start. Unconditional
+# clears made every `start` a 30–90s cold rebuild. Expo's own --clear still
+# clears transform cache; we also drop our on-disk metro dirs to match.
+_clear_metro=0
+for _arg in "$@"; do
+  if [ "$_arg" = "--clear" ] || [ "$_arg" = "-c" ]; then
+    _clear_metro=1
+    break
+  fi
+done
+if [ "$_clear_metro" -eq 1 ]; then
+  echo "==> Clearing Metro cache (requested via --clear)"
+  rm -rf node_modules/.cache/metro .expo/metro 2>/dev/null || true
+fi
 
 # `expo prebuild --clean` deletes+regenerates native dirs, but its own rmdir can
 # fail with "ENOTEMPTY: directory not empty, rmdir '.../android/app'" when a
@@ -57,6 +79,21 @@ fi
 
 if [[ "${1:-}" == "run:ios" ]] && [[ -d ios ]]; then
   bash scripts/mobile-ios-pod-refresh.sh
+fi
+
+# For `start` (dev server), clear zombie listeners on the target port first so
+# we don't attach to a hung Metro that returns empty replies.
+if [[ "${1:-}" == "start" ]]; then
+  _start_port="${RCT_METRO_PORT:-8081}"
+  _prev=""
+  for _arg in "$@"; do
+    if [ "$_prev" = "--port" ]; then
+      _start_port="$_arg"
+      break
+    fi
+    _prev="$_arg"
+  done
+  MOBILE_METRO_PORTS="$_start_port" bash scripts/mobile-metro-cleanup.sh >/dev/null 2>&1 || true
 fi
 
 if [ -e node_modules/.bin/expo ]; then
