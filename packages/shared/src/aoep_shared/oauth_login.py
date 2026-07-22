@@ -1,7 +1,8 @@
-"""Google / Facebook OAuth login verification (dual-mode: sandbox + cloud)."""
+"""Google / Facebook / Apple OAuth login verification (dual-mode: sandbox + cloud)."""
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from urllib.parse import urlencode
@@ -25,6 +26,7 @@ def oauth_provider_status() -> dict:
         os.environ.get("FACEBOOK_APP_ID", "").strip()
         and os.environ.get("FACEBOOK_APP_SECRET", "").strip()
     )
+    apple_live = bool(os.environ.get("APPLE_BUNDLE_ID", "").strip())
 
     def _provider(live_enabled: bool, missing: str) -> dict:
         if sandbox_enabled:
@@ -37,6 +39,7 @@ def oauth_provider_status() -> dict:
         "sandbox_enabled": sandbox_enabled,
         "google": _provider(google_live, "GOOGLE_CLIENT_ID not configured"),
         "facebook": _provider(facebook_live, "FACEBOOK_APP_ID/SECRET not configured"),
+        "apple": _provider(apple_live, "APPLE_BUNDLE_ID not configured"),
     }
 
 
@@ -105,3 +108,65 @@ def verify_facebook_access_token(access_token: str) -> dict:
         "sub": f"facebook:{profile.get('id', email)}",
         "name": profile.get("name", ""),
     }
+
+
+def _b64url_decode(s: str) -> bytes:
+    """Decode a base64url string without padding."""
+    s = s.replace("-", "+").replace("_", "/")
+    s += "=" * (-len(s) % 4)
+    return base64.b64decode(s)
+
+
+def verify_apple_identity_token(identity_token: str) -> dict:
+    """Return {email, sub, name} from an Apple Sign In identity token (JWT)."""
+    token = (identity_token or "").strip()
+    if not token:
+        raise OAuthError("missing Apple identity_token")
+    bundle_id = os.environ.get("APPLE_BUNDLE_ID", "com.aiclassroom.app").strip()
+
+    # Sandbox: accept prefixed fake tokens for local dev.
+    if _deploy_mode() == "local" and token.startswith("sandbox_apple_"):
+        email = token.removeprefix("sandbox_apple_")
+        if "@" not in email:
+            email = f"{email}@privaterelay.appleid.com"
+        return {"email": email.lower(), "sub": f"apple:{email}", "name": ""}
+
+    try:
+        import jwt as pyjwt
+        from jwt.algorithms import RSAAlgorithm
+    except ImportError as exc:
+        raise OAuthError("PyJWT[cryptography] not installed; add it to requirements.txt") from exc
+
+    # Fetch Apple's public keys.
+    jwks = _http_get_json("https://appleid.apple.com/auth/keys")
+
+    # Identify the key used to sign this token.
+    try:
+        header = pyjwt.get_unverified_header(token)
+    except Exception as exc:
+        raise OAuthError(f"invalid Apple token header: {exc}") from exc
+    kid = header.get("kid")
+    key_data = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+    if not key_data:
+        raise OAuthError("Apple signing key not found in JWKS")
+
+    public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
+    try:
+        claims = pyjwt.decode(
+            token, public_key, algorithms=["RS256"],
+            audience=bundle_id,
+            options={"verify_exp": True},
+        )
+    except pyjwt.ExpiredSignatureError as exc:
+        raise OAuthError("Apple token expired") from exc
+    except pyjwt.InvalidTokenError as exc:
+        raise OAuthError(f"Apple token invalid: {exc}") from exc
+
+    sub = claims.get("sub", "")
+    email = (claims.get("email") or "").lower()
+    if not sub:
+        raise OAuthError("Apple token missing sub claim")
+    # Apple may withhold email on subsequent sign-ins; use sub as fallback identity.
+    if not email:
+        email = f"{sub}@privaterelay.appleid.com"
+    return {"email": email, "sub": f"apple:{sub}", "name": ""}

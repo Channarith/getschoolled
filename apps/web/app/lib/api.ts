@@ -426,10 +426,20 @@ export async function loginWithFacebook(accessToken: string): Promise<{ token: s
   );
 }
 
+export async function loginWithApple(identityToken: string): Promise<{ token: string; account: Account }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/auth/oauth/apple`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identity_token: identityToken }),
+    })
+  );
+}
+
 export type OAuthProviderStatus = {
   sandbox_enabled: boolean;
   google: { enabled: boolean; mode: "sandbox" | "live" | "disabled"; reason: string };
   facebook: { enabled: boolean; mode: "sandbox" | "live" | "disabled"; reason: string };
+  apple: { enabled: boolean; mode: "sandbox" | "live" | "disabled"; reason: string };
 };
 
 export async function getOAuthProviderStatus(): Promise<OAuthProviderStatus> {

@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import {
-  getMe, login, signup, verify2faLogin, type Account, type LoginResult,
+  getMe, login, loginWithApple, loginWithFacebook, loginWithGoogle,
+  signup, verify2faLogin, type Account, type LoginResult,
 } from "../api";
 import { clearAuthToken, getToken, loadAuthToken, setAuthToken, setPreviewMode } from "../storage";
 
@@ -11,6 +12,9 @@ type AuthContextValue = {
   status: AuthStatus;
   account: Account | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
+  signInWithFacebook: (accessToken: string) => Promise<void>;
+  signInWithApple: (identityToken: string) => Promise<void>;
   verify2fa: (code: string) => Promise<void>;
   cancel2fa: () => void;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -100,11 +104,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("unauthenticated");
   }, []);
 
+  const _oauthSignIn = useCallback(async (fn: () => Promise<{ token: string; account: Account }>) => {
+    const res = await fn();
+    await setAuthToken(res.token);
+    await setPreviewMode(false);
+    setAccount(res.account);
+    setStatus("authenticated");
+  }, []);
+
+  const signInWithGoogle = useCallback(
+    (idToken: string) => _oauthSignIn(() => loginWithGoogle(idToken)),
+    [_oauthSignIn],
+  );
+
+  const signInWithFacebook = useCallback(
+    (accessToken: string) => _oauthSignIn(() => loginWithFacebook(accessToken)),
+    [_oauthSignIn],
+  );
+
+  const signInWithApple = useCallback(
+    (identityToken: string) => _oauthSignIn(() => loginWithApple(identityToken)),
+    [_oauthSignIn],
+  );
+
   const value = useMemo(
     () => ({
-      status, account, signIn, verify2fa, cancel2fa, signUp, signOut, refreshAccount,
+      status, account,
+      signIn, signInWithGoogle, signInWithFacebook, signInWithApple,
+      verify2fa, cancel2fa, signUp, signOut, refreshAccount,
     }),
-    [status, account, signIn, verify2fa, cancel2fa, signUp, signOut, refreshAccount],
+    [status, account, signIn, signInWithGoogle, signInWithFacebook, signInWithApple,
+      verify2fa, cancel2fa, signUp, signOut, refreshAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

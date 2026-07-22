@@ -1,4 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as AuthSession from "expo-auth-session";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView,
@@ -15,9 +19,15 @@ import { LANGUAGES, languageInfo, useT } from "../i18n";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
 
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps.googleusercontent.com";
+const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
+const FACEBOOK_APP_ID = "1071803295271778";
+
 export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => void }) {
   const { t, locale, setLocale } = useT();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +37,44 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  const [_googleRequest, googleResponse, googlePrompt] = Google.useIdTokenAuthRequest({
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+  });
+
+  const [_fbRequest, fbResponse, fbPrompt] = AuthSession.useAuthRequest(
+    {
+      clientId: FACEBOOK_APP_ID,
+      scopes: ["email", "public_profile"],
+      responseType: AuthSession.ResponseType.Token,
+      redirectUri: AuthSession.makeRedirectUri({ scheme: "aiclassroom" }),
+    },
+    { authorizationEndpoint: "https://www.facebook.com/dialog/oauth" },
+  );
+
+  useEffect(() => {
+    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
+  }, []);
+
+  useEffect(() => {
+    if (googleResponse?.type === "success" && googleResponse.authentication?.idToken) {
+      setBusy(true);
+      void signInWithGoogle(googleResponse.authentication.idToken)
+        .catch((e) => setError(String(e)))
+        .finally(() => setBusy(false));
+    }
+  }, [googleResponse, signInWithGoogle]);
+
+  useEffect(() => {
+    if (fbResponse?.type === "success" && fbResponse.authentication?.accessToken) {
+      setBusy(true);
+      void signInWithFacebook(fbResponse.authentication.accessToken)
+        .catch((e) => setError(String(e)))
+        .finally(() => setBusy(false));
+    }
+  }, [fbResponse, signInWithFacebook]);
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -199,6 +247,54 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
           {onBrowseGuest ? (
             <PrimaryButton label={t("auth.browseGuest")} onPress={onBrowseGuest} variant="ghost" />
           ) : null}
+          {mode === "login" ? (
+            <View style={styles.socialBlock}>
+              <Text style={styles.socialDivider}>or continue with</Text>
+              <View style={styles.socialRow}>
+                <Pressable
+                  style={[styles.socialBtn, busy && styles.socialBtnDisabled]}
+                  disabled={busy}
+                  onPress={() => { setError(""); void googlePrompt(); }}
+                >
+                  <Text style={styles.socialBtnText}>G  Google</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.socialBtn, busy && styles.socialBtnDisabled]}
+                  disabled={busy}
+                  onPress={() => { setError(""); void fbPrompt(); }}
+                >
+                  <Text style={styles.socialBtnText}>f  Facebook</Text>
+                </Pressable>
+                {appleAvailable && Platform.OS === "ios" ? (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={8}
+                    style={styles.appleBtn}
+                    onPress={async () => {
+                      setError("");
+                      try {
+                        const cred = await AppleAuthentication.signInAsync({
+                          requestedScopes: [
+                            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                          ],
+                        });
+                        if (cred.identityToken) {
+                          setBusy(true);
+                          await signInWithApple(cred.identityToken);
+                        }
+                      } catch (e: any) {
+                        if (e?.code !== "ERR_REQUEST_CANCELED") setError(String(e));
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                ) : null}
+              </View>
+            </View>
+          ) : null}
           {__DEV__ ? (
             <View style={{ marginTop: 16 }}>
               <Text style={styles.hint}>{t("auth.qaHint")}</Text>
@@ -358,6 +454,19 @@ const styles = StyleSheet.create({
   version: { color: theme.colors.muted, fontSize: 11, textAlign: "center", marginTop: 8 },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   loadingText: { color: theme.colors.muted, fontSize: 14 },
+  socialBlock: { marginTop: 4, gap: 8 },
+  socialDivider: { color: theme.colors.muted, fontSize: 12, textAlign: "center" },
+  socialRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  socialBtn: {
+    flex: 1, minWidth: 120,
+    borderWidth: 1, borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingVertical: 11, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  socialBtnDisabled: { opacity: 0.5 },
+  socialBtnText: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
+  appleBtn: { height: 44, width: "100%" },
 });
 
 /** Shown when login returns requires_2fa (web /auth 2FA parity). */

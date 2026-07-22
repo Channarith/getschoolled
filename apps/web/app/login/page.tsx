@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getOAuthProviderStatus,
   getOnboardingStatus,
   login,
+  loginWithApple,
   loginWithFacebook,
   loginWithGoogle,
   setToken,
@@ -38,8 +39,8 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [mfaToken, setMfaToken] = useState("");
   const [mfaCode, setMfaCode] = useState("");
-  const [oauthEmail, setOauthEmail] = useState("");
   const [oauthStatus, setOauthStatus] = useState<OAuthProviderStatus | null>(null);
+  const gisRef = useRef(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -182,36 +183,115 @@ export default function LoginPage() {
             {busy ? t("login.busy") : mfaToken ? "Verify 2FA" : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
-        {mode === "login" && !mfaToken && oauthStatus?.sandbox_enabled && (
+        {mode === "login" && !mfaToken && oauthStatus && (
+          oauthStatus.google.enabled || oauthStatus.facebook.enabled || oauthStatus.apple?.enabled
+        ) && (
           <>
             <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>Or continue with</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              <button type="button" disabled={busy} onClick={async () => {
-                setBusy(true); setError("");
-                try {
-                  if (!oauthStatus.google.enabled || oauthStatus.google.mode !== "sandbox") {
-                    setError(oauthStatus.google.reason || "Google sign-in is unavailable in this environment.");
-                    return;
-                  }
-                  const em = oauthEmail || window.prompt("Email for sandbox Google login") || "";
-                  const res = await loginWithGoogle(`sandbox_google_${em}`);
-                  setToken(res.token);
-                  router.push("/");
-                } catch (e) { setError(String(e)); } finally { setBusy(false); }
-              }}>Google</button>
-              <button type="button" disabled={busy} onClick={async () => {
-                setBusy(true); setError("");
-                try {
-                  if (!oauthStatus.facebook.enabled || oauthStatus.facebook.mode !== "sandbox") {
-                    setError(oauthStatus.facebook.reason || "Facebook sign-in is unavailable in this environment.");
-                    return;
-                  }
-                  const em = oauthEmail || window.prompt("Email for sandbox Facebook login") || "";
-                  const res = await loginWithFacebook(`sandbox_facebook_${em}`);
-                  setToken(res.token);
-                  router.push("/");
-                } catch (e) { setError(String(e)); } finally { setBusy(false); }
-              }}>Facebook</button>
+              {oauthStatus.google.enabled && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true); setError("");
+                    try {
+                      if (oauthStatus.google.mode === "sandbox") {
+                        const em = window.prompt("Sandbox: enter email for Google login") || "";
+                        if (!em) { setBusy(false); return; }
+                        const res = await loginWithGoogle(`sandbox_google_${em}`);
+                        setToken(res.token);
+                        router.push("/");
+                        return;
+                      }
+                      // Real Google sign-in via Google Identity Services one-tap
+                      const GOOGLE_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps.googleusercontent.com";
+                      if (!gisRef.current) {
+                        await new Promise<void>((resolve, reject) => {
+                          const s = document.createElement("script");
+                          s.src = "https://accounts.google.com/gsi/client";
+                          s.onload = () => resolve();
+                          s.onerror = () => reject(new Error("Failed to load Google GIS"));
+                          document.head.appendChild(s);
+                        });
+                        gisRef.current = true;
+                      }
+                      await new Promise<void>((resolve, reject) => {
+                        (window as any).google.accounts.id.initialize({
+                          client_id: GOOGLE_CLIENT_ID,
+                          callback: async (resp: { credential: string }) => {
+                            try {
+                              const res = await loginWithGoogle(resp.credential);
+                              setToken(res.token);
+                              router.push("/");
+                              resolve();
+                            } catch (e) { reject(e); }
+                          },
+                          auto_select: false,
+                          cancel_on_tap_outside: true,
+                        });
+                        (window as any).google.accounts.id.prompt((notification: any) => {
+                          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                            // Fallback: render a hidden button and click it
+                            const div = document.createElement("div");
+                            div.style.display = "none";
+                            document.body.appendChild(div);
+                            (window as any).google.accounts.id.renderButton(div, { type: "standard" });
+                            const btn = div.querySelector("div[role=button]") as HTMLElement | null;
+                            btn?.click();
+                            document.body.removeChild(div);
+                          }
+                        });
+                      });
+                    } catch (e) { setError(String(e)); setBusy(false); }
+                  }}
+                >
+                  Sign in with Google
+                </button>
+              )}
+              {oauthStatus.facebook.enabled && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true); setError("");
+                    try {
+                      if (oauthStatus.facebook.mode === "sandbox") {
+                        const em = window.prompt("Sandbox: enter email for Facebook login") || "";
+                        if (!em) { setBusy(false); return; }
+                        const res = await loginWithFacebook(`sandbox_facebook_${em}`);
+                        setToken(res.token);
+                        router.push("/");
+                        return;
+                      }
+                      const FACEBOOK_APP_ID = "1071803295271778";
+                      if (!(window as any).FB) {
+                        await new Promise<void>((resolve, reject) => {
+                          (window as any).fbAsyncInit = () => {
+                            (window as any).FB.init({ appId: FACEBOOK_APP_ID, version: "v19.0", cookie: true, xfbml: false });
+                            resolve();
+                          };
+                          const s = document.createElement("script");
+                          s.src = "https://connect.facebook.net/en_US/sdk.js";
+                          s.onerror = () => reject(new Error("Failed to load Facebook SDK"));
+                          document.head.appendChild(s);
+                        });
+                      }
+                      const accessToken = await new Promise<string>((resolve, reject) => {
+                        (window as any).FB.login((resp: any) => {
+                          if (resp.authResponse?.accessToken) resolve(resp.authResponse.accessToken);
+                          else reject(new Error(resp.status === "not_authorized" ? "Facebook login denied" : "Facebook login cancelled"));
+                        }, { scope: "email,public_profile" });
+                      });
+                      const res = await loginWithFacebook(accessToken);
+                      setToken(res.token);
+                      router.push("/");
+                    } catch (e) { setError(String(e)); setBusy(false); }
+                  }}
+                >
+                  Sign in with Facebook
+                </button>
+              )}
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
               <a href="/forgot-password">Forgot password?</a>
@@ -219,12 +299,6 @@ export default function LoginPage() {
               <a href="/security">Sign-in security</a>
             </p>
           </>
-        )}
-        {mode === "login" && !mfaToken && oauthStatus && !oauthStatus.sandbox_enabled && (
-          <p className="muted" style={{ marginTop: 12 }}>
-            Social sign-in is disabled in this environment. Configure `GOOGLE_CLIENT_ID`,
-            `FACEBOOK_APP_ID`, and `FACEBOOK_APP_SECRET` on the identity service to enable it.
-          </p>
         )}
         {error && <p className="muted" style={{ color: "#ff6b6b" }}>{error}</p>}
         {signupsOpen ? (
