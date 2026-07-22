@@ -59,6 +59,12 @@ export default function LanguagesPage() {
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [verseIndex, setVerseIndex] = useState(0);
+  const [mediaSegmentIndex, setMediaSegmentIndex] = useState(0);
+  const [mediaPlaying, setMediaPlaying] = useState(false);
+  const [mediaAnswer, setMediaAnswer] = useState("");
+  const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
+  const mediaTimerRef = useRef<number | null>(null);
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -68,6 +74,11 @@ export default function LanguagesPage() {
       const s = JSON.parse(window.localStorage.getItem("aoep-lang-streak") || "{}");
       setStreak(s.count || 0);
     } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => () => {
+    if (mediaTimerRef.current !== null) window.clearTimeout(mediaTimerRef.current);
+    window.speechSynthesis?.cancel();
   }, []);
 
   const bumpStreak = useCallback(() => {
@@ -91,7 +102,11 @@ export default function LanguagesPage() {
     if (!course) return;
     setSkill(s); setEx(null); setDone(null); setPron(null); setAnswers({});
     setSelTerm(""); setHeard(""); setVerseIndex(0);
-    const n = s === "conversation" || s === "story" ? 20 : s === "slang" || s === "idioms" ? 60 : s === "match" ? 4 : 5;
+    setMediaSegmentIndex(0); setMediaAnswer(""); setMediaResults({}); setMediaPlaying(false);
+    const n = s === "conversation" || s === "story" ? 20
+      : s === "slang" || s === "idioms" ? 60
+      : s === "media-listening" ? 10
+      : s === "match" ? 4 : 5;
     try { setEx(await newLangExercise(course.code, s, n)); }
     catch (e) { setError(String(e)); }
   }
@@ -105,6 +120,27 @@ export default function LanguagesPage() {
     if (!ex?.pairs || !course) return;
     const correct = ex.pairs.filter((p) => answers[p.id] === p.id).length;
     finishSet(correct, ex.pairs.length);
+  }
+
+  function stopMediaClip() {
+    if (mediaTimerRef.current !== null) window.clearTimeout(mediaTimerRef.current);
+    mediaTimerRef.current = null;
+    mediaRef.current?.pause();
+    window.speechSynthesis.cancel();
+    setMediaPlaying(false);
+  }
+
+  function playMediaClip(startSec: number, durationSec: number, text: string) {
+    stopMediaClip();
+    setMediaAnswer("");
+    setMediaPlaying(true);
+    if (mediaRef.current) {
+      mediaRef.current.currentTime = startSec;
+      void mediaRef.current.play();
+    } else if (course) {
+      speak(text, course.code);
+    }
+    mediaTimerRef.current = window.setTimeout(stopMediaClip, durationSec * 1000);
   }
   async function finishSet(correct: number, total: number) {
     bumpStreak();
@@ -272,6 +308,92 @@ export default function LanguagesPage() {
 
           {/* grammar / culture */}
           {(ex.tip || ex.note) && <p style={{ fontSize: 16 }}>{ex.tip || ex.note}</p>}
+
+          {/* Ten-second listen, pause, and identify challenge */}
+          {ex.study_words && ex.segments && (() => {
+            const segment = ex.segments[Math.min(mediaSegmentIndex, ex.segments.length - 1)];
+            const answeredCorrectly = mediaResults[segment.id];
+            return (
+              <div>
+                <h3 style={{ marginTop: 0 }}>🎧 {ex.title}</h3>
+                <p className="muted">{ex.instructions}</p>
+                <h4>Study these {ex.study_words.length} words first</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 8 }}>
+                  {ex.study_words.map((word) => (
+                    <div key={word.id} style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 10 }}>
+                      <strong>{word.target}</strong>
+                      {word.roman && <div className="muted">/{word.roman}/</div>}
+                      <div>{word.en}</div>
+                    </div>
+                  ))}
+                </div>
+                {ex.media_url && ex.media_type === "video" && (
+                  <video ref={(element) => { mediaRef.current = element; }} src={ex.media_url} controls preload="metadata"
+                    style={{ width: "100%", marginTop: 16, borderRadius: 12 }} />
+                )}
+                {ex.media_url && ex.media_type === "audio" && (
+                  <audio ref={(element) => { mediaRef.current = element; }} src={ex.media_url} controls preload="metadata"
+                    style={{ width: "100%", marginTop: 16 }} />
+                )}
+                <div style={{ marginTop: 16, padding: 16, border: "1px solid var(--border)", borderRadius: 12 }}>
+                  <div className="muted">
+                    Clip {mediaSegmentIndex + 1} of {ex.segments.length} ·
+                    {" "}{segment.start_sec}–{segment.end_sec} seconds
+                  </div>
+                  <div style={{ height: 8, background: "var(--border)", borderRadius: 99, margin: "10px 0 14px" }}>
+                    <div style={{ width: `${((mediaSegmentIndex + 1) / ex.segments.length) * 100}%`,
+                      height: "100%", borderRadius: 99, background: "#7c3aed" }} />
+                  </div>
+                  <div className="row" style={{ gap: 8 }}>
+                    <button onClick={() => playMediaClip(segment.start_sec, segment.duration_sec, segment.tts_text)}
+                      disabled={mediaPlaying} style={{ background: "#7c3aed", color: "#fff" }}>
+                      {mediaPlaying ? "▶ Playing 10 seconds…" : "▶ Play this 10-second clip"}
+                    </button>
+                    {mediaPlaying && <button onClick={stopMediaClip}>⏸ Pause now & answer</button>}
+                  </div>
+                  <h4>{segment.question}</h4>
+                  <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+                    {segment.options.map((option) => (
+                      <button key={option.id} disabled={mediaPlaying || Boolean(mediaAnswer)}
+                        onClick={() => {
+                          setMediaAnswer(option.id);
+                          setMediaResults((results) => ({
+                            ...results,
+                            [segment.id]: option.id === segment.answer_id,
+                          }));
+                        }}
+                        style={{ border: mediaAnswer === option.id ? "2px solid #7c3aed" : "1px solid var(--border)" }}>
+                        {option.target} {option.roman ? `/${option.roman}/` : ""}
+                      </button>
+                    ))}
+                  </div>
+                  {mediaAnswer && (
+                    <p style={{ color: answeredCorrectly ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+                      {answeredCorrectly ? "✓ Correct — you caught it!" : "Not this time. Replay the clip, then review the highlighted answer."}
+                      {!answeredCorrectly && (
+                        <span> The word was {segment.options.find((option) => option.id === segment.answer_id)?.target}.</span>
+                      )}
+                    </p>
+                  )}
+                  {mediaAnswer && mediaSegmentIndex < ex.segments.length - 1 && (
+                    <button onClick={() => {
+                      stopMediaClip();
+                      setMediaSegmentIndex((index) => index + 1);
+                      setMediaAnswer("");
+                    }}>Continue to the next 10 seconds →</button>
+                  )}
+                  {mediaAnswer && mediaSegmentIndex === ex.segments.length - 1 && !done && (
+                    <button onClick={() => void finishSet(
+                      Object.values(mediaResults).filter(Boolean).length,
+                      ex.segments!.length,
+                    )} style={{ background: "#16a34a", color: "#fff" }}>
+                      Finish listening challenge
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Real-world dialogues */}
           {ex.dialogues && (
