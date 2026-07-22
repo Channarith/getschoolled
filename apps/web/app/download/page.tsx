@@ -12,7 +12,8 @@ const DEFAULT_ANDROID_APK_URL =
   "https://salareen-prod.sjc1.vultrobjects.com/releases/android/v0.26.1/app-release.apk";
 const ANDROID_APK_URL = process.env.NEXT_PUBLIC_ANDROID_APK_URL || DEFAULT_ANDROID_APK_URL;
 const PLAY_STORE_URL = process.env.NEXT_PUBLIC_PLAY_STORE_URL ?? "";
-const IOS_APP_URL = process.env.NEXT_PUBLIC_IOS_APP_URL ?? ""; // TestFlight / install
+const DEFAULT_IOS_APP_URL = "https://testflight.apple.com/join/uTxcWnCZ";
+const IOS_APP_URL = process.env.NEXT_PUBLIC_IOS_APP_URL || DEFAULT_IOS_APP_URL; // TestFlight / install
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL ?? "";
 
 /** Same-origin route that forces Content-Disposition: attachment for the APK. */

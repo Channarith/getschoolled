@@ -10,8 +10,10 @@ import { useT } from "../lib/i18n";
 // route / TestFlight installs) - never a raw Object Storage URL that phones try
 // to preview as a web page.
 const PLAY = process.env.NEXT_PUBLIC_PLAY_STORE_URL || "/download";
+const DEFAULT_IOS_APP_URL = "https://testflight.apple.com/join/uTxcWnCZ";
 const APPSTORE = process.env.NEXT_PUBLIC_APP_STORE_URL
-  || process.env.NEXT_PUBLIC_IOS_APP_URL || "/download";
+  || process.env.NEXT_PUBLIC_IOS_APP_URL
+  || DEFAULT_IOS_APP_URL;
 
 function AppleIcon() {
   return (
