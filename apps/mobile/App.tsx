@@ -43,6 +43,7 @@ import LiveClassScreen from "./src/screens/LiveClassScreen";
 import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import ArcadeScreen from "./src/screens/ArcadeScreen";
+import WorldsScreen from "./src/screens/WorldsScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
 import RewardsScreen from "./src/screens/RewardsScreen";
@@ -96,6 +97,7 @@ function AppInner() {
   const [showLiveClass, setShowLiveClass] = useState(false);
   const [showLiveRooms, setShowLiveRooms] = useState(false);
   const [showArcade, setShowArcade] = useState(false);
+  const [showWorlds, setShowWorlds] = useState(false);
   const [gameFromArcade, setGameFromArcade] = useState(false);
   const [gameTypeHint, setGameTypeHint] = useState<string | null>(null);
   const [liveRoomsOrigin, setLiveRoomsOrigin] = useState<"solo" | "group" | null>(null);
@@ -551,6 +553,8 @@ function AppInner() {
         onBack={() => setShowArcade(false)}
       />
     );
+  } else if (showWorlds) {
+    screen = <WorldsScreen onBack={() => setShowWorlds(false)} />;
   } else if (activeLesson) {
     screen = (
       <LessonScreen
@@ -649,6 +653,7 @@ function AppInner() {
         onOpenCourse={openCourse}
         onOpenCategory={openCategory}
         onOpenArcade={() => setShowArcade(true)}
+        onOpenWorlds={() => setShowWorlds(true)}
         onOpenGroupClasses={() => setShowGroupClasses(true)}
         onOpenLiveClass={() => setShowLiveClass(true)}
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}

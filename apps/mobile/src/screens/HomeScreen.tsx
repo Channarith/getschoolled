@@ -34,12 +34,13 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 };
 
 export default function HomeScreen({
-  onOpenCourse, onOpenCategory, onOpenArcade, onOpenGroupClasses, onOpenLiveClass,
+  onOpenCourse, onOpenCategory, onOpenArcade, onOpenWorlds, onOpenGroupClasses, onOpenLiveClass,
   onOpenLanguages, onOpenRewards, onOpenSearch, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
   onOpenArcade?: () => void;
+  onOpenWorlds?: () => void;
   onOpenGroupClasses?: () => void;
   onOpenLiveClass?: () => void;
   onOpenLanguages?: () => void;
@@ -196,6 +197,13 @@ export default function HomeScreen({
                 icon="game-controller-outline"
                 label={t("home.navArcade")}
                 onPress={onOpenArcade}
+              />
+            ) : null}
+            {onOpenWorlds ? (
+              <HomeAction
+                icon="earth-outline"
+                label="Worlds"
+                onPress={onOpenWorlds}
               />
             ) : null}
             {onOpenLanguages ? (
