@@ -15,6 +15,7 @@ import {
   type OAuthProviderStatus,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { AppleIcon, FacebookIcon, GoogleIcon } from "../components/BrandIcons";
 import { EyeIcon } from "../components/EyeIcon";
 import { useFlag } from "../lib/flags";
 
@@ -242,8 +243,9 @@ export default function LoginPage() {
                       });
                   } catch (e) { setError(String(e)); setBusy(false); }
                 }}
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                Sign in with Google
+                <GoogleIcon /> Google
               </button>
               <button
                 type="button"
@@ -283,8 +285,9 @@ export default function LoginPage() {
                       router.push("/");
                   } catch (e) { setError(String(e)); setBusy(false); }
                 }}
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                Sign in with Facebook
+                <FacebookIcon /> Facebook
               </button>
               <button
                 type="button"
@@ -329,9 +332,9 @@ export default function LoginPage() {
                     setBusy(false);
                   }
                 }}
-                style={{ display: "flex", alignItems: "center", gap: 6 }}
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
               >
-                 Sign in with Apple
+                <AppleIcon /> Apple
               </button>
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
