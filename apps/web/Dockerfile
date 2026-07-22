@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 FROM node:22-slim AS deps
 WORKDIR /app
-COPY apps/web/package.json apps/web/package-lock.json* ./
-RUN npm install
+COPY apps/web/package.json apps/web/package-lock.json ./
+# npm ci installs exactly what the lockfile specifies, including platform-specific
+# optional binaries (e.g. @next/swc-linux-x64-gnu) for the BUILD target OS/CPU.
+# npm install resolves against the host OS that generated the lockfile (macOS) and
+# skips Linux-only optionals, causing "Failed to load SWC binary" on every fresh build.
+RUN npm ci
 
 FROM node:22-slim AS build
 WORKDIR /app
