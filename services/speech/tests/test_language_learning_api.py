@@ -83,3 +83,20 @@ def test_khmer_vocabulary_endpoint_has_five_hundred_words():
     school = client.get("/learn/km/vocabulary", params={"category": "school"}).json()
     assert school["count"] >= 10
     assert all(word["category"] == "school" for word in school["vocabulary"])
+
+
+def test_khmer_media_challenge_uses_ten_words_and_ten_second_clips():
+    body = client.get(
+        "/learn/km/media-challenge",
+        params={"study_size": 10, "seed": 9},
+    ).json()
+    assert len(body["study_words"]) == len(body["segments"]) == 10
+    assert all(segment["duration_sec"] == 10 for segment in body["segments"])
+
+    exercise = client.post(
+        "/learn/exercise",
+        json={"language": "km", "skill": "media-listening", "n": 10},
+    ).json()
+    assert exercise["skill"] == "media-listening"
+    assert len(exercise["study_words"]) == 10
+    assert len(exercise["segments"]) == 10

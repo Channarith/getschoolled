@@ -31,6 +31,11 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [verseIndex, setVerseIndex] = useState(0);
+  const [mediaSegmentIndex, setMediaSegmentIndex] = useState(0);
+  const [mediaPlaying, setMediaPlaying] = useState(false);
+  const [mediaAnswer, setMediaAnswer] = useState("");
+  const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
+  const mediaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards callbacks after unmount so stale STT/TTS closures don't update state.
   const mountedRef = useRef(true);
   // Latest passing target/course for the STT result callback (avoids stale closure).
@@ -54,6 +59,7 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
       mountedRef.current = false;
       stopVoiceListening();
       stopSpeech();
+      if (mediaTimerRef.current) clearTimeout(mediaTimerRef.current);
     };
   }, []);
 
@@ -77,7 +83,14 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setPron(null);
     setAnswers({});
     setVerseIndex(0);
-    const n = s === "conversation" || s === "story" ? 20 : s === "slang" || s === "idioms" ? 60 : s === "match" ? 4 : 5;
+    setMediaSegmentIndex(0);
+    setMediaPlaying(false);
+    setMediaAnswer("");
+    setMediaResults({});
+    const n = s === "conversation" || s === "story" ? 20
+      : s === "slang" || s === "idioms" ? 60
+      : s === "media-listening" ? 10
+      : s === "match" ? 4 : 5;
     try {
       setEx(await newLangExercise(course.code, s, n));
     } catch (e) {
@@ -122,6 +135,21 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     if (!target) return;
     stopSpeech();
     speakNatural(target, { locale: codeRef.current || "en" });
+  }
+
+  function stopMediaClip() {
+    if (mediaTimerRef.current) clearTimeout(mediaTimerRef.current);
+    mediaTimerRef.current = null;
+    stopSpeech();
+    setMediaPlaying(false);
+  }
+
+  function playMediaClip(text: string, durationSec: number) {
+    stopMediaClip();
+    setMediaAnswer("");
+    setMediaPlaying(true);
+    speakNatural(text, { locale: codeRef.current || "km" });
+    mediaTimerRef.current = setTimeout(stopMediaClip, durationSec * 1000);
   }
 
   // Record the learner via native speech recognition (Siri/Google STT on device,
@@ -237,6 +265,79 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
               </View>
             </GlassPanel>
           ) : null}
+          {ex?.study_words && ex.segments ? (() => {
+            const segment = ex.segments[Math.min(mediaSegmentIndex, ex.segments.length - 1)];
+            const correct = mediaResults[segment.id];
+            return (
+              <GlassPanel style={styles.card}>
+                <Text style={styles.sectionTitle}>🎧 {ex.title}</Text>
+                <Text style={styles.tip}>{ex.instructions}</Text>
+                <Text style={styles.prompt}>Study these {ex.study_words.length} words</Text>
+                <View style={styles.studyGrid}>
+                  {ex.study_words.map((word) => (
+                    <View key={word.id} style={styles.studyWord}>
+                      <Text style={styles.optText}>{word.target}</Text>
+                      {word.roman ? <Text style={styles.meta}>/{word.roman}/</Text> : null}
+                      <Text style={styles.meta}>{word.en}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.meta}>
+                  Clip {mediaSegmentIndex + 1} of {ex.segments.length} ·
+                  {" "}{segment.start_sec}–{segment.end_sec} seconds
+                </Text>
+                <PrimaryButton
+                  label={mediaPlaying ? "▶ Playing 10 seconds…" : "▶ Play 10-second clip"}
+                  onPress={() => playMediaClip(segment.tts_text, segment.duration_sec)}
+                  disabled={mediaPlaying}
+                  variant="brand"
+                />
+                {mediaPlaying ? (
+                  <PrimaryButton label="⏸ Pause now & answer" onPress={stopMediaClip} variant="ghost" />
+                ) : null}
+                <Text style={styles.prompt}>{segment.question}</Text>
+                <View style={styles.grid}>
+                  {segment.options.map((option) => (
+                    <AnimatedPressable
+                      key={option.id}
+                      disabled={mediaPlaying || Boolean(mediaAnswer)}
+                      onPress={() => {
+                        setMediaAnswer(option.id);
+                        setMediaResults((results) => ({
+                          ...results,
+                          [segment.id]: option.id === segment.answer_id,
+                        }));
+                      }}
+                      style={[styles.opt, mediaAnswer === option.id && styles.optOn]}
+                    >
+                      <Text style={styles.optText}>{option.target}</Text>
+                      {option.roman ? <Text style={styles.meta}>/{option.roman}/</Text> : null}
+                    </AnimatedPressable>
+                  ))}
+                </View>
+                {mediaAnswer ? (
+                  <Text style={[styles.feedback, { color: correct ? "#22c55e" : "#ef4444" }]}>
+                    {correct
+                      ? "✓ Correct — you caught it!"
+                      : `The word was ${segment.options.find((option) => option.id === segment.answer_id)?.target}.`}
+                  </Text>
+                ) : null}
+                {mediaAnswer && mediaSegmentIndex < ex.segments.length - 1 ? (
+                  <PrimaryButton label="Next 10 seconds →" onPress={() => {
+                    stopMediaClip();
+                    setMediaSegmentIndex((index) => index + 1);
+                    setMediaAnswer("");
+                  }} variant="netflix" />
+                ) : null}
+                {mediaAnswer && mediaSegmentIndex === ex.segments.length - 1 && !done ? (
+                  <PrimaryButton label="Finish challenge" onPress={() => void finishExercise(
+                    Object.values(mediaResults).filter(Boolean).length,
+                    ex.segments!.length,
+                  )} variant="netflix" />
+                ) : null}
+              </GlassPanel>
+            );
+          })() : null}
           {ex?.dialogues ? (
             <GlassPanel style={styles.card}>
               <Text style={styles.sectionTitle}>🗨️ Real conversations ({ex.dialogues.length})</Text>
@@ -363,4 +464,10 @@ const styles = StyleSheet.create({
   verse: { gap: 8, padding: 14, borderRadius: 12, backgroundColor: "rgba(124,58,237,0.16)" },
   songTarget: { color: theme.colors.text, fontSize: 20, fontWeight: "800" },
   translation: { color: theme.colors.accent, fontSize: 14, fontWeight: "700" },
+  studyGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  studyWord: {
+    width: "47%", padding: 9, borderRadius: 8, borderWidth: 1,
+    borderColor: theme.colors.border, backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  feedback: { fontSize: 14, fontWeight: "800" },
 });

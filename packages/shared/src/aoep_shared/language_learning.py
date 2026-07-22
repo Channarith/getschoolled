@@ -109,6 +109,8 @@ SKILL_AREAS = [
      "desc": "Learn through a fun mini-story."},
     {"id": "songs", "name": "Learn through songs", "icon": "🎵",
      "desc": "Play one verse, understand it, then sing the whole song."},
+    {"id": "media-listening", "name": "Catch words in media", "icon": "🎧",
+     "desc": "Study 10 words, listen for 10 seconds, pause, and identify what you heard."},
 ]
 
 
@@ -473,6 +475,67 @@ def songs_for(language: str) -> List[dict]:
         "source_url": "",
         "verses": verses,
     }]
+
+
+def media_listening_challenge(
+    language: str, *, study_size: int = 10, seed: Optional[int] = None
+) -> dict:
+    """Build a timed listen-pause-identify challenge from known vocabulary.
+
+    Each segment is exactly ten seconds in the player. Bundled challenges use
+    original TTS audio; the same schema accepts a licensed ``media_url`` for
+    real audio/video packs without changing either client.
+    """
+    size = max(2, min(study_size, 10))
+    pool = vocabulary_for(language)
+    if len(pool) < size:
+        pool = phrases_for(language)
+    rng = random.Random(seed)
+    study_words = list(pool)
+    rng.shuffle(study_words)
+    study_words = study_words[:size]
+    segments = []
+    for index, word in enumerate(study_words):
+        options = [
+            {
+                "id": item["id"],
+                "target": item["target"],
+                "roman": item.get("roman", ""),
+                "en": item["en"],
+            }
+            for item in study_words
+        ]
+        rng.shuffle(options)
+        segments.append({
+            "id": f"clip-{index + 1:02d}",
+            "start_sec": index * 10,
+            "end_sec": (index + 1) * 10,
+            "duration_sec": 10,
+            "tts_text": (
+                f"ស្តាប់ពាក្យ។ {word['target']}។ "
+                f"ច្រៀងជាមួយខ្ញុំ។ {word['target']}។"
+            ),
+            "question": (
+                f"Which vocabulary word did you hear during seconds "
+                f"{index * 10}–{(index + 1) * 10}?"
+            ),
+            "options": options,
+            "answer_id": word["id"],
+        })
+    return {
+        "skill": "media-listening",
+        "language": language,
+        "title": "Ten-second vocabulary listening challenge",
+        "instructions": (
+            "Study the 10 words. Play one ten-second clip, let it pause, "
+            "identify the word you heard, then continue."
+        ),
+        "media_type": "generated_audio",
+        "media_url": "",
+        "license": "original-salareen",
+        "study_words": study_words,
+        "segments": segments,
+    }
 
 
 def course_outline(language: str) -> dict:

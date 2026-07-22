@@ -412,6 +412,15 @@ def learn_songs(language: str) -> dict:
     return {"language": language, "songs": songs_for(language)}
 
 
+@app.get("/learn/{language}/media-challenge")
+def learn_media_challenge(language: str, study_size: int = 10, seed: int | None = None) -> dict:
+    from aoep_shared.language_learning import media_listening_challenge
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return media_listening_challenge(language, study_size=study_size, seed=seed)
+
+
 class ExerciseRequest(BaseModel):
     language: str
     skill: str = "vocabulary"
@@ -424,7 +433,17 @@ def learn_exercise(req: ExerciseRequest) -> dict:
 
     if req.language not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=404, detail="unsupported language")
-    n = max(1, min(req.n, 100 if req.skill in ("conversation", "story", "slang", "idioms") else 8))
+    n = max(
+        1,
+        min(
+            req.n,
+            100
+            if req.skill in ("conversation", "story", "slang", "idioms")
+            else 10
+            if req.skill == "media-listening"
+            else 8,
+        ),
+    )
     if req.skill == "listening":
         return ll.listening_exercise(req.language, n=n)
     if req.skill in ("match", "phrases"):
@@ -444,6 +463,8 @@ def learn_exercise(req: ExerciseRequest) -> dict:
             "skill": "songs", "language": req.language,
             "songs": ll.songs_for(req.language),
         }
+    if req.skill == "media-listening":
+        return ll.media_listening_challenge(req.language, study_size=n)
     return ll.vocabulary_exercise(req.language, n=n)
 
 
