@@ -58,6 +58,7 @@ export default function LocalizedNav({ appVersion }: { appVersion: string }) {
       <Link href="/drive">{t("nav.drive")}</Link>
       <Link href="/jobs">{t("nav.careers")}</Link>
       <Link href="/arcade">{t("nav.arcade")}</Link>
+      <Link href="/worlds">🌍 Worlds</Link>
       {watchOn && <Link href="/watch">{t("nav.watch")}</Link>}
       <Link href="/class">{t("nav.liveClass")}</Link>
       <Link href="/group-classes">{t("nav.groupClasses")}</Link>
