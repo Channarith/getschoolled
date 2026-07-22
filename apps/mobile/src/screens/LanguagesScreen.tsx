@@ -174,6 +174,10 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
       ) : (
         <>
           <Text style={styles.courseTitle}>{course.flag} {course.name}</Text>
+          <Text style={styles.meta}>
+            📖 {course.vocabulary_count ?? 0} vocabulary words · 💬 {course.phrase_count} phrases ·
+            {" "}🗨️ {course.dialogue_count ?? 0} conversations
+          </Text>
           <Text style={styles.tip}>{course.grammar_tip}</Text>
           {!skill ? (
             <View style={styles.grid}>

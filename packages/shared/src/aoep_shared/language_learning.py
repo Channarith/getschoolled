@@ -303,10 +303,44 @@ def language_list() -> List[dict]:
             "code": code, **meta,
             "tier": "full",
             "phrase_count": len(phrases_for(code)),
+            "vocabulary_count": len(vocabulary_for(code)),
             "dialogue_count": len(dialogues_for(code)),
             "slang_count": slang_count(code),
             "song_count": len(songs_for(code)),
         })
+    return out
+
+
+def vocabulary_for(language: str, category: Optional[str] = None) -> List[dict]:
+    """Curated single-word vocabulary from extensible content packs."""
+    try:
+        from .content_packs import load_records
+    except Exception:  # pragma: no cover - packs are optional
+        return []
+
+    out: List[dict] = []
+    seen_ids = set()
+    seen_targets = set()
+    for rec in load_records("vocabulary"):
+        if rec.get("language") != language or not rec.get("id"):
+            continue
+        item_category = str(rec.get("category", "core"))
+        if category and item_category != category:
+            continue
+        item_id = str(rec["id"])
+        target = str(rec.get("target", "")).strip()
+        english = str(rec.get("en", "")).strip()
+        if not target or not english or item_id in seen_ids or target in seen_targets:
+            continue
+        out.append({
+            "id": item_id,
+            "category": item_category,
+            "en": english,
+            "target": target,
+            "roman": str(rec.get("roman", "")).strip(),
+        })
+        seen_ids.add(item_id)
+        seen_targets.add(target)
     return out
 
 
@@ -447,6 +481,7 @@ def course_outline(language: str) -> dict:
         "code": language, **meta, "tier": "full",
         "skills": SKILL_AREAS,
         "phrase_count": len(phrases_for(language)),
+        "vocabulary_count": len(vocabulary_for(language)),
         "dialogue_count": len(dialogues_for(language)),
         "slang_count": slang_count(language),
         "song_count": len(songs_for(language)),
@@ -463,12 +498,15 @@ def _label(p: dict) -> str:
 
 
 def vocabulary_exercise(language: str, *, n: int = 5, seed: Optional[int] = None) -> dict:
-    """Show a phrase in the target language; pick its English meaning."""
+    """Show a word in the target language; pick its English meaning."""
     rng = random.Random(seed)
-    pool = phrases_for(language)
+    vocabulary = vocabulary_for(language)
+    pool = vocabulary or phrases_for(language)
     rng.shuffle(pool)
     pool = pool[: max(1, min(n, len(pool)))]
-    all_meanings = [p["en"] for p in phrases_for(language)] or [c[2] for c in _CONCEPTS]
+    all_meanings = [p["en"] for p in (vocabulary or phrases_for(language))]
+    if not all_meanings:
+        all_meanings = [c[2] for c in _CONCEPTS]
     items = []
     for p in pool:
         distractors = [m for m in all_meanings if m != p["en"]]

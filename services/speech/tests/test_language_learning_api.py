@@ -70,3 +70,16 @@ def test_khmer_dialogues_slang_and_songs():
         json={"language": "km", "skill": "conversation", "n": 20},
     ).json()
     assert len(ex["dialogues"]) >= 20
+
+
+def test_khmer_vocabulary_endpoint_has_five_hundred_words():
+    response = client.get("/learn/km/vocabulary")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] >= 500
+    assert len(body["vocabulary"]) == body["count"]
+    assert len({word["target"] for word in body["vocabulary"]}) == body["count"]
+
+    school = client.get("/learn/km/vocabulary", params={"category": "school"}).json()
+    assert school["count"] >= 10
+    assert all(word["category"] == "school" for word in school["vocabulary"])

@@ -371,6 +371,16 @@ def learn_phrases(language: str, category: str | None = None) -> dict:
     return {"language": language, "phrases": phrases_for(language, category)}
 
 
+@app.get("/learn/{language}/vocabulary")
+def learn_vocabulary(language: str, category: str | None = None) -> dict:
+    from aoep_shared.language_learning import vocabulary_for
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    words = vocabulary_for(language, category)
+    return {"language": language, "vocabulary": words, "count": len(words)}
+
+
 @app.get("/learn/{language}/slang")
 def learn_slang(language: str) -> dict:
     from aoep_shared.slang import all_entries

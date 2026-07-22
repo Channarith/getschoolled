@@ -242,6 +242,10 @@ export default function LanguagesPage() {
           <button onClick={() => setCourse(null)} style={{ marginBottom: 12 }}>{t("languages.allLanguages")}</button>
           <div className="card">
             <h2 style={{ marginTop: 0 }}>{course.flag} {course.name} <span className="muted" style={{ fontSize: 16 }}>{course.native}</span></h2>
+            <p className="muted">
+              📖 {course.vocabulary_count ?? 0} vocabulary words · 💬 {course.phrase_count} phrases ·
+              {" "}🗨️ {course.dialogue_count ?? 0} conversations
+            </p>
             {course.grammar_tip && <p className="muted">🧩 {course.grammar_tip}</p>}
             {course.culture_note && <p className="muted">🌍 {course.culture_note}</p>}
           </div>

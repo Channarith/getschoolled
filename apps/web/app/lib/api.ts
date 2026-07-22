@@ -887,12 +887,14 @@ export async function getAudioCourse(
 
 // --- language learning ---------------------------------------------------- //
 export type LangInfo = { code: string; name: string; native: string; flag: string; tier: string;
-  phrase_count: number; dialogue_count?: number; slang_count?: number; song_count?: number };
+  phrase_count: number; vocabulary_count?: number; dialogue_count?: number;
+  slang_count?: number; song_count?: number };
 export type LangSkill = { id: string; name: string; icon: string; desc: string };
 export type LangCourse = {
   code: string; name: string; native: string; flag: string; tier: string;
-  skills: LangSkill[]; phrase_count: number; dialogue_count?: number; slang_count?: number;
-  song_count?: number; grammar_tip: string; culture_note: string;
+  skills: LangSkill[]; phrase_count: number; vocabulary_count?: number;
+  dialogue_count?: number; slang_count?: number; song_count?: number;
+  grammar_tip: string; culture_note: string;
 };
 export type LangItem = { id: string; prompt: string; options: string[]; answer_index: number; explain: string; audio_prompt?: string };
 export type LangTurn = { speaker: string; target: string; roman?: string; en: string };
