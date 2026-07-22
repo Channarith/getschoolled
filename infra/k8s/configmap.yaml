@@ -64,7 +64,7 @@ data:
   # Like other NEXT_PUBLIC_*, these are inlined at web build time.
   NEXT_PUBLIC_ANDROID_APK_URL: ""
   NEXT_PUBLIC_PLAY_STORE_URL: ""
-  NEXT_PUBLIC_IOS_APP_URL: ""
+  NEXT_PUBLIC_IOS_APP_URL: "https://testflight.apple.com/join/uTxcWnCZ"
   NEXT_PUBLIC_APP_STORE_URL: ""
   # Server-side BFF for operator admins (Next.js API routes proxy to memory/identity).
   ADMIN_SECRET: "dev-admin-secret"
