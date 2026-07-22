@@ -291,6 +291,15 @@ const ARCADE_SPECS: Record<string, GradientSpec> = {
 };
 
 const KIDS_SUBJECT_SPECS: Record<string, GradientSpec> = {
+  alphabet:    { from: "#7c3aed", to: "#ec4899", emoji: "🔤" },
+  phonics:     { from: "#7c3aed", to: "#ec4899", emoji: "🅰️" },
+  reading:     { from: "#db2777", to: "#f59e0b", emoji: "📖" },
+  writing:     { from: "#ea580c", to: "#facc15", emoji: "✏️" },
+  clock:       { from: "#0284c7", to: "#22d3ee", emoji: "🕰️" },
+  animals:     { from: "#15803d", to: "#84cc16", emoji: "🦁" },
+  objects:     { from: "#c026d3", to: "#f472b6", emoji: "🧸" },
+  "connect-the-dots": { from: "#0891b2", to: "#6366f1", emoji: "✨" },
+  shapes:      { from: "#4f46e5", to: "#ec4899", emoji: "🔷" },
   math:        { from: "#7c3aed", to: "#0ea5e9", emoji: "🔢" },
   science:     { from: "#059669", to: "#0ea5e9", emoji: "🔬" },
   history:     { from: "#b45309", to: "#d97706", emoji: "📜" },
@@ -357,21 +366,22 @@ function isCustomThumbnail(thumb: string): boolean {
 
 export function coursePosterUrl(input: CoursePosterInput): string {
   const thumb = input.thumbnail;
-  if (thumb && isCustomThumbnail(thumb)) return thumb;
-
   const fmt = (input.format || input.media_format || "").toLowerCase();
   const hay = [input.title, input.category, input.subject, ...(input.tags ?? [])]
     .join(" ").toLowerCase();
+
+  // Kids courses always get bright pictorial artwork. This check deliberately
+  // precedes the backend thumbnail fallback, which may be a generic adult photo.
+  if (input.maturity_rating === "kids" || hay.includes("kids academ") || hay.includes("children")) {
+    return makeCartoonSvg(kidsSubjectSpec(hay) ?? KIDS_SUBJECT_SPECS.kids);
+  }
+
+  if (thumb && isCustomThumbnail(thumb)) return thumb;
 
   // ── Arcade / game: cartoon gradient ──────────────────────────────────────
   if (fmt === "game" || hay.includes("arcade")) {
     const spec = arcadeSpec(hay);
     return makeCartoonSvg(spec ?? { from: "#7c3aed", to: "#0ea5e9", emoji: "🎮" });
-  }
-
-  // ── Kids content: cartoon gradient ───────────────────────────────────────
-  if (input.maturity_rating === "kids" || hay.includes("kids academ") || hay.includes("children")) {
-    return makeCartoonSvg(kidsSubjectSpec(hay) ?? KIDS_SUBJECT_SPECS.kids);
   }
 
   // ── Title / tag rules (most specific first) ───────────────────────────────

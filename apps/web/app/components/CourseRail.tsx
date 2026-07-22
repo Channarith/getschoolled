@@ -32,6 +32,7 @@ export function Tile({ course, kids = false }: { course: CatalogCourse; kids?: b
     format: course.format,
     media_format: course.media_format,
     thumbnail: course.thumbnail,
+    maturity_rating: course.maturity_rating,
   };
   return (
     <div className="tile" onClick={open} role="button" tabIndex={0}

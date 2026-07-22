@@ -1,5 +1,12 @@
 LESSON: Fire Safety and Prevention
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: Required safety training
+ROLE: All employees
+DELIVERY: 30–45 min live class
+FIT: Anyone working in offices, labs, warehouses, or industrial sites.
+SUMMARY: Fire behavior, extinguishers, evacuation, and prevention habits that save lives.
 
 SLIDE 1 | Why Fire Safety Matters
 Fires in commercial and industrial settings cause billions of dollars in property damage and hundreds of deaths each year in the United States. Most workplace fires are preventable with proper training, equipment maintenance, and safe work practices. Understanding fire behavior and response procedures can mean the difference between a minor incident and a catastrophic loss.

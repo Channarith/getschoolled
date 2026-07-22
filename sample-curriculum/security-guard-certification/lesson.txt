@@ -1,5 +1,12 @@
 LESSON: Security Guard Certification Training
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Privacy
+LEVEL: Certification prep
+ROLE: Security & facilities
+DELIVERY: 2–3 hr live class
+FIT: Security officers and site teams responsible for people and property.
+SUMMARY: Officer duties, observation, use-of-force basics, and workplace violence awareness.
 
 SLIDE 1 | Role and Responsibilities of a Security Officer
 Security officers protect people, property, and information from theft, vandalism,

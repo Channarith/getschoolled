@@ -1,0 +1,46 @@
+LESSON: Liquid Cooling & Thermal Materials Safety
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: Role-based required
+ROLE: Lab, facilities, hardware teams
+DELIVERY: 45–60 min live class
+FIT: Anyone installing, maintaining, or disposing of liquid cooling loops and thermal interface materials.
+SUMMARY: Spill response, PPE, chemical handling, electrical isolation, and safe work around coolants and thermal materials.
+
+SLIDE 1 | Why Thermal Systems Need Special Care
+Liquid cooling and thermal interface materials improve performance but
+introduce chemical, electrical, and slip hazards. Coolants can be conductive,
+irritating, or environmentally regulated. Treat every maintenance job as a
+controlled procedure.
+NARRATION: Liquid cooling and thermal interface materials improve performance but introduce chemical, electrical, and slip hazards.
+
+SLIDE 2 | Know Your Materials
+Identify coolants, dielectric fluids, pastes, pads, and solvents on the SDS
+before use. Note flash points, PPE, incompatible materials, and disposal
+rules. Never mix unknown fluids.
+NARRATION: Identify coolants, dielectric fluids, pastes, pads, and solvents on the SDS before use.
+
+SLIDE 3 | Electrical Isolation First
+Power down and lock out equipment before opening loops or heat sinks near
+energized gear. Confirm residual energy is released. Liquids plus live power
+create shock and short risks.
+NARRATION: Power down and lock out equipment before opening loops or heat sinks near energized gear.
+
+SLIDE 4 | Spill and Leak Response
+Contain spills immediately, keep people clear, wear required PPE, and follow
+the SDS cleanup method. Report leaks that reach drains. Dispose of
+contaminated materials as hazardous waste when required.
+NARRATION: Contain spills immediately, keep people clear, wear required PPE, and follow the SDS cleanup method.
+
+SLIDE 5 | Safe Handling Habits
+Use drip trays, labeled containers, and secondary containment. Inspect hoses
+and fittings. Wash hands after handling thermal materials and never eat in the
+work area.
+NARRATION: Use drip trays, labeled containers, and secondary containment.
+
+FACT: Liquid cooling and thermal interface materials improve performance but introduce chemical, electrical, and slip hazards.
+FACT: Identify coolants, dielectric fluids, pastes, pads, and solvents on the SDS before use.
+FACT: Power down and lock out equipment before opening loops or heat sinks near energized gear.
+FACT: Contain spills immediately, keep people clear, wear required PPE, and follow the SDS cleanup method.
+FACT: Use drip trays, labeled containers, and secondary containment.

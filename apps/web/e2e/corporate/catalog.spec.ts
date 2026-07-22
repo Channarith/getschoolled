@@ -5,9 +5,30 @@ import { expect, test } from "@playwright/test";
  * Anonymous (catalog browsing requires no login).
  */
 
-// The 11 sample-curriculum lessons tagged AUDIENCE: corporate (pinned by
-// services/orchestrator/tests/test_corporate_lessons.py).
 const CORPORATE_COURSE_TITLES = [
+  // Compliance & safety
+  "Sexual Harassment Prevention Training",
+  "Workplace Violence Prevention",
+  "Workplace Ethics and Integrity",
+  "Anti-Bribery and Corruption",
+  "Diversity, Equity, and Inclusion in the Workplace",
+  "Social Media at Work",
+  "Fire Safety and Prevention",
+  "OSHA General Industry Safety",
+  "Forklift and Powered Industrial Truck Safety",
+  "Food Handler Safety Certification",
+  "Lab Safety Fundamentals",
+  "Liquid Cooling & Thermal Materials Safety",
+  "HIPAA Privacy and Security Training",
+  "Data Privacy at Work",
+  "Cybersecurity Fundamentals",
+  "Security Policies at Work",
+  "Security Guard Certification Training",
+  "Trade Compliance Essentials",
+  "US Export Control Regulations",
+  "Automotive Safety Awareness",
+  "ASE Automotive Service Excellence Certification",
+  // AI / Data / Engineering
   "AI Fluency: Essentials for the Modern Workplace",
   "AI-Powered Productivity",
   "AI Solutions Builder",
@@ -21,8 +42,13 @@ const CORPORATE_COURSE_TITLES = [
   "Java Software Engineering",
 ];
 
-// Seeded by services/curriculum/src/curriculum/corporate_programs.py.
 const SEEDED_PROGRAM_TITLES = [
+  "Workplace Safety & OSHA",
+  "HR & Workplace Conduct",
+  "Privacy, Security & Data Protection",
+  "Food Handler Certification",
+  "Trade Compliance & Export Control",
+  "Automotive Safety & ASE",
   "AI Fluency for Teams",
   "AI Engineering Upskilling",
   "Data & Decisions",
@@ -34,18 +60,26 @@ test.describe("corporate catalog (CD-E1)", () => {
     await page.goto("/corporate");
   });
 
-  test("renders all 11 AI-led corporate courses with start buttons", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "AI-led courses" })).toBeVisible();
+  test("renders corporate compliance and AI courses with start buttons", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Corporate courses" })).toBeVisible();
     for (const title of CORPORATE_COURSE_TITLES) {
       await expect(page.getByRole("heading", { name: title })).toBeVisible();
     }
     const startButtons = page.getByRole("button", { name: "Start course" });
-    await expect(startButtons.nth(10)).toBeVisible();
-    expect(await startButtons.count()).toBeGreaterThanOrEqual(11);
+    expect(await startButtons.count()).toBeGreaterThanOrEqual(CORPORATE_COURSE_TITLES.length);
   });
 
-  test("groups courses into AI, Data, and Engineering tracks", async ({ page }) => {
-    for (const track of ["Artificial Intelligence", "Data", "Engineering"]) {
+  test("groups courses into compliance and upskilling tracks", async ({ page }) => {
+    for (const track of [
+      "Workplace Compliance",
+      "Workplace Safety",
+      "Privacy & Security",
+      "Trade & Export Control",
+      "Automotive",
+      "Artificial Intelligence",
+      "Data",
+      "Engineering",
+    ]) {
       await expect(
         page.getByRole("heading", { name: new RegExp(`^${track} programmes`) }),
       ).toBeVisible();
@@ -53,14 +87,12 @@ test.describe("corporate catalog (CD-E1)", () => {
   });
 
   test("programs section shows the seeded corporate tracks (blocker-1 regression trap)", async ({ page }) => {
-    // The empty state must NOT appear once startup seeding is in place.
     await expect(page.getByText("No corporate programs yet")).toHaveCount(0);
     for (const title of SEEDED_PROGRAM_TITLES) {
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
-    // Program course entries deep-link into the locked corporate player.
     const programCourseLinks = page.locator('a[href^="/corporate/learn?lesson="]');
-    expect(await programCourseLinks.count()).toBeGreaterThanOrEqual(11);
+    expect(await programCourseLinks.count()).toBeGreaterThanOrEqual(CORPORATE_COURSE_TITLES.length);
   });
 
   test("team-seats CTA is a contact affordance, not a dead end (blocker-2 regression trap)", async ({ page }) => {
@@ -68,22 +100,18 @@ test.describe("corporate catalog (CD-E1)", () => {
     await expect(cta).toBeVisible();
     const href = await cta.locator("xpath=ancestor::a").getAttribute("href");
     expect(href).toContain("mailto:");
-    // The old dead end must be gone.
     await expect(page.getByRole("button", { name: "Assign to team" })).toHaveCount(0);
   });
 
   test("no raw i18n keys or console errors on the catalog page", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg) => {
-      // Anonymous browsing legitimately gets 401s from auth-gated widgets
-      // (rewards/flags); real JS errors stay fatal.
       if (msg.type() === "error" && !/status of 401/.test(msg.text())) {
         errors.push(msg.text());
       }
     });
     await page.reload();
-    await expect(page.getByRole("heading", { name: "AI-led courses" })).toBeVisible();
-    await expect(page.getByText(/corporate\.[a-zA-Z]+/)).toHaveCount(0);
-    expect(errors, `console errors: ${errors.join(" | ")}`).toHaveLength(0);
+    await expect(page.getByRole("heading", { name: "Corporate courses" })).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });

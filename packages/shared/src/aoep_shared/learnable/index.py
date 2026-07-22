@@ -11,44 +11,18 @@ from aoep_shared.games import GAME_SUBJECTS
 from aoep_shared.language_learning import language_list
 
 from .lessons import lesson_category, lesson_duration_min, load_sample_lessons
-import re as _re
 
 from .models import LearnableItem
-
-# ── Kids Academy filter constants (Pre-K to 3rd grade, ages 4–8) ──────────
-# Hoisted to module level so they are built once, not on every request.
-_KIDS_AUDIO_CATEGORIES: frozenset = frozenset({
-    "science & nature", "nature", "health & wellness",
-    "cooking & food", "cooking", "sports & games", "sports",
-    "geography & world", "geography", "world cultures",
-    "true stories & biographies", "arts & culture",
-    "music & instruments", "languages", "civics & law",
-    "history", "kids", "children",
-})
-_KIDS_TITLE_BLOCK = (
-    "algebra", "calculus", "trigonometry",
-    "differential", "linear algebra", "statistics", "probability",
-    "ai fluency", "machine learning", "deep learning", "neural",
-    "ethics and society", "ai ethics", "data science",
-    "devops", "sap ", "power bi", "cybersecurity", "it fundamentals",
-    "microeconomics", "macroeconomics", "cryptocurrency", "blockchain",
-    "venture capital", "ux design", "philosophy", "stoicism",
-    "acting techniques", "tour of impressionism",
-    "baroque", "renaissance", "modernism", "abstract expressionism",
-    "impressionism", "cubism", "surrealism",
-    "world war", "cold war", "holocaust", "genocide", "civil war",
-    "french revolution", "roman empire",
-    # Removed "ottoman" and "a tour of" — too broad, block valid kids content.
-)
-_KIDS_CAT_PATTERN = _re.compile(
-    r"\b(" + "|".join(_re.escape(k) for k in _KIDS_AUDIO_CATEGORIES) + r")\b"
-)
 
 _BEGINNER_LESSONS: frozenset = frozenset({
     "arithmetic", "intro-to-fractions", "intro-to-photosynthesis", "intro-physics",
     "intro-python", "intro-science", "drivers-permit-test", "cpr-first-aid-certification",
     "food-handler-safety", "sexual-harassment-prevention", "fire-safety-training",
     "workplace-ethics", "diversity-equity-inclusion",
+    "workplace-violence-prevention", "social-media-at-work", "security-policies-awareness",
+    "data-privacy-workplace", "anti-bribery-corruption", "lab-safety-fundamentals",
+    "automotive-safety-awareness", "liquid-cooling-thermal-materials",
+    "trade-compliance-basics",
 })
 _ADVANCED_LESSONS: frozenset = frozenset({
     "calculus-2", "differential-equations", "linear-algebra", "math-olympiad",
@@ -67,6 +41,16 @@ CERTIFIABLE_LESSONS = {
     "osha-forklift-safety": ("OSHA", 1.0),
     "cybersecurity": ("Salareen", 1.5),
     "devops": ("Salareen", 2.0),
+    "workplace-violence-prevention": ("Salareen", 1.0),
+    "security-policies-awareness": ("Salareen", 0.5),
+    "trade-compliance-basics": ("Salareen", 1.0),
+    "social-media-at-work": ("Salareen", 0.5),
+    "export-control-us-regulations": ("Salareen", 1.5),
+    "liquid-cooling-thermal-materials": ("Salareen", 1.0),
+    "data-privacy-workplace": ("Salareen", 1.0),
+    "anti-bribery-corruption": ("Salareen", 1.0),
+    "lab-safety-fundamentals": ("Salareen", 1.0),
+    "automotive-safety-awareness": ("Salareen", 0.5),
     # Professional certification prep courses
     "comptia-a-plus": ("CompTIA", 3.0),
     "hvac-epa-certification": ("EPA", 2.5),
@@ -113,6 +97,7 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         access_tier = c.access_tier
         preview = (c.preview or c.description or "")[:200]
         popularity = int(c.popularity or 0)
+        custom_deep_link = getattr(c, "deep_link", "") or ""
     else:
         course_id = c["course_id"]
         title = c.get("title", "")
@@ -130,8 +115,11 @@ def _from_catalog_course(c: Any) -> LearnableItem:
         access_tier = c.get("access_tier", "free")
         preview = (c.get("preview", "") or c.get("description", ""))[:200]
         popularity = int(c.get("popularity", 0) or 0)
+        custom_deep_link = c.get("deep_link", "") or ""
     fmt = "audio" if media == "audio" else media
-    deep = f"/drive?course={course_id}" if fmt == "audio" else f"/watch?course={course_id}"
+    deep = custom_deep_link or (
+        f"/drive?course={course_id}" if fmt == "audio" else f"/watch?course={course_id}"
+    )
     return LearnableItem(
         id=f"catalog:{course_id}",
         source="catalog",
@@ -189,17 +177,22 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         lesson_id = lesson.lesson_id
         title = lesson.title
         language = getattr(lesson, "language", "en")
+        audience = getattr(lesson, "audience", "general") or "general"
     else:
         slides = lesson.get("slides", [])
         lesson_id = lesson["lesson_id"]
         title = lesson["title"]
         language = lesson.get("language", "en")
+        audience = lesson.get("audience", "general") or "general"
     category = lesson_category(lesson_id, title)
     duration = lesson_duration_min(slides)
     preview = slides[0].body[:160] if slides else ""
     tags = ["live-class"]
     if lesson_id.startswith("python"):
         tags.append("python")
+    audiences = [audience] if audience and audience != "general" else []
+    if audience == "corporate":
+        tags.append("corporate")
     certifiable = False
     certification_body = ""
     ceu_credits = 0.0
@@ -210,6 +203,11 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         tags.append("certifiable")
         if certification_body:
             tags.append(certification_body.lower())
+    deep = (
+        f"/corporate/learn?lesson={lesson_id}"
+        if audience == "corporate"
+        else f"/class?lesson={lesson_id}"
+    )
     return LearnableItem(
         id=f"lesson:{lesson_id}",
         source="lesson",
@@ -225,8 +223,9 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         language=language,
         duration_min=duration,
         tags=tags,
+        audiences=audiences,
         preview=preview,
-        deep_link=f"/class?lesson={lesson_id}",
+        deep_link=deep,
         popularity=10,
         certifiable=certifiable,
         certification_body=certification_body,
@@ -382,45 +381,12 @@ def search_learnable(
     rows: List[LearnableItem] = list(items)
 
     if kids_only:
-        # Use module-level constants (built once at import time, not per-request).
-
         def _is_kids_safe(c: "LearnableItem") -> bool:
-            if c.maturity_rating == "kids":
-                return True
-            if c.maturity_rating in ("mature", "adult", "explicit"):
-                return False
-            # Programs are not curated for kids unless explicitly tagged.
-            if c.source == "program":
-                return False
-            # Catalog courses require explicit maturity_rating="kids" — checked
-            # BEFORE the format shortcuts so interactive catalog courses (e.g.
-            # adult coding courses with media_format="interactive") can't bypass
-            # the curator gate.
-            if c.source == "catalog":
-                return c.format == "game"  # arcade games from catalog always OK
-            title_low = c.title.lower()
-            cat_low = (c.category or c.subject or "").lower()
-            # Arcade games (non-catalog) are always fine for kids.
-            if c.format == "game":
-                return True
-            # Language-learning courses are always kids-safe.
-            if "language" in cat_low:
-                return True
-            # Non-catalog audio/lesson items: category must be in the allowlist.
-            # Apply title-block AFTER category to avoid false-positives on topic
-            # names like "World Cultures: The Ottoman Empire" (category=world cultures
-            # is approved; "ottoman" in the title should not override that).
-            if _KIDS_CAT_PATTERN.search(cat_low):
-                # Only block titles that signal truly adult-level content, not
-                # mere topic mentions within an approved category.
-                if any(block in title_low for block in _KIDS_TITLE_BLOCK):
-                    return False
-                return True
-            # Tags can explicitly mark something kids-safe.
-            tags_low = " ".join(c.tags or []).lower()
-            if "kids" in tags_low or "children" in tags_low or "elementary" in tags_low:
-                return True
-            return False
+            # Kids Academy is deliberately curator-gated. Broad categories such
+            # as science, history, languages, or "beginner" are not evidence that
+            # material was authored for young children. Games remain available,
+            # while every non-game item must be explicitly rated for kids.
+            return c.format == "game" or c.maturity_rating == "kids"
 
         rows = [c for c in rows if _is_kids_safe(c)]
 
@@ -566,11 +532,20 @@ def learnable_home_rails(
                 "courses": [_item_as_catalog_dict(c) for c in rows[:per_rail]],
             })
 
+    games = [c for c in pool if c.format == "game"]
+    if kids_only:
+        learning = [c for c in pool if c.format != "game"]
+        rail(
+            "kids-learning",
+            "Picture, video & animation learning",
+            sorted(learning, key=lambda c: (-c.popularity, c.title)),
+        )
+        rail("games", "Learning games", sorted(games, key=lambda c: c.title))
+        return rails
+
     live = [c for c in pool if c.format == "live_class"]
     audio = [c for c in pool if c.format == "audio"]
     languages = [c for c in pool if c.source == "language"]
-    games = [c for c in pool if c.format == "game"]
-
     rail("live", "Live interactive classes", sorted(live, key=lambda c: c.title))
     rail("new", "New this week", audio)
     rail("audio", "Drive-safe audio classes", sorted(audio, key=lambda c: -c.popularity))

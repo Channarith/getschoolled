@@ -1,0 +1,47 @@
+LESSON: Security Policies at Work
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Privacy
+LEVEL: Required annual training
+ROLE: All employees
+DELIVERY: 40–50 min live class
+FIT: Anyone with access to company systems, buildings, or confidential information.
+SUMMARY: Acceptable use, badge access, device hygiene, visitor control, and how security policies protect the business.
+
+SLIDE 1 | Why Security Policies Exist
+Security policies set clear rules for protecting people, information, systems,
+and facilities. They reduce ambiguity when something goes wrong and create a
+shared standard across teams. Ignoring them can lead to breaches, fines, or
+safety incidents.
+NARRATION: Security policies set clear rules for protecting people, information, systems, and facilities.
+
+SLIDE 2 | Acceptable Use
+Company devices, email, chat, and cloud tools are for business purposes with
+limited personal use as defined by policy. Do not install unapproved software,
+store company data on personal drives, or share accounts. If a tool is not
+approved, ask IT before using it.
+NARRATION: Company devices, email, chat, and cloud tools are for business purposes with limited personal use as defined by policy.
+
+SLIDE 3 | Physical Security
+Wear your badge, challenge tailgaters politely, escort visitors, and lock
+screens when you leave. Secure cabinets and meeting rooms that hold sensitive
+materials. Report lost badges immediately.
+NARRATION: Wear your badge, challenge tailgaters politely, escort visitors, and lock screens when you leave.
+
+SLIDE 4 | Clean Desk and Confidentiality
+Do not leave printouts, badges, or unlocked devices unattended. Shred
+documents with sensitive data. Discuss confidential matters in private spaces
+and verify recipients before sending.
+NARRATION: Do not leave printouts, badges, or unlocked devices unattended.
+
+SLIDE 5 | Incident Reporting
+Report phishing, lost devices, suspicious visitors, and policy exceptions
+immediately. Early reporting limits damage. Security teams prefer a false
+alarm over a silent breach.
+NARRATION: Report phishing, lost devices, suspicious visitors, and policy exceptions immediately.
+
+FACT: Security policies set clear rules for protecting people, information, systems, and facilities.
+FACT: Company devices, email, chat, and cloud tools are for business purposes with limited personal use as defined by policy.
+FACT: Wear your badge, challenge tailgaters politely, escort visitors, and lock screens when you leave.
+FACT: Do not leave printouts, badges, or unlocked devices unattended.
+FACT: Report phishing, lost devices, suspicious visitors, and policy exceptions immediately.

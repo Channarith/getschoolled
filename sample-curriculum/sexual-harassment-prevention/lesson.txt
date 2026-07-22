@@ -1,5 +1,12 @@
 LESSON: Sexual Harassment Prevention Training
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Compliance
+LEVEL: Required annual training
+ROLE: All employees
+DELIVERY: 45–60 min live class
+FIT: Every employee covered by EEOC/Title VII harassment policies.
+SUMMARY: Identify quid pro quo and hostile-environment harassment, report safely, and protect coworkers.
 
 SLIDE 1 | What Is Sexual Harassment?
 Sexual harassment is unwelcome conduct of a sexual nature that affects an individual's employment, unreasonably interferes with their work performance, or creates an intimidating, hostile, or offensive work environment. It is a form of sex discrimination prohibited under federal and most state laws. Both men and women can be victims or perpetrators, and harassment can occur between people of the same gender.
