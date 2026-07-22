@@ -12,8 +12,9 @@ from __future__ import annotations
 from aoep_shared import catalog_i18n
 from aoep_shared.audio_courses import build_catalog, categories
 from aoep_shared.language_learning import (
-    LANGUAGE_META, RICH_LANGUAGES, course_outline, dialogues_for, phrases_for,
-    songs_for, vocabulary_exercise, vocabulary_for,
+    LANGUAGE_META, RICH_LANGUAGES, course_outline, dialogues_for,
+    media_listening_challenge, phrases_for, songs_for, vocabulary_exercise,
+    vocabulary_for,
 )
 from aoep_shared.slang import all_entries
 from aoep_shared.languages import SUPPORTED_LANGUAGES, is_supported
@@ -102,6 +103,27 @@ def test_khmer_song_is_verse_driven_and_licensed():
         verse["target"] and verse["en"] and verse["explain_en"]
         for verse in song["verses"]
     )
+
+
+def test_khmer_media_challenge_studies_ten_then_quizzes_every_ten_seconds():
+    challenge = media_listening_challenge("km", study_size=10, seed=42)
+    words = challenge["study_words"]
+    segments = challenge["segments"]
+    assert challenge["media_type"] == "generated_audio"
+    assert challenge["license"] == "original-salareen"
+    assert len(words) == len(segments) == 10
+    assert len({word["id"] for word in words}) == 10
+    word_ids = {word["id"] for word in words}
+    for index, segment in enumerate(segments):
+        assert segment["start_sec"] == index * 10
+        assert segment["end_sec"] == (index + 1) * 10
+        assert segment["duration_sec"] == 10
+        assert segment["answer_id"] in word_ids
+        assert {option["id"] for option in segment["options"]} == word_ids
+        answer = next(
+            word for word in words if word["id"] == segment["answer_id"]
+        )
+        assert answer["target"] in segment["tts_text"]
 
 
 def test_khmer_course_outline_carries_grammar_and_culture():
