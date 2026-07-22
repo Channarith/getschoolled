@@ -1,0 +1,42 @@
+LESSON: Automotive Safety Awareness
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Automotive
+LEVEL: Foundational
+ROLE: Service, fleet, and shop teams
+DELIVERY: 40–50 min live class
+FIT: Technicians, fleet operators, and anyone working around vehicles and shop equipment.
+SUMMARY: Shop hazards, lift safety, battery/EV awareness, PPE, and safe vehicle movement practices.
+
+SLIDE 1 | Shop Hazards Overview
+Automotive workplaces involve moving vehicles, heavy lifts, flammable fluids,
+batteries, and powered tools. Situational awareness prevents crush, burn, and
+chemical injuries.
+NARRATION: Automotive workplaces involve moving vehicles, heavy lifts, flammable fluids, batteries, and powered tools.
+
+SLIDE 2 | Lifts and Jacks
+Use rated equipment, secure vehicles before working underneath, and never rely
+on a jack alone. Inspect stands and locks every time.
+NARRATION: Use rated equipment, secure vehicles before working underneath, and never rely on a jack alone.
+
+SLIDE 3 | Batteries and High Voltage
+Treat batteries as energy sources. Wear eye protection, avoid shorting
+terminals, and follow EV high-voltage procedures when applicable. Assume
+orange cables mean danger.
+NARRATION: Treat batteries as energy sources.
+
+SLIDE 4 | Chemicals and Ventilation
+Fuels, solvents, and exhaust fumes require ventilation and correct PPE. Store
+flammables properly and clean spills promptly.
+NARRATION: Fuels, solvents, and exhaust fumes require ventilation and correct PPE.
+
+SLIDE 5 | Moving Vehicles Safely
+Use spotters, check blind spots, and keep pedestrians clear. Keys control
+responsibility — know who is authorized to move vehicles.
+NARRATION: Use spotters, check blind spots, and keep pedestrians clear.
+
+FACT: Automotive workplaces involve moving vehicles, heavy lifts, flammable fluids, batteries, and powered tools.
+FACT: Use rated equipment, secure vehicles before working underneath, and never rely on a jack alone.
+FACT: Treat batteries as energy sources.
+FACT: Fuels, solvents, and exhaust fumes require ventilation and correct PPE.
+FACT: Use spotters, check blind spots, and keep pedestrians clear.

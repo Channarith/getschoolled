@@ -2,9 +2,9 @@
 
 The in-memory CatalogStore starts with no programs, so the /corporate page's
 "Programs" section renders empty out of the box (the same gap the audio
-catalog bridge fills for courses). Seed a small set of curated corporate
-tracks at startup so the corporate funnel is populated without an operator
-having to POST /programs by hand.
+catalog bridge fills for courses). Seed a curated set of corporate tracks at
+startup so the corporate funnel is populated without an operator having to
+POST /programs by hand.
 
 course_ids reference live-lesson ids from sample-curriculum (AUDIENCE:
 corporate); the unified learnable index exposes those lessons through
@@ -21,6 +21,92 @@ from curriculum.catalog import CatalogStore, Program
 CORPORATE_AUDIENCE = "corporate"
 
 DEFAULT_CORPORATE_PROGRAMS = [
+    Program(
+        program_id="corp-workplace-safety",
+        title="Workplace Safety & OSHA",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "Required safety training for facilities and operations: OSHA "
+            "general industry, fire prevention, forklifts, lab safety, and "
+            "liquid-cooling / thermal materials handling."
+        ),
+        course_ids=[
+            "osha-general-safety",
+            "fire-safety-training",
+            "osha-forklift-safety",
+            "lab-safety-fundamentals",
+            "liquid-cooling-thermal-materials",
+        ],
+    ),
+    Program(
+        program_id="corp-hr-compliance",
+        title="HR & Workplace Conduct",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "People-risk essentials: sexual harassment prevention, workplace "
+            "violence, ethics, anti-bribery, DEI, and social media at work."
+        ),
+        course_ids=[
+            "sexual-harassment-prevention",
+            "workplace-violence-prevention",
+            "workplace-ethics",
+            "anti-bribery-corruption",
+            "diversity-equity-inclusion",
+            "social-media-at-work",
+        ],
+    ),
+    Program(
+        program_id="corp-privacy-security",
+        title="Privacy, Security & Data Protection",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "Protect people and information: HIPAA, workplace data privacy, "
+            "cybersecurity fundamentals, and day-to-day security policies."
+        ),
+        course_ids=[
+            "hipaa-privacy-security",
+            "data-privacy-workplace",
+            "cybersecurity",
+            "security-policies-awareness",
+            "security-guard-certification",
+        ],
+    ),
+    Program(
+        program_id="corp-food-health",
+        title="Food Handler Certification",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "ServSafe-aligned food safety for hospitality and cafeteria teams: "
+            "hazards, temperatures, hygiene, and cross-contamination control."
+        ),
+        course_ids=["food-handler-safety"],
+    ),
+    Program(
+        program_id="corp-trade-export",
+        title="Trade Compliance & Export Control",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "Cross-border risk for product, sales, and logistics teams: trade "
+            "compliance essentials and US EAR/ITAR export-control awareness."
+        ),
+        course_ids=[
+            "trade-compliance-basics",
+            "export-control-us-regulations",
+        ],
+    ),
+    Program(
+        program_id="corp-automotive-safety",
+        title="Automotive Safety & ASE",
+        audience=CORPORATE_AUDIENCE,
+        description=(
+            "Shop and fleet safety awareness plus ASE certification prep for "
+            "automotive service teams."
+        ),
+        course_ids=[
+            "automotive-safety-awareness",
+            "ase-automotive-certification",
+        ],
+    ),
     Program(
         program_id="corp-ai-fluency",
         title="AI Fluency for Teams",

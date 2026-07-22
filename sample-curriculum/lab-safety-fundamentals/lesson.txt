@@ -1,0 +1,42 @@
+LESSON: Lab Safety Fundamentals
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: Role-based required
+ROLE: Lab and R&D teams
+DELIVERY: 50–60 min live class
+FIT: Anyone working in wet labs, electronics labs, or shared experimental spaces.
+SUMMARY: PPE, chemical hygiene, eyewash/shower use, labeling, and emergency response in laboratory environments.
+
+SLIDE 1 | Lab Safety Mindset
+Labs combine chemicals, energy, tools, and people. Most incidents come from
+rushing, skipping PPE, or poor housekeeping. Slow down, prepare, and respect
+procedures.
+NARRATION: Labs combine chemicals, energy, tools, and people.
+
+SLIDE 2 | PPE and Engineering Controls
+Wear required eye protection, gloves, and lab coats. Use fume hoods and
+ventilation correctly. PPE is the last line of defense, not a substitute for
+safe methods.
+NARRATION: Wear required eye protection, gloves, and lab coats.
+
+SLIDE 3 | Chemical Hygiene
+Read the SDS, label secondary containers, segregate incompatibles, and never
+pipette by mouth. Know where spill kits and SDS binders live.
+NARRATION: Read the SDS, label secondary containers, segregate incompatibles, and never pipette by mouth.
+
+SLIDE 4 | Emergency Equipment
+Locate eyewash stations, safety showers, fire extinguishers, and exits before
+you start work. Practice how to use them. Seconds matter after a splash.
+NARRATION: Locate eyewash stations, safety showers, fire extinguishers, and exits before you start work.
+
+SLIDE 5 | Housekeeping and Reporting
+Keep aisles clear, dispose of waste correctly, and report near misses. A clean
+lab is a safer lab.
+NARRATION: Keep aisles clear, dispose of waste correctly, and report near misses.
+
+FACT: Labs combine chemicals, energy, tools, and people.
+FACT: Wear required eye protection, gloves, and lab coats.
+FACT: Read the SDS, label secondary containers, segregate incompatibles, and never pipette by mouth.
+FACT: Locate eyewash stations, safety showers, fire extinguishers, and exits before you start work.
+FACT: Keep aisles clear, dispose of waste correctly, and report near misses.

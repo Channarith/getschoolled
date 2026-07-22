@@ -1,0 +1,43 @@
+LESSON: Data Privacy at Work
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Privacy
+LEVEL: Required annual training
+ROLE: All employees
+DELIVERY: 40–50 min live class
+FIT: Anyone who collects, stores, or shares personal or customer data.
+SUMMARY: Minimize data, protect personal information, honor access requests, and report privacy incidents quickly.
+
+SLIDE 1 | What Counts as Personal Data?
+Personal data includes names, emails, phone numbers, government IDs, location,
+biometrics, and any information that can identify a person alone or combined.
+Customer and employee data both count. Treat it as sensitive by default.
+NARRATION: Personal data includes names, emails, phone numbers, government IDs, location, biometrics, and any information that can identify a person alone or combined.
+
+SLIDE 2 | Privacy Principles
+Collect only what you need, keep it accurate, limit who can access it, and
+delete it when no longer required. These principles appear in GDPR, CCPA/CPRA,
+and many company policies.
+NARRATION: Collect only what you need, keep it accurate, limit who can access it, and delete it when no longer required.
+
+SLIDE 3 | Everyday Habits
+Use approved systems, encrypt devices, avoid forwarding personal data to
+personal email, and double-check recipients. Mask data in screenshots and
+demos.
+NARRATION: Use approved systems, encrypt devices, avoid forwarding personal data to personal email, and double-check recipients.
+
+SLIDE 4 | Requests and Rights
+Individuals may request access, deletion, or correction of their data. Route
+these requests to Privacy or Legal promptly — do not improvise replies.
+NARRATION: Individuals may request access, deletion, or correction of their data.
+
+SLIDE 5 | Incident Response
+If data is lost, emailed to the wrong person, or exposed, report immediately.
+Fast reporting reduces harm and may be legally required.
+NARRATION: If data is lost, emailed to the wrong person, or exposed, report immediately.
+
+FACT: Personal data includes names, emails, phone numbers, government IDs, location, biometrics, and any information that can identify a person alone or combined.
+FACT: Collect only what you need, keep it accurate, limit who can access it, and delete it when no longer required.
+FACT: Use approved systems, encrypt devices, avoid forwarding personal data to personal email, and double-check recipients.
+FACT: Individuals may request access, deletion, or correction of their data.
+FACT: If data is lost, emailed to the wrong person, or exposed, report immediately.

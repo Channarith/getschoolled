@@ -1,0 +1,46 @@
+LESSON: Trade Compliance Essentials
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Trade
+LEVEL: Role-based required
+ROLE: Ops, sales, logistics, engineering
+DELIVERY: 50–60 min live class
+FIT: Teams that ship products, share technical data, or work with international partners.
+SUMMARY: Import/export basics, denied parties, classification, and when to escalate to trade compliance.
+
+SLIDE 1 | What Trade Compliance Covers
+Trade compliance ensures products, software, and technical data move across
+borders legally. It includes classification, licensing, sanctions screening,
+and accurate customs declarations. Violations can bring heavy fines and
+shipment delays.
+NARRATION: Trade compliance ensures products, software, and technical data move across borders legally.
+
+SLIDE 2 | Know Your Transaction
+Before shipping or sharing controlled information, confirm the product
+classification, destination country, end user, and end use. Incomplete
+paperwork is a red flag. When unsure, pause and escalate.
+NARRATION: Before shipping or sharing controlled information, confirm the product classification, destination country, end user, and end use.
+
+SLIDE 3 | Denied Party Screening
+Governments publish lists of restricted parties. Screen customers, partners,
+and freight forwarders before engaging. Matches must be reviewed by compliance
+— never ignore a screening hit.
+NARRATION: Governments publish lists of restricted parties.
+
+SLIDE 4 | Accurate Records
+Keep commercial invoices, packing lists, licenses, and correspondence
+organized. Regulators expect you to reconstruct a transaction years later.
+Never invent HS codes or undervalue goods.
+NARRATION: Keep commercial invoices, packing lists, licenses, and correspondence organized.
+
+SLIDE 5 | Escalate Early
+If a customer asks to remove origin marks, route through unusual countries, or
+receive controlled designs without paperwork, stop and contact trade
+compliance. Speed is never worth an export violation.
+NARRATION: If a customer asks to remove origin marks, route through unusual countries, or receive controlled designs without paperwork, stop and contact trade compliance.
+
+FACT: Trade compliance ensures products, software, and technical data move across borders legally.
+FACT: Before shipping or sharing controlled information, confirm the product classification, destination country, end user, and end use.
+FACT: Governments publish lists of restricted parties.
+FACT: Keep commercial invoices, packing lists, licenses, and correspondence organized.
+FACT: If a customer asks to remove origin marks, route through unusual countries, or receive controlled designs without paperwork, stop and contact trade compliance.

@@ -1,5 +1,12 @@
 LESSON: Forklift and Powered Industrial Truck Safety
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: OSHA-aligned
+ROLE: Warehouse & logistics
+DELIVERY: 60–90 min live class
+FIT: Operators and spotters using powered industrial trucks.
+SUMMARY: Forklift inspection, safe operation, pedestrian awareness, and tip-over prevention.
 
 SLIDE 1 | Why Forklift Safety Matters
 Forklifts and powered industrial trucks are essential in warehouses, manufacturing, and distribution environments, but they are also among the most dangerous pieces of equipment in those settings. OSHA estimates that forklifts cause approximately 85 fatalities and 34,900 serious injuries per year in the United States. Nearly all of these incidents are preventable through proper training, equipment maintenance, and safe operating practices.

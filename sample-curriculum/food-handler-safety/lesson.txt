@@ -1,5 +1,12 @@
 LESSON: Food Handler Safety Certification
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: Certification prep
+ROLE: Food service & hospitality
+DELIVERY: 60–90 min live class
+FIT: Anyone who prepares, serves, or stores food for others.
+SUMMARY: ServSafe-aligned food hazards, temperatures, hygiene, and cross-contamination control.
 
 SLIDE 1 | Why Food Safety Matters
 Foodborne illness affects an estimated 48 million Americans each year, resulting in 128,000 hospitalizations and 3,000 deaths. Common sources include improper food temperatures, poor personal hygiene, cross-contamination, and unsafe food sources. Food handlers are the last line of defense between potential hazards and the people who eat the food. Proper training and consistent practices can prevent most foodborne illness outbreaks.

@@ -1,5 +1,12 @@
 LESSON: HIPAA Privacy and Security Training
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Privacy
+LEVEL: Required for covered entities
+ROLE: Healthcare & benefits teams
+DELIVERY: 60–90 min live class
+FIT: Staff who create, access, or share protected health information.
+SUMMARY: HIPAA Privacy and Security Rules, PHI handling, breaches, and patient rights.
 
 SLIDE 1 | What Is HIPAA?
 The Health Insurance Portability and Accountability Act (HIPAA) was enacted by Congress in 1996. Its original purpose was to ensure health insurance portability when workers change or lose jobs. Over time, it has become best known for its privacy and security rules that govern how health information is created, used, and shared. HIPAA violations can result in significant civil and criminal penalties.

@@ -12,8 +12,16 @@ import {
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 
-const TRACK_ORDER = ["AI", "Data", "Engineering"];
+const TRACK_ORDER = [
+  "Compliance", "Safety", "Privacy", "Trade", "Automotive",
+  "AI", "Data", "Engineering",
+];
 const TRACK_LABELS: Record<string, string> = {
+  Compliance: "Workplace Compliance",
+  Safety: "Workplace Safety",
+  Privacy: "Privacy & Security",
+  Trade: "Trade & Export Control",
+  Automotive: "Automotive",
   AI: "Artificial Intelligence",
   Data: "Data",
   Engineering: "Engineering",

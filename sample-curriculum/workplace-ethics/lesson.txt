@@ -1,5 +1,12 @@
 LESSON: Workplace Ethics and Integrity
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Compliance
+LEVEL: Required annual training
+ROLE: All employees
+DELIVERY: 45–60 min live class
+FIT: Teams that handle gifts, conflicts of interest, data, or public communications.
+SUMMARY: Conflicts of interest, gifts, anti-bribery basics, social media, and data privacy at work.
 
 SLIDE 1 | What Is Business Ethics?
 Business ethics refers to the application of ethical principles and moral standards to business activities. It encompasses how companies and individuals treat customers, employees, suppliers, competitors, and the broader community. Ethical behavior goes beyond legal compliance — it asks not just "Is this legal?" but "Is this right?" Organizations with strong ethical cultures build lasting trust with stakeholders and avoid costly legal and reputational crises.

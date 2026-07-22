@@ -1,5 +1,12 @@
 LESSON: OSHA General Industry Safety
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Safety
+LEVEL: OSHA-aligned
+ROLE: Operations & facilities teams
+DELIVERY: 90–120 min live class
+FIT: Supervisors and workers covered by general industry OSHA rules.
+SUMMARY: OSHA rights, General Duty Clause, hazards, PPE, and injury reporting.
 
 SLIDE 1 | What Is OSHA?
 The Occupational Safety and Health Administration (OSHA) was created by the Occupational Safety and Health Act of 1970. Its mission is to ensure safe and healthful working conditions for workers by setting and enforcing standards and by providing training, outreach, education, and assistance. OSHA covers most private sector employers and their workers in all 50 states.
