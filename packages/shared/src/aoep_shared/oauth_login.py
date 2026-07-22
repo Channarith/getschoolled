@@ -122,7 +122,10 @@ def verify_apple_identity_token(identity_token: str) -> dict:
     token = (identity_token or "").strip()
     if not token:
         raise OAuthError("missing Apple identity_token")
+    # Accept tokens from both the mobile app (bundle ID) and the web Services ID.
     bundle_id = os.environ.get("APPLE_BUNDLE_ID", "com.aiclassroom.app").strip()
+    services_id = os.environ.get("APPLE_SERVICES_ID", "com.aiclassroom.web").strip()
+    valid_audiences = list({bundle_id, services_id})  # deduplicated
 
     # Sandbox: accept prefixed fake tokens for local dev.
     if _deploy_mode() == "local" and token.startswith("sandbox_apple_"):
@@ -154,7 +157,7 @@ def verify_apple_identity_token(identity_token: str) -> dict:
     try:
         claims = pyjwt.decode(
             token, public_key, algorithms=["RS256"],
-            audience=bundle_id,
+            audience=valid_audiences,
             options={"verify_exp": True},
         )
     except pyjwt.ExpiredSignatureError as exc:
