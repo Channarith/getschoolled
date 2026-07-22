@@ -2,17 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppBadges from "./components/AppBadges";
 import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
 import MascotImage from "./components/MascotImage";
+import { GoogleIcon, FacebookIcon, AppleIcon } from "./components/BrandIcons";
 import { useFlag } from "./lib/flags";
 import {
   AUTH_EVENT,
   getHomeFeed,
   getMe,
   getToken,
+  loginWithGoogle,
+  loginWithFacebook,
+  loginWithApple,
+  setToken,
   type HomeRail,
 } from "./lib/api";
 import { friendlyError } from "./lib/errors";
@@ -28,6 +33,9 @@ export default function HomePage() {
   const [authResolved, setAuthResolved] = useState(false);
   const [email, setEmail] = useState("");
   const [tier, setTier] = useState("free");
+  const [socialBusy, setSocialBusy] = useState(false);
+  const [socialError, setSocialError] = useState("");
+  const gisRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -75,8 +83,74 @@ export default function HomePage() {
     );
   }
 
-  // Signed-out visitors see the marketing landing only — no catalog rails.
+  // Unauthenticated visitors must sign in — show social + email options inline.
   if (!loggedIn) {
+    const handleSocial = async (provider: "google" | "facebook" | "apple") => {
+      setSocialBusy(true); setSocialError("");
+      try {
+        let res: { token: string };
+        if (provider === "google") {
+          const GOOGLE_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps.googleusercontent.com";
+          if (!gisRef.current) {
+            await new Promise<void>((resolve, reject) => {
+              const s = document.createElement("script");
+              s.src = "https://accounts.google.com/gsi/client";
+              s.onload = () => resolve(); s.onerror = () => reject(new Error("Failed to load Google"));
+              document.head.appendChild(s);
+            });
+            gisRef.current = true;
+          }
+          res = await new Promise((resolve, reject) => {
+            (window as any).google.accounts.id.initialize({
+              client_id: GOOGLE_CLIENT_ID,
+              callback: async (r: { credential: string }) => {
+                try { resolve(await loginWithGoogle(r.credential)); } catch (e) { reject(e); }
+              },
+            });
+            (window as any).google.accounts.id.prompt((n: any) => {
+              if (n.isNotDisplayed() || n.isSkippedMoment()) reject(new Error("Google sign-in dismissed"));
+            });
+          });
+        } else if (provider === "facebook") {
+          const FACEBOOK_APP_ID = "1071803295271778";
+          if (!(window as any).FB) {
+            await new Promise<void>((resolve, reject) => {
+              (window as any).fbAsyncInit = () => {
+                (window as any).FB.init({ appId: FACEBOOK_APP_ID, version: "v19.0", cookie: true, xfbml: false });
+                resolve();
+              };
+              const s = document.createElement("script");
+              s.src = "https://connect.facebook.net/en_US/sdk.js";
+              s.onerror = () => reject(new Error("Failed to load Facebook")); document.head.appendChild(s);
+            });
+          }
+          const token = await new Promise<string>((resolve, reject) => {
+            (window as any).FB.login((r: any) => {
+              if (r.authResponse?.accessToken) resolve(r.authResponse.accessToken);
+              else reject(new Error("Facebook sign-in cancelled"));
+            }, { scope: "email,public_profile" });
+          });
+          res = await loginWithFacebook(token);
+        } else {
+          const APPLE_SERVICES_ID = "com.aiclassroom.web";
+          if (!(window as any).AppleID) {
+            await new Promise<void>((resolve, reject) => {
+              const s = document.createElement("script");
+              s.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
+              s.onload = () => resolve(); s.onerror = () => reject(new Error("Failed to load Apple")); document.head.appendChild(s);
+            });
+          }
+          (window as any).AppleID.auth.init({ clientId: APPLE_SERVICES_ID, scope: "name email", redirectURI: window.location.origin, usePopup: true });
+          const data = await (window as any).AppleID.auth.signIn();
+          res = await loginWithApple(data?.authorization?.id_token);
+        }
+        setToken(res.token);
+        window.dispatchEvent(new Event(AUTH_EVENT));
+      } catch (e: any) {
+        if (e?.error !== "popup_closed_by_user") setSocialError(String(e?.message || e));
+      } finally { setSocialBusy(false); }
+    };
+
     return (
       <main className="landing-hero">
         <div
@@ -84,32 +158,46 @@ export default function HomePage() {
           style={{
             backgroundImage:
               "linear-gradient(0deg, rgba(11,16,32,.94) 0%, rgba(11,16,32,.35) 45%, rgba(11,16,32,.85) 100%), url(/wallpapers/wisdom_bodhi.webp)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
+            backgroundSize: "cover", backgroundPosition: "center",
           }}
           aria-hidden
         />
         <div className="landing-inner">
-          <MascotImage width={160} className="landing-mascot" alt="Salareen mascot" />
+          <MascotImage width={140} className="landing-mascot" alt="Salareen mascot" />
           <span className="theme-badge">{t("hero.kicker")}</span>
-          <h1 className="theme-title glow" style={{ fontSize: 52, maxWidth: "20ch", margin: "14px auto 12px" }}>
+          <h1 className="theme-title glow" style={{ fontSize: 44, maxWidth: "22ch", margin: "12px auto 10px" }}>
             {t("hero.title")}
           </h1>
           <p className="theme-subtitle glow" style={{ margin: "0 auto" }}>{t("hero.subLoggedOut")}</p>
-          <p className="glow" style={{ marginTop: 18, opacity: 0.95 }}>{t("landing.emailCta")}</p>
-          <form onSubmit={onGetStarted} className="row" style={{ justifyContent: "center", gap: 8, marginTop: 8 }}>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                   placeholder={t("landing.email")} aria-label={t("landing.email")}
-                   style={{ minWidth: 260, padding: "14px 12px" }} />
-            <button type="submit" className="theme-btn"
-                    style={{ background: "#e50914", color: "#fff", fontSize: 18, padding: "13px 22px" }}>
-              {t("landing.getStarted")} →
+
+          {/* Social sign-in — right on the landing page, no redirect needed */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 28, width: "100%", maxWidth: 340, margin: "28px auto 0" }}>
+            <button disabled={socialBusy} onClick={() => void handleSocial("google")}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "13px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: "#fff", color: "#111", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+              <GoogleIcon /> Continue with Google
             </button>
-          </form>
-          <div className="hero-cta" style={{ justifyContent: "center", marginTop: 18 }}>
-            <Link href="/login"><button className="theme-btn" style={{ background: "#111827", color: "#fff" }}>{t("landing.signIn")}</button></Link>
+            <button disabled={socialBusy} onClick={() => void handleSocial("facebook")}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "13px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: "#1877F2", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+              <FacebookIcon /> Continue with Facebook
+            </button>
+            <button disabled={socialBusy} onClick={() => void handleSocial("apple")}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "13px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.2)", background: "#000", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+              <AppleIcon color="#fff" /> Continue with Apple
+            </button>
+            {socialError && <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>{socialError}</p>}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", margin: "4px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.2)" }} />
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>or</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.2)" }} />
+            </div>
+            <Link href="/login" style={{ width: "100%" }}>
+              <button style={{ width: "100%", padding: "13px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.08)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+                Sign in with email / password
+              </button>
+            </Link>
           </div>
-          <p className="glow" style={{ marginTop: 22, marginBottom: 0, opacity: 0.95 }}>
+
+          <p className="glow" style={{ marginTop: 28, marginBottom: 0, opacity: 0.95 }}>
             {t("hero.getAppTitle")}
           </p>
           <AppBadges center />

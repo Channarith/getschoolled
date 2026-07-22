@@ -25,7 +25,7 @@ const GOOGLE_WEB_CLIENT_ID = "647091395717-scfbmvsudec5t9vqukk2h8k732bgd3kp.apps
 const GOOGLE_ANDROID_CLIENT_ID = "647091395717-v959uk96ed1f6o11ni7fkv1rni7sblba.apps.googleusercontent.com";
 const FACEBOOK_APP_ID = "1071803295271778";
 
-export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => void }) {
+export default function AuthScreen() {
   const { t, locale, setLocale } = useT();
   const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
@@ -243,9 +243,6 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
             <AnimatedPressable onPress={() => { setMode("forgot"); setError(""); }}>
               <Text style={styles.link}>{t("auth.forgot")}</Text>
             </AnimatedPressable>
-          ) : null}
-          {onBrowseGuest ? (
-            <PrimaryButton label={t("auth.browseGuest")} onPress={onBrowseGuest} variant="ghost" />
           ) : null}
           {mode === "login" ? (
             <View style={styles.socialBlock}>
