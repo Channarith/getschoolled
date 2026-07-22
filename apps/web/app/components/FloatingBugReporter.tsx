@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import {
@@ -16,6 +16,18 @@ import {
 } from "../lib/bugReport";
 import { friendlyError, isBugScreenshotTooLargeError, isOfflineError } from "../lib/errors";
 import { useFlag } from "../lib/flags";
+
+const SIZE = 42;
+const STORAGE_KEY = "aoep-bug-button-position";
+type Point = { x: number; y: number };
+
+function clamp(p: Point): Point {
+  if (typeof window === "undefined") return p;
+  return {
+    x: Math.max(0, Math.min(p.x, window.innerWidth - SIZE)),
+    y: Math.max(0, Math.min(p.y, window.innerHeight - SIZE)),
+  };
+}
 
 /**
  * Small global QA affordance. Clicking it captures the current screen before the
@@ -33,6 +45,34 @@ export default function FloatingBugReporter() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [doneId, setDoneId] = useState("");
+
+  const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
+  const positionRef = useRef(position);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origin: Point;
+    distance: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let next = { x: window.innerWidth - SIZE - 14, y: window.innerHeight - SIZE - 18 };
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") as Point | null;
+      if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) next = stored;
+    } catch { /* use default */ }
+    next = clamp(next);
+    positionRef.current = next;
+    setPosition(next);
+    const onResize = () => {
+      const resized = clamp(positionRef.current);
+      positionRef.current = resized;
+      setPosition(resized);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   if (!enabled || pathname === "/report-bug") return null;
 
@@ -114,21 +154,53 @@ export default function FloatingBugReporter() {
     }
   }
 
+  function move(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    drag.distance = Math.max(drag.distance, Math.abs(dx) + Math.abs(dy));
+    const next = clamp({ x: drag.origin.x + dx, y: drag.origin.y + dy });
+    positionRef.current = next;
+    setPosition(next);
+  }
+
+  function finish(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(positionRef.current)); } catch { /* optional */ }
+    if (drag.distance < 8) void openReporter();
+  }
+
   return (
     <>
       <button
         type="button"
         aria-label="Report a bug"
-        title="Report a bug"
+        title="Drag to move · click to report a bug"
         disabled={capturing}
-        onClick={() => void openReporter()}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            origin: positionRef.current,
+            distance: 0,
+          };
+        }}
+        onPointerMove={move}
+        onPointerUp={finish}
+        onPointerCancel={() => { dragRef.current = null; }}
         style={{
           position: "fixed",
-          right: 14,
-          bottom: 18,
+          left: position.x,
+          top: position.y,
           zIndex: 9998,
-          width: 42,
-          height: 42,
+          width: SIZE,
+          height: SIZE,
           borderRadius: "50%",
           padding: 0,
           border: "1px solid rgba(255,255,255,0.3)",
@@ -138,7 +210,9 @@ export default function FloatingBugReporter() {
           backdropFilter: "blur(8px)",
           fontSize: 19,
           opacity: 0.78,
-          cursor: "pointer",
+          cursor: capturing ? "wait" : "grab",
+          touchAction: "none",
+          userSelect: "none",
         }}
       >
         {capturing ? "…" : "🐛"}
