@@ -285,6 +285,30 @@ export function getJobMatch(jobId: string) {
     CURRICULUM_URL, `/jobs/${encodeURIComponent(jobId)}`);
 }
 
+export async function loginWithGoogle(idToken: string): Promise<{ token: string; account: Account }> {
+  return get(IDENTITY_URL, "/auth/oauth/google", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
+export async function loginWithFacebook(accessToken: string): Promise<{ token: string; account: Account }> {
+  return get(IDENTITY_URL, "/auth/oauth/facebook", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+}
+
+export async function loginWithApple(identityToken: string): Promise<{ token: string; account: Account }> {
+  return get(IDENTITY_URL, "/auth/oauth/apple", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identity_token: identityToken }),
+  });
+}
+
 export async function signup(email: string, password: string, displayName: string):
   Promise<{ token: string; account: Account }> {
   return get(IDENTITY_URL, "/auth/signup", {

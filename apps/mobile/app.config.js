@@ -40,6 +40,15 @@ module.exports = ({ config }) => {
       ];
 
   const plugins = [...(config.plugins || [])];
+
+  // expo-apple-authentication (Sign In with Apple — iOS only)
+  if (!plugins.some((e) => (Array.isArray(e) ? e[0] : e) === "expo-apple-authentication")) {
+    try {
+      require.resolve("expo-apple-authentication");
+      plugins.push("expo-apple-authentication");
+    } catch { /* not installed */ }
+  }
+
   const hasBuildProps = plugins.some(
     (entry) => (Array.isArray(entry) ? entry[0] : entry) === "expo-build-properties",
   );
