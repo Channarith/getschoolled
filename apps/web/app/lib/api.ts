@@ -886,16 +886,26 @@ export async function getAudioCourse(
 }
 
 // --- language learning ---------------------------------------------------- //
-export type LangInfo = { code: string; name: string; native: string; flag: string; tier: string; phrase_count: number };
+export type LangInfo = { code: string; name: string; native: string; flag: string; tier: string;
+  phrase_count: number; dialogue_count?: number; slang_count?: number; song_count?: number };
 export type LangSkill = { id: string; name: string; icon: string; desc: string };
 export type LangCourse = {
   code: string; name: string; native: string; flag: string; tier: string;
-  skills: LangSkill[]; phrase_count: number; grammar_tip: string; culture_note: string;
+  skills: LangSkill[]; phrase_count: number; dialogue_count?: number; slang_count?: number;
+  song_count?: number; grammar_tip: string; culture_note: string;
 };
 export type LangItem = { id: string; prompt: string; options: string[]; answer_index: number; explain: string; audio_prompt?: string };
+export type LangTurn = { speaker: string; target: string; roman?: string; en: string };
+export type LangDialogue = { id: string; situation_en: string; turns: LangTurn[] };
+export type LangSlang = { phrase: string; meaning: string; region: string; kind: string; register?: string };
+export type LangVerse = { verse_no: number; target: string; roman?: string; en: string;
+  explain_en: string; tts_text?: string };
+export type LangSong = { song_id: string; title_en: string; title_target?: string; license: string;
+  source_url?: string; source_note?: string; verses: LangVerse[] };
 export type LangExercise = { skill: string; language: string; items?: LangItem[];
   pairs?: { id: string; term: string; match: string }[]; target?: string; roman?: string;
-  en?: string; mouth_tip?: string; tip?: string; note?: string };
+  en?: string; mouth_tip?: string; tip?: string; note?: string;
+  dialogues?: LangDialogue[]; entries?: LangSlang[]; songs?: LangSong[] };
 export type Pronounce = { score: number; stars: number; passed: boolean; target: string;
   heard: string; missed_words: string[]; feedback: string; mouth_tip: string };
 

@@ -6,12 +6,14 @@ from aoep_shared.language_learning import (
     SKILL_AREAS,
     assess_pronunciation,
     course_outline,
+    dialogues_for,
     language_list,
     listening_exercise,
     match_exercise,
     mouth_shape_tip,
     practice_xp,
     pronunciation_prompt,
+    songs_for,
     vocabulary_exercise,
 )
 from aoep_shared.languages import SUPPORTED_LANGUAGES
@@ -38,12 +40,14 @@ def test_skill_areas_cover_requested_domains():
     assert {"shadowing", "story", "culture"} <= ids
 
 
-def test_rich_language_course_has_more_skills_than_starter():
-    rich = course_outline("es")
-    starter = course_outline("sw")
-    assert rich["tier"] == "rich" and starter["tier"] == "starter"
-    assert len(rich["skills"]) > len(starter["skills"])
-    assert rich["grammar_tip"] and rich["culture_note"]
+def test_every_language_is_a_full_course():
+    expected_skills = {skill["id"] for skill in SKILL_AREAS}
+    for code in SUPPORTED_LANGUAGES:
+        course = course_outline(code)
+        assert course["tier"] == "full"
+        assert {skill["id"] for skill in course["skills"]} == expected_skills
+        assert course["dialogue_count"] >= 20
+        assert course["song_count"] >= 1
 
 
 def test_vocabulary_exercise_has_correct_answer():
@@ -98,6 +102,10 @@ def test_practice_xp_scales_with_skill_and_perfection():
     assert practice_xp("vocabulary", 5, 5) > practice_xp("vocabulary", 3, 5)
 
 
-def test_every_rich_language_has_full_phrasebook():
-    for code in RICH_LANGUAGES:
-        assert course_outline(code)["phrase_count"] >= 10
+def test_every_language_has_dialogue_and_song_practice():
+    assert RICH_LANGUAGES == set(SUPPORTED_LANGUAGES)
+    for code in SUPPORTED_LANGUAGES:
+        assert len(dialogues_for(code)) >= 20
+        song = songs_for(code)[0]
+        assert len(song["verses"]) >= 1
+        assert all(v["target"] and v["en"] and v["explain_en"] for v in song["verses"])

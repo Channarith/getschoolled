@@ -373,12 +373,33 @@ def learn_phrases(language: str, category: str | None = None) -> dict:
 
 @app.get("/learn/{language}/slang")
 def learn_slang(language: str) -> dict:
-    from aoep_shared.slang import LEXICON
+    from aoep_shared.slang import all_entries
 
-    entries = [e for e in LEXICON if e.language == language]
+    entries = [e for e in all_entries() if e.language == language]
     return {"language": language, "entries": [
-        {"phrase": e.phrase, "meaning": e.meaning, "region": e.region, "kind": e.kind}
+        {
+            "phrase": e.phrase, "meaning": e.meaning, "region": e.region,
+            "kind": e.kind, "register": e.register,
+        }
         for e in entries]}
+
+
+@app.get("/learn/{language}/dialogues")
+def learn_dialogues(language: str) -> dict:
+    from aoep_shared.language_learning import dialogues_for
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return {"language": language, "dialogues": dialogues_for(language)}
+
+
+@app.get("/learn/{language}/songs")
+def learn_songs(language: str) -> dict:
+    from aoep_shared.language_learning import songs_for
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return {"language": language, "songs": songs_for(language)}
 
 
 class ExerciseRequest(BaseModel):
@@ -393,7 +414,7 @@ def learn_exercise(req: ExerciseRequest) -> dict:
 
     if req.language not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=404, detail="unsupported language")
-    n = max(1, min(req.n, 8))
+    n = max(1, min(req.n, 100 if req.skill in ("conversation", "story", "slang", "idioms") else 8))
     if req.skill == "listening":
         return ll.listening_exercise(req.language, n=n)
     if req.skill in ("match", "phrases"):
@@ -404,6 +425,15 @@ def learn_exercise(req: ExerciseRequest) -> dict:
         return {"skill": "grammar", "language": req.language, "tip": ll.grammar_tip(req.language)}
     if req.skill == "culture":
         return {"skill": "culture", "language": req.language, "note": ll.culture_note(req.language)}
+    if req.skill in ("conversation", "story"):
+        return ll.dialogue_exercise(req.language, n=n)
+    if req.skill in ("slang", "idioms"):
+        return ll.slang_exercise(req.language, n=n)
+    if req.skill == "songs":
+        return {
+            "skill": "songs", "language": req.language,
+            "songs": ll.songs_for(req.language),
+        }
     return ll.vocabulary_exercise(req.language, n=n)
 
 

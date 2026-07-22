@@ -1,0 +1,26 @@
+{
+  "pack": "khmer_everyday_v1",
+  "description": "Curated everyday Khmer phrases for travel, food, shopping, and conversation.",
+  "records": [
+    {"language":"km","id":"whatdish","category":"food","en":"What is this dish?","target":"ម្ហូបនេះជាអ្វី?","roman":"Mhoob nih chea avei?"},
+    {"language":"km","id":"saykhmer","category":"conversation","en":"How do I say this in Khmer?","target":"តើនិយាយពាក្យនេះជាភាសាខ្មែរយ៉ាងម៉េច?","roman":"Tae niyeay peak nih chea pheasa Khmer yang mech?"},
+    {"language":"km","id":"tooexpensive","category":"shopping","en":"That is too expensive","target":"ថ្លៃពេក","roman":"Thlai pek"},
+    {"language":"km","id":"cheaper","category":"shopping","en":"Can it be cheaper?","target":"ថោកជាងនេះបានទេ?","roman":"Thok cheang nih ban te?"},
+    {"language":"km","id":"water","category":"food","en":"Water, please","target":"សុំទឹកមួយ","roman":"Som teuk muoy"},
+    {"language":"km","id":"menu","category":"food","en":"May I see the menu?","target":"សុំមើលមុខម្ហូបបានទេ?","roman":"Som merl mok mhoob ban te?"},
+    {"language":"km","id":"delicious","category":"food","en":"It is very delicious","target":"ឆ្ងាញ់ណាស់","roman":"Chhnganh nas"},
+    {"language":"km","id":"notspicy","category":"food","en":"Not spicy, please","target":"សូមកុំដាក់ហឹរ","roman":"Som kom dak her"},
+    {"language":"km","id":"dontunderstand","category":"conversation","en":"I do not understand","target":"ខ្ញុំមិនយល់ទេ","roman":"Khnyom min yol te"},
+    {"language":"km","id":"repeat","category":"conversation","en":"Please say it again","target":"សូមនិយាយម្តងទៀត","roman":"Som niyeay mdong tiet"},
+    {"language":"km","id":"slowly","category":"conversation","en":"Please speak slowly","target":"សូមនិយាយយឺតៗ","roman":"Som niyeay yeut yeut"},
+    {"language":"km","id":"overthere","category":"travel","en":"It is over there","target":"វានៅទីនោះ","roman":"Vea nov ti nuh"},
+    {"language":"km","id":"hotel","category":"travel","en":"Where is my hotel?","target":"សណ្ឋាគាររបស់ខ្ញុំនៅឯណា?","roman":"Santhakear robos khnyom nov aena?"},
+    {"language":"km","id":"taxi","category":"travel","en":"I need a taxi","target":"ខ្ញុំត្រូវការតាក់ស៊ី","roman":"Khnyom trovkar taksi"},
+    {"language":"km","id":"doctor","category":"travel","en":"I need a doctor","target":"ខ្ញុំត្រូវការគ្រូពេទ្យ","roman":"Khnyom trovkar kru pet"},
+    {"language":"km","id":"english","category":"conversation","en":"Do you speak English?","target":"តើអ្នកនិយាយភាសាអង់គ្លេសទេ?","roman":"Tae neak niyeay pheasa Angles te?"},
+    {"language":"km","id":"hungry","category":"food","en":"I am hungry","target":"ខ្ញុំឃ្លាន","roman":"Khnyom khlean"},
+    {"language":"km","id":"bill","category":"food","en":"The bill, please","target":"សុំគិតលុយ","roman":"Som kit loy"},
+    {"language":"km","id":"left","category":"travel","en":"Turn left","target":"បត់ឆ្វេង","roman":"Bot chhveng"},
+    {"language":"km","id":"right","category":"travel","en":"Turn right","target":"បត់ស្តាំ","roman":"Bot sdam"}
+  ]
+}

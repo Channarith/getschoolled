@@ -107,6 +107,8 @@ SKILL_AREAS = [
      "desc": "Repeat right after the speaker to build fluency."},
     {"id": "story", "name": "Story mode", "icon": "📚",
      "desc": "Learn through a fun mini-story."},
+    {"id": "songs", "name": "Learn through songs", "icon": "🎵",
+     "desc": "Play one verse, understand it, then sing the whole song."},
 ]
 
 
@@ -244,7 +246,9 @@ _T: Dict[str, Dict[str, tuple]] = {
     },
 }
 
-RICH_LANGUAGES = {"en", "es", "fr", "de", "it", "pt", "nl", "ja", "zh", "ko", "km"}
+# Every supported language now exposes the complete learning path. Content packs
+# grow phrase, dialogue, slang and song depth without another code release.
+RICH_LANGUAGES = set(SUPPORTED_LANGUAGES)
 
 # Bite-size grammar tips + culture notes for the rich languages.
 _GRAMMAR_TIPS: Dict[str, str] = {
@@ -297,8 +301,11 @@ def language_list() -> List[dict]:
         meta = LANGUAGE_META.get(code, {"name": code, "native": code, "flag": "🏳️"})
         out.append({
             "code": code, **meta,
-            "tier": "rich" if code in RICH_LANGUAGES else "starter",
-            "phrase_count": len(_T.get(code, {})),
+            "tier": "full",
+            "phrase_count": len(phrases_for(code)),
+            "dialogue_count": len(dialogues_for(code)),
+            "slang_count": slang_count(code),
+            "song_count": len(songs_for(code)),
         })
     return out
 
@@ -313,20 +320,136 @@ def phrases_for(language: str, category: Optional[str] = None) -> List[dict]:
             continue
         target, roman = table[cid]
         out.append({"id": cid, "category": cat, "en": en, "target": target, "roman": roman})
+    try:
+        from .content_packs import load_records
+
+        seen = {p["id"] for p in out}
+        for rec in load_records("phrases"):
+            if rec.get("language") != language or not rec.get("id"):
+                continue
+            if category and rec.get("category", "phrases") != category:
+                continue
+            if rec["id"] in seen:
+                continue
+            out.append({
+                "id": str(rec["id"]),
+                "category": str(rec.get("category", "phrases")),
+                "en": str(rec.get("en", "")),
+                "target": str(rec.get("target", "")),
+                "roman": str(rec.get("roman", "")),
+            })
+            seen.add(rec["id"])
+    except Exception:  # pragma: no cover - packs are optional
+        pass
     return out
+
+
+def dialogues_for(language: str) -> List[dict]:
+    """Structured real-world conversations for a language.
+
+    Curated packs win. Until a language-specific dialogue pack lands, build 20
+    short drills from that language's verified phrasebook so no course is a
+    four-button dead end.
+    """
+    try:
+        from .content_packs import load_records
+
+        curated = [
+            dict(rec) for rec in load_records("dialogues")
+            if rec.get("language") == language and rec.get("turns")
+        ]
+    except Exception:  # pragma: no cover
+        curated = []
+    if curated:
+        return curated
+
+    phrases = phrases_for(language)
+    if not phrases:
+        return []
+    situations = [
+        "Meeting someone", "Saying goodbye", "Being polite", "Checking in",
+        "Introducing yourself", "At a café", "At a restaurant", "At a market",
+        "Asking the price", "Finding the bathroom", "Asking for help",
+        "At a hotel", "Taking a taxi", "At the station", "Shopping",
+        "Making a friend", "Clarifying", "Thanking someone", "Saying no politely",
+        "Ending a conversation",
+    ]
+    rows: List[dict] = []
+    for i, situation in enumerate(situations):
+        first = phrases[i % len(phrases)]
+        second = phrases[(i + 1) % len(phrases)]
+        rows.append({
+            "language": language,
+            "id": f"practice-{i + 1:02d}",
+            "situation_en": situation,
+            "turns": [
+                {"speaker": "A", "target": first["target"], "roman": first["roman"], "en": first["en"]},
+                {"speaker": "B", "target": second["target"], "roman": second["roman"], "en": second["en"]},
+            ],
+        })
+    return rows
+
+
+def slang_count(language: str) -> int:
+    from .slang import all_entries
+
+    return sum(1 for entry in all_entries() if entry.language == language)
+
+
+def songs_for(language: str) -> List[dict]:
+    """Return licensed/original learn-through-song lessons.
+
+    A small original call-and-response song is generated from each phrasebook
+    when no curated song exists. This keeps all languages song-enabled without
+    embedding copyrighted recordings or lyrics.
+    """
+    try:
+        from .content_packs import load_records
+
+        curated = [
+            dict(rec) for rec in load_records("songs")
+            if rec.get("language") == language and rec.get("verses")
+        ]
+    except Exception:  # pragma: no cover
+        curated = []
+    if curated:
+        return curated
+
+    phrases = phrases_for(language)
+    if not phrases:
+        return []
+    verses = []
+    for i, phrase in enumerate(phrases[:4], start=1):
+        verses.append({
+            "verse_no": i,
+            "target": phrase["target"],
+            "roman": phrase["roman"],
+            "en": phrase["en"],
+            "explain_en": (
+                f"This verse practices “{phrase['en']}”. Listen, pause, and "
+                "repeat with the same rhythm."
+            ),
+            "tts_text": f"{phrase['target']}. {phrase['target']}.",
+        })
+    return [{
+        "language": language,
+        "song_id": f"{language}-everyday-phrases-song",
+        "title_en": f"{LANGUAGE_META.get(language, {}).get('name', language)} Everyday Phrases Song",
+        "license": "original-salareen",
+        "source_url": "",
+        "verses": verses,
+    }]
 
 
 def course_outline(language: str) -> dict:
     meta = LANGUAGE_META.get(language, {"name": language, "native": language, "flag": "🏳️"})
-    rich = language in RICH_LANGUAGES
-    # Skills available depend on content depth; starter languages still get the
-    # core practice skills (pronunciation/vocab/phrases/listening).
-    core = {"pronunciation", "vocabulary", "phrases", "listening", "shadowing"}
-    skills = [s for s in SKILL_AREAS if rich or s["id"] in core]
     return {
-        "code": language, **meta, "tier": "rich" if rich else "starter",
-        "skills": skills,
-        "phrase_count": len(_T.get(language, {})),
+        "code": language, **meta, "tier": "full",
+        "skills": SKILL_AREAS,
+        "phrase_count": len(phrases_for(language)),
+        "dialogue_count": len(dialogues_for(language)),
+        "slang_count": slang_count(language),
+        "song_count": len(songs_for(language)),
         "grammar_tip": _GRAMMAR_TIPS.get(language, ""),
         "culture_note": _CULTURE_NOTES.get(language, ""),
     }
@@ -378,6 +501,28 @@ def match_exercise(language: str, *, n: int = 4, seed: Optional[int] = None) -> 
     pool = pool[: max(2, min(n, len(pool)))]
     pairs = [{"id": uuid.uuid4().hex[:8], "term": _label(p), "match": p["en"]} for p in pool]
     return {"skill": "match", "language": language, "pairs": pairs}
+
+
+def dialogue_exercise(language: str, *, n: int = 5) -> dict:
+    rows = dialogues_for(language)[:max(1, n)]
+    return {"skill": "conversation", "language": language, "dialogues": rows}
+
+
+def slang_exercise(language: str, *, n: int = 8) -> dict:
+    from .slang import all_entries
+
+    entries = [
+        {
+            "phrase": entry.phrase,
+            "meaning": entry.meaning,
+            "region": entry.region,
+            "kind": entry.kind,
+            "register": entry.register,
+        }
+        for entry in all_entries()
+        if entry.language == language
+    ]
+    return {"skill": "slang", "language": language, "entries": entries[:max(1, n)]}
 
 
 def pronunciation_prompt(language: str, *, category: Optional[str] = None,

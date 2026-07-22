@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
 import {
@@ -30,6 +30,7 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [verseIndex, setVerseIndex] = useState(0);
   // Guards callbacks after unmount so stale STT/TTS closures don't update state.
   const mountedRef = useRef(true);
   // Latest passing target/course for the STT result callback (avoids stale closure).
@@ -75,8 +76,10 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setDone(null);
     setPron(null);
     setAnswers({});
+    setVerseIndex(0);
+    const n = s === "conversation" || s === "story" ? 20 : s === "slang" || s === "idioms" ? 60 : s === "match" ? 4 : 5;
     try {
-      setEx(await newLangExercise(course.code, s, s === "match" ? 4 : 5));
+      setEx(await newLangExercise(course.code, s, n));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -230,6 +233,83 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
               </View>
             </GlassPanel>
           ) : null}
+          {ex?.dialogues ? (
+            <GlassPanel style={styles.card}>
+              <Text style={styles.sectionTitle}>🗨️ Real conversations ({ex.dialogues.length})</Text>
+              {ex.dialogues.map((dialogue) => (
+                <View key={dialogue.id} style={styles.dialogue}>
+                  <Text style={styles.prompt}>{dialogue.situation_en}</Text>
+                  {dialogue.turns.map((turn, index) => (
+                    <AnimatedPressable
+                      key={`${turn.speaker}-${index}`}
+                      onPress={() => {
+                        stopSpeech();
+                        speakNatural(turn.target, { locale: course.code });
+                      }}
+                      style={styles.turn}
+                    >
+                      <Text style={styles.optText}>🔊 {turn.speaker}: {turn.target}</Text>
+                      {turn.roman ? <Text style={styles.meta}>/{turn.roman}/</Text> : null}
+                      <Text style={styles.meta}>{turn.en}</Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              ))}
+            </GlassPanel>
+          ) : null}
+          {ex?.entries ? (
+            <GlassPanel style={styles.card}>
+              <Text style={styles.sectionTitle}>😎 Slang & idioms ({ex.entries.length})</Text>
+              {ex.entries.map((entry, index) => (
+                <AnimatedPressable
+                  key={`${entry.phrase}-${index}`}
+                  onPress={() => {
+                    stopSpeech();
+                    speakNatural(entry.phrase, { locale: course.code });
+                  }}
+                  style={styles.turn}
+                >
+                  <Text style={styles.optText}>🔊 {entry.phrase}</Text>
+                  <Text style={styles.meta}>{entry.meaning}</Text>
+                </AnimatedPressable>
+              ))}
+            </GlassPanel>
+          ) : null}
+          {ex?.songs?.[0] ? (() => {
+            const song = ex.songs[0];
+            const verse = song.verses[Math.min(verseIndex, song.verses.length - 1)];
+            return (
+              <GlassPanel style={styles.card}>
+                <Text style={styles.sectionTitle}>🎵 {song.title_en}</Text>
+                {song.title_target ? <Text style={styles.songTarget}>{song.title_target}</Text> : null}
+                <Text style={styles.meta}>Verse {verseIndex + 1} of {song.verses.length} · {song.license}</Text>
+                <View style={styles.verse}>
+                  <Text style={styles.songTarget}>{verse.target}</Text>
+                  {verse.roman ? <Text style={styles.meta}>/{verse.roman}/</Text> : null}
+                  <Text style={styles.translation}>English: {verse.en}</Text>
+                  <Text style={styles.tip}>💡 {verse.explain_en}</Text>
+                </View>
+                <View style={styles.row}>
+                  <PrimaryButton label="▶ Play verse" onPress={() => {
+                    stopSpeech();
+                    speakNatural(verse.tts_text || verse.target, { locale: course.code });
+                  }} variant="brand" />
+                  <PrimaryButton label="■ Stop" onPress={stopSpeech} variant="ghost" />
+                </View>
+                <View style={styles.row}>
+                  <PrimaryButton label="← Previous" onPress={() => setVerseIndex((v) => Math.max(0, v - 1))} variant="ghost" />
+                  <PrimaryButton label="Next verse →" onPress={() => setVerseIndex((v) => Math.min(song.verses.length - 1, v + 1))} variant="ghost" />
+                </View>
+                <PrimaryButton label="♫ Play full song" onPress={() => {
+                  stopSpeech();
+                  speakNatural(song.verses.map((v) => v.tts_text || v.target).join(" "), { locale: course.code });
+                }} variant="netflix" />
+                {song.source_url ? (
+                  <PrimaryButton label="Traditional cultural listening ↗" onPress={() => void Linking.openURL(song.source_url!)} variant="ghost" />
+                ) : null}
+              </GlassPanel>
+            );
+          })() : null}
           {done ? (
             <GlassPanel>
               <Text style={styles.done}>{t("languages.done", { correct: done.correct, total: done.total, xp: done.xp ?? 0 })}</Text>
@@ -273,4 +353,10 @@ const styles = StyleSheet.create({
   meta: { color: theme.colors.muted, fontSize: 13 },
   done: { color: theme.colors.accent, fontWeight: "700" },
   err: { color: theme.colors.netflix, fontSize: 13 },
+  sectionTitle: { color: theme.colors.text, fontSize: 18, fontWeight: "800" },
+  dialogue: { gap: 6, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border },
+  turn: { gap: 3, padding: 9, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.04)" },
+  verse: { gap: 8, padding: 14, borderRadius: 12, backgroundColor: "rgba(124,58,237,0.16)" },
+  songTarget: { color: theme.colors.text, fontSize: 20, fontWeight: "800" },
+  translation: { color: theme.colors.accent, fontSize: 14, fontWeight: "700" },
 });

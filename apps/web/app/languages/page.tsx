@@ -22,7 +22,7 @@ const BCP47: Record<string, string> = {
   nl: "nl-NL", pl: "pl-PL", ru: "ru-RU", uk: "uk-UA", tr: "tr-TR", ar: "ar-SA",
   he: "he-IL", hi: "hi-IN", bn: "bn-BD", ur: "ur-PK", fa: "fa-IR", zh: "zh-CN",
   ja: "ja-JP", ko: "ko-KR", vi: "vi-VN", th: "th-TH", id: "id-ID", sw: "sw-KE",
-  el: "el-GR", cs: "cs-CZ",
+  el: "el-GR", cs: "cs-CZ", km: "km-KH",
 };
 
 type SpeechRec = {
@@ -58,6 +58,7 @@ export default function LanguagesPage() {
   const [xpTotal, setXpTotal] = useState(0);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [verseIndex, setVerseIndex] = useState(0);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -89,8 +90,9 @@ export default function LanguagesPage() {
   async function startSkill(s: string) {
     if (!course) return;
     setSkill(s); setEx(null); setDone(null); setPron(null); setAnswers({});
-    setSelTerm(""); setHeard("");
-    try { setEx(await newLangExercise(course.code, s, s === "match" ? 4 : 5)); }
+    setSelTerm(""); setHeard(""); setVerseIndex(0);
+    const n = s === "conversation" || s === "story" ? 20 : s === "slang" || s === "idioms" ? 60 : s === "match" ? 4 : 5;
+    try { setEx(await newLangExercise(course.code, s, n)); }
     catch (e) { setError(String(e)); }
   }
 
@@ -226,8 +228,8 @@ export default function LanguagesPage() {
               <div style={{ fontSize: 28 }}>{l.flag}</div>
               <div style={{ fontWeight: 700 }}>{l.name}</div>
               <div className="muted" style={{ fontSize: 12 }}>{l.native}</div>
-              <span className="pill" style={{ color: l.tier === "rich" ? "#16a34a" : "#b45309", fontSize: 10 }}>
-                {l.tier === "rich" ? t("languages.fullCourse") : t("languages.starter")}
+              <span className="pill" style={{ color: "#16a34a", fontSize: 10 }}>
+                {t("languages.fullCourse")}
               </span>
             </button>
           ))}
@@ -266,6 +268,79 @@ export default function LanguagesPage() {
 
           {/* grammar / culture */}
           {(ex.tip || ex.note) && <p style={{ fontSize: 16 }}>{ex.tip || ex.note}</p>}
+
+          {/* Real-world dialogues */}
+          {ex.dialogues && (
+            <div>
+              <h3 style={{ marginTop: 0 }}>🗨️ Real conversations ({ex.dialogues.length})</h3>
+              <p className="muted">Listen turn by turn, then shadow both speakers.</p>
+              <div style={{ display: "grid", gap: 12 }}>
+                {ex.dialogues.map((dialogue) => (
+                  <div key={dialogue.id} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 12 }}>
+                    <strong>{dialogue.situation_en}</strong>
+                    {dialogue.turns.map((turn, index) => (
+                      <div key={index} style={{ marginTop: 9, paddingLeft: turn.speaker === "B" ? 24 : 0 }}>
+                        <button onClick={() => speak(turn.target, course.code)} style={{ padding: "3px 8px", marginRight: 8 }}>🔊</button>
+                        <strong>{turn.speaker}:</strong> {turn.target}
+                        {turn.roman && <span className="muted"> /{turn.roman}/</span>}
+                        <div className="muted" style={{ marginLeft: 42 }}>{turn.en}</div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Slang & idioms */}
+          {ex.entries && (
+            <div>
+              <h3 style={{ marginTop: 0 }}>😎 Slang & idioms ({ex.entries.length})</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 10 }}>
+                {ex.entries.map((entry, index) => (
+                  <button key={`${entry.phrase}-${index}`} onClick={() => speak(entry.phrase, course.code)}
+                    style={{ padding: 12, textAlign: "left", background: "var(--panel)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                    <strong>🔊 {entry.phrase}</strong>
+                    <div className="muted">{entry.meaning}</div>
+                    <small>{entry.kind} · {entry.register ?? "casual"}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verse-by-verse song lesson */}
+          {ex.songs?.[0] && (() => {
+            const song = ex.songs[0];
+            const verse = song.verses[Math.min(verseIndex, song.verses.length - 1)];
+            return (
+              <div>
+                <h3 style={{ marginTop: 0 }}>🎵 {song.title_en}</h3>
+                {song.title_target && <div style={{ fontSize: 20, fontWeight: 700 }}>{song.title_target}</div>}
+                <p className="muted">Verse {verseIndex + 1} of {song.verses.length} · {song.license}</p>
+                <div style={{ padding: 18, borderRadius: 14, background: "linear-gradient(135deg,#ede9fe,#fce7f3)", color: "#3b0764" }}>
+                  <div style={{ fontSize: 24, fontWeight: 800 }}>{verse.target}</div>
+                  {verse.roman && <div style={{ marginTop: 5 }}>/{verse.roman}/</div>}
+                  <div style={{ marginTop: 12, fontWeight: 700 }}>English: {verse.en}</div>
+                  <p style={{ marginBottom: 0 }}>💡 {verse.explain_en}</p>
+                </div>
+                <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                  <button onClick={() => speak(verse.tts_text || verse.target, course.code)}>▶ Play this verse</button>
+                  <button onClick={() => window.speechSynthesis.cancel()}>■ Stop & explain</button>
+                  <button disabled={verseIndex === 0} onClick={() => setVerseIndex((v) => Math.max(0, v - 1))}>← Previous</button>
+                  <button disabled={verseIndex >= song.verses.length - 1} onClick={() => setVerseIndex((v) => Math.min(song.verses.length - 1, v + 1))}>Next verse →</button>
+                  <button onClick={() => speak(song.verses.map((v) => v.tts_text || v.target).join(" "), course.code)}
+                    style={{ background: "#7c3aed", color: "#fff" }}>♫ Play full song from beginning</button>
+                </div>
+                {song.source_url && (
+                  <p className="muted" style={{ marginTop: 12 }}>
+                    <a href={song.source_url} target="_blank" rel="noopener noreferrer">Traditional cultural listening reference ↗</a>
+                    {song.source_note ? ` — ${song.source_note}` : ""}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* pronunciation / shadowing */}
           {ex.target && (

@@ -12,8 +12,10 @@ from __future__ import annotations
 from aoep_shared import catalog_i18n
 from aoep_shared.audio_courses import build_catalog, categories
 from aoep_shared.language_learning import (
-    LANGUAGE_META, RICH_LANGUAGES, course_outline, phrases_for,
+    LANGUAGE_META, RICH_LANGUAGES, course_outline, dialogues_for, phrases_for,
+    songs_for,
 )
+from aoep_shared.slang import all_entries
 from aoep_shared.languages import SUPPORTED_LANGUAGES, is_supported
 from aoep_shared.notifications import (
     SUPPORTED_NOTIFICATION_LOCALES, build_feed,
@@ -51,13 +53,40 @@ def test_khmer_phrasebook_has_full_concept_set():
     hello = next(p for p in phrases if p["id"] == "hello")
     assert hello["target"]  # Khmer script
     assert hello["roman"] == "Chum reap suor"
+    assert len(phrases) >= 20
+    english = {p["en"] for p in phrases}
+    assert {
+        "What is this dish?",
+        "How do I say this in Khmer?",
+        "That is too expensive",
+        "Can it be cheaper?",
+    } <= english
+
+
+def test_khmer_has_twenty_dialogues_and_fifty_slang_entries():
+    dialogues = dialogues_for("km")
+    assert len(dialogues) >= 20
+    assert all(len(row["turns"]) >= 2 for row in dialogues)
+    entries = [entry for entry in all_entries() if entry.language == "km"]
+    assert len(entries) >= 50
+
+
+def test_khmer_song_is_verse_driven_and_licensed():
+    song = songs_for("km")[0]
+    assert song["license"] in ("public-domain", "cc-by", "original-salareen")
+    assert len(song["verses"]) >= 4
+    assert song["source_url"]
+    assert all(
+        verse["target"] and verse["en"] and verse["explain_en"]
+        for verse in song["verses"]
+    )
 
 
 def test_khmer_course_outline_carries_grammar_and_culture():
     outline = course_outline("km")
     assert outline["code"] == "km"
     assert outline["native"] == KM_NATIVE
-    assert outline["tier"] == "rich"
+    assert outline["tier"] == "full"
     assert outline["grammar_tip"]      # non-empty
     assert outline["culture_note"]
     assert "sampeah" in outline["culture_note"]
