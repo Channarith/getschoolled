@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
@@ -256,14 +256,16 @@ export default function AuthScreen({ onBrowseGuest }: { onBrowseGuest?: () => vo
                   disabled={busy}
                   onPress={() => { setError(""); void googlePrompt(); }}
                 >
-                  <Text style={styles.socialBtnText}>G  Google</Text>
+                  <FontAwesome name="google" size={16} color="#EA4335" />
+                  <Text style={styles.socialBtnText}>Google</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.socialBtn, busy && styles.socialBtnDisabled]}
                   disabled={busy}
                   onPress={() => { setError(""); void fbPrompt(); }}
                 >
-                  <Text style={styles.socialBtnText}>f  Facebook</Text>
+                  <FontAwesome name="facebook" size={16} color="#1877F2" />
+                  <Text style={styles.socialBtnText}>Facebook</Text>
                 </Pressable>
                 {appleAvailable && Platform.OS === "ios" ? (
                   <AppleAuthentication.AppleAuthenticationButton
@@ -459,9 +461,10 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   socialBtn: {
     flex: 1, minWidth: 120,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderWidth: 1, borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    paddingVertical: 11, alignItems: "center",
+    paddingVertical: 11,
     backgroundColor: "rgba(255,255,255,0.06)",
   },
   socialBtnDisabled: { opacity: 0.5 },
