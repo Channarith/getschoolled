@@ -22,6 +22,7 @@ client = TestClient(app)
 # Lesson ids in sample-curriculum tagged AUDIENCE: corporate. The web
 # programme cards resolve program course_ids against these lessons.
 EXPECTED_CORPORATE_LESSON_IDS = {
+    # AI / Data / Engineering
     "ai-fluency-essentials",
     "ai-powered-productivity",
     "ai-solutions-builder",
@@ -33,6 +34,28 @@ EXPECTED_CORPORATE_LESSON_IDS = {
     "data-fellowship",
     "devops-engineering-upskiller",
     "java-software-engineering",
+    # Compliance & safety
+    "sexual-harassment-prevention",
+    "workplace-ethics",
+    "diversity-equity-inclusion",
+    "workplace-violence-prevention",
+    "social-media-at-work",
+    "anti-bribery-corruption",
+    "fire-safety-training",
+    "osha-general-safety",
+    "osha-forklift-safety",
+    "food-handler-safety",
+    "lab-safety-fundamentals",
+    "liquid-cooling-thermal-materials",
+    "hipaa-privacy-security",
+    "data-privacy-workplace",
+    "cybersecurity",
+    "security-policies-awareness",
+    "security-guard-certification",
+    "trade-compliance-basics",
+    "export-control-us-regulations",
+    "ase-automotive-certification",
+    "automotive-safety-awareness",
 }
 
 
@@ -105,6 +128,14 @@ def test_seeded_lessons_resolve_via_courses_search():  # CD-B4c
     seeded_ids = {cid for p in DEFAULT_CORPORATE_PROGRAMS for cid in p.course_ids}
     missing = seeded_ids - by_id
     assert not missing, f"seeded course_ids absent from /courses/search: {missing}"
+
+
+def test_compliance_programs_are_seeded():
+    titles = {p.title for p in DEFAULT_CORPORATE_PROGRAMS}
+    assert "Workplace Safety & OSHA" in titles
+    assert "HR & Workplace Conduct" in titles
+    assert "Privacy, Security & Data Protection" in titles
+    assert "Trade Compliance & Export Control" in titles
 
 
 def test_seeding_flag_disables(monkeypatch):  # CD-B7

@@ -1,5 +1,12 @@
 LESSON: Cybersecurity Fundamentals
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Privacy
+LEVEL: Foundational
+ROLE: All employees
+DELIVERY: 45–60 min live class
+FIT: Anyone with email, cloud apps, or device access at work.
+SUMMARY: CIA triad, phishing, passwords, MFA, and everyday cyber hygiene.
 
 SLIDE 1 | The CIA Triad: Confidentiality, Integrity, Availability
 The CIA triad is the foundational model of information security, representing three core objectives that every security control, policy, and technology is designed to protect. Confidentiality ensures that information is accessible only to those authorized to see it — encryption, access controls, and classification policies all serve this goal. Integrity ensures that data remains accurate and unaltered except through authorized processes — checksums, digital signatures, and audit logs detect and prevent unauthorized modifications. Availability ensures that systems and data are accessible to authorized users when needed — redundancy, backups, and DDoS mitigation protect this property.

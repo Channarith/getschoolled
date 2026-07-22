@@ -49,6 +49,10 @@ _BEGINNER_LESSONS: frozenset = frozenset({
     "intro-python", "intro-science", "drivers-permit-test", "cpr-first-aid-certification",
     "food-handler-safety", "sexual-harassment-prevention", "fire-safety-training",
     "workplace-ethics", "diversity-equity-inclusion",
+    "workplace-violence-prevention", "social-media-at-work", "security-policies-awareness",
+    "data-privacy-workplace", "anti-bribery-corruption", "lab-safety-fundamentals",
+    "automotive-safety-awareness", "liquid-cooling-thermal-materials",
+    "trade-compliance-basics",
 })
 _ADVANCED_LESSONS: frozenset = frozenset({
     "calculus-2", "differential-equations", "linear-algebra", "math-olympiad",
@@ -67,6 +71,16 @@ CERTIFIABLE_LESSONS = {
     "osha-forklift-safety": ("OSHA", 1.0),
     "cybersecurity": ("Salareen", 1.5),
     "devops": ("Salareen", 2.0),
+    "workplace-violence-prevention": ("Salareen", 1.0),
+    "security-policies-awareness": ("Salareen", 0.5),
+    "trade-compliance-basics": ("Salareen", 1.0),
+    "social-media-at-work": ("Salareen", 0.5),
+    "export-control-us-regulations": ("Salareen", 1.5),
+    "liquid-cooling-thermal-materials": ("Salareen", 1.0),
+    "data-privacy-workplace": ("Salareen", 1.0),
+    "anti-bribery-corruption": ("Salareen", 1.0),
+    "lab-safety-fundamentals": ("Salareen", 1.0),
+    "automotive-safety-awareness": ("Salareen", 0.5),
     # Professional certification prep courses
     "comptia-a-plus": ("CompTIA", 3.0),
     "hvac-epa-certification": ("EPA", 2.5),
@@ -189,17 +203,22 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         lesson_id = lesson.lesson_id
         title = lesson.title
         language = getattr(lesson, "language", "en")
+        audience = getattr(lesson, "audience", "general") or "general"
     else:
         slides = lesson.get("slides", [])
         lesson_id = lesson["lesson_id"]
         title = lesson["title"]
         language = lesson.get("language", "en")
+        audience = lesson.get("audience", "general") or "general"
     category = lesson_category(lesson_id, title)
     duration = lesson_duration_min(slides)
     preview = slides[0].body[:160] if slides else ""
     tags = ["live-class"]
     if lesson_id.startswith("python"):
         tags.append("python")
+    audiences = [audience] if audience and audience != "general" else []
+    if audience == "corporate":
+        tags.append("corporate")
     certifiable = False
     certification_body = ""
     ceu_credits = 0.0
@@ -210,6 +229,11 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         tags.append("certifiable")
         if certification_body:
             tags.append(certification_body.lower())
+    deep = (
+        f"/corporate/learn?lesson={lesson_id}"
+        if audience == "corporate"
+        else f"/class?lesson={lesson_id}"
+    )
     return LearnableItem(
         id=f"lesson:{lesson_id}",
         source="lesson",
@@ -225,8 +249,9 @@ def _from_lesson(lesson: Any) -> LearnableItem:
         language=language,
         duration_min=duration,
         tags=tags,
+        audiences=audiences,
         preview=preview,
-        deep_link=f"/class?lesson={lesson_id}",
+        deep_link=deep,
         popularity=10,
         certifiable=certifiable,
         certification_body=certification_body,

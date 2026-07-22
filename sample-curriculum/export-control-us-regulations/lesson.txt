@@ -1,0 +1,48 @@
+LESSON: US Export Control Regulations
+LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Trade
+LEVEL: Role-based required
+ROLE: Engineering, product, sales, logistics
+DELIVERY: 60–75 min live class
+FIT: Teams handling controlled technology, software, or international customers.
+SUMMARY: EAR and ITAR basics, deemed exports, classification, licenses, and red flags for US export controls.
+
+SLIDE 1 | What Are Export Controls?
+US export controls restrict the transfer of certain goods, software, and
+technology to foreign persons or destinations. The Export Administration
+Regulations (EAR) and International Traffic in Arms Regulations (ITAR) are the
+primary frameworks. Controls exist for national security and foreign policy
+reasons.
+NARRATION: US export controls restrict the transfer of certain goods, software, and technology to foreign persons or destinations.
+
+SLIDE 2 | Exports Are More Than Shipments
+An export can be a physical shipment, an email with controlled files, a cloud
+share, or a conversation that releases technical data to a foreign person in
+the US (a deemed export). Treat technical disclosures with the same care as
+shipping a product.
+NARRATION: An export can be a physical shipment, an email with controlled files, a cloud share, or a conversation that releases technical data to a foreign person in the US (a deemed export).
+
+SLIDE 3 | Classification and Licensing
+Items may be classified under ECCNs or USML categories. Some items are EAR99;
+others need licenses for certain countries or end uses. Classification
+mistakes are common — escalate borderline cases.
+NARRATION: Items may be classified under ECCNs or USML categories.
+
+SLIDE 4 | Restricted Destinations and End Uses
+Sanctions and embargoes change. Military end uses, nuclear activities, and
+certain destinations trigger extra scrutiny. Always check current lists and
+involve export compliance.
+NARRATION: Sanctions and embargoes change.
+
+SLIDE 5 | Employee Responsibilities
+Do not send controlled files abroad without clearance. Confirm
+citizenship/status requirements for lab access when required. Report suspected
+violations promptly. Compliance is everyone's job.
+NARRATION: Do not send controlled files abroad without clearance.
+
+FACT: US export controls restrict the transfer of certain goods, software, and technology to foreign persons or destinations.
+FACT: An export can be a physical shipment, an email with controlled files, a cloud share, or a conversation that releases technical data to a foreign person in the US (a deemed export).
+FACT: Items may be classified under ECCNs or USML categories.
+FACT: Sanctions and embargoes change.
+FACT: Do not send controlled files abroad without clearance.

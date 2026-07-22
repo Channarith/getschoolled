@@ -1,5 +1,12 @@
 LESSON: Diversity, Equity, and Inclusion in the Workplace
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Compliance
+LEVEL: Foundational
+ROLE: All employees
+DELIVERY: 45–60 min live class
+FIT: Managers and contributors building inclusive teams.
+SUMMARY: Practical DEI habits that improve decisions, retention, and workplace respect.
 
 SLIDE 1 | Why DEI Matters
 Diverse, equitable, and inclusive workplaces outperform their peers on virtually every measure: innovation, employee engagement, retention, customer satisfaction, and financial performance. Research consistently shows that teams with diverse perspectives make better decisions and identify risks that homogeneous groups miss. DEI is not just a moral imperative — it is a business strategy with measurable results.

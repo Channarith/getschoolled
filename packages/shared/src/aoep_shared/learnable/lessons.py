@@ -25,6 +25,7 @@ class SampleLesson(BaseModel):
     lesson_id: str
     title: str
     language: str = "en"
+    audience: str = "general"
     slides: List[SampleSlide] = Field(default_factory=list)
 
 
@@ -42,6 +43,7 @@ def curriculum_root(explicit: Optional[str | Path] = None) -> Path:
 def _parse_lesson(lesson_id: str, text: str) -> SampleLesson:
     title = lesson_id
     language = "en"
+    audience = "general"
     slides: List[SampleSlide] = []
     cur_idx: Optional[int] = None
     cur_title = ""
@@ -75,8 +77,16 @@ def _parse_lesson(lesson_id: str, text: str) -> SampleLesson:
         if line.startswith("LANGUAGE:"):
             language = line.split(":", 1)[1].strip()
             continue
+        if line.startswith("AUDIENCE:"):
+            audience = line.split(":", 1)[1].strip().lower() or "general"
+            continue
         if line.startswith("NARRATION:"):
             cur_narration = line.split(":", 1)[1].strip()
+            continue
+        # Catalog metadata used by the corporate funnel; ignore here.
+        if line.split(":", 1)[0] in {
+            "TRACK", "LEVEL", "ROLE", "DELIVERY", "FIT", "SUMMARY",
+        }:
             continue
         m = _SLIDE_RE.match(line)
         if m:
@@ -87,7 +97,10 @@ def _parse_lesson(lesson_id: str, text: str) -> SampleLesson:
         if cur_idx is not None:
             cur_body.append(line)
     flush()
-    return SampleLesson(lesson_id=lesson_id, title=title, language=language, slides=slides)
+    return SampleLesson(
+        lesson_id=lesson_id, title=title, language=language,
+        audience=audience, slides=slides,
+    )
 
 
 def load_sample_lessons(root: Optional[str | Path] = None) -> List[SampleLesson]:
@@ -119,6 +132,10 @@ def lesson_category(lesson_id: str, title: str) -> str:
     if any(k in lid for k in (
         "osha", "fire-safety", "hipaa", "food-handler", "sexual-harassment",
         "workplace-ethics", "dei", "forklift", "diversity-equity",
+        "workplace-violence", "security-policies", "trade-compliance",
+        "social-media-at-work", "export-control", "liquid-cooling",
+        "data-privacy-workplace", "anti-bribery", "lab-safety",
+        "automotive-safety",
     )):
         return "Workplace Compliance"
     if any(k in lid for k in (

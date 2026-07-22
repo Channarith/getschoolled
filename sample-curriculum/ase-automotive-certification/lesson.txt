@@ -1,5 +1,12 @@
 LESSON: ASE Automotive Service Excellence Certification
 LANGUAGE: en
+AUDIENCE: corporate
+TRACK: Automotive
+LEVEL: Certification prep
+ROLE: Automotive technicians
+DELIVERY: 2–3 hr live class
+FIT: Technicians preparing for ASE service excellence certifications.
+SUMMARY: ASE domains, safety practices, diagnostics mindset, and professional standards.
 
 SLIDE 1 | What is ASE Certification?
 ASE (Automotive Service Excellence) certifications are the industry standard for
