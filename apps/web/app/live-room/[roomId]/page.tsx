@@ -2773,7 +2773,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   large
                   fill
                   fullscreen={isFullscreen}
-                  liveKitTrack={trackFor(host.id)}
+                  localStream={canModerate && cameraOn ? localStream : null}
+                  liveKitTrack={canModerate && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
                     title: "Welcome to Transparent AI",
@@ -3008,8 +3009,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   p={p}
                   showAdminProfile={canModerate}
                   fill
-                  localStream={p.id === me?.id && cameraOn ? localStream : null}
-                  liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
+                  localStream={p.id === me?.id && cameraOn && !canModerate ? localStream : null}
+                  liveKitTrack={p.id === me?.id && (!cameraOn || canModerate) ? null : trackFor(p.id)}
                   hasFloor={p.id === room?.floor_participant_id}
                   isMe={p.id === me?.id}
                   presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
@@ -3061,6 +3062,49 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   >
                     🎤 Request to speak
                   </button>
+                ) : null}
+                {/* Prominent mute/unmute button for host — visible on every learner tile */}
+                {canModerate && p.id !== me?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleLocalAudio(p.id)}
+                    title={locallyMutedIds.has(p.id) ? `Unmute ${p.name}` : `Mute ${p.name}`}
+                    style={{
+                      position: "absolute",
+                      bottom: 6,
+                      right: 6,
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: locallyMutedIds.has(p.id)
+                        ? "rgba(239,68,68,0.92)"
+                        : "rgba(30,30,60,0.85)",
+                      color: "#fff",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {locallyMutedIds.has(p.id) ? "🔇 Muted" : "🔊 Unmute"}
+                  </button>
+                ) : null}
+                {/* Hand-raise badge — visible only to the host so they know who wants to speak */}
+                {canModerate && p.hand_raised ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 30,
+                      left: 6,
+                      fontSize: 11,
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      background: "rgba(217,154,28,0.95)",
+                      color: "#1c1917",
+                      fontWeight: 700,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    ✋ Hand raised
+                  </div>
                 ) : null}
                 {p.role !== "host" && p.id !== me?.id ? (
                   <button
