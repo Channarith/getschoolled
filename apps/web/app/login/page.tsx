@@ -183,20 +183,17 @@ export default function LoginPage() {
             {busy ? t("login.busy") : mfaToken ? "Verify 2FA" : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
-        {mode === "login" && !mfaToken && oauthStatus && (
-          oauthStatus.google.enabled || oauthStatus.facebook.enabled || oauthStatus.apple?.enabled
-        ) && (
+        {mode === "login" && !mfaToken && (
           <>
             <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>Or continue with</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              {oauthStatus.google.enabled && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true); setError("");
-                    try {
-                      if (oauthStatus.google.mode === "sandbox") {
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true); setError("");
+                  try {
+                    if (oauthStatus?.google?.mode === "sandbox") {
                         const em = window.prompt("Sandbox: enter email for Google login") || "";
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithGoogle(`sandbox_google_${em}`);
@@ -243,20 +240,18 @@ export default function LoginPage() {
                           }
                         });
                       });
-                    } catch (e) { setError(String(e)); setBusy(false); }
-                  }}
-                >
-                  Sign in with Google
-                </button>
-              )}
-              {oauthStatus.facebook.enabled && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true); setError("");
-                    try {
-                      if (oauthStatus.facebook.mode === "sandbox") {
+                  } catch (e) { setError(String(e)); setBusy(false); }
+                }}
+              >
+                Sign in with Google
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true); setError("");
+                  try {
+                    if (oauthStatus?.facebook?.mode === "sandbox") {
                         const em = window.prompt("Sandbox: enter email for Facebook login") || "";
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithFacebook(`sandbox_facebook_${em}`);
@@ -286,12 +281,11 @@ export default function LoginPage() {
                       const res = await loginWithFacebook(accessToken);
                       setToken(res.token);
                       router.push("/");
-                    } catch (e) { setError(String(e)); setBusy(false); }
-                  }}
-                >
-                  Sign in with Facebook
-                </button>
-              )}
+                  } catch (e) { setError(String(e)); setBusy(false); }
+                }}
+              >
+                Sign in with Facebook
+              </button>
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
               <a href="/forgot-password">Forgot password?</a>
