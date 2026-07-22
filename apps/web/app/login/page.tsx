@@ -286,6 +286,53 @@ export default function LoginPage() {
               >
                 Sign in with Facebook
               </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true); setError("");
+                  try {
+                    if (oauthStatus?.apple?.mode === "sandbox") {
+                      const em = window.prompt("Sandbox: enter email for Apple login") || "";
+                      if (!em) { setBusy(false); return; }
+                      const res = await loginWithApple(`sandbox_apple_${em}`);
+                      setToken(res.token);
+                      router.push("/");
+                      return;
+                    }
+                    // Apple Sign In for web — requires a Services ID registered at
+                    // developer.apple.com → Certificates → Identifiers → Services IDs
+                    const APPLE_SERVICES_ID = "com.aiclassroom.web";
+                    if (!(window as any).AppleID) {
+                      await new Promise<void>((resolve, reject) => {
+                        const s = document.createElement("script");
+                        s.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
+                        s.onload = () => resolve();
+                        s.onerror = () => reject(new Error("Failed to load Apple JS SDK"));
+                        document.head.appendChild(s);
+                      });
+                    }
+                    (window as any).AppleID.auth.init({
+                      clientId: APPLE_SERVICES_ID,
+                      scope: "name email",
+                      redirectURI: window.location.origin + "/login",
+                      usePopup: true,
+                    });
+                    const data = await (window as any).AppleID.auth.signIn();
+                    const identityToken = data?.authorization?.id_token;
+                    if (!identityToken) throw new Error("Apple sign-in did not return an identity token");
+                    const res = await loginWithApple(identityToken);
+                    setToken(res.token);
+                    router.push("/");
+                  } catch (e: any) {
+                    if (e?.error !== "popup_closed_by_user") setError(String(e?.message || e));
+                    setBusy(false);
+                  }
+                }}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
+                 Sign in with Apple
+              </button>
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
               <a href="/forgot-password">Forgot password?</a>
