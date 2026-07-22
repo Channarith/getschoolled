@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-22 - v0.28.15 - Salareen Worlds: playable 3D educational web game using Three.js; procedural voxel terrain with 5 biomes; WASD+mouse third-person camera; Theodore AI NPC companion; 22 rotating question blocks across 5 subjects (math, science, language, geography, history); XP/gems system; real-time fog/shadows/lighting.
 - 2026-07-22 - v0.28.14 - Enforce sign-in everywhere: remove Browse-without-signing-in (mobile), remove guest/preview mode entirely, remove GuestFeatureGate; add Google/Facebook/Apple social sign-in buttons directly on web landing page; SignInToUse no longer shows Watch-instead escape hatch.
 - 2026-07-22 - v0.28.13 - Live room self-host improvements: teacher camera shown in Theodore presenter tile instead of learner strip; per-learner Mute/Unmute and hand-raise badge visible to host; Theodore slide narration and welcome message silenced when moderator is hosting; draggable floating bug button (web).
 - 2026-07-22 - v0.28.12 - Google, Apple & Facebook social login (web + mobile): real OAuth flows with brand logos, Apple Services ID for web, backend JWT audience fix for both bundle ID and Services ID, SDK 51-compatible package pins (expo-auth-session ~5.5.2, expo-apple-authentication ~6.4.2, expo-web-browser ~13.0.3, expo-crypto ~13.0.2), credentials patched into k8s aoep-secrets.
