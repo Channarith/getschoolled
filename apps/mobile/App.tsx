@@ -26,7 +26,7 @@ import {
   applyVoicePrefsToTts, voicePrefsFromSettings,
 } from "./src/narrationTts";
 import {
-  getMyList, getReadIds, getSettings, getPreviewMode, listContinue, setPreviewMode,
+  getMyList, getReadIds, getSettings, listContinue,
 } from "./src/storage";
 import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
@@ -55,7 +55,6 @@ import DemoScreen from "./src/screens/DemoScreen";
 import DraggableBugButton from "./src/components/DraggableBugButton";
 import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton";
 import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
-import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
   createStudent, getFlag, getMe, getNotificationsFeed, listStudents, startSoloLiveRoom,
@@ -116,7 +115,6 @@ function AppInner() {
   const [salesDemoFlags, setSalesDemoFlags] = useState(DEFAULT_SALES_DEMO_FLAGS);
   const [bugCapture, setBugCapture] = useState<BugScreenshotUpload | null>(null);
   const [bugCaptureBusy, setBugCaptureBusy] = useState(false);
-  const [previewMode, setPreviewModeState] = useState(false);
   const [activeLesson, setActiveLesson] = useState<
     { id: string; title: string; preview?: string; classType?: "solo" | "group" } | null
   >(null);
@@ -126,7 +124,7 @@ function AppInner() {
   const [authEpoch, setAuthEpoch] = useState(0);
   const [drivingStatus, setDrivingStatus] = useState<DrivingStatus>(getDrivingStatus());
   const authenticated = authStatus === "authenticated";
-  const inApp = authenticated || previewMode;
+  const inApp = authenticated;
   const captureViewRef = useRef<View>(null);
 
   useEffect(() => {
@@ -157,26 +155,8 @@ function AppInner() {
     return () => { alive = false; sub.remove(); };
   }, [authEpoch]);
 
-  useEffect(() => {
-    void getPreviewMode().then(setPreviewModeState);
-  }, []);
-
-  async function enterGuestBrowse() {
-    await setPreviewMode(true);
-    setPreviewModeState(true);
-  }
-
-  async function exitPreviewToAuth() {
-    await setPreviewMode(false);
-    setPreviewModeState(false);
-  }
-
   function requireAuth(action: () => void) {
-    if (authenticated) {
-      action();
-      return;
-    }
-    void exitPreviewToAuth();
+    if (authenticated) action();
   }
 
   useEffect(() => {
@@ -210,8 +190,6 @@ function AppInner() {
       setShowDemo(false);
       setShowBugReport(false);
       setActiveLesson(null);
-      setPreviewModeState(false);
-      void setPreviewMode(false);
     }
     prevAuthStatusRef.current = authStatus;
   }, [authStatus]);
@@ -399,10 +377,7 @@ function AppInner() {
   // The Drive tab opens straight into the player when a courseId is set;
   // otherwise it falls back to the audio-courses browser.
   const openCourse = (id: string) => {
-    if (!authenticated) {
-      void exitPreviewToAuth();
-      return;
-    }
+    if (!authenticated) return;
     setOpenCourseId(id);
     setTab("drive");
   };
@@ -679,24 +654,16 @@ function AppInner() {
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
         onOpenSearch={() => setShowSearch(true)}
-        guestMode={!authenticated}
       />
     );
   } else if (tab === "drive") {
     screen = openCourseId
       ? (
-        !authenticated ? (
-          <GuestFeatureGate
-            onBack={() => setOpenCourseId(null)}
-            onSignIn={() => void exitPreviewToAuth()}
-          />
-        ) : (
-          <DriveModeScreen
-            courseId={openCourseId}
-            isDriving={drivingStatus.phase === "driving"}
-            onBack={() => setOpenCourseId(null)}
-          />
-        )
+        <DriveModeScreen
+          courseId={openCourseId}
+          isDriving={drivingStatus.phase === "driving"}
+          onBack={() => setOpenCourseId(null)}
+        />
       )
       : (
         <AudioCoursesScreen
@@ -721,13 +688,11 @@ function AppInner() {
         onOpenLearningProfile={() => setSurveyManualToken((n) => n + 1)}
         drivingStatus={drivingStatus}
         onDrivingSettingsChange={() => void syncDrivingDetection()}
-        guestMode={!authenticated}
-        onOpenAccount={() => requireAuth(() => setShowAccount(true))}
-        onOpenRewards={() => requireAuth(() => setShowRewards(true))}
-        onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
-        onOpenBilling={() => requireAuth(() => setShowBilling(true))}
+        onOpenAccount={() => setShowAccount(true)}
+        onOpenRewards={() => setShowRewards(true)}
+        onOpenLanguages={() => setShowLanguages(true)}
+        onOpenBilling={() => setShowBilling(true)}
         onOpenBugReport={bugReporterEnabled ? () => void openBugReporter() : undefined}
-        onSignIn={() => void exitPreviewToAuth()}
       />
     );
   }
@@ -809,7 +774,7 @@ function AppInner() {
       <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
-        <AuthScreen onBrowseGuest={() => void enterGuestBrowse()} />
+        <AuthScreen />
         {floatingBugButton}
       </SafeAreaView>
     );
@@ -857,23 +822,3 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
 });
 
-function GuestFeatureGate({
-  onBack, onSignIn,
-}: {
-  onBack: () => void;
-  onSignIn: () => void;
-}) {
-  const { t } = useT();
-  useAndroidBackTo(onBack);
-  return (
-    <View style={{ flex: 1, paddingTop: 56, paddingHorizontal: theme.spacing.screenX }}>
-      <PrimaryButton label={t("drive.back")} onPress={onBack} variant="ghost" />
-      <SignInGate
-        title={t("preview.lockedTitle")}
-        body={t("preview.lockedBody")}
-        signInLabel={t("preview.signIn")}
-        onSignIn={onSignIn}
-      />
-    </View>
-  );
-}
