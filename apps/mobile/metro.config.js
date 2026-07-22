@@ -78,29 +78,23 @@ config.watcher = {
   healthCheck: { enabled: false },
 };
 
-// RN 0.74 ships many platform files as *.ios.js / *.android.js only (no *.web.js
-// / *.js). Expo web still walks into those modules for some graphs; fall back to
-// the iOS variant so the bundle can load instead of 500ing on the first miss.
+// Web: never fall back to *.ios.js — that pulls BatchedBridge into the browser
+// and crashes with __fbBatchedBridgeConfig. Stub native-only packages instead.
+const WEB_STUBS = {
+  "react-native-google-mobile-ads": path.resolve(
+    __dirname,
+    "src/shims/react-native-google-mobile-ads.web.js",
+  ),
+};
 const priorResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  const resolve = (plat) => {
-    if (typeof priorResolveRequest === "function") {
-      return priorResolveRequest(context, moduleName, plat);
-    }
-    return context.resolveRequest(context, moduleName, plat);
-  };
-  if (platform === "web") {
-    try {
-      return resolve("web");
-    } catch (webErr) {
-      try {
-        return context.resolveRequest(context, moduleName, "ios");
-      } catch {
-        throw webErr;
-      }
-    }
+  if (platform === "web" && WEB_STUBS[moduleName]) {
+    return { type: "sourceFile", filePath: WEB_STUBS[moduleName] };
   }
-  return resolve(platform);
+  if (typeof priorResolveRequest === "function") {
+    return priorResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;

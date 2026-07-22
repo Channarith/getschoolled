@@ -52,6 +52,7 @@ import BillingScreen from "./src/screens/BillingScreen";
 import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SearchScreen from "./src/screens/SearchScreen";
 import DemoScreen from "./src/screens/DemoScreen";
+import DraggableBugButton from "./src/components/DraggableBugButton";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
@@ -716,19 +717,11 @@ function AppInner() {
   void I18nManager;
 
   const floatingBugButton = bugReporterEnabled && !showBugReport ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Report a bug"
-      disabled={bugCaptureBusy}
+    <DraggableBugButton
       onPress={() => void openBugReporter()}
-      style={({ pressed }) => [
-        styles.floatingBug,
-        inApp && mainTabsVisible && styles.floatingBugAboveTabs,
-        pressed && styles.floatingBugPressed,
-      ]}
-    >
-      <Text style={styles.floatingBugIcon}>🐛</Text>
-    </Pressable>
+      disabled={bugCaptureBusy}
+      aboveTabs={inApp && mainTabsVisible}
+    />
   ) : null;
 
   if (authStatus === "loading" && !showBugReport) {
@@ -854,29 +847,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   demoBtnText: { color: "#a5b4fc", fontSize: 14, fontWeight: "700", letterSpacing: 0.5 },
-  floatingBug: {
-    position: "absolute",
-    right: 14,
-    bottom: 16,
-    zIndex: 1000,
-    elevation: 14,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(30,27,75,0.82)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    shadowColor: "#000",
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    opacity: 0.82,
-  },
-  floatingBugAboveTabs: { bottom: 82 },
-  floatingBugPressed: { opacity: 0.55, transform: [{ scale: 0.94 }] },
-  floatingBugIcon: { fontSize: 19 },
 });
 
 function GuestFeatureGate({

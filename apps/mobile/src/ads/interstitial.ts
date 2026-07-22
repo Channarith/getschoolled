@@ -17,10 +17,13 @@ import { useFeatureFlag } from "../featureFlags";
 type AdsModule = typeof import("react-native-google-mobile-ads");
 
 let adsModule: AdsModule | null = null;
-try {
-  adsModule = require("react-native-google-mobile-ads") as AdsModule;
-} catch {
-  adsModule = null;
+if (Platform.OS !== "web") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    adsModule = require("react-native-google-mobile-ads") as AdsModule;
+  } catch {
+    adsModule = null;
+  }
 }
 
 /**

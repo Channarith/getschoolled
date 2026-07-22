@@ -114,7 +114,11 @@ export function useLiveKitRoom(
     if (!lk) {
       setConnected(false);
       setTracks([]);
-      setConnectError("Live video is unavailable in this build. Reinstall the Salareen app.");
+      // Expo Go has no WebRTC native module — class still works with narration.
+      setConnectError(
+        "Live camera video needs the Salareen native app (not Expo Go). "
+        + "Audio class and chat still work here.",
+      );
       return;
     }
     const { AudioSession } = lk.rn;
