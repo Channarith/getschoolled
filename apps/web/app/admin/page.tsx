@@ -37,6 +37,7 @@ function worstP95(t: TelemetrySummary): number {
 
 const CATEGORY_LABELS: Record<string, string> = {
   engagement: "Engagement & Feedback",
+  sales_demo: "Sales Demo",
   data: "Data & Data Mining",
   access: "Access & User Levels",
   monetization: "Monetization",

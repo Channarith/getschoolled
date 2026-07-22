@@ -10,6 +10,7 @@ import SiteFooter from "./components/SiteFooter";
 import MaintenanceBanner from "./components/MaintenanceBanner";
 import ClientLogInit from "./components/ClientLogInit";
 import FloatingBugReporter from "./components/FloatingBugReporter";
+import FloatingSalesDemo from "./components/FloatingSalesDemo";
 import { LocaleProvider } from "./lib/i18n";
 import { FlagsProvider } from "./lib/flags";
 
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <LocalizedNav appVersion={APP_VERSION} />
             <div className="site-main">{children}</div>
             <SiteFooter />
+            <FloatingSalesDemo />
             <FloatingBugReporter />
           </FlagsProvider>
         </LocaleProvider>
