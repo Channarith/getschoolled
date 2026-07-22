@@ -308,6 +308,17 @@ export function useLiveKitRoom(
     return "not_ready";
   }, [setCameraEnabled]);
 
+  const toggleScreenShare = useCallback(async (enabled: boolean): Promise<boolean> => {
+    const room = roomRef.current;
+    if (!room) return false;
+    try {
+      await room.localParticipant.setScreenShareEnabled(enabled);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const trackFor = useCallback(
     (participantId: string, identity?: string): object | null => {
       const hit = tracks.find(
@@ -324,6 +335,7 @@ export function useLiveKitRoom(
     trackFor,
     setCameraEnabled,
     ensureCameraToggle,
+    toggleScreenShare,
     hasRoom,
     connected,
     connectError,

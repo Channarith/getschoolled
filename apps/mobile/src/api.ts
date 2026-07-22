@@ -1357,6 +1357,43 @@ export async function liveRoomDismissReport(
   return r.room;
 }
 
+/** Call a specific participant to the floor by ID (host selects who speaks next). */
+export async function liveRoomCallSpecific(
+  roomId: string,
+  targetParticipantId: string,
+  moderatorKey: string,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL,
+    `/api/live-rooms/${encodeURIComponent(roomId)}/queue/call-specific`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ target_participant_id: targetParticipantId, moderator_key: moderatorKey }),
+    },
+  );
+  return r.room;
+}
+
+/** Mute or unmute a participant by host. */
+export async function liveRoomMuteParticipant(
+  roomId: string,
+  participantId: string,
+  moderatorKey: string,
+  mute: boolean,
+): Promise<LiveRoomState> {
+  const r = await get<{ room: LiveRoomState }>(
+    ORCHESTRATOR_URL,
+    `/api/live-rooms/${encodeURIComponent(roomId)}/mute`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ participant_id: participantId, moderator_key: moderatorKey, mute }),
+    },
+  );
+  return r.room;
+}
+
 export async function getLiveGiftCatalog(): Promise<{ gifts: LiveGiftCatalogItem[] }> {
   return get(ORCHESTRATOR_URL, "/api/live-rooms/gifts/catalog");
 }
