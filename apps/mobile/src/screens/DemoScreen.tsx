@@ -5,7 +5,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Path } from "react-native-svg";
 
-import { DEMO_COURSES, DEMO_FEATURES, type DemoCourse } from "../demo";
+import {
+  DEMO_COURSES, DEMO_FEATURES, SALES_DEMO_FLAGS, type DemoCourse,
+} from "../demo";
 import { theme } from "../theme";
 
 const { width: W } = Dimensions.get("window");
@@ -103,13 +105,18 @@ export default function DemoScreen({
   onSelectCourse,
   onOpenFeature,
   onEnterFullApp,
+  enabledFlags,
 }: {
   onSelectCourse: (courseId: string, title: string) => void;
   onOpenFeature: (featureId: string) => void;
   onEnterFullApp: () => void;
+  enabledFlags: Record<string, boolean>;
 }) {
   const { opacity: headerOpacity, translateY: headerTranslateY } = useFadeSlideIn(0);
   const ctaScale = useRef(new Animated.Value(1)).current;
+  const enabledFeatures = DEMO_FEATURES.filter((feature) => enabledFlags[feature.flagKey] !== false);
+  const showCourses = enabledFlags[SALES_DEMO_FLAGS.featuredCourses] !== false;
+  const showFullAppCta = enabledFlags[SALES_DEMO_FLAGS.fullAppCta] !== false;
 
   // Pulse animation on CTA button
   useEffect(() => {
@@ -143,45 +150,52 @@ export default function DemoScreen({
         <Text style={styles.heroTagline}>Explore the future of workplace learning</Text>
       </Animated.View>
 
-      {/* Featured Courses */}
-      <Text style={styles.sectionTitle}>Featured Courses</Text>
-      <Text style={styles.sectionSub}>5 compliance essentials, powered by AI</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.courseRow}>
-        {DEMO_COURSES.map((course, i) => (
-          <CourseCard
-            key={course.id}
-            course={course}
-            index={i}
-            onPress={() => onSelectCourse(course.id, course.title)}
-          />
-        ))}
-      </ScrollView>
+      {showCourses ? (
+        <>
+          <Text style={styles.sectionTitle}>Featured Courses</Text>
+          <Text style={styles.sectionSub}>5 compliance essentials, powered by AI</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.courseRow}>
+            {DEMO_COURSES.map((course, i) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                index={i}
+                onPress={() => onSelectCourse(course.id, course.title)}
+              />
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
 
-      {/* Key Features */}
-      <Text style={styles.sectionTitle}>What Makes Salareen Different</Text>
-      <View style={styles.featuresGrid}>
-        {DEMO_FEATURES.map((feature, i) => (
-          <FeatureCard
-            key={feature.id}
-            feature={feature}
-            index={i}
-            onPress={() => onOpenFeature(feature.id)}
-          />
-        ))}
-      </View>
+      {enabledFeatures.length ? (
+        <>
+          <Text style={styles.sectionTitle}>What Makes Salareen Different</Text>
+          <View style={styles.featuresGrid}>
+            {enabledFeatures.map((feature, i) => (
+              <FeatureCard
+                key={feature.id}
+                feature={feature}
+                index={i}
+                onPress={() => onOpenFeature(feature.id)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
 
-      {/* CTA */}
-      <Animated.View style={[styles.ctaWrap, { transform: [{ scale: ctaScale }] }]}>
-        <Pressable onPress={onEnterFullApp}>
-          <LinearGradient
-            colors={["#6366f1", "#8b5cf6"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={styles.ctaBtn}
-          >
-            <Text style={styles.ctaBtnText}>🚀  Explore Full Demo</Text>
-          </LinearGradient>
-        </Pressable>
-      </Animated.View>
+      {showFullAppCta ? (
+        <Animated.View style={[styles.ctaWrap, { transform: [{ scale: ctaScale }] }]}>
+          <Pressable onPress={onEnterFullApp}>
+            <LinearGradient
+              colors={["#6366f1", "#8b5cf6"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.ctaBtn}
+            >
+              <Text style={styles.ctaBtnText}>🚀  Explore Full Demo</Text>
+            </LinearGradient>
+          </Pressable>
+        </Animated.View>
+      ) : null}
 
       <Text style={styles.footer}>Salareen · AI Education Platform · sales@salareen.com</Text>
     </ScrollView>

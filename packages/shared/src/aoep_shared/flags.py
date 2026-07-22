@@ -89,6 +89,22 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Show the discreet floating bug-report button across web and mobile. "
              "Enabled by default for user-driven QA; disable for production when ready."),
 
+    # --- sales demo --------------------------------------------------------- #
+    FlagSpec("sales_demo.enabled", FlagType.BOOL, True, "sales_demo",
+             "Expose the signed-in Sales Demo launcher on web and mobile."),
+    FlagSpec("sales_demo.featured_courses", FlagType.BOOL, True, "sales_demo",
+             "Show the featured compliance and workplace-training course cards."),
+    FlagSpec("sales_demo.solo_ai", FlagType.BOOL, True, "sales_demo",
+             "Show the Solo AI Session capability in the Sales Demo."),
+    FlagSpec("sales_demo.drive_mode", FlagType.BOOL, True, "sales_demo",
+             "Show the hands-free On-the-Go / Drive Mode capability in the Sales Demo."),
+    FlagSpec("sales_demo.arcade_games", FlagType.BOOL, True, "sales_demo",
+             "Show Arcade learning games in the Sales Demo."),
+    FlagSpec("sales_demo.language_practice", FlagType.BOOL, True, "sales_demo",
+             "Show AI language and pronunciation practice in the Sales Demo."),
+    FlagSpec("sales_demo.full_app_cta", FlagType.BOOL, True, "sales_demo",
+             "Show the Explore Full Demo call-to-action."),
+
     # --- data / analytics / data mining -------------------------------------- #
     FlagSpec("data.multidim_datamart", FlagType.BOOL, False, "data",
              "Write events into a multi-dimensional (OLAP-style) data mart for "

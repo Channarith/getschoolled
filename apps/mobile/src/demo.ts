@@ -13,6 +13,12 @@ export type DemoCourse = {
   description: string;
 };
 
+export const SALES_DEMO_FLAGS = {
+  enabled: "sales_demo.enabled",
+  featuredCourses: "sales_demo.featured_courses",
+  fullAppCta: "sales_demo.full_app_cta",
+} as const;
+
 export const DEMO_COURSES: DemoCourse[] = [
   {
     id: "demo-sexual-harassment",
@@ -79,6 +85,7 @@ export const DEMO_COURSES: DemoCourse[] = [
 export const DEMO_FEATURES = [
   {
     id: "solo",
+    flagKey: "sales_demo.solo_ai",
     emoji: "🤖",
     title: "Solo AI Session",
     subtitle: "Ask Theodore anything",
@@ -87,6 +94,7 @@ export const DEMO_FEATURES = [
   },
   {
     id: "drive",
+    flagKey: "sales_demo.drive_mode",
     emoji: "🎧",
     title: "On-the-Go Mode",
     subtitle: "Learn hands-free",
@@ -95,6 +103,7 @@ export const DEMO_FEATURES = [
   },
   {
     id: "arcade",
+    flagKey: "sales_demo.arcade_games",
     emoji: "🎮",
     title: "Arcade Games",
     subtitle: "Test your knowledge",
@@ -103,6 +112,7 @@ export const DEMO_FEATURES = [
   },
   {
     id: "languages",
+    flagKey: "sales_demo.language_practice",
     emoji: "🗣️",
     title: "Language Practice",
     subtitle: "Speak with confidence",

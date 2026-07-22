@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated, AppState, I18nManager, Platform, Pressable, SafeAreaView, StyleSheet, Text, View,
+  Animated, AppState, I18nManager, Platform, SafeAreaView, StyleSheet, Text, View,
 } from "react-native";
 import { useAndroidBack, useAndroidBackTo } from "./src/hooks/useAndroidBack";
 
@@ -53,6 +53,8 @@ import LanguagesScreen from "./src/screens/LanguagesScreen";
 import SearchScreen from "./src/screens/SearchScreen";
 import DemoScreen from "./src/screens/DemoScreen";
 import DraggableBugButton from "./src/components/DraggableBugButton";
+import DraggableSalesDemoButton from "./src/components/DraggableSalesDemoButton";
+import { DEMO_FEATURES, SALES_DEMO_FLAGS } from "./src/demo";
 import SignInGate from "./src/components/SignInGate";
 import PrimaryButton from "./src/components/PrimaryButton";
 import {
@@ -63,6 +65,14 @@ import { installClientLog } from "./src/clientLog";
 import { theme } from "./src/theme";
 import type { TabId } from "./src/types";
 import { setSettings } from "./src/storage";
+
+const SALES_DEMO_FLAG_KEYS = [
+  ...Object.values(SALES_DEMO_FLAGS),
+  ...DEMO_FEATURES.map((feature) => feature.flagKey),
+];
+const DEFAULT_SALES_DEMO_FLAGS = Object.fromEntries(
+  SALES_DEMO_FLAG_KEYS.map((key) => [key, true]),
+) as Record<string, boolean>;
 
 export default function App() {
   return (
@@ -103,6 +113,7 @@ function AppInner() {
   const [showDemo, setShowDemo] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
+  const [salesDemoFlags, setSalesDemoFlags] = useState(DEFAULT_SALES_DEMO_FLAGS);
   const [bugCapture, setBugCapture] = useState<BugScreenshotUpload | null>(null);
   const [bugCaptureBusy, setBugCaptureBusy] = useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
@@ -128,6 +139,16 @@ function AppInner() {
       void getFlag("engagement.in_app_bug_reporter")
         .then((value) => { if (alive) setBugReporterEnabled(value !== false); })
         .catch(() => { /* Memory unavailable: default-on keeps QA accessible. */ });
+      void Promise.all(
+        SALES_DEMO_FLAG_KEYS.map(async (key) => [key, (await getFlag(key)) !== false] as const),
+      )
+        .then((entries) => {
+          if (!alive) return;
+          const next = Object.fromEntries(entries) as Record<string, boolean>;
+          setSalesDemoFlags(next);
+          if (next[SALES_DEMO_FLAGS.enabled] === false) setShowDemo(false);
+        })
+        .catch(() => { /* Memory unavailable: keep demo defaults. */ });
     };
     refresh();
     const sub = AppState.addEventListener("change", (state) => {
@@ -186,6 +207,7 @@ function AppInner() {
       setShowBilling(false);
       setShowLanguages(false);
       setShowSearch(false);
+      setShowDemo(false);
       setShowBugReport(false);
       setActiveLesson(null);
       setPreviewModeState(false);
@@ -723,6 +745,13 @@ function AppInner() {
       aboveTabs={inApp && mainTabsVisible}
     />
   ) : null;
+  const salesDemoEnabled = salesDemoFlags[SALES_DEMO_FLAGS.enabled] !== false;
+  const floatingSalesDemoButton = authenticated && salesDemoEnabled && !showDemo && !showBugReport ? (
+    <DraggableSalesDemoButton
+      aboveTabs={mainTabsVisible}
+      onPress={() => setShowDemo(true)}
+    />
+  ) : null;
 
   if (authStatus === "loading" && !showBugReport) {
     return (
@@ -746,20 +775,18 @@ function AppInner() {
     );
   }
 
-  if (showDemo && !showBugReport) {
+  if (authenticated && salesDemoEnabled && showDemo && !showBugReport) {
     return (
       <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root}>
         <StatusBar style="light" />
         <AmbientBackground />
         <DemoScreen
-          onSelectCourse={async (courseId, title) => {
-            await enterGuestBrowse();
+          onSelectCourse={(courseId) => {
             setShowDemo(false);
             setOpenCourseId(courseId);
             setTab("drive");
           }}
-          onOpenFeature={async (featureId) => {
-            await enterGuestBrowse();
+          onOpenFeature={(featureId) => {
             setShowDemo(false);
             if (featureId === "drive") setTab("drive");
             else if (featureId === "arcade") setShowArcade(true);
@@ -767,10 +794,10 @@ function AppInner() {
             else if (featureId === "solo") setShowLiveClass(true);
             else setTab("home");
           }}
-          onEnterFullApp={async () => {
-            await enterGuestBrowse();
+          onEnterFullApp={() => {
             setShowDemo(false);
           }}
+          enabledFlags={salesDemoFlags}
         />
         {floatingBugButton}
       </SafeAreaView>
@@ -783,14 +810,6 @@ function AppInner() {
         <StatusBar style="light" />
         <AmbientBackground />
         <AuthScreen onBrowseGuest={() => void enterGuestBrowse()} />
-        <Pressable
-          onPress={() => setShowDemo(true)}
-          style={styles.demoBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Sales demo mode"
-        >
-          <Text style={styles.demoBtnText}>✨ Sales Demo</Text>
-        </Pressable>
         {floatingBugButton}
       </SafeAreaView>
     );
@@ -828,6 +847,7 @@ function AppInner() {
           unreadCount={unreadCount}
         />
       ) : null}
+      {floatingSalesDemoButton}
       {floatingBugButton}
     </SafeAreaView>
   );
@@ -835,18 +855,6 @@ function AppInner() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.bg },
-  demoBtn: {
-    position: "absolute",
-    bottom: 32,
-    alignSelf: "center",
-    backgroundColor: "rgba(99,102,241,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(99,102,241,0.45)",
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  demoBtnText: { color: "#a5b4fc", fontSize: 14, fontWeight: "700", letterSpacing: 0.5 },
 });
 
 function GuestFeatureGate({
