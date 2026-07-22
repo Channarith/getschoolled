@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
   getLiveRoom,
@@ -46,6 +46,7 @@ import Link from "next/link";
 import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
 import { useLiveRoomSocket } from "../../lib/liveRoomSocket";
+import Whiteboard, { type WhiteboardStroke } from "./Whiteboard";
 import { useT } from "../../lib/i18n";
 import { buildNarrationSpeakOptions } from "../../lib/narrationTts";
 import { speakNaturally, cancelSpeech } from "../../lib/tts";
@@ -53,6 +54,9 @@ import { resumeSharedAudioContext, unlockWebAudio } from "../../lib/webAudioUnlo
 import { createVisionEngine, type VisionEngine } from "../../lib/vision";
 
 const REACTIONS = ["❤️", "👏", "🔥", "😂", "🎉", "👍"] as const;
+// Design A "calm studio" primary CTA color — a warm gold used for the key
+// actions (Raise your hand / Done, send message) to match the mockup.
+const STUDIO_GOLD = "#c8981f";
 
 // Minimal Web Speech API shape (Chrome/Edge expose webkitSpeechRecognition).
 // Used to capture a learner's spoken question while they hold the floor so it
@@ -346,16 +350,22 @@ function ParticipantTile({
       onDoubleClick={toggleFullscreen}
       style={{
         position: "relative",
-        borderRadius: large ? 16 : 12,
+        borderRadius: large ? 20 : 14,
         overflow: "hidden",
+        // Calm studio backdrop (Design A): a deep plum "stage" with a soft accent
+        // glow instead of a loud full-saturation blue→teal billboard, so the
+        // presenter reads as a professional broadcast studio on the warm page.
         background: isHost
-          ? "linear-gradient(145deg, var(--accent) 0%, var(--accent-2) 100%)"
-          : "color-mix(in srgb, var(--accent) 8%, var(--panel))",
+          ? "radial-gradient(130% 105% at 50% -12%, color-mix(in srgb, var(--accent) 32%, #2a2040) 0%, #1b1528 66%)"
+          : "color-mix(in srgb, var(--accent) 6%, var(--panel))",
         border: hasFloor
           ? "2px solid var(--accent-2)"
           : p.hand_raised
             ? "2px solid #d99a1c"
-            : "1px solid var(--border)",
+            : isHost
+              ? "1px solid color-mix(in srgb, #ffffff 12%, transparent)"
+              : "1px solid var(--border)",
+        boxShadow: isHost && large ? "0 18px 48px rgba(27, 21, 40, 0.28)" : undefined,
         minHeight: fill ? "100%" : large ? 220 : 110,
         height: fill ? "100%" : undefined,
         display: "flex",
@@ -380,46 +390,109 @@ function ParticipantTile({
         />
       ) : isHost && slide ? (
         // The AI instructor has no camera — its "video feed" IS the current slide.
+        // Design A: a Theodore presence (AI-teacher avatar, not a stock human) next
+        // to a bright white slide card, framed by the plum studio backdrop.
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            gap: fullscreen ? "clamp(18px, 3vh, 36px)" : 10,
-            padding: fullscreen
-              ? "clamp(24px, 7vw, 96px)"
-              : large ? "28px 32px" : "14px 16px",
-            color: "#fff",
-            textAlign: "left",
-            overflowY: "auto",
+            gap: fullscreen ? 0 : large ? 16 : 10,
+            padding: fullscreen ? "clamp(20px, 5vw, 72px)" : large ? 16 : 10,
+            overflow: "hidden",
           }}
         >
-          <div style={{
-            fontSize: fullscreen ? "clamp(16px, 2.5vw, 30px)" : 12,
-            opacity: 0.85,
-            textTransform: "uppercase",
-            letterSpacing: fullscreen ? 1 : 0.5,
-          }}>
-            🎓 Theodore · Slide {slide.index + 1}
-          </div>
-          <div style={{
-            fontSize: fullscreen ? "clamp(32px, 7vw, 88px)" : large ? 26 : 18,
-            fontWeight: 800,
-            lineHeight: fullscreen ? 1.08 : 1.2,
-            textWrap: "balance",
-          }}>
-            {slide.title}
-          </div>
-          <div style={{
-            fontSize: fullscreen ? "clamp(21px, 3.8vw, 48px)" : large ? 15 : 13,
-            lineHeight: fullscreen ? 1.35 : 1.5,
-            opacity: 0.95,
-            overflow: fullscreen ? "visible" : "hidden",
-            maxWidth: fullscreen ? "30em" : undefined,
-          }}>
-            {slide.narration || slide.body}
+          {!fullscreen && large ? (
+            <div
+              style={{
+                flex: "0 0 32%",
+                minWidth: 0,
+                borderRadius: 18,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                background: "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent-2) 34%, transparent), transparent)",
+              }}
+            >
+              <div
+                style={{
+                  width: 104,
+                  height: 104,
+                  borderRadius: 999,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 50,
+                  background: "radial-gradient(120% 120% at 50% 20%, color-mix(in srgb, var(--accent-2) 42%, #241b34) 0%, #241b34 100%)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                  boxShadow: "0 14px 34px rgba(0,0,0,0.38)",
+                }}
+              >
+                🎓
+              </div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>Theodore</div>
+              <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>AI teacher</div>
+            </div>
+          ) : null}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: fullscreen ? 24 : 18,
+              background: "#fbf9f4",
+              color: "#1b1528",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: fullscreen ? "clamp(16px, 2.6vh, 30px)" : 12,
+              padding: fullscreen ? "clamp(28px, 6vw, 88px)" : large ? "30px 34px" : "16px 18px",
+              overflowY: "auto",
+              boxShadow: fullscreen ? "none" : "0 10px 30px rgba(0,0,0,0.22)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: fullscreen ? "clamp(11px, 1.4vw, 16px)" : 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: 0.8,
+                color: "#8a6d1f",
+              }}
+            >
+              Slide {slide.index + 1}
+            </div>
+            <div
+              style={{
+                fontSize: fullscreen ? "clamp(32px, 7vw, 88px)" : large ? 30 : 20,
+                fontWeight: 800,
+                lineHeight: fullscreen ? 1.08 : 1.18,
+                textWrap: "balance",
+              }}
+            >
+              {slide.title}
+            </div>
+            <div
+              aria-hidden
+              style={{
+                width: 54,
+                height: 4,
+                borderRadius: 999,
+                background: STUDIO_GOLD,
+              }}
+            />
+            <div
+              style={{
+                fontSize: fullscreen ? "clamp(19px, 3.4vw, 42px)" : large ? 15 : 13,
+                lineHeight: fullscreen ? 1.4 : 1.55,
+                color: "#443b52",
+                overflow: fullscreen ? "visible" : "hidden",
+                maxWidth: fullscreen ? "30em" : undefined,
+              }}
+            >
+              {slide.narration || slide.body}
+            </div>
           </div>
         </div>
       ) : (
@@ -591,9 +664,35 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [joinInfo, setJoinInfo] = useState<LiveRoomJoin | null>(null);
   const [room, setRoom] = useState<LiveRoomState | null>(null);
   const [error, setError] = useState("");
+  // Benign, informational messages (e.g. "no hands are up", "you're #2 in the
+  // queue"). Kept separate from `error` so normal states never render as a red
+  // "something broke" banner — a common source of the page looking broken.
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Auto-dismiss transient banners so they behave like toasts instead of
+  // sticking around and cluttering the stage.
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(""), 6000);
+    return () => clearTimeout(t);
+  }, [error]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
   const [chatDraft, setChatDraft] = useState("");
   const [askDraft, setAskDraft] = useState("");
+  // The "Ask Theodore" tab keeps its own persistent Q&A thread so a learner's
+  // questions and Theodore's answers stay in that tab instead of only living in
+  // the shared class chat. (The backend still mirrors Q&A into room.chat; we
+  // filter this learner's own Q&A back out of the Chat tab via askMineRef.)
+  const [askThread, setAskThread] = useState<
+    { id: string; question: string; answer: string; done: boolean; queued?: boolean }[]
+  >([]);
+  const askMineRef = useRef<Set<string>>(new Set());
+  const askEndRef = useRef<HTMLDivElement>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [cameraOn, setCameraOn] = useState(true);
   const [cameraNote, setCameraNote] = useState("");
@@ -617,8 +716,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [gameAnswer, setGameAnswer] = useState("artificial intelligence");
   const [gameResponse, setGameResponse] = useState("");
   const [learnerCtx, setLearnerCtx] = useState<LearnerJoinContext | null>(null);
-  const [showChat, setShowChat] = useState(true);
-  const [focusInstructor, setFocusInstructor] = useState(false);
+  // Which side-panel tab is active: the class chat, or asking Theodore directly.
+  const [panelTab, setPanelTab] = useState<"chat" | "ask">("chat");
+  // Selected learner in the participant strip (moderator quick-actions target).
+  const [selectedParticipant, setSelectedParticipant] = useState("");
+  // Whiteboard: when a student is called on (holds the floor) they can draw to
+  // demonstrate; everyone else watches. Toggled on by the instructor. NOTE:
+  // whiteboardOn / whiteboardStrokes are currently client-local — the real-time
+  // broadcast is a small backend addition (see docs/whiteboard-backend-spec.txt).
+  const [whiteboardOn, setWhiteboardOn] = useState(false);
+  const [whiteboardStrokes, setWhiteboardStrokes] = useState<WhiteboardStroke[]>([]);
+  // Lets the instructor preview the read-only "watch" view a student sees.
+  const [previewAsStudent, setPreviewAsStudent] = useState(false);
+  // Design A shows everyone via the participant strip; "focus instructor" mode
+  // is retired, so this stays false (kept as a const for the layout branches).
+  const focusInstructor = false;
   // Per-device playback mute. Unlike the old room-wide mute endpoint, this
   // only changes what the current viewer hears.
   const [locallyMutedIds, setLocallyMutedIds] = useState<Set<string>>(() => new Set());
@@ -849,6 +961,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [room?.chat.length]);
+
+  useEffect(() => {
+    askEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [askThread]);
 
   async function enableCamera() {
     setCameraNote("");
@@ -1229,20 +1345,55 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   async function askQuestion() {
     if (!me || !askDraft.trim()) return;
+    const q = askDraft.trim();
+    const entryId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setBusy(true);
+    // Show the question immediately in the Ask Theodore thread and remember it so
+    // its mirror copy in room.chat is hidden from the Chat tab.
+    setAskThread((prev) => [...prev, { id: entryId, question: q, answer: "", done: false }]);
+    askMineRef.current.add(q);
+    setAskDraft("");
     try {
       // Stream Theodore's answer (SSE) so the reply appears/plays live; other
       // participants receive it over the room WebSocket (host_delta frames).
-      const res = await liveRoomAskStream(roomId, me.id, askDraft.trim(), { language: locale });
-      if (res.room) setRoom(res.room);
+      const res = await liveRoomAskStream(roomId, me.id, q, {
+        language: locale,
+        onDelta: (chunk) =>
+          setAskThread((prev) =>
+            prev.map((e) => (e.id === entryId ? { ...e, answer: e.answer + chunk } : e)),
+          ),
+      });
       if (res.queued) {
-        setError(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
+        if (res.room) setRoom(res.room);
+        setAskThread((prev) =>
+          prev.map((e) =>
+            e.id === entryId
+              ? { ...e, done: true, queued: true, answer: e.answer || "Theodore will call on you in turn." }
+              : e,
+          ),
+        );
+        setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
       } else {
-        setError("");
+        const finalText = res.text || res.host_message?.text || "";
+        // Record the mirrored chat copies BEFORE applying the room so Theodore's
+        // reply ("@Name answer") is filtered out of the Chat tab on the very
+        // first render — it lives only in the Ask Theodore thread.
+        if (res.host_message?.text) askMineRef.current.add(res.host_message.text);
+        if (me?.name && finalText) askMineRef.current.add(`@${me.name} ${finalText}`);
+        if (res.room) setRoom(res.room);
+        setAskThread((prev) =>
+          prev.map((e) => (e.id === entryId ? { ...e, done: true, answer: finalText || e.answer } : e)),
+        );
+        setNotice("");
       }
-      setAskDraft("");
+      setError("");
     } catch (e) {
       setError(friendlyError(e, "Question failed"));
+      setAskThread((prev) =>
+        prev.map((e) =>
+          e.id === entryId ? { ...e, done: true, answer: e.answer || "Couldn't reach Theodore — try again." } : e,
+        ),
+      );
     } finally {
       setBusy(false);
     }
@@ -1270,8 +1421,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     try {
       setRoom(await liveRoomCallNext(roomId, moderatorKey));
       setError("");
+      setNotice("");
     } catch (e) {
-      setError(friendlyError(e, "Could not call next"));
+      // An empty Q&A queue is a normal state, not an error — calling "next" when
+      // no hands are up should read as a calm note, never a red alert banner.
+      const msg = friendlyError(e, "Could not call next");
+      if (/queue is empty|no one|empty/i.test(msg)) {
+        setNotice("No hands are up right now.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -2010,14 +2169,62 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     );
   };
 
+  // Underline tab style for the side panel (Chat / Ask Theodore) — Design A.
+  const panelTabStyle = (active: boolean): CSSProperties => ({
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 700,
+    padding: "8px 10px",
+    cursor: "pointer",
+    border: "none",
+    borderBottom: active ? `2px solid ${STUDIO_GOLD}` : "2px solid transparent",
+    marginBottom: -1,
+    lineHeight: 1.2,
+    background: "transparent",
+    color: active ? "var(--text)" : "var(--muted)",
+  });
+  // Design A control-bar button styles: stacked square "device" buttons for
+  // camera/mic/fullscreen, and bordered pills for the instructor/leave rail.
+  const deviceBtnStyle: CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    width: 64,
+    height: 56,
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    background: "var(--panel)",
+    color: "var(--text)",
+    cursor: "pointer",
+    fontSize: 11,
+    fontWeight: 600,
+  };
+  const railBtnStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    background: "var(--panel)",
+    color: "var(--text)",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    textDecoration: "none",
+  };
+
   return (
     <main
       style={{
         minHeight: "100vh",
-        // Match the site's light "warm campus" theme (globals.css tokens) so the
-        // classroom looks like the rest of the app, not a separate dark product.
+        // Design A "calm studio": a warm cream page with a faint gold wash rather
+        // than a cool blue tint, so the room matches the mockup palette.
         background:
-          "linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 88%, var(--accent)) 100%)",
+          "linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 90%, " + STUDIO_GOLD + ") 100%)",
         color: "var(--text)",
         padding: "12px 16px 24px",
       }}
@@ -2191,6 +2398,16 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             min-height: 300px !important;
           }
         }
+        /* Design A "calm studio": stage on the left, chat panel docked on the
+           right. Stacks to a single column on narrow screens. */
+        .live-stage-grid {
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 981px) {
+          .live-stage-grid {
+            grid-template-columns: minmax(0, 1fr) 360px !important;
+          }
+        }
         @keyframes live-float-up {
           0% {
             opacity: 1;
@@ -2221,39 +2438,79 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       `}</style>
 
       {error && (
-        <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", borderRadius: 8, padding: 8, marginBottom: 10 }}>
+        <div
+          role="alert"
+          style={{
+            background: "color-mix(in srgb, #ef4444 12%, var(--panel))",
+            border: "1px solid color-mix(in srgb, #ef4444 45%, transparent)",
+            color: "var(--text)",
+            borderRadius: 10,
+            padding: "8px 12px",
+            marginBottom: 10,
+            fontSize: 13,
+          }}
+        >
           {error}
         </div>
       )}
 
-      {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
+      {notice && (
         <div
           style={{
-            background: "rgba(88,28,135,0.88)",
-            border: "1px solid rgba(192,132,252,0.5)",
+            background: "color-mix(in srgb, var(--accent) 10%, var(--panel))",
+            border: "1px solid var(--border)",
+            color: "var(--muted)",
             borderRadius: 10,
-            padding: "9px 12px",
+            padding: "8px 12px",
             marginBottom: 10,
-            color: "#f3e8ff",
+            fontSize: 13,
+          }}
+        >
+          {notice}
+        </div>
+      )}
+
+      {/* Instructor insights — host-only, anonymous class aggregates. Collapsed
+          by default so this internal telemetry never clutters the class stage
+          (it used to sit as a loud purple bar in the main view). */}
+      {canModerate && Number(room?.audience_profile?.learner_count ?? 0) > 0 ? (
+        <details
+          style={{
+            background: "var(--panel)",
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            padding: "6px 12px",
+            marginBottom: 10,
+            color: "var(--muted)",
             fontSize: 12,
             lineHeight: 1.45,
           }}
-          title="Private administrator view. Theodore receives only anonymous class aggregates."
         >
-          <strong>🧠 Theodore adaptation monitor</strong>
-          {" · class mean "}
-          {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
-          {" · styles "}
-          {(room?.audience_profile?.dominant_styles ?? []).join(", ") || "mixed"}
-          {(room?.audience_profile?.adaptation_hints ?? []).length
-            ? ` · ${(room?.audience_profile?.adaptation_hints ?? []).join(" · ")}`
-            : ""}
-          <div style={{ opacity: 0.78 }}>
-            Individual readiness appears on learner tiles. Theodore uses anonymous
-            class aggregates when adapting explanations and Q&amp;A; authored slide
-            text itself is unchanged.
+          <summary style={{ cursor: "pointer", fontWeight: 600, listStyle: "none" }}>
+            📊 Instructor insights
+            <span style={{ opacity: 0.7, fontWeight: 400 }}>
+              {" · class mean "}
+              {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
+            </span>
+          </summary>
+          <div style={{ marginTop: 6 }}>
+            <div>
+              <strong>Readiness:</strong>{" "}
+              {Math.round(Number(room?.audience_profile?.mean_readiness ?? 0))}/100
+              {" · "}
+              <strong>styles:</strong>{" "}
+              {(room?.audience_profile?.dominant_styles ?? []).join(", ") || "mixed"}
+              {(room?.audience_profile?.adaptation_hints ?? []).length
+                ? ` · ${(room?.audience_profile?.adaptation_hints ?? []).join(" · ")}`
+                : ""}
+            </div>
+            <div style={{ opacity: 0.78, marginTop: 4 }}>
+              Private administrator view. Theodore uses anonymous class aggregates
+              when adapting explanations and Q&amp;A; authored slide text itself is
+              unchanged.
+            </div>
           </div>
-        </div>
+        </details>
       ) : null}
 
       {/* LiveKit couldn't connect (e.g. media backend unreachable / mis-keyed).
@@ -2425,69 +2682,53 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
-      {/* View toggles. Solo keeps both people visible and chat docked below. */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-        {!isSolo ? <button
-          type="button"
-          onClick={() => setFocusInstructor((v) => !v)}
-          title={focusInstructor ? "Show everyone" : "Focus on the instructor / slides"}
+      {whiteboardOn && hasFloor && !canModerate ? (
+        <div
           style={{
-            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-            border: "1px solid var(--border)",
-            background: focusInstructor ? "var(--accent)" : "var(--panel)",
-            color: focusInstructor ? "#fff" : "var(--text)",
-          }}
-        >
-          {focusInstructor ? "👥 Show everyone" : "🎓 Focus instructor"}
-        </button> : null}
-        {!isSolo ? <button
-          type="button"
-          onClick={() => setShowChat((v) => !v)}
-          title={showChat ? "Hide chat" : "Show chat"}
-          style={{
-            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-            border: "1px solid var(--border)",
-            background: showChat ? "var(--panel)" : "var(--accent)",
-            color: showChat ? "var(--text)" : "#fff",
-          }}
-        >
-          {showChat ? "💬 Hide chat" : "💬 Show chat"}
-        </button> : null}
-        <button
-          type="button"
-          onClick={toggleHostFullscreen}
-          title="Fullscreen the host / slide (Esc to exit)"
-          style={{
-            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-            border: "1px solid var(--border)",
-            background: isFullscreen ? "var(--accent)" : "var(--panel)",
-            color: isFullscreen ? "#fff" : "var(--text)",
-          }}
-        >
-          {isFullscreen ? "⛶ Exit fullscreen" : "⛶ Fullscreen host"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void toggleCamera()}
-          disabled={busy}
-          title={cameraOn && localStream ? "Turn your webcam off" : "Turn your webcam on / show self-view"}
-          style={{
-            fontSize: 13, padding: "6px 12px", borderRadius: 8, cursor: "pointer",
-            border: "1px solid var(--border)",
-            background: cameraOn && localStream ? "#059669" : "#b91c1c",
-            color: "#fff",
+            marginBottom: 10,
+            padding: "12px 16px",
+            borderRadius: 14,
+            textAlign: "center",
+            fontSize: 15,
             fontWeight: 700,
+            color: "#7a5c12",
+            background: "color-mix(in srgb, " + STUDIO_GOLD + " 16%, var(--panel))",
+            border: "1px solid color-mix(in srgb, " + STUDIO_GOLD + " 45%, var(--border))",
           }}
         >
-          {cameraOn && localStream ? "📹 Camera on" : "📷 Camera off — tap to enable"}
-        </button>
-      </div>
+          ✍️ You&apos;re up! Solve on the whiteboard — everyone can see you
+        </div>
+      ) : null}
+
+      {whiteboardOn ? (
+        <section
+          style={{
+            marginBottom: 12,
+            height: "min(62vh, 640px)",
+            padding: 12,
+            borderRadius: 14,
+            border: "1px solid var(--border)",
+            background: "var(--panel)",
+          }}
+        >
+          <Whiteboard
+            canDraw={(canModerate || hasFloor) && !previewAsStudent}
+            strokes={whiteboardStrokes}
+            drawerName={
+              learners.find((p) => p.id === room?.floor_participant_id)?.name || host?.name
+            }
+            onStroke={(s) => setWhiteboardStrokes((prev) => [...prev, s])}
+            onClear={() => setWhiteboardStrokes([])}
+            onUndo={() => setWhiteboardStrokes((prev) => prev.slice(0, -1))}
+            onExit={canModerate ? () => setWhiteboardOn(false) : undefined}
+          />
+        </section>
+      ) : null}
 
       <div
+        className={isSolo ? undefined : "live-stage-grid"}
         style={{
           display: "grid",
-          // Group chat follows the classroom below instead of squeezing the
-          // Theodore presenter into a narrow side column.
           gridTemplateColumns: "1fr",
           gap: 14,
           alignItems: "start",
@@ -2758,7 +2999,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 />
               </div>
             )}
-            {!focusInstructor && learners.map((p) => (
+            {isSolo && learners.map((p) => (
               <div
                 key={p.id}
                 style={{ position: "relative", minHeight: isSolo ? 420 : 220 }}
@@ -2845,26 +3086,137 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
             ))}
-            {!isSolo && !focusInstructor && Array.from({ length: emptySlots }).map((_, i) => (
-              <div
-                key={`empty-${i}`}
-                style={{
-                  borderRadius: 12,
-                  border: "1px dashed var(--border)",
-                  minHeight: 220,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--muted)",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
-                }}
-              >
-                <span style={{ textAlign: "center" }}>＋<br />Open seat</span>
-              </div>
-            ))}
           </div>
+
+          {!isSolo ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                padding: "12px 14px",
+                marginBottom: 12,
+                borderRadius: 16,
+                border: "1px solid var(--border)",
+                background: "var(--panel)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {learners.length > 0 ? `${learners.length} in class` : "Waiting for participants…"}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, overflowX: "auto", paddingBottom: 2 }}>
+                  {learners.slice(0, 8).map((p) => {
+                    const onFloor = p.id === room?.floor_participant_id;
+                    const selected = selectedParticipant === p.id;
+                    const clickable = canModerate && p.id !== me?.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => (clickable ? setSelectedParticipant(selected ? "" : p.id) : undefined)}
+                        title={`${p.name}${p.hand_raised ? " — hand raised" : onFloor ? " — speaking" : ""}`}
+                        style={{
+                          position: "relative",
+                          width: 150,
+                          height: 86,
+                          flex: "0 0 auto",
+                          borderRadius: 12,
+                          outline: selected ? `2px solid ${STUDIO_GOLD}` : "none",
+                          outlineOffset: 1,
+                          cursor: clickable ? "pointer" : "default",
+                        }}
+                      >
+                        <ParticipantTile
+                          p={p}
+                          showAdminProfile={canModerate}
+                          fill
+                          localStream={p.id === me?.id && cameraOn ? localStream : null}
+                          liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
+                          hasFloor={onFloor}
+                          isMe={p.id === me?.id}
+                          presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
+                          cameraOn={p.id === me?.id ? cameraOn : undefined}
+                          onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
+                          audioMuted={locallyMutedIds.has(p.id)}
+                        />
+                      </div>
+                    );
+                  })}
+                  {learners.length > 8 ? (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", flex: "0 0 auto" }}>
+                      +{learners.length - 8}
+                    </span>
+                  ) : null}
+                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - learners.length)) }).map((_, i) => (
+                    <span
+                      key={`ph-${i}`}
+                      aria-hidden
+                      style={{
+                        width: 150,
+                        height: 86,
+                        flex: "0 0 auto",
+                        borderRadius: 12,
+                        border: "1px dashed var(--border)",
+                        background: "color-mix(in srgb, var(--accent) 3%, var(--panel))",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--muted)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ＋ Open seat
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {canModerate && selectedParticipant
+                ? (() => {
+                    const sel = learners.find((p) => p.id === selectedParticipant);
+                    if (!sel) return null;
+                    return (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>{sel.name}</span>
+                        {sel.id !== room?.floor_participant_id ? (
+                          <button
+                            type="button"
+                            onClick={() => void callOn(sel.id)}
+                            disabled={busy}
+                            style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, background: "#0d9488", color: "#fff", border: "none", cursor: "pointer" }}
+                          >
+                            🎤 Call on
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => void reportLearner(sel.id, sel.name)}
+                          disabled={busy}
+                          style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, background: "color-mix(in srgb, #f59e0b 18%, var(--panel))", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
+                        >
+                          Report
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void banLearner(sel.id, sel.name)}
+                          disabled={busy}
+                          style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, background: "color-mix(in srgb, #dc2626 18%, var(--panel))", color: "var(--text)", border: "1px solid var(--border)", cursor: "pointer" }}
+                        >
+                          Block
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedParticipant("")}
+                          style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, background: "transparent", color: "var(--muted)", border: "1px solid var(--border)", cursor: "pointer", marginLeft: "auto" }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    );
+                  })()
+                : null}
+            </div>
+          ) : null}
 
           {!isSolo && hasFloor && (
             <div
@@ -2941,19 +3293,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 marginBottom: 12,
                 padding: 12,
                 borderRadius: 12,
-                background: "rgba(52,211,153,0.08)",
-                border: "1px solid rgba(52,211,153,0.25)",
+                background: "color-mix(in srgb, var(--accent-2) 12%, var(--panel))",
+                border: "1px solid color-mix(in srgb, var(--accent-2) 45%, var(--border))",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#6ee7b7", marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f766e", marginBottom: 8 }}>
                 Q&A queue — take turns
               </div>
               {room?.floor_holder ? (
-                <div style={{ fontSize: 13, marginBottom: 8, color: "#a7f3d0" }}>
+                <div style={{ fontSize: 13, marginBottom: 8, color: "var(--text)" }}>
                   🎤 Now speaking: <strong>{room.floor_holder.name}</strong>
                 </div>
               ) : null}
-              <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#d1fae5" }}>
+              <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text)" }}>
                 {(room?.speaking_queue ?? [])
                   .filter((e) => e.status === "waiting")
                   .map((e) => (
@@ -2964,7 +3316,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   ))}
               </ol>
               {myQueuePos > 0 && !hasFloor ? (
-                <div style={{ marginTop: 8, fontSize: 12, color: "#fcd34d" }}>
+                <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#b45309" }}>
                   You are #{myQueuePos} in line.
                 </div>
               ) : null}
@@ -2973,40 +3325,138 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
         </section>
 
-        {!isSolo && showChat && (
+        {!isSolo && (
         <aside
           aria-label="Group class chat and questions"
           style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            minHeight: 0,
-            padding: 12,
+            // The chat's content is an ABSOLUTE inner layer so a long conversation
+            // doesn't inflate the grid row: the stage column drives the height and
+            // the chat fills it and scrolls internally (no gap under the strip).
+            position: "relative",
+            overflow: "hidden",
+            minHeight: 380,
             background: "var(--panel)",
-            borderRadius: 12,
+            borderRadius: 16,
             border: "1px solid var(--border)",
+            alignSelf: "stretch",
           }}
         >
-          <strong>💬 Class chat &amp; questions</strong>
           <div
             style={{
-              background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              padding: 10,
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              padding: 14,
               overflowY: "auto",
-              maxHeight: 220,
-              minHeight: 120,
             }}
           >
-            {(room?.chat ?? []).map((m) => (
-              <div key={m.id} style={{ marginBottom: 8, fontSize: 13, lineHeight: 1.4 }}>
-                <span style={{ color: m.from_id === "system" ? "#a78bfa" : "#fbbf24", fontWeight: 600 }}>
-                  {m.from_name}:
-                </span>{" "}
-                <span style={{ color: "#e2e8f0" }}>{m.text}</span>
-              </div>
-            ))}
+          {/* Underline tabs: class chat vs. asking Theodore directly (Design A). */}
+          <div
+            role="tablist"
+            aria-label="Chat or Ask Theodore"
+            style={{
+              display: "flex",
+              gap: 8,
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={panelTab === "chat"}
+              onClick={() => setPanelTab("chat")}
+              style={panelTabStyle(panelTab === "chat")}
+            >
+              💬 Chat
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={panelTab === "ask"}
+              onClick={() => setPanelTab("ask")}
+              style={panelTabStyle(panelTab === "ask")}
+            >
+              🎓 Ask Theodore
+            </button>
+          </div>
+
+          {panelTab === "chat" ? (
+            <>
+          <div
+            style={{
+              flex: 1,
+              borderRadius: 12,
+              padding: "6px 2px",
+              overflowY: "auto",
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {(room?.chat ?? [])
+              .filter((m) => {
+                // Hide only THIS learner's own Ask-Theodore mirror copies: their
+                // question (from me) and Theodore's reply (from the host). Scoping
+                // by sender avoids hiding another learner's coincidentally
+                // identical chat text.
+                if (!askMineRef.current.has(m.text)) return true;
+                const fromMe = m.from_id === me?.id;
+                const fromTheodore = /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+                return !(fromMe || fromTheodore);
+              })
+              .map((m) => {
+              const isSystem = m.from_id === "system";
+              const isTheodore = !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+              return (
+                <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span
+                    style={{
+                      flex: "0 0 auto",
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      background: isTheodore
+                        ? "color-mix(in srgb, var(--accent-2) 20%, var(--panel))"
+                        : "color-mix(in srgb, var(--accent) 12%, var(--panel))",
+                      color: "var(--text)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    {isTheodore ? "🎓" : initials(m.from_name || "?")}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+                      {m.from_name}
+                      {isTheodore ? " · AI teacher" : ""}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 2,
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        color: isSystem ? "var(--muted)" : "var(--text)",
+                        background: isSystem ? "transparent" : "color-mix(in srgb, var(--accent) 5%, var(--panel))",
+                        border: isSystem ? "none" : "1px solid var(--border)",
+                        borderRadius: 10,
+                        padding: isSystem ? 0 : "7px 10px",
+                        display: "inline-block",
+                        fontStyle: isSystem ? "italic" : "normal",
+                      }}
+                    >
+                      {m.text}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             <div ref={chatEndRef} />
           </div>
 
@@ -3111,52 +3561,153 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={chatDraft}
               onChange={(e) => setChatDraft(e.target.value)}
-              placeholder="Say something…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
+              placeholder="Type your message…"
+              style={{ flex: 1, borderRadius: 999, border: "1px solid var(--border)", padding: "10px 14px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void sendChat()}
               disabled={busy || me?.muted || me?.muted_by_host}
             />
-            <button onClick={() => void sendChat()} disabled={busy} style={{ background: "var(--accent)", color: "#fff" }}>
-              Chat
-            </button>
-          </div>
-
-          {hostAnswer && (hostAnswer.text || !hostAnswer.done) ? (
-            <div
+            <button
+              onClick={() => void sendChat()}
+              disabled={busy}
+              aria-label="Send message"
+              title="Send"
               style={{
-                borderRadius: 10,
-                border: "1px solid var(--border)",
-                background: "rgba(99,102,241,0.10)",
-                padding: "8px 10px",
-                fontSize: 13,
-                color: "var(--text)",
+                flex: "0 0 auto",
+                width: 42,
+                height: 42,
+                borderRadius: 999,
+                background: STUDIO_GOLD,
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
               }}
             >
-              <div style={{ fontWeight: 600, opacity: 0.8, marginBottom: 2 }}>
-                🎓 Theodore{hostAnswer.asker ? ` → ${hostAnswer.asker}` : ""}
-                {!hostAnswer.done ? " is answering…" : ""}
-              </div>
-              <div>{hostAnswer.text || "…"}</div>
-            </div>
-          ) : null}
+              ➤
+            </button>
+          </div>
+            </>
+          ) : (
+            <>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+              padding: "6px 2px",
+            }}
+          >
+            {askThread.length === 0 ? (
+              <p className="muted" style={{ fontSize: 12.5, margin: "4px 0", lineHeight: 1.5 }}>
+                Ask Theodore anything about the lesson — your questions and his answers
+                stay here in this tab. You can also raise your hand on your tile to ask by voice.
+              </p>
+            ) : (
+              askThread.map((e) => (
+                <div key={e.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div
+                    style={{
+                      alignSelf: "flex-end",
+                      maxWidth: "88%",
+                      background: "color-mix(in srgb, var(--accent) 12%, var(--panel))",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      padding: "7px 11px",
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {e.question}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <span
+                      style={{
+                        flex: "0 0 auto",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 14,
+                        background: "color-mix(in srgb, var(--accent-2) 20%, var(--panel))",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      🎓
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>
+                        Theodore · AI teacher
+                        {!e.done ? " · answering…" : ""}
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 2,
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          color: "var(--text)",
+                          background: "color-mix(in srgb, var(--accent-2) 8%, var(--panel))",
+                          border: "1px solid var(--border)",
+                          borderRadius: 10,
+                          padding: "7px 10px",
+                          display: "inline-block",
+                        }}
+                      >
+                        {e.answer || (e.done ? "…" : "Answering…")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={askEndRef} />
+          </div>
 
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
               placeholder="Ask Theodore a question…"
-              style={{ flex: 1, borderRadius: 8, border: "1px solid var(--border)", padding: "8px 10px", background: "var(--panel)", color: "var(--text)" }}
+              style={{ flex: 1, borderRadius: 999, border: "1px solid var(--border)", padding: "10px 14px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
             />
-            <button onClick={() => void askQuestion()} disabled={busy} style={{ background: "var(--accent-2)", color: "#fff" }}>
-              Ask
+            <button
+              onClick={() => void askQuestion()}
+              disabled={busy}
+              aria-label="Ask Theodore"
+              title="Ask Theodore"
+              style={{
+                flex: "0 0 auto",
+                width: 42,
+                height: 42,
+                borderRadius: 999,
+                background: STUDIO_GOLD,
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+              }}
+            >
+              ➤
             </button>
           </div>
+            </>
+          )}
 
           {canModerate && (room?.reports?.length ?? 0) > 0 ? (
             <div
@@ -3226,6 +3777,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               ))}
             </div>
           ) : null}
+          </div>
         </aside>
         )}
       </div>
@@ -3402,125 +3954,208 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </aside>
       ) : null}
 
-      {/* Compact bottom navigation; solo omits queue-admin, presentation and recording controls. */}
+      {/* Design A control-bar card. Three groups: device controls (camera/mic/
+          fullscreen) on the left, the primary gold CTA (Raise your hand / Done) in
+          the center, and the instructor rail + Leave on the right. Role-aware:
+          students only see device controls, the CTA, and Leave. */}
       <div
         style={{
           display: "flex",
+          alignItems: "center",
           flexWrap: "wrap",
-          gap: 8,
+          gap: 12,
           marginTop: 12,
-          padding: "10px",
-          borderTop: "1px solid var(--border)",
+          padding: "12px 14px",
           position: "sticky",
           bottom: 0,
           zIndex: 45,
-          background: "color-mix(in srgb, var(--panel) 94%, transparent)",
+          background: "color-mix(in srgb, var(--panel) 96%, transparent)",
           backdropFilter: "blur(14px)",
-          borderRadius: "12px 12px 0 0",
-          boxShadow: "0 -8px 24px rgba(0,0,0,.10)",
+          border: "1px solid var(--border)",
+          borderRadius: 16,
+          boxShadow: "0 -8px 24px rgba(27,21,40,.08)",
         }}
       >
-        <button onClick={() => void toggleHand()} disabled={busy} title="Raise your hand to ask to speak (raise/lower)">
-          {hasFloor
-            ? "🎤 You're speaking"
-            : inQueue
-              ? `✋ Lower your hand (#${myQueuePos})`
-              : "✋ Raise your hand"}
-        </button>
-        {hasFloor ? (
+        {/* Left: device controls */}
+        <div style={{ display: "flex", gap: 8 }}>
           <button
-            onClick={() => void doneSpeaking()}
+            onClick={() => void toggleCamera()}
             disabled={busy}
-            title="Send your spoken (or typed) question to Theodore and hand back the floor"
-            style={{ background: "#059669", color: "#fff" }}
+            title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
+            style={{ ...deviceBtnStyle, borderColor: cameraOn ? "var(--accent)" : "var(--border)" }}
           >
-            Done — ask Theodore
+            <span style={{ fontSize: 18 }}>{cameraOn ? "📹" : "📷"}</span>
+            Camera
           </button>
-        ) : null}
-        {canModerate && !isSolo ? (
-          <>
-            <button onClick={() => void callNext()} disabled={busy} style={{ background: "#0d9488", color: "#fff" }}>
-              Call next
-            </button>
-            {room?.floor_participant_id ? (
-              <button onClick={() => void finishTurn()} disabled={busy}>
-                End turn
-              </button>
-            ) : null}
-          </>
-        ) : null}
-        <button
-          onClick={() => void toggleCamera()}
-          disabled={busy}
-          title={cameraOn ? "Turn your webcam off" : "Turn your webcam on"}
-          style={cameraOn ? undefined : { opacity: 0.75 }}
-        >
-          {cameraOn ? "📹 Camera on" : "📷 Camera off"}
-        </button>
-        {canModerate && !isSolo ? (
-          !room?.presenting ? (
-            <button
-              onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
-              disabled={busy}
-              title="Start the class"
-              style={{ background: "var(--accent-2)", color: "#fff" }}
-            >
-              🎬 Start class
-            </button>
-          ) : (
-            <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)">
-              ▶ Next slide
-            </button>
-          )
-        ) : null}
-        {canModerate && isSolo ? (
           <button
             onClick={() => {
-              if (paused) {
-                setPaused(false);
-                spokenSlideRef.current = null; // re-trigger narration on resume
-              } else {
-                cancelSpeech();
-                setPaused(true);
-              }
+              if (!hasFloor) setNotice("You can speak when the teacher calls on you — raise your hand.");
             }}
-            disabled={busy}
-            title={paused ? "Resume the class" : "Pause the class and come back later"}
-            style={{ background: paused ? "#15803d" : "#6d28d9", color: "#fff" }}
+            title={hasFloor ? "Your mic is live (you have the floor)" : "You can speak when the teacher calls on you"}
+            style={{ ...deviceBtnStyle, borderColor: hasFloor ? "var(--accent-2)" : "var(--border)", opacity: hasFloor ? 1 : 0.7 }}
           >
-            {paused ? "▶ Resume class" : "⏸ Pause class"}
+            <span style={{ fontSize: 18 }}>{hasFloor ? "🎙️" : "🔇"}</span>
+            Mic
           </button>
-        ) : canModerate ? (
           <button
-            onClick={() => void closeSession()}
-            disabled={busy}
-            title="Close this session for everyone"
-            style={{ background: "#b45309", color: "#fff" }}
+            onClick={toggleHostFullscreen}
+            title="Fullscreen (Esc to exit)"
+            style={{ ...deviceBtnStyle, borderColor: isFullscreen ? "var(--accent)" : "var(--border)" }}
           >
-            ⛔ Close session
+            <span style={{ fontSize: 18 }}>⛶</span>
+            Fullscreen
           </button>
-        ) : null}
-        {xrEnabled && joinInfo?.participant?.id ? (
-          <Link
-            href={`/xr/${encodeURIComponent(roomId)}?roomId=${encodeURIComponent(roomId)}&participantId=${encodeURIComponent(joinInfo.participant.id)}&moderatorKey=${encodeURIComponent(moderatorKey)}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "#1d4e4a",
-              color: "#e8f1f4",
-              textDecoration: "none",
-              fontWeight: 600,
-            }}
-            title="Open the immersive XR demonstration lab"
+        </div>
+
+        {/* Center: primary CTA */}
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", minWidth: 200 }}>
+          {hasFloor ? (
+            <button
+              onClick={() => void doneSpeaking()}
+              disabled={busy}
+              title="Send your spoken (or typed) question to Theodore and hand back the floor"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "13px 30px",
+                borderRadius: 999,
+                border: "none",
+                background: STUDIO_GOLD,
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 16,
+                fontWeight: 800,
+              }}
+            >
+              ✓ Done
+            </button>
+          ) : (
+            <button
+              onClick={() => void toggleHand()}
+              disabled={busy}
+              title="Raise your hand to ask to speak (raise/lower)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "13px 30px",
+                borderRadius: 999,
+                border: inQueue ? "1px solid var(--border)" : "none",
+                background: inQueue ? "var(--panel)" : STUDIO_GOLD,
+                color: inQueue ? "var(--text)" : "#fff",
+                cursor: "pointer",
+                fontSize: 16,
+                fontWeight: 800,
+              }}
+            >
+              {inQueue ? `✋ Lower your hand (#${myQueuePos})` : "🖐 Raise your hand"}
+            </button>
+          )}
+        </div>
+
+        {/* Right: instructor rail + Leave */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {canModerate ? (
+            <>
+              {!isSolo ? (
+                <button
+                  type="button"
+                  onClick={() => setWhiteboardOn((v) => !v)}
+                  title="Open a shared whiteboard; the student you call on can draw on it"
+                  style={{ ...railBtnStyle, ...(whiteboardOn ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" } : {}) }}
+                >
+                  🧑‍🏫 Whiteboard
+                </button>
+              ) : null}
+              {whiteboardOn ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewAsStudent((v) => !v)}
+                  title="Preview the read-only view a student sees"
+                  style={{ ...railBtnStyle, ...(previewAsStudent ? { background: "var(--accent-2)", color: "#fff", borderColor: "var(--accent-2)" } : {}) }}
+                >
+                  👁 {previewAsStudent ? "Exit preview" : "Preview as student"}
+                </button>
+              ) : null}
+              {!isSolo ? (
+                <>
+                  <button
+                    onClick={() => void callNext()}
+                    disabled={busy}
+                    style={{ ...railBtnStyle, background: "#0d9488", color: "#fff", borderColor: "#0d9488" }}
+                  >
+                    ⏭ Call next
+                  </button>
+                  {room?.floor_participant_id ? (
+                    <button onClick={() => void finishTurn()} disabled={busy} style={railBtnStyle}>
+                      End turn
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+              {!isSolo ? (
+                !room?.presenting ? (
+                  <button
+                    onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
+                    disabled={busy}
+                    title="Start the class"
+                    style={{ ...railBtnStyle, background: STUDIO_GOLD, color: "#fff", borderColor: STUDIO_GOLD }}
+                  >
+                    🎬 Start class
+                  </button>
+                ) : (
+                  <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)" style={railBtnStyle}>
+                    ▶ Next slide
+                  </button>
+                )
+              ) : null}
+              {isSolo ? (
+                <button
+                  onClick={() => {
+                    if (paused) {
+                      setPaused(false);
+                      spokenSlideRef.current = null; // re-trigger narration on resume
+                    } else {
+                      cancelSpeech();
+                      setPaused(true);
+                    }
+                  }}
+                  disabled={busy}
+                  title={paused ? "Resume the class" : "Pause the class and come back later"}
+                  style={{ ...railBtnStyle, background: paused ? "#15803d" : "#6d28d9", color: "#fff", borderColor: paused ? "#15803d" : "#6d28d9" }}
+                >
+                  {paused ? "▶ Resume" : "⏸ Pause"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => void closeSession()}
+                  disabled={busy}
+                  title="Close this session for everyone"
+                  style={{ ...railBtnStyle, background: "#b45309", color: "#fff", borderColor: "#b45309" }}
+                >
+                  ⛔ Close session
+                </button>
+              )}
+            </>
+          ) : null}
+          {xrEnabled && joinInfo?.participant?.id ? (
+            <Link
+              href={`/xr/${encodeURIComponent(roomId)}?roomId=${encodeURIComponent(roomId)}&participantId=${encodeURIComponent(joinInfo.participant.id)}&moderatorKey=${encodeURIComponent(moderatorKey)}`}
+              style={railBtnStyle}
+              title="Open the immersive XR demonstration lab"
+            >
+              Enter VR lab
+            </Link>
+          ) : null}
+          <button
+            onClick={() => void handleLeave()}
+            disabled={busy}
+            style={{ ...railBtnStyle, color: "#b91c1c", borderColor: "color-mix(in srgb, #b91c1c 40%, var(--border))" }}
           >
-            Enter VR lab
-          </Link>
-        ) : null}
-        <button onClick={() => void handleLeave()} disabled={busy} style={{ marginLeft: "auto" }}>
-          Leave
-        </button>
+            ⇥ Leave
+          </button>
+        </div>
       </div>
       <video
         ref={presenceProbeVideoRef}

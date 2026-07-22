@@ -1,0 +1,70 @@
+GROUP-CLASS WHITEBOARD — BACKEND SPEC (for the orchestrator / live-room hub)
+============================================================================
+
+Context
+-------
+Group classes (/live-room/[roomId], reached from /group-classes) now have a
+shared whiteboard. When the instructor calls on a student (gives them the floor),
+that student can draw to demonstrate or solve a problem; everyone else watches in
+real time. This is a GROUP-CLASS feature only — the 1-on-1 "Live Class" (/class)
+is unaffected.
+
+The frontend is DONE (apps/web/app/live-room/[roomId]/Whiteboard.tsx + the
+integration in page.tsx). It currently works client-locally: the drawer sees
+their own strokes and the instructor can toggle the board and preview the student
+"watch" view. What is missing is the server piece that (a) makes the board
+appear for everyone and (b) broadcasts strokes so watchers see them live.
+
+Frontend contract already in place
+----------------------------------
+- Strokes use NORMALIZED coordinates (x,y in 0..1 relative to the board) so they
+  render identically on any screen size. Shape:
+      { id: string, color: string, width: number, erase?: boolean,
+        points: [{ x: number, y: number }, ...] }
+- "Who may draw" = the floor holder (room.floor_participant_id) OR a moderator.
+  Reuse the EXISTING floor/queue permission model — no new permission concept.
+- The socket (apps/web/app/lib/liveRoomSocket.ts) is receive-only today; clients
+  mutate state via REST and the hub broadcasts over WS. Follow that same pattern.
+
+What to add on the backend
+--------------------------
+1) Room state: add an optional `whiteboard` block to the live-room snapshot:
+       whiteboard: {
+         active: bool,                # is the board open for the class
+         strokes: [Stroke, ...],      # ordered; append-only until cleared
+         drawer_id: str | null,       # convenience: current floor holder
+       }
+   Include it in the same GET/room snapshot the socket already emits as "room".
+
+2) REST endpoints (moderator or floor-holder authorized, mirroring existing
+   live-room endpoints — accept the moderator key OR the floor holder's identity):
+       POST /api/live-rooms/{room_id}/whiteboard/open      (moderator)  -> room
+       POST /api/live-rooms/{room_id}/whiteboard/close     (moderator)  -> room
+       POST /api/live-rooms/{room_id}/whiteboard/stroke    (floor/mod)  -> 204
+            body: { participant_id, stroke: Stroke }
+       POST /api/live-rooms/{room_id}/whiteboard/clear     (floor/mod)  -> room
+   Authorization rule for stroke/clear: participant_id == floor_participant_id
+   OR a valid moderator key. Reject others with 403 (the UI already hides the
+   tools for non-drawers, so this is defense-in-depth).
+
+3) WS broadcasts (add these message types to the hub's fan-out):
+       { type: "whiteboard_state", payload: { active, drawer_id } }
+       { type: "whiteboard_stroke", payload: { stroke: Stroke } }
+       { type: "whiteboard_clear",  payload: {} }
+   Then extend the switch in liveRoomSocket.ts to append incoming strokes /
+   clear / toggle active. (Frontend TODO is marked where whiteboardStrokes and
+   whiteboardOn are set in page.tsx.)
+
+Notes / niceties
+----------------
+- Cap stored strokes per board (e.g. 2000) and points per stroke (e.g. 1000) to
+  bound memory; drop or coalesce beyond that.
+- Persist `whiteboard` with the rest of the room snapshot (Redis) so a late
+  joiner or reconnect replays the current board.
+- Auto-close (active=false) the board when the floor is released or the class
+  ends, so a stale board doesn't linger.
+- No new deploy-mode branching; this is pure hub state + fan-out.
+
+Once these land, the only frontend change is wiring the three WS messages into
+the existing socket handler and pointing onStroke/onClear/toggle at the new REST
+endpoints instead of local state.
