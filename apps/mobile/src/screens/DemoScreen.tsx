@@ -12,15 +12,15 @@ const { width: W } = Dimensions.get("window");
 const CARD_W = W * 0.72;
 
 function useFadeSlideIn(delay: number) {
-  const anim = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(40)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(40)).current;
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(anim, { toValue: 1, duration: 500, delay, useNativeDriver: true }),
-      Animated.spring(slide, { toValue: 0, delay, useNativeDriver: true, tension: 60, friction: 8 }),
+      Animated.timing(opacity, { toValue: 1, duration: 500, delay, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, delay, useNativeDriver: true, tension: 60, friction: 8 }),
     ]).start();
   }, []);
-  return { opacity: anim, transform: [{ translateY: slide }] };
+  return { opacity, translateY };
 }
 
 function PulseRing() {
@@ -50,12 +50,12 @@ function PulseRing() {
 }
 
 function CourseCard({ course, index, onPress }: { course: DemoCourse; index: number; onPress: () => void }) {
-  const animStyle = useFadeSlideIn(150 + index * 80);
+  const { opacity, translateY } = useFadeSlideIn(150 + index * 80);
   const pressScale = useRef(new Animated.Value(1)).current;
   const handlePressIn = () => Animated.spring(pressScale, { toValue: 0.96, useNativeDriver: true, tension: 200 }).start();
   const handlePressOut = () => Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
   return (
-    <Animated.View style={[{ width: CARD_W, marginRight: 14 }, animStyle, { transform: [...(animStyle.transform || []), { scale: pressScale }] }]}>
+    <Animated.View style={[{ width: CARD_W, marginRight: 14 }, { opacity, transform: [{ translateY }, { scale: pressScale }] }]}>
       <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
         <LinearGradient
           colors={[course.gradientStart, course.gradientEnd]}
@@ -79,15 +79,15 @@ function CourseCard({ course, index, onPress }: { course: DemoCourse; index: num
 }
 
 function FeatureCard({ feature, index, onPress }: { feature: typeof DEMO_FEATURES[0]; index: number; onPress: () => void }) {
-  const animStyle = useFadeSlideIn(400 + index * 80);
+  const { opacity, translateY } = useFadeSlideIn(400 + index * 80);
   const pressScale = useRef(new Animated.Value(1)).current;
   return (
-    <Animated.View style={[styles.featureCardWrap, animStyle]}>
+    <Animated.View style={[styles.featureCardWrap, { opacity, transform: [{ translateY }, { scale: pressScale }] }]}>
       <Pressable
         onPress={onPress}
         onPressIn={() => Animated.spring(pressScale, { toValue: 0.96, useNativeDriver: true, tension: 200 }).start()}
         onPressOut={() => Animated.spring(pressScale, { toValue: 1, useNativeDriver: true, tension: 200 }).start()}
-        style={({ pressed }) => [styles.featureCard, { transform: [{ scale: pressScale }] }]}
+        style={styles.featureCard}
       >
         <Text style={styles.featureEmoji}>{feature.emoji}</Text>
         <Text style={styles.featureTitle}>{feature.title}</Text>
@@ -108,7 +108,7 @@ export default function DemoScreen({
   onOpenFeature: (featureId: string) => void;
   onEnterFullApp: () => void;
 }) {
-  const headerAnim = useFadeSlideIn(0);
+  const { opacity: headerOpacity, translateY: headerTranslateY } = useFadeSlideIn(0);
   const ctaScale = useRef(new Animated.Value(1)).current;
 
   // Pulse animation on CTA button
@@ -124,7 +124,7 @@ export default function DemoScreen({
   return (
     <ScrollView style={styles.bg} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Hero header */}
-      <Animated.View style={[styles.hero, headerAnim]}>
+      <Animated.View style={[styles.hero, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
         <View style={styles.logoWrap}>
           <PulseRing />
           <View style={styles.logoCircle}>
