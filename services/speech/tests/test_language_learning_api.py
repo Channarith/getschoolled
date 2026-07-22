@@ -14,12 +14,12 @@ def test_learn_languages_lists_20_plus():
     assert all(x["flag"] and x["name"] for x in body["languages"])
 
 
-def test_course_outline_rich_vs_starter():
-    rich = client.get("/learn/es/course").json()
-    assert rich["tier"] == "rich" and rich["grammar_tip"]
-    starter = client.get("/learn/sw/course").json()
-    assert starter["tier"] == "starter"
-    assert len(rich["skills"]) > len(starter["skills"])
+def test_all_languages_are_full_courses():
+    for language in ("es", "sw", "km"):
+        course = client.get(f"/learn/{language}/course").json()
+        assert course["tier"] == "full"
+        assert course["dialogue_count"] >= 20
+        assert course["song_count"] >= 1
 
 
 def test_unsupported_language_404():
@@ -55,3 +55,31 @@ def test_phrases_and_slang():
     assert any(p["en"] == "Hello" for p in ph["phrases"])
     sl = client.get("/learn/en/slang").json()
     assert isinstance(sl["entries"], list) and len(sl["entries"]) >= 1
+
+
+def test_khmer_dialogues_slang_and_songs():
+    dialogues = client.get("/learn/km/dialogues").json()["dialogues"]
+    slang = client.get("/learn/km/slang").json()["entries"]
+    songs = client.get("/learn/km/songs").json()["songs"]
+    assert len(dialogues) >= 20
+    assert len(slang) >= 50
+    assert songs and len(songs[0]["verses"]) >= 4
+
+    ex = client.post(
+        "/learn/exercise",
+        json={"language": "km", "skill": "conversation", "n": 20},
+    ).json()
+    assert len(ex["dialogues"]) >= 20
+
+
+def test_khmer_vocabulary_endpoint_has_five_hundred_words():
+    response = client.get("/learn/km/vocabulary")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] >= 500
+    assert len(body["vocabulary"]) == body["count"]
+    assert len({word["target"] for word in body["vocabulary"]}) == body["count"]
+
+    school = client.get("/learn/km/vocabulary", params={"category": "school"}).json()
+    assert school["count"] >= 10
+    assert all(word["category"] == "school" for word in school["vocabulary"])

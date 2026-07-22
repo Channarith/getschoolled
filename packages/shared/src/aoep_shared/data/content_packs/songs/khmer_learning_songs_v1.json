@@ -1,0 +1,65 @@
+{
+  "pack": "khmer_learning_songs_v1",
+  "description": "Original Salareen Khmer learning song with a public-domain Cambodian cultural listening reference.",
+  "records": [
+    {
+      "language": "km",
+      "song_id": "km-everyday-adventure",
+      "title_en": "Our Khmer Everyday Adventure",
+      "title_target": "ដំណើរផ្សងព្រេងភាសាខ្មែររបស់យើង",
+      "license": "original-salareen",
+      "source_url": "http://www.language-archives.org/item/oai:crdo.vjf.cnrs.fr:cocoon-e445986f-4b42-3504-a6ae-55f7b969f51d",
+      "source_note": "Optional cultural listening: a 1931 public-domain traditional Khmer recording. The instructional lyrics below are original Salareen lyrics, not a transcription.",
+      "verses": [
+        {
+          "verse_no": 1,
+          "target": "ជំរាបសួរ សុខសប្បាយទេ? រីករាយណាស់ជួបអ្នក",
+          "roman": "Chum reap suor, sok sabbai te? Rikreay nas chuob anak",
+          "en": "Hello, how are you? It is very nice to meet you.",
+          "explain_en": "This greeting verse joins a respectful hello, a friendly check-in, and “nice to meet you.” Use it when meeting someone new.",
+          "tts_text": "ជំរាបសួរ។ សុខសប្បាយទេ? រីករាយណាស់ជួបអ្នក។"
+        },
+        {
+          "verse_no": 2,
+          "target": "សូមទោស បន្ទប់ទឹកនៅឯណា? វានៅទីនោះ ខាងស្តាំ",
+          "roman": "Som tos, bantob tuek nov aena? Vea nov ti nuh, khang sdam",
+          "en": "Excuse me, where is the bathroom? It is over there, on the right.",
+          "explain_en": "Som tos politely gets attention. Nov aena asks “where?” Khang sdam means “on the right.”",
+          "tts_text": "សូមទោស។ បន្ទប់ទឹកនៅឯណា? វានៅទីនោះ។ ខាងស្តាំ។"
+        },
+        {
+          "verse_no": 3,
+          "target": "ម្ហូបនេះជាអ្វី? ឆ្ងាញ់ណាស់ សុំទឹកមួយ",
+          "roman": "Mhoob nih chea avei? Chhnganh nas, som teuk muoy",
+          "en": "What is this dish? It is very delicious. Water, please.",
+          "explain_en": "Mhoob means food or dish. Chhnganh nas is enthusiastic praise: “very delicious.”",
+          "tts_text": "ម្ហូបនេះជាអ្វី? ឆ្ងាញ់ណាស់។ សុំទឹកមួយ។"
+        },
+        {
+          "verse_no": 4,
+          "target": "មួយនេះតម្លៃប៉ុន្មាន? ថ្លៃពេក ថោកជាងនេះបានទេ?",
+          "roman": "Muoy nih tamlay ponman? Thlai pek. Thok cheang nih ban te?",
+          "en": "How much is this? Too expensive. Can it be cheaper?",
+          "explain_en": "This market verse moves from asking the price to polite bargaining. Keep a friendly tone.",
+          "tts_text": "មួយនេះតម្លៃប៉ុន្មាន? ថ្លៃពេក។ ថោកជាងនេះបានទេ?"
+        },
+        {
+          "verse_no": 5,
+          "target": "ខ្ញុំមិនយល់ទេ សូមនិយាយម្តងទៀត យឺតៗ",
+          "roman": "Khnyom min yol te. Som niyeay mdong tiet, yeut yeut",
+          "en": "I do not understand. Please say it again, slowly.",
+          "explain_en": "A powerful learner phrase: say you do not understand, then ask for one more slow repetition.",
+          "tts_text": "ខ្ញុំមិនយល់ទេ។ សូមនិយាយម្តងទៀត។ យឺតៗ។"
+        },
+        {
+          "verse_no": 6,
+          "target": "អរគុណច្រើន ជំរាបលា ជួបគ្នាពេលក្រោយ",
+          "roman": "Aw kohn chraen. Chum reap lear. Chuob knea pel kraoy",
+          "en": "Thank you very much. Goodbye. See you next time.",
+          "explain_en": "The final verse closes warmly and respectfully, with thanks and a promise to meet again.",
+          "tts_text": "អរគុណច្រើន។ ជំរាបលា។ ជួបគ្នាពេលក្រោយ។"
+        }
+      ]
+    }
+  ]
+}

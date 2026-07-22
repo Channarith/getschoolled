@@ -1,0 +1,4631 @@
+{
+  "pack": "khmer_core_vocabulary_v1",
+  "description": "520 high-frequency and practical Khmer vocabulary entries for beginner-to-intermediate study.",
+  "license": "MIT",
+  "source": "Chhunneng/khmer-text-transliteration (common Khmer word list and romanization data), supplemented by Salareen-curated practical terms.",
+  "source_url": "https://github.com/Chhunneng/khmer-text-transliteration",
+  "records": [
+    {
+      "language": "km",
+      "id": "km-vocab-0001",
+      "category": "school",
+      "en": "school",
+      "target": "សាលា",
+      "roman": "sala"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0002",
+      "category": "school",
+      "en": "teacher",
+      "target": "គ្រូ",
+      "roman": "kru"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0003",
+      "category": "school",
+      "en": "student",
+      "target": "សិស្ស",
+      "roman": "seh"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0004",
+      "category": "school",
+      "en": "notebook",
+      "target": "សៀវភៅសរសេរ",
+      "roman": "sievphov sarsae"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0005",
+      "category": "school",
+      "en": "pen",
+      "target": "ប៊ិច",
+      "roman": "bich"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0006",
+      "category": "school",
+      "en": "pencil",
+      "target": "ខ្មៅដៃ",
+      "roman": "khmao dai"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0007",
+      "category": "school",
+      "en": "desk",
+      "target": "តុរៀន",
+      "roman": "tok rien"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0008",
+      "category": "home",
+      "en": "chair",
+      "target": "កៅអី",
+      "roman": "kao ei"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0009",
+      "category": "food",
+      "en": "rice",
+      "target": "បាយ",
+      "roman": "bai"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0010",
+      "category": "food",
+      "en": "water",
+      "target": "ទឹក",
+      "roman": "teuk"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0011",
+      "category": "food",
+      "en": "meat",
+      "target": "សាច់",
+      "roman": "sach"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0012",
+      "category": "food",
+      "en": "vegetable",
+      "target": "បន្លែ",
+      "roman": "bonlae"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0013",
+      "category": "food",
+      "en": "fruit",
+      "target": "ផ្លែឈើ",
+      "roman": "phlae chheu"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0014",
+      "category": "animals",
+      "en": "chicken",
+      "target": "មាន់",
+      "roman": "moan"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0015",
+      "category": "animals",
+      "en": "cat",
+      "target": "ឆ្មា",
+      "roman": "chhma"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0016",
+      "category": "animals",
+      "en": "elephant",
+      "target": "ដំរី",
+      "roman": "domrei"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0017",
+      "category": "transport",
+      "en": "motorcycle",
+      "target": "ម៉ូតូ",
+      "roman": "moto"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0018",
+      "category": "transport",
+      "en": "bicycle",
+      "target": "កង់",
+      "roman": "kang"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0019",
+      "category": "travel",
+      "en": "road",
+      "target": "ផ្លូវ",
+      "roman": "phlov"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0020",
+      "category": "health",
+      "en": "hospital",
+      "target": "មន្ទីរពេទ្យ",
+      "roman": "monti pet"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0021",
+      "category": "health",
+      "en": "doctor",
+      "target": "គ្រូពេទ្យ",
+      "roman": "kru pet"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0022",
+      "category": "health",
+      "en": "medicine",
+      "target": "ថ្នាំ",
+      "roman": "thnam"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0023",
+      "category": "body",
+      "en": "head",
+      "target": "ក្បាល",
+      "roman": "kbal"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0024",
+      "category": "body",
+      "en": "leg",
+      "target": "ជើង",
+      "roman": "cheung"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0025",
+      "category": "body",
+      "en": "nose",
+      "target": "ច្រមុះ",
+      "roman": "chramoh"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0026",
+      "category": "body",
+      "en": "mouth",
+      "target": "មាត់",
+      "roman": "moat"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0027",
+      "category": "clothing",
+      "en": "shirt",
+      "target": "អាវ",
+      "roman": "aav"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0028",
+      "category": "clothing",
+      "en": "pants",
+      "target": "ខោ",
+      "roman": "khao"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0029",
+      "category": "clothing",
+      "en": "shoe",
+      "target": "ស្បែកជើង",
+      "roman": "sbaek cheung"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0030",
+      "category": "colors_shapes",
+      "en": "red",
+      "target": "ក្រហម",
+      "roman": "krahom"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0031",
+      "category": "colors_shapes",
+      "en": "blue",
+      "target": "ខៀវ",
+      "roman": "khiev"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0032",
+      "category": "colors_shapes",
+      "en": "green",
+      "target": "បៃតង",
+      "roman": "baitong"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0033",
+      "category": "colors_shapes",
+      "en": "yellow",
+      "target": "លឿង",
+      "roman": "lueang"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0034",
+      "category": "colors_shapes",
+      "en": "white",
+      "target": "ស",
+      "roman": "saw"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0035",
+      "category": "colors_shapes",
+      "en": "black",
+      "target": "ខ្មៅ",
+      "roman": "khmao"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0036",
+      "category": "colors_shapes",
+      "en": "circle",
+      "target": "រង្វង់",
+      "roman": "rongvong"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0037",
+      "category": "colors_shapes",
+      "en": "square",
+      "target": "ការ៉េ",
+      "roman": "kare"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0038",
+      "category": "technology",
+      "en": "computer",
+      "target": "កុំព្យូទ័រ",
+      "roman": "kompyutor"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0039",
+      "category": "technology",
+      "en": "telephone",
+      "target": "ទូរស័ព្ទ",
+      "roman": "turasap"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0040",
+      "category": "technology",
+      "en": "internet",
+      "target": "អ៊ីនធឺណិត",
+      "roman": "internet"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0041",
+      "category": "community",
+      "en": "market",
+      "target": "ផ្សារ",
+      "roman": "phsar"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0042",
+      "category": "community",
+      "en": "police",
+      "target": "ប៉ូលិស",
+      "roman": "polis"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0043",
+      "category": "community",
+      "en": "bank",
+      "target": "ធនាគារ",
+      "roman": "thneakear"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0044",
+      "category": "people_family",
+      "en": "family",
+      "target": "គ្រួសារ",
+      "roman": "kruosa"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0045",
+      "category": "people_family",
+      "en": "grandmother",
+      "target": "យាយ",
+      "roman": "yeay"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0046",
+      "category": "people_family",
+      "en": "grandfather",
+      "target": "តា",
+      "roman": "ta"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0047",
+      "category": "time",
+      "en": "morning",
+      "target": "ព្រឹក",
+      "roman": "proek"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0048",
+      "category": "time",
+      "en": "afternoon",
+      "target": "រសៀល",
+      "roman": "rosiel"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0049",
+      "category": "time",
+      "en": "evening",
+      "target": "ល្ងាច",
+      "roman": "lngeach"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0050",
+      "category": "time",
+      "en": "today",
+      "target": "ថ្ងៃនេះ",
+      "roman": "thngai nih"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0051",
+      "category": "nature_weather",
+      "en": "rain",
+      "target": "ភ្លៀង",
+      "roman": "phlieng"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0052",
+      "category": "nature_weather",
+      "en": "cloud",
+      "target": "ពពក",
+      "roman": "popok"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0053",
+      "category": "nature_weather",
+      "en": "forest",
+      "target": "ព្រៃ",
+      "roman": "prey"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0054",
+      "category": "nature_weather",
+      "en": "river",
+      "target": "ទន្លេ",
+      "roman": "tonle"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0055",
+      "category": "work",
+      "en": "workplace",
+      "target": "កន្លែងធ្វើការ",
+      "roman": "kanlaeng tverkar"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0056",
+      "category": "work",
+      "en": "manager",
+      "target": "អ្នកគ្រប់គ្រង",
+      "roman": "neak kropkrong"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0057",
+      "category": "work",
+      "en": "salary",
+      "target": "ប្រាក់ខែ",
+      "roman": "prak khae"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0058",
+      "category": "work",
+      "en": "meeting",
+      "target": "កិច្ចប្រជុំ",
+      "roman": "kech brochum"
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0059",
+      "category": "grammar",
+      "en": "as",
+      "target": "ដូចជា",
+      "roman": "dochjea",
+      "frequency_rank": 1
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0060",
+      "category": "grammar",
+      "en": "I",
+      "target": "ខ្ញុំ",
+      "roman": "nh",
+      "frequency_rank": 2
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0061",
+      "category": "grammar",
+      "en": "that",
+      "target": "ថា",
+      "roman": "tha",
+      "frequency_rank": 4
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0062",
+      "category": "grammar",
+      "en": "was",
+      "target": "គឺ",
+      "roman": "kir",
+      "frequency_rank": 6
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0063",
+      "category": "grammar",
+      "en": "for",
+      "target": "សម្រាប់",
+      "roman": "somrab",
+      "frequency_rank": 7
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0064",
+      "category": "grammar",
+      "en": "are",
+      "target": "មាន",
+      "roman": "mean",
+      "frequency_rank": 9
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0065",
+      "category": "grammar",
+      "en": "they",
+      "target": "ពួកគេ",
+      "roman": "puokke",
+      "frequency_rank": 11
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0066",
+      "category": "grammar",
+      "en": "at",
+      "target": "នៅ",
+      "roman": "nov",
+      "frequency_rank": 13
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0067",
+      "category": "numbers_time",
+      "en": "one",
+      "target": "មួយ",
+      "roman": "muoy",
+      "frequency_rank": 14
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0068",
+      "category": "grammar",
+      "en": "this",
+      "target": "នេះ",
+      "roman": "neh",
+      "frequency_rank": 16
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0069",
+      "category": "grammar",
+      "en": "from",
+      "target": "ពី",
+      "roman": "pi",
+      "frequency_rank": 17
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0070",
+      "category": "grammar",
+      "en": "by",
+      "target": "ដោយ",
+      "roman": "doay",
+      "frequency_rank": 18
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0071",
+      "category": "school",
+      "en": "word",
+      "target": "ពាក្យ",
+      "roman": "peak",
+      "frequency_rank": 20
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0072",
+      "category": "grammar",
+      "en": "it",
+      "target": "វា",
+      "roman": "vea",
+      "frequency_rank": 25
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0073",
+      "category": "grammar",
+      "en": "you",
+      "target": "អ្នក",
+      "roman": "nek",
+      "frequency_rank": 26
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0074",
+      "category": "grammar",
+      "en": "or",
+      "target": "ឬ",
+      "roman": "rir",
+      "frequency_rank": 27
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0075",
+      "category": "grammar",
+      "en": "of",
+      "target": "នៃ",
+      "roman": "nei",
+      "frequency_rank": 30
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0076",
+      "category": "grammar",
+      "en": "to",
+      "target": "ដើម្បី",
+      "roman": "dermbie",
+      "frequency_rank": 31
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0077",
+      "category": "grammar",
+      "en": "and",
+      "target": "និង",
+      "roman": "nung",
+      "frequency_rank": 32
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0078",
+      "category": "grammar",
+      "en": "we",
+      "target": "យើង",
+      "roman": "yg",
+      "frequency_rank": 35
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0079",
+      "category": "grammar",
+      "en": "can",
+      "target": "អាច",
+      "roman": "ach",
+      "frequency_rank": 36
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0080",
+      "category": "grammar",
+      "en": "out",
+      "target": "ចេញ",
+      "roman": "jenh",
+      "frequency_rank": 37
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0081",
+      "category": "grammar",
+      "en": "were",
+      "target": "នាក់",
+      "roman": "nek",
+      "frequency_rank": 39
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0082",
+      "category": "grammar",
+      "en": "which",
+      "target": "ដែល",
+      "roman": "del",
+      "frequency_rank": 40
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0083",
+      "category": "grammar",
+      "en": "if",
+      "target": "ប្រសិនបើ",
+      "roman": "brasenbaeu",
+      "frequency_rank": 44
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0084",
+      "category": "grammar",
+      "en": "will",
+      "target": "នឹង",
+      "roman": "nong",
+      "frequency_rank": 45
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0085",
+      "category": "grammar",
+      "en": "how",
+      "target": "របៀប",
+      "roman": "ror beab",
+      "frequency_rank": 46
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0086",
+      "category": "grammar",
+      "en": "each",
+      "target": "គ្នា",
+      "roman": "knea",
+      "frequency_rank": 49
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0087",
+      "category": "actions",
+      "en": "tell",
+      "target": "ប្រាប់",
+      "roman": "prab",
+      "frequency_rank": 50
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0088",
+      "category": "grammar",
+      "en": "does",
+      "target": "មិន",
+      "roman": "min",
+      "frequency_rank": 51
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0089",
+      "category": "core",
+      "en": "set",
+      "target": "សំណុំ",
+      "roman": "samnoam",
+      "frequency_rank": 52
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0090",
+      "category": "actions",
+      "en": "want",
+      "target": "ចង់បាន",
+      "roman": "chongban",
+      "frequency_rank": 54
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0091",
+      "category": "nature_weather",
+      "en": "air",
+      "target": "ខ្យល់",
+      "roman": "kjol",
+      "frequency_rank": 55
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0092",
+      "category": "core",
+      "en": "well",
+      "target": "ល្អ",
+      "roman": "laor",
+      "frequency_rank": 56
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0093",
+      "category": "grammar",
+      "en": "also",
+      "target": "ក៏",
+      "roman": "kr",
+      "frequency_rank": 57
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0094",
+      "category": "actions",
+      "en": "play",
+      "target": "លេង",
+      "roman": "lg",
+      "frequency_rank": 58
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0095",
+      "category": "descriptions",
+      "en": "small",
+      "target": "តូច",
+      "roman": "toch",
+      "frequency_rank": 59
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0096",
+      "category": "actions",
+      "en": "put",
+      "target": "ដាក់",
+      "roman": "dak",
+      "frequency_rank": 61
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0097",
+      "category": "home",
+      "en": "home",
+      "target": "ផ្ទះ",
+      "roman": "ptas",
+      "frequency_rank": 62
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0098",
+      "category": "school",
+      "en": "read",
+      "target": "អាន",
+      "roman": "arn",
+      "frequency_rank": 63
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0099",
+      "category": "body_health",
+      "en": "hand",
+      "target": "ដៃ",
+      "roman": "dai",
+      "frequency_rank": 64
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0100",
+      "category": "school",
+      "en": "spell",
+      "target": "អក្ខរាវិរុទ្ធ",
+      "roman": "akaravirut",
+      "frequency_rank": 67
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0101",
+      "category": "actions",
+      "en": "add",
+      "target": "បន្ថែម",
+      "roman": "pthaem",
+      "frequency_rank": 68
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0102",
+      "category": "nature_weather",
+      "en": "land",
+      "target": "ដី",
+      "roman": "dei",
+      "frequency_rank": 70
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0103",
+      "category": "grammar",
+      "en": "must",
+      "target": "ត្រូវ",
+      "roman": "trov",
+      "frequency_rank": 72
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0104",
+      "category": "descriptions",
+      "en": "big",
+      "target": "ធំ",
+      "roman": "thom",
+      "frequency_rank": 73
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0105",
+      "category": "descriptions",
+      "en": "high",
+      "target": "ខ្ពស់",
+      "roman": "kpous",
+      "frequency_rank": 74
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0106",
+      "category": "grammar",
+      "en": "such",
+      "target": "ដូច",
+      "roman": "doch",
+      "frequency_rank": 75
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0107",
+      "category": "actions",
+      "en": "follow",
+      "target": "តាម",
+      "roman": "tam",
+      "frequency_rank": 76
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0108",
+      "category": "actions",
+      "en": "act",
+      "target": "សកម្មភាព",
+      "roman": "sakampheap",
+      "frequency_rank": 77
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0109",
+      "category": "actions",
+      "en": "ask",
+      "target": "សួរ",
+      "roman": "sour",
+      "frequency_rank": 79
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0110",
+      "category": "people_family",
+      "en": "men",
+      "target": "បុរស",
+      "roman": "boros",
+      "frequency_rank": 80
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0111",
+      "category": "nature_weather",
+      "en": "light",
+      "target": "ពន្លឺ",
+      "roman": "punler",
+      "frequency_rank": 83
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0112",
+      "category": "core",
+      "en": "kind",
+      "target": "ប្រភេទ",
+      "roman": "prophet",
+      "frequency_rank": 84
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0113",
+      "category": "core",
+      "en": "off",
+      "target": "បិទ",
+      "roman": "bit",
+      "frequency_rank": 85
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0114",
+      "category": "work",
+      "en": "need",
+      "target": "ត្រូវការ",
+      "roman": "trovkar",
+      "frequency_rank": 86
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0115",
+      "category": "technology",
+      "en": "picture",
+      "target": "រូបភាព",
+      "roman": "rub pheap",
+      "frequency_rank": 88
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0116",
+      "category": "actions",
+      "en": "try",
+      "target": "ព្យាយាម",
+      "roman": "pjeayeam",
+      "frequency_rank": 89
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0117",
+      "category": "animals",
+      "en": "animal",
+      "target": "សត្វ",
+      "roman": "sat",
+      "frequency_rank": 92
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0118",
+      "category": "colors_shapes",
+      "en": "point",
+      "target": "ចំណុច",
+      "roman": "jomnuch",
+      "frequency_rank": 93
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0119",
+      "category": "nature_weather",
+      "en": "world",
+      "target": "ពិភពលោក",
+      "roman": "pipoplouk",
+      "frequency_rank": 95
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0120",
+      "category": "work",
+      "en": "build",
+      "target": "កសាង",
+      "roman": "kasang",
+      "frequency_rank": 97
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0121",
+      "category": "nature_weather",
+      "en": "earth",
+      "target": "ផែនដី",
+      "roman": "phaendey",
+      "frequency_rank": 99
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0122",
+      "category": "people_family",
+      "en": "father",
+      "target": "ឪពុក",
+      "roman": "ov puk",
+      "frequency_rank": 100
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0123",
+      "category": "descriptions",
+      "en": "new",
+      "target": "ថ្មី",
+      "roman": "thmey",
+      "frequency_rank": 102
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0124",
+      "category": "actions",
+      "en": "take",
+      "target": "យក",
+      "roman": "yok",
+      "frequency_rank": 105
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0125",
+      "category": "core",
+      "en": "place",
+      "target": "កន្លែង",
+      "roman": "konlaeng",
+      "frequency_rank": 107
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0126",
+      "category": "core",
+      "en": "after",
+      "target": "បន្ទាប់ពី",
+      "roman": "banteabapi",
+      "frequency_rank": 111
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0127",
+      "category": "colors_shapes",
+      "en": "round",
+      "target": "ជុំ",
+      "roman": "jom",
+      "frequency_rank": 115
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0128",
+      "category": "people_family",
+      "en": "name",
+      "target": "ឈ្មោះ",
+      "roman": "jmous",
+      "frequency_rank": 126
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0129",
+      "category": "grammar",
+      "en": "just",
+      "target": "គ្រាន់តែ",
+      "roman": "kreantae",
+      "frequency_rank": 129
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0130",
+      "category": "actions",
+      "en": "think",
+      "target": "គិត",
+      "roman": "kit",
+      "frequency_rank": 133
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0131",
+      "category": "actions",
+      "en": "say",
+      "target": "និយាយ",
+      "roman": "yy",
+      "frequency_rank": 134
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0132",
+      "category": "actions",
+      "en": "help",
+      "target": "ជួយ",
+      "roman": "jouy",
+      "frequency_rank": 135
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0133",
+      "category": "descriptions",
+      "en": "low",
+      "target": "ទាប",
+      "roman": "teab",
+      "frequency_rank": 136
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0134",
+      "category": "colors_shapes",
+      "en": "line",
+      "target": "បន្ទាត់",
+      "roman": "banteat",
+      "frequency_rank": 137
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0135",
+      "category": "actions",
+      "en": "turn",
+      "target": "វេន",
+      "roman": "ven",
+      "frequency_rank": 139
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0136",
+      "category": "core",
+      "en": "cause",
+      "target": "មូលហេតុ",
+      "roman": "moulhaet",
+      "frequency_rank": 140
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0137",
+      "category": "descriptions",
+      "en": "much",
+      "target": "ច្រើន",
+      "roman": "jren",
+      "frequency_rank": 141
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0138",
+      "category": "descriptions",
+      "en": "right",
+      "target": "សិទ្ធិ",
+      "roman": "sirt",
+      "frequency_rank": 145
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0139",
+      "category": "descriptions",
+      "en": "old",
+      "target": "អាយុ",
+      "roman": "ayuk",
+      "frequency_rank": 147
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0140",
+      "category": "grammar",
+      "en": "all",
+      "target": "ទាំងអស់",
+      "roman": "teangs",
+      "frequency_rank": 151
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0141",
+      "category": "grammar",
+      "en": "when",
+      "target": "ពេល",
+      "roman": "pel",
+      "frequency_rank": 153
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0142",
+      "category": "grammar",
+      "en": "up",
+      "target": "ឡើង",
+      "roman": "lerng",
+      "frequency_rank": 154
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0143",
+      "category": "work",
+      "en": "use",
+      "target": "ប្រើ",
+      "roman": "brer",
+      "frequency_rank": 155
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0144",
+      "category": "core",
+      "en": "way",
+      "target": "វិធី",
+      "roman": "vithi",
+      "frequency_rank": 157
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0145",
+      "category": "core",
+      "en": "about",
+      "target": "អំពី",
+      "roman": "ompi",
+      "frequency_rank": 158
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0146",
+      "category": "descriptions",
+      "en": "many",
+      "target": "ជាច្រើន",
+      "roman": "cheajrern",
+      "frequency_rank": 159
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0147",
+      "category": "school",
+      "en": "write",
+      "target": "សរសេរ",
+      "roman": "sorse",
+      "frequency_rank": 162
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0148",
+      "category": "core",
+      "en": "so",
+      "target": "ដូច្នេះ",
+      "roman": "dochchnis",
+      "frequency_rank": 165
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0149",
+      "category": "core",
+      "en": "thing",
+      "target": "រឿង",
+      "roman": "rirng",
+      "frequency_rank": 170
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0150",
+      "category": "actions",
+      "en": "look",
+      "target": "មើល",
+      "roman": "mer",
+      "frequency_rank": 175
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0151",
+      "category": "numbers_time",
+      "en": "day",
+      "target": "ថ្ងៃ",
+      "roman": "tgai",
+      "frequency_rank": 177
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0152",
+      "category": "travel_transport",
+      "en": "come",
+      "target": "មក",
+      "roman": "mok",
+      "frequency_rank": 180
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0153",
+      "category": "grammar",
+      "en": "did",
+      "target": "ធ្វើ",
+      "roman": "ther",
+      "frequency_rank": 181
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0154",
+      "category": "school",
+      "en": "number",
+      "target": "ចំនួន",
+      "roman": "jomnoun",
+      "frequency_rank": 182
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0155",
+      "category": "core",
+      "en": "sound",
+      "target": "សំឡេង",
+      "roman": "sleng",
+      "frequency_rank": 183
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0156",
+      "category": "grammar",
+      "en": "no",
+      "target": "គ្មាន",
+      "roman": "kmean",
+      "frequency_rank": 184
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0157",
+      "category": "core",
+      "en": "over",
+      "target": "ជាង",
+      "roman": "cheang",
+      "frequency_rank": 188
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0158",
+      "category": "actions",
+      "en": "know",
+      "target": "ដឹង",
+      "roman": "deng",
+      "frequency_rank": 189
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0159",
+      "category": "core",
+      "en": "down",
+      "target": "ចុះ",
+      "roman": "jos",
+      "frequency_rank": 196
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0160",
+      "category": "grammar",
+      "en": "been",
+      "target": "បាន",
+      "roman": "ban",
+      "frequency_rank": 198
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0161",
+      "category": "actions",
+      "en": "stand",
+      "target": "ឈរ",
+      "roman": "chhor",
+      "frequency_rank": 202
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0162",
+      "category": "core",
+      "en": "page",
+      "target": "ទំព័រ",
+      "roman": "tumpor",
+      "frequency_rank": 204
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0163",
+      "category": "core",
+      "en": "should",
+      "target": "គួរ",
+      "roman": "kour",
+      "frequency_rank": 205
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0164",
+      "category": "community",
+      "en": "country",
+      "target": "ប្រទេស",
+      "roman": "p'tes",
+      "frequency_rank": 206
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0165",
+      "category": "school",
+      "en": "answer",
+      "target": "ចម្លើយ",
+      "roman": "chamlauy",
+      "frequency_rank": 208
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0166",
+      "category": "school",
+      "en": "school",
+      "target": "សាលារៀន",
+      "roman": "salarein",
+      "frequency_rank": 209
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0167",
+      "category": "school",
+      "en": "learn",
+      "target": "រៀន",
+      "roman": "rien",
+      "frequency_rank": 213
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0168",
+      "category": "actions",
+      "en": "cover",
+      "target": "គម្រប",
+      "roman": "komrob",
+      "frequency_rank": 215
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0169",
+      "category": "food",
+      "en": "food",
+      "target": "អាហារ",
+      "roman": "ah ha",
+      "frequency_rank": 216
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0170",
+      "category": "nature_weather",
+      "en": "sun",
+      "target": "ព្រះអាទិត្យ",
+      "roman": "preahartit",
+      "frequency_rank": 217
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0171",
+      "category": "core",
+      "en": "between",
+      "target": "រវាង",
+      "roman": "roveang",
+      "frequency_rank": 219
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0172",
+      "category": "community",
+      "en": "state",
+      "target": "រដ្ឋ",
+      "roman": "roth",
+      "frequency_rank": 220
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0173",
+      "category": "actions",
+      "en": "keep",
+      "target": "រក្សា",
+      "roman": "reksa",
+      "frequency_rank": 221
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0174",
+      "category": "body_health",
+      "en": "eye",
+      "target": "ភ្នែក",
+      "roman": "pnek",
+      "frequency_rank": 222
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0175",
+      "category": "numbers_time",
+      "en": "last",
+      "target": "ចុងក្រោយ",
+      "roman": "chongkraoy",
+      "frequency_rank": 224
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0176",
+      "category": "community",
+      "en": "city",
+      "target": "ទីក្រុង",
+      "roman": "tikrong",
+      "frequency_rank": 227
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0177",
+      "category": "nature_weather",
+      "en": "tree",
+      "target": "ដើម",
+      "roman": "derm",
+      "frequency_rank": 228
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0178",
+      "category": "core",
+      "en": "saw",
+      "target": "ឃើញ",
+      "roman": "kh",
+      "frequency_rank": 235
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0179",
+      "category": "descriptions",
+      "en": "far",
+      "target": "ឆ្ងាយ",
+      "roman": "chngay",
+      "frequency_rank": 236
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0180",
+      "category": "actions",
+      "en": "draw",
+      "target": "គូរ",
+      "roman": "ku",
+      "frequency_rank": 238
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0181",
+      "category": "numbers_time",
+      "en": "late",
+      "target": "ចុង",
+      "roman": "jong",
+      "frequency_rank": 240
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0182",
+      "category": "numbers_time",
+      "en": "night",
+      "target": "យប់",
+      "roman": "yub",
+      "frequency_rank": 246
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0183",
+      "category": "descriptions",
+      "en": "real",
+      "target": "ពិតប្រាកដ",
+      "roman": "pitbrakod",
+      "frequency_rank": 247
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0184",
+      "category": "body_health",
+      "en": "life",
+      "target": "ជីវិត",
+      "roman": "jivit",
+      "frequency_rank": 248
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0185",
+      "category": "descriptions",
+      "en": "few",
+      "target": "ប៉ុន្មាន",
+      "roman": "marn",
+      "frequency_rank": 249
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0186",
+      "category": "school",
+      "en": "book",
+      "target": "សៀវភៅ",
+      "roman": "seavphov",
+      "frequency_rank": 251
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0187",
+      "category": "actions",
+      "en": "carry",
+      "target": "អនុវត្ត",
+      "roman": "anuvat",
+      "frequency_rank": 252
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0188",
+      "category": "food",
+      "en": "eat",
+      "target": "បរិភោគ",
+      "roman": "bariphouk",
+      "frequency_rank": 255
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0189",
+      "category": "home",
+      "en": "room",
+      "target": "បន្ទប់",
+      "roman": "bontub",
+      "frequency_rank": 256
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0190",
+      "category": "core",
+      "en": "idea",
+      "target": "គំនិត",
+      "roman": "komnit",
+      "frequency_rank": 259
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0191",
+      "category": "food",
+      "en": "fish",
+      "target": "ត្រី",
+      "roman": "trey",
+      "frequency_rank": 260
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0192",
+      "category": "nature_weather",
+      "en": "mountain",
+      "target": "ភ្នំ",
+      "roman": "phnom",
+      "frequency_rank": 261
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0193",
+      "category": "actions",
+      "en": "stop",
+      "target": "បញ្ឈប់",
+      "roman": "banh chub",
+      "frequency_rank": 262
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0194",
+      "category": "animals",
+      "en": "horse",
+      "target": "សេះ",
+      "roman": "ses",
+      "frequency_rank": 266
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0195",
+      "category": "actions",
+      "en": "cut",
+      "target": "កាត់",
+      "roman": "kat",
+      "frequency_rank": 267
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0196",
+      "category": "colors_shapes",
+      "en": "color",
+      "target": "ពណ៌",
+      "roman": "por",
+      "frequency_rank": 270
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0197",
+      "category": "body_health",
+      "en": "face",
+      "target": "មុខ",
+      "roman": "muk",
+      "frequency_rank": 271
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0198",
+      "category": "core",
+      "en": "wood",
+      "target": "ឈើ",
+      "roman": "chher",
+      "frequency_rank": 272
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0199",
+      "category": "people_family",
+      "en": "children",
+      "target": "កុមារ",
+      "roman": "koma",
+      "frequency_rank": 279
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0200",
+      "category": "travel_transport",
+      "en": "walk",
+      "target": "ដើរ",
+      "roman": "der",
+      "frequency_rank": 282
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0201",
+      "category": "school",
+      "en": "paper",
+      "target": "ក្រដាស",
+      "roman": "krodas",
+      "frequency_rank": 285
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0202",
+      "category": "community",
+      "en": "group",
+      "target": "ក្រុម",
+      "roman": "krom",
+      "frequency_rank": 286
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0203",
+      "category": "core",
+      "en": "always",
+      "target": "តែងតែ",
+      "roman": "taengotae",
+      "frequency_rank": 287
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0204",
+      "category": "school",
+      "en": "music",
+      "target": "តន្ត្រី",
+      "roman": "dontrei",
+      "frequency_rank": 288
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0205",
+      "category": "core",
+      "en": "mark",
+      "target": "សញ្ញា",
+      "roman": "sanha",
+      "frequency_rank": 291
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0206",
+      "category": "school",
+      "en": "letter",
+      "target": "លិខិត",
+      "roman": "likhet",
+      "frequency_rank": 293
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0207",
+      "category": "travel_transport",
+      "en": "car",
+      "target": "រថយន្ត",
+      "roman": "rut yun",
+      "frequency_rank": 297
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0208",
+      "category": "core",
+      "en": "plain",
+      "target": "ធម្មតា",
+      "roman": "tomda",
+      "frequency_rank": 302
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0209",
+      "category": "descriptions",
+      "en": "young",
+      "target": "វ័យក្មេង",
+      "roman": "veikmeng",
+      "frequency_rank": 305
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0210",
+      "category": "core",
+      "en": "above",
+      "target": "ខាងលើ",
+      "roman": "khangler",
+      "frequency_rank": 307
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0211",
+      "category": "core",
+      "en": "list",
+      "target": "បញ្ជី",
+      "roman": "banhchi",
+      "frequency_rank": 310
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0212",
+      "category": "core",
+      "en": "though",
+      "target": "ទោះបីជា",
+      "roman": "tuohbeychea",
+      "frequency_rank": 311
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0213",
+      "category": "actions",
+      "en": "talk",
+      "target": "ការពិភាក្សា",
+      "roman": "karpipheaksa",
+      "frequency_rank": 313
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0214",
+      "category": "animals",
+      "en": "bird",
+      "target": "បក្សី",
+      "roman": "baksei",
+      "frequency_rank": 314
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0215",
+      "category": "core",
+      "en": "soon",
+      "target": "ឆាប់",
+      "roman": "chhab",
+      "frequency_rank": 315
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0216",
+      "category": "animals",
+      "en": "dog",
+      "target": "ឆ្កែ",
+      "roman": "jkae",
+      "frequency_rank": 317
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0217",
+      "category": "core",
+      "en": "pose",
+      "target": "បង្ក",
+      "roman": "bongkor",
+      "frequency_rank": 320
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0218",
+      "category": "core",
+      "en": "song",
+      "target": "បទចម្រៀង",
+      "roman": "botochomrieng",
+      "frequency_rank": 322
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0219",
+      "category": "core",
+      "en": "measure",
+      "target": "វាស់",
+      "roman": "veas",
+      "frequency_rank": 323
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0220",
+      "category": "home",
+      "en": "door",
+      "target": "ទ្វារ",
+      "roman": "tvea",
+      "frequency_rank": 324
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0221",
+      "category": "core",
+      "en": "product",
+      "target": "ផលិតផល",
+      "roman": "porlirtaporl",
+      "frequency_rank": 325
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0222",
+      "category": "descriptions",
+      "en": "short",
+      "target": "ខ្លី",
+      "roman": "klei",
+      "frequency_rank": 327
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0223",
+      "category": "core",
+      "en": "numeral",
+      "target": "លេខ",
+      "roman": "lek",
+      "frequency_rank": 328
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0224",
+      "category": "school",
+      "en": "class",
+      "target": "ថ្នាក់",
+      "roman": "tnak",
+      "frequency_rank": 329
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0225",
+      "category": "school",
+      "en": "question",
+      "target": "សំណួរ",
+      "roman": "samnuor",
+      "frequency_rank": 331
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0226",
+      "category": "travel_transport",
+      "en": "ship",
+      "target": "នាវា",
+      "roman": "neavea",
+      "frequency_rank": 334
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0227",
+      "category": "community",
+      "en": "area",
+      "target": "តំបន់",
+      "roman": "dombon",
+      "frequency_rank": 335
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0228",
+      "category": "nature_weather",
+      "en": "fire",
+      "target": "ភ្លើង",
+      "roman": "plerng",
+      "frequency_rank": 339
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0229",
+      "category": "core",
+      "en": "problem",
+      "target": "បញ្ហា",
+      "roman": "panha",
+      "frequency_rank": 341
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0230",
+      "category": "core",
+      "en": "piece",
+      "target": "ដុំ",
+      "roman": "dom",
+      "frequency_rank": 342
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0231",
+      "category": "core",
+      "en": "pass",
+      "target": "ហុច",
+      "roman": "hoch",
+      "frequency_rank": 345
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0232",
+      "category": "colors_shapes",
+      "en": "top",
+      "target": "កំពូល",
+      "roman": "kampul",
+      "frequency_rank": 347
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0233",
+      "category": "core",
+      "en": "whole",
+      "target": "ទាំងមូល",
+      "roman": "tangmoul",
+      "frequency_rank": 348
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0234",
+      "category": "core",
+      "en": "multiply",
+      "target": "គុណ",
+      "roman": "kun",
+      "frequency_rank": 352
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0235",
+      "category": "core",
+      "en": "force",
+      "target": "កម្លាំង",
+      "roman": "komlang",
+      "frequency_rank": 358
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0236",
+      "category": "core",
+      "en": "object",
+      "target": "វត្ថុ",
+      "roman": "vathok",
+      "frequency_rank": 360
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0237",
+      "category": "core",
+      "en": "surface",
+      "target": "ផ្ទៃ",
+      "roman": "ptey",
+      "frequency_rank": 362
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0238",
+      "category": "core",
+      "en": "deep",
+      "target": "ជ្រៅ",
+      "roman": "chrov",
+      "frequency_rank": 363
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0239",
+      "category": "core",
+      "en": "island",
+      "target": "កោះ",
+      "roman": "koh",
+      "frequency_rank": 365
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0240",
+      "category": "core",
+      "en": "system",
+      "target": "ប្រព័ន្ធ",
+      "roman": "prapoin",
+      "frequency_rank": 367
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0241",
+      "category": "core",
+      "en": "busy",
+      "target": "រវល់",
+      "roman": "rovol",
+      "frequency_rank": 368
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0242",
+      "category": "travel_transport",
+      "en": "boat",
+      "target": "ទូក",
+      "roman": "touk",
+      "frequency_rank": 371
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0243",
+      "category": "core",
+      "en": "gold",
+      "target": "មាស",
+      "roman": "meas",
+      "frequency_rank": 373
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0244",
+      "category": "core",
+      "en": "plane",
+      "target": "យន្តហោះ",
+      "roman": "yontohaoh",
+      "frequency_rank": 375
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0245",
+      "category": "core",
+      "en": "stead",
+      "target": "ជំនួស",
+      "roman": "jumnous",
+      "frequency_rank": 376
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0246",
+      "category": "core",
+      "en": "dry",
+      "target": "ស្ងួត",
+      "roman": "sgourt",
+      "frequency_rank": 377
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0247",
+      "category": "core",
+      "en": "wonder",
+      "target": "ឆ្ងល់",
+      "roman": "chhngal",
+      "frequency_rank": 378
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0248",
+      "category": "core",
+      "en": "laugh",
+      "target": "សើច",
+      "roman": "serj",
+      "frequency_rank": 379
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0249",
+      "category": "core",
+      "en": "ago",
+      "target": "មុន",
+      "roman": "mun",
+      "frequency_rank": 381
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0250",
+      "category": "core",
+      "en": "ran",
+      "target": "រត់",
+      "roman": "rut",
+      "frequency_rank": 382
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0251",
+      "category": "colors_shapes",
+      "en": "shape",
+      "target": "រូបរាង",
+      "roman": "ruboreang",
+      "frequency_rank": 385
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0252",
+      "category": "core",
+      "en": "equate",
+      "target": "ស្មើ",
+      "roman": "smer",
+      "frequency_rank": 386
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0253",
+      "category": "core",
+      "en": "miss",
+      "target": "បាត់",
+      "roman": "bat",
+      "frequency_rank": 388
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0254",
+      "category": "core",
+      "en": "snow",
+      "target": "ព្រិល",
+      "roman": "pril",
+      "frequency_rank": 391
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0255",
+      "category": "core",
+      "en": "yes",
+      "target": "បាទ",
+      "roman": "bat",
+      "frequency_rank": 394
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0256",
+      "category": "core",
+      "en": "fill",
+      "target": "បំពេញ",
+      "roman": "bom penh",
+      "frequency_rank": 396
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0257",
+      "category": "travel_transport",
+      "en": "east",
+      "target": "ខាងកើត",
+      "roman": "khangkert",
+      "frequency_rank": 397
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0258",
+      "category": "core",
+      "en": "language",
+      "target": "ភាសា",
+      "roman": "pheasa",
+      "frequency_rank": 399
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0259",
+      "category": "core",
+      "en": "unit",
+      "target": "អង្គភាព",
+      "roman": "aangkopheap",
+      "frequency_rank": 401
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0260",
+      "category": "core",
+      "en": "power",
+      "target": "អំណាច",
+      "roman": "aamnach",
+      "frequency_rank": 402
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0261",
+      "category": "core",
+      "en": "lead",
+      "target": "នាំ",
+      "roman": "norm",
+      "frequency_rank": 408
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0262",
+      "category": "core",
+      "en": "cry",
+      "target": "យំ",
+      "roman": "yum",
+      "frequency_rank": 409
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0263",
+      "category": "core",
+      "en": "dark",
+      "target": "ងងឹត",
+      "roman": "ngonguet",
+      "frequency_rank": 410
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0264",
+      "category": "technology",
+      "en": "machine",
+      "target": "ម៉ាស៊ីន",
+      "roman": "machine",
+      "frequency_rank": 411
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0265",
+      "category": "core",
+      "en": "note",
+      "target": "ចំណាំ",
+      "roman": "chamnam",
+      "frequency_rank": 412
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0266",
+      "category": "work",
+      "en": "plan",
+      "target": "ផែនការ",
+      "roman": "phenkar",
+      "frequency_rank": 414
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0267",
+      "category": "core",
+      "en": "figure",
+      "target": "តួលេខ",
+      "roman": "tuolekh",
+      "frequency_rank": 415
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0268",
+      "category": "nature_weather",
+      "en": "star",
+      "target": "តារា",
+      "roman": "dara",
+      "frequency_rank": 416
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0269",
+      "category": "core",
+      "en": "box",
+      "target": "ប្រអប់",
+      "roman": "bro aob",
+      "frequency_rank": 417
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0270",
+      "category": "core",
+      "en": "noun",
+      "target": "នាម",
+      "roman": "neam",
+      "frequency_rank": 418
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0271",
+      "category": "core",
+      "en": "field",
+      "target": "វាល",
+      "roman": "veal",
+      "frequency_rank": 419
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0272",
+      "category": "core",
+      "en": "beauty",
+      "target": "សម្រស់",
+      "roman": "somros",
+      "frequency_rank": 425
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0273",
+      "category": "core",
+      "en": "teach",
+      "target": "បង្រៀន",
+      "roman": "bongrean",
+      "frequency_rank": 430
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0274",
+      "category": "core",
+      "en": "quick",
+      "target": "រហ័ស",
+      "roman": "rohas",
+      "frequency_rank": 436
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0275",
+      "category": "numbers_time",
+      "en": "minute",
+      "target": "នាទី",
+      "roman": "neati",
+      "frequency_rank": 441
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0276",
+      "category": "core",
+      "en": "special",
+      "target": "ពិសេស",
+      "roman": "pises",
+      "frequency_rank": 443
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0277",
+      "category": "core",
+      "en": "mind",
+      "target": "ចិត្ត",
+      "roman": "chet",
+      "frequency_rank": 444
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0278",
+      "category": "core",
+      "en": "clear",
+      "target": "ច្បាស់លាស់",
+      "roman": "chbasleas",
+      "frequency_rank": 446
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0279",
+      "category": "core",
+      "en": "tail",
+      "target": "កន្ទុយ",
+      "roman": "kontuy",
+      "frequency_rank": 447
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0280",
+      "category": "core",
+      "en": "space",
+      "target": "ចន្លោះ",
+      "roman": "jlos",
+      "frequency_rank": 450
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0281",
+      "category": "numbers_time",
+      "en": "hour",
+      "target": "ម៉ោង",
+      "roman": "moang",
+      "frequency_rank": 453
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0282",
+      "category": "numbers_time",
+      "en": "hundred",
+      "target": "រយ",
+      "roman": "roy",
+      "frequency_rank": 457
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0283",
+      "category": "numbers_time",
+      "en": "five",
+      "target": "ប្រាំ",
+      "roman": "bram",
+      "frequency_rank": 458
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0284",
+      "category": "actions",
+      "en": "remember",
+      "target": "ចងចាំ",
+      "roman": "changcham",
+      "frequency_rank": 459
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0285",
+      "category": "core",
+      "en": "step",
+      "target": "ជំហាន",
+      "roman": "chumhean",
+      "frequency_rank": 460
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0286",
+      "category": "actions",
+      "en": "hold",
+      "target": "កាន់",
+      "roman": "kan",
+      "frequency_rank": 462
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0287",
+      "category": "core",
+      "en": "interest",
+      "target": "ការប្រាក់",
+      "roman": "karbrak",
+      "frequency_rank": 465
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0288",
+      "category": "core",
+      "en": "verb",
+      "target": "កិរិយាសព្ទ",
+      "roman": "keriyasop",
+      "frequency_rank": 468
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0289",
+      "category": "actions",
+      "en": "sing",
+      "target": "ច្រៀង",
+      "roman": "chreang",
+      "frequency_rank": 469
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0290",
+      "category": "home",
+      "en": "table",
+      "target": "តារាង",
+      "roman": "tareang",
+      "frequency_rank": 472
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0291",
+      "category": "core",
+      "en": "less",
+      "target": "តិច",
+      "roman": "tic",
+      "frequency_rank": 474
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0292",
+      "category": "numbers_time",
+      "en": "ten",
+      "target": "ដប់",
+      "roman": "dab",
+      "frequency_rank": 476
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0293",
+      "category": "core",
+      "en": "simple",
+      "target": "សាមញ្ញ",
+      "roman": "smanh",
+      "frequency_rank": 477
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0294",
+      "category": "core",
+      "en": "vowel",
+      "target": "ស្រៈ",
+      "roman": "srak",
+      "frequency_rank": 479
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0295",
+      "category": "core",
+      "en": "pattern",
+      "target": "គំរូ",
+      "roman": "kumru",
+      "frequency_rank": 484
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0296",
+      "category": "core",
+      "en": "slow",
+      "target": "យឺត",
+      "roman": "yueut",
+      "frequency_rank": 485
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0297",
+      "category": "work",
+      "en": "money",
+      "target": "លុយ",
+      "roman": "luy",
+      "frequency_rank": 489
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0298",
+      "category": "core",
+      "en": "serve",
+      "target": "បម្រើ",
+      "roman": "bomrer",
+      "frequency_rank": 490
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0299",
+      "category": "core",
+      "en": "appear",
+      "target": "លេចឡើង",
+      "roman": "lecholaeung",
+      "frequency_rank": 491
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0300",
+      "category": "travel_transport",
+      "en": "map",
+      "target": "ផែនទី",
+      "roman": "phaenti",
+      "frequency_rank": 493
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0301",
+      "category": "core",
+      "en": "rule",
+      "target": "ច្បាប់",
+      "roman": "chbab",
+      "frequency_rank": 495
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0302",
+      "category": "core",
+      "en": "pull",
+      "target": "ទាញ",
+      "roman": "teanh",
+      "frequency_rank": 497
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0303",
+      "category": "core",
+      "en": "energy",
+      "target": "ថាមពល",
+      "roman": "thamopol",
+      "frequency_rank": 501
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0304",
+      "category": "core",
+      "en": "hunt",
+      "target": "ប្រមាញ់",
+      "roman": "bromanh",
+      "frequency_rank": 502
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0305",
+      "category": "core",
+      "en": "probable",
+      "target": "ទំនង",
+      "roman": "tumnong",
+      "frequency_rank": 503
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0306",
+      "category": "home",
+      "en": "bed",
+      "target": "គ្រែ",
+      "roman": "kreae",
+      "frequency_rank": 504
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0307",
+      "category": "food",
+      "en": "egg",
+      "target": "ស៊ុត",
+      "roman": "sot",
+      "frequency_rank": 506
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0308",
+      "category": "travel_transport",
+      "en": "ride",
+      "target": "ជិះ",
+      "roman": "jis",
+      "frequency_rank": 507
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0309",
+      "category": "core",
+      "en": "believe",
+      "target": "ជឿ",
+      "roman": "jir",
+      "frequency_rank": 509
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0310",
+      "category": "core",
+      "en": "sudden",
+      "target": "រំពេច",
+      "roman": "rumpech",
+      "frequency_rank": 512
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0311",
+      "category": "core",
+      "en": "count",
+      "target": "រាប់",
+      "roman": "rorb",
+      "frequency_rank": 513
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0312",
+      "category": "core",
+      "en": "length",
+      "target": "ប្រវែង",
+      "roman": "proveng",
+      "frequency_rank": 516
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0313",
+      "category": "core",
+      "en": "represent",
+      "target": "តំណាង",
+      "roman": "domnang",
+      "frequency_rank": 517
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0314",
+      "category": "core",
+      "en": "size",
+      "target": "ទំហំ",
+      "roman": "tumhum",
+      "frequency_rank": 521
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0315",
+      "category": "core",
+      "en": "general",
+      "target": "ទូទៅ",
+      "roman": "tutov",
+      "frequency_rank": 526
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0316",
+      "category": "core",
+      "en": "ice",
+      "target": "ទឹកកក",
+      "roman": "tuekkok",
+      "frequency_rank": 527
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0317",
+      "category": "core",
+      "en": "pair",
+      "target": "គូ",
+      "roman": "ku",
+      "frequency_rank": 530
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0318",
+      "category": "core",
+      "en": "divide",
+      "target": "ចេក",
+      "roman": "chek",
+      "frequency_rank": 532
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0319",
+      "category": "core",
+      "en": "syllable",
+      "target": "ព្យាង្គ",
+      "roman": "pyeangkor",
+      "frequency_rank": 533
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0320",
+      "category": "core",
+      "en": "ball",
+      "target": "បាល់",
+      "roman": "bal",
+      "frequency_rank": 536
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0321",
+      "category": "core",
+      "en": "wave",
+      "target": "រលក",
+      "roman": "rolok",
+      "frequency_rank": 538
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0322",
+      "category": "body_health",
+      "en": "heart",
+      "target": "បេះដូង",
+      "roman": "besdong",
+      "frequency_rank": 540
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0323",
+      "category": "core",
+      "en": "present",
+      "target": "បច្ចុប្បន្ន",
+      "roman": "pachobon",
+      "frequency_rank": 542
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0324",
+      "category": "core",
+      "en": "heavy",
+      "target": "ធ្ងន់",
+      "roman": "thgun",
+      "frequency_rank": 543
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0325",
+      "category": "core",
+      "en": "position",
+      "target": "ទីតាំង",
+      "roman": "titang",
+      "frequency_rank": 546
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0326",
+      "category": "core",
+      "en": "wide",
+      "target": "ទូលាយ",
+      "roman": "tuleay",
+      "frequency_rank": 548
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0327",
+      "category": "core",
+      "en": "forest",
+      "target": "ព្រៃឈើ",
+      "roman": "preycher",
+      "frequency_rank": 552
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0328",
+      "category": "actions",
+      "en": "sit",
+      "target": "អង្គុយ",
+      "roman": "angkuy",
+      "frequency_rank": 553
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0329",
+      "category": "home",
+      "en": "window",
+      "target": "បង្អួច",
+      "roman": "bangauoch",
+      "frequency_rank": 555
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0330",
+      "category": "core",
+      "en": "store",
+      "target": "ហាង",
+      "roman": "hang",
+      "frequency_rank": 556
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0331",
+      "category": "travel_transport",
+      "en": "train",
+      "target": "រថភ្លើង",
+      "roman": "rothophlaung",
+      "frequency_rank": 558
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0332",
+      "category": "core",
+      "en": "prove",
+      "target": "បង្ហាញ",
+      "roman": "bonghanh",
+      "frequency_rank": 560
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0333",
+      "category": "core",
+      "en": "lone",
+      "target": "តែ",
+      "roman": "te",
+      "frequency_rank": 561
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0334",
+      "category": "home",
+      "en": "wall",
+      "target": "ជញ្ជាំង",
+      "roman": "chonhcheang",
+      "frequency_rank": 564
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0335",
+      "category": "core",
+      "en": "catch",
+      "target": "ចាប់",
+      "roman": "chab",
+      "frequency_rank": 565
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0336",
+      "category": "nature_weather",
+      "en": "sky",
+      "target": "មេឃ",
+      "roman": "mekh",
+      "frequency_rank": 568
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0337",
+      "category": "core",
+      "en": "instrument",
+      "target": "ឧបករណ៍",
+      "roman": "ubokoron",
+      "frequency_rank": 575
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0338",
+      "category": "core",
+      "en": "glass",
+      "target": "កញ្ចក់",
+      "roman": "kanhchork",
+      "frequency_rank": 577
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0339",
+      "category": "core",
+      "en": "grass",
+      "target": "ស្មៅ",
+      "roman": "smau",
+      "frequency_rank": 578
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0340",
+      "category": "animals",
+      "en": "cow",
+      "target": "គោ",
+      "roman": "ko",
+      "frequency_rank": 579
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0341",
+      "category": "work",
+      "en": "job",
+      "target": "ការងារ",
+      "roman": "kangea",
+      "frequency_rank": 580
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0342",
+      "category": "core",
+      "en": "edge",
+      "target": "គែម",
+      "roman": "keaem",
+      "frequency_rank": 581
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0343",
+      "category": "core",
+      "en": "soft",
+      "target": "ទន់",
+      "roman": "tun",
+      "frequency_rank": 585
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0344",
+      "category": "core",
+      "en": "bright",
+      "target": "ភ្លឺ",
+      "roman": "pleu",
+      "frequency_rank": 587
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0345",
+      "category": "nature_weather",
+      "en": "weather",
+      "target": "អាកាសធាតុ",
+      "roman": "aakastheato",
+      "frequency_rank": 589
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0346",
+      "category": "numbers_time",
+      "en": "month",
+      "target": "ខែ",
+      "roman": "khea",
+      "frequency_rank": 590
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0347",
+      "category": "core",
+      "en": "finish",
+      "target": "បញ្ចប់",
+      "roman": "banh job",
+      "frequency_rank": 593
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0348",
+      "category": "core",
+      "en": "happy",
+      "target": "រីករាយ",
+      "roman": "rikareay",
+      "frequency_rank": 594
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0349",
+      "category": "core",
+      "en": "hope",
+      "target": "សង្ឃឹម",
+      "roman": "songkerm",
+      "frequency_rank": 595
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0350",
+      "category": "nature_weather",
+      "en": "flower",
+      "target": "ផ្កា",
+      "roman": "phka",
+      "frequency_rank": 596
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0351",
+      "category": "core",
+      "en": "strange",
+      "target": "ចម្លែក",
+      "roman": "jomlaek",
+      "frequency_rank": 598
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0352",
+      "category": "core",
+      "en": "trade",
+      "target": "ពាណិជ្ជកម្ម",
+      "roman": "peanechchkam",
+      "frequency_rank": 600
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0353",
+      "category": "core",
+      "en": "die",
+      "target": "ស្លាប់",
+      "roman": "slab",
+      "frequency_rank": 609
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0354",
+      "category": "core",
+      "en": "seed",
+      "target": "ពូជ",
+      "roman": "puch",
+      "frequency_rank": 615
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0355",
+      "category": "core",
+      "en": "join",
+      "target": "ចូលរួម",
+      "roman": "choulruom",
+      "frequency_rank": 617
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0356",
+      "category": "core",
+      "en": "clean",
+      "target": "ស្អាត",
+      "roman": "sart",
+      "frequency_rank": 619
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0357",
+      "category": "actions",
+      "en": "break",
+      "target": "សម្រាក",
+      "roman": "somrak",
+      "frequency_rank": 620
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0358",
+      "category": "core",
+      "en": "lady",
+      "target": "ស្ត្រី",
+      "roman": "strey",
+      "frequency_rank": 621
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0359",
+      "category": "core",
+      "en": "rise",
+      "target": "កើនឡើង",
+      "roman": "kernlerng",
+      "frequency_rank": 623
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0360",
+      "category": "descriptions",
+      "en": "bad",
+      "target": "អាក្រក់",
+      "roman": "akk",
+      "frequency_rank": 624
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0361",
+      "category": "core",
+      "en": "oil",
+      "target": "ប្រេង",
+      "roman": "preng",
+      "frequency_rank": 626
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0362",
+      "category": "body_health",
+      "en": "blood",
+      "target": "ឈាម",
+      "roman": "cheam",
+      "frequency_rank": 627
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0363",
+      "category": "core",
+      "en": "touch",
+      "target": "ប៉ះ",
+      "roman": "pas",
+      "frequency_rank": 628
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0364",
+      "category": "core",
+      "en": "mix",
+      "target": "លាយ",
+      "roman": "leay",
+      "frequency_rank": 631
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0365",
+      "category": "core",
+      "en": "wire",
+      "target": "លួស",
+      "roman": "luos",
+      "frequency_rank": 633
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0366",
+      "category": "core",
+      "en": "lost",
+      "target": "បាត់បង់",
+      "roman": "batabang",
+      "frequency_rank": 635
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0367",
+      "category": "core",
+      "en": "brown",
+      "target": "ត្នោត",
+      "roman": "tnaot",
+      "frequency_rank": 636
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0368",
+      "category": "clothing",
+      "en": "wear",
+      "target": "ពាក់",
+      "roman": "peak",
+      "frequency_rank": 637
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0369",
+      "category": "home",
+      "en": "garden",
+      "target": "សួន",
+      "roman": "soun",
+      "frequency_rank": 638
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0370",
+      "category": "core",
+      "en": "fit",
+      "target": "សម",
+      "roman": "som",
+      "frequency_rank": 643
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0371",
+      "category": "core",
+      "en": "flow",
+      "target": "ហូរ",
+      "roman": "ho",
+      "frequency_rank": 644
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0372",
+      "category": "core",
+      "en": "fair",
+      "target": "យុត្តិធម៌",
+      "roman": "yuttethomr",
+      "frequency_rank": 645
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0373",
+      "category": "core",
+      "en": "collect",
+      "target": "ប្រមូល",
+      "roman": "pramol",
+      "frequency_rank": 647
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0374",
+      "category": "body_health",
+      "en": "ear",
+      "target": "ត្រចៀក",
+      "roman": "trochiek",
+      "frequency_rank": 651
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0375",
+      "category": "core",
+      "en": "broke",
+      "target": "បាក់",
+      "roman": "bak",
+      "frequency_rank": 654
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0376",
+      "category": "core",
+      "en": "case",
+      "target": "ករណី",
+      "roman": "karoney",
+      "frequency_rank": 655
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0377",
+      "category": "core",
+      "en": "kill",
+      "target": "សម្លាប់",
+      "roman": "somlab",
+      "frequency_rank": 657
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0378",
+      "category": "core",
+      "en": "lake",
+      "target": "បឹង",
+      "roman": "beung",
+      "frequency_rank": 659
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0379",
+      "category": "core",
+      "en": "scale",
+      "target": "ខ្នាត",
+      "roman": "khnat",
+      "frequency_rank": 661
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0380",
+      "category": "core",
+      "en": "loud",
+      "target": "ខ្លាំង",
+      "roman": "khlang",
+      "frequency_rank": 662
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0381",
+      "category": "core",
+      "en": "observe",
+      "target": "សង្កេត",
+      "roman": "songket",
+      "frequency_rank": 664
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0382",
+      "category": "core",
+      "en": "straight",
+      "target": "ត្រង់",
+      "roman": "trong",
+      "frequency_rank": 666
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0383",
+      "category": "core",
+      "en": "consonant",
+      "target": "ព្យញ្ជនៈ",
+      "roman": "pyonhchonek",
+      "frequency_rank": 667
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0384",
+      "category": "core",
+      "en": "dictionary",
+      "target": "វចនានុក្រម",
+      "roman": "vochaneanukram",
+      "frequency_rank": 669
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0385",
+      "category": "core",
+      "en": "speed",
+      "target": "ល្បឿន",
+      "roman": "lbern",
+      "frequency_rank": 671
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0386",
+      "category": "work",
+      "en": "pay",
+      "target": "បង់",
+      "roman": "bong",
+      "frequency_rank": 674
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0387",
+      "category": "core",
+      "en": "section",
+      "target": "ផ្នែក",
+      "roman": "pnek",
+      "frequency_rank": 676
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0388",
+      "category": "core",
+      "en": "quiet",
+      "target": "ស្ងាត់",
+      "roman": "sngat",
+      "frequency_rank": 680
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0389",
+      "category": "core",
+      "en": "cool",
+      "target": "ត្រជាក់",
+      "roman": "tracheak",
+      "frequency_rank": 684
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0390",
+      "category": "core",
+      "en": "design",
+      "target": "ការរចនា",
+      "roman": "karrachana",
+      "frequency_rank": 685
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0391",
+      "category": "core",
+      "en": "experiment",
+      "target": "ពិសោធន៍",
+      "roman": "pisort",
+      "frequency_rank": 688
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0392",
+      "category": "colors_shapes",
+      "en": "bottom",
+      "target": "បាត",
+      "roman": "bart",
+      "frequency_rank": 689
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0393",
+      "category": "core",
+      "en": "key",
+      "target": "គន្លឹះ",
+      "roman": "konlueeah",
+      "frequency_rank": 690
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0394",
+      "category": "core",
+      "en": "twenty",
+      "target": "ម្ភៃ",
+      "roman": "mphey",
+      "frequency_rank": 695
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0395",
+      "category": "core",
+      "en": "skin",
+      "target": "ស្បែក",
+      "roman": "sbaek",
+      "frequency_rank": 696
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0396",
+      "category": "core",
+      "en": "crease",
+      "target": "ផ្នត់",
+      "roman": "phnat",
+      "frequency_rank": 698
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0397",
+      "category": "core",
+      "en": "hole",
+      "target": "រន្ធ",
+      "roman": "ronthor",
+      "frequency_rank": 699
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0398",
+      "category": "core",
+      "en": "jump",
+      "target": "លោត",
+      "roman": "lout",
+      "frequency_rank": 700
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0399",
+      "category": "people_family",
+      "en": "baby",
+      "target": "ទារក",
+      "roman": "tearouk",
+      "frequency_rank": 701
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0400",
+      "category": "numbers_time",
+      "en": "eight",
+      "target": "ប្រាំបី",
+      "roman": "brambey",
+      "frequency_rank": 702
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0401",
+      "category": "core",
+      "en": "village",
+      "target": "ភូមិ",
+      "roman": "phum",
+      "frequency_rank": 703
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0402",
+      "category": "core",
+      "en": "meet",
+      "target": "ជួប",
+      "roman": "joub",
+      "frequency_rank": 704
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0403",
+      "category": "work",
+      "en": "buy",
+      "target": "ទិញ",
+      "roman": "tinh",
+      "frequency_rank": 706
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0404",
+      "category": "core",
+      "en": "raise",
+      "target": "បង្កើន",
+      "roman": "bong kern",
+      "frequency_rank": 707
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0405",
+      "category": "core",
+      "en": "metal",
+      "target": "ដែក",
+      "roman": "daek",
+      "frequency_rank": 709
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0406",
+      "category": "numbers_time",
+      "en": "third",
+      "target": "ទីបី",
+      "roman": "tibei",
+      "frequency_rank": 714
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0407",
+      "category": "core",
+      "en": "held",
+      "target": "លើក",
+      "roman": "lerk",
+      "frequency_rank": 716
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0408",
+      "category": "core",
+      "en": "hair",
+      "target": "សក់",
+      "roman": "sork",
+      "frequency_rank": 717
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0409",
+      "category": "core",
+      "en": "describe",
+      "target": "ពិពណ៌នា",
+      "roman": "pipnrnea",
+      "frequency_rank": 718
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0410",
+      "category": "home",
+      "en": "floor",
+      "target": "ជាន់",
+      "roman": "jorn",
+      "frequency_rank": 720
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0411",
+      "category": "core",
+      "en": "either",
+      "target": "ទាំង",
+      "roman": "taeng",
+      "frequency_rank": 721
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0412",
+      "category": "core",
+      "en": "result",
+      "target": "លទ្ធផល",
+      "roman": "lertphol",
+      "frequency_rank": 722
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0413",
+      "category": "core",
+      "en": "burn",
+      "target": "ដុត",
+      "roman": "dot",
+      "frequency_rank": 723
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0414",
+      "category": "core",
+      "en": "century",
+      "target": "សតវត្សរ៍",
+      "roman": "satavotsar",
+      "frequency_rank": 727
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0415",
+      "category": "core",
+      "en": "consider",
+      "target": "ពិចារណា",
+      "roman": "picharona",
+      "frequency_rank": 728
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0416",
+      "category": "core",
+      "en": "bit",
+      "target": "បន្តិច",
+      "roman": "bon tic",
+      "frequency_rank": 731
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0417",
+      "category": "core",
+      "en": "coast",
+      "target": "ឆ្នេរ",
+      "roman": "chhne",
+      "frequency_rank": 732
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0418",
+      "category": "core",
+      "en": "phrase",
+      "target": "ឃ្លា",
+      "roman": "khlea",
+      "frequency_rank": 734
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0419",
+      "category": "core",
+      "en": "silent",
+      "target": "ស្ងៀម",
+      "roman": "sngeam",
+      "frequency_rank": 735
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0420",
+      "category": "core",
+      "en": "tall",
+      "target": "កម្ពស់",
+      "roman": "k'pous",
+      "frequency_rank": 736
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0421",
+      "category": "core",
+      "en": "value",
+      "target": "តម្លៃ",
+      "roman": "tlai",
+      "frequency_rank": 743
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0422",
+      "category": "core",
+      "en": "lie",
+      "target": "កុហក",
+      "roman": "kohok",
+      "frequency_rank": 745
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0423",
+      "category": "core",
+      "en": "excite",
+      "target": "រំភើប",
+      "roman": "rumpherb",
+      "frequency_rank": 747
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0424",
+      "category": "core",
+      "en": "natural",
+      "target": "ធម្មជាតិ",
+      "roman": "thomcheat",
+      "frequency_rank": 748
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0425",
+      "category": "core",
+      "en": "view",
+      "target": "ទិដ្ឋភាព",
+      "roman": "tidthapheap",
+      "frequency_rank": 749
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0426",
+      "category": "core",
+      "en": "sense",
+      "target": "យល់",
+      "roman": "yol",
+      "frequency_rank": 750
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0427",
+      "category": "core",
+      "en": "thick",
+      "target": "ក្រាស់",
+      "roman": "kras",
+      "frequency_rank": 757
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0428",
+      "category": "core",
+      "en": "soldier",
+      "target": "ទាហាន",
+      "roman": "teahan",
+      "frequency_rank": 758
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0429",
+      "category": "core",
+      "en": "process",
+      "target": "ដំណើរការ",
+      "roman": "damnaeurkar",
+      "frequency_rank": 759
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0430",
+      "category": "core",
+      "en": "operate",
+      "target": "ប្រតិបត្តិការ",
+      "roman": "brataebatka",
+      "frequency_rank": 760
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0431",
+      "category": "core",
+      "en": "separate",
+      "target": "ដោយឡែក",
+      "roman": "daoylaek",
+      "frequency_rank": 762
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0432",
+      "category": "core",
+      "en": "please",
+      "target": "សូម",
+      "roman": "sum",
+      "frequency_rank": 765
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0433",
+      "category": "core",
+      "en": "protect",
+      "target": "ការពារ",
+      "roman": "kapea",
+      "frequency_rank": 766
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0434",
+      "category": "core",
+      "en": "noon",
+      "target": "ថ្ងៃត្រង់",
+      "roman": "thngaitrang",
+      "frequency_rank": 767
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0435",
+      "category": "core",
+      "en": "crop",
+      "target": "ដំណាំ",
+      "roman": "damnam",
+      "frequency_rank": 768
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0436",
+      "category": "core",
+      "en": "element",
+      "target": "ធាតុ",
+      "roman": "theat",
+      "frequency_rank": 770
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0437",
+      "category": "core",
+      "en": "hit",
+      "target": "បុក",
+      "roman": "bok",
+      "frequency_rank": 771
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0438",
+      "category": "core",
+      "en": "corner",
+      "target": "ជ្រុង",
+      "roman": "chrung",
+      "frequency_rank": 773
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0439",
+      "category": "core",
+      "en": "party",
+      "target": "គណបក្ស",
+      "roman": "konabak",
+      "frequency_rank": 774
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0440",
+      "category": "core",
+      "en": "ring",
+      "target": "ចិញ្ចៀន",
+      "roman": "chenhchien",
+      "frequency_rank": 778
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0441",
+      "category": "core",
+      "en": "caught",
+      "target": "ចាប់បាន",
+      "roman": "chabban",
+      "frequency_rank": 781
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0442",
+      "category": "technology",
+      "en": "radio",
+      "target": "វិទ្យុ",
+      "roman": "vityu",
+      "frequency_rank": 784
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0443",
+      "category": "core",
+      "en": "human",
+      "target": "មនុស្ស",
+      "roman": "monus",
+      "frequency_rank": 787
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0444",
+      "category": "core",
+      "en": "bone",
+      "target": "ឆ្អឹង",
+      "roman": "ch'erng",
+      "frequency_rank": 792
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0445",
+      "category": "core",
+      "en": "imagine",
+      "target": "ស្រមៃ",
+      "roman": "sramey",
+      "frequency_rank": 794
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0446",
+      "category": "core",
+      "en": "guess",
+      "target": "ទាយ",
+      "roman": "teay",
+      "frequency_rank": 801
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0447",
+      "category": "core",
+      "en": "necessary",
+      "target": "ចាំបាច់",
+      "roman": "chambach",
+      "frequency_rank": 802
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0448",
+      "category": "core",
+      "en": "sharp",
+      "target": "ស្រួច",
+      "roman": "srouch",
+      "frequency_rank": 803
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0449",
+      "category": "core",
+      "en": "wing",
+      "target": "ស្លាប",
+      "roman": "slarb",
+      "frequency_rank": 804
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0450",
+      "category": "core",
+      "en": "create",
+      "target": "បង្កើត",
+      "roman": "bong kert",
+      "frequency_rank": 805
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0451",
+      "category": "core",
+      "en": "rather",
+      "target": "ជា",
+      "roman": "jea",
+      "frequency_rank": 809
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0452",
+      "category": "core",
+      "en": "corn",
+      "target": "ពោត",
+      "roman": "pout",
+      "frequency_rank": 811
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0453",
+      "category": "core",
+      "en": "poem",
+      "target": "កំណាព្យ",
+      "roman": "komnap",
+      "frequency_rank": 813
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0454",
+      "category": "core",
+      "en": "bell",
+      "target": "កណ្ដឹង",
+      "roman": "kondoeng",
+      "frequency_rank": 815
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0455",
+      "category": "core",
+      "en": "depend",
+      "target": "អាស្រ័យ",
+      "roman": "aasrai",
+      "frequency_rank": 816
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0456",
+      "category": "core",
+      "en": "rub",
+      "target": "លុប",
+      "roman": "lob",
+      "frequency_rank": 818
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0457",
+      "category": "core",
+      "en": "tube",
+      "target": "បំពង់",
+      "roman": "bampong",
+      "frequency_rank": 819
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0458",
+      "category": "core",
+      "en": "hurry",
+      "target": "ប្រញាប់",
+      "roman": "branheab",
+      "frequency_rank": 828
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0459",
+      "category": "core",
+      "en": "chief",
+      "target": "ប្រធាន",
+      "roman": "prathean",
+      "frequency_rank": 829
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0460",
+      "category": "core",
+      "en": "colony",
+      "target": "អាណានិគម",
+      "roman": "aananikom",
+      "frequency_rank": 830
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0461",
+      "category": "core",
+      "en": "clock",
+      "target": "នាឡិកា",
+      "roman": "nealeka",
+      "frequency_rank": 831
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0462",
+      "category": "core",
+      "en": "enter",
+      "target": "ចូល",
+      "roman": "jol",
+      "frequency_rank": 834
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0463",
+      "category": "core",
+      "en": "fresh",
+      "target": "ស្រស់",
+      "roman": "sros",
+      "frequency_rank": 836
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0464",
+      "category": "core",
+      "en": "send",
+      "target": "ផ្ញើ",
+      "roman": "pnher",
+      "frequency_rank": 838
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0465",
+      "category": "core",
+      "en": "gun",
+      "target": "កាំភ្លើង",
+      "roman": "kamplerng",
+      "frequency_rank": 840
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0466",
+      "category": "core",
+      "en": "suit",
+      "target": "ឈុត",
+      "roman": "chhut",
+      "frequency_rank": 846
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0467",
+      "category": "core",
+      "en": "master",
+      "target": "មេ",
+      "roman": "me",
+      "frequency_rank": 851
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0468",
+      "category": "core",
+      "en": "track",
+      "target": "បទ",
+      "roman": "bot",
+      "frequency_rank": 852
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0469",
+      "category": "core",
+      "en": "shore",
+      "target": "ច្រាំង",
+      "roman": "chrang",
+      "frequency_rank": 854
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0470",
+      "category": "core",
+      "en": "sheet",
+      "target": "សន្លឹក",
+      "roman": "slerk",
+      "frequency_rank": 856
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0471",
+      "category": "core",
+      "en": "substance",
+      "target": "សារធាតុ",
+      "roman": "sartheat",
+      "frequency_rank": 857
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0472",
+      "category": "core",
+      "en": "favor",
+      "target": "អនុគ្រោះ",
+      "roman": "aonukruoh",
+      "frequency_rank": 858
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0473",
+      "category": "core",
+      "en": "post",
+      "target": "ក្រោយ",
+      "roman": "kroy",
+      "frequency_rank": 860
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0474",
+      "category": "core",
+      "en": "spend",
+      "target": "ចំណាយ",
+      "roman": "jomnay",
+      "frequency_rank": 861
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0475",
+      "category": "core",
+      "en": "share",
+      "target": "ចំណែក",
+      "roman": "jomnek",
+      "frequency_rank": 866
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0476",
+      "category": "core",
+      "en": "charge",
+      "target": "សាក",
+      "roman": "sak",
+      "frequency_rank": 870
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0477",
+      "category": "core",
+      "en": "bar",
+      "target": "របារ",
+      "roman": "robar",
+      "frequency_rank": 872
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0478",
+      "category": "core",
+      "en": "segment",
+      "target": "ចម្រៀក",
+      "roman": "chamriek",
+      "frequency_rank": 874
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0479",
+      "category": "core",
+      "en": "slave",
+      "target": "ទាសករ",
+      "roman": "teasokor",
+      "frequency_rank": 875
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0480",
+      "category": "core",
+      "en": "duck",
+      "target": "ទា",
+      "roman": "tea",
+      "frequency_rank": 876
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0481",
+      "category": "core",
+      "en": "instant",
+      "target": "បន្ទាន់",
+      "roman": "bontorn",
+      "frequency_rank": 877
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0482",
+      "category": "core",
+      "en": "populate",
+      "target": "ផ្ទុក",
+      "roman": "ptuk",
+      "frequency_rank": 880
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0483",
+      "category": "core",
+      "en": "enemy",
+      "target": "សត្រូវ",
+      "roman": "satrouv",
+      "frequency_rank": 883
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0484",
+      "category": "core",
+      "en": "reply",
+      "target": "ឆ្លើយតប",
+      "roman": "chhlaeuytob",
+      "frequency_rank": 884
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0485",
+      "category": "core",
+      "en": "range",
+      "target": "ជួរ",
+      "roman": "chour",
+      "frequency_rank": 890
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0486",
+      "category": "core",
+      "en": "steam",
+      "target": "ចំហាយ",
+      "roman": "chamhay",
+      "frequency_rank": 891
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0487",
+      "category": "core",
+      "en": "motion",
+      "target": "ចលនា",
+      "roman": "chalona",
+      "frequency_rank": 892
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0488",
+      "category": "core",
+      "en": "liquid",
+      "target": "រាវ",
+      "roman": "reav",
+      "frequency_rank": 894
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0489",
+      "category": "core",
+      "en": "teeth",
+      "target": "ធ្មេញ",
+      "roman": "tmenh",
+      "frequency_rank": 898
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0490",
+      "category": "core",
+      "en": "skill",
+      "target": "ជំនាញ",
+      "roman": "jneanh",
+      "frequency_rank": 905
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0491",
+      "category": "core",
+      "en": "magnet",
+      "target": "មេដែក",
+      "roman": "medaek",
+      "frequency_rank": 909
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0492",
+      "category": "core",
+      "en": "silver",
+      "target": "ប្រាក់",
+      "roman": "brak",
+      "frequency_rank": 910
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0493",
+      "category": "core",
+      "en": "branch",
+      "target": "សាខា",
+      "roman": "sakha",
+      "frequency_rank": 912
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0494",
+      "category": "core",
+      "en": "suffix",
+      "target": "បច្ច័យ",
+      "roman": "bachchai",
+      "frequency_rank": 914
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0495",
+      "category": "core",
+      "en": "especially",
+      "target": "ជាពិសេស",
+      "roman": "cheapises",
+      "frequency_rank": 915
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0496",
+      "category": "core",
+      "en": "fig",
+      "target": "ល្វា",
+      "roman": "lvea",
+      "frequency_rank": 916
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0497",
+      "category": "core",
+      "en": "afraid",
+      "target": "ខ្លាច",
+      "roman": "khlach",
+      "frequency_rank": 917
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0498",
+      "category": "core",
+      "en": "discuss",
+      "target": "ពិភាក្សា",
+      "roman": "pipheaksa",
+      "frequency_rank": 921
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0499",
+      "category": "core",
+      "en": "guide",
+      "target": "ណែនាំ",
+      "roman": "naenoam",
+      "frequency_rank": 924
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0500",
+      "category": "core",
+      "en": "score",
+      "target": "ពិន្ទុ",
+      "roman": "pintuk",
+      "frequency_rank": 926
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0501",
+      "category": "core",
+      "en": "led",
+      "target": "ដឹកនាំ",
+      "roman": "derknorm",
+      "frequency_rank": 929
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0502",
+      "category": "core",
+      "en": "card",
+      "target": "កាត",
+      "roman": "kat",
+      "frequency_rank": 933
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0503",
+      "category": "core",
+      "en": "win",
+      "target": "ជ័យជម្នះ",
+      "roman": "cheychomnes",
+      "frequency_rank": 937
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0504",
+      "category": "core",
+      "en": "condition",
+      "target": "លក្ខខណ្ឌ",
+      "roman": "lokkhakhandar",
+      "frequency_rank": 940
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0505",
+      "category": "core",
+      "en": "smell",
+      "target": "ក្លិន",
+      "roman": "klen",
+      "frequency_rank": 945
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0506",
+      "category": "core",
+      "en": "continue",
+      "target": "បន្ត",
+      "roman": "ptor",
+      "frequency_rank": 950
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0507",
+      "category": "core",
+      "en": "block",
+      "target": "ប្លុក",
+      "roman": "plok",
+      "frequency_rank": 951
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0508",
+      "category": "clothing",
+      "en": "hat",
+      "target": "មួក",
+      "roman": "muok",
+      "frequency_rank": 953
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0509",
+      "category": "work",
+      "en": "sell",
+      "target": "លក់",
+      "roman": "louk",
+      "frequency_rank": 954
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0510",
+      "category": "work",
+      "en": "company",
+      "target": "ក្រុមហ៊ុន",
+      "roman": "krumhun",
+      "frequency_rank": 956
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0511",
+      "category": "core",
+      "en": "subtract",
+      "target": "ដក",
+      "roman": "dork",
+      "frequency_rank": 957
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0512",
+      "category": "core",
+      "en": "event",
+      "target": "ព្រឹត្តិការណ៍",
+      "roman": "prertka",
+      "frequency_rank": 958
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0513",
+      "category": "core",
+      "en": "term",
+      "target": "រយៈពេល",
+      "roman": "royeakpel",
+      "frequency_rank": 962
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0514",
+      "category": "core",
+      "en": "opposite",
+      "target": "ផ្ទុយ",
+      "roman": "phtui",
+      "frequency_rank": 963
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0515",
+      "category": "core",
+      "en": "wife",
+      "target": "ប្រពន្ធ",
+      "roman": "prapun",
+      "frequency_rank": 964
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0516",
+      "category": "core",
+      "en": "shoulder",
+      "target": "ស្មា",
+      "roman": "sma",
+      "frequency_rank": 966
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0517",
+      "category": "core",
+      "en": "arrange",
+      "target": "រៀបចំ",
+      "roman": "reab jom",
+      "frequency_rank": 968
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0518",
+      "category": "core",
+      "en": "camp",
+      "target": "ជំរំ",
+      "roman": "chumrum",
+      "frequency_rank": 969
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0519",
+      "category": "core",
+      "en": "cotton",
+      "target": "កប្បាស",
+      "roman": "kobbas",
+      "frequency_rank": 971
+    },
+    {
+      "language": "km",
+      "id": "km-vocab-0520",
+      "category": "core",
+      "en": "born",
+      "target": "កើត",
+      "roman": "kert",
+      "frequency_rank": 972
+    }
+  ]
+}
