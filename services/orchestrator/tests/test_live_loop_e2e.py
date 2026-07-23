@@ -92,12 +92,20 @@ def _quiz_difficulty(topic: str, student: str) -> str:
 
 
 def _grade(topic: str, student: str, *, correct: bool) -> None:
-    # options/answer_index are nominal; only correctness + topic + student matter
-    # for the loop. chosen != answer => wrong.
+    # Get a real quiz item so the grade request's item_id is in the server cache.
+    quiz_r = client.post("/assessment/quiz", json={
+        "topic": topic, "passages": PASSAGES,
+        "student_id": student, "class_type": "solo",
+    })
+    assert quiz_r.status_code == 200, quiz_r.text
+    item = quiz_r.json()["items"][0]
+    # definition_items_from_passages is deterministic: item 0 always has
+    # answer_index = 0 % num_options = 0, so chosen_index=0 is always correct
+    # and chosen_index=1 is always wrong.
     chosen = 0 if correct else 1
     r = client.post("/assessment/grade", json={
-        "item_id": "x", "options": ["a", "b"], "answer_index": 0,
-        "chosen_index": chosen, "difficulty": "medium",
+        "item_id": item["item_id"],
+        "chosen_index": chosen,
         "topic": topic, "student_id": student,
     })
     assert r.status_code == 200, r.text

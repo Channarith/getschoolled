@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69.5.1", "wheel>=0.43.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-sdk"
+version = "0.29.10"
+description = "Python SDK for building applications on the Salareen Agentic Online Education Platform."
+license = { text = "LicenseRef-AOEP-Proprietary" }
+requires-python = ">=3.11"
+dependencies = [
+    "aoep-shared>=0.2.0,<1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.2.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -304,18 +304,28 @@ def ingest_url(req: IngestUrlRequest) -> Deck:
     if _parsed.scheme not in ("http", "https") or not _parsed.netloc:
         raise HTTPException(status_code=422, detail="url must be an http/https URL with a hostname")
     import ipaddress as _ipaddress
+    import socket as _socket
     try:
         addr = _ipaddress.ip_address(_parsed.hostname)
         if addr.is_private or addr.is_loopback or addr.is_link_local:
             raise HTTPException(status_code=422, detail="url must not point to a private/loopback address")
     except ValueError:
-        pass  # hostname is a domain, not an IP — allow
+        # hostname is a domain — resolve it and check every returned address
+        try:
+            for info in _socket.getaddrinfo(_parsed.hostname, None):
+                resolved = _ipaddress.ip_address(info[4][0])
+                if resolved.is_private or resolved.is_loopback or resolved.is_link_local:
+                    raise HTTPException(status_code=422, detail="url must not point to a private/loopback address")
+        except _socket.gaierror:
+            raise HTTPException(status_code=422, detail="cannot resolve hostname")
     try:
         import requests  # lazy/runtime
     except ImportError:
         raise HTTPException(status_code=503, detail="requests not installed")
     try:
-        resp = requests.get(req.url, timeout=15, headers={"User-Agent": "AOEP-scraper"})
+        resp = requests.get(req.url, timeout=15, headers={"User-Agent": "AOEP-scraper"}, allow_redirects=False)
+        if resp.is_redirect:
+            raise HTTPException(status_code=422, detail="url must not redirect")
         resp.raise_for_status()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"fetch failed: {exc}")
