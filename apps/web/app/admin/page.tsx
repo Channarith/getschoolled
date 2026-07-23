@@ -8,6 +8,8 @@ import {
   adminSetFlagSession,
   adminSurveyInsights,
   adminListBugReports,
+  adminListVouchers,
+  adminCreateVoucher,
   getAdRevenue,
   getAllTelemetry,
   getMe,
@@ -21,6 +23,7 @@ import {
   type TelemetryError,
   type TelemetrySummary,
   type BugReportRow,
+  type VoucherRecord,
 } from "../lib/api";
 import MascotPreviewPanel from "../components/MascotPreviewPanel";
 import { EyeIcon } from "../components/EyeIcon";
@@ -66,6 +69,12 @@ export default function AdminPage() {
   } | null>(null);
   const [adRevenue, setAdRevenue] = useState<AdRevenueReport | null>(null);
   const [bugReports, setBugReports] = useState<BugReportRow[] | null>(null);
+
+  // Voucher management
+  const [vouchers, setVouchers] = useState<VoucherRecord[] | null>(null);
+  const [voucherBusy, setVoucherBusy] = useState(false);
+  const [voucherError, setVoucherError] = useState("");
+  const [newVoucher, setNewVoucher] = useState({ code: "", kind: "coupon", value: 0, max_uses: 1, expires_days: "", class_id: "", note: "" });
 
   // Logged-in operator admins skip the secret prompt (BFF uses server ADMIN_SECRET).
   useEffect(() => {
@@ -686,6 +695,129 @@ export default function AdminPage() {
               </p>
             )}
           </div>
+        )}
+      </section>
+
+      {/* ── Voucher Management ──────────────────────────────────────────────── */}
+      <section style={{ marginTop: 32 }}>
+        <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
+          Voucher / Coupon / Gift Code Management
+        </h2>
+
+        {/* Create new voucher form */}
+        <div style={{ background: "#f8fafc", borderRadius: 10, padding: 20, marginTop: 16, marginBottom: 20 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Create New Voucher</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Code *</label>
+              <input value={newVoucher.code} onChange={(e) => setNewVoucher((v) => ({ ...v, code: e.target.value.toUpperCase() }))}
+                placeholder="SAVE20" style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Kind</label>
+              <select value={newVoucher.kind} onChange={(e) => setNewVoucher((v) => ({ ...v, kind: e.target.value }))}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }}>
+                <option value="coupon">Coupon (% off)</option>
+                <option value="gift_code">Gift Code ($)</option>
+                <option value="free_pass">Free Pass</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                Value {newVoucher.kind === "coupon" ? "(% off)" : newVoucher.kind === "gift_code" ? "($)" : "(ignored)"}
+              </label>
+              <input type="number" value={newVoucher.value} onChange={(e) => setNewVoucher((v) => ({ ...v, value: parseFloat(e.target.value) || 0 }))}
+                min={0} style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Max Uses (0=unlimited)</label>
+              <input type="number" value={newVoucher.max_uses} onChange={(e) => setNewVoucher((v) => ({ ...v, max_uses: parseInt(e.target.value) || 1 }))}
+                min={0} style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Expires in Days (blank=never)</label>
+              <input type="number" value={newVoucher.expires_days} onChange={(e) => setNewVoucher((v) => ({ ...v, expires_days: e.target.value }))}
+                min={1} placeholder="e.g. 30" style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Class ID (free_pass only)</label>
+              <input value={newVoucher.class_id} onChange={(e) => setNewVoucher((v) => ({ ...v, class_id: e.target.value }))}
+                placeholder="optional" style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Note / internal label</label>
+              <input value={newVoucher.note} onChange={(e) => setNewVoucher((v) => ({ ...v, note: e.target.value }))}
+                placeholder="e.g. promo for summer campaign" style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, boxSizing: "border-box" }} />
+            </div>
+          </div>
+          {voucherError && <p style={{ color: "#dc2626", fontSize: 13, margin: "0 0 10px" }}>{voucherError}</p>}
+          <button
+            disabled={voucherBusy || !newVoucher.code.trim()}
+            onClick={async () => {
+              setVoucherBusy(true); setVoucherError("");
+              try {
+                await adminCreateVoucher({
+                  code: newVoucher.code.trim(),
+                  kind: newVoucher.kind,
+                  value: newVoucher.value,
+                  max_uses: newVoucher.max_uses,
+                  expires_days: newVoucher.expires_days ? parseInt(newVoucher.expires_days) : null,
+                  class_id: newVoucher.class_id.trim() || null,
+                  note: newVoucher.note.trim(),
+                });
+                setNewVoucher({ code: "", kind: "coupon", value: 0, max_uses: 1, expires_days: "", class_id: "", note: "" });
+                const res = await adminListVouchers();
+                setVouchers(res.vouchers);
+              } catch (e) {
+                setVoucherError(e instanceof Error ? e.message : "Failed to create voucher");
+              }
+              setVoucherBusy(false);
+            }}
+            style={{ padding: "8px 20px", background: voucherBusy ? "#9ca3af" : "#6366f1", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: voucherBusy ? "default" : "pointer" }}>
+            {voucherBusy ? "Creating..." : "Create Voucher"}
+          </button>
+        </div>
+
+        {/* Existing vouchers table */}
+        <button
+          onClick={async () => { const res = await adminListVouchers(); setVouchers(res.vouchers); }}
+          style={{ padding: "6px 14px", cursor: "pointer", marginBottom: 12 }}>
+          Refresh Voucher List
+        </button>
+        {vouchers !== null && (
+          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
+            <thead>
+              <tr style={{ textAlign: "left", background: "#f7f7f7" }}>
+                <th style={{ padding: 6 }}>Code</th>
+                <th style={{ padding: 6 }}>Kind</th>
+                <th style={{ padding: 6 }}>Value</th>
+                <th style={{ padding: 6 }}>Uses</th>
+                <th style={{ padding: 6 }}>Expires</th>
+                <th style={{ padding: 6 }}>Class ID</th>
+                <th style={{ padding: 6 }}>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vouchers.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: 8, color: "#666" }}>No vouchers yet.</td></tr>
+              )}
+              {vouchers.map((v) => (
+                <tr key={v.code} style={{ borderTop: "1px solid #eee" }}>
+                  <td style={{ padding: 6, fontWeight: 700, fontFamily: "monospace" }}>{v.code}</td>
+                  <td style={{ padding: 6 }}>{v.kind}</td>
+                  <td style={{ padding: 6 }}>
+                    {v.kind === "coupon" ? `${v.value}%` : v.kind === "gift_code" ? `$${v.value.toFixed(2)}` : "—"}
+                  </td>
+                  <td style={{ padding: 6 }}>{v.uses} / {v.max_uses === 0 ? "∞" : v.max_uses}</td>
+                  <td style={{ padding: 6 }}>
+                    {v.expires_at ? new Date(v.expires_at * 1000).toLocaleDateString() : "Never"}
+                  </td>
+                  <td style={{ padding: 6 }}>{v.class_id || "—"}</td>
+                  <td style={{ padding: 6 }}>{v.note || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
     </main>

@@ -13,9 +13,11 @@ import {
   scheduleGroupClass,
   startGroupClass,
   uploadHostPresentation,
+  validateVoucher,
   type GroupClass,
   type GroupClassStart,
   type Lesson,
+  type VoucherValidateResult,
 } from "../lib/api";
 import SignInToUse from "../components/SignInToUse";
 import { friendlyError } from "../lib/errors";
@@ -84,6 +86,13 @@ export default function GroupClassesPage() {
   const [sessionType, setSessionType] = useState<"private" | "group">("group");
   // Teach vs Join tab
   const [activeTab, setActiveTab] = useState<"teach" | "join">("join");
+
+  // Payment method selection modal
+  const [checkoutTarget, setCheckoutTarget] = useState<GroupClass | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherResult, setVoucherResult] = useState<VoucherValidateResult | null>(null);
+  const [voucherBusy, setVoucherBusy] = useState(false);
 
   const offline = t("error.offline");
   const paidLabel = "Paid class";
@@ -248,6 +257,18 @@ export default function GroupClassesPage() {
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
       return;
+    }
+    // For paid classes, open the payment selection modal instead of immediately checking out
+    if ((gc.payment_required || gc.attendee_code_required) && (gc.price_per_user_usd ?? 0) > 0) {
+      const codeKey = `${ATTENDEE_CODE_KEY}:${gc.id}`;
+      const existingCode = sessionStorage.getItem(codeKey);
+      if (!existingCode) {
+        setCheckoutTarget(gc);
+        setPaymentMethod("card");
+        setVoucherCode("");
+        setVoucherResult(null);
+        return;
+      }
     }
     setError("");
     setBusy(true);
@@ -686,6 +707,150 @@ export default function GroupClassesPage() {
         </div>
       )}
     </div>
+      )}
+
+      {/* ── Payment method selection modal ───────────────────────────────────── */}
+      {checkoutTarget && (checkoutTarget.price_per_user_usd ?? 0) > 0 && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 32, maxWidth: 480, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", overflowY: "auto", maxHeight: "90vh" }}>
+            <h2 style={{ margin: "0 0 6px" }}>Pay for Class</h2>
+            <p className="muted" style={{ margin: "0 0 20px" }}>{checkoutTarget.title} &middot; ${(checkoutTarget.price_per_user_usd ?? 0).toFixed(2)}/seat</p>
+
+            {/* Payment method grid */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="muted" style={{ marginBottom: 10, fontWeight: 700 }}>Choose payment method</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {[
+                  { id: "card", label: "Credit / Debit Card" },
+                  { id: "apple_pay", label: "Apple Pay" },
+                  { id: "google_pay", label: "Google Pay" },
+                  { id: "paypal", label: "PayPal" },
+                  { id: "venmo", label: "Venmo" },
+                  { id: "cashapp", label: "Cash App" },
+                  { id: "zelle", label: "Zelle" },
+                  { id: "klarna", label: "Klarna" },
+                  { id: "afterpay", label: "Afterpay" },
+                ].map((m) => (
+                  <button key={m.id} type="button"
+                    onClick={() => setPaymentMethod(m.id)}
+                    style={{ padding: "10px 8px", borderRadius: 10, border: `2px solid ${paymentMethod === m.id ? "#6366f1" : "rgba(0,0,0,0.12)"}`,
+                      background: paymentMethod === m.id ? "#eef2ff" : "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Zelle manual instructions */}
+            {paymentMethod === "zelle" && (
+              <div style={{ background: "#fefce8", border: "1px solid #fde047", borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13 }}>
+                <strong>Zelle Instructions:</strong><br />
+                Send <strong>${(checkoutTarget.price_per_user_usd ?? 0).toFixed(2)}</strong> to <strong>payments@salareen.com</strong><br />
+                Include your name and class title in the memo.<br />
+                Email <a href="mailto:support@salareen.com">support@salareen.com</a> with your payment confirmation &mdash; we will grant access within 1 hour.
+              </div>
+            )}
+
+            {/* Voucher / coupon code */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="muted" style={{ marginBottom: 8, fontWeight: 700 }}>Have a coupon or gift code?</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={voucherCode}
+                  onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherResult(null); }}
+                  placeholder="e.g. SAVE20 or GIFT50"
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }} />
+                <button
+                  onClick={async () => {
+                    if (!voucherCode.trim() || !checkoutTarget) return;
+                    setVoucherBusy(true);
+                    try {
+                      const result = await validateVoucher(voucherCode.trim(), checkoutTarget.price_per_user_usd ?? 0, checkoutTarget.id);
+                      setVoucherResult(result);
+                    } catch {
+                      setVoucherResult({ valid: false, error: "Could not validate code" });
+                    }
+                    setVoucherBusy(false);
+                  }}
+                  disabled={voucherBusy}
+                  style={{ padding: "10px 16px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}>
+                  {voucherBusy ? "..." : "Apply"}
+                </button>
+              </div>
+              {voucherResult && (
+                <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: voucherResult.valid ? "#f0fdf4" : "#fef2f2", border: `1px solid ${voucherResult.valid ? "#86efac" : "#fca5a5"}`, fontSize: 13 }}>
+                  {voucherResult.valid
+                    ? <>{voucherResult.description} &mdash; <strong>Final: ${voucherResult.final_price?.toFixed(2)}</strong> (saves ${voucherResult.savings?.toFixed(2)})</>
+                    : <>{voucherResult.error}</>}
+                </div>
+              )}
+            </div>
+
+            {/* Price summary */}
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 20, fontSize: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Class price</span><span>${(checkoutTarget.price_per_user_usd ?? 0).toFixed(2)}</span>
+              </div>
+              {voucherResult?.valid && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#16a34a" }}>
+                  <span>Discount</span><span>-${voucherResult.savings?.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900, marginTop: 6, borderTop: "1px solid #e2e8f0", paddingTop: 6 }}>
+                <span>Total</span>
+                <span>${(voucherResult?.valid ? voucherResult.final_price : checkoutTarget.price_per_user_usd ?? 0)?.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setCheckoutTarget(null); setVoucherCode(""); setVoucherResult(null); setPaymentMethod("card"); }}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #d1d5db", background: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                Cancel
+              </button>
+              {paymentMethod !== "zelle" ? (
+                <button
+                  onClick={async () => {
+                    const gc = checkoutTarget;
+                    if (!gc) return;
+                    setBusy(true); setError("");
+                    try {
+                      const me = await getMe();
+                      const data = await checkoutGroupClass(
+                        gc.id,
+                        me.display_name || me.email || "Learner",
+                        me.email || "",
+                        { payment_method: paymentMethod, voucher_code: voucherResult?.valid ? voucherCode : "" },
+                      );
+                      setCheckoutTarget(null);
+                      if (data.free) {
+                        alert("Free access granted! Check your classes.");
+                        await refresh();
+                      } else if (data.checkout?.url) {
+                        window.location.href = data.checkout.url;
+                      } else {
+                        // Non-redirect checkout (e.g. sandbox) — try confirm immediately
+                        const paid = await confirmGroupClassPayment(gc.id, data.checkout.session_id);
+                        const codeKey = `${ATTENDEE_CODE_KEY}:${gc.id}`;
+                        sessionStorage.setItem(codeKey, paid.attendee_code);
+                        await refresh();
+                      }
+                    } catch (e) { setError(friendlyError(e, offline)); }
+                    setBusy(false);
+                  }}
+                  disabled={busy}
+                  style={{ flex: 2, padding: "12px", borderRadius: 10, background: busy ? "#9ca3af" : "#6366f1", color: "#fff", border: "none", fontWeight: 700, cursor: busy ? "default" : "pointer", fontSize: 15 }}>
+                  {busy ? "Processing..." : `Pay $${(voucherResult?.valid ? voucherResult.final_price : checkoutTarget.price_per_user_usd ?? 0)?.toFixed(2)}`}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setCheckoutTarget(null); }}
+                  style={{ flex: 2, padding: "12px", borderRadius: 10, background: "#ca8a04", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
+                  {"I've sent the Zelle payment"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

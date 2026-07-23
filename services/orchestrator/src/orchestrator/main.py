@@ -1519,7 +1519,8 @@ class RegisterRequest(BaseModel):
 class GroupClassCheckoutRequest(BaseModel):
     name: str
     email: str = ""
-    payment_method: str = "card"
+    payment_method: str = "card"   # card | apple_pay | google_pay | paypal | venmo | zelle | cashapp | klarna | afterpay | voucher
+    voucher_code: str = ""         # optional discount/gift/free-pass code
 
 
 class GroupClassConfirmPaymentRequest(BaseModel):
@@ -1828,6 +1829,65 @@ def checkout_group_class(
         raise HTTPException(status_code=400, detail="class has not yet passed Salareen audit")
     if gc.price_per_user_usd <= 0:
         raise HTTPException(status_code=400, detail="this class does not require paid checkout")
+
+    # ── Voucher / promo code validation ──────────────────────────────────────
+    import httpx as _httpx
+    final_price = gc.price_per_user_usd
+    voucher_desc = ""
+    if req.voucher_code.strip():
+        try:
+            vresp = _httpx.post(
+                f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}/vouchers/validate",
+                json={"code": req.voucher_code.strip(), "price_usd": gc.price_per_user_usd, "class_id": class_id},
+                headers={"Authorization": authorization},
+                timeout=5,
+            )
+            if vresp.status_code == 200:
+                vdata = vresp.json()
+                if vdata.get("valid"):
+                    final_price = vdata["final_price"]
+                    voucher_desc = vdata["description"]
+                else:
+                    raise HTTPException(status_code=400, detail=vdata.get("error", "invalid voucher"))
+        except _httpx.RequestError:
+            pass  # identity service unavailable — skip voucher, continue with full price
+
+    # ── Free pass: voucher covers full cost, skip payment provider ──────────
+    if final_price == 0:
+        try:
+            free_session_id = f"voucher-{uuid.uuid4().hex[:8]}"
+            reg = _group_store().open_checkout(
+                class_id,
+                name=req.name,
+                email=req.email,
+                account_id=account_id,
+                checkout_session_id=free_session_id,
+            )
+            _group_store().confirm_checkout(
+                class_id,
+                checkout_session_id=free_session_id,
+                account_id=account_id,
+            )
+            # TODO: consume voucher code in identity service
+        except KeyError:
+            raise HTTPException(status_code=404, detail="unknown group class")
+        except ClassFullError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        except GroupClassError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return {
+            "checkout": {
+                "session_id": free_session_id,
+                "url": "",
+                "provider": "voucher",
+                "method": "voucher",
+                "payment_status": PAYMENT_PAID,
+                "voucher_description": voucher_desc,
+            },
+            "registration": reg.__dict__,
+            "free": True,
+        }
+
     payment = app.state.factory.payment()
     customer_id = account_id or req.email.strip() or req.name.strip().lower().replace(" ", "-")
     plan_name = f"class-{gc.id}"
@@ -1855,6 +1915,7 @@ def checkout_group_class(
             "provider": session.provider,
             "method": req.payment_method,
             "payment_status": PAYMENT_PENDING,
+            "voucher_description": voucher_desc,
         },
         "registration": reg.__dict__,
     }
