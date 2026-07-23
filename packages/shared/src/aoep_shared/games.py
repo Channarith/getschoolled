@@ -42,18 +42,19 @@ class GameType(str, enum.Enum):
     SHAPE_DROP = "shape_drop"
     STOCKS = "stocks"
     CHALLENGE = "challenge"
+    SCENARIO = "scenario"
 
 
 EXTENDED_ONLY_SUBJECTS = frozenset({
     "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
-    "finance",
+    "finance", "workplace",
 })
 
 EXTENDED_GAME_TYPES = frozenset({
     GameType.TILES, GameType.RESOURCE, GameType.DEPENDENCY, GameType.RPG,
     GameType.CARTOON, GameType.IDIOM, GameType.CREATE, GameType.DOING,
     GameType.FARM, GameType.SPELLING, GameType.GEOMETRY,
-    GameType.SHAPE_DROP, GameType.STOCKS, GameType.CHALLENGE,
+    GameType.SHAPE_DROP, GameType.STOCKS, GameType.CHALLENGE, GameType.SCENARIO,
 })
 
 # Challenge-the-AI skill by age (probability the AI answers correctly).
@@ -86,7 +87,7 @@ GAME_SUBJECTS: List[str] = [
     "biology", "chemistry", "physics", "math", "science",
     "history", "art", "technology", "programming",
     "life_growth", "etiquette", "wordplay", "geometry", "creation", "farming",
-    "finance",
+    "finance", "workplace",
 ]
 
 SPEED_TIME_LIMIT_S = 45
@@ -636,6 +637,8 @@ def games_catalog(*, locale: Optional[str] = None) -> dict:
          "desc": "Learn investing: bull vs bear, risk, and smart portfolio choices."},
         {"id": GameType.CHALLENGE.value, "name": "Challenge the AI",
          "desc": "Duel the AI — same questions, race for the higher score."},
+        {"id": GameType.SCENARIO.value, "name": "What Would You Do?",
+         "desc": "Professional scenario drills — choose the compliant, safe action."},
     ]
     return {
         "subjects": GAME_SUBJECTS,
