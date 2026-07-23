@@ -156,6 +156,35 @@ def _reset_token_mark_used(token: str) -> None:
             pass
     _bounded_set_add(_used_reset_tokens, token, "_used_reset_tokens")
 
+
+_TOTP_REDIS_KEY = "identity:totp_used:{account_id}:{code}"
+
+
+def _totp_is_used(account_id: str, code: str) -> bool:
+    """Check TOTP code was already accepted (Redis-backed, falls back to in-process)."""
+    r = _get_redis()
+    if r:
+        try:
+            return bool(r.exists(_TOTP_REDIS_KEY.format(account_id=account_id, code=code)))
+        except Exception:
+            pass
+    totp_key = (account_id, code)
+    now = _time.time()
+    ts = _used_totp.get(totp_key)
+    return ts is not None and now - ts <= _TOTP_TTL
+
+
+def _totp_mark_used(account_id: str, code: str) -> None:
+    """Record TOTP code as used (Redis-backed, falls back to in-process)."""
+    r = _get_redis()
+    if r:
+        try:
+            r.set(_TOTP_REDIS_KEY.format(account_id=account_id, code=code), "1", ex=int(_TOTP_TTL) + 5)
+            return
+        except Exception:
+            pass
+    _used_totp[(account_id, code)] = _time.time()
+
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.login_audit import login_context_from_headers
 from aoep_shared.oauth_login import (
@@ -284,11 +313,9 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             )
             raise HTTPException(status_code=401, detail="invalid 2FA code")
         # Bug 4: Reject replayed TOTP codes in the same 30-s window.
-        totp_key = (acct.id, req.code)
-        _purge_used_totp()
-        if totp_key in _used_totp:
+        if _totp_is_used(acct.id, req.code):
             raise HTTPException(status_code=401, detail="TOTP code already used")
-        _used_totp[totp_key] = _time.time()
+        _totp_mark_used(acct.id, req.code)
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="mfa", **ctx)
         return session_fn(acct)

@@ -134,7 +134,11 @@ def test_unknown_class_404():
                        json={"name": "Ada"}).status_code == 404
 
 
-def test_paid_enrollment_checkout_confirm_and_register():
+def test_paid_enrollment_checkout_confirm_and_register(monkeypatch):
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.account_from_authorization",
+        lambda auth: "student-ada" if auth == "Bearer ada-token" else "",
+    )
     lid = _first_lesson()
     created = client.post("/api/group-classes", json={
         "title": "Instructor paid class",
@@ -159,9 +163,11 @@ def test_paid_enrollment_checkout_confirm_and_register():
     session_id = checkout.json()["checkout"]["session_id"]
     assert session_id
 
-    confirm = client.post(f"/api/group-classes/{cid}/confirm-payment", json={
-        "checkout_session_id": session_id,
-    })
+    confirm = client.post(
+        f"/api/group-classes/{cid}/confirm-payment",
+        json={"checkout_session_id": session_id},
+        headers={"authorization": "Bearer ada-token"},
+    )
     assert confirm.status_code == 200, confirm.text
     code = confirm.json()["attendee_code"]
     assert code

@@ -1,0 +1,6 @@
+LESSON: Host math deck
+LANGUAGE: en
+
+SLIDE 1 | Host math deck
+Fractions are parts of a whole.
+NARRATION: Fractions are parts of a whole.

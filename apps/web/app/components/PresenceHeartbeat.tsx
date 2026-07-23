@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { presencePing } from "../lib/api";
 
 /**
@@ -7,8 +7,6 @@ import { presencePing } from "../lib/api";
  * while the user is signed in. Mounted once in the root layout.
  */
 export default function PresenceHeartbeat() {
-  const pageRef = useRef(typeof window !== "undefined" ? window.location.pathname : "/");
-
   useEffect(() => {
     const getActivity = (path: string): string => {
       if (path.startsWith("/live-room") || path.startsWith("/class")) return "live-class";

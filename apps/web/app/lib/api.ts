@@ -1531,6 +1531,7 @@ export type ScheduleGroupClassInput = {
   commission_rate?: number;
   payment_required?: boolean;
   attendee_code_required?: boolean;
+  is_student_session?: boolean;
   presentation_filename?: string;
   max_faces_allowed?: number;
   require_liveness?: boolean;

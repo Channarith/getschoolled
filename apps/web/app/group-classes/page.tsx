@@ -202,6 +202,7 @@ export default function GroupClassesPage() {
         price_per_user_usd: undefined,
         payment_required: false,
         attendee_code_required: false,
+        is_student_session: true,
       });
       await refresh();
       setActiveTab("join"); // return to class list so student can join their new session
@@ -501,7 +502,7 @@ export default function GroupClassesPage() {
               </div>
             )}
             <div className="row">
-              <button onClick={onSchedule} disabled={busy || !lessonId}
+              <button onClick={onSchedule} disabled={busy || (!lessonId && !presentationFile)}
                 style={{ background: sessionType === "private" ? "#059669" : "#111", color: "#fff", borderRadius: 10, padding: "12px 28px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
                 {sessionType === "private" ? "📅 Schedule Private Lesson" : t("group.scheduleSubmit")}
               </button>
@@ -843,7 +844,21 @@ export default function GroupClassesPage() {
                 </button>
               ) : (
                 <button
-                  onClick={() => { setCheckoutTarget(null); }}
+                  onClick={async () => {
+                    // Record Zelle payment intent (best-effort, admin will verify manually)
+                    try {
+                      await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ name: '', email: '', payment_method: 'zelle', voucher_code: '' })
+                      });
+                    } catch { /* best-effort */ }
+                    alert('Thank you! Please email support@salareen.com with your Zelle confirmation. We will grant access within 1 hour.');
+                    setCheckoutTarget(null);
+                    setPaymentMethod('card');
+                    setVoucherCode('');
+                    setVoucherResult(null);
+                  }}
                   style={{ flex: 2, padding: "12px", borderRadius: 10, background: "#ca8a04", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontSize: 15 }}>
                   {"I've sent the Zelle payment"}
                 </button>
