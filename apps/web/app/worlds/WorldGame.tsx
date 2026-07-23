@@ -473,12 +473,9 @@ export default function WorldGame() {
       mouseRef.current.buttons = e.buttons;
 
       // Right-click in building mode: place block
-      if (e.button === 2 && buildingSystem.isActive()) {
+      if (e.button === 2 && buildingSystem.isBuilding) {
         e.preventDefault();
-        const result = buildingSystem.placeBlock(invLocal);
-        if (result.placed && result.consumedItem) {
-          invLocal[result.consumedItem] = Math.max(0, (invLocal[result.consumedItem] ?? 0) - 1);
-        }
+        buildingSystem.placeBlock(camera, scene, invLocal);
       }
     };
     const onMouseUp = (e: MouseEvent) => {
@@ -551,12 +548,12 @@ export default function WorldGame() {
         }
 
         // Check vehicle proximity
-        const nearVehicle = vehicleManager.getNearbyVehicle(pos);
+        const nearVehicle = vehicleManager.checkNearby(pos);
         if (nearVehicle) {
-          if (vehicleManager.isInVehicle()) {
-            vehicleManager.exitVehicle();
+          if (vehicleManager.activeVehicle !== null) {
+            vehicleManager.exitVehicle(playerGroup);
           } else {
-            vehicleManager.enterVehicle(nearVehicle.id);
+            vehicleManager.enterVehicle(nearVehicle, playerGroup);
           }
           return;
         }
@@ -589,15 +586,15 @@ export default function WorldGame() {
 
       // ─── B: toggle building mode ──────────────────────────────
       if (e.code === "KeyB") {
-        const next = !buildingSystem.isActive();
-        buildingSystem.setMode(next);
+        const next = !buildingSystem.isBuilding;
+        buildingSystem.toggle();
         setBuildingMode(next);
       }
 
       // ─── F: open crafting table (or fire laser in rover) ─────
       if (e.code === "KeyF") {
-        if (vehicleManager.isInVehicle()) {
-          vehicleManager.fireLaser(playerFacing);
+        if (vehicleManager.activeVehicle !== null) {
+          vehicleManager.fireLaser();
         } else {
           const recipes = craftingSystem.getAvailableRecipes(invLocal);
           setAvailableRecipes(recipes);
@@ -727,10 +724,10 @@ export default function WorldGame() {
       const gravity = currentPlanet === "space" ? GRAVITY_SPACE : GRAVITY_EARTH;
 
       // ── Vehicle/mount speed override ──────────────────────────
-      const inVehicle = vehicleManager.isInVehicle();
+      const inVehicle = vehicleManager.activeVehicle !== null;
       const mounted = mountManager.isMounted();
       const speedOverride = inVehicle
-        ? vehicleManager.getSpeed()
+        ? (vehicleManager.activeVehicle?.speed ?? 0)
         : mounted
         ? 5.5 * mountManager.getSpeedBonus()
         : 0;
@@ -841,7 +838,7 @@ export default function WorldGame() {
       camera.lookAt(camTarget.x, camTarget.y + 0.6, camTarget.z);
 
       // ── Building preview ──────────────────────────────────────
-      if (buildingSystem.isActive()) {
+      if (buildingSystem.isBuilding) {
         buildingSystem.updatePreview(camera, scene);
       }
 
@@ -865,7 +862,7 @@ export default function WorldGame() {
       mountManager.update(dt, playerGroup.position, mounted);
 
       // ── Vehicle update ────────────────────────────────────────
-      vehicleManager.update(dt, playerGroup.position, keys);
+      vehicleManager.update(dt, keys, gameTime, hmap, WORLD_SIZE);
 
       // ── Crafting pickups ──────────────────────────────────────
       const pickupResult = craftingSystem.update(dt, playerGroup.position);
@@ -927,7 +924,7 @@ export default function WorldGame() {
 
       const nearNPC = npcManager.getNearbyNPC(pp, 3.0);
       const nearMount = mountManager.getNearbyMount(pp, 2.5);
-      const nearVehicle = vehicleManager.getNearbyVehicle(pp, 3.0);
+      const nearVehicle = vehicleManager.checkNearby(pp);
 
       if (nearNPC) {
         newPrompt = `Talk to ${nearNPC.name}`;
@@ -1189,8 +1186,8 @@ export default function WorldGame() {
           onToggleBuilding={() => {
             const bs = buildingSystemRef.current;
             if (!bs) return;
-            const next = !bs.isActive();
-            bs.setMode(next);
+            const next = !bs.isBuilding;
+            bs.toggle();
             setBuildingMode(next);
           }}
           onUseHealthPotion={handleUseHealthPotion}
