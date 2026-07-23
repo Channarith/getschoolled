@@ -1857,6 +1857,7 @@ export type LiveRoomJoin = {
   host_follower_count?: number;
   following_host?: boolean;
   is_admin?: boolean;
+  can_start_presentation?: boolean;
   moderator_key?: string;
 };
 
@@ -2150,12 +2151,16 @@ export async function liveRoomAdvance(roomId: string, moderatorKey = ""): Promis
   return r.room;
 }
 
-export async function liveRoomStartPresentation(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+export async function liveRoomStartPresentation(
+  roomId: string,
+  moderatorKey = "",
+  participantId = "",
+): Promise<LiveRoomState> {
   const r = await jsonOrThrow<{ room: LiveRoomState }>(
     await fetch(`${ORCHESTRATOR_URL}/api/live-rooms/${encodeURIComponent(roomId)}/start-presentation`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ moderator_key: moderatorKey }),
+      body: JSON.stringify({ moderator_key: moderatorKey, participant_id: participantId }),
     })
   );
   return r.room;

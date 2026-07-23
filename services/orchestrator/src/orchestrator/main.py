@@ -1429,6 +1429,15 @@ def _class_host_is_caller(gc, authorization: str) -> bool:
     }
 
 
+def _room_class_host_is_caller(room, authorization: str) -> bool:
+    """True when the signed-in caller owns/instructs this group class."""
+    class_id = (getattr(room, "class_id", "") or "").strip()
+    if not class_id:
+        return False
+    gc = _find_group_class(class_id)
+    return bool(gc is not None and _class_host_is_caller(gc, authorization))
+
+
 async def _broadcast_live_room(room_id: str, event: dict) -> None:
     await app.state.live_room_hub.broadcast(room_id, event)
 
@@ -1921,7 +1930,9 @@ def start_group_class(
             latitude=req.latitude,
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
+            creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
             scheduled_start=gc.start_time,
+            manual_start_only=bool(gc.instructor_account_id or gc.created_by_account_id),
             duration_seconds=int(gc.duration_min) * 60,
             presence_enabled=True,
             presence_hold_grace_seconds=90,
@@ -2390,7 +2401,9 @@ def _ensure_group_class_room(room_id: str):
         slide_body=slide.body,
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
+        creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
         scheduled_start=gc.start_time,
+        manual_start_only=bool(gc.instructor_account_id or gc.created_by_account_id),
         duration_seconds=int(gc.duration_min) * 60,
         presence_enabled=True,
         presence_hold_grace_seconds=90,
@@ -2520,6 +2533,13 @@ def join_live_room(
         can_publish=participant.can_publish,
     )
     room = store.require(resolved_room_id)
+    is_class_host = _room_class_host_is_caller(room, authorization)
+    can_start_presentation = bool(
+        participant.is_admin
+        or is_class_host
+        or _request_is_admin(authorization)
+        or room.room_size <= 2
+    )
     from aoep_shared.live_room_social import PresenceToast  # noqa: E402
     from aoep_shared.live_room_ws import ws_presence  # noqa: E402
 
@@ -2547,10 +2567,11 @@ def join_live_room(
         "gift_balance": store.gift_balance_for(participant, authorization),
         "host_follower_count": store.host_follower_count(resolved_room_id),
         "following_host": store.is_following_host(resolved_room_id, participant.identity),
-        # The admin (first joiner) gets moderator powers: hand them the key so
-        # their client can start the class / advance slides / moderate.
+        # The first learner and the authenticated class instructor can drive the
+        # class. Later learners never receive this capability.
         "is_admin": participant.is_admin,
-        "moderator_key": room.moderator_key if participant.is_admin else "",
+        "can_start_presentation": can_start_presentation,
+        "moderator_key": room.moderator_key if participant.is_admin or is_class_host else "",
     }
 
 
@@ -3299,12 +3320,28 @@ def live_room_start_presentation(
     req: LiveRoomTurnRequest = LiveRoomTurnRequest(),
     authorization: str = Header(default=""),
 ) -> dict:
-    """Start the class presentation — class admin (first joiner), moderator key,
-    or the platform admin (admin@salareen.com) on ANY room."""
+    """Start the presentation once inside the room.
+
+    The authenticated class instructor, platform admin, first learner/admin, or
+    sole 1:1 learner may start. Later group participants cannot start with their
+    participant id, even if a stale moderator key is present client-side.
+    """
     store = _live_rooms()
     try:
         room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
-        mod = _mod_key_for(room, req.moderator_key, authorization)
+        is_platform_admin = _request_is_admin(authorization)
+        is_class_host = _room_class_host_is_caller(room, authorization)
+        if is_class_host:
+            if not req.participant_id:
+                raise LiveRoomError("the class host must join the room before starting")
+            room.get_participant(req.participant_id)
+            mod = room.moderator_key
+        else:
+            mod = _mod_key_for(room, req.moderator_key, authorization)
+            if req.participant_id and not is_platform_admin:
+                participant = room.get_participant(req.participant_id)
+                if not participant.is_admin and room.room_size > 2:
+                    mod = ""
         room = store.start_presentation(
             room_id, participant_id=req.participant_id, moderator_key=mod,
         )

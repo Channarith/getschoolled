@@ -455,6 +455,7 @@ class LiveRoom:
     # admin starts it. Then it auto-advances slides on a timer.
     admin_participant_id: str = ""          # the single admin = first learner to join
     presenting: bool = False                 # has the AI started the class?
+    manual_start_only: bool = False          # self-hosted instructor starts when ready
     scheduled_start: str = ""                # ISO of the class's scheduled time (5-min rule)
     presentation_started_at: str = ""        # ISO when presenting began
     slide_started_at: str = ""               # ISO when the current slide began (auto-advance)
@@ -607,6 +608,7 @@ class LiveRoom:
             "creator_name": self.creator_name,
             "admin_participant_id": self.admin_participant_id,
             "presenting": self.presenting,
+            "manual_start_only": self.manual_start_only,
             "scheduled_start": self.scheduled_start,
             "duration_seconds": self.duration_seconds,
             "ended_at": self.ended_at,
@@ -753,6 +755,7 @@ class LiveRoomStore:
         creator_name: str = "",
         creator_account_id: str = "",
         scheduled_start: str = "",
+        manual_start_only: bool = False,
         duration_seconds: int = 0,
         presence_enabled: bool = True,
         presence_hold_grace_seconds: int = 90,
@@ -768,6 +771,9 @@ class LiveRoomStore:
                 dirty = True
             if duration_seconds and not existing.duration_seconds:
                 existing.duration_seconds = int(duration_seconds)
+                dirty = True
+            if manual_start_only and not existing.manual_start_only:
+                existing.manual_start_only = True
                 dirty = True
             next_policy = PresencePolicy(
                 enabled=presence_enabled,
@@ -812,6 +818,7 @@ class LiveRoomStore:
             creator_name=creator_name.strip(),
             creator_account_id=creator_account_id.strip(),
             scheduled_start=(scheduled_start or "").strip(),
+            manual_start_only=bool(manual_start_only),
             duration_seconds=int(duration_seconds or 0),
             presence_policy=PresencePolicy(
                 enabled=presence_enabled,
@@ -1404,6 +1411,8 @@ class LiveRoomStore:
         if room.presence_hold_active:
             return False
         if room.status != "live" or room.presenting or room.learner_count < 1:
+            return False
+        if room.manual_start_only:
             return False
         welcome_started = _parse_ts(room.welcome_started_at)
         ref = now or _now()

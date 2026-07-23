@@ -1085,6 +1085,7 @@ export async function joinLiveRoom(
     host_follower_count?: number;
     following_host?: boolean;
     is_admin?: boolean;
+    can_start_presentation?: boolean;
     moderator_key?: string;
   }> {
   return get(ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/join`, {
@@ -1106,12 +1107,16 @@ export async function joinLiveRoom(
 /** Start the AI presentation (class admin / moderator key / platform admin via
  * Bearer token). Idempotent server-side. Without this a group class never
  * enters "presenting", so slides never auto-advance and it's stuck on slide 1. */
-export async function liveRoomStartPresentation(roomId: string, moderatorKey = ""): Promise<LiveRoomState> {
+export async function liveRoomStartPresentation(
+  roomId: string,
+  moderatorKey = "",
+  participantId = "",
+): Promise<LiveRoomState> {
   const r = await get<{ room: LiveRoomState }>(
     ORCHESTRATOR_URL, `/api/live-rooms/${encodeURIComponent(roomId)}/start-presentation`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ moderator_key: moderatorKey }),
+      body: JSON.stringify({ moderator_key: moderatorKey, participant_id: participantId }),
     });
   return r.room;
 }

@@ -703,6 +703,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // moderator key) OR the platform admin (admin@salareen.com), who moderates any
   // room via their Bearer token — the moderator endpoints accept either.
   const canModerate = Boolean(moderatorKey) || isPlatformAdmin;
+  const canStartPresentation = Boolean(joinInfo?.can_start_presentation) || isPlatformAdmin;
   const xrRollout = useFlag<number | boolean>("access.xr_immersive_class", 0);
   const xrEnabled = xrRollout === true || (typeof xrRollout === "number" && Number(xrRollout) > 0);
   const [wasRemoved, setWasRemoved] = useState(false);
@@ -1172,9 +1173,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       } : { attendeeCode });
       setJoinInfo(info);
       setRoom(info.room);
-      // The admin (first joiner) receives the moderator key so their client can
-      // start the class and advance slides.
-      if (info.is_admin && info.moderator_key) {
+      // The first learner or authenticated instructor receives moderator
+      // controls. Later group participants never receive this capability.
+      if (info.moderator_key) {
         setModeratorKey(info.moderator_key);
         sessionStorage.setItem(`${MODERATOR_STORAGE_KEY}:${roomId}`, info.moderator_key);
       }
@@ -1640,7 +1641,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     setAiAudioOn(true);
     setBusy(true);
     try {
-      const next = await liveRoomStartPresentation(roomId, moderatorKey);
+      const next = await liveRoomStartPresentation(
+        roomId,
+        moderatorKey,
+        joinInfo?.participant.id || "",
+      );
       setRoom(next);
       lastRoomSigRef.current = JSON.stringify(next);
       // Narrate the current slide immediately (don't wait for the effect).
@@ -4140,23 +4145,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   ) : null}
                 </>
               ) : null}
-              {!isSolo ? (
-                !room?.presenting ? (
-                  <button
-                    onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
-                    disabled={busy}
-                    title="Start the class"
-                    style={{ ...railBtnStyle, background: STUDIO_GOLD, color: "#fff", borderColor: STUDIO_GOLD }}
-                  >
-                    🎬 Start class
-                  </button>
-                ) : (
-                  <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)" style={railBtnStyle}>
-                    ▶ Next slide
-                  </button>
-                )
+              {!room?.presenting && canStartPresentation ? (
+                <button
+                  onClick={(e) => { e.currentTarget.blur(); void startPresentation(); }}
+                  disabled={busy}
+                  title="Start the class when you are ready"
+                  style={{ ...railBtnStyle, background: STUDIO_GOLD, color: "#fff", borderColor: STUDIO_GOLD }}
+                >
+                  🎬 Start class
+                </button>
+              ) : !isSolo && room?.presenting ? (
+                <button onClick={() => void hostAdvance()} disabled={busy} title="Next slide (the AI advances automatically)" style={railBtnStyle}>
+                  ▶ Next slide
+                </button>
               ) : null}
-              {isSolo ? (
+              {isSolo && room?.presenting ? (
                 <button
                   onClick={() => {
                     if (paused) {

@@ -327,6 +327,7 @@ export default function LiveRoomScreen({
   const [chatSeen, setChatSeen] = useState(0);
   const chatSeenInit = useRef(false);
   const [joinedModKey, setJoinedModKey] = useState("");
+  const [joinedCanStart, setJoinedCanStart] = useState(false);
   // Host-only: quiz builder fields and screen share toggle.
   const [quizQuestion, setQuizQuestion] = useState("");
   const [quizAnswer, setQuizAnswer] = useState("");
@@ -338,6 +339,7 @@ export default function LiveRoomScreen({
   // Can this viewer start/drive the class? The room's first-seat admin (holds the
   // moderator key) or the platform admin (admin@salareen.com, authorized by token).
   const canModerate = Boolean(modKey) || Boolean(account?.is_admin);
+  const canStartPresentation = joinedCanStart || Boolean(account?.is_admin);
 
   // De-dupe room updates from the 3s tick + WebSocket: skip setState when the
   // snapshot is unchanged so we don't re-render the whole screen every 3s on an
@@ -630,6 +632,7 @@ export default function LiveRoomScreen({
       }
       setParticipantId(joined.participant.id);
       setIdentity(joined.participant.identity);
+      setJoinedCanStart(Boolean(joined.can_start_presentation));
       // The first-seat admin receives the moderator key so their client can
       // start the class (and thus drive slide auto-advance).
       if (joined.moderator_key) {
@@ -1574,16 +1577,19 @@ export default function LiveRoomScreen({
       {/* ---- Host: Slides (presentation + screen controls) ---- */}
       <BottomSheet visible={sheet === "host-slides"} title="Presentation" onClose={() => setSheet(null)}>
         <View style={styles.controls}>
-          {!room?.presenting ? (
+          {!room?.presenting && canStartPresentation ? (
             <PrimaryButton
               label="🎬 Start Class"
               variant="netflix"
               onPress={async () => {
-                try { setRoom(await liveRoomStartPresentation(roomId, modKey)); setSheet(null); }
+                try {
+                  setRoom(await liveRoomStartPresentation(roomId, modKey, participantId));
+                  setSheet(null);
+                }
                 catch (e) { setError((e as Error).message); }
               }}
             />
-          ) : (
+          ) : room?.presenting ? (
             <PrimaryButton
               label="▶ Next Slide"
               variant="brand"
@@ -1592,7 +1598,7 @@ export default function LiveRoomScreen({
                 catch (e) { setError((e as Error).message); }
               }}
             />
-          )}
+          ) : null}
           <PrimaryButton
             label={screenShareOn ? "🖥 Stop Screen Share" : "🖥 Share Screen"}
             variant="ghost"
@@ -1844,12 +1850,14 @@ export default function LiveRoomScreen({
             <View style={styles.sheetSection}>
               <Text style={styles.cardTitle}>Host controls</Text>
               <View style={styles.controls}>
-                {!room?.presenting ? (
+                {!room?.presenting && canStartPresentation ? (
                   <PrimaryButton
                     label="🎬 Start class"
                     variant="netflix"
                     onPress={async () => {
-                      try { setRoom(await liveRoomStartPresentation(roomId, modKey)); }
+                      try {
+                        setRoom(await liveRoomStartPresentation(roomId, modKey, participantId));
+                      }
                       catch (e) { setError((e as Error).message); }
                     }}
                   />

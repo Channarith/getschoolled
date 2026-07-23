@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-22 - v0.30.0 - Add manual Start controls for self-hosted classes and 1:1 rooms; allow only the authenticated instructor, platform admin, first learner/admin, or sole 1:1 learner to initiate a course, while denying later group participants.
 - 2026-07-23 - v0.29.10 - Fix CI: docker compose fails because config/local.env was removed from git (PR #395); add cp local.env.example local.env step to ci.yml compose job; remove obsolete version field from docker-compose.yml; change mobile pnpm install to --no-frozen-lockfile so CI does not break when lockfile lags package.json.
 - 2026-07-22 - v0.29.9 - Fix CI lockfile mismatch: pnpm-lock.yaml missing react-native-webview@13.8.6 causing mobile-tests to fail on main; fix WorldsScreen onError/onHttpError implicit-any with inline types; fix stale test assertions for kids maturity filter and lesson deep_link.
 - 2026-07-22 - v0.29.7 - Security: remove Facebook App Secret, admin/QA passwords from VCS; untrack config/cloud.env and config/local.env; fix .gitignore to block future commits; add config/local.env.example template.

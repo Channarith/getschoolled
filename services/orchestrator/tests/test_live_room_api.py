@@ -277,8 +277,10 @@ def test_first_joiner_is_admin_and_gets_moderator_key():
     first = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()
     second = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bob", "identity": "b1"}).json()
     assert first["is_admin"] is True and first["moderator_key"]      # admin gets the key
+    assert first["can_start_presentation"] is True
     assert first["participant"]["is_admin"] is True
     assert second["is_admin"] is False and second["moderator_key"] == ""
+    assert second["can_start_presentation"] is False
 
 
 def test_advance_and_start_require_admin():
@@ -294,6 +296,75 @@ def test_advance_and_start_require_admin():
     # admin can
     started = client.post(f"/api/live-rooms/{room_id}/start-presentation", json={"participant_id": admin_id})
     assert started.status_code == 200 and started.json()["presenting"] is True
+
+
+def test_third_learner_cannot_start_even_with_stale_moderator_key():
+    info = _start_salareen_class(6)
+    room_id = info["room_id"]
+    mod = info["started"]["bridge"]["moderator_key"]
+    for name in ("First", "Second"):
+        client.post(
+            f"/api/live-rooms/{room_id}/join",
+            json={"name": name, "identity": name.lower()},
+        )
+    third = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Third", "identity": "third"},
+    ).json()
+
+    assert third["can_start_presentation"] is False
+    denied = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={
+            "participant_id": third["participant"]["id"],
+            "moderator_key": mod,
+        },
+    )
+    assert denied.status_code == 400
+
+
+def test_self_host_can_start_after_join_and_room_never_auto_starts(monkeypatch):
+    import orchestrator.main as m
+
+    class_id = _schedule_salareen_class(6)
+    room_id = f"class-{class_id}"
+    gc = m._group_store().require(class_id)
+    gc.instructor_account_id = "host-account"
+    m._group_store().save(gc)
+    assert client.get(f"/api/live-rooms/{room_id}").status_code == 200
+    monkeypatch.setattr(
+        m,
+        "_class_host_is_caller",
+        lambda _gc, auth: auth == "Bearer host-token",
+    )
+
+    client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "First learner", "identity": "first-learner"},
+    )
+    host = client.post(
+        f"/api/live-rooms/{room_id}/join",
+        json={"name": "Instructor", "identity": "instructor"},
+        headers={"authorization": "Bearer host-token"},
+    ).json()
+    assert host["is_admin"] is False
+    assert host["can_start_presentation"] is True
+    assert host["moderator_key"]
+
+    room = m.app.state.live_rooms.require(room_id)
+    room.welcome_started_at = "2000-01-01T00:00:00+00:00"
+    m.app.state.live_rooms._backend.save(room)
+    tick = client.post(f"/api/live-rooms/{room_id}/tick")
+    assert tick.status_code == 200
+    assert tick.json()["auto_started"] is False
+
+    started = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={"participant_id": host["participant"]["id"]},
+        headers={"authorization": "Bearer host-token"},
+    )
+    assert started.status_code == 200, started.text
+    assert started.json()["presenting"] is True
 
 
 def test_tick_auto_starts_when_full_then_auto_advances():
@@ -391,6 +462,12 @@ def test_start_solo_room_is_two_seat_and_uses_room_ui():
     assert joined.status_code == 200, joined.text
     assert joined.json()["media"]["token"].count(".") == 2  # real LiveKit JWT
     assert joined.json()["is_admin"] is True  # the sole learner is the admin
+    assert joined.json()["can_start_presentation"] is True
+    started = client.post(
+        f"/api/live-rooms/{room_id}/start-presentation",
+        json={"participant_id": joined.json()["participant"]["id"]},
+    )
+    assert started.status_code == 200
 
 
 def test_solo_room_uses_profile_duration_and_stable_student_id():
