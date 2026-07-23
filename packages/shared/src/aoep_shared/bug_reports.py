@@ -371,6 +371,7 @@ class BugReportStore:
         return cls(root or default_bug_report_dir())
 
     def _append_index(self, report: BugReport) -> None:
+        self.root.mkdir(parents=True, exist_ok=True)
         line = json.dumps(report.model_dump(), separators=(",", ":"))
         with self._index_path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")

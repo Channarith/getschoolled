@@ -452,6 +452,8 @@ def submit_bug_report(req: BugReportSubmit) -> dict:
         report = _bug_reports().submit(req)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not save report: {exc}") from exc
     return {
         "ok": True,
         "id": report.id,
