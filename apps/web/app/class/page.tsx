@@ -59,11 +59,16 @@ import VideoAdBreak from "../components/VideoAdBreak";
 import { useCourseAds, effectiveAdTier } from "../lib/useCourseAds";
 import { splitForSpeech, startSpeechKeepAlive, stopSpeechKeepAlive, synthChunk } from "../lib/tts";
 import { SpeechChunker, StreamingVoice } from "../lib/voicePipeline";
+import { useVoicePauseSubmitMs } from "../lib/flags";
+import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
 type SpeechRec = {
-  lang: string; interimResults: boolean; maxAlternatives: number;
-  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  lang: string; interimResults: boolean; continuous?: boolean; maxAlternatives: number;
+  onresult: (e: {
+    resultIndex: number;
+    results: { length: number; [i: number]: { [j: number]: { transcript: string } } };
+  }) => void;
   onerror: (e: { error?: string }) => void; onend: () => void; start: () => void; stop: () => void;
 };
 
@@ -127,6 +132,9 @@ export default function ClassPage() {
   const [heard, setHeard] = useState("");
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [listening, setListening] = useState(false);
+  const pauseSubmitMs = useVoicePauseSubmitMs();
+  const recognitionRef = useRef<SpeechRec | null>(null);
+  const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [assessmentPolicy, setAssessmentPolicy] = useState<AssessmentCheckpointSpec[]>([]);
   const [assessmentRun, setAssessmentRun] = useState<AssessmentRun | null>(null);
@@ -232,19 +240,36 @@ export default function ClassPage() {
       setError("Couldn't start the microphone. Try Chrome over https://.");
       return;
     }
+    try { recognitionRef.current?.stop(); } catch { /* */ }
+    pauseSubmitterRef.current?.cancelPending();
     rec.lang = "en-US";
-    rec.interimResults = false;
+    rec.interimResults = true;
+    rec.continuous = true;
     rec.maxAlternatives = 1;
     setPron(null);
     setHeard("");
     setListening(true);
-    rec.onresult = (e) => {
-      const said = e.results[0][0].transcript;
+    const submitter = createVoicePauseSubmitter(pauseSubmitMs, (said) => {
       setHeard(said);
+      setListening(false);
+      try { rec.stop(); } catch { /* */ }
       pronounce(target, said).then(setPron).catch((err) => setError(String(err)));
+    });
+    pauseSubmitterRef.current = submitter;
+    rec.onresult = (e) => {
+      const parts: string[] = [];
+      for (let i = 0; i < e.results.length; i++) {
+        const chunk = e.results[i]?.[0]?.transcript ?? "";
+        if (chunk) parts.push(chunk);
+      }
+      const said = parts.join(" ").trim();
+      if (!said) return;
+      setHeard(said);
+      submitter.updateTranscript(said);
     };
     rec.onerror = (e) => {
       setListening(false);
+      submitter.cancelPending();
       const code = e?.error || "";
       if (code === "not-allowed" || code === "service-not-allowed") {
         setError("Microphone access is blocked — allow the mic for this site (address-bar icon). Voice also needs https://.");
@@ -256,11 +281,19 @@ export default function ClassPage() {
         setError(`Microphone error (${code}). Try again, or use Chrome over https://.`);
       }
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      submitter.flush();
+      setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
+    };
+    recognitionRef.current = rec;
     try {
       rec.start();
     } catch {
       setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
       setError("Couldn't start the microphone. Try again, or use Chrome over https://.");
     }
   }

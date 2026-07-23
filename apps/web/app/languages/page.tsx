@@ -19,6 +19,8 @@ import {
   type LangWordExplanation,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
+import { useVoicePauseSubmitMs } from "../lib/flags";
+import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 
 // Best-effort BCP-47 for speech synthesis/recognition.
 const BCP47: Record<string, string> = {
@@ -30,8 +32,11 @@ const BCP47: Record<string, string> = {
 };
 
 type SpeechRec = {
-  lang: string; interimResults: boolean; maxAlternatives: number;
-  onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void;
+  lang: string; interimResults: boolean; continuous?: boolean; maxAlternatives: number;
+  onresult: (e: {
+    resultIndex: number;
+    results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal?: boolean }>;
+  }) => void;
   onerror: (e: { error?: string }) => void; onend: () => void; start: () => void; stop: () => void;
 };
 
@@ -77,6 +82,9 @@ export default function LanguagesPage() {
   const [storyPageIndex, setStoryPageIndex] = useState(0);
   const [wordHelp, setWordHelp] = useState<LangWordExplanation | null>(null);
   const [wordHelpLoading, setWordHelpLoading] = useState(false);
+  const pauseSubmitMs = useVoicePauseSubmitMs();
+  const recognitionRef = useRef<SpeechRec | null>(null);
+  const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -256,18 +264,36 @@ export default function LanguagesPage() {
       setError("Couldn't start the microphone. Try Chrome or Edge over https://.");
       return;
     }
+    try { recognitionRef.current?.stop(); } catch { /* */ }
+    pauseSubmitterRef.current?.cancelPending();
     rec.lang = BCP47[course.code] ?? course.code;
-    rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.maxAlternatives = 1;
     setPron(null);
     setHeard("");
     setListening(true);
-    rec.onresult = (e) => {
-      const said = e.results[0][0].transcript;
+    const submitter = createVoicePauseSubmitter(pauseSubmitMs, (said) => {
       setHeard(said);
+      setListening(false);
+      try { rec.stop(); } catch { /* */ }
       void checkPronunciation(said);
+    });
+    pauseSubmitterRef.current = submitter;
+    rec.onresult = (e) => {
+      const parts: string[] = [];
+      for (let i = 0; i < e.results.length; i++) {
+        const chunk = e.results[i]?.[0]?.transcript ?? "";
+        if (chunk) parts.push(chunk);
+      }
+      const said = parts.join(" ").trim();
+      if (!said) return;
+      setHeard(said);
+      submitter.updateTranscript(said);
     };
     rec.onerror = (ev) => {
       setListening(false);
+      submitter.cancelPending();
       const code = (ev as { error?: string })?.error || "";
       if (code === "not-allowed" || code === "service-not-allowed") {
         setError(
@@ -278,11 +304,19 @@ export default function LanguagesPage() {
         setError("I didn't hear anything — tap 🎤 Speak and say the phrase out loud.");
       }
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      submitter.flush();
+      setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
+    };
+    recognitionRef.current = rec;
     try {
       rec.start();
     } catch {
       setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
       setError("Couldn't start the microphone. Try again.");
     }
   }
