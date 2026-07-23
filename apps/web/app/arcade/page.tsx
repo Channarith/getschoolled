@@ -163,6 +163,43 @@ export default function ArcadePage() {
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
 
+      {/* ── Salareen Worlds hero banner ─────────────────────────────── */}
+      {!round && (
+        <div style={{
+          position: 'relative', borderRadius: 20, overflow: 'hidden',
+          marginBottom: 28, minHeight: 240,
+          background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 45%, #24243e 100%)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+        }}>
+          <div style={{ position: 'absolute', inset: 0,
+            backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(124,58,237,0.35) 0%, transparent 55%), radial-gradient(white 1px, transparent 1px)',
+            backgroundSize: '100% 100%, 40px 40px', opacity: 0.6 }} aria-hidden />
+          <div style={{ position: 'absolute', right: 40, top: '50%', transform: 'translateY(-50%)',
+            width: 160, height: 160, borderRadius: '50%',
+            background: 'radial-gradient(circle at 38% 38%, #4ade80 0%, #16a34a 40%, #14532d 80%, #052e16 100%)',
+            boxShadow: '0 0 60px 20px rgba(74,222,128,0.3)', opacity: 0.85 }} aria-hidden />
+          <div style={{ position: 'relative', padding: '32px 36px', maxWidth: 560, zIndex: 1 }}>
+            <div style={{ display: 'inline-block', background: 'rgba(124,58,237,0.7)', color: '#e9d5ff',
+              borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>
+              ✨ FEATURED · 3D OPEN WORLD
+            </div>
+            <h2 style={{ margin: '0 0 8px', color: '#fff', fontSize: 30, fontWeight: 900, lineHeight: 1.15 }}>
+              🌍 Salareen Worlds
+            </h2>
+            <p style={{ margin: '0 0 18px', color: 'rgba(255,255,255,0.8)', fontSize: 14, lineHeight: 1.6 }}>
+              3D open-world RPG — explore planets, answer trivia, race an AI opponent. Math, science, geography, history &amp; more.
+            </p>
+            <Link href="/worlds" style={{ display: 'inline-block', padding: '12px 26px', borderRadius: 12,
+              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: '#fff',
+              fontWeight: 800, fontSize: 15, textDecoration: 'none',
+              boxShadow: '0 4px 16px rgba(124,58,237,0.5)' }}>
+              ▶ Play Now
+            </Link>
+          </div>
+        </div>
+      )}
+
+
       {/* Professional scenario drills */}
       {!round && (
         <div className="card" style={{ background: "linear-gradient(135deg, rgba(67,56,202,0.18), rgba(99,102,241,0.1))" }}>
