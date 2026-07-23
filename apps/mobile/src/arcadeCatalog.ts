@@ -60,6 +60,14 @@ export const ARCADE_SECTIONS: ArcadeSection[] = [
     ],
   },
   {
+    id: "professional",
+    title: "Professional scenarios",
+    subtitle: "What would you do? — compliance, safety, privacy drills.",
+    games: [
+      { id: "pro-scenarios", label: "What Would You Do?", emoji: "💼", path: "/arcade/pro-scenarios" },
+    ],
+  },
+  {
     id: "zoo-reef",
     title: "Zoo & Reef",
     subtitle: "Memorize animal and fish species — safari, reef journal, memory match.",
