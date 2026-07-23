@@ -25,6 +25,8 @@ Task playbooks live in `.cursor/skills/<name>/SKILL.md` (auto-selected by their
   provider abstraction, deploy-mode selection. Start here when unsure where X lives.
 - **run-and-test-locally** — run the stack (services/web/mobile), run pytest/ruff/
   typecheck/build, CI gates, and port/venv/mobile-clobber gotchas.
+  External extenders: use `packages/sdk` + `docs/sdk-developers.txt`
+  (`AOEPClient.local()`, content packs) instead of forking service internals.
 - **backend-service** — add/modify a FastAPI service or provider (`create_service`,
   `app.state.factory`, config, per-service tests).
 - **identity-rewards-durability** — accounts/auth/students, points/rewards, admin +

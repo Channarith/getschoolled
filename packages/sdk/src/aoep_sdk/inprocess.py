@@ -1,9 +1,12 @@
-"""Curated, lazy-loaded in-process AOEP capability surface.
+"""Curated, lazy-loaded in-process AOEP capability surface for local extension.
 
 These exports let developers embed the same provider, retrieval, content,
 teaching, homework, meeting, and training-agent engines used by the services.
 Capabilities load only when accessed, so lightweight retrieval does not import
 optional harvesting, numerical, vision, or presentation stacks.
+
+Use ``aoep_sdk.local.local_factory`` when only the lightweight local provider
+factory is needed.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ _EXPORTS: dict[str, tuple[str, str | None]] = {
     "build_factory": ("aoep_shared", "build_factory"),
     "get_version": ("aoep_shared", "get_version"),
     "load_config": ("aoep_shared", "load_config"),
+    "content_packs": ("aoep_shared.content_packs", None),
+    "local_factory": ("aoep_sdk.local", "local_factory"),
     "AdaptivePolicy": ("aoep_shared.adaptive", "AdaptivePolicy"),
     "Difficulty": ("aoep_shared.adaptive", "Difficulty"),
     "LearnerSignals": ("aoep_shared.adaptive", "LearnerSignals"),
@@ -65,5 +70,6 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> list[str]:
     return sorted(set(globals()) | set(_EXPORTS))
+
 
 __all__ = sorted(_EXPORTS)

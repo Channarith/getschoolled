@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+
+from .errors import TransportError
 
 
 _LOCAL_URLS = {
@@ -17,9 +19,16 @@ _LOCAL_URLS = {
     "identity": "http://localhost:8008",
 }
 
+_LOCAL_HOST_PREFIXES = ("http://localhost", "http://127.0.0.1")
+
 
 def _clean_url(value: str) -> str:
     return value.strip().rstrip("/")
+
+
+def _is_local_url(url: str) -> bool:
+    cleaned = _clean_url(url).lower()
+    return cleaned.startswith(_LOCAL_HOST_PREFIXES)
 
 
 @dataclass(frozen=True)
@@ -34,6 +43,12 @@ class ServiceURLs:
     billing: str = _LOCAL_URLS["billing"]
     integrations: str = _LOCAL_URLS["integrations"]
     identity: str = _LOCAL_URLS["identity"]
+
+    @classmethod
+    def local(cls) -> "ServiceURLs":
+        """Hard-coded localhost service map for isolated developer work."""
+
+        return cls(**_LOCAL_URLS)
 
     @classmethod
     def from_env(cls) -> "ServiceURLs":
@@ -57,17 +72,43 @@ class ServiceURLs:
             )
         return cls(**values)
 
+    def non_local_services(self) -> list[str]:
+        """Return service names whose URLs are not loopback."""
+
+        return [
+            name
+            for name, url in asdict(self).items()
+            if not _is_local_url(url)
+        ]
+
 
 @dataclass(frozen=True)
 class AOEPConfig:
-    """Connection, authentication, and transport settings for :class:`AOEPClient`."""
+    """Connection, authentication, and transport settings for :class:`AOEPClient`.
 
-    services: ServiceURLs = field(default_factory=ServiceURLs)
+    Prefer :meth:`local` when extending the platform so experiments stay on the
+    developer machine (sandbox payments, offline LLM fallbacks, no cloud secrets).
+    """
+
+    services: ServiceURLs = field(default_factory=ServiceURLs.local)
     bearer_token: str = ""
     internal_token: str = ""
     admin_secret: str = ""
     timeout_seconds: float = 10.0
     user_agent: str = "aoep-sdk-python"
+    require_local: bool = False
+
+    @classmethod
+    def local(cls) -> "AOEPConfig":
+        """Safe local defaults: localhost URLs and no privileged tokens."""
+
+        return cls(
+            services=ServiceURLs.local(),
+            bearer_token="",
+            internal_token="",
+            admin_secret="",
+            require_local=True,
+        )
 
     @classmethod
     def from_env(cls) -> "AOEPConfig":
@@ -78,6 +119,12 @@ class AOEPConfig:
             timeout = 10.0
         if timeout <= 0:
             timeout = 10.0
+        require_local = os.environ.get("AOEP_REQUIRE_LOCAL", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         return cls(
             services=ServiceURLs.from_env(),
             bearer_token=os.environ.get("AOEP_BEARER_TOKEN", "").strip(),
@@ -95,4 +142,24 @@ class AOEPConfig:
             timeout_seconds=timeout,
             user_agent=os.environ.get("AOEP_USER_AGENT", "aoep-sdk-python").strip()
             or "aoep-sdk-python",
+            require_local=require_local,
         )
+
+    def assert_safe_for_extension(self) -> None:
+        """Refuse remote targets when local-only mode is enabled.
+
+        Extenders building on top of AOEP should default to the local stack so a
+        mistake cannot talk to production. Privileged tokens are still allowed
+        against loopback services (local identity/memory gates).
+        """
+
+        if not self.require_local:
+            return
+        remote = self.services.non_local_services()
+        if remote:
+            joined = ", ".join(remote)
+            raise TransportError(
+                "AOEP local-only mode refuses non-loopback service URLs "
+                f"({joined}). Use AOEPConfig.local() or unset AOEP_BASE_URL / "
+                "AOEP_*_URL overrides while developing."
+            )
