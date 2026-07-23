@@ -139,8 +139,9 @@ function DrivePageInner() {
   // speechSynthesis.cancel() fires utterance onend, which would otherwise
   // auto-advance into the next segment after navigation.
   useEffect(() => {
+    const genRef = playGenRef;
     return () => {
-      playGenRef.current++;
+      genRef.current++;
       clearResumeTimer();
       stopAmbientListening();
       stopVoiceRecognition();

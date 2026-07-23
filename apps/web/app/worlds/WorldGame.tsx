@@ -380,6 +380,9 @@ export default function WorldGame() {
     theoGroup.add(theoGlow);
     scene.add(theoGroup);
 
+    // ── World State ───────────────────────────────────────────
+    let hmap = generateHeightMap(WORLD_SIZE, "earth");
+
     // ── AI Opponent (Theodore Bot) ────────────────────────────
     const aiGroup = new THREE.Group();
     const aiCore = new THREE.Mesh(
@@ -398,9 +401,6 @@ export default function WorldGame() {
     scene.add(aiGroup);
 
     let aiTime = 0, aiNextMove = 3, aiTargetX = 8, aiTargetZ = 8;
-
-    // ── World State ───────────────────────────────────────────
-    let hmap = generateHeightMap(WORLD_SIZE, "earth");
 
     // ── Terrain ───────────────────────────────────────────────
     let terrainMesh: THREE.Mesh | null = null;
@@ -1069,8 +1069,7 @@ export default function WorldGame() {
         if (!answeredRef.current.has(qb.id) && aiGroup.position.distanceTo(qb.mesh.position) < 2.5) {
           const correct = Math.random() > 0.35;
           const xpGain = correct ? 15 : 0;
-          setAiXp(prev => prev + xpGain);
-          setAiMessage(correct ? "I got it! +15 XP 😄" : "Hmm, tricky one! 🤔");
+          if (alive) { setAiXp(prev => prev + xpGain); setAiMessage(correct ? "I got it! +15 XP 😄" : "Hmm, tricky one! 🤔"); }
           break;
         }
       }
@@ -1324,11 +1323,11 @@ export default function WorldGame() {
       {/* ── FULLSCREEN + QUIT BUTTONS (desktop) ──────────────── */}
       {gameStarted && !isMobile && (
         <>
-          <button onClick={() => isFullscreen ? document.exitFullscreen() : document.documentElement.requestFullscreen()}
+          <button onClick={() => { try { if (isFullscreen) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch { /* fullscreen not supported */ } }}
             style={{ position: 'absolute', top: 12, right: 68, zIndex: 20, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
             {isFullscreen ? '✕ Exit fullscreen' : '⛶ Fullscreen'}
           </button>
-          <button onClick={() => { if (confirm('Quit game? Your progress is saved.')) window.location.href = '/arcade'; }}
+          <button onClick={() => { try { if (typeof confirm === 'function' && !confirm('Quit game? Your progress is saved.')) return; } catch { /* confirm blocked in WebView */ } window.location.href = '/arcade'; }}
             style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, background: 'rgba(220,38,38,0.85)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
             ✕ Quit
           </button>
