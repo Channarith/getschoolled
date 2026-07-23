@@ -67,7 +67,7 @@ def verify_google_id_token(id_token: str) -> dict:
     )
     if data.get("aud") != client_id:
         raise OAuthError("Google token audience mismatch")
-    if not data.get("email_verified"):
+    if data.get("email_verified") not in (True, "true", 1):
         raise OAuthError("Google account email is not verified. Please verify your Google account email first.")
     email = (data.get("email") or "").lower()
     if not email:

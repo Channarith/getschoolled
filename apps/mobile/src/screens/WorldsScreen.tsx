@@ -83,7 +83,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         ref={webViewRef}
         source={{ uri: WORLDS_URL }}
         style={styles.webview}
-        injectedJavaScript={INJECTED_JS}
+        injectedJavaScriptBeforeContentLoaded={INJECTED_JS}
         onMessage={handleMessage}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}

@@ -166,6 +166,8 @@ export default function WorldGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const keysRef = useRef<Record<string, boolean>>({});
+  // Touch-triggered single-frame actions (equivalent to keyJustDown for keyboard)
+  const touchJustTappedRef = useRef<Set<string>>(new Set());
   const frameRef = useRef<number>(0);
   const mouseRef = useRef<{ buttons: number }>({ buttons: 0 });
 
@@ -1103,6 +1105,11 @@ export default function WorldGame() {
 
       // Clear just-down keys
       keyJustDown.clear();
+      // Merge touch-tapped actions (Jump, Interact) into the keyboard just-down set
+      if (touchJustTappedRef.current.size > 0) {
+        touchJustTappedRef.current.forEach(k => keyJustDown.add(k));
+        touchJustTappedRef.current.clear();
+      }
 
       renderer.render(scene, camera);
     };
@@ -1327,7 +1334,7 @@ export default function WorldGame() {
             style={{ position: 'absolute', top: 12, right: 68, zIndex: 20, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
             {isFullscreen ? '✕ Exit fullscreen' : '⛶ Fullscreen'}
           </button>
-          <button onClick={() => { try { if (typeof confirm === 'function' && !confirm('Quit game? Your progress is saved.')) return; } catch { /* confirm blocked in WebView */ } window.location.href = '/arcade'; }}
+          <button onClick={() => { let go = true; try { if (typeof confirm === 'function') go = confirm('Quit game? Your progress is saved.'); } catch { go = true; } if (go) window.location.href = '/arcade'; }}
             style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, background: 'rgba(220,38,38,0.85)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
             ✕ Quit
           </button>
@@ -1515,9 +1522,9 @@ export default function WorldGame() {
           </div>
           {/* Right action buttons */}
           <div style={{ position: 'absolute', bottom: 32, right: 24, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8, userSelect: 'none' }}>
-            <button onTouchStart={() => { keysRef.current['Space'] = true; }} onTouchEnd={() => { keysRef.current['Space'] = false; }}
+            <button onTouchStart={() => { keysRef.current['Space'] = true; touchJustTappedRef.current.add('Space'); }} onTouchEnd={() => { keysRef.current['Space'] = false; }}
               style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(99,102,241,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Jump</button>
-            <button onTouchStart={() => { keysRef.current['KeyE'] = true; }} onTouchEnd={() => { keysRef.current['KeyE'] = false; }}
+            <button onTouchStart={() => { keysRef.current['KeyE'] = true; touchJustTappedRef.current.add('KeyE'); }} onTouchEnd={() => { keysRef.current['KeyE'] = false; }}
               style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(16,185,129,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Interact</button>
             <button onTouchStart={() => { keysRef.current['KeyZ'] = true; }} onTouchEnd={() => { keysRef.current['KeyZ'] = false; }}
               style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(239,68,68,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Attack</button>

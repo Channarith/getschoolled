@@ -1368,7 +1368,7 @@ def presence_ping(req: PresencePingRequest, acct=Depends(current_account)) -> di
         "platform": req.platform,
         "page": req.page,
         "activity": req.activity,
-        "seen_at": int(_time.time()),
+        "seen_at": int(time.time()),
     }
     r = _redis_client()
     if r:
@@ -1387,7 +1387,7 @@ def admin_presence(_acct=Depends(require_admin_account)) -> dict:
     import json as _json
 
     r = _redis_client()
-    now = int(_time.time())
+    now = int(time.time())
     cutoff = now - _PRESENCE_TTL
     users: list[dict] = []
 

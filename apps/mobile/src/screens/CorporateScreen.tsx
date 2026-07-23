@@ -32,8 +32,8 @@ export default function CorporateScreen({ onOpenCourse, onBack }: CorporateScree
   const load = async (alive?: { current: boolean }) => {
     setError("");
     try {
-      // Pass "corporate" as the search query to surface professional/corporate content
-      const result = await listAudioCourses(undefined, "corporate", 80, locale);
+      // Filter by corporate category (first param), not free-text search
+      const result = await listAudioCourses("corporate", undefined, 80, locale);
       if (!alive || alive.current) setCourses(result.courses);
     } catch (e) {
       if (!alive || alive.current) setError(String(e));

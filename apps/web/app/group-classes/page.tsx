@@ -165,8 +165,37 @@ export default function GroupClassesPage() {
       setMeetingUrl("");
       setPricePerUser("");
       setPresentationFile(null);
-      setShowForm(false);
       await refresh();
+    } catch (e) {
+      setError(friendlyError(e, offline));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  async function onScheduleAsStudent() {
+    if (!requireAccount()) return;
+    setError("");
+    setBusy(true);
+    try {
+      const lesson = lessons.find((l) => l.lesson_id === lessonId);
+      await scheduleGroupClass({
+        title: (lesson ? `${lesson.title} — Study Group` : "Study Group"),
+        lesson_id: lessonId,
+        platform: "salareen",
+        meeting_url: "",
+        start_time: new Date(startTime).toISOString(),
+        duration_min: duration,
+        capacity: roomSize - 1,
+        room_size: roomSize,
+        language: lesson?.language ?? "en",
+        price_per_user_usd: undefined,
+        payment_required: false,
+        attendee_code_required: false,
+      });
+      await refresh();
+      setActiveTab("join"); // return to class list so student can join their new session
     } catch (e) {
       setError(friendlyError(e, offline));
     } finally {
@@ -501,7 +530,7 @@ export default function GroupClassesPage() {
               </select>
             </label>
             <div className="row">
-              <button onClick={onSchedule} disabled={busy || !lessonId}
+              <button onClick={onScheduleAsStudent} disabled={busy || !lessonId}
                 style={{ background: "#0369a1", color: "#fff", borderRadius: 10, padding: "11px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
                 {busy ? "Creating…" : "📅 Create My Group Session"}
               </button>
