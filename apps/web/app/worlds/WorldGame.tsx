@@ -322,6 +322,17 @@ export default function WorldGame() {
     renderer.toneMappingExposure = 1.2;
     rendererRef.current = renderer;
 
+    // ── WebGL context loss / restore ──────────────────────────
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault(); // required to allow restoration
+      alive = false;      // pause the game loop
+      cancelAnimationFrame(frameRef.current);
+    }, false);
+    canvas.addEventListener('webglcontextrestored', () => {
+      // Three.js does not support transparent context restoration — reload cleanly
+      window.location.reload();
+    }, false);
+
     // ── Scene ─────────────────────────────────────────────────
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -597,6 +608,60 @@ export default function WorldGame() {
     window.addEventListener("touchend",   onTouch2);
     canvas.addEventListener("touchmove",  onTouchM, { passive: true });
 
+    // ── Shared interact handler (keyboard E or touch Interact button) ─
+    function handleInteract() {
+      const pos = playerGroup.position;
+
+      // Check NPC proximity
+      const nearNPC = npcManager.getNearbyNPC(pos);
+      if (nearNPC) {
+        const lines = nearNPC.dialogue;
+        setDialogueLines(lines);
+        setDialogueNpcName(nearNPC.name);
+        return;
+      }
+
+      // Check mount proximity
+      const nearMount = mountManager.getNearbyMount(pos);
+      if (nearMount) {
+        if (mountManager.isMounted()) {
+          mountManager.dismount();
+        } else {
+          mountManager.mount(nearMount.id);
+        }
+        return;
+      }
+
+      // Check vehicle proximity
+      const nearVehicle = vehicleManager.checkNearby(pos);
+      if (nearVehicle) {
+        if (vehicleManager.activeVehicle !== null) {
+          vehicleManager.exitVehicle(playerGroup);
+        } else {
+          vehicleManager.enterVehicle(nearVehicle, playerGroup);
+        }
+        return;
+      }
+
+      // Check portal
+      if (planetSystem.checkPortalProximity(pos)) {
+        const hasKey = invLocal.portal_key > 0;
+        const hasStars = invLocal.star_crystal >= 3;
+        if (hasKey || hasStars) {
+          triggerPlanetSwitch().catch(err => console.error('Planet switch failed:', err));
+        }
+        return;
+      }
+
+      // Question block
+      if (nearPromptRef.current && !activeQRef.current) {
+        const q = QUESTIONS.find(
+          qq => qq.id === nearPromptRef.current && !answeredRef.current.has(qq.id),
+        );
+        if (q) setActiveQ(q as Question);
+      }
+    }
+
     // ── Keyboard events ───────────────────────────────────────
     const onKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.code] = true;
@@ -604,56 +669,7 @@ export default function WorldGame() {
 
       // ─── E: context-sensitive interact ───────────────────────
       if (e.code === "KeyE") {
-        const pos = playerGroup.position;
-
-        // Check NPC proximity
-        const nearNPC = npcManager.getNearbyNPC(pos);
-        if (nearNPC) {
-          const lines = nearNPC.dialogue;
-          setDialogueLines(lines);
-          setDialogueNpcName(nearNPC.name);
-          return;
-        }
-
-        // Check mount proximity
-        const nearMount = mountManager.getNearbyMount(pos);
-        if (nearMount) {
-          if (mountManager.isMounted()) {
-            mountManager.dismount();
-          } else {
-            mountManager.mount(nearMount.id);
-          }
-          return;
-        }
-
-        // Check vehicle proximity
-        const nearVehicle = vehicleManager.checkNearby(pos);
-        if (nearVehicle) {
-          if (vehicleManager.activeVehicle !== null) {
-            vehicleManager.exitVehicle(playerGroup);
-          } else {
-            vehicleManager.enterVehicle(nearVehicle, playerGroup);
-          }
-          return;
-        }
-
-        // Check portal
-        if (planetSystem.checkPortalProximity(pos)) {
-          const hasKey = invLocal.portal_key > 0;
-          const hasStars = invLocal.star_crystal >= 3;
-          if (hasKey || hasStars) {
-            triggerPlanetSwitch().catch(err => console.error('Planet switch failed:', err));
-          }
-          return;
-        }
-
-        // Question block
-        if (nearPromptRef.current && !activeQRef.current) {
-          const q = QUESTIONS.find(
-            qq => qq.id === nearPromptRef.current && !answeredRef.current.has(qq.id),
-          );
-          if (q) setActiveQ(q as Question);
-        }
+        handleInteract();
       }
 
       // ─── TAB: toggle inventory / crafting ────────────────────
@@ -800,6 +816,14 @@ export default function WorldGame() {
       gameTime += dt;
 
       const keys = keysRef.current;
+
+      // Merge touch-tapped actions into keyJustDown at frame START so they are
+      // visible to all keyJustDown checks this frame (not one frame late).
+      if (touchJustTappedRef.current.size > 0) {
+        touchJustTappedRef.current.forEach(k => keyJustDown.add(k));
+        touchJustTappedRef.current.clear();
+      }
+
       const gravity = currentPlanet === "space" ? GRAVITY_SPACE : GRAVITY_EARTH;
 
       // ── Vehicle/mount speed override ──────────────────────────
@@ -904,6 +928,10 @@ export default function WorldGame() {
       if (keyJustDown.has("KeyV") && activeWeaponRef.current === "staff" && magicCooldown <= 0) {
         combatSystem.startAttack("magic", playerGroup.position, playerFacing, "staff");
         magicCooldown = 1.2;
+      }
+      // Interact: E key or touch Interact button
+      if (keyJustDown.has("KeyE")) {
+        handleInteract();
       }
 
       // ── Camera ───────────────────────────────────────────────
@@ -1103,13 +1131,8 @@ export default function WorldGame() {
         // Refresh available recipes when crafting is open (handled when F is pressed)
       }
 
-      // Clear just-down keys
+      // Clear just-down keys at frame END (touch taps already merged at frame START)
       keyJustDown.clear();
-      // Merge touch-tapped actions (Jump, Interact) into the keyboard just-down set
-      if (touchJustTappedRef.current.size > 0) {
-        touchJustTappedRef.current.forEach(k => keyJustDown.add(k));
-        touchJustTappedRef.current.clear();
-      }
 
       renderer.render(scene, camera);
     };

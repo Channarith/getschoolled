@@ -1414,6 +1414,11 @@ def _group_store() -> GroupClassStore:
     return app.state.group_classes
 
 
+# Maps checkout_session_id -> voucher_code for pending paid checkouts.
+# Consumed in confirm_group_class_payment once payment is verified.
+_pending_vouchers: dict[str, str] = {}
+
+
 def _live_rooms() -> LiveRoomStore:
     return app.state.live_rooms
 
@@ -1506,6 +1511,7 @@ class ScheduleGroupClassRequest(BaseModel):
     device_profile: str = ""
     camera_ingest_mode: str = "platform_default"
     camera_sources: list[dict] = []
+    is_student_session: bool = False  # True when a student self-schedules a study group
 
 
 class RegisterRequest(BaseModel):
@@ -1596,9 +1602,11 @@ def schedule_group_class(
 
     account_id = account_from_authorization(authorization) or ""
     payload = req.model_dump()
+    payload.pop("is_student_session", None)  # not a GroupClass field
     payload["created_by_account_id"] = account_id
-    if account_id:
+    if account_id and not req.is_student_session:
         payload["instructor_account_id"] = account_id
+        payload["created_by_account_id"] = account_id
     if req.marketplace_listing:
         payload["instructor_account_id"] = account_id
         payload["audit_required"] = True
@@ -1868,7 +1876,18 @@ def checkout_group_class(
                 checkout_session_id=free_session_id,
                 account_id=account_id,
             )
-            # TODO: consume voucher code in identity service
+            # Consume the voucher so max_uses is enforced
+            if req.voucher_code.strip():
+                try:
+                    import httpx as _httpx_vc
+                    _httpx_vc.post(
+                        f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}/vouchers/consume",
+                        json={"code": req.voucher_code.strip()},
+                        headers={"X-Internal-Token": os.environ.get("INTERNAL_SECRET", "")},
+                        timeout=3,
+                    )
+                except Exception:
+                    pass  # best-effort; do not block the user
         except KeyError:
             raise HTTPException(status_code=404, detail="unknown group class")
         except ClassFullError as exc:
@@ -1900,6 +1919,8 @@ def checkout_group_class(
             account_id=account_id,
             checkout_session_id=session.session_id,
         )
+        if req.voucher_code.strip():
+            _pending_vouchers[session.session_id] = req.voucher_code.strip()
     except KeyError:
         raise HTTPException(status_code=404, detail="unknown group class")
     except ClassFullError as exc:
@@ -1930,6 +1951,8 @@ def confirm_group_class_payment(
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
     account_id = account_from_authorization(authorization) or ""
+    if not account_id:
+        raise HTTPException(status_code=401, detail="authentication required to confirm payment")
     # Verify payment status with the payment provider before granting access.
     try:
         provider = app.state.factory.payment()
@@ -1949,6 +1972,19 @@ def confirm_group_class_payment(
         raise HTTPException(status_code=404, detail="unknown group class")
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    # Consume any pending voucher associated with this checkout session
+    pending_code = _pending_vouchers.pop(req.checkout_session_id, "")
+    if pending_code:
+        try:
+            import httpx as _httpx_vc
+            _httpx_vc.post(
+                f"{os.environ.get('IDENTITY_URL', 'http://identity:8000')}/vouchers/consume",
+                json={"code": pending_code},
+                headers={"X-Internal-Token": os.environ.get("INTERNAL_SECRET", "")},
+                timeout=3,
+            )
+        except Exception:
+            pass  # best-effort; do not block the user
     return {
         "class": _group_class_payload(gc),
         "registration": reg.__dict__,
@@ -2033,6 +2069,12 @@ def start_group_class(
         store.save(gc)
 
     sessions = get_sessions()
+    # Guard against concurrent start calls creating two sessions for the same class
+    if gc.status == "live" and gc.session_id:
+        # Already live — return the existing session rather than creating a duplicate
+        existing = sessions.get_session(gc.session_id) if hasattr(sessions, 'get_session') else None
+        if existing:
+            raise HTTPException(status_code=409, detail="class is already live — join the existing session")
     try:
         state = sessions.start_session(gc.lesson_id, "group")
     except KeyError:

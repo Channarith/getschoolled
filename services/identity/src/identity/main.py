@@ -1449,6 +1449,19 @@ def admin_list_vouchers() -> dict:
     return {"vouchers": [asdict(v) for v in _voucher_store().list_all()]}
 
 
+class VoucherConsumeRequest(BaseModel):
+    code: str
+
+@app.post("/vouchers/consume", dependencies=[Depends(require_internal)])
+def consume_voucher(req: VoucherConsumeRequest) -> dict:
+    """Internal: record one use of a voucher/coupon/gift code. Call after checkout succeeds."""
+    v = _voucher_store().lookup(req.code)
+    if v is None:
+        raise HTTPException(status_code=404, detail=f"voucher {req.code!r} not found")
+    _voucher_store().consume(req.code)
+    return {"consumed": True, "code": v.code, "uses": v.uses, "max_uses": v.max_uses}
+
+
 @app.get("/admin/presence")
 def admin_presence(_acct=Depends(require_admin_account)) -> dict:
     """Return currently active users (seen within the last 5 minutes)."""

@@ -62,9 +62,14 @@ class VoucherStore:
             try:
                 data = json.loads(self._path.read_text())
                 for code, v in data.items():
-                    self._vouchers[code] = Voucher(**v)
-            except Exception:
-                pass
+                    try:
+                        self._vouchers[code] = Voucher(**v)
+                    except Exception as exc:
+                        import logging
+                        logging.getLogger(__name__).warning("Skipping corrupt voucher entry %r: %s", code, exc)
+            except json.JSONDecodeError as exc:
+                import logging
+                logging.getLogger(__name__).error("vouchers.json is corrupt and could not be loaded: %s", exc)
 
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
