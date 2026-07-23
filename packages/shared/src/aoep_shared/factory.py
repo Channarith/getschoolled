@@ -108,10 +108,18 @@ class ProviderFactory:
 
         from .providers.ocr import CloudOcrProvider, LocalOcrProvider, MockOcrProvider
 
+
+        def _pytesseract_importable() -> bool:
+            try:
+                import pytesseract  # noqa: F401
+                return True
+            except ImportError:
+                return False
+
         mode = self._config.mode_for("ocr")
         if mode is DeployMode.CLOUD:
             instance = CloudOcrProvider(self._config)
-        elif shutil.which("tesseract"):
+        elif shutil.which("tesseract") and _pytesseract_importable():
             instance = LocalOcrProvider(self._config)
         else:
             instance = MockOcrProvider(self._config)
