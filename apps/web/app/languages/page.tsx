@@ -10,9 +10,11 @@ import {
   languagePractice,
   newLangExercise,
   pronounce,
+  scoreMusicVideoTranslation,
   type LangCourse,
   type LangExercise,
   type LangInfo,
+  type MusicVideoScore,
   type Pronounce,
   type LangWordExplanation,
 } from "../lib/api";
@@ -65,6 +67,11 @@ export default function LanguagesPage() {
   const [mediaPlaying, setMediaPlaying] = useState(false);
   const [mediaAnswer, setMediaAnswer] = useState("");
   const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
+  const [mvIndex, setMvIndex] = useState(0);
+  const [mvDraft, setMvDraft] = useState("");
+  const [mvScore, setMvScore] = useState<MusicVideoScore | null>(null);
+  const [mvResults, setMvResults] = useState<Record<string, boolean>>({});
+  const [mvScoring, setMvScoring] = useState(false);
   const mediaTimerRef = useRef<number | null>(null);
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const [storyPageIndex, setStoryPageIndex] = useState(0);
@@ -109,9 +116,10 @@ export default function LanguagesPage() {
     setSelTerm(""); setHeard(""); setVerseIndex(0);
     setMediaSegmentIndex(0); setMediaAnswer(""); setMediaResults({}); setMediaPlaying(false);
     setStoryPageIndex(0); setWordHelp(null);
+    setMvIndex(0); setMvDraft(""); setMvScore(null); setMvResults({}); setMvScoring(false);
     const n = s === "conversation" || s === "story" ? 20
       : s === "slang" || s === "idioms" ? 60
-      : s === "media-listening" ? 10
+      : s === "media-listening" || s === "music-video" ? 10
       : s === "match" ? 4 : 5;
     try { setEx(await newLangExercise(course.code, s, n)); }
     catch (e) { setError(String(e)); }
@@ -185,6 +193,30 @@ export default function LanguagesPage() {
         setXpTotal(res.balance);
       }
     } catch (e) { setError(String(e)); }
+  }
+
+  async function checkMusicVideoGist() {
+    if (!course || !ex?.sections?.length) return;
+    const section = ex.sections[Math.min(mvIndex, ex.sections.length - 1)];
+    const text = mvDraft.trim();
+    if (!text) {
+      setError("Type the gist of this section in English first.");
+      return;
+    }
+    setError("");
+    setMvScoring(true);
+    try {
+      const result = await scoreMusicVideoTranslation(
+        course.code, ex.video_id || "", section.id, text,
+      );
+      setMvScore(result);
+      setMvResults((prev) => ({ ...prev, [section.id]: result.passed }));
+      if (result.passed) bumpStreak();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setMvScoring(false);
+    }
   }
 
   async function startSpeaking() {
@@ -478,6 +510,100 @@ export default function LanguagesPage() {
                       ex.segments!.length,
                     )} style={{ background: "#16a34a", color: "#fff" }}>
                       Finish listening challenge
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Music-video section translate (RAG gist scoring) */}
+          {ex.skill === "music-video" && ex.sections && ex.sections.length > 0 && (() => {
+            const section = ex.sections[Math.min(mvIndex, ex.sections.length - 1)];
+            const scored = Boolean(mvScore && mvScore.section_id === section.id);
+            return (
+              <div>
+                <h3 style={{ marginTop: 0 }}>🎬 {ex.title}</h3>
+                {ex.title_target && <div style={{ fontSize: 20, fontWeight: 700 }}>{ex.title_target}</div>}
+                <p className="muted">{ex.instructions}</p>
+                {ex.media_url && ex.media_type === "video" && (
+                  <video ref={(element) => { mediaRef.current = element; }} src={ex.media_url} controls preload="metadata"
+                    style={{ width: "100%", marginTop: 12, borderRadius: 12 }} />
+                )}
+                {ex.media_url && ex.media_type === "audio" && (
+                  <audio ref={(element) => { mediaRef.current = element; }} src={ex.media_url} controls preload="metadata"
+                    style={{ width: "100%", marginTop: 12 }} />
+                )}
+                <div style={{ marginTop: 16, padding: 16, border: "1px solid var(--border)", borderRadius: 12 }}>
+                  <div className="muted">
+                    Section {mvIndex + 1} of {ex.sections.length} ·
+                    {" "}{section.start_sec}–{section.end_sec}s · {ex.license}
+                  </div>
+                  <div style={{ height: 8, background: "var(--border)", borderRadius: 99, margin: "10px 0 14px" }}>
+                    <div style={{
+                      width: `${((mvIndex + 1) / ex.sections.length) * 100}%`,
+                      height: "100%", borderRadius: 99, background: "#db2777",
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>{section.target}</div>
+                  {section.roman && <div className="muted">/{section.roman}/</div>}
+                  <div className="row" style={{ gap: 8, marginTop: 12 }}>
+                    <button
+                      onClick={() => playMediaClip(section.start_sec, section.duration_sec, section.tts_text || section.target)}
+                      disabled={mediaPlaying}
+                      style={{ background: "#db2777", color: "#fff" }}
+                    >
+                      {mediaPlaying ? "▶ Playing section…" : "▶ Play this section"}
+                    </button>
+                    {mediaPlaying && <button onClick={stopMediaClip}>⏸ Pause & translate</button>}
+                  </div>
+                  <h4>{section.prompt}</h4>
+                  <textarea
+                    value={mvDraft}
+                    onChange={(e) => setMvDraft(e.target.value)}
+                    rows={3}
+                    placeholder="Type the meaning in English (gist is enough)…"
+                    disabled={scored && Boolean(mvScore?.passed)}
+                    style={{ width: "100%", padding: 12, borderRadius: 10, border: "1px solid var(--border)" }}
+                  />
+                  <div className="row" style={{ gap: 8, marginTop: 10 }}>
+                    <button
+                      onClick={() => void checkMusicVideoGist()}
+                      disabled={mvScoring || !mvDraft.trim() || (scored && Boolean(mvScore?.passed))}
+                      style={{ background: "#7c3aed", color: "#fff" }}
+                    >
+                      {mvScoring ? "Scoring…" : "Check gist (RAG)"}
+                    </button>
+                  </div>
+                  {scored && mvScore && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ color: mvScore.passed ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+                        {mvScore.feedback}
+                        {" "}({mvScore.score}/100 · coverage {Math.round(mvScore.coverage * 100)}%)
+                      </p>
+                      <p className="muted">Reference: {mvScore.reference_en}</p>
+                      {mvScore.explain_en && <p>💡 {mvScore.explain_en}</p>}
+                    </div>
+                  )}
+                  {scored && mvIndex < ex.sections.length - 1 && (
+                    <button onClick={() => {
+                      stopMediaClip();
+                      setMvIndex((i) => i + 1);
+                      setMvDraft("");
+                      setMvScore(null);
+                    }}>
+                      Continue to the next section →
+                    </button>
+                  )}
+                  {scored && mvIndex === ex.sections.length - 1 && !done && (
+                    <button
+                      onClick={() => void finishSet(
+                        Object.values(mvResults).filter(Boolean).length,
+                        ex.sections!.length,
+                      )}
+                      style={{ background: "#16a34a", color: "#fff" }}
+                    >
+                      Finish music video ({Object.values(mvResults).filter(Boolean).length}/{ex.sections.length} points)
                     </button>
                   )}
                 </div>

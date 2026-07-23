@@ -1,0 +1,115 @@
+{
+  "pack": "khmer_everyday_music_video_v1",
+  "description": "Original Salareen Khmer music-video translation lesson. Sections are instructional lyrics with gist paraphrases for RAG scoring; no commercial copyrighted recording is embedded.",
+  "records": [
+    {
+      "language": "km",
+      "video_id": "km-everyday-music-video",
+      "title_en": "Our Khmer Everyday Adventure (music video)",
+      "title_target": "ដំណើរផ្សងព្រេងភាសាខ្មែររបស់យើង",
+      "license": "original-salareen",
+      "media_type": "generated_audio",
+      "media_url": "",
+      "source_url": "http://www.language-archives.org/item/oai:crdo.vjf.cnrs.fr:cocoon-e445986f-4b42-3504-a6ae-55f7b969f51d",
+      "source_note": "Optional cultural listening reference is public-domain. Instructional section lyrics are original Salareen content.",
+      "sections": [
+        {
+          "section_no": 1,
+          "start_sec": 0,
+          "end_sec": 12,
+          "duration_sec": 12,
+          "target": "ជំរាបសួរ សុខសប្បាយទេ? រីករាយណាស់ជួបអ្នក",
+          "roman": "Chum reap suor, sok sabbai te? Rikreay nas chuob anak",
+          "en": "Hello, how are you? It is very nice to meet you.",
+          "explain_en": "A warm greeting: say hello, ask how someone is, and say you are happy to meet them.",
+          "tts_text": "ជំរាបសួរ។ សុខសប្បាយទេ? រីករាយណាស់ជួបអ្នក។",
+          "paraphrases_en": [
+            "Greeting someone and saying nice to meet you",
+            "Hello and asking if they are well",
+            "A friendly introduction and hello"
+          ]
+        },
+        {
+          "section_no": 2,
+          "start_sec": 12,
+          "end_sec": 24,
+          "duration_sec": 12,
+          "target": "សូមទោស បន្ទប់ទឹកនៅឯណា? វានៅទីនោះ ខាងស្តាំ",
+          "roman": "Som tos, bantob tuek nov aena? Vea nov ti nuh, khang sdam",
+          "en": "Excuse me, where is the bathroom? It is over there, on the right.",
+          "explain_en": "Politely ask where the bathroom is, then point it out on the right.",
+          "tts_text": "សូមទោស។ បន្ទប់ទឹកនៅឯណា? វានៅទីនោះ។ ខាងស្តាំ។",
+          "paraphrases_en": [
+            "Asking where the toilet is and saying it is on the right",
+            "Excuse me, bathroom directions to the right",
+            "Finding the restroom over there"
+          ]
+        },
+        {
+          "section_no": 3,
+          "start_sec": 24,
+          "end_sec": 36,
+          "duration_sec": 12,
+          "target": "ម្ហូបនេះជាអ្វី? ឆ្ងាញ់ណាស់ សុំទឹកមួយ",
+          "roman": "Mhoob nih chea avei? Chhnganh nas, som teuk muoy",
+          "en": "What is this dish? It is very delicious. Water, please.",
+          "explain_en": "Ask about a dish, praise how tasty it is, then ask for water.",
+          "tts_text": "ម្ហូបនេះជាអ្វី? ឆ្ងាញ់ណាស់។ សុំទឹកមួយ។",
+          "paraphrases_en": [
+            "Asking what the food is and saying it tastes great, then requesting water",
+            "Complimenting a delicious meal and ordering water",
+            "What food is this? It is tasty. May I have water?"
+          ]
+        },
+        {
+          "section_no": 4,
+          "start_sec": 36,
+          "end_sec": 48,
+          "duration_sec": 12,
+          "target": "មួយនេះតម្លៃប៉ុន្មាន? ថ្លៃពេក ថោកជាងនេះបានទេ?",
+          "roman": "Muoy nih tamlay ponman? Thlai pek. Thok cheang nih ban te?",
+          "en": "How much is this? Too expensive. Can it be cheaper?",
+          "explain_en": "Ask the price, say it costs too much, and politely bargain for a lower price.",
+          "tts_text": "មួយនេះតម្លៃប៉ុន្មាន? ថ្លៃពេក។ ថោកជាងនេះបានទេ?",
+          "paraphrases_en": [
+            "Asking the price and bargaining because it is too expensive",
+            "How much does this cost? Too pricey — can you lower it?",
+            "Shopping talk about price and getting a discount"
+          ]
+        },
+        {
+          "section_no": 5,
+          "start_sec": 48,
+          "end_sec": 60,
+          "duration_sec": 12,
+          "target": "ខ្ញុំមិនយល់ទេ សូមនិយាយម្តងទៀត យឺតៗ",
+          "roman": "Khnyom min yol te. Som niyeay mdong tiet, yeut yeut",
+          "en": "I do not understand. Please say it again, slowly.",
+          "explain_en": "Admit you did not understand, then ask for a slow repetition.",
+          "tts_text": "ខ្ញុំមិនយល់ទេ។ សូមនិយាយម្តងទៀត។ យឺតៗ។",
+          "paraphrases_en": [
+            "Saying you do not understand and asking them to repeat slowly",
+            "Please say that again more slowly",
+            "I did not get it — can you repeat slowly?"
+          ]
+        },
+        {
+          "section_no": 6,
+          "start_sec": 60,
+          "end_sec": 72,
+          "duration_sec": 12,
+          "target": "អរគុណច្រើន ជំរាបលា ជួបគ្នាពេលក្រោយ",
+          "roman": "Aw kohn chraen. Chum reap lear. Chuob knea pel kraoy",
+          "en": "Thank you very much. Goodbye. See you next time.",
+          "explain_en": "Close warmly with thanks, goodbye, and a promise to meet again.",
+          "tts_text": "អរគុណច្រើន។ ជំរាបលា។ ជួបគ្នាពេលក្រោយ។",
+          "paraphrases_en": [
+            "Saying thank you, goodbye, and see you later",
+            "Grateful farewell and see you next time",
+            "Thanks a lot — bye, until we meet again"
+          ]
+        }
+      ]
+    }
+  ]
+}
