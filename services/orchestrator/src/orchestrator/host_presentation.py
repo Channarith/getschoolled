@@ -45,9 +45,23 @@ def import_presentation_bytes(
         or "Host class"
     )
     if lower.endswith(".pdf"):
-        doc = extract_pdf(data, default_title=default_title)
+        try:
+            doc = extract_pdf(data, default_title=default_title)
+        except ImportError:
+            raise ValueError(
+                "PDF parsing library (pypdf) is not installed on this server. "
+                "Please select a catalog lesson instead of uploading a PDF, "
+                "or contact support to enable file uploads."
+            )
     elif lower.endswith(".pptx"):
-        doc = extract_pptx(data, default_title=default_title)
+        try:
+            doc = extract_pptx(data, default_title=default_title)
+        except ImportError:
+            raise ValueError(
+                "PowerPoint parsing library (python-pptx) is not installed on this server. "
+                "Please select a catalog lesson instead of uploading a PPTX, "
+                "or contact support to enable file uploads."
+            )
     else:
         raise ValueError("supported presentation formats: .pdf, .pptx")
     if not doc.sections:

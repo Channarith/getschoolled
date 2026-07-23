@@ -483,25 +483,25 @@ export default function GroupClassesPage() {
             </label>
           </div>
           <label>
-            <div className="muted">Your presentation (PDF or PPTX)</div>
+            <div className="muted">Your presentation (PDF or PPTX) <span style={{ color: "#6366f1", fontSize: 11, fontWeight: 700 }}>Optional</span></div>
             <input
               type="file"
               accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
               onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
             />
             <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              Upload your deck to page through slide-by-slide in class, or pick a catalog lesson below.
+              Optional — upload your PDF or PPTX to use your own slides. Without a file, the selected catalog lesson above is used and you (the host) advance slides manually. Theodore will not narrate when you are hosting.
             </div>
           </label>
           {platform === "salareen" && (
               <div className="muted" style={{ fontSize: 13 }}>
                 {sessionType === "private"
-                  ? "Private 1-on-1 room: just you and your student, Theodore assists."
-                  : "Salareen live room: Theodore hosts; learners join the multi-user grid."}
+                  ? "Private 1-on-1 room: you teach, Theodore assists on request. Upload slides or use a catalog lesson — you control Next Slide."
+                  : "Group room: you teach, students join. Use your own slides or a catalog lesson — you control Next Slide. Theodore stays silent unless called."}
               </div>
             )}
             <div className="row">
-              <button onClick={onSchedule} disabled={busy || (!lessonId && !presentationFile)}
+              <button onClick={onSchedule} disabled={busy || !lessonId}
                 style={{ background: sessionType === "private" ? "#059669" : "#111", color: "#fff", borderRadius: 10, padding: "12px 28px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
                 {sessionType === "private" ? "📅 Schedule Private Lesson" : t("group.scheduleSubmit")}
               </button>
