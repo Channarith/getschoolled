@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import AppBadges from "./components/AppBadges";
 import AdSlot from "./components/AdSlot";
@@ -14,6 +13,8 @@ import {
   getHomeFeed,
   getMe,
   getToken,
+  login,
+  signup,
   loginWithGoogle,
   loginWithFacebook,
   loginWithApple,
@@ -26,12 +27,15 @@ import { useT } from "./lib/i18n";
 export default function HomePage() {
   const { t, locale } = useT();
   const carousels = useFlag<boolean>("ux.netflix_carousels", true);
-  const router = useRouter();
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailMode, setEmailMode] = useState<"login" | "signup">("login");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [tier, setTier] = useState("free");
   const [socialBusy, setSocialBusy] = useState(false);
   const [socialError, setSocialError] = useState("");
@@ -70,9 +74,29 @@ export default function HomePage() {
     };
   }, [locale]);
 
-  function onGetStarted(e: React.FormEvent) {
+  async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
-    router.push(`/login?mode=signup${email ? `&email=${encodeURIComponent(email)}` : ""}`);
+    if (!email || !password) return;
+    setEmailBusy(true);
+    setEmailError("");
+    try {
+      const displayName = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, " ").trim() || email;
+      const res = emailMode === "login"
+        ? await login(email, password)
+        : await signup(email, password, displayName);
+      setToken(res.token);
+      window.dispatchEvent(new Event(AUTH_EVENT));
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      if (emailMode === "signup" && /already exists/i.test(msg)) {
+        setEmailMode("login");
+        setEmailError("Email already registered — signing you in instead.");
+      } else {
+        setEmailError(friendlyError(msg, msg));
+      }
+    } finally {
+      setEmailBusy(false);
+    }
   }
 
   if (!authResolved) {
@@ -185,16 +209,55 @@ export default function HomePage() {
               <AppleIcon color="#fff" /> Continue with Apple
             </button>
             {socialError && <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>{socialError}</p>}
+
+            {/* Divider */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", margin: "4px 0" }}>
               <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.2)" }} />
               <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>or</span>
               <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.2)" }} />
             </div>
-            <Link href="/login" style={{ width: "100%" }}>
-              <button style={{ width: "100%", padding: "13px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.08)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
-                Sign in with email / password
+
+            {/* Inline email / password form */}
+            <form onSubmit={(e) => void handleEmailSubmit(e)} style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Email or username"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="username"
+                required
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box" }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete={emailMode === "signup" ? "new-password" : "current-password"}
+                required
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box" }}
+              />
+              {emailError && <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>{emailError}</p>}
+              <button
+                type="submit"
+                disabled={emailBusy || !email || !password}
+                style={{ width: "100%", padding: "13px 20px", borderRadius: 10, border: "none", background: emailBusy ? "rgba(99,102,241,0.5)" : "#6366f1", color: "#fff", fontWeight: 700, fontSize: 15, cursor: emailBusy ? "default" : "pointer" }}
+              >
+                {emailBusy ? "Signing in…" : emailMode === "login" ? "Sign in" : "Create account"}
               </button>
-            </Link>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                <button
+                  type="button"
+                  onClick={() => { setEmailMode(emailMode === "login" ? "signup" : "login"); setEmailError(""); }}
+                  style={{ background: "none", border: "none", color: "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", padding: 0 }}
+                >
+                  {emailMode === "login" ? "New here? Create account" : "Already have an account? Sign in"}
+                </button>
+                <Link href="/login?mode=forgot" style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, textDecoration: "none" }}>
+                  Forgot password?
+                </Link>
+              </div>
+            </form>
           </div>
 
           <p className="glow" style={{ marginTop: 28, marginBottom: 0, opacity: 0.95 }}>
