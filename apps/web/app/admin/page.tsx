@@ -194,7 +194,12 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
-        <h1>Admin · Feature Flags</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
+          <h1 style={{ margin: 0 }}>Admin · Feature Flags</h1>
+          <a href="/admin/presence" style={{ marginLeft: "auto", background: "#0369a1", color: "#fff", borderRadius: 8, padding: "7px 16px", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+            📡 Live Presence
+          </a>
+        </div>
         <p style={{ color: "#666" }}>
           Sign in as an operator admin account (e.g. admin@salareen.com) to manage flags
           automatically — no secret needed. Otherwise enter the administrative secret below.

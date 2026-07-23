@@ -3435,3 +3435,34 @@ export async function askStream(
   }
   return done;
 }
+
+// ── Platform presence ────────────────────────────────────────────────────────
+
+export async function presencePing(opts: {
+  platform?: "web" | "mobile" | "sdk";
+  page?: string;
+  activity?: string;
+}): Promise<void> {
+  const tok = getToken();
+  if (!tok) return;
+  try {
+    await fetch(`${IDENTITY_URL}/presence/ping`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ platform: "web", ...opts }),
+    });
+  } catch { /* non-critical — ignore network errors */ }
+}
+
+export async function getAdminPresence(): Promise<{
+  active_count: number;
+  by_platform: Record<string, number>;
+  by_activity: Record<string, number>;
+  users: Array<{ account_id: string; display_name: string; tier: string; platform: string; page: string; activity: string; seen_at: number }>;
+  window_seconds: number;
+}> {
+  const tok = getToken();
+  return jsonOrThrow(await fetch(`${IDENTITY_URL}/admin/presence`, {
+    headers: tok ? { authorization: `Bearer ${tok}` } : {},
+  }));
+}

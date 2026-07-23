@@ -2011,3 +2011,20 @@ export function groupClassCalendarUrl(classId: string, name = "", email = ""): s
   const qs = p.toString();
   return `${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/calendar.ics${qs ? `?${qs}` : ""}`;
 }
+
+// ── Platform presence ────────────────────────────────────────────────────────
+export async function presencePing(opts: {
+  platform?: "web" | "mobile" | "sdk";
+  page?: string;
+  activity?: string;
+}): Promise<void> {
+  const tok = getToken();
+  if (!tok) return;
+  try {
+    await fetch(`${IDENTITY_URL}/presence/ping`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ platform: "mobile", ...opts }),
+    });
+  } catch { /* non-critical */ }
+}
