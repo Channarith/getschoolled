@@ -39,6 +39,7 @@ WEB_PACKAGE_JSON = REPO_ROOT / "apps" / "web" / "package.json"
 MOBILE_VERSION_FILE = REPO_ROOT / "apps" / "mobile" / "src" / "version.ts"
 MOBILE_PACKAGE_JSON = REPO_ROOT / "apps" / "mobile" / "package.json"
 MOBILE_APP_JSON = REPO_ROOT / "apps" / "mobile" / "app.json"
+SDK_PYPROJECT = REPO_ROOT / "packages" / "sdk" / "pyproject.toml"
 
 # Kept for changelog reporting only; does not auto-promote bump level.
 FEATURE_BUMP_THRESHOLD = 8
@@ -141,6 +142,9 @@ def discover_components() -> list[str]:
     shared = REPO_ROOT / "packages" / "shared"
     if (shared / "pyproject.toml").exists():
         components.append("packages/shared")
+    sdk = REPO_ROOT / "packages" / "sdk"
+    if (sdk / "pyproject.toml").exists():
+        components.append("packages/sdk")
     return components
 
 
@@ -218,6 +222,21 @@ def write_web_version(new_version: str) -> None:
             count=1,
         )
         WEB_PACKAGE_JSON.write_text(text, encoding="utf-8")
+
+
+def write_sdk_version(new_version: str) -> None:
+    """Keep the aoep-sdk distribution version in sync with VERSION."""
+    if not SDK_PYPROJECT.exists():
+        return
+    text = SDK_PYPROJECT.read_text(encoding="utf-8")
+    text = re.sub(
+        r'(^version\s*=\s*")[^"]*(")',
+        rf'\g<1>{new_version}\g<2>',
+        text,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    SDK_PYPROJECT.write_text(text, encoding="utf-8")
 
 
 def write_mobile_version(new_version: str) -> None:
@@ -325,11 +344,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_web_version(new_version)
     write_mobile_version(new_version)
+    write_sdk_version(new_version)
 
     if args.refresh_only:
-        print("refreshed build-info.txt and web/mobile version (VERSION unchanged)")
+        print(
+            "refreshed build-info.txt and web/mobile/sdk version (VERSION unchanged)"
+        )
     else:
-        print("wrote VERSION, build-info.txt, CHANGELOG.txt, web and mobile version")
+        print(
+            "wrote VERSION, build-info.txt, CHANGELOG.txt, web, mobile, and sdk version"
+        )
     return 0
 
 

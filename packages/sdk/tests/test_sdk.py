@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+from io import BytesIO
 
 import pytest
 
@@ -24,6 +25,61 @@ class FakeResponse:
 
     def __exit__(self, *args) -> bool:
         return False
+
+
+def test_service_urls_honor_legacy_service_env_names(monkeypatch):
+    monkeypatch.setenv("ORCHESTRATOR_URL", "http://legacy-orchestrator:9000")
+    monkeypatch.setenv("AOEP_CURRICULUM_URL", "http://explicit-curriculum:9005")
+
+    urls = ServiceURLs.from_env()
+
+    assert urls.orchestrator == "http://legacy-orchestrator:9000"
+    assert urls.curriculum == "http://explicit-curriculum:9005"
+
+
+def test_transport_maps_validation_and_rate_limit_errors(monkeypatch):
+    from aoep_sdk import AuthenticationError, RateLimitError, ValidationError
+
+    cases = [
+        (400, ValidationError),
+        (422, ValidationError),
+        (401, AuthenticationError),
+        (429, RateLimitError),
+    ]
+
+    for status, expected in cases:
+
+        def fake_urlopen(request, timeout, *, status=status):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                status,
+                "error",
+                {},
+                BytesIO(json.dumps({"detail": "bad request"}).encode("utf-8")),
+            )
+
+        monkeypatch.setattr(
+            "aoep_sdk.transport.urllib.request.urlopen", fake_urlopen
+        )
+        with pytest.raises(expected) as caught:
+            JSONTransport("https://api.example.com").request("GET", "/x")
+        assert caught.value.status_code == status
+
+
+def test_identity_signup_updates_session_token(monkeypatch):
+    monkeypatch.setattr(
+        "aoep_sdk.transport.urllib.request.urlopen",
+        lambda request, timeout: FakeResponse(
+            {"token": "signup-token", "account": {"id": "a1"}}
+        ),
+    )
+    from aoep_sdk.clients import IdentityClient
+
+    transport = JSONTransport("https://identity.example.com")
+    client = IdentityClient(transport)
+    client.signup("dev@example.com", "secret")
+
+    assert transport.bearer_token == "signup-token"
 
 
 def test_service_urls_support_cloud_origin_and_explicit_override(monkeypatch):

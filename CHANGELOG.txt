@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-22 - v0.34.0 - Official aoep-sdk Python package (packages/sdk): typed HTTP clients for orchestrator, identity, curriculum, and memory; generic service clients; env-based ServiceURLs; urllib JSON transport with auth headers and typed HTTP errors; aoep_sdk.inprocess curated aoep_shared exports; release-version sync for packages/sdk/pyproject.toml.
 - 2026-07-23 - v0.33.0 - Group Classes page: clearer host vs student distinction; Live room: screen share button, whiteboard moves inside host tile, presentation PiP camera (teacher face shrinks to corner when slides are active).
 - 2026-07-23 - v0.32.0 - Fix 4 critical security bugs: SSRF via HTTP redirect bypass (add allow_redirects=False + DNS resolution check); OAuth email fallback account takeover (raise 409 instead of silently linking); payment confirmation grants access without verifying payment (check provider status before marking PAYMENT_PAID); assessment grade accepts client-supplied answer index (store quiz items server-side, remove answer_index from quiz response).
 - 2026-07-22 - v0.31.0 - Host-a-class: web schedule adds per-student price and PDF/PPTX upload; orchestrator imports host decks as curriculum lessons; authenticated host-only class start; 5-minute early check-in before teaching paid classes; zero-student practice runs without host payout; checkout confirm dialog before sandbox payment.
