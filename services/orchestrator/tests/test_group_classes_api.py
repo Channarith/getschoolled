@@ -226,3 +226,64 @@ def test_teams_class_camera_sources_are_exposed_in_bridge_plan():
     assert plan["supports_external_camera_ingest"] is True
     assert plan["camera_source_count"] == 1
     assert plan["camera_sources"][0]["source_id"] == "cam-room-front"
+
+
+def test_upload_presentation_requires_auth():
+    r = client.post(
+        "/api/group-classes/upload-presentation",
+        files={"file": ("deck.pdf", b"%PDF", "application/pdf")},
+    )
+    assert r.status_code == 401
+
+
+def test_upload_presentation_imports_pdf(monkeypatch):
+    import pytest
+
+    fpdf = pytest.importorskip("fpdf")
+    pdf = fpdf.FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.multi_cell(190, 8, "Fractions are parts of a whole.")
+    data = bytes(pdf.output())
+
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.account_from_authorization",
+        lambda auth: "host-upload" if auth == "Bearer host-token" else "",
+    )
+    r = client.post(
+        "/api/group-classes/upload-presentation",
+        files={"file": ("math.pdf", data, "application/pdf")},
+        data={"title": "Host math deck", "language": "en"},
+        headers={"authorization": "Bearer host-token"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["lesson_id"].startswith("host-")
+    assert body["slide_count"] >= 1
+    assert body["presentation_filename"] == "math.pdf"
+
+
+def test_host_owned_class_start_requires_host(monkeypatch):
+    lid = _first_lesson()
+    monkeypatch.setattr(
+        "aoep_shared.live_room_rewards.account_from_authorization",
+        lambda auth: "host-a" if auth == "Bearer host-token" else "",
+    )
+    created = client.post(
+        "/api/group-classes",
+        json={"title": "Host class", "lesson_id": lid, "start_time": _iso(30)},
+        headers={"authorization": "Bearer host-token"},
+    )
+    assert created.status_code == 200, created.text
+    cid = created.json()["id"]
+    assert created.json()["instructor_account_id"] == "host-a"
+
+    denied = client.post(f"/api/group-classes/{cid}/start", json={})
+    assert denied.status_code == 403
+
+    allowed = client.post(
+        f"/api/group-classes/{cid}/start",
+        json={},
+        headers={"authorization": "Bearer host-token"},
+    )
+    assert allowed.status_code == 200, allowed.text

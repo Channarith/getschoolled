@@ -44,29 +44,27 @@ def test_quiz_then_grade_roundtrip():
     assert len(quiz["items"]) == 3
     item = quiz["items"][0]
 
-    # Grading the item's own answer_index must be correct.
+    # The correct answer must NOT be leaked to the client.
+    assert "answer_index" not in item
+
+    # definition_items_from_passages is deterministic: item 0 always has
+    # answer_index = 0 % num_options = 0, so chosen_index=0 is always correct.
     correct = client.post(
         "/assessment/grade",
         json={
             "item_id": item["item_id"],
-            "options": item["options"],
-            "answer_index": item["answer_index"],
-            "chosen_index": item["answer_index"],
-            "difficulty": item["difficulty"],
+            "chosen_index": 0,
         },
     ).json()
     assert correct["correct"] is True
     assert correct["mastery_target"] > 0.5
 
-    wrong_choice = (item["answer_index"] + 1) % len(item["options"])
+    # Any other index is wrong for item 0.
     wrong = client.post(
         "/assessment/grade",
         json={
             "item_id": item["item_id"],
-            "options": item["options"],
-            "answer_index": item["answer_index"],
-            "chosen_index": wrong_choice,
-            "difficulty": item["difficulty"],
+            "chosen_index": 1,
         },
     ).json()
     assert wrong["correct"] is False

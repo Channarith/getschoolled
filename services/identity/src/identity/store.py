@@ -461,7 +461,14 @@ class AccountStore:
             return existing
         by_email = self.by_email(email)
         if by_email:
-            return self.link_oauth(by_email.id, subject=subject, display_name=display_name)
+            if by_email.oauth_subject and by_email.oauth_subject == subject:
+                return by_email  # same provider, same subject — safe
+            # Different account (password or different OAuth) already uses this email.
+            # Do not silently merge; require explicit account linking flow.
+            raise ValueError(
+                f"An account already exists for {email}. "
+                "Sign in with your original method to link this provider."
+            )
         acct = Account(
             email=email.strip().lower(),
             display_name=display_name or email.split("@")[0],

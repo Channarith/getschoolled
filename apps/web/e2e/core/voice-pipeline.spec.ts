@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { SpeechChunker, StreamingVoice, type Playable } from "../../app/lib/voicePipeline";
+import {
+  createVoicePauseSubmitter,
+  normalizeVoicePauseSubmitMs,
+} from "../../app/lib/voiceCommands";
 
 /**
  * Latency-critical chunking for the real-time voice pipeline: the FIRST chunk
@@ -62,5 +66,27 @@ test.describe("StreamingVoice ordering", () => {
     v.enqueue("B second");
     await v.drained();
     expect(played).toEqual(["A first", "B second"]);
+  });
+});
+
+test.describe("Voice pause auto-submit", () => {
+  test("normalizeVoicePauseSubmitMs clamps to 500–15000", () => {
+    expect(normalizeVoicePauseSubmitMs(4500)).toBe(4500);
+    expect(normalizeVoicePauseSubmitMs(100)).toBe(500);
+    expect(normalizeVoicePauseSubmitMs(99999)).toBe(15000);
+    expect(normalizeVoicePauseSubmitMs("nope", 4500)).toBe(4500);
+  });
+
+  test("createVoicePauseSubmitter debounces then submits once", async () => {
+    const submitted: string[] = [];
+    const submitter = createVoicePauseSubmitter(50, (text) => submitted.push(text));
+    submitter.updateTranscript("hello");
+    await new Promise((r) => setTimeout(r, 30));
+    expect(submitted).toEqual([]);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(submitted).toEqual(["hello"]);
+    submitter.updateTranscript("again");
+    await new Promise((r) => setTimeout(r, 80));
+    expect(submitted).toEqual(["hello"]);
   });
 });

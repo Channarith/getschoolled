@@ -362,3 +362,43 @@ def test_ensure_standard_daily_classes_idempotent():
     assert n2 == 0
     meet_classes = [c for c in store.list() if c.platform == "meet"]
     assert meet_classes
+
+
+def test_host_early_checkin_and_payout_rules():
+    store = GroupClassStore()
+    start = datetime.now(timezone.utc) + timedelta(minutes=60)
+    gc = store.schedule(
+        title="Paid host class",
+        lesson_id="intro-to-fractions",
+        start_time=start.isoformat(),
+        price_per_user_usd=20.0,
+        payment_required=True,
+        instructor_account_id="host-1",
+        created_by_account_id="host-1",
+    )
+    store.register(
+        gc.id,
+        "Ada",
+        email="ada@example.com",
+        account_id="learner-1",
+        payment_status=PAYMENT_PAID,
+    )
+    gc = store.require(gc.id)
+    assert gc.paid_registration_count() == 1
+    assert gc.can_start_teaching() is False
+
+    early = start - timedelta(minutes=6)
+    gc.host_checked_in_at = early.isoformat()
+    assert gc.host_arrived_early_enough() is True
+    assert gc.can_start_teaching() is True
+    assert gc.settle_host_payout() == 17.0
+
+    gc2 = store.schedule(
+        title="Practice class",
+        lesson_id="intro-to-fractions",
+        start_time=(datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+        instructor_account_id="host-2",
+    )
+    assert gc2.can_start_teaching() is True
+    assert gc2.settle_host_payout() == 0.0
+    assert gc2.practice_session is True

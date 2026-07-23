@@ -349,6 +349,29 @@ class CurriculumStore:
     def list_lessons(self) -> List[Lesson]:
         return list(self.lessons.values())
 
+    def register_lesson(
+        self,
+        lesson_id: str,
+        lesson: Lesson,
+        passages: List[str],
+    ) -> Lesson:
+        """Register a dynamically imported lesson (e.g. host PDF/PPTX upload)."""
+        from aoep_shared.lesson_depth import enrich_slides
+
+        def _slide_factory(idx: int, title: str, body: str, narration: str,
+                           *, kind: str = "teach", say_aloud: str = "") -> Slide:
+            return Slide(index=idx, title=title, body=body, narration=narration,
+                         kind=kind, say_aloud=say_aloud)
+
+        enriched, extra_passages = enrich_slides(
+            lesson.slides, passages, slide_factory=_slide_factory,
+        )
+        lesson.slides = enriched
+        merged = passages + extra_passages
+        self.lessons[lesson_id] = lesson
+        self.passages[lesson_id] = merged
+        return lesson
+
     def get(self, lesson_id: str) -> Optional[Lesson]:
         return self.lessons.get(lesson_id)
 

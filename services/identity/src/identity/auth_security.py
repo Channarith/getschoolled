@@ -264,9 +264,12 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             ident = verify_google_id_token(req.id_token)
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
-        acct = app.state.accounts.get_or_create_oauth_account(
-            email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-        )
+        try:
+            acct = app.state.accounts.get_or_create_oauth_account(
+                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="google", **ctx)
         return session_fn(acct)
 
@@ -277,9 +280,12 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             ident = verify_facebook_access_token(req.access_token)
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
-        acct = app.state.accounts.get_or_create_oauth_account(
-            email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-        )
+        try:
+            acct = app.state.accounts.get_or_create_oauth_account(
+                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="facebook", **ctx)
         return session_fn(acct)
 
@@ -290,9 +296,12 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             ident = verify_apple_identity_token(req.identity_token)
         except OAuthError as exc:
             raise HTTPException(status_code=401, detail=str(exc))
-        acct = app.state.accounts.get_or_create_oauth_account(
-            email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
-        )
+        try:
+            acct = app.state.accounts.get_or_create_oauth_account(
+                email=ident["email"], subject=ident["sub"], display_name=ident.get("name", ""),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
         app.state.accounts.oauth_login_success(acct.id, method="apple", **ctx)
         return session_fn(acct)
 

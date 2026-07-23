@@ -51,6 +51,10 @@ PAYMENT_PENDING = "pending"
 PAYMENT_PAID = "paid"
 _PAYMENT_STATUSES = (PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_PAID)
 
+# Paid classes with enrolled students require the host to check in at least this
+# many seconds before the scheduled start.
+HOST_EARLY_SECONDS = 300
+
 
 class GroupClassError(ValueError):
     """Invalid scheduling/registration request (maps to HTTP 400)."""
@@ -176,6 +180,9 @@ class GroupClass:
     bridge_session_id: str = ""    # set when the meeting bridge is connected
     live_room_id: str = ""         # Salareen room id (class-{id}) when live
     xr_lab_enabled: bool = False   # optional XR demonstration lab for this class
+    presentation_filename: str = ""  # original PDF/PPTX name when host uploaded a deck
+    host_checked_in_at: str = ""   # ISO timestamp when the scheduled host joined/went live
+    host_payout_usd: float = 0.0     # settled instructor payout after class ends
 
     def __post_init__(self) -> None:
         self.title = (self.title or "").strip()
@@ -261,6 +268,68 @@ class GroupClass:
             )
         if self.status not in _STATUSES:
             raise GroupClassError(f"invalid status {self.status!r}")
+        self.presentation_filename = (self.presentation_filename or "").strip()
+        self.host_checked_in_at = (self.host_checked_in_at or "").strip()
+        self.host_payout_usd = max(0.0, float(self.host_payout_usd or 0.0))
+
+    @property
+    def host_account_ids(self) -> List[str]:
+        ids: List[str] = []
+        for val in (self.instructor_account_id, self.created_by_account_id):
+            acct = (val or "").strip()
+            if acct and acct not in ids:
+                ids.append(acct)
+        return ids
+
+    @property
+    def practice_session(self) -> bool:
+        """True when no paying students registered — host may run without payout."""
+        return self.paid_registration_count() == 0
+
+    def paid_registration_count(self) -> int:
+        return sum(1 for reg in self.registrations if reg.payment_status == PAYMENT_PAID)
+
+    def record_host_checkin(self, account_id: str) -> None:
+        acct = (account_id or "").strip()
+        if not acct or acct not in self.host_account_ids:
+            return
+        now_iso = _now().isoformat()
+        if not self.host_checked_in_at:
+            self.host_checked_in_at = now_iso
+            return
+        try:
+            existing = _parse_iso(self.host_checked_in_at)
+            incoming = _parse_iso(now_iso)
+            if incoming < existing:
+                self.host_checked_in_at = now_iso
+        except GroupClassError:
+            self.host_checked_in_at = now_iso
+
+    def host_arrived_early_enough(self) -> bool:
+        if not self.host_checked_in_at:
+            return False
+        try:
+            checked = _parse_iso(self.host_checked_in_at)
+        except GroupClassError:
+            return False
+        deadline = self.start_dt.timestamp() - HOST_EARLY_SECONDS
+        return checked.timestamp() <= deadline
+
+    def can_start_teaching(self) -> bool:
+        if self.practice_session:
+            return True
+        return self.host_arrived_early_enough()
+
+    def settle_host_payout(self) -> float:
+        """Compute instructor payout after class ends; zero for practice sessions."""
+        count = self.paid_registration_count()
+        if count <= 0 or not self.host_arrived_early_enough():
+            self.host_payout_usd = 0.0
+            return 0.0
+        gross = self.price_per_user_usd * count
+        payout = round(gross * (1.0 - self.commission_rate), 2)
+        self.host_payout_usd = payout
+        return payout
 
     @property
     def start_dt(self) -> datetime:
@@ -297,6 +366,10 @@ class GroupClass:
             learner_capacity(self.room_size) if self.platform == "salareen" else self.capacity
         )
         d["live_room_id"] = self.live_room_id
+        d["practice_session"] = self.practice_session
+        d["paid_registration_count"] = self.paid_registration_count()
+        d["host_arrived_early_enough"] = self.host_arrived_early_enough()
+        d["can_start_teaching"] = self.can_start_teaching()
         return d
 
 

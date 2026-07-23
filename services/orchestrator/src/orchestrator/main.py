@@ -29,7 +29,7 @@ from aoep_shared.assessment_policy import (
 from aoep_shared.internal_auth import require_internal
 from aoep_shared.schemas import ClassType
 from aoep_shared.service import create_service
-from fastapi import BackgroundTasks, Depends, Header, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from .curriculum import CourseKSB, Lesson, Slide
@@ -43,6 +43,10 @@ from aoep_shared.optimization import OptimizationLedger  # noqa: E402
 app.state.optimization = OptimizationLedger()
 app.state.assessment_runs = {}
 app.state.assessment_results = []
+# Server-side quiz item cache keyed by item_id.  Correct answer indices are
+# stored here so they are never sent to or trusted from the client.
+# Capped at 50 000 entries; cleared when full to prevent unbounded growth.
+app.state.quiz_items: dict = {}
 
 import os  # noqa: E402
 import threading as _threading  # noqa: E402
@@ -796,7 +800,8 @@ class QuizItemView(BaseModel):
     topic: str
     prompt: str
     options: list[str]
-    answer_index: int
+    # answer_index is intentionally omitted — the correct answer is stored
+    # server-side only and never sent to the client.
     difficulty: Difficulty
 
 
@@ -806,10 +811,9 @@ class QuizResponse(BaseModel):
 
 class GradeRequest(BaseModel):
     item_id: str
-    options: list[str]
-    answer_index: int
     chosen_index: int
-    difficulty: Difficulty = Difficulty.MEDIUM
+    # answer_index is no longer accepted from the client — the correct answer
+    # is looked up from the server-side quiz_items cache.
     topic: str = ""
     # When set, the outcome updates the learner's mastery in the memory service,
     # closing the loop so the next quiz adapts its difficulty.
@@ -1247,6 +1251,13 @@ def assessment_quiz(req: QuizRequest) -> QuizResponse:
     items = definition_items_from_passages(
         req.passages, req.topic, max_items=req.max_items, difficulty=difficulty
     )
+    # Cache items server-side so the correct answer is never exposed to the client.
+    # Apply a simple size cap to prevent unbounded memory growth.
+    quiz_cache: dict = app.state.quiz_items
+    if len(quiz_cache) > 50_000:
+        quiz_cache.clear()
+    for i in items:
+        quiz_cache[i.item_id] = i
     return QuizResponse(
         items=[
             QuizItemView(
@@ -1254,7 +1265,6 @@ def assessment_quiz(req: QuizRequest) -> QuizResponse:
                 topic=i.topic,
                 prompt=i.prompt,
                 options=i.options,
-                answer_index=i.answer_index,
                 difficulty=i.difficulty,
             )
             for i in items
@@ -1264,14 +1274,12 @@ def assessment_quiz(req: QuizRequest) -> QuizResponse:
 
 @app.post("/assessment/grade", response_model=GradeResponse)
 def assessment_grade(req: GradeRequest) -> GradeResponse:
-    item = QuizItem(
-        item_id=req.item_id,
-        topic=req.topic,
-        prompt="",
-        options=req.options,
-        answer_index=req.answer_index,
-        difficulty=req.difficulty,
-    )
+    # Look up the quiz item from the server-side cache; never trust client-supplied
+    # answer indices (Bug 4 fix).
+    stored_item: QuizItem | None = app.state.quiz_items.get(req.item_id)
+    if stored_item is None:
+        raise HTTPException(status_code=404, detail="unknown quiz item; start a new quiz")
+    item = stored_item
     result: GradeResult = grade(item, req.chosen_index)
     # Close the adaptive loop: persist the outcome so the learner's mastery (BKT)
     # updates and the next quiz personalizes. Best-effort; skipped when anonymous.
@@ -1423,10 +1431,23 @@ def _class_host_is_caller(gc, authorization: str) -> bool:
     caller = account_from_authorization(authorization) or ""
     if not caller:
         return False
-    return caller in {
-        (gc.created_by_account_id or "").strip(),
-        (gc.instructor_account_id or "").strip(),
-    }
+    return caller in gc.host_account_ids
+
+
+def _group_class_for_room(room_id: str):
+    if not room_id.startswith("class-"):
+        return None
+    return _find_group_class(room_id[len("class-"):])
+
+
+def _require_host_can_teach(gc) -> None:
+    if not gc.host_account_ids:
+        return
+    if not gc.can_start_teaching():
+        raise LiveRoomError(
+            "Check in at least 5 minutes before the scheduled start to teach a paid class. "
+            "With no paying students you can still run a practice session."
+        )
 
 
 async def _broadcast_live_room(room_id: str, event: dict) -> None:
@@ -1478,6 +1499,7 @@ class ScheduleGroupClassRequest(BaseModel):
     commission_rate: float = 0.15
     payment_required: bool = False
     attendee_code_required: bool = False
+    presentation_filename: str = ""
     max_faces_allowed: int = 1
     require_liveness: bool = True
     recording_protection_required: bool = True
@@ -1574,6 +1596,8 @@ def schedule_group_class(
     account_id = account_from_authorization(authorization) or ""
     payload = req.model_dump()
     payload["created_by_account_id"] = account_id
+    if account_id:
+        payload["instructor_account_id"] = account_id
     if req.marketplace_listing:
         payload["instructor_account_id"] = account_id
         payload["audit_required"] = True
@@ -1583,6 +1607,45 @@ def schedule_group_class(
     except GroupClassError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return _group_class_payload(gc)
+
+
+@app.post("/api/group-classes/upload-presentation")
+async def upload_host_presentation(
+    file: UploadFile = File(...),
+    title: str = Form(""),
+    language: str = Form("en"),
+    authorization: str = Header(default=""),
+) -> dict:
+    """Convert a host PDF/PPTX into a lesson the live class can page through."""
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
+    from .host_presentation import import_presentation_bytes
+
+    account_id = account_from_authorization(authorization) or ""
+    if not account_id:
+        raise HTTPException(status_code=401, detail="sign in required to upload a presentation")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="presentation file is empty")
+    sessions = get_sessions()
+    try:
+        lesson_id, lesson, filename = import_presentation_bytes(
+            data,
+            filename=file.filename or "presentation.pdf",
+            title=title,
+            language=language,
+            store=sessions.curriculum,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"could not import presentation: {exc}")
+    return {
+        "lesson_id": lesson_id,
+        "title": lesson.title,
+        "slide_count": len(lesson.slides),
+        "presentation_filename": filename,
+    }
 
 
 def _find_unique_group_class_prefix(store: GroupClassStore, class_id: str):
@@ -1806,6 +1869,14 @@ def confirm_group_class_payment(
     from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
 
     account_id = account_from_authorization(authorization) or ""
+    # Verify payment status with the payment provider before granting access.
+    try:
+        provider = app.state.factory.payment()
+        status = provider.get_checkout_status(req.checkout_session_id)
+        if status != "paid":
+            raise HTTPException(status_code=402, detail=f"Payment not complete (status: {status})")
+    except NotImplementedError:
+        pass  # SandboxPaymentProvider in dev/test — allow
     try:
         reg = _group_store().confirm_checkout(
             class_id,
@@ -1876,6 +1947,7 @@ def group_class_calendar(class_id: str, name: str = "", email: str = "") -> Resp
 def start_group_class(
     class_id: str,
     req: LiveRoomLocation = LiveRoomLocation(),
+    authorization: str = Header(default=""),
 ) -> dict:  # noqa: F811 (overrides nothing)
     """Go live: create the teaching session and return the meeting bridge plan.
 
@@ -1884,12 +1956,20 @@ def start_group_class(
     meeting (Zoom/Teams/Meet) so the AI presents through that platform. For
     built-in "salareen" classes, learners join the live room directly.
     """
+    from aoep_shared.live_room_rewards import account_from_authorization  # noqa: E402
+
     store = _group_store()
     gc = _find_group_class(class_id)
     if gc is None:
         raise HTTPException(status_code=404, detail="unknown group class")
     if gc.audit_required and gc.audit_status != "approved":
         raise HTTPException(status_code=400, detail="class is pending Salareen audit approval")
+    account_id = account_from_authorization(authorization) or ""
+    if gc.host_account_ids and not (_class_host_is_caller(gc, authorization) or _request_is_admin(authorization)):
+        raise HTTPException(status_code=403, detail="only the scheduled host can start this class")
+    if account_id:
+        gc.record_host_checkin(account_id)
+        store.save(gc)
 
     sessions = get_sessions()
     try:
@@ -1921,6 +2001,7 @@ def start_group_class(
             latitude=req.latitude,
             longitude=req.longitude,
             creator_name=gc.host or "Salareen",
+            creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
             scheduled_start=gc.start_time,
             duration_seconds=int(gc.duration_min) * 60,
             presence_enabled=True,
@@ -2390,6 +2471,7 @@ def _ensure_group_class_room(room_id: str):
         slide_body=slide.body,
         slide_narration=slide.narration,
         creator_name=gc.host or "Salareen",
+        creator_account_id=gc.instructor_account_id or gc.created_by_account_id,
         scheduled_start=gc.start_time,
         duration_seconds=int(gc.duration_min) * 60,
         presence_enabled=True,
@@ -2503,6 +2585,11 @@ def join_live_room(
         )
     except (KeyError, LiveRoomError, RoomFullError) as exc:
         raise _live_room_http_error(exc)
+    if class_id and account_id:
+        gc = _find_group_class(class_id)
+        if gc is not None:
+            gc.record_host_checkin(account_id)
+            _group_store().save(gc)
     if class_id and req.attendee_code.strip():
         try:
             _group_store().authorize_attendee(
@@ -3304,6 +3391,9 @@ def live_room_start_presentation(
     store = _live_rooms()
     try:
         room = _ensure_room_or_404(room_id)  # reopen if this replica lacks it
+        gc = _group_class_for_room(room_id)
+        if gc is not None:
+            _require_host_can_teach(gc)
         mod = _mod_key_for(room, req.moderator_key, authorization)
         room = store.start_presentation(
             room_id, participant_id=req.participant_id, moderator_key=mod,
@@ -3382,8 +3472,14 @@ def live_room_tick(
     ended = False
     addressed = None
     if store.should_auto_start(room_id):
-        store.start_presentation(room_id, auto=True)
-        started = True
+        gc = _group_class_for_room(room_id)
+        try:
+            if gc is not None:
+                _require_host_can_teach(gc)
+            store.start_presentation(room_id, auto=True)
+            started = True
+        except LiveRoomError:
+            started = False
     # Auto-end takes priority over advancing: when the allotted class time is up
     # (presenting past its duration, or a scheduled room whose window fully
     # lapsed), close the room so clients show the "class complete" excuse.
@@ -3394,7 +3490,9 @@ def live_room_tick(
         # as LIVE/joinable in the listing once its room has ended.
         gc = _group_store().get(ended_room.class_id) if ended_room.class_id else None
         if gc is not None:
+            gc.settle_host_payout()
             _group_store().set_status(gc.id, "ended")
+            _group_store().save(gc)
     else:
         # Address the Q&A queue FIRST (Theodore pauses to answer a queued
         # question / call on a raised hand); only auto-advance when the queue is

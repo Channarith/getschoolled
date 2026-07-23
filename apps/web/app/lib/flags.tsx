@@ -2,6 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { AUTH_EVENT, evaluateFlags, getFlag, getMe } from "./api";
+import {
+  DEFAULT_VOICE_PAUSE_SUBMIT_MS,
+  normalizeVoicePauseSubmitMs,
+} from "./voiceCommands";
 
 // Admin-only flags are excluded from the public /flags/evaluate bulk list, but the
 // client still needs a few of them (the ops kill-switches) to render banners /
@@ -82,4 +86,10 @@ export function useFlag<T = boolean>(key: string, fallback: T): T {
 
 export function useFlags() {
   return useContext(FlagsContext);
+}
+
+/** Resolved ``ux.voice_pause_submit_ms`` (default 4.5s). */
+export function useVoicePauseSubmitMs(): number {
+  const raw = useFlag<number>("ux.voice_pause_submit_ms", DEFAULT_VOICE_PAUSE_SUBMIT_MS);
+  return normalizeVoicePauseSubmitMs(raw);
 }

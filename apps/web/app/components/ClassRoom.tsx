@@ -57,11 +57,16 @@ import AssessmentCheckpointPanel from "./AssessmentCheckpointPanel";
 import { useT } from "../lib/i18n";
 import { buildNarrationSpeakOptions } from "../lib/narrationTts";
 import { cancelSpeech, speakNaturally } from "../lib/tts";
+import { useVoicePauseSubmitMs } from "../lib/flags";
+import { createVoicePauseSubmitter } from "../lib/voiceCommands";
 
 // Minimal Web Speech API typing for the repeat-after-me checkpoint.
 type SpeechRec = {
-  lang: string; interimResults: boolean; maxAlternatives: number;
-  onresult: (e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void;
+  lang: string; interimResults: boolean; continuous?: boolean; maxAlternatives: number;
+  onresult: (e: {
+    resultIndex: number;
+    results: { length: number; [i: number]: { [j: number]: { transcript: string } } };
+  }) => void;
   onerror: ((e?: { error?: string }) => void) | (() => void); onend: () => void; start: () => void; stop: () => void;
 };
 
@@ -166,6 +171,9 @@ export default function ClassRoom({
   const [heard, setHeard] = useState("");
   const [pron, setPron] = useState<Pronounce | null>(null);
   const [listening, setListening] = useState(false);
+  const pauseSubmitMs = useVoicePauseSubmitMs();
+  const recognitionRef = useRef<SpeechRec | null>(null);
+  const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
   const [adaptationProfile, setAdaptationProfile] = useState<Record<string, unknown>>({});
   const [lxScore, setLxScore] = useState<number | null>(null);
   const [lxTarget, setLxTarget] = useState(75);
@@ -504,15 +512,26 @@ export default function ClassRoom({
       return;
     }
     stopSpeaking();   // don't record our own narration
-    const rec = new Ctor();
+    let rec: SpeechRec;
+    try {
+      rec = new Ctor();
+    } catch {
+      setError("Couldn't start the microphone. Try Chrome over https://.");
+      return;
+    }
+    try { recognitionRef.current?.stop(); } catch { /* */ }
+    pauseSubmitterRef.current?.cancelPending();
     rec.lang = RECOG_LANG[locale] ?? "en-US";
-    rec.interimResults = false;
+    rec.interimResults = true;
+    rec.continuous = true;
     rec.maxAlternatives = 1;
     setPron(null);
+    setHeard("");
     setListening(true);
-    rec.onresult = (e) => {
-      const said = e.results[0][0].transcript;
+    const submitter = createVoicePauseSubmitter(pauseSubmitMs, (said) => {
       setHeard(said);
+      setListening(false);
+      try { rec.stop(); } catch { /* */ }
       pronounce(target, said)
         .then((r) => {
           setPron(r);
@@ -525,19 +544,40 @@ export default function ClassRoom({
           }
         })
         .catch((err) => setError(String(err)));
+    });
+    pauseSubmitterRef.current = submitter;
+    rec.onresult = (e) => {
+      const parts: string[] = [];
+      for (let i = 0; i < e.results.length; i++) {
+        const chunk = e.results[i]?.[0]?.transcript ?? "";
+        if (chunk) parts.push(chunk);
+      }
+      const said = parts.join(" ").trim();
+      if (!said) return;
+      setHeard(said);
+      submitter.updateTranscript(said);
     };
     rec.onerror = (e) => {
       setListening(false);
+      submitter.cancelPending();
       const code = (e as { error?: string })?.error || "";
       if (code === "not-allowed" || code === "service-not-allowed") {
         setError("Microphone access is blocked — allow the mic for this site (address-bar icon).");
       }
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      submitter.flush();
+      setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
+    };
+    recognitionRef.current = rec;
     try {
       rec.start();
     } catch {
       setListening(false);
+      recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
       setError("Couldn't start the microphone. Try Chrome over https://.");
     }
   }

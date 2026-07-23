@@ -30,6 +30,14 @@ from aoep_shared.adaptive import (
     Pacing,
     PacingPlan,
 )
+from aoep_shared.harvest import (
+    GeneratedCourse,
+    GeneratedSlide,
+    export_course_package,
+    generate_course,
+    generate_lessons,
+    partition_course_into_lessons,
+)
 from aoep_shared.rag import Document, RagIndex, Retrieved
 from aoep_shared.teaching import (
     EndToEndResult,
@@ -49,6 +57,8 @@ __all__ = [
     "Difficulty",
     "Document",
     "EndToEndResult",
+    "GeneratedCourse",
+    "GeneratedSlide",
     "LearnerSignals",
     "LessonPlan",
     "LessonStep",
@@ -58,11 +68,17 @@ __all__ = [
     "RagIndex",
     "Retrieved",
     "build_factory",
-    "content_packs",
+    "export_course_package",
+    "generate_course",
+    "generate_lessons",
     "get_version",
+    "harvest",
+    "homework",
     "load_config",
-    "local_factory",
+    "meeting",
+    "partition_course_into_lessons",
     "run_end_to_end",
     "teach_course",
     "teaching",
+    "training_agents",
 ]

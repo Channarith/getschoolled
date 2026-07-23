@@ -265,6 +265,20 @@ class PaymentProvider(Provider):
     ) -> CheckoutSession:
         ...
 
+    def get_checkout_status(self, session_id: str) -> str:
+        """Return the payment status for an existing checkout session.
+
+        Returns a string such as ``"paid"``, ``"unpaid"``, or ``"expired"``.
+        Raises ``NotImplementedError`` when the concrete provider has not
+        implemented server-side verification (e.g. the sandbox stub).
+        Callers that catch ``NotImplementedError`` may choose to skip the
+        check (e.g. in test/dev), but production providers *must* override.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement get_checkout_status; "
+            "override in the concrete provider to verify payments server-side."
+        )
+
 
 # --------------------------------------------------------------------------- #
 # Search (course validation via web corroboration)
