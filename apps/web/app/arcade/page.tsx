@@ -20,13 +20,13 @@ const SUBJECT_ICON: Record<string, string> = {
   biology: "🧬", chemistry: "⚗️", physics: "🪐", math: "➗", science: "🔬",
   history: "🏛️", art: "🎨", technology: "💻", programming: "👾",
   life_growth: "🌱", etiquette: "🤝", wordplay: "🔤", geometry: "📐",
-  creation: "🛠️", farming: "🌾", finance: "📈",
+  creation: "🛠️", farming: "🌾", finance: "📈", workplace: "💼",
 };
 
 const KIND_BADGE: Record<string, string> = {
   tiles: "🍌", resource: "⚖️", dependency: "🔗", rpg: "🎭", cartoon: "📺",
   idiom: "💬", create: "✨", doing: "🙌", farm: "🚜", spelling: "✏️", geometry: "📐",
-  shape_drop: "🧱", stocks: "📈", challenge: "🤖",
+  shape_drop: "🧱", stocks: "📈", challenge: "🤖", scenario: "💼",
 };
 
 const DEFAULT_AGE_GROUPS = [
@@ -61,6 +61,15 @@ export default function ArcadePage() {
 
   // Read auth on the client only (avoids SSR/client hydration mismatch).
   useEffect(() => { setLoggedIn(Boolean(getToken())); }, []);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const s = q.get("subject");
+    const g = q.get("game");
+    const a = q.get("age");
+    if (s) setSubject(s);
+    if (g) setGameType(g);
+    if (a === "kids" || a === "tween" || a === "teen" || a === "adult") setAgeGroup(a);
+  }, []);
   useEffect(() => {
     getGamesCatalog(locale).then(setCat).catch((e) => setError(String(e)));
   }, [locale]);
@@ -153,6 +162,30 @@ export default function ArcadePage() {
       </p>
 
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{error}</div></div>}
+
+      {/* Professional scenario drills */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(67,56,202,0.18), rgba(99,102,241,0.1))" }}>
+          <h3 style={{ marginTop: 0 }}>💼 Professional scenarios</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            &quot;What would you do?&quot; drills for corporate courses — compliance, safety, privacy, ethics, and more.
+          </p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href="/arcade/pro-scenarios"
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#4338ca", color: "#fff", fontWeight: 700 }}>
+              🎯 What Would You Do?
+            </Link>
+            <Link href={`/arcade?subject=workplace&game=scenario&age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#6366f1", color: "#fff", fontWeight: 600 }}>
+              💼 Scenario quiz (arcade)
+            </Link>
+            <Link href="/corporate"
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#312e81", color: "#fff", fontWeight: 600 }}>
+              📚 Corporate courses
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Kids' Games — fun, colorful learning adventures. */}
       {!round && (
@@ -408,6 +441,12 @@ export default function ArcadePage() {
               )}
               {kind === "rpg" && !!(meta as Record<string, unknown>).scene && (
                 <div className="muted" style={{ fontSize: 13 }}>🎭 {String((meta as Record<string, unknown>).scene)}</div>
+              )}
+              {kind === "scenario" && (
+                <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
+                  💼 {(meta as Record<string, unknown>).track ? String((meta as Record<string, unknown>).track) : "workplace"}
+                  {(meta as Record<string, unknown>).policy ? ` · ${String((meta as Record<string, unknown>).policy)}` : ""}
+                </div>
               )}
               <div style={{ fontWeight: 600 }}>{qi + 1}. {it.prompt}</div>
               <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 6 }}>
