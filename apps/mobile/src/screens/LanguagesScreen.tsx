@@ -4,8 +4,9 @@ import {
 } from "react-native";
 
 import {
-  getLangCourse, getLearnLanguages, languagePractice, newLangExercise,
-  pronounce, type LangCourse, type LangExercise, type LangInfo, type Pronounce,
+  explainLangWord, getLangCourse, getLearnLanguages, languagePractice,
+  newLangExercise, pronounce, type LangCourse, type LangExercise, type LangInfo,
+  type LangWordExplanation, type Pronounce,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
@@ -36,6 +37,9 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [mediaAnswer, setMediaAnswer] = useState("");
   const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
   const mediaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [storyPageIndex, setStoryPageIndex] = useState(0);
+  const [wordHelp, setWordHelp] = useState<LangWordExplanation | null>(null);
+  const [wordHelpLoading, setWordHelpLoading] = useState(false);
   // Guards callbacks after unmount so stale STT/TTS closures don't update state.
   const mountedRef = useRef(true);
   // Latest passing target/course for the STT result callback (avoids stale closure).
@@ -87,6 +91,8 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setMediaPlaying(false);
     setMediaAnswer("");
     setMediaResults({});
+    setStoryPageIndex(0);
+    setWordHelp(null);
     const n = s === "conversation" || s === "story" ? 20
       : s === "slang" || s === "idioms" ? 60
       : s === "media-listening" ? 10
@@ -150,6 +156,20 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setMediaPlaying(true);
     speakNatural(text, { locale: codeRef.current || "km" });
     mediaTimerRef.current = setTimeout(stopMediaClip, durationSec * 1000);
+  }
+
+  async function explainClickedWord(wordId: string) {
+    if (!course) return;
+    stopSpeech();
+    setWordHelpLoading(true);
+    setError("");
+    try {
+      setWordHelp(await explainLangWord(course.code, wordId));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWordHelpLoading(false);
+    }
   }
 
   // Record the learner via native speech recognition (Siri/Google STT on device,
@@ -265,6 +285,75 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
               </View>
             </GlassPanel>
           ) : null}
+          {ex?.pages ? (() => {
+            const page = ex.pages[Math.min(storyPageIndex, ex.pages.length - 1)];
+            return (
+              <GlassPanel style={styles.card}>
+                <Text style={styles.sectionTitle}>📖 {ex.title}</Text>
+                <Text style={styles.tip}>{ex.instructions}</Text>
+                <Text style={styles.meta}>Page {page.page_number} of {ex.pages.length}</Text>
+                <Text style={styles.prompt}>{page.title}</Text>
+                <Text style={styles.storyText}>
+                  {page.runs.map((run, index) => (
+                    <Text
+                      key={`${run.word_id ?? "text"}-${index}`}
+                      onPress={run.word_id ? () => void explainClickedWord(run.word_id!) : undefined}
+                      style={run.word_id ? styles.storyWord : undefined}
+                    >
+                      {run.text}
+                    </Text>
+                  ))}
+                </Text>
+                <View style={styles.row}>
+                  <PrimaryButton label="🔊 Read page aloud" onPress={() => {
+                    stopSpeech();
+                    speakNatural(page.text, { locale: course.code });
+                  }} variant="brand" />
+                  <PrimaryButton label="⏸ Pause" onPress={stopSpeech} variant="ghost" />
+                </View>
+                <Text style={styles.translation}>English</Text>
+                <Text style={styles.meta}>{page.translation_en}</Text>
+                {wordHelpLoading ? <ActivityIndicator color={theme.colors.accent} /> : null}
+                {wordHelp ? (
+                  <View style={styles.wordCoach}>
+                    <Text style={styles.sectionTitle}>✨ AI Word Coach: {wordHelp.target}</Text>
+                    {wordHelp.roman ? <Text style={styles.meta}>/{wordHelp.roman}/</Text> : null}
+                    <Text style={styles.translation}>Meaning: {wordHelp.meaning}</Text>
+                    <Text style={styles.optText}>{wordHelp.explanation}</Text>
+                    <Text style={styles.tip}>🗣️ {wordHelp.pronunciation_tip}</Text>
+                    <PrimaryButton label="🔊 Hear this word" onPress={() => {
+                      stopSpeech();
+                      speakNatural(wordHelp.target, { locale: course.code });
+                    }} variant="ghost" />
+                    {wordHelp.examples.map((example) => (
+                      <View key={example.page} style={styles.turn}>
+                        <Text style={styles.prompt}>Example from page {example.page}</Text>
+                        <Text style={styles.optText}>{example.target}</Text>
+                        <Text style={styles.meta}>{example.en}</Text>
+                      </View>
+                    ))}
+                    <PrimaryButton label="Close coach" onPress={() => setWordHelp(null)} variant="ghost" />
+                  </View>
+                ) : null}
+                <View style={styles.row}>
+                  {storyPageIndex > 0 ? (
+                    <PrimaryButton label="← Previous page" onPress={() => {
+                      stopSpeech(); setWordHelp(null);
+                      setStoryPageIndex((index) => Math.max(0, index - 1));
+                    }} variant="ghost" />
+                  ) : null}
+                  {storyPageIndex < ex.pages.length - 1 ? (
+                    <PrimaryButton label="Next page →" onPress={() => {
+                      stopSpeech(); setWordHelp(null);
+                      setStoryPageIndex((index) => Math.min(ex.pages!.length - 1, index + 1));
+                    }} variant="netflix" />
+                  ) : (
+                    <PrimaryButton label="Finish story" onPress={() => void finishExercise(1, 1)} variant="netflix" />
+                  )}
+                </View>
+              </GlassPanel>
+            );
+          })() : null}
           {ex?.study_words && ex.segments ? (() => {
             const segment = ex.segments[Math.min(mediaSegmentIndex, ex.segments.length - 1)];
             const correct = mediaResults[segment.id];
@@ -470,4 +559,13 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border, backgroundColor: "rgba(255,255,255,0.04)",
   },
   feedback: { fontSize: 14, fontWeight: "800" },
+  storyText: { color: theme.colors.text, fontSize: 21, lineHeight: 38 },
+  storyWord: {
+    color: theme.colors.accent, backgroundColor: "rgba(124,58,237,0.18)",
+    textDecorationLine: "underline",
+  },
+  wordCoach: {
+    gap: 8, padding: 12, borderWidth: 2, borderColor: theme.colors.accent,
+    borderRadius: 12, backgroundColor: "rgba(124,58,237,0.10)",
+  },
 });
