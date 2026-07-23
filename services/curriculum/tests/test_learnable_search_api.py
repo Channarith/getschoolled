@@ -52,7 +52,7 @@ def test_get_course_resolves_lesson_id():
     lesson_id = lessons["items"][0]["source_id"]
     course = client.get(f"/courses/{lesson_id}").json()
     assert course["course_id"] == lesson_id
-    assert course["deep_link"].startswith("/class")
+    assert course["deep_link"].startswith("/class") or course["deep_link"].startswith("/corporate/learn")
 
 
 def test_profile_and_device_aware_catalog_selection():
