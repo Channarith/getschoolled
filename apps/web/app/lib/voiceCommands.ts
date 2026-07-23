@@ -30,6 +30,19 @@ export function stripWakeWords(text: string): string {
     .trim();
 }
 
+/** Default silence before auto-submit; overridden by ``ux.voice_pause_submit_ms``. */
+export const DEFAULT_VOICE_PAUSE_SUBMIT_MS = 4500;
+
+/** Clamp the admin-tunable pause-to-submit delay (ms). */
+export function normalizeVoicePauseSubmitMs(
+  value: unknown,
+  fallback = DEFAULT_VOICE_PAUSE_SUBMIT_MS,
+): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(500, Math.min(15000, Math.round(n)));
+}
+
 /**
  * If `text` contains the wake word, return the content AFTER it (may be empty
  * when the caller just said the wake word). Returns null when no wake word.
