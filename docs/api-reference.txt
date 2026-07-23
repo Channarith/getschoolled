@@ -42,7 +42,12 @@ base URL from NEXT_PUBLIC_*_URL or the page origin (apps/web/app/lib/api.ts).
 The installable packages/sdk distribution provides typed clients for the core
 teaching, identity, curriculum, and adaptive-memory workflows. It also exposes
 generic service clients so every current or future endpoint can be called before
-a typed convenience method is added.
+a typed convenience method is added. The complete developer guide, runnable
+examples, error reference, production checklist, and screenshot index are in:
+
+  docs/sdk-python-guide.txt
+  packages/sdk/examples/
+  docs/screens/sdk/
 
   pip install -e packages/shared
   pip install -e packages/sdk

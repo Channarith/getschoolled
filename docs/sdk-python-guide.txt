@@ -1,0 +1,875 @@
+SALAREEN / AOEP PYTHON SDK — DEVELOPER GUIDE
+=============================================
+
+Document status: Developer reference for aoep-sdk
+Package name:    aoep-sdk
+Import name:     aoep_sdk
+Python:          3.11 or newer
+Source:          packages/sdk
+API contract:    aoep_shared.version.API_VERSION
+
+This guide is plain text by repository convention. It covers both ways future
+developers can build on the ecosystem:
+
+  1. Remote SDK clients that call deployed AOEP services.
+  2. In-process Python capabilities embedded directly in an application.
+
+The shorter endpoint-by-endpoint service reference remains in
+docs/api-reference.txt. This guide focuses on installation, configuration,
+working examples, error handling, testing, packaging, and production use.
+
+
+============================================================================
+1. WHAT THE SDK PROVIDES
+============================================================================
+
+AOEPClient is the main remote API entry point. It creates clients for:
+
+  aoep.orchestrator  Typed lessons, teaching sessions, advancing, and Q&A
+  aoep.identity      Typed signup, login, account, and rewards operations
+  aoep.curriculum    Typed content search, catalog, item, and course operations
+  aoep.memory        Typed adaptive learner signals and mastery operations
+  aoep.speech        Generic service client
+  aoep.perception    Generic service client
+  aoep.billing       Generic service client
+  aoep.integrations  Generic service client
+
+Every client supports:
+
+  health()           Read the standard service health contract
+  version()          Read service build and API version metadata
+  request(...)       Call an endpoint not yet represented by a typed method
+
+The aoep_sdk.inprocess module exposes reusable platform engines:
+
+  Configuration      AppConfig, DeployMode, ComponentMode, load_config
+  Providers          ProviderFactory, build_factory
+  Retrieval          Document, RagIndex, Retrieved
+  Adaptive learning  AdaptivePolicy, LearnerSignals, Pacing, Difficulty
+  Harvesting         generate_course, generate_lessons, export_course_package
+  Teaching           teach_course, run_end_to_end, LessonPlan
+  Modules            harvest, homework, meeting, teaching, training_agents
+
+Visual overview:
+
+  docs/screens/sdk/sdk_architecture.png
+
+
+============================================================================
+2. INSTALLATION
+============================================================================
+
+2.1 Install from a repository checkout
+--------------------------------------
+
+Create and activate a Python 3.11+ virtual environment:
+
+  python3 -m venv .venv
+  . .venv/bin/activate
+
+Install the shared capability library first, then the SDK:
+
+  python3 -m pip install -e packages/shared
+  python3 -m pip install -e packages/sdk
+
+For harvesting, presentation, or computer-vision capabilities, install the
+matching aoep-shared extras:
+
+  python3 -m pip install -e "packages/shared[harvest]"
+  python3 -m pip install -e "packages/shared[presenter]"
+  python3 -m pip install -e "packages/shared[vision]"
+
+2.2 Build a distributable wheel
+-------------------------------
+
+Build without installing into the active environment:
+
+  python3 -m pip wheel packages/shared --no-deps --wheel-dir dist/sdk
+  python3 -m pip wheel packages/sdk --no-deps --wheel-dir dist/sdk
+
+The SDK version is synchronized with the platform VERSION file by:
+
+  python3 scripts/bump_pr_version.py
+
+Do not hand-edit release filenames. The generated wheel filename includes the
+current package version, for example:
+
+  aoep_sdk-0.34.0-py3-none-any.whl
+
+2.3 Confirm the installation
+----------------------------
+
+  python3 -c "import aoep_sdk; print(aoep_sdk.__version__)"
+  python3 -c "from aoep_sdk import API_VERSION; print(API_VERSION)"
+
+The first command prints the platform release. The second prints the compatible
+cross-service HTTP contract version.
+
+
+============================================================================
+3. CONFIGURATION
+============================================================================
+
+AOEPClient() calls AOEPConfig.from_env() when no explicit configuration is
+provided.
+
+3.1 Local development defaults
+------------------------------
+
+No URL variables are required for the standard local port map:
+
+  orchestrator   http://localhost:8000
+  speech         http://localhost:8002
+  perception     http://localhost:8003
+  memory         http://localhost:8004
+  curriculum     http://localhost:8005
+  billing        http://localhost:8006
+  integrations   http://localhost:8007
+  identity       http://localhost:8008
+
+Start the services needed by the example before running it. For the full local
+stack:
+
+  scripts/dev_up.sh
+  scripts/dev_status.sh
+
+3.2 Shared cloud origin
+-----------------------
+
+For an ingress deployment where services use path prefixes:
+
+  export AOEP_BASE_URL="https://learn.example.com"
+
+The SDK resolves:
+
+  https://learn.example.com/orchestrator
+  https://learn.example.com/identity
+  https://learn.example.com/curriculum
+  ...and the remaining service prefixes.
+
+3.3 Per-service URL overrides
+-----------------------------
+
+Explicit AOEP variables override AOEP_BASE_URL:
+
+  export AOEP_ORCHESTRATOR_URL="https://teaching.example.com"
+  export AOEP_IDENTITY_URL="https://accounts.example.com"
+  export AOEP_CURRICULUM_URL="https://content.example.com"
+
+Legacy variables such as ORCHESTRATOR_URL remain supported, but AOEP-prefixed
+variables take precedence.
+
+3.4 Authentication and transport variables
+------------------------------------------
+
+  AOEP_BEARER_TOKEN       Existing user session JWT
+  AOEP_INTERNAL_TOKEN     Cross-service or trusted developer token
+  AOEP_ADMIN_SECRET       Administrative secret for gated routes
+  AOEP_TIMEOUT_SECONDS    Request timeout; defaults to 10 seconds
+  AOEP_USER_AGENT         Caller identity; defaults to aoep-sdk-python
+
+INTERNAL_SERVICE_TOKEN and INTERNAL_TOKEN are accepted as legacy fallbacks for
+AOEP_INTERNAL_TOKEN.
+
+Never put bearer tokens, internal tokens, admin secrets, passwords, or API keys
+in source control, screenshots, logs, exception reports, or example files.
+
+3.5 Explicit configuration in code
+----------------------------------
+
+  from aoep_sdk import AOEPClient, AOEPConfig, ServiceURLs
+
+  urls = ServiceURLs(
+      orchestrator="https://teaching.example.com",
+      identity="https://accounts.example.com",
+      curriculum="https://content.example.com",
+      memory="https://memory.example.com",
+      speech="https://speech.example.com",
+      perception="https://vision.example.com",
+      billing="https://billing.example.com",
+      integrations="https://integrations.example.com",
+  )
+  config = AOEPConfig(
+      services=urls,
+      internal_token="read-from-a-secret-manager",
+      timeout_seconds=15,
+      user_agent="partner-learning-app/1.0",
+  )
+  aoep = AOEPClient(config)
+
+
+============================================================================
+4. QUICK START: AUTHENTICATE AND TEACH
+============================================================================
+
+The complete runnable file is:
+
+  packages/sdk/examples/quickstart.py
+
+Set test-account credentials through the environment:
+
+  export AOEP_EXAMPLE_EMAIL="developer@example.com"
+  export AOEP_EXAMPLE_PASSWORD="use-a-secret-manager"
+  python3 packages/sdk/examples/quickstart.py
+
+Core flow:
+
+  from aoep_sdk import AOEPClient
+
+  aoep = AOEPClient()
+  login = aoep.authenticate(email, password)
+  account = login["account"]
+
+  lessons = aoep.orchestrator.list_lessons(language="en")
+  lesson = lessons[0]
+
+  view = aoep.orchestrator.start_session(
+      lesson["lesson_id"],
+      class_type="solo",
+      student_id=account["id"],
+  )
+  session_id = view["session"]["session_id"]
+
+  answer = aoep.orchestrator.ask(
+      session_id,
+      "What will I learn in this lesson?",
+  )
+  print(answer["text"])
+
+authenticate() propagates the returned bearer token to every service transport.
+Calling identity.login() directly updates only the identity transport. Use
+set_bearer_token(token) when an application obtains or refreshes a token through
+another process.
+
+Visual example:
+
+  docs/screens/sdk/sdk_quickstart.png
+
+
+============================================================================
+5. ORCHESTRATOR CLIENT
+============================================================================
+
+5.1 Find lessons
+----------------
+
+  lessons = aoep.orchestrator.list_lessons(
+      query="python",
+      language="en",
+      audience="adult",
+  )
+
+All filters are optional. The result is a list of lesson dictionaries from
+GET /api/lessons.
+
+5.2 Build a lesson plan
+-----------------------
+
+  plan = aoep.orchestrator.lesson_plan(
+      "python-basics",
+      profile_score="visual",
+      session_length="short",
+      session_budget_min=20,
+      observed_pace="normal",
+  )
+
+The service selects slides while preserving the canonical mastery target.
+
+5.3 Start and inspect a session
+-------------------------------
+
+  view = aoep.orchestrator.start_session(
+      "python-basics",
+      class_type="solo",
+      student_id="student-123",
+      session_budget_min=20,
+  )
+  session_id = view["session"]["session_id"]
+  latest = aoep.orchestrator.get_session(session_id)
+
+get_session(), advance(), and ask() are internal-token-gated in standard
+deployments. Configure AOEP_INTERNAL_TOKEN for trusted server-side applications.
+Do not expose internal tokens to browsers or mobile clients.
+
+5.4 Advance the lesson
+----------------------
+
+  next_slide = aoep.orchestrator.advance(session_id)
+  print(next_slide["title"])
+
+5.5 Ask the teaching agent
+--------------------------
+
+  answer = aoep.orchestrator.ask(
+      session_id,
+      "Can you explain that with another example?",
+      language="en",
+  )
+  print(answer["text"])
+  print(answer.get("citations", []))
+
+The typed SDK method returns the completed JSON response. Streaming server-sent
+events can be accessed through a dedicated HTTP/SSE client or a future typed SDK
+streaming method; ServiceClient.request() is JSON-only.
+
+
+============================================================================
+6. IDENTITY AND REWARDS CLIENT
+============================================================================
+
+6.1 Create an account
+---------------------
+
+  result = aoep.identity.signup(
+      "developer@example.com",
+      password,
+      display_name="Developer",
+      region="us",
+  )
+
+Valid regions currently include us, eu, us_il, and other. Signup updates the
+identity client's bearer token by default. Set update_session=False when an
+application manages session state separately.
+
+6.2 Log in
+----------
+
+  result = aoep.identity.login(
+      "developer@example.com",
+      password,
+  )
+  token = result["token"]
+
+Prefer aoep.authenticate(email, password) when subsequent calls use multiple
+services because it applies the token to all transports.
+
+6.3 Read the current account
+----------------------------
+
+  account = aoep.identity.me()
+  print(account["id"], account["email"])
+
+6.4 Read and redeem rewards
+---------------------------
+
+  balance = aoep.identity.rewards()
+  catalog = aoep.identity.rewards_catalog()
+  redemption = aoep.identity.redeem_reward(
+      catalog["prizes"][0]["id"],
+  )
+
+Redemption fails with ValidationError when the balance is insufficient and
+NotFoundError when the prize ID is unknown.
+
+
+============================================================================
+7. CURRICULUM CLIENT
+============================================================================
+
+7.1 Search all learnable content
+--------------------------------
+
+  result = aoep.curriculum.search(
+      "python",
+      category="technology",
+      media_format="course",
+      language="en",
+      level="beginner",
+      hands_on=True,
+      kids=False,
+      limit=20,
+      offset=0,
+      locale="en",
+  )
+
+Available keyword arguments:
+
+  category, source, media_format, level, language, maturity, hands_on, tag,
+  audience, core_skill, kids, limit, offset, locale
+
+The response contains items and pagination metadata supplied by /learn/search.
+
+7.2 Read one item
+-----------------
+
+  item = aoep.curriculum.get_item("global-item-id")
+
+Path segments are URL-escaped by the SDK.
+
+7.3 Work with courses and catalog trees
+---------------------------------------
+
+  courses = aoep.curriculum.list_courses()
+  course = aoep.curriculum.get_course(courses[0]["course_id"])
+  catalog = aoep.curriculum.catalog(delivery_mode="self_paced")
+
+
+============================================================================
+8. MEMORY AND ADAPTIVE LEARNING CLIENT
+============================================================================
+
+Memory operations are internal-token-gated in standard deployments:
+
+  export AOEP_INTERNAL_TOKEN="read-from-a-secret-manager"
+
+8.1 Read learner signals
+------------------------
+
+  signals = aoep.memory.learner_signals(
+      "student-123",
+      "python-loops",
+  )
+  print(signals.topic_mastery)
+  print(signals.quiz_accuracy)
+  print(signals.skill())
+
+The result is an aoep_shared.adaptive.LearnerSignals dataclass, not a raw
+dictionary.
+
+8.2 Record behavior
+-------------------
+
+  aoep.memory.record_behavior(
+      "student-123",
+      "python-loops",
+      quiz_correct=True,
+      response_latency_s=4.2,
+      attention=0.9,
+      asked_question=False,
+      saw_slide=True,
+  )
+
+8.3 Update mastery
+------------------
+
+  mastery = aoep.memory.update_mastery(
+      "student-123",
+      "python-loops",
+      correct=True,
+  )
+
+The public SDK is intentionally fail-closed: connection, permission, and invalid
+response failures are raised. The orchestrator's separate live-class memory
+adapter is fail-open because memory must not interrupt active teaching.
+
+
+============================================================================
+9. GENERIC AND FORWARD-COMPATIBLE REQUESTS
+============================================================================
+
+Typed methods cover stable, high-value workflows. Every service also has a raw
+JSON request method so developers can use new endpoints immediately:
+
+  capabilities = aoep.orchestrator.request(
+      "GET",
+      "/api/training/capabilities",
+  )
+
+Or use service(name):
+
+  service = aoep.service("orchestrator")
+  capabilities = service.request(
+      "GET",
+      "/api/training/capabilities",
+  )
+
+Query and JSON body example:
+
+  result = aoep.curriculum.request(
+      "POST",
+      "/learn/select",
+      query={"preview": "true"},
+      json_body={
+          "profile_score": "visual",
+          "session_length": "short",
+          "language": "en",
+      },
+  )
+
+Custom headers:
+
+  result = aoep.integrations.request(
+      "GET",
+      "/partner/status",
+      headers={"X-Partner-ID": "partner-123"},
+  )
+
+The complete generic example is:
+
+  packages/sdk/examples/raw_service.py
+
+request() expects JSON responses. Binary downloads, XML, event streams, and
+multipart uploads require an endpoint-specific client until specialized SDK
+transport support is added.
+
+
+============================================================================
+10. IN-PROCESS PYTHON LIBRARY
+============================================================================
+
+Use in-process capabilities when an application runs Python in a trusted
+environment and does not need a remote service boundary.
+
+10.1 Local retrieval
+--------------------
+
+  from aoep_sdk.inprocess import Document, RagIndex
+
+  index = RagIndex([
+      Document.from_text(
+          "loops",
+          "Python loops",
+          "A for loop repeats work for each item.",
+      ),
+      Document.from_text(
+          "functions",
+          "Python functions",
+          "Functions group reusable behavior.",
+      ),
+  ])
+
+  for result in index.retrieve("repeat work", top_k=2):
+      print(result.document.title, result.score)
+
+Runnable example:
+
+  python3 packages/sdk/examples/inprocess_rag.py
+
+Visual example:
+
+  docs/screens/sdk/sdk_inprocess_rag.png
+
+10.2 Provider factory
+---------------------
+
+  from aoep_sdk.inprocess import build_factory, load_config
+
+  config = load_config()
+  factory = build_factory(config)
+  llm = factory.llm()
+
+Provider selection remains environment-driven. Use DEPLOY_MODE and component
+mode variables; do not fork code for local and cloud deployments.
+
+10.3 Generate and export course content
+---------------------------------------
+
+  from aoep_sdk.inprocess import (
+      export_course_package,
+      generate_course,
+  )
+
+  course = generate_course(source)
+  package = export_course_package(course, output_dir, write_pptx=True)
+
+Every harvester export must include the .pptx alongside course JSON. Install the
+aoep-shared harvest extra first.
+
+10.4 Teach and present
+----------------------
+
+  from aoep_sdk.inprocess import run_end_to_end, teach_course
+
+Use teach_course() for a lesson plan or run_end_to_end() for the complete
+harvest-to-teach-to-meeting pipeline. Some providers require configured external
+services or credentials; offline fallbacks remain available where documented.
+
+10.5 Training agents and specialized modules
+--------------------------------------------
+
+  from aoep_sdk.inprocess import (
+      harvest,
+      homework,
+      meeting,
+      teaching,
+      training_agents,
+  )
+
+These module exports preserve access to the broader aoep-shared capability
+surface while the top-level SDK remains curated and stable.
+
+
+============================================================================
+11. ERROR HANDLING
+============================================================================
+
+Catch specific errors before AOEPError:
+
+  from aoep_sdk import (
+      AOEPError,
+      AuthenticationError,
+      NotFoundError,
+      RateLimitError,
+      TransportError,
+      ValidationError,
+  )
+
+  try:
+      item = aoep.curriculum.get_item("missing")
+  except AuthenticationError:
+      refresh_session()
+  except NotFoundError:
+      show_not_found()
+  except RateLimitError:
+      schedule_retry()
+  except ValidationError as exc:
+      show_validation_details(exc.detail)
+  except TransportError:
+      show_service_unavailable()
+  except AOEPError:
+      show_generic_error()
+
+Exception hierarchy:
+
+  AOEPError
+    TransportError
+    APIError
+      AuthenticationError       HTTP 401
+      PermissionDeniedError     HTTP 403
+      NotFoundError             HTTP 404
+      RateLimitError            HTTP 429
+      ValidationError           HTTP 400 and 422
+
+APIError fields:
+
+  status_code    HTTP response status
+  detail         Parsed service error detail
+  request_id     Server X-Request-ID, or the generated client request ID
+
+Log request_id when reporting a service failure. Never log credentials or full
+authorization headers.
+
+Retry guidance:
+
+  Safe to retry with bounded exponential backoff:
+    TransportError caused by a temporary network failure
+    RateLimitError after respecting service limits
+    Idempotent GET requests after transient HTTP 5xx errors
+
+  Do not retry blindly:
+    AuthenticationError
+    PermissionDeniedError
+    ValidationError
+    Non-idempotent POST requests
+
+The SDK does not automatically retry, preventing duplicate writes and hidden
+latency. Applications own retry policy.
+
+
+============================================================================
+12. REQUEST BEHAVIOR AND OBSERVABILITY
+============================================================================
+
+The stdlib urllib transport sends:
+
+  Accept: application/json
+  User-Agent: aoep-sdk-python, or AOEP_USER_AGENT
+  X-Request-ID: a new UUID-style hexadecimal identifier per request
+  Authorization: Bearer <token>, when configured
+  X-Internal-Token: <token>, when configured
+  X-Admin-Secret: <secret>, when configured
+  Content-Type: application/json, when a JSON body is present
+
+Empty-string and None query values are omitted. Sequence query values are
+encoded with doseq behavior. JSON is decoded into Python dictionaries, lists,
+scalars, or None.
+
+Use health() and version() during startup diagnostics:
+
+  for name in ("orchestrator", "identity", "curriculum"):
+      service = aoep.service(name)
+      print(name, service.health())
+      print(name, service.version())
+
+Before enabling traffic in production, verify that service api_version values
+are compatible with aoep_sdk.API_VERSION.
+
+
+============================================================================
+13. TESTING APPLICATIONS THAT USE THE SDK
+============================================================================
+
+13.1 Unit testing without network access
+----------------------------------------
+
+Inject or monkeypatch urllib.request.urlopen at the transport boundary. The SDK
+test suite demonstrates request inspection and deterministic JSON responses:
+
+  packages/sdk/tests/test_sdk.py
+
+Test:
+
+  request URL and path escaping
+  JSON request bodies
+  authentication headers
+  timeout propagation
+  error class mapping
+  token propagation
+  response mapping
+
+13.2 Run SDK tests
+------------------
+
+  . .venv/bin/activate
+  PYTHONPATH=packages/shared/src:packages/sdk/src \
+    python3 -m pytest packages/sdk/tests -q
+
+13.3 Lint SDK code and examples
+-------------------------------
+
+  . .venv/bin/activate
+  python3 -m ruff check packages/sdk/src packages/sdk/tests packages/sdk/examples
+
+13.4 Integration testing
+------------------------
+
+Run only against disposable local or staging accounts. Configure AOEP_BASE_URL
+or explicit service URLs, then verify:
+
+  health and version
+  login and token propagation
+  lesson listing
+  session creation
+  catalog search
+  expected authorization failures for internal routes
+
+Do not run reward redemption, billing, administrative, or destructive raw
+requests against production as a smoke test.
+
+
+============================================================================
+14. SECURITY MODEL FOR SDK DEVELOPERS
+============================================================================
+
+Public client application:
+
+  May hold a short-lived user bearer token.
+  Must not hold AOEP_INTERNAL_TOKEN.
+  Must not hold AOEP_ADMIN_SECRET.
+
+Trusted backend application:
+
+  May receive internal credentials through a secret manager.
+  Should use narrow service access and rotate credentials.
+  Should set a unique AOEP_USER_AGENT for auditability.
+
+Administrator tooling:
+
+  Must run in a trusted environment.
+  Must not embed admin secrets in distributable applications.
+  Should require explicit operator confirmation for mutating operations.
+
+The SDK attaches every configured credential to every service transport.
+Therefore, create separate AOEPClient instances with least-privilege configs
+when an application has both user and administrative workflows.
+
+
+============================================================================
+15. COMPATIBILITY AND VERSIONING
+============================================================================
+
+aoep_sdk.__version__ resolves through the platform's shared version mechanism:
+
+  AOEP_VERSION environment variable
+  repository VERSION file
+  installed aoep-shared package metadata
+
+The aoep-sdk wheel version is synchronized during release builds. API_VERSION
+changes only for a breaking cross-service HTTP contract change.
+
+Compatibility checks:
+
+  from aoep_sdk import API_VERSION
+
+  remote = aoep.orchestrator.version()
+  if str(remote.get("api_version")) != API_VERSION:
+      raise RuntimeError("Incompatible AOEP API contract")
+
+Typed method additions are backward-compatible. Renaming fields, removing
+methods, changing required arguments, or changing response contracts requires a
+versioned migration.
+
+
+============================================================================
+16. TROUBLESHOOTING
+============================================================================
+
+"Connection refused" on localhost
+  Confirm the target service is running on its documented local port.
+  Run scripts/dev_status.sh and call the service /health endpoint.
+
+"404 Not Found" only in cloud
+  Confirm AOEP_BASE_URL points at the ingress origin and that service prefixes
+  such as /orchestrator and /identity exist.
+
+"401 Unauthorized"
+  Authenticate with aoep.authenticate() or configure AOEP_BEARER_TOKEN.
+  Confirm the token is current and intended for the connected environment.
+
+"403 Forbidden" on memory or session operations
+  The route may require AOEP_INTERNAL_TOKEN. Keep that token server-side.
+
+"AOEP request failed ... invalid JSON"
+  The URL may point at a web page or proxy error rather than an AOEP service.
+  Check service.health() and the ingress route.
+
+"No module named aoep_shared"
+  Install packages/shared before packages/sdk in a repository checkout.
+
+SDK wheel reports the wrong version
+  Run python3 scripts/bump_pr_version.py once for the PR. Do not hand-edit only
+  packages/sdk/pyproject.toml because all platform version files must agree.
+
+Examples have no lessons
+  Confirm the curriculum and orchestrator services are running with a populated
+  curriculum directory.
+
+
+============================================================================
+17. EXAMPLES AND VISUAL REFERENCES
+============================================================================
+
+Runnable source:
+
+  packages/sdk/examples/quickstart.py
+    Authenticate, choose a lesson, create a session, and ask Theodore.
+
+  packages/sdk/examples/inprocess_rag.py
+    Build and query an embedded local RAG index.
+
+  packages/sdk/examples/raw_service.py
+    Call a newer endpoint through a generic service client.
+
+Fresh documentation screenshots:
+
+  docs/screens/sdk/sdk_architecture.png
+    Remote and in-process SDK architecture, credentials, and service flow.
+
+  docs/screens/sdk/sdk_quickstart.png
+    Installation, configuration, and teaching-session quick start.
+
+  docs/screens/sdk/sdk_inprocess_rag.png
+    Embedded RAG code and representative deterministic result.
+
+Screenshots are generated from reviewed code snippets and sanitized example
+output. They contain no real account data, tokens, secrets, or production URLs.
+
+
+============================================================================
+18. DEVELOPER RELEASE CHECKLIST
+============================================================================
+
+Before releasing an SDK change:
+
+  [ ] Keep typed methods aligned with live FastAPI endpoint contracts.
+  [ ] Preserve generic request() access for forward compatibility.
+  [ ] Add or update mocked transport contract tests.
+  [ ] Run SDK pytest and ruff checks.
+  [ ] Build a fresh wheel with no reused release artifact.
+  [ ] Confirm the wheel filename contains the new platform version.
+  [ ] Update this guide and docs/api-reference.txt.
+  [ ] Regenerate SDK screenshots when examples or flows change.
+  [ ] Add a dated, versioned CHANGELOG.txt entry.
+  [ ] Run python3 scripts/bump_pr_version.py exactly once per PR.
+  [ ] Push a feature branch and open or update a non-draft PR.
+

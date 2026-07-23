@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import urllib.error
 from io import BytesIO
 
@@ -25,6 +26,18 @@ class FakeResponse:
 
     def __exit__(self, *args) -> bool:
         return False
+
+
+def test_inprocess_retrieval_does_not_load_heavy_harvest_stack():
+    import aoep_sdk.inprocess as inprocess
+
+    sys.modules.pop("aoep_shared.harvest", None)
+    index = inprocess.RagIndex(
+        [inprocess.Document.from_text("loops", "Loops", "Loops repeat work.")]
+    )
+
+    assert index.retrieve("repeat")
+    assert "aoep_shared.harvest" not in sys.modules
 
 
 def test_service_urls_honor_legacy_service_env_names(monkeypatch):
