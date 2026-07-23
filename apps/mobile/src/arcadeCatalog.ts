@@ -60,6 +60,16 @@ export const ARCADE_SECTIONS: ArcadeSection[] = [
     ],
   },
   {
+    id: "zoo-reef",
+    title: "Zoo & Reef",
+    subtitle: "Memorize animal and fish species — safari, reef journal, memory match.",
+    games: [
+      { id: "zoo-safari", label: "Zoo Safari", emoji: "🦁", path: "/arcade/zoo-safari" },
+      { id: "reef-quest", label: "Reef Quest", emoji: "🐠", path: "/arcade/reef-quest" },
+      { id: "species-match", label: "Species Match", emoji: "🃏", path: "/arcade/species-match" },
+    ],
+  },
+  {
     id: "featured",
     title: "Featured arcade",
     subtitle: "Geometry, stocks, and classic learning engines.",
