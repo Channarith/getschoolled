@@ -538,6 +538,155 @@ def media_listening_challenge(
     }
 
 
+def _annotate_story_text(text: str, words: List[dict]) -> List[dict]:
+    """Split story text into display runs, linking known vocabulary words."""
+    runs: List[dict] = []
+    cursor = 0
+    candidates = sorted(words, key=lambda word: len(word["target"]), reverse=True)
+    while cursor < len(text):
+        matches = [
+            (text.find(word["target"], cursor), word)
+            for word in candidates
+            if text.find(word["target"], cursor) >= 0
+        ]
+        if not matches:
+            runs.append({"text": text[cursor:]})
+            break
+        start, word = min(matches, key=lambda match: (match[0], -len(match[1]["target"])))
+        if start > cursor:
+            runs.append({"text": text[cursor:start]})
+        end = start + len(word["target"])
+        runs.append({
+            "text": text[start:end],
+            "word_id": word["id"],
+            "target": word["target"],
+            "roman": word.get("roman", ""),
+            "en": word["en"],
+        })
+        cursor = end
+    return runs
+
+
+def reading_story(language: str) -> dict:
+    """A short three-page reader with clickable vocabulary annotations."""
+    vocabulary = vocabulary_for(language)
+    if not vocabulary:
+        vocabulary = phrases_for(language)
+    by_english = {word["en"].lower(): word for word in vocabulary}
+
+    if language == "km":
+        requested = [
+            "morning", "student", "road", "school", "notebook", "pen",
+            "teacher", "friend", "read", "question", "evening", "home",
+            "family", "food", "water",
+        ]
+        words = [by_english[key] for key in requested if key in by_english]
+        page_specs = [
+            (
+                "A new morning",
+                "ព្រឹកនេះ សិស្ស ម្នាក់ដើរតាម ផ្លូវ ទៅ សាលា។ "
+                "គាត់កាន់ សៀវភៅសរសេរ និង ប៊ិច។ នៅមុខសាលា គ្រូ "
+                "ឈររង់ចាំសិស្ស។",
+                "This morning, a student walks along the road to school. "
+                "The student carries a notebook and pen. A teacher waits "
+                "for the students in front of the school.",
+            ),
+            (
+                "The short story",
+                "នៅក្នុង សាលា គ្រូ បើក សៀវភៅសរសេរ។ សិស្ស និង មិត្ត "
+                "អាន រឿងខ្លី។ មិត្ត សួរ សំណួរ ហើយគ្រូពន្យល់ពាក្យថ្មី។",
+                "Inside the school, the teacher opens a notebook. The student "
+                "and a friend read a short story. The friend asks a question, "
+                "and the teacher explains the new word.",
+            ),
+            (
+                "Sharing at home",
+                "ពេល ល្ងាច សិស្ស ត្រឡប់ទៅ ផ្ទះ។ គាត់ប្រាប់ គ្រួសារ "
+                "អំពីរឿងដែលបាន អាន។ ពួកគេញ៉ាំ អាហារ និងផឹក ទឹក ជាមួយគ្នា។",
+                "In the evening, the student returns home and tells the family "
+                "about the story. They eat food and drink water together.",
+            ),
+        ]
+        title = "A Student’s New Word"
+    else:
+        words = vocabulary[:12]
+        page_specs = []
+        for page_index in range(3):
+            page_words = words[page_index * 4:(page_index + 1) * 4]
+            target_text = "។ ".join(word["target"] for word in page_words) + "។"
+            english_text = ". ".join(word["en"] for word in page_words) + "."
+            page_specs.append((
+                f"Word journey {page_index + 1}",
+                target_text,
+                english_text,
+            ))
+        title = "A Three-Page Word Journey"
+
+    pages = [
+        {
+            "page_number": index,
+            "title": page_title,
+            "text": target_text,
+            "translation_en": translation,
+            "runs": _annotate_story_text(target_text, words),
+        }
+        for index, (page_title, target_text, translation) in enumerate(page_specs, 1)
+    ]
+    return {
+        "skill": "reading",
+        "language": language,
+        "story_id": f"{language}-three-page-reader",
+        "title": title,
+        "instructions": (
+            "Read one page at a time. Tap any highlighted word you do not "
+            "understand and the AI Word Coach will explain it before you continue."
+        ),
+        "page_count": 3,
+        "pages": pages,
+    }
+
+
+def explain_story_word(language: str, word_id: str) -> dict:
+    """Explain a clicked reading word with context and clear examples."""
+    vocabulary = vocabulary_for(language) or phrases_for(language)
+    word = next((item for item in vocabulary if item["id"] == word_id), None)
+    if word is None:
+        return {
+            "found": False,
+            "language": language,
+            "word_id": word_id,
+            "explanation": "This word is not in the current vocabulary pack yet.",
+            "examples": [],
+        }
+    story = reading_story(language)
+    examples = []
+    for page in story["pages"]:
+        if any(run.get("word_id") == word_id for run in page["runs"]):
+            examples.append({
+                "page": page["page_number"],
+                "target": page["text"],
+                "en": page["translation_en"],
+            })
+    return {
+        "found": True,
+        "language": language,
+        "word_id": word_id,
+        "target": word["target"],
+        "roman": word.get("roman", ""),
+        "meaning": word["en"],
+        "category": word.get("category", "core"),
+        "explanation": (
+            f"“{word['target']}” means “{word['en']}”. "
+            f"It is used here as a {word.get('category', 'core').replace('_', ' ')} word."
+        ),
+        "pronunciation_tip": (
+            f"Say it slowly as {word.get('roman') or word['target']}, then read "
+            "the complete sentence once more."
+        ),
+        "examples": examples[:2],
+    }
+
+
 def course_outline(language: str) -> dict:
     meta = LANGUAGE_META.get(language, {"name": language, "native": language, "flag": "🏳️"})
     return {

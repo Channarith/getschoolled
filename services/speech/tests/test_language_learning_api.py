@@ -100,3 +100,31 @@ def test_khmer_media_challenge_uses_ten_words_and_ten_second_clips():
     assert exercise["skill"] == "media-listening"
     assert len(exercise["study_words"]) == 10
     assert len(exercise["segments"]) == 10
+
+
+def test_khmer_three_page_reader_and_word_coach():
+    story = client.get("/learn/km/reading-story").json()
+    assert story["page_count"] == 3
+    assert len(story["pages"]) == 3
+    clickable = [
+        run
+        for page in story["pages"]
+        for run in page["runs"]
+        if run.get("word_id")
+    ]
+    assert len(clickable) >= 12
+
+    exercise = client.post(
+        "/learn/exercise",
+        json={"language": "km", "skill": "reading"},
+    ).json()
+    assert exercise["story_id"] == story["story_id"]
+
+    coach = client.post(
+        "/learn/explain-word",
+        json={"language": "km", "word_id": clickable[0]["word_id"]},
+    )
+    assert coach.status_code == 200
+    body = coach.json()
+    assert body["meaning"] and body["explanation"]
+    assert body["pronunciation_tip"] and body["examples"]
