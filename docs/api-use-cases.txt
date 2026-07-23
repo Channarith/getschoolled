@@ -157,5 +157,28 @@ never leave the device.
   for p in 8000 8002 8003 8004 8005 8006 8007 8008; do
     curl -s localhost:$p/health | jq '{service,status,version}'; done
   curl -s localhost:8005/metrics            # Prometheus scrape
+
+============================================================================
+10. PYTHON SDK (SAFE LOCAL EXTENSION)
+============================================================================
+Persona: a developer building on top of AOEP. Value: typed clients + local-only
+guardrails so experiments never touch production. Full guide:
+docs/sdk-developers.txt.
+
+  pip install -e packages/shared
+  pip install -e 'packages/sdk[test]'
+  # start at least orchestrator + identity (make run-orchestrator / run-identity)
+
+  python3 - <<'PY'
+  from aoep_sdk import AOEPClient
+  aoep = AOEPClient.local()
+  aoep.authenticate("ada@example.com", "secret123")
+  lessons = aoep.orchestrator.list_lessons(language="en")
+  session = aoep.orchestrator.start_session(lessons[0]["lesson_id"], class_type="solo")
+  print(aoep.orchestrator.ask(session["session"]["session_id"], "What gas do plants release?"))
+  PY
+
+  # or: python3 packages/sdk/examples/local_teaching_loop.py
+
   curl -s localhost:8005/telemetry/errors   # recent in-proc errors
   curl -s localhost:8005/version            # git sha + build metadata

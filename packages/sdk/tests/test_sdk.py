@@ -173,3 +173,44 @@ def test_authenticate_applies_identity_token_to_every_service(monkeypatch):
         transport.bearer_token == "session-token"
         for transport in client._transports.values()
     )
+
+
+def test_local_client_rejects_remote_urls():
+    with pytest.raises(Exception) as caught:
+        AOEPClient(
+            AOEPConfig(
+                services=ServiceURLs(
+                    orchestrator="https://prod.example.com/orchestrator"
+                ),
+                require_local=True,
+            )
+        )
+    assert "local-only" in str(caught.value).lower() or "loopback" in str(
+        caught.value
+    ).lower()
+
+
+def test_aoep_client_local_factory_uses_localhost():
+    client = AOEPClient.local()
+    assert client.config.require_local is True
+    assert client.config.services.orchestrator.startswith("http://localhost")
+    assert client.config.admin_secret == ""
+    assert client.config.internal_token == ""
+
+
+def test_local_factory_forces_deploy_mode_local(monkeypatch):
+    import aoep_sdk.local as local_mod
+
+    captured = {}
+
+    def fake_load_config(env=None):
+        captured["env"] = dict(env or {})
+        return "config"
+
+    monkeypatch.setattr(local_mod, "load_config", fake_load_config)
+    monkeypatch.setattr(local_mod, "build_factory", lambda cfg: f"factory:{cfg}")
+
+    factory = local_mod.local_factory({"LLM_MODE": "local"})
+    assert factory == "factory:config"
+    assert captured["env"]["DEPLOY_MODE"] == "local"
+    assert captured["env"]["LLM_MODE"] == "local"
