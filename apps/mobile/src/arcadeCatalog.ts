@@ -65,6 +65,13 @@ export const ARCADE_SECTIONS: ArcadeSection[] = [
     subtitle: "What would you do? — compliance, safety, privacy drills.",
     games: [
       { id: "pro-scenarios", label: "What Would You Do?", emoji: "💼", path: "/arcade/pro-scenarios" },
+    id: "zoo-reef",
+    title: "Zoo & Reef",
+    subtitle: "Memorize animal and fish species — safari, reef journal, memory match.",
+    games: [
+      { id: "zoo-safari", label: "Zoo Safari", emoji: "🦁", path: "/arcade/zoo-safari" },
+      { id: "reef-quest", label: "Reef Quest", emoji: "🐠", path: "/arcade/reef-quest" },
+      { id: "species-match", label: "Species Match", emoji: "🃏", path: "/arcade/species-match" },
     ],
   },
   {

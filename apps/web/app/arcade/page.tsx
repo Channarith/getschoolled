@@ -236,6 +236,28 @@ export default function ArcadePage() {
         </div>
       )}
 
+      {/* Zoo & Reef — memorize animal and fish species. */}
+      {!round && (
+        <div className="card" style={{ background: "linear-gradient(135deg, rgba(180,83,9,0.18), rgba(8,145,178,0.14))" }}>
+          <h3 style={{ marginTop: 0 }}>🦁 Zoo & Reef</h3>
+          <p className="muted" style={{ marginTop: 0 }}>Memorize animal and fish species — build your field guide and reef journal.</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+            <Link href={`/arcade/zoo-safari?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#b45309", color: "#fff", fontWeight: 700 }}>
+              🦁 Zoo Safari
+            </Link>
+            <Link href={`/arcade/reef-quest?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#0891b2", color: "#fff", fontWeight: 700 }}>
+              🐠 Reef Quest
+            </Link>
+            <Link href={`/arcade/species-match?age=${ageGroup}`}
+              style={{ padding: "10px 16px", borderRadius: 10, background: "#059669", color: "#fff", fontWeight: 700 }}>
+              🃏 Species Match
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Featured graphics-engine games (2D canvas + 3D WebGL). */}
       {!round && (
         <>
