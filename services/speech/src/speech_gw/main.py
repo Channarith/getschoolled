@@ -421,6 +421,32 @@ def learn_media_challenge(language: str, study_size: int = 10, seed: int | None 
     return media_listening_challenge(language, study_size=study_size, seed=seed)
 
 
+@app.get("/learn/{language}/reading-story")
+def learn_reading_story(language: str) -> dict:
+    from aoep_shared.language_learning import reading_story
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return reading_story(language)
+
+
+class ExplainWordRequest(BaseModel):
+    language: str
+    word_id: str
+
+
+@app.post("/learn/explain-word")
+def learn_explain_word(req: ExplainWordRequest) -> dict:
+    from aoep_shared.language_learning import explain_story_word
+
+    if req.language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    result = explain_story_word(req.language, req.word_id)
+    if not result["found"]:
+        raise HTTPException(status_code=404, detail="word not found")
+    return result
+
+
 class ExerciseRequest(BaseModel):
     language: str
     skill: str = "vocabulary"
@@ -454,6 +480,8 @@ def learn_exercise(req: ExerciseRequest) -> dict:
         return {"skill": "grammar", "language": req.language, "tip": ll.grammar_tip(req.language)}
     if req.skill == "culture":
         return {"skill": "culture", "language": req.language, "note": ll.culture_note(req.language)}
+    if req.skill == "reading":
+        return ll.reading_story(req.language)
     if req.skill in ("conversation", "story"):
         return ll.dialogue_exercise(req.language, n=n)
     if req.skill in ("slang", "idioms"):

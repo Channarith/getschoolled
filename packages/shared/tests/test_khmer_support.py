@@ -13,8 +13,8 @@ from aoep_shared import catalog_i18n
 from aoep_shared.audio_courses import build_catalog, categories
 from aoep_shared.language_learning import (
     LANGUAGE_META, RICH_LANGUAGES, course_outline, dialogues_for,
-    media_listening_challenge, phrases_for, songs_for, vocabulary_exercise,
-    vocabulary_for,
+    explain_story_word, media_listening_challenge, phrases_for, reading_story,
+    songs_for, vocabulary_exercise, vocabulary_for,
 )
 from aoep_shared.slang import all_entries
 from aoep_shared.languages import SUPPORTED_LANGUAGES, is_supported
@@ -124,6 +124,29 @@ def test_khmer_media_challenge_studies_ten_then_quizzes_every_ten_seconds():
             word for word in words if word["id"] == segment["answer_id"]
         )
         assert answer["target"] in segment["tts_text"]
+
+
+def test_khmer_reader_has_three_pages_and_clickable_word_explanations():
+    story = reading_story("km")
+    assert story["page_count"] == 3
+    assert len(story["pages"]) == 3
+    assert [page["page_number"] for page in story["pages"]] == [1, 2, 3]
+    clickable = [
+        run
+        for page in story["pages"]
+        for run in page["runs"]
+        if run.get("word_id")
+    ]
+    assert len(clickable) >= 12
+    assert len({run["word_id"] for run in clickable}) >= 8
+    assert all(page["translation_en"] for page in story["pages"])
+
+    help_card = explain_story_word("km", clickable[0]["word_id"])
+    assert help_card["found"]
+    assert help_card["target"] and help_card["meaning"]
+    assert help_card["explanation"] and help_card["pronunciation_tip"]
+    assert help_card["examples"]
+    assert all(example["target"] and example["en"] for example in help_card["examples"])
 
 
 def test_khmer_course_outline_carries_grammar_and_culture():
