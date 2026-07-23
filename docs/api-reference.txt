@@ -37,6 +37,34 @@ from the browser through the ingress (infra/k8s/ingress.yaml).
 The Next.js web app (apps/web) is the browser client; it resolves each service
 base URL from NEXT_PUBLIC_*_URL or the page origin (apps/web/app/lib/api.ts).
 
+0.1 Python SDK (safe extension surface)
+---------------------------------------
+Other developers should extend AOEP through packages/sdk rather than forking
+service internals. See docs/sdk-developers.txt for the full safe-environment
+guide (local-only mode, content packs, in-process APIs).
+
+  pip install -e packages/shared
+  pip install -e 'packages/sdk[test]'
+
+  from aoep_sdk import AOEPClient
+
+  aoep = AOEPClient.local()  # localhost only; refuses remote URLs + admin tokens
+  lessons = aoep.orchestrator.list_lessons(language="en")
+  session = aoep.orchestrator.start_session(lessons[0]["lesson_id"], class_type="solo")
+
+AOEPClient() / AOEPConfig.from_env() still read AOEP_*_URL and token env vars for
+staging or ingress deployments. Set AOEP_REQUIRE_LOCAL=1 (or use
+AOEPClient.local()) while prototyping so a misconfigured AOEP_BASE_URL cannot
+reach off-machine services. AOEP_BEARER_TOKEN supplies a user session,
+AOEP_INTERNAL_TOKEN supplies cross-service access, and AOEP_ADMIN_SECRET
+supplies admin access — prefer aoep.authenticate(email, password) for
+user-scoped work.
+
+Import aoep_sdk.inprocess to embed provider factories (local_factory()), RAG,
+adaptive learning, teaching, and content_packs. Heavier harvest / homework /
+meeting / training-agent surfaces stay on aoep_shared (install matching extras
+when needed).
+
 ============================================================================
 1. CONVENTIONS (apply to EVERY service)
 ============================================================================
