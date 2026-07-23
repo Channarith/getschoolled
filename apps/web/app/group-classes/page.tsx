@@ -280,40 +280,7 @@ export default function GroupClassesPage() {
 
   return (
     <main className="container page-one group-page">
-      {/* Hero: Host a Class CTA */}
-      <div style={{
-        background: "linear-gradient(135deg,#1e293b 0%,#0f172a 100%)",
-        borderRadius: 16,
-        padding: "28px 32px",
-        marginBottom: 24,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 20,
-        flexWrap: "wrap",
-      }}>
-        <div>
-          <h1 style={{ margin: 0, color: "#fff", fontSize: 26 }}>🎓 Host a Class</h1>
-          <p style={{ margin: "6px 0 0", color: "#94a3b8", fontSize: 14, lineHeight: 1.5 }}>
-            You are the teacher. Schedule your class, upload your slides, and your students join and pay.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm((s) => !s)}
-          style={{
-            background: showForm ? "rgba(255,255,255,0.1)" : "#6366f1",
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            padding: "10px 22px",
-            fontWeight: 700,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {showForm ? "▲ Hide form" : "🎓 Host a Class"}
-        </button>
-      </div>
+      <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 20 }}>Group Class</h1>
 
       {!loggedIn && <SignInToUse />}
 
@@ -342,7 +309,7 @@ export default function GroupClassesPage() {
         </button>
       </div>
 
-      {activeTab === "teach" && showForm && (
+      {activeTab === "teach" && (
         <div className="card group-schedule-panel">
           <h3 style={{ marginTop: 0 }}>Schedule your class</h3>
 
@@ -488,6 +455,59 @@ export default function GroupClassesPage() {
                 style={{ background: sessionType === "private" ? "#059669" : "#111", color: "#fff", borderRadius: 10, padding: "12px 28px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
                 {sessionType === "private" ? "📅 Schedule Private Lesson" : t("group.scheduleSubmit")}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student: request a custom class slot */}
+      {activeTab === "join" && (
+        <div className="card" style={{ marginBottom: 20, background: "linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%)", border: "1px solid #bae6fd" }}>
+          <h3 style={{ marginTop: 0, color: "#0369a1" }}>📅 Schedule a Class for Your Group</h3>
+          <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
+            Don't see a time that works? Create your own session — pick a topic, set a time, and share the link with your group. AI teaches.
+          </p>
+          <div style={{ display: "grid", gap: 10 }}>
+            <label>
+              <div className="muted">Topic / Lesson</div>
+              <select style={{ width: "100%" }} value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
+                {lessons.map((l) => (
+                  <option key={l.lesson_id} value={l.lesson_id}>{l.title}</option>
+                ))}
+              </select>
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label>
+                <div className="muted">Date &amp; time</div>
+                <input type="datetime-local" style={{ width: "100%" }} value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)} />
+              </label>
+              <label>
+                <div className="muted">Duration (minutes)</div>
+                <select style={{ width: "100%" }} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
+                  <option value={30}>30 min</option>
+                  <option value={60}>60 min</option>
+                  <option value={90}>90 min</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <div className="muted">Expected students (including you)</div>
+              <select style={{ width: "100%" }} value={roomSize} onChange={(e) => { setRoomSize(Number(e.target.value)); setCapacity(Number(e.target.value) - 1); }}>
+                <option value={2}>Just me (solo)</option>
+                <option value={4}>Me + 3 friends (4 total)</option>
+                <option value={6}>Me + 5 friends (6 total)</option>
+                <option value={9}>Me + 8 friends (9 total)</option>
+              </select>
+            </label>
+            <div className="row">
+              <button onClick={onSchedule} disabled={busy || !lessonId}
+                style={{ background: "#0369a1", color: "#fff", borderRadius: 10, padding: "11px 24px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
+                {busy ? "Creating…" : "📅 Create My Group Session"}
+              </button>
+            </div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              After creating, you'll get a join link to share with your group. The AI teacher will be waiting.
             </div>
           </div>
         </div>

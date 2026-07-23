@@ -11,6 +11,7 @@ import MaintenanceBanner from "./components/MaintenanceBanner";
 import ClientLogInit from "./components/ClientLogInit";
 import FloatingBugReporter from "./components/FloatingBugReporter";
 import FloatingSalesDemo from "./components/FloatingSalesDemo";
+import PresenceHeartbeat from "./components/PresenceHeartbeat";
 import { LocaleProvider } from "./lib/i18n";
 import { FlagsProvider } from "./lib/flags";
 
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SiteFooter />
             <FloatingSalesDemo />
             <FloatingBugReporter />
+            <PresenceHeartbeat />
           </FlagsProvider>
         </LocaleProvider>
       </body>

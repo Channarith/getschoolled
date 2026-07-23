@@ -1338,3 +1338,85 @@ def portfolio(acct=Depends(current_account)) -> dict:
         "by_status": by_status,
         "counts": {k: len(v) for k, v in by_status.items()},
     }
+
+
+# ── Platform presence / active-user tracking ────────────────────────────────
+# Each authenticated request should call POST /presence/ping to record the
+# user's current activity. The admin dashboard reads GET /admin/presence to
+# see concurrent users, platform split, and what they're doing.
+
+_PRESENCE_KEY   = "identity:presence:users"       # Redis Hash: account_id → JSON
+_PRESENCE_TTL   = 300                              # seconds — 5-minute inactivity window
+
+
+class PresencePingRequest(BaseModel):
+    platform: str = "web"    # web | mobile | sdk
+    page: str = ""           # e.g. "/arcade", "/class", "live-room"
+    activity: str = "browsing"  # browsing | lesson | live-class | game | language | drive-mode
+
+
+@app.post("/presence/ping")
+def presence_ping(req: PresencePingRequest, acct=Depends(current_account)) -> dict:
+    """Record the caller as active. Front-end should call this every ~60 s."""
+    from .persistence import _redis_client
+    import json as _json
+
+    payload = {
+        "account_id": acct.id,
+        "display_name": acct.display_name or acct.email.split("@")[0],
+        "tier": acct.tier.value if acct.tier else "free",
+        "platform": req.platform,
+        "page": req.page,
+        "activity": req.activity,
+        "seen_at": int(_time.time()),
+    }
+    r = _redis_client()
+    if r:
+        try:
+            r.hset(_PRESENCE_KEY, acct.id, _json.dumps(payload))
+            r.expire(_PRESENCE_KEY, _PRESENCE_TTL + 60)
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+@app.get("/admin/presence")
+def admin_presence(_acct=Depends(require_admin_account)) -> dict:
+    """Return currently active users (seen within the last 5 minutes)."""
+    from .persistence import _redis_client
+    import json as _json
+
+    r = _redis_client()
+    now = int(_time.time())
+    cutoff = now - _PRESENCE_TTL
+    users: list[dict] = []
+
+    if r:
+        try:
+            raw = r.hgetall(_PRESENCE_KEY)
+            for uid, val in raw.items():
+                try:
+                    entry = _json.loads(val)
+                    if entry.get("seen_at", 0) >= cutoff:
+                        users.append(entry)
+                    else:
+                        r.hdel(_PRESENCE_KEY, uid)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # Aggregate stats
+    by_platform: dict[str, int] = {}
+    by_activity: dict[str, int] = {}
+    for u in users:
+        by_platform[u.get("platform", "web")] = by_platform.get(u.get("platform", "web"), 0) + 1
+        by_activity[u.get("activity", "browsing")] = by_activity.get(u.get("activity", "browsing"), 0) + 1
+
+    return {
+        "active_count": len(users),
+        "by_platform": by_platform,
+        "by_activity": by_activity,
+        "users": sorted(users, key=lambda u: -u.get("seen_at", 0))[:200],
+        "window_seconds": _PRESENCE_TTL,
+    }
