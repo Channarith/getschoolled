@@ -115,6 +115,34 @@ export const NPC_DIALOGUES: Record<string, NPCDialogue> = {
     secret: "The rings of this planet are made of crushed crystal from a forgotten civilization.",
     questId: 'q_cosmic_voyager',
   },
+  tara: {
+    npcId: 'tara',
+    name: 'Tara',
+    type: 'sage',
+    color: 0x4caf50,
+    planet: 'earth',
+    lines: [
+      "Hello traveller! I am Tara, keeper of the forest.",
+      "The ancient trees here hold many secrets.",
+      "Answer my question and I'll share one with you!",
+    ],
+    secret: "The tallest tree on Earth is a Redwood named Hyperion. It stands over 380 feet tall.",
+    questId: 'q_explorer',
+  },
+  elder: {
+    npcId: 'elder',
+    name: 'Village Elder',
+    type: 'wizard',
+    color: 0x8d6e63,
+    planet: 'earth',
+    lines: [
+      "Ah, a young adventurer! I am the Village Elder.",
+      "I have lived here for many seasons.",
+      "Let me test your knowledge before you continue!",
+    ],
+    secret: "The capital of Japan is Tokyo — a city of over 13 million people.",
+    questId: 'q_gatherer',
+  },
 };
 
 // ─── Quests ───────────────────────────────────────────────────────────────────

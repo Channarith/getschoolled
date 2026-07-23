@@ -319,6 +319,7 @@ export class CombatSystem {
       if (dn.age >= dn.lifetime) {
         this.scene.remove(dn.mesh);
         dn.mesh.geometry.dispose();
+        (dn.mesh.material as THREE.Material).dispose();
         return false;
       }
       return true;
@@ -330,6 +331,7 @@ export class CombatSystem {
       if (proj.age > 3.0) {
         this.scene.remove(proj.mesh);
         proj.mesh.geometry.dispose();
+        (proj.mesh.material as THREE.Material).dispose();
         return false;
       }
       proj.mesh.position.addScaledVector(proj.velocity, dt);
@@ -359,7 +361,7 @@ export class CombatSystem {
     const maxR = 5.0;
     const dur = 0.6;
 
-    const animate = (dt: number) => {
+    const animate = (dt: number): boolean => {
       age += dt;
       const t = age / dur;
       const scale = t * maxR / 0.1;
@@ -368,21 +370,21 @@ export class CombatSystem {
       if (age >= dur) {
         this.scene.remove(ring);
         ring.geometry.dispose();
+        (ring.material as THREE.Material).dispose();
+        return false;
       }
+      return true;
     };
 
     // We add it to a temporary list that WorldGame iterates
     this._shockwaveAnimators.push(animate);
   }
 
-  private _shockwaveAnimators: Array<(dt: number) => void> = [];
+  private _shockwaveAnimators: Array<(dt: number) => boolean> = [];
 
   /** Call from WorldGame to drain one frame of shockwave animations */
   tickShockwaves(dt: number): void {
-    this._shockwaveAnimators = this._shockwaveAnimators.filter(fn => {
-      fn(dt);
-      return true; // fn removes itself from scene; we lazily clear list
-    });
+    this._shockwaveAnimators = this._shockwaveAnimators.filter(fn => fn(dt));
   }
 
   dispose(): void {
@@ -393,11 +395,14 @@ export class CombatSystem {
     for (const dn of this.damageNumbers) {
       this.scene.remove(dn.mesh);
       dn.mesh.geometry.dispose();
+      (dn.mesh.material as THREE.Material).dispose();
     }
     for (const proj of this._projectiles) {
       this.scene.remove(proj.mesh);
       proj.mesh.geometry.dispose();
+      (proj.mesh.material as THREE.Material).dispose();
     }
+    this._dmgGeo.dispose();
     this.hitEffects = [];
     this.damageNumbers = [];
     this._projectiles = [];

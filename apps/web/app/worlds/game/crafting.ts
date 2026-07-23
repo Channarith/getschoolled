@@ -264,10 +264,22 @@ export class CraftingSystem {
   }
 
   // ─────────────────────────────────────────────
+  // clearPickups
+  // ─────────────────────────────────────────────
+
+  clearPickups(): void {
+    for (const pickup of this.pickups.values()) {
+      this.scene.remove(pickup.mesh);
+    }
+    this.pickups.clear();
+  }
+
+  // ─────────────────────────────────────────────
   // spawnResourcePickups
   // ─────────────────────────────────────────────
 
   spawnResourcePickups(): void {
+    this.clearPickups();
     const half = this.worldSize / 2;
 
     // ── 40 regular resource pickups ──────────────────────────────────────

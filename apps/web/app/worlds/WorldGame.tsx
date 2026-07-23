@@ -130,6 +130,7 @@ export default function WorldGame() {
 
   // ── React State ─────────────────────────────────────────────
   const [gameStarted, setGameStarted] = useState(false);
+  const [webglError, setWebglError] = useState<string | null>(null);
 
   // Player stats
   const [hp, setHp] = useState(100);
@@ -172,6 +173,7 @@ export default function WorldGame() {
   const activeWeaponRef = useRef<WeaponType>("fists");
   const craftingSystemRef = useRef<CraftingSystem | null>(null);
   const buildingSystemRef = useRef<BuildingSystem | null>(null);
+  const invLocalRef = useRef<Partial<Record<ItemType, number>>>(makeInitialInventory());
 
   activeQRef.current = activeQ;
   answeredRef.current = answered;
@@ -223,9 +225,9 @@ export default function WorldGame() {
   const handleCraft = useCallback((recipeId: string) => {
     const cs = craftingSystemRef.current;
     if (!cs) return;
-    const result = cs.craft(inventoryRef.current, recipeId);
+    const result = cs.craft(invLocalRef.current, recipeId);
     if (result.success && result.result) {
-      setInventory({ ...inventoryRef.current });
+      setInventory({ ...invLocalRef.current });
       // Give XP for crafting
       setXp(p => p + 5);
       setFeedback({ text: `Crafted ${result.result?.replace(/_/g, " ")} x${result.qty}!`, ok: true });
@@ -237,7 +239,7 @@ export default function WorldGame() {
   // USE HEALTH POTION
   // ─────────────────────────────────────────────────────────────
   const handleUseHealthPotion = useCallback(() => {
-    const inv = inventoryRef.current;
+    const inv = invLocalRef.current;
     if ((inv.health_potion ?? 0) <= 0) return;
     inv.health_potion -= 1;
     setInventory({ ...inv });
@@ -256,7 +258,13 @@ export default function WorldGame() {
     let currentPlanet: Planet = "earth";
 
     // ── Renderer ──────────────────────────────────────────────
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    } catch (e) {
+      setWebglError('WebGL is not supported on this device.');
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(canvas.clientWidth, canvas.clientHeight);
     renderer.shadowMap.enabled = true;
@@ -361,7 +369,10 @@ export default function WorldGame() {
     const treeObjects: THREE.Object3D[] = [];
 
     function spawnTrees(hmapData: number[][]): void {
-      for (const obj of treeObjects) scene.remove(obj);
+      for (const obj of treeObjects) {
+        scene.remove(obj);
+        if (obj instanceof THREE.Mesh) obj.geometry.dispose();
+      }
       treeObjects.length = 0;
       for (let i = 0; i < 90; i++) {
         const tx = Math.round((Math.sin(i * 137.508) * 0.5 + 0.5) * (WORLD_SIZE - 8)) - HALF + 4;
@@ -460,7 +471,7 @@ export default function WorldGame() {
     let playerGems = 0;
     let playerStreak = 0;
     let currentZone = "Starter Village";
-    let invLocal = makeInitialInventory();
+    const invLocal = invLocalRef.current;
     let theoTipIdx = 0;
     let lastTheoFlip = 0;
     let gameTime = 0;
@@ -563,7 +574,7 @@ export default function WorldGame() {
           const hasKey = invLocal.portal_key > 0;
           const hasStars = invLocal.star_crystal >= 3;
           if (hasKey || hasStars) {
-            triggerPlanetSwitch();
+            triggerPlanetSwitch().catch(err => console.error('Planet switch failed:', err));
           }
           return;
         }
@@ -1041,6 +1052,18 @@ export default function WorldGame() {
   // ─────────────────────────────────────────────────────────────
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", overflow: "hidden" }}>
+      {/* WebGL error */}
+      {webglError && (
+        <div style={{
+          position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", background: "#000", color: "#f87171",
+          fontSize: 18, gap: 12, padding: 32, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 48 }}>⚠️</div>
+          <div>{webglError}</div>
+          <div style={{ color: "#94a3b8", fontSize: 14 }}>Try a different browser or device.</div>
+        </div>
+      )}
       {/* Three.js canvas */}
       <canvas
         ref={canvasRef}
