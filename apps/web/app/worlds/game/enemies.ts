@@ -484,7 +484,6 @@ export class EnemyManager {
 
     for (const enemy of this.enemies) {
       if (enemy.state === 'dead') continue;
-
       const cfg     = ENEMY_CONFIGS[enemy.type] as any;
       const runtime = RUNTIME[enemy.type];
       const speed: number  = cfg.speed ?? 3;

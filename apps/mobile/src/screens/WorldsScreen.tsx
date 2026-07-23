@@ -81,7 +81,7 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         onMessage={handleMessage}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
-        onError={e => setError(e.nativeEvent.description)}
+        onError={(e) => setError(e.nativeEvent.description)}
         javaScriptEnabled
         domStorageEnabled
         allowsFullscreenVideo
