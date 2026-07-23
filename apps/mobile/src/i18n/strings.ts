@@ -25,7 +25,7 @@ export type StringKey =
   // Cards / meta
   | "meta.min" | "meta.segments" | "meta.audio"
   | "meta.segmentOf" | "meta.classes"
-  // Drive Mode
+  // On the Go
   | "drive.title" | "drive.subtitle"
   | "drive.search" | "drive.all" | "drive.back"
   | "drive.hint" | "drive.drivingBadge"
@@ -36,6 +36,12 @@ export type StringKey =
   | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
   | "drive.voiceNoInput" | "drive.wakeNotDetected" | "drive.heardWakeOnly"
   | "drive.trainingLang"
+  | "drive.setupTitle" | "drive.setupSafety" | "drive.setupRecognitionReady"
+  | "drive.setupRecognitionMissing" | "drive.setupPermissionReady"
+  | "drive.setupPermissionNeeded" | "drive.setupWakeNotice"
+  | "drive.setupSiriSteps" | "drive.setupGoogleSteps" | "drive.setupChecking"
+  | "drive.setupEnable" | "drive.setupContinue" | "drive.setupSettings"
+  | "drive.setupGuide" | "drive.setupButton"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -182,7 +188,7 @@ const EN: Record<StringKey, string> = {
 
   "home.kicker": "AI CLASSROOM",
   "home.hero": "Thousands of classes. One AI campus.",
-  "home.subDefault": "Tap any class to start hands-free in Drive Mode.",
+  "home.subDefault": "Tap any class to start hands-free in On the Go.",
   "home.subStreak": "🔥 {days}-day streak — keep it alive with one quick class.",
   "home.error": "Couldn't reach the catalog ({error}). Pull to retry.",
   "home.navArcade": "Arcade",
@@ -336,15 +342,15 @@ const EN: Record<StringKey, string> = {
   "drive.back": "← Back",
   "drive.hint": "Keep your eyes on the road — this plays hands-free.",
   "drive.drivingBadge": "Driving detected",
-  "drive.assistantWake": "Tap Ask, then say “Hey Sala” ({engine})",
-  "drive.assistantEngineHint": "Uses your phone’s speech engine (Siri on iPhone, Google on Android) in your app language.",
+  "drive.assistantWake": "Hands-free: say “Hey Sala” or ask a question ({engine})",
+  "drive.assistantEngineHint": "Mobile microphone active while this screen is open. Your phone does not let apps verify its separate Hey Siri/Google setting.",
   "drive.ask": "Ask",
   "drive.listening": "Listening…",
   "drive.pauseAsk": "Pause + Ask",
   "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",
   "drive.trainingLang": "Lesson language",
   "drive.openGoogle": "Google voice",
-  "drive.assistantTitle": "Sala Drive Assistant",
+  "drive.assistantTitle": "Sala On the Go Assistant",
   "drive.mic": "Mic",
   "drive.resume": "Resume",
   "drive.stayPaused": "Stay paused",
@@ -356,6 +362,21 @@ const EN: Record<StringKey, string> = {
   "drive.voiceNoInput": "I did not catch that. Say Hey Sala, then ask again.",
   "drive.wakeNotDetected": "Wake word not detected. Say Hey Sala or Salareen before your question.",
   "drive.heardWakeOnly": "I heard you. Ask a question, or say pause, resume, next, or previous.",
+  "drive.setupTitle": "On the Go voice setup",
+  "drive.setupSafety": "Set this up before driving. On the Go will not start until mobile speech recognition is ready.",
+  "drive.setupRecognitionReady": "{engine} device speech recognition is available.",
+  "drive.setupRecognitionMissing": "{engine} speech recognition is not available on this device build.",
+  "drive.setupPermissionReady": "Microphone and speech recognition access are ready.",
+  "drive.setupPermissionNeeded": "Microphone and speech recognition access must be enabled.",
+  "drive.setupWakeNotice": "For privacy, apps cannot read whether “Hey {engine}” is enabled. Salareen uses the phone’s speech recognizer directly while On the Go is open; verify the separate wake-assistant setting below.",
+  "drive.setupSiriSteps": "iPhone: open Settings → Siri (or Apple Intelligence & Siri) → Talk to Siri → enable “Hey Siri.” Also allow Microphone and Speech Recognition for Salareen.",
+  "drive.setupGoogleSteps": "Android: open Google app → profile → Settings → Google Assistant → Hey Google & Voice Match → enable Hey Google. Also allow Microphone for Salareen.",
+  "drive.setupChecking": "Checking voice readiness…",
+  "drive.setupEnable": "Enable microphone & start",
+  "drive.setupContinue": "Continue On the Go",
+  "drive.setupSettings": "Open phone voice settings",
+  "drive.setupGuide": "How to enable Hey {engine}",
+  "drive.setupButton": "Voice setup",
 
   "mylist.title": "★ My List",
   "mylist.sub": "Saved for later. Auto-syncs on this device.",
@@ -418,13 +439,13 @@ const EN: Record<StringKey, string> = {
   "settings.backendUrls": "Backend: curriculum {curriculum} · identity {identity}",
 
   "settings.sectionVoice": "VOICE & ACCENT",
-  "settings.voiceDesc": "Accent and neural voice for all spoken courses — Drive Mode, live classes, and lessons. Matches the Drive audio picker.",
+  "settings.voiceDesc": "Accent and neural voice for all spoken courses — On the Go, live classes, and lessons. Matches the On the Go audio picker.",
   "settings.voiceDefault": "Default",
   "settings.sectionInstructor": "INSTRUCTOR PERSONALITY",
   "settings.instructorDesc": "How the teacher sounds and delivers — kind, strict, kid-friendly, and more. Used everywhere audio plays.",
   "settings.instructorAuto": "Auto (profile)",
   "settings.sectionTrainingLang": "LESSON LANGUAGE",
-  "settings.trainingLangDesc": "Spoken lesson text and audio for Drive Mode. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
+  "settings.trainingLangDesc": "Spoken lesson text and audio for On the Go. Fully authored in English, Spanish, and Chinese; other languages narrate in the closest available voice.",
 
   "settings.driveStatus": "Status: {status}",
   "settings.driveStatusDriving": "Driving",
@@ -436,7 +457,7 @@ const EN: Record<StringKey, string> = {
   "settings.driveLocationDesc": "Required for reliable driving detection.",
   "settings.driveMotion": "Use motion sensors (gyro)",
   "settings.driveMotionDesc": "Augments GPS with accelerometer/gyroscope data.",
-  "settings.driveAutoLaunch": "Open Drive Mode when driving",
+  "settings.driveAutoLaunch": "Open On the Go when driving",
   "settings.driveAutoLaunchDesc": "Resume your last class or open the Drive tab automatically.",
   "settings.driveAlerts": "Driving alerts",
   "settings.driveAlertsDesc": "Notify when driving is detected so you can go hands-free.",
@@ -482,7 +503,7 @@ const EN: Record<StringKey, string> = {
   "intro.skip": "Tap to skip",
 
   "driving.bannerTitle": "Driving detected",
-  "driving.bannerBody": "Hands-free Drive Mode is ready — tap to continue your class.",
+  "driving.bannerBody": "Hands-free On the Go is ready — tap to continue your class.",
 
   "auth.email": "Email",
   "auth.password": "Password",
@@ -494,7 +515,7 @@ const EN: Record<StringKey, string> = {
   "auth.createAccount": "New here? Create an account",
   "auth.haveAccount": "Already have an account? Sign in",
   "auth.welcomeTitle": "Sign in to continue",
-  "auth.welcomeSubtitle": "Sign in once to access classes, Drive Mode, careers, and your learning profile. Your session is saved on this device.",
+  "auth.welcomeSubtitle": "Sign in once to access classes, On the Go, careers, and your learning profile. Your session is saved on this device.",
   "auth.checkingSession": "Checking your session…",
   "auth.checkingBackend": "Checking connection…",
   "auth.qaHint": "QA test accounts (dev)",

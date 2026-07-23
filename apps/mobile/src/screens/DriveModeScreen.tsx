@@ -21,10 +21,11 @@ import {
   normalizeTrainingLocale, type TrainingLocale,
 } from "../trainingLocale";
 import {
-  getVoiceEngineDetails, hasWakeWord, openPlatformVoiceAssistant,
+  checkHandsFreeReadiness, getVoiceEngineDetails, hasWakeWord,
+  openHandsFreeSettings, openPlatformVoiceAssistant, openWakeAssistantSetupGuide,
   startVoiceListening, stopVoiceListening, stripWakeWords,
   startAmbientListening, stopAmbientListening, isQuestion, isLikelyEcho,
-  type VoiceEngineLabel,
+  type HandsFreeReadiness, type VoiceEngineLabel,
 } from "../voiceAssistant";
 import {
   resolveEffectiveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle,
@@ -51,6 +52,9 @@ export default function DriveModeScreen({
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
   const [voiceEngine, setVoiceEngine] = useState<VoiceEngineLabel>("System");
+  const [voiceSetupOpen, setVoiceSetupOpen] = useState(false);
+  const [voiceSetupChecking, setVoiceSetupChecking] = useState(true);
+  const [voiceReadiness, setVoiceReadiness] = useState<HandsFreeReadiness | null>(null);
   const [rate, setRate] = useState(1);
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const rateRef = useRef(rate);
@@ -72,6 +76,7 @@ export default function DriveModeScreen({
   // utterance's onDone can't re-speak the next segment (which made audio keep
   // playing after Stop / leaving the screen).
   const playGenRef = useRef(0);
+  const setupStartedRef = useRef(false);
 
   function stopSpeech() {
     playGenRef.current++;
@@ -117,7 +122,10 @@ export default function DriveModeScreen({
       const tloc = normalizeTrainingLocale(s.trainingLocale || locale);
       setTrainingLang(tloc);
       getAudioCourse(courseId, locale, tloc)
-        .then((c) => { setCourse(c); playFrom(c, 0, tloc); void startAmbient(); })
+        .then((c) => {
+          setCourse(c);
+          void prepareHandsFree(c, tloc);
+        })
         .catch(() => {});
     });
     void getMyList().then((ids) => setSaved(ids.includes(courseId)));
@@ -129,6 +137,35 @@ export default function DriveModeScreen({
       clearResumeTimer();
     };
   }, [courseId, locale]);
+
+  async function prepareHandsFree(c: AudioCourse, tloc: TrainingLocale) {
+    if (setupStartedRef.current) return;
+    setupStartedRef.current = true;
+    setVoiceSetupChecking(true);
+    const readiness = await checkHandsFreeReadiness(true);
+    setVoiceReadiness(readiness);
+    setVoiceEngine(readiness.engine);
+    setVoiceSetupChecking(false);
+    if (!readiness.available || !readiness.permissionGranted) {
+      setupStartedRef.current = false;
+      setVoiceSetupOpen(true);
+      setAssistantStatus(
+        readiness.available
+          ? t("drive.voicePermissionDenied", { engine: readiness.engine })
+          : t("drive.voiceUnavailable", { engine: readiness.engine }),
+      );
+      return;
+    }
+    setVoiceSetupOpen(false);
+    const listeningStarted = await startAmbient();
+    if (!listeningStarted) {
+      setupStartedRef.current = false;
+      setVoiceSetupOpen(true);
+      setAssistantStatus(t("drive.voiceUnavailable", { engine: readiness.engine }));
+      return;
+    }
+    playFrom(c, 0, tloc);
+  }
 
   function playFrom(c: AudioCourse, i: number, tloc: TrainingLocale = trainingLang) {
     clearResumeTimer();
@@ -228,8 +265,8 @@ export default function DriveModeScreen({
     handleAssistantQuestion(raw);
   }
 
-  async function startAmbient() {
-    if (!autoListenRef.current) return;
+  async function startAmbient(): Promise<boolean> {
+    if (!autoListenRef.current) return false;
     const ok = await startAmbientListening({
       locale,
       onResult: (text) => handleAmbientResult(text),
@@ -242,6 +279,7 @@ export default function DriveModeScreen({
       },
     });
     setListening(ok);
+    return ok;
   }
 
   function stopAmbient() {
@@ -503,9 +541,95 @@ export default function DriveModeScreen({
               <Text style={styles.assistantBtnGhostText}>{t("drive.openGoogle")}</Text>
             </AnimatedPressable>
           ) : null}
+          <AnimatedPressable
+            style={[styles.assistantBtn, styles.assistantBtnGhost]}
+            onPress={() => setVoiceSetupOpen(true)}
+          >
+            <Ionicons name="settings-outline" size={16} color={theme.colors.text} />
+            <Text style={styles.assistantBtnGhostText}>{t("drive.setupButton")}</Text>
+          </AnimatedPressable>
         </View>
       </GlassPanel>
       <Text style={styles.hint}>{t("drive.hint")}</Text>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={voiceSetupOpen}
+        onRequestClose={onBack}
+      >
+        <View style={styles.modalScrim}>
+          <GlassPanel style={styles.assistantCard} padded={false}>
+            <ScrollView contentContainerStyle={{ padding: 18 }}>
+              <Text style={styles.assistantTitle}>{t("drive.setupTitle")}</Text>
+              <Text style={styles.setupSafety}>{t("drive.setupSafety")}</Text>
+              <View style={styles.setupStatus}>
+                <Ionicons
+                  name={voiceReadiness?.available ? "checkmark-circle" : "alert-circle"}
+                  size={20}
+                  color={voiceReadiness?.available ? theme.colors.success : theme.colors.netflix}
+                />
+                <Text style={styles.assistantStatus}>
+                  {voiceReadiness?.available
+                    ? t("drive.setupRecognitionReady", { engine: voiceReadiness.engine })
+                    : t("drive.setupRecognitionMissing", { engine: voiceEngine })}
+                </Text>
+              </View>
+              <View style={styles.setupStatus}>
+                <Ionicons
+                  name={voiceReadiness?.permissionGranted ? "checkmark-circle" : "mic-off"}
+                  size={20}
+                  color={voiceReadiness?.permissionGranted ? theme.colors.success : theme.colors.gold}
+                />
+                <Text style={styles.assistantStatus}>
+                  {voiceReadiness?.permissionGranted
+                    ? t("drive.setupPermissionReady")
+                    : t("drive.setupPermissionNeeded")}
+                </Text>
+              </View>
+              <Text style={styles.setupNotice}>
+                {t("drive.setupWakeNotice", { engine: voiceEngine })}
+              </Text>
+              <Text style={styles.setupSteps}>
+                {voiceEngine === "Siri"
+                  ? t("drive.setupSiriSteps")
+                  : t("drive.setupGoogleSteps")}
+              </Text>
+              <View style={styles.modalActions}>
+                {voiceReadiness?.available && voiceReadiness.permissionGranted ? (
+                  <PrimaryButton
+                    label={t("drive.setupContinue")}
+                    onPress={() => setVoiceSetupOpen(false)}
+                    variant="brand"
+                  />
+                ) : (
+                  <PrimaryButton
+                    label={voiceSetupChecking ? t("drive.setupChecking") : t("drive.setupEnable")}
+                    disabled={voiceSetupChecking}
+                    onPress={() => {
+                      if (!course) return;
+                      setupStartedRef.current = false;
+                      void prepareHandsFree(course, trainingLang);
+                    }}
+                    variant="brand"
+                  />
+                )}
+                <PrimaryButton
+                  label={t("drive.setupSettings")}
+                  onPress={() => void openHandsFreeSettings()}
+                  variant="ghost"
+                />
+                <PrimaryButton
+                  label={t("drive.setupGuide", { engine: voiceEngine })}
+                  onPress={() => void openWakeAssistantSetupGuide()}
+                  variant="ghost"
+                />
+                <PrimaryButton label={t("drive.back")} onPress={onBack} variant="ghost" />
+              </View>
+            </ScrollView>
+          </GlassPanel>
+        </View>
+      </Modal>
 
       <Modal animationType="slide" transparent visible={assistantOpen} onRequestClose={() => setAssistantOpen(false)}>
         <View style={styles.modalScrim}>
@@ -654,6 +778,13 @@ const styles = StyleSheet.create({
   assistantCard: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   assistantTitle: { color: theme.colors.text, fontSize: 22, fontWeight: "900" },
   assistantStatus: { color: theme.colors.muted, marginTop: 4 },
+  setupSafety: {
+    color: theme.colors.text, fontSize: 15, lineHeight: 21, marginTop: 10,
+    fontWeight: "700",
+  },
+  setupStatus: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
+  setupNotice: { color: theme.colors.gold, lineHeight: 20, marginTop: 14 },
+  setupSteps: { color: theme.colors.text, lineHeight: 20, marginTop: 10 },
   transcript: { color: theme.colors.accent, marginTop: 12 },
   answer: { color: theme.colors.text, fontSize: 15, lineHeight: 21, marginTop: 10 },
   askInput: {

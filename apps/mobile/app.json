@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.29.4",
+    "version": "0.29.5",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -29,14 +29,14 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Detect when you are driving so Salareen can offer hands-free Drive Mode."
+          "locationWhenInUsePermission": "Detect when you are driving so Salareen can offer hands-free On the Go lessons."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Salareen uses the microphone for Drive Mode voice questions (Hey Sala assistant).",
-          "speechRecognitionPermission": "Salareen uses speech recognition so you can ask questions hands-free in Drive Mode.",
+          "microphonePermission": "Salareen uses the microphone for hands-free On the Go voice questions (Hey Sala assistant).",
+          "speechRecognitionPermission": "Salareen uses mobile speech recognition so you can ask questions hands-free in On the Go.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox",
             "com.google.android.tts"
@@ -58,16 +58,16 @@
           "audio",
           "remote-notification"
         ],
-        "NSMicrophoneUsageDescription": "Salareen uses the microphone for live class audio and Drive Mode voice questions.",
+        "NSMicrophoneUsageDescription": "Salareen uses the microphone for live class audio and hands-free On the Go voice questions.",
         "NSCameraUsageDescription": "Salareen uses your camera for live class video when you turn your webcam on.",
-        "NSSpeechRecognitionUsageDescription": "Salareen uses speech recognition so you can ask questions hands-free in Drive Mode.",
-        "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free Drive Mode.",
-        "NSMotionUsageDescription": "Use device motion to improve driving detection while Drive Mode is enabled.",
+        "NSSpeechRecognitionUsageDescription": "Salareen uses mobile speech recognition so you can ask questions hands-free in On the Go.",
+        "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free On the Go lessons.",
+        "NSMotionUsageDescription": "Use device motion to improve driving detection while On the Go is enabled.",
         "NSPhotoLibraryUsageDescription": "Attach screenshots when you report a bug, or pick a profile image in class activities.",
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.29.4"
+      "buildNumber": "0.29.5"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -85,7 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 2904
+      "versionCode": 2905
     },
     "extra": {
       "deployMode": "cloud",

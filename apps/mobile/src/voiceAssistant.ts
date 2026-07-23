@@ -172,6 +172,68 @@ export async function getVoiceEngineDetails(): Promise<{
   return { label };
 }
 
+export type HandsFreeReadiness = {
+  available: boolean;
+  permissionGranted: boolean;
+  engine: VoiceEngineLabel;
+  service?: string;
+  wakeAssistantVerifiable: false;
+};
+
+/**
+ * Verify the capabilities Salareen can actually observe.
+ *
+ * iOS and Android intentionally do not let third-party apps read whether the
+ * system "Hey Siri" / "Hey Google" preference is enabled. On the Go therefore
+ * verifies native recognition + app permissions and clearly sends the learner
+ * to system setup for the separate OS wake-assistant preference.
+ */
+export async function checkHandsFreeReadiness(
+  requestPermissions = false,
+): Promise<HandsFreeReadiness> {
+  const details = await getVoiceEngineDetails();
+  const available = await isVoiceRecognitionAvailable();
+  const permissionGranted = available && requestPermissions
+    ? await ensureVoicePermissions()
+    : false;
+  return {
+    available,
+    permissionGranted,
+    engine: details.label,
+    service: details.detail,
+    wakeAssistantVerifiable: false,
+  };
+}
+
+/** Open the closest supported system screen for speech/microphone setup. */
+export async function openHandsFreeSettings(): Promise<boolean> {
+  if (Platform.OS === "android") {
+    try {
+      await Linking.sendIntent("android.settings.VOICE_INPUT_SETTINGS");
+      return true;
+    } catch { /* fall back to this app's settings */ }
+  }
+  try {
+    await Linking.openSettings();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Open official instructions for enabling the platform wake assistant. */
+export async function openWakeAssistantSetupGuide(): Promise<boolean> {
+  const url = Platform.OS === "ios"
+    ? "https://support.apple.com/guide/iphone/use-siri-iph83aad8922/ios"
+    : "https://support.google.com/assistant/answer/7394306";
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function stopVoiceListening(): void {
   for (const l of activeListeners) {
     try { l.remove(); } catch { /* */ }
