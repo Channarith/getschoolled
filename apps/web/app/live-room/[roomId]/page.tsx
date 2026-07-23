@@ -41,7 +41,8 @@ import {
   type LiveRoomJoin,
   type LiveRoomState,
 } from "../../lib/api";
-import { useFlag } from "../../lib/flags";
+import { useFlag, useVoicePauseSubmitMs } from "../../lib/flags";
+import { createVoicePauseSubmitter } from "../../lib/voiceCommands";
 import Link from "next/link";
 import { friendlyError } from "../../lib/errors";
 import { LiveKitAudio, LiveKitVideoTile, useLiveKitRoom } from "../../components/LiveKitRoomGrid";
@@ -770,6 +771,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // can confirm ("yes") or ask a follow-up before the floor is released.
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
+  const triggerPauseSubmitRef = useRef<((spoken: string) => void) | null>(null);
+  const doneSpeakingRef = useRef<() => void>(() => {});
+  const pauseSubmitMs = useVoicePauseSubmitMs();
   // Guard so the floor-granted cue is spoken only once per floor grant, not on
   // every dep change (narrationLocale, startListening, etc.) while holding it.
   const floorCueSpokenRef = useRef(false);
@@ -1498,6 +1503,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const stopListening = useCallback(() => {
     const rec = recognitionRef.current;
     recognitionRef.current = null;
+    pauseSubmitterRef.current?.cancelPending();
+    pauseSubmitterRef.current = null;
+    triggerPauseSubmitRef.current = null;
     setListening(false);
     if (rec) {
       try { rec.stop(); } catch { /* already stopped */ }
@@ -1551,6 +1559,19 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     rec.maxAlternatives = 1;
     spokenFinalRef.current = "";
     setSpokenText("");
+    pauseSubmitterRef.current?.cancelPending();
+    const submitter = createVoicePauseSubmitter(pauseSubmitMs, (text) => {
+      spokenFinalRef.current = text;
+      setSpokenText(text);
+      if (triggerPauseSubmitRef.current) {
+        const handler = triggerPauseSubmitRef.current;
+        triggerPauseSubmitRef.current = null;
+        handler(text);
+        return;
+      }
+      void doneSpeakingRef.current();
+    });
+    pauseSubmitterRef.current = submitter;
     rec.onresult = (e) => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -1559,7 +1580,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         if (r.isFinal) spokenFinalRef.current = `${spokenFinalRef.current} ${txt}`.trim();
         else interim += txt;
       }
-      setSpokenText(`${spokenFinalRef.current} ${interim}`.trim());
+      const combined = `${spokenFinalRef.current} ${interim}`.trim();
+      setSpokenText(combined);
+      submitter.updateTranscript(combined);
     };
     rec.onerror = (ev) => {
       const code = ev?.error || "";
@@ -1573,8 +1596,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       // "no-speech"/"aborted" are transient; keep the session going.
     };
     rec.onend = () => {
+      submitter.flush();
       setListening(false);
       recognitionRef.current = null;
+      pauseSubmitterRef.current = null;
     };
     recognitionRef.current = rec;
     setListening(true);
@@ -1585,7 +1610,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       recognitionRef.current = null;
       setMicNote("Couldn't start the microphone — type your question below and tap Ask.");
     }
-  }, [narrationLocale, stopListening]);
+  }, [narrationLocale, pauseSubmitMs, stopListening]);
 
   // Learner is done speaking: send whatever we heard (or typed) to Theodore as a
   // question — the server answers a floor-holder immediately and releases the
@@ -1643,6 +1668,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setBusy(false);
     }
   }
+  doneSpeakingRef.current = () => { void doneSpeaking(); };
 
   const toggleLocalAudio = useCallback((participantId: string) => {
     setLocallyMutedIds((current) => {
@@ -1781,24 +1807,32 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           onend: () => {
             if (hasTrigger && isSoloLiveRoom(roomId, roomRef.current)) {
               // Open the mic for the learner to speak the prompted phrase.
-              void startListening();
-              // Auto-close after 12 s and treat whatever was said as a response.
-              confirmationTimerRef.current = setTimeout(() => {
-                confirmationTimerRef.current = null;
-                const spoken = spokenFinalRef.current.trim();
+              triggerPauseSubmitRef.current = (spoken) => {
                 stopListening();
+                if (confirmationTimerRef.current) {
+                  clearTimeout(confirmationTimerRef.current);
+                  confirmationTimerRef.current = null;
+                }
                 if (spoken) {
                   void liveRoomAskStream(roomId, me?.id ?? "", spoken, { language: narrationLocale })
                     .then((res) => { if (res.room) setRoom(res.room); })
                     .catch(() => undefined);
                 } else {
-                  // Nothing heard — advance normally.
                   const r = roomRef.current;
                   if (canModerate && r?.presenting && r?.status !== "ended" && spokenSlideRef.current === spokenFor) {
                     void liveRoomAdvance(roomId, moderatorKey).then((next) => setRoom(next)).catch(() => undefined);
                   }
                 }
-              }, 12_000);
+              };
+              void startListening();
+              // Fallback if the learner never speaks — advance after 15 s.
+              confirmationTimerRef.current = setTimeout(() => {
+                confirmationTimerRef.current = null;
+                const handler = triggerPauseSubmitRef.current;
+                triggerPauseSubmitRef.current = null;
+                if (handler) handler("");
+                else stopListening();
+              }, 15_000);
               return;
             }
             const r = roomRef.current;

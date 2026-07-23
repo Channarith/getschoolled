@@ -43,6 +43,63 @@ export function normalizeVoicePauseSubmitMs(
   return Math.max(500, Math.min(15000, Math.round(n)));
 }
 
+export type VoicePauseSubmitter = {
+  /** Reset for a new mic session. */
+  reset: () => void;
+  /** Cancel a pending auto-submit without submitting. */
+  cancelPending: () => void;
+  /** Schedule auto-submit after the learner pauses (updates debounce). */
+  updateTranscript: (text: string) => void;
+  /** Submit immediately when recognition ends with captured text. */
+  flush: () => void;
+};
+
+/** Debounced submit after the learner stops speaking for ``delayMs``. */
+export function createVoicePauseSubmitter(
+  delayMs: number,
+  onSubmit: (text: string) => void,
+): VoicePauseSubmitter {
+  let pending = "";
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let submitted = false;
+
+  const clearTimer = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  const doSubmit = () => {
+    if (submitted) return;
+    const text = pending.trim();
+    if (!text) return;
+    submitted = true;
+    clearTimer();
+    onSubmit(text);
+  };
+
+  return {
+    reset() {
+      pending = "";
+      submitted = false;
+      clearTimer();
+    },
+    cancelPending() {
+      clearTimer();
+    },
+    updateTranscript(text: string) {
+      pending = (text || "").trim();
+      if (!pending || submitted) return;
+      clearTimer();
+      timer = setTimeout(doSubmit, delayMs);
+    },
+    flush() {
+      doSubmit();
+    },
+  };
+}
+
 /**
  * If `text` contains the wake word, return the content AFTER it (may be empty
  * when the caller just said the wake word). Returns null when no wake word.
