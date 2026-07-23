@@ -26,7 +26,7 @@ import { useT } from "../lib/i18n";
 import { getVoicePrefs, setVoicePrefs } from "../lib/voicePrefs";
 import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/narrationTts";
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
-import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, stripWakeWords } from "../lib/voiceCommands";
+import { extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, stripWakeWords } from "../lib/voiceCommands";
 import {
   setTrainingLocale, trainingLocaleFromUi, type TrainingLocale,
 } from "../lib/trainingLocale";
@@ -78,9 +78,15 @@ function DrivePageInner() {
   const afterAdRef = useRef<null | (() => void)>(null);
   const prerollShown = useRef(false);
   const adsEnabled = useFlag<boolean>("monetization.video_ads", false);
+  const pauseSubmitMs = normalizeVoicePauseSubmitMs(
+    useFlag<number>("ux.voice_pause_submit_ms", 4500),
+  );
   const [trainingLang, setTrainingLang] = useState<TrainingLocale>("en");
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
+  const pauseSubmitTimerRef = useRef<number | null>(null);
+  const pendingTranscriptRef = useRef("");
+  const submittedRef = useRef(false);
   // Always-on ambient recognizer (separate from the one-shot button recognizer).
   const ambientRef = useRef<any>(null);
   const autoListenRef = useRef(true);
@@ -371,6 +377,12 @@ function DrivePageInner() {
   }
 
   function stopVoiceRecognition() {
+    if (pauseSubmitTimerRef.current) {
+      window.clearTimeout(pauseSubmitTimerRef.current);
+      pauseSubmitTimerRef.current = null;
+    }
+    pendingTranscriptRef.current = "";
+    submittedRef.current = false;
     try { recognitionRef.current?.stop?.(); } catch { /* ignore */ }
     recognitionRef.current = null;
     setListening(false);
@@ -562,17 +574,37 @@ function DrivePageInner() {
     oneShotActiveRef.current = true;
     try { ambientRef.current?.stop?.(); } catch { /* */ }
     stopVoiceRecognition();
+    pendingTranscriptRef.current = "";
+    submittedRef.current = false;
     const recognition = new SpeechRecognition();
     recognition.lang = localeToBcp47(locale);
-    recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    const submitPending = () => {
+      if (submittedRef.current) return;
+      const text = pendingTranscriptRef.current.trim();
+      if (!text) return;
+      submittedRef.current = true;
+      if (pauseSubmitTimerRef.current) {
+        window.clearTimeout(pauseSubmitTimerRef.current);
+        pauseSubmitTimerRef.current = null;
+      }
+      setAssistantTranscript(text);
+      try { recognition.stop(); } catch { /* */ }
+      handleSpokenInput(text, expectWakeWord);
+    };
+
     recognition.onresult = (event: any) => {
       const text = Array.from(event.results || [])
         .map((result: any) => result?.[0]?.transcript || "")
         .join(" ")
         .trim();
+      if (!text) return;
+      pendingTranscriptRef.current = text;
       setAssistantTranscript(text);
-      handleSpokenInput(text, expectWakeWord);
+      if (pauseSubmitTimerRef.current) window.clearTimeout(pauseSubmitTimerRef.current);
+      pauseSubmitTimerRef.current = window.setTimeout(submitPending, pauseSubmitMs);
     };
     recognition.onerror = (event: any) => {
       const err = event?.error || "";
@@ -589,6 +621,14 @@ function DrivePageInner() {
       setAssistantOpen(true);
     };
     recognition.onend = () => {
+      if (pauseSubmitTimerRef.current) {
+        window.clearTimeout(pauseSubmitTimerRef.current);
+        pauseSubmitTimerRef.current = null;
+      }
+      // Browser ended early — still auto-submit whatever we captured.
+      if (!submittedRef.current && pendingTranscriptRef.current.trim()) {
+        submitPending();
+      }
       setListening(false);
       oneShotActiveRef.current = false;
       // Resume hands-free ambient listening after the manual one-shot.

@@ -41,7 +41,7 @@ export type StringKey =
   | "drive.setupPermissionNeeded" | "drive.setupWakeNotice"
   | "drive.setupSiriSteps" | "drive.setupGoogleSteps" | "drive.setupChecking"
   | "drive.setupEnable" | "drive.setupContinue" | "drive.setupSettings"
-  | "drive.setupGuide" | "drive.setupButton"
+  | "drive.setupGuide" | "drive.setupButton" | "drive.autoSubmitHint"
   // MyList
   | "mylist.title" | "mylist.sub"
   | "mylist.emptyTitle" | "mylist.emptyBody"
@@ -355,7 +355,7 @@ const EN: Record<StringKey, string> = {
   "drive.resume": "Resume",
   "drive.stayPaused": "Stay paused",
   "drive.listeningWake": "Listening via {engine} — say Hey Sala or Salareen…",
-  "drive.listeningQuestion": "Listening for your question or command…",
+  "drive.listeningQuestion": "Listening… I’ll submit automatically a few seconds after you pause.",
   "drive.voiceUnavailable": "Voice recognition needs a dev build with native speech ({engine}). Type your question instead.",
   "drive.voicePermissionDenied": "Allow microphone and speech recognition for Salareen in Settings to use {engine}.",
   "drive.voiceError": "I could not hear that. Try again or type your question.",
@@ -377,6 +377,7 @@ const EN: Record<StringKey, string> = {
   "drive.setupSettings": "Open phone voice settings",
   "drive.setupGuide": "How to enable Hey {engine}",
   "drive.setupButton": "Voice setup",
+  "drive.autoSubmitHint": "After you pause speaking, Salareen auto-submits in about {seconds}s (tunable in admin flags).",
 
   "mylist.title": "★ My List",
   "mylist.sub": "Saved for later. Auto-syncs on this device.",

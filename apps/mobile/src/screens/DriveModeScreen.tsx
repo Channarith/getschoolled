@@ -9,6 +9,7 @@ import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, type AudioCours
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useVoicePauseSubmitMs } from "../featureFlags";
 import {
   bumpStreak, clearProgress, getMyList, getSettings, setSettings,
   recordProgress, toggleMyList,
@@ -36,6 +37,7 @@ export default function DriveModeScreen({
   courseId, isDriving = false, onBack,
 }: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
+  const pauseSubmitMs = useVoicePauseSubmitMs();
   useAndroidBackTo(() => { stopAllTts(); onBack(); });
   useEffect(() => { return () => { stopAllTts(); }; }, []);
   const [course, setCourse] = useState<AudioCourse | null>(null);
@@ -269,6 +271,7 @@ export default function DriveModeScreen({
     if (!autoListenRef.current) return false;
     const ok = await startAmbientListening({
       locale,
+      pauseSubmitMs,
       onResult: (text) => handleAmbientResult(text),
       onError: (code) => {
         setListening(false);
@@ -304,6 +307,8 @@ export default function DriveModeScreen({
 
     const started = await startVoiceListening({
       locale,
+      pauseSubmitMs,
+      autoSubmitOnPause: true,
       onResult: (text) => {
         setListening(false);
         setAssistantTranscript(text);
@@ -510,7 +515,11 @@ export default function DriveModeScreen({
         <Text style={styles.assistantWake}>
           {t("drive.assistantWake", { engine: voiceEngine })}
         </Text>
-        <Text style={styles.assistantEngine}>{t("drive.assistantEngineHint")}</Text>
+        <Text style={styles.assistantEngine}>
+          {t("drive.assistantEngineHint")}
+          {"\n"}
+          {t("drive.autoSubmitHint", { seconds: (pauseSubmitMs / 1000).toFixed(1) })}
+        </Text>
         <View style={styles.assistantActions}>
           <AnimatedPressable
             style={[styles.assistantBtn, autoListen ? undefined : styles.assistantBtnGhost]}

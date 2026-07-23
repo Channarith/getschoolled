@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-22 - v0.29.6 - Auto-submit microphone transcripts after a 4.5s pause (feature flag ``ux.voice_pause_submit_ms``) on On the Go Ask, language Speak, and web Drive mic.
 - 2026-07-22 - v0.29.5 - Rename remaining user-facing Drive Mode labels to On the Go and require native mobile microphone/speech-recognition readiness before playback, with a blocking safety setup, phone settings link, and official Hey Siri/Hey Google enablement guidance.
 - 2026-07-22 - v0.29.4 - Fix Salareen Worlds game systems: repair 15 broken API call sites in WorldGame.tsx — VehicleManager (checkNearby/activeVehicle/enterVehicle/exitVehicle/fireLaser/update arg order), BuildingSystem (isBuilding property/toggle method).
 - 2026-07-22 - v0.29.3 - Music-video translation practice: play one section, pause, and translate the gist; lightweight RAG scores meaning (not word-for-word) and awards a point per correct section through the end of the video on web and mobile.

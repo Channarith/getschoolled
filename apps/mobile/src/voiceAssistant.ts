@@ -235,6 +235,10 @@ export async function openWakeAssistantSetupGuide(): Promise<boolean> {
 }
 
 export function stopVoiceListening(): void {
+  clearPauseSubmitTimer();
+  pendingTranscript = "";
+  submittedForSession = false;
+
   for (const l of activeListeners) {
     try { l.remove(); } catch { /* */ }
   }
@@ -253,13 +257,81 @@ export function stopVoiceListening(): void {
   }
 }
 
+/** Default silence before auto-submit; overridden by ``ux.voice_pause_submit_ms``. */
+export const DEFAULT_VOICE_PAUSE_SUBMIT_MS = 4500;
+const MIN_VOICE_PAUSE_SUBMIT_MS = 500;
+const MAX_VOICE_PAUSE_SUBMIT_MS = 15000;
+
+/** Clamp/normalize the admin-tunable pause-to-submit delay. */
+export function normalizeVoicePauseSubmitMs(value: unknown, fallback = DEFAULT_VOICE_PAUSE_SUBMIT_MS): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(MIN_VOICE_PAUSE_SUBMIT_MS, Math.min(MAX_VOICE_PAUSE_SUBMIT_MS, Math.round(n)));
+}
+
 export type StartListeningOpts = {
   locale: string;
   onResult: (transcript: string) => void;
   onError: (code: string) => void;
   onEnd: () => void;
   continuous?: boolean;
+  /** Silence after the learner pauses before auto-submitting (ms). */
+  pauseSubmitMs?: number;
+  /**
+   * When true (default for one-shot Ask/Speak), accumulate speech and submit
+   * after ``pauseSubmitMs`` of silence. Ambient wake-word listening sets this
+   * false so each final utterance is delivered immediately.
+   */
+  autoSubmitOnPause?: boolean;
 };
+
+let pauseSubmitTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingTranscript = "";
+let submittedForSession = false;
+
+function clearPauseSubmitTimer(): void {
+  if (pauseSubmitTimer) {
+    clearTimeout(pauseSubmitTimer);
+    pauseSubmitTimer = null;
+  }
+}
+
+function schedulePauseSubmit(
+  opts: StartListeningOpts,
+  pauseMs: number,
+  stopRecognition: () => void,
+): void {
+  clearPauseSubmitTimer();
+  pauseSubmitTimer = setTimeout(() => {
+    pauseSubmitTimer = null;
+    const text = pendingTranscript.trim();
+    if (!text || submittedForSession) return;
+    submittedForSession = true;
+    opts.onResult(text);
+    stopRecognition();
+  }, pauseMs);
+}
+
+function noteHeardSpeech(
+  opts: StartListeningOpts,
+  transcript: string,
+  pauseMs: number,
+  stopRecognition: () => void,
+  meta: { isFinal: boolean; autoSubmitOnPause: boolean },
+): void {
+  const text = (transcript || "").trim();
+  if (!text) return;
+  pendingTranscript = text;
+  if (!meta.autoSubmitOnPause) {
+    if (meta.isFinal && !submittedForSession) {
+      submittedForSession = true;
+      opts.onResult(text);
+    }
+    return;
+  }
+  // Reset the post-pause timer on every interim/final chunk of speech.
+  schedulePauseSubmit(opts, pauseMs, stopRecognition);
+}
 
 function startWebListening(opts: StartListeningOpts): boolean {
   const root = globalThis as typeof globalThis & {
@@ -273,19 +345,45 @@ function startWebListening(opts: StartListeningOpts): boolean {
   }
 
   stopVoiceListening();
+  submittedForSession = false;
+  pendingTranscript = "";
+  const pauseMs = normalizeVoicePauseSubmitMs(opts.pauseSubmitMs);
+  const autoSubmitOnPause = opts.autoSubmitOnPause !== false;
   const recognition = new Ctor();
   recognition.lang = localeToBcp47(opts.locale);
-  recognition.interimResults = false;
-  recognition.continuous = opts.continuous ?? false;
+  recognition.interimResults = autoSubmitOnPause;
+  recognition.continuous = autoSubmitOnPause ? true : (opts.continuous ?? false);
+
+  const stopRecognition = () => {
+    try { recognition.stop(); } catch { /* */ }
+  };
+
   recognition.onresult = (event) => {
-    const results = event.results as ArrayLike<{ [j: number]: { transcript?: string } }>;
-    const text = Array.from({ length: results.length }, (_, i) => results[i]?.[0]?.transcript ?? "")
-      .join(" ")
-      .trim();
-    if (text) opts.onResult(text);
+    const results = event.results as ArrayLike<{
+      isFinal?: boolean;
+      [j: number]: { transcript?: string };
+    }>;
+    let text = "";
+    let anyFinal = false;
+    for (let i = 0; i < results.length; i++) {
+      const row = results[i];
+      text += row?.[0]?.transcript ?? "";
+      if (row?.isFinal) anyFinal = true;
+    }
+    noteHeardSpeech(opts, text, pauseMs, stopRecognition, {
+      isFinal: anyFinal,
+      autoSubmitOnPause,
+    });
   };
   recognition.onerror = () => opts.onError("recognition_error");
   recognition.onend = () => {
+    clearPauseSubmitTimer();
+    // If the browser ended first (short silence), still submit what we heard.
+    const leftover = pendingTranscript.trim();
+    if (leftover && !submittedForSession && autoSubmitOnPause) {
+      submittedForSession = true;
+      opts.onResult(leftover);
+    }
     webRecognition = null;
     opts.onEnd();
   };
@@ -304,30 +402,52 @@ function startNativeListening(opts: StartListeningOpts): boolean {
   const mod = speech?.ExpoSpeechRecognitionModule;
   if (!speech || !mod) return false;
 
+  submittedForSession = false;
+  pendingTranscript = "";
+  const pauseMs = normalizeVoicePauseSubmitMs(opts.pauseSubmitMs);
+  const autoSubmitOnPause = opts.autoSubmitOnPause !== false;
+
+  const stopRecognition = () => {
+    try { mod.stop(); } catch {
+      try { mod.abort(); } catch { /* */ }
+    }
+  };
+
   activeListeners.push(
     speech.addSpeechRecognitionListener("result", (event) => {
       const results = event.results as Array<{ transcript?: string }> | undefined;
       const transcript = results?.[0]?.transcript?.trim() ?? "";
-      if (!transcript || event.isFinal === false) return;
-      opts.onResult(transcript);
+      noteHeardSpeech(opts, transcript, pauseMs, stopRecognition, {
+        isFinal: event.isFinal !== false,
+        autoSubmitOnPause,
+      });
     }),
     speech.addSpeechRecognitionListener("error", (event) => {
       const error = String(event.error ?? "");
       if (error === "aborted" || error === "no-speech") return;
       opts.onError(error || "recognition_error");
     }),
-    speech.addSpeechRecognitionListener("end", () => opts.onEnd()),
+    speech.addSpeechRecognitionListener("end", () => {
+      clearPauseSubmitTimer();
+      const leftover = pendingTranscript.trim();
+      if (leftover && !submittedForSession && autoSubmitOnPause) {
+        submittedForSession = true;
+        opts.onResult(leftover);
+      }
+      opts.onEnd();
+    }),
   );
 
   try {
     mod.start({
       lang: localeToBcp47(opts.locale),
-      interimResults: false,
-      continuous: opts.continuous ?? false,
+      interimResults: autoSubmitOnPause,
+      continuous: autoSubmitOnPause ? true : (opts.continuous ?? false),
       contextualStrings: CONTEXTUAL_PHRASES,
       iosTaskHint: "dictation",
       androidIntentOptions: {
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 8000,
+        // Align OS end-of-speech with the admin-tunable pause-to-submit delay.
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: pauseMs,
       },
     });
     return true;
@@ -371,6 +491,7 @@ export type AmbientOpts = {
   locale: string;
   onResult: (transcript: string) => void;
   onError?: (code: string) => void;
+  pauseSubmitMs?: number;
 };
 
 export async function startAmbientListening(opts: AmbientOpts): Promise<boolean> {
@@ -379,6 +500,10 @@ export async function startAmbientListening(opts: AmbientOpts): Promise<boolean>
     startVoiceListening({
       locale: opts.locale,
       continuous: true,
+      // Deliver each final utterance immediately for wake-word gating; still use
+      // the tunable silence length so the OS ends an utterance after a pause.
+      autoSubmitOnPause: false,
+      pauseSubmitMs: opts.pauseSubmitMs,
       onResult: (t) => opts.onResult(t),
       onError: (code) => {
         if (code === "permission_denied" || code === "unavailable") {
