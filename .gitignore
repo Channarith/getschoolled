@@ -33,10 +33,13 @@ htmlcov/
 *.so
 
 # ---- Environment / secrets ----
+# config/local.env and config/cloud.env are intentionally NOT committed.
+# Copy config/local.env.example to config/local.env and fill in your values.
+# Production secrets are injected via Kubernetes aoep-secrets (kubectl patch secret).
 .env
 .env.*
-!config/local.env
-!config/cloud.env
+config/local.env
+config/cloud.env
 
 # ---- Kubeconfigs / cluster credentials (NEVER commit) ----
 *kubeconfig*.yaml
