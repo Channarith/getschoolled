@@ -95,7 +95,7 @@ jobs:
           set -euo pipefail
           for svc in $SVCS; do
             kubectl -n aoep set image "deployment/$svc" "$svc=${REGISTRY}/$svc:${TAG}"
-            kubectl -n aoep rollout status "deployment/$svc" --timeout=300s
+            kubectl -n aoep rollout status "deployment/$svc" --timeout=600s
           done
           echo "Deployed: $SVCS at ${REGISTRY}/*:${TAG}"
 
