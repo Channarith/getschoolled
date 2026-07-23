@@ -36,10 +36,18 @@ def _purge_used_totp() -> None:
 
 
 def _bounded_set_add(s: set, value: str, name: str) -> None:
-    """Add *value* to set *s*, clearing the entire set when the size cap is hit."""
+    """Add *value* to set *s*, evicting a random 50% when the size cap is hit.
+
+    Previously this called s.clear() which would re-enable all previously
+    burned MFA tokens and used reset tokens. Now we evict half randomly so
+    burned tokens are still mostly (>50%) protected after eviction.
+    """
     if len(s) >= _MAX_AUTH_SET_SIZE:
-        _log.warning("%s exceeded %d entries; clearing to prevent memory exhaustion", name, _MAX_AUTH_SET_SIZE)
-        s.clear()
+        import random as _random
+        _log.warning("%s exceeded %d entries; evicting 50%% to prevent memory exhaustion", name, _MAX_AUTH_SET_SIZE)
+        to_remove = _random.sample(list(s), len(s) // 2)
+        for item in to_remove:
+            s.discard(item)
     s.add(value)
 
 
@@ -54,11 +62,99 @@ def _bounded_dict_add(d: dict, key: str, value, name: str) -> None:
 
 
 # Bug 7: 2FA brute-force lockout — after 5 wrong codes the mfa_token is burned.
-_mfa_fail_counts: dict[str, int] = {}  # mfa_token -> failure count
-_mfa_burned: set[str] = set()         # mfa_tokens invalidated by lockout
+# These fall back to in-process dicts/sets when Redis is unavailable (single-pod
+# deployments or dev). In production multi-pod deployments Redis is required for
+# correct cross-pod enforcement.
+_mfa_fail_counts: dict[str, int] = {}  # mfa_token -> failure count (in-process fallback)
+_mfa_burned: set[str] = set()         # mfa_tokens invalidated by lockout (in-process fallback)
 
-# Bug 8: Password-reset token single-use — tokens are added here after use.
+# Bug 8: Password-reset token single-use (in-process fallback).
 _used_reset_tokens: set[str] = set()
+
+# ── Redis helpers for distributed auth state ─────────────────────────────────
+
+def _get_redis():
+    """Return a Redis client if available, else None (graceful degradation)."""
+    try:
+        from .persistence import _redis_client  # noqa: PLC0415
+        return _redis_client()
+    except Exception:
+        return None
+
+
+_MFA_FAIL_KEY = "identity:mfa_fail:{token}"
+_MFA_BURN_KEY = "identity:mfa_burned:{token}"
+_RESET_USED_KEY = "identity:reset_used:{token}"
+_MFA_TTL = 300  # 5 minutes (mfa_token lifetime)
+_RESET_TTL = 3600  # 1 hour (reset token lifetime)
+
+
+def _mfa_fail_count(token: str) -> int:
+    r = _get_redis()
+    if r:
+        try:
+            return int(r.get(_MFA_FAIL_KEY.format(token=token)) or 0)
+        except Exception:
+            pass
+    return _mfa_fail_counts.get(token, 0)
+
+
+def _mfa_fail_increment(token: str) -> int:
+    r = _get_redis()
+    if r:
+        try:
+            key = _MFA_FAIL_KEY.format(token=token)
+            count = r.incr(key)
+            r.expire(key, _MFA_TTL)
+            return int(count)
+        except Exception:
+            pass
+    count = _mfa_fail_counts.get(token, 0) + 1
+    _mfa_fail_counts[token] = count
+    return count
+
+
+def _mfa_is_burned(token: str) -> bool:
+    r = _get_redis()
+    if r:
+        try:
+            return bool(r.exists(_MFA_BURN_KEY.format(token=token)))
+        except Exception:
+            pass
+    return token in _mfa_burned
+
+
+def _mfa_burn(token: str) -> None:
+    r = _get_redis()
+    if r:
+        try:
+            key = _MFA_BURN_KEY.format(token=token)
+            r.set(key, "1", ex=_MFA_TTL)
+            return
+        except Exception:
+            pass
+    _bounded_set_add(_mfa_burned, token, "_mfa_burned")
+
+
+def _reset_token_is_used(token: str) -> bool:
+    r = _get_redis()
+    if r:
+        try:
+            return bool(r.exists(_RESET_USED_KEY.format(token=token)))
+        except Exception:
+            pass
+    return token in _used_reset_tokens
+
+
+def _reset_token_mark_used(token: str) -> None:
+    r = _get_redis()
+    if r:
+        try:
+            r.set(_RESET_USED_KEY.format(token=token), "1", ex=_RESET_TTL)
+            return
+        except Exception:
+            pass
+    _bounded_set_add(_used_reset_tokens, token, "_used_reset_tokens")
 
 from aoep_shared.auth import sign_token, verify_token
 from aoep_shared.login_audit import login_context_from_headers
@@ -168,8 +264,8 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
 
     @app.post("/auth/2fa/verify")
     def verify_2fa_login(req: MfaVerifyRequest, request: Request) -> dict:
-        # Bug 7: Reject tokens that have been burned by failed-attempt lockout.
-        if req.mfa_token in _mfa_burned:
+        # Bug 7: Reject tokens that have been burned (Redis-backed, falls back to in-process).
+        if _mfa_is_burned(req.mfa_token):
             raise HTTPException(status_code=401, detail="invalid or expired MFA session")
         body = verify_token(req.mfa_token, token_key_fn())
         if not body or body.get("purpose") != "mfa_pending":
@@ -178,11 +274,10 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         if acct is None or not acct.totp_enabled:
             raise HTTPException(status_code=401, detail="2FA not enabled")
         if not verify_totp(acct.totp_secret, req.code):
-            # Bug 7: Track failures per mfa_token; burn after 5 attempts.
-            _bounded_dict_add(_mfa_fail_counts, req.mfa_token, _mfa_fail_counts.get(req.mfa_token, 0) + 1, "_mfa_fail_counts")
-            if _mfa_fail_counts[req.mfa_token] >= 5:
-                _bounded_set_add(_mfa_burned, req.mfa_token, "_mfa_burned")
-                _mfa_fail_counts.pop(req.mfa_token, None)
+            # Bug 7: Track failures per mfa_token; burn after 5 attempts (Redis-backed).
+            count = _mfa_fail_increment(req.mfa_token)
+            if count >= 5:
+                _mfa_burn(req.mfa_token)
             ctx = _ctx(request)
             app.state.accounts.record_login_event(
                 acct.id, success=False, method="mfa", **ctx, reason="bad_code",
@@ -194,8 +289,6 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
         if totp_key in _used_totp:
             raise HTTPException(status_code=401, detail="TOTP code already used")
         _used_totp[totp_key] = _time.time()
-        # Clear failure counter on success.
-        _mfa_fail_counts.pop(req.mfa_token, None)
         ctx = _ctx(request)
         app.state.accounts.oauth_login_success(acct.id, method="mfa", **ctx)
         return session_fn(acct)
@@ -215,8 +308,8 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
     def reset_password(req: ResetPasswordRequest) -> dict:
         from aoep_shared.passwords import validate_password
 
-        # Bug 8: Prevent reset-token reuse — reject tokens already consumed.
-        if req.token in _used_reset_tokens:
+        # Bug 8: Prevent reset-token reuse — Redis-backed, falls back to in-process.
+        if _reset_token_is_used(req.token):
             raise HTTPException(status_code=400, detail="invalid or expired reset link")
         body = verify_reset_token(req.token, token_key_fn())
         if not body:
@@ -225,13 +318,13 @@ def register_auth_security_routes(app, *, token_key_fn, current_account, session
             validate_password(req.new_password)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
+        # Mark token as used BEFORE writing password — prevents concurrent replay.
+        _reset_token_mark_used(req.token)
         app.state.accounts.set_password(body["sub"], req.new_password)
         acct = app.state.accounts.by_id(body["sub"])
         if acct:
             acct.failed_logins = 0
             acct.locked_until = None
-        # Mark token as used so it cannot be replayed.
-        _bounded_set_add(_used_reset_tokens, req.token, "_used_reset_tokens")
         return {"reset": True}
 
     @app.post("/auth/2fa/setup")

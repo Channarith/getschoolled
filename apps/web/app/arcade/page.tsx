@@ -349,6 +349,10 @@ export default function ArcadePage() {
                   ⚗️ Potion Lab
                 </Link>
               )}
+              <Link href="/arcade/stem-research"
+                style={{ padding: "10px 16px", borderRadius: 10, background: "linear-gradient(135deg, #00d4aa, #0097a7)", color: "#fff", fontWeight: 700 }}>
+                🔬 Stem Cell Lab
+              </Link>
             </div>
           </div>
         </>

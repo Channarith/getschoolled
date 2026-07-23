@@ -51,7 +51,7 @@ from aoep_shared.validation import (
     validate_claim,
     validate_course,
 )
-from fastapi import Body, Depends, File, Form, HTTPException, UploadFile
+from fastapi import Body, Depends, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from aoep_shared.internal_auth import require_internal
@@ -423,6 +423,7 @@ def search_courses(
     source: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    authorization: str | None = Header(default=None),
 ) -> list[Course]:
     """Unified faceted search across catalog, audio, live lessons, languages, games."""
     return _search_learnable_as_courses(

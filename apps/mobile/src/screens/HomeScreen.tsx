@@ -35,7 +35,7 @@ const EMOJIS_BY_CATEGORY: Record<string, string> = {
 
 export default function HomeScreen({
   onOpenCourse, onOpenCategory, onOpenArcade, onOpenWorlds, onOpenGroupClasses, onOpenLiveClass,
-  onOpenLanguages, onOpenRewards, onOpenSearch, guestMode = false,
+  onOpenLanguages, onOpenRewards, onOpenSearch, onOpenCorporate, onOpenKids, guestMode = false,
 }: {
   onOpenCourse: (id: string) => void;
   onOpenCategory: (category: string) => void;
@@ -46,6 +46,8 @@ export default function HomeScreen({
   onOpenLanguages?: () => void;
   onOpenRewards?: () => void;
   onOpenSearch?: () => void;
+  onOpenCorporate?: () => void;
+  onOpenKids?: () => void;
   guestMode?: boolean;
 }) {
   const { t, locale } = useT();
@@ -232,6 +234,20 @@ export default function HomeScreen({
                 icon="videocam-outline"
                 label={t("home.navLive")}
                 onPress={onOpenLiveClass}
+              />
+            ) : null}
+            {onOpenCorporate ? (
+              <HomeAction
+                icon="briefcase-outline"
+                label="Corporate"
+                onPress={onOpenCorporate}
+              />
+            ) : null}
+            {onOpenKids ? (
+              <HomeAction
+                icon="happy-outline"
+                label="Kids"
+                onPress={onOpenKids}
               />
             ) : null}
           </View>
