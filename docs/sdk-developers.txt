@@ -1,0 +1,127 @@
+SALAREEN / AOEP — DEVELOPER SDK & SAFE EXTENSION ENVIRONMENT
+============================================================
+Plain text on purpose (repo no-markdown house rule; see AGENTS.md).
+
+This is the supported way for other developers to extend and build on top of
+the platform without forking production services or holding cloud secrets.
+
+Companion docs:
+  docs/api-reference.txt   - HTTP surface the SDK wraps
+  docs/api-use-cases.txt   - curl recipes for the same flows
+  docs/run-local.txt       - how to start the local stack
+  docs/secrets.txt         - what must never be committed
+
+============================================================================
+1. WHY THIS EXISTS
+============================================================================
+AOEP is a monorepo of FastAPI services + a shared library. Extenders should
+NOT copy service internals into their apps. Use one of these safe surfaces:
+
+  a) Python SDK remote clients (packages/sdk) — talk to running services over
+     HTTP with typed helpers + a generic request() escape hatch.
+  b) Python SDK in-process APIs (aoep_sdk.inprocess) — embed the same
+     provider factory, RAG, harvesting, teaching, homework, meeting, and
+     training-agent engines used by the services.
+  c) Content packs (AOEP_CONTENT_PACKS / aoep_shared content_packs) — grow
+     knowledge, slang, scenarios, and courses by dropping JSON/JSONL files;
+     no code change required.
+
+============================================================================
+2. SAFE LOCAL DEFAULTS
+============================================================================
+Always start from the local stack while extending:
+
+  cp config/local.env.example config/local.env   # never commit real secrets
+  make install
+  pip install -e packages/shared
+  pip install -e 'packages/sdk[test]'
+  make run-orchestrator   # :8000
+  make run-identity       # :8008
+  # …or `make up` / `make dev-all` for the full stack
+
+Local mode (DEPLOY_MODE=local) uses sandbox payments, offline LLM/tutor
+fallbacks, and loopback service URLs. No cloud keys are required for the
+core teaching loop.
+
+SDK helpers that keep you on the safe path:
+
+  from aoep_sdk import AOEPClient
+
+  aoep = AOEPClient.local()   # localhost only; refuses remote URLs + admin tokens
+  # equivalent: AOEPClient(AOEPConfig.local())
+  # or set AOEP_REQUIRE_LOCAL=1 when using AOEPConfig.from_env()
+
+  from aoep_sdk.inprocess import local_factory, content_packs
+  factory = local_factory()   # forces DEPLOY_MODE=local
+
+Do NOT point AOEP_BASE_URL / AOEP_*_URL at production while prototyping.
+AOEPClient.local() / AOEP_REQUIRE_LOCAL=1 refuse non-loopback service URLs so a
+misconfigured origin cannot leave your machine. Prefer aoep.authenticate(email,
+password) for user-scoped work; treat ADMIN_SECRET / INTERNAL_TOKEN as
+privileged and never commit them.
+
+============================================================================
+3. QUICKSTART (REMOTE CLIENTS)
+============================================================================
+  from aoep_sdk import AOEPClient
+
+  aoep = AOEPClient.local()
+  aoep.authenticate("dev@example.com", "secret123")
+  lessons = aoep.orchestrator.list_lessons(language="en")
+  session = aoep.orchestrator.start_session(
+      lessons[0]["lesson_id"], class_type="solo"
+  )
+  answer = aoep.orchestrator.ask(session["session"]["session_id"], "Why?")
+
+Environment variables (optional; local defaults apply when unset):
+
+  AOEP_BASE_URL           ingress origin (forms /orchestrator, /identity, …)
+  AOEP_<SERVICE>_URL      per-service override
+  AOEP_BEARER_TOKEN       user session JWT
+  AOEP_INTERNAL_TOKEN     service-to-service token (prefer not in local-only)
+  AOEP_ADMIN_SECRET       admin gate (prefer not in local-only)
+  AOEP_REQUIRE_LOCAL=1    refuse non-loopback URLs and privileged tokens
+  AOEP_TIMEOUT_SECONDS    HTTP timeout (default 10)
+
+============================================================================
+4. QUICKSTART (IN-PROCESS / EMBEDDED)
+============================================================================
+  from aoep_sdk.local import local_factory
+  from aoep_sdk.inprocess import Document, RagIndex, content_packs
+
+  factory = local_factory()
+  index = RagIndex()
+  index.add(Document(id="1", text="Plants release oxygen during photosynthesis."))
+  # Optional: drop extra JSON packs under a directory and set AOEP_CONTENT_PACKS
+  print(content_packs.pack_summary())
+
+  # Heavier engines (install matching aoep-shared extras first):
+  #   from aoep_shared import harvest, homework, meeting, training_agents
+
+Optional extras from aoep-shared (install only what you need):
+
+  pip install -e 'packages/shared[harvest]'   # course generation + pptx
+  pip install -e 'packages/shared[vision]'    # face/perception models
+  pip install -e 'packages/shared[presenter]' # presentation tooling
+
+============================================================================
+5. EXTENSION RULES (KEEP THE ENVIRONMENT SAFE)
+============================================================================
+  * Prefer the SDK + content packs over editing services/*/src for product
+    experiments.
+  * Keep DEPLOY_MODE=local until you intentionally target a shared staging
+    cluster you control.
+  * Never commit config/local.env, cloud.env secrets, or tokens.
+  * Treat X-Internal-Token and X-Admin-Secret as privileged — they are for
+    agents/ops, not for learner-facing apps.
+  * New public HTTP endpoints should remain callable via ServiceClient.request
+    even before a typed helper lands in a later SDK release.
+  * Run packages/sdk/tests in CI (make test) before opening a PR that changes
+    the SDK contract.
+
+============================================================================
+6. EXAMPLE SCRIPT
+============================================================================
+See packages/sdk/examples/local_teaching_loop.py for a copy-pasteable local
+session that authenticates, starts a solo class, advances once, and asks a
+question — all against localhost.

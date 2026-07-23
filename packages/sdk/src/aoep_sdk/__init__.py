@@ -35,6 +35,7 @@ class AOEPClient:
 
     def __init__(self, config: AOEPConfig | None = None) -> None:
         self.config = config or AOEPConfig.from_env()
+        self.config.assert_safe_for_extension()
         self._transports = {
             name: JSONTransport(
                 getattr(self.config.services, name),
@@ -63,6 +64,12 @@ class AOEPClient:
         self.perception = ServiceClient(self._transports["perception"])
         self.billing = ServiceClient(self._transports["billing"])
         self.integrations = ServiceClient(self._transports["integrations"])
+
+    @classmethod
+    def local(cls) -> "AOEPClient":
+        """Build a client locked to the local developer stack."""
+
+        return cls(AOEPConfig.local())
 
     def set_bearer_token(self, token: str) -> None:
         """Apply a user session token to every service client."""

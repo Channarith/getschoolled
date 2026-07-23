@@ -523,6 +523,7 @@ transcript all run without it.
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
+| `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
 | `services/curriculum` | Catalog, RAG, decks, jobs, homework, audio courses, notifications |
 | `services/identity` | Auth, students, rewards, profile sharing |
@@ -690,7 +691,9 @@ use cases, and cost analysis) see:
 - `docs/api-reference.txt` — every HTTP API + webhook, conventions, auth tiers
   (kept in sync by `scripts/check_api_docs.py`; the per-service `/openapi.json`
   is the machine-readable source of truth).
-- `docs/api-use-cases.txt` — end-to-end recipes (curl) for real flows.
+- `docs/sdk-developers.txt` — safe local extension environment (Python SDK,
+  `AOEPClient.local()`, content packs, what not to do).
+- `docs/api-use-cases.txt` — end-to-end recipes (curl + SDK) for real flows.
 - `docs/api-cost-value.txt` — cost-to-value analysis per API/provider.
 - `docs/integrations-jobs-careers.txt` — how Careers connects to job sites.
 - `docs/payments-and-security.txt` — how transactions connect and are secured.

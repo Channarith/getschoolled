@@ -1,9 +1,16 @@
-"""Curated in-process AOEP capability surface.
+"""Curated in-process AOEP capability surface for local extension.
 
-These exports let developers embed the same provider, retrieval, content,
-teaching, homework, meeting, and training-agent engines used by the services.
-Optional capability dependencies remain controlled by ``aoep-shared`` extras.
+Exposes the provider factory, adaptive learning, RAG, teaching loop, and
+content-pack loaders used by the services. Prefer importing
+``aoep_sdk.local.local_factory`` when you only need the local provider factory
+(lighter import graph).
+
+Heavier surfaces remain available from ``aoep_shared`` when extras are installed::
+
+    from aoep_shared import harvest, homework, meeting, training_agents
 """
+
+from __future__ import annotations
 
 from aoep_shared import (
     AppConfig,
@@ -11,10 +18,11 @@ from aoep_shared import (
     DeployMode,
     ProviderFactory,
     build_factory,
+    content_packs,
     get_version,
     load_config,
+    teaching,
 )
-from aoep_shared import harvest, homework, meeting, teaching, training_agents
 from aoep_shared.adaptive import (
     AdaptivePolicy,
     Difficulty,
@@ -38,6 +46,8 @@ from aoep_shared.teaching import (
     run_end_to_end,
     teach_course,
 )
+
+from .local import local_factory
 
 __all__ = [
     "AdaptivePolicy",
