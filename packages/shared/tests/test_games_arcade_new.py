@@ -14,12 +14,15 @@ from aoep_shared.games_extended import extended_bank
 
 def test_catalog_includes_new_modes_and_finance():
     assert "finance" in GAME_SUBJECTS
+    assert "workplace" in GAME_SUBJECTS
     cat = games_catalog()
     ids = {g["id"] for g in cat["game_types"]}
     assert "shape_drop" in ids
     assert "stocks" in ids
     assert "challenge" in ids
+    assert "scenario" in ids
     assert "finance" in cat["subjects"]
+    assert "workplace" in cat["subjects"]
 
 
 def test_shape_drop_round():
@@ -78,3 +81,20 @@ def test_simulate_ai_deterministic():
     a1 = simulate_ai_answers(rnd)
     a2 = simulate_ai_answers(rnd)
     assert a1 == a2
+
+
+def test_workplace_scenario_round():
+    rnd = make_round("workplace", GameType.SCENARIO, n=6, seed=26)
+    assert len(rnd.mcqs) >= 4
+    assert all(m.kind == "scenario" for m in rnd.mcqs)
+    pub = rnd.public()
+    assert all("answer_index" not in it for it in pub["items"])
+    assert pub["items"][0]["meta"].get("track")
+    answers = {m.id: m.answer_index for m in rnd.mcqs}
+    res = score_round(rnd, answers)
+    assert res.correct == res.total
+
+
+def test_extended_bank_workplace_scenarios():
+    rows = extended_bank("workplace", "scenario", AgeGroup.ADULT)
+    assert rows and all("scenario" in r["game_types"] for r in rows)
