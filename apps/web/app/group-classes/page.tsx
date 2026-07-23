@@ -286,7 +286,7 @@ export default function GroupClassesPage() {
         <div>
           <h1 style={{ margin: 0, color: "#fff", fontSize: 26 }}>🎓 Host a Class</h1>
           <p style={{ margin: "6px 0 0", color: "#94a3b8", fontSize: 14, lineHeight: 1.5 }}>
-            Schedule your own live class with the AI teacher. Students join, you facilitate — AI handles the content.
+            You are the teacher. Schedule your class, upload your slides, and your students join and pay.
           </p>
         </div>
         <button
@@ -420,7 +420,19 @@ export default function GroupClassesPage() {
         </div>
       )}
 
-      <h3 style={{ marginTop: 20 }}>{t("group.upcoming")}</h3>
+      {/* ─── Student section separator ─── */}
+      <div style={{
+        borderTop: "2px solid var(--border)",
+        marginTop: 28,
+        paddingTop: 20,
+        marginBottom: 4,
+      }}>
+        <h3 style={{ margin: 0 }}>📚 Browse classes to join as a student</h3>
+        <p style={{ margin: "6px 0 16px", color: "var(--muted)", fontSize: 14, lineHeight: 1.5 }}>
+          Sign up as a student below — AI or your instructor leads the session.
+        </p>
+      </div>
+
       {classes.length === 0 && (
         <div className="card"><div className="muted">{t("group.empty")}</div></div>
       )}
