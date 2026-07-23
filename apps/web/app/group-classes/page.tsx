@@ -80,6 +80,10 @@ export default function GroupClassesPage() {
   const [roomSize, setRoomSize] = useState(6);
   const [pricePerUser, setPricePerUser] = useState("");
   const [presentationFile, setPresentationFile] = useState<File | null>(null);
+  // Session type: 1-on-1 private tutoring vs full group class
+  const [sessionType, setSessionType] = useState<"private" | "group">("group");
+  // Teach vs Join tab
+  const [activeTab, setActiveTab] = useState<"teach" | "join">("join");
 
   const offline = t("error.offline");
   const paidLabel = "Paid class";
@@ -94,6 +98,11 @@ export default function GroupClassesPage() {
   }
 
   useEffect(() => {
+    // Auto-open teach tab if linked from class page with ?tab=teach
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("tab") === "teach") setActiveTab("teach");
+    }
     setLoggedIn(Boolean(getToken()));
     if (getToken()) {
       void getMe().then((a) => {
@@ -315,14 +324,71 @@ export default function GroupClassesPage() {
         </div>
       )}
 
-      {showForm && (
+      {/* ── Teach / Join tab bar ───────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <button type="button" onClick={() => setActiveTab("teach")}
+          style={{ flex: 1, padding: "14px 20px", borderRadius: 10, border: "2px solid",
+            borderColor: activeTab === "teach" ? "#6366f1" : "rgba(0,0,0,0.1)",
+            background: activeTab === "teach" ? "#6366f1" : "#fff",
+            color: activeTab === "teach" ? "#fff" : "#111", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+          🎓 Teach a Class
+        </button>
+        <button type="button" onClick={() => setActiveTab("join")}
+          style={{ flex: 1, padding: "14px 20px", borderRadius: 10, border: "2px solid",
+            borderColor: activeTab === "join" ? "#6366f1" : "rgba(0,0,0,0.1)",
+            background: activeTab === "join" ? "#6366f1" : "#fff",
+            color: activeTab === "join" ? "#fff" : "#111", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>
+          📚 Join a Class
+        </button>
+      </div>
+
+      {activeTab === "teach" && showForm && (
         <div className="card group-schedule-panel">
           <h3 style={{ marginTop: 0 }}>Schedule your class</h3>
+
+          {/* Session type picker */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+            <button
+              type="button"
+              onClick={() => { setSessionType("private"); setRoomSize(2); setCapacity(1); }}
+              style={{
+                flex: 1, padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                border: `2px solid ${sessionType === "private" ? "#6366f1" : "rgba(0,0,0,0.12)"}`,
+                background: sessionType === "private" ? "#eef2ff" : "#fff",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 15, color: sessionType === "private" ? "#4338ca" : "#1e293b" }}>
+                👤 1-on-1 Private Lesson
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                You and one student. Private room, personal tutoring.
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSessionType("group"); setRoomSize(6); setCapacity(5); }}
+              style={{
+                flex: 1, padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                border: `2px solid ${sessionType === "group" ? "#6366f1" : "rgba(0,0,0,0.12)"}`,
+                background: sessionType === "group" ? "#eef2ff" : "#fff",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 15, color: sessionType === "group" ? "#4338ca" : "#1e293b" }}>
+                👥 Group Class
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
+                Multiple paying students. Salareen room, Zoom, Teams, or Meet.
+              </div>
+            </button>
+          </div>
+
           <div style={{ display: "grid", gap: 10 }}>
             <label>
               <div className="muted">{t("group.fTitle")}</div>
               <input style={{ width: "100%" }} value={title}
-                placeholder={t("group.fTitlePlaceholder")}
+                placeholder={sessionType === "private" ? "e.g. Private Math Tutoring — Algebra" : t("group.fTitlePlaceholder")}
                 onChange={(e) => setTitle(e.target.value)} />
             </label>
             <label>
@@ -343,7 +409,12 @@ export default function GroupClassesPage() {
                 ))}
               </select>
             </label>
-            {platform === "salareen" && (
+            {platform === "salareen" && sessionType === "private" && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#15803d" }}>
+                🔒 Private room · 2 seats (you + 1 student)
+              </div>
+            )}
+            {platform === "salareen" && sessionType === "group" && (
               <label>
                 <div className="muted">Room size (including AI host)</div>
                 <select
@@ -388,7 +459,7 @@ export default function GroupClassesPage() {
               </label>
             )}
             <label style={{ width: 140 }}>
-              <div className="muted">Price per student (USD)</div>
+              <div className="muted">{sessionType === "private" ? "Session fee (USD, paid by student)" : "Price per student (USD)"}</div>
               <input type="number" min={0} step={0.01} style={{ width: "100%" }} value={pricePerUser}
                 placeholder="0 = free"
                 onChange={(e) => setPricePerUser(e.target.value)} />
@@ -407,19 +478,24 @@ export default function GroupClassesPage() {
           </label>
           {platform === "salareen" && (
               <div className="muted" style={{ fontSize: 13 }}>
-                Salareen live room: Theodore hosts; learners join the multi-user grid.
+                {sessionType === "private"
+                  ? "Private 1-on-1 room: just you and your student, Theodore assists."
+                  : "Salareen live room: Theodore hosts; learners join the multi-user grid."}
               </div>
             )}
             <div className="row">
               <button onClick={onSchedule} disabled={busy || (!lessonId && !presentationFile)}
-                style={{ background: "#111", color: "#fff" }}>
-                {t("group.scheduleSubmit")}
+                style={{ background: sessionType === "private" ? "#059669" : "#111", color: "#fff", borderRadius: 10, padding: "12px 28px", fontWeight: 700, fontSize: 15, border: "none", cursor: "pointer" }}>
+                {sessionType === "private" ? "📅 Schedule Private Lesson" : t("group.scheduleSubmit")}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ─── Join tab: student section ─────────────────────────────────────── */}
+      {activeTab === "join" && (
+      <div>
       {/* ─── Student section separator ─── */}
       <div style={{
         borderTop: "2px solid var(--border)",
@@ -559,6 +635,8 @@ export default function GroupClassesPage() {
             </div>
           </div>
         </div>
+      )}
+    </div>
       )}
     </main>
   );
