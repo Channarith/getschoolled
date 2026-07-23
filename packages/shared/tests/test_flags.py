@@ -25,6 +25,9 @@ def test_catalog_is_comprehensive_and_well_formed():
     assert "ai.audience_profile_adaptation" in CATALOG_BY_KEY
     assert "sales_demo.enabled" in CATALOG_BY_KEY
     assert "sales_demo.solo_ai" in CATALOG_BY_KEY
+    assert "ux.voice_pause_submit_ms" in CATALOG_BY_KEY
+    assert CATALOG_BY_KEY["ux.voice_pause_submit_ms"].type is FlagType.INT
+    assert CATALOG_BY_KEY["ux.voice_pause_submit_ms"].default == 4500
 
 
 def test_default_resolution():
@@ -37,6 +40,7 @@ def test_default_resolution():
     assert s.resolve("monetization.video_ads") is False
     assert s.resolve("ai.hallucination_guard") is True          # default on
     assert s.resolve("access.user_levels") == "standard"
+    assert s.resolve("ux.voice_pause_submit_ms") == 4500
 
 
 def test_enable_and_disable_bool_flag():
