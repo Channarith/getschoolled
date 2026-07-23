@@ -28,6 +28,17 @@ class DeployMode(str, Enum):
     EDGE = "edge"
 
 
+# Accepted aliases for DEPLOY_MODE env var — mapped to canonical values before
+# parsing so operators can use intuitive names without changing internal logic.
+_DEPLOY_MODE_ALIASES: dict[str, str] = {
+    "production": "cloud",
+    "prod": "cloud",
+    "dev": "local",
+    "development": "local",
+    "offline": "edge",
+}
+
+
 # A per-component mode is the same value space as the deploy mode; keeping a
 # distinct alias documents intent at call sites and leaves room to diverge.
 ComponentMode = DeployMode
@@ -53,10 +64,13 @@ def _coerce_mode(value: Optional[str], default: DeployMode) -> DeployMode:
     if value is None or value.strip() == "":
         return default
     normalized = value.strip().lower()
+    normalized = _DEPLOY_MODE_ALIASES.get(normalized, normalized)
     try:
         return DeployMode(normalized)
     except ValueError as exc:  # pragma: no cover - defensive
-        valid = ", ".join(m.value for m in DeployMode)
+        valid = ", ".join(
+            list(m.value for m in DeployMode) + list(_DEPLOY_MODE_ALIASES)
+        )
         raise ValueError(
             f"Invalid mode {value!r}; expected one of: {valid}"
         ) from exc
