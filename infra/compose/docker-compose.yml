@@ -2,7 +2,6 @@
 # Validate with: docker compose -f infra/compose/docker-compose.yml config
 # (or `make compose-config`). Cloud uses infra/k8s with the same images/env.
 
-version: "3.8"
 
 services:
   postgres:

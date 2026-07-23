@@ -55,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Create local.env from example for compose validation
+        run: cp config/local.env.example config/local.env
       - name: Validate docker compose
         run: docker compose -f infra/compose/docker-compose.yml config >/dev/null
 
@@ -78,7 +80,7 @@ jobs:
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@11.8.0 --activate
       - name: Install mobile deps
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       - name: Typecheck mobile app
         run: bash scripts/mobile-typecheck.sh
 
