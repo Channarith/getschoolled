@@ -465,7 +465,7 @@ export default function GroupClassesPage() {
         <div className="card" style={{ marginBottom: 20, background: "linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%)", border: "1px solid #bae6fd" }}>
           <h3 style={{ marginTop: 0, color: "#0369a1" }}>📅 Schedule a Class for Your Group</h3>
           <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
-            Don't see a time that works? Create your own session — pick a topic, set a time, and share the link with your group. AI teaches.
+            Don&apos;t see a time that works? Create your own session — pick a topic, set a time, and share the link with your group. AI teaches.
           </p>
           <div style={{ display: "grid", gap: 10 }}>
             <label>
@@ -507,7 +507,7 @@ export default function GroupClassesPage() {
               </button>
             </div>
             <div className="muted" style={{ fontSize: 12 }}>
-              After creating, you'll get a join link to share with your group. The AI teacher will be waiting.
+              After creating, you&apos;ll get a join link to share with your group. The AI teacher will be waiting.
             </div>
           </div>
         </div>
