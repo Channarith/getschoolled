@@ -6,10 +6,11 @@ This is the supported way for other developers to extend and build on top of
 the platform without forking production services or holding cloud secrets.
 
 Companion docs:
-  docs/api-reference.txt   - HTTP surface the SDK wraps
-  docs/api-use-cases.txt   - curl recipes for the same flows
-  docs/run-local.txt       - how to start the local stack
-  docs/secrets.txt         - what must never be committed
+  docs/sdk-python-guide.txt - complete SDK methods, examples, errors, and screenshots
+  docs/api-reference.txt    - HTTP surface the SDK wraps
+  docs/api-use-cases.txt    - curl recipes for the same flows
+  docs/run-local.txt        - how to start the local stack
+  docs/secrets.txt          - what must never be committed
 
 ============================================================================
 1. WHY THIS EXISTS
@@ -91,7 +92,11 @@ Environment variables (optional; local defaults apply when unset):
 
   factory = local_factory()
   index = RagIndex()
-  index.add(Document(id="1", text="Plants release oxygen during photosynthesis."))
+  index.add(Document.from_text(
+      "photosynthesis",
+      "Photosynthesis",
+      "Plants release oxygen during photosynthesis.",
+  ))
   # Optional: drop extra JSON packs under a directory and set AOEP_CONTENT_PACKS
   print(content_packs.pack_summary())
 

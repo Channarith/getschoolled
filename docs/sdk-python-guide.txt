@@ -113,6 +113,14 @@ cross-service HTTP contract version.
 AOEPClient() calls AOEPConfig.from_env() when no explicit configuration is
 provided.
 
+For local extension work, prefer the guarded constructor:
+
+  aoep = AOEPClient.local()
+
+It refuses remote service URLs and privileged admin/internal tokens. The
+equivalent explicit configuration is AOEPConfig.local(). Set
+AOEP_REQUIRE_LOCAL=1 to apply the same guard while using AOEPConfig.from_env().
+
 3.1 Local development defaults
 ------------------------------
 
@@ -830,6 +838,9 @@ Examples have no lessons
 ============================================================================
 
 Runnable source:
+
+  packages/sdk/examples/local_teaching_loop.py
+    Guarded localhost-only teaching flow for extension development.
 
   packages/sdk/examples/quickstart.py
     Authenticate, choose a lesson, create a session, and ask Theodore.
