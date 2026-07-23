@@ -1380,6 +1380,75 @@ def presence_ping(req: PresencePingRequest, acct=Depends(current_account)) -> di
     return {"ok": True}
 
 
+# ── Voucher / Coupon / Gift Code system ─────────────────────────────────────
+from .vouchers import VoucherStore as _VoucherStore
+
+
+def _voucher_store() -> _VoucherStore:
+    store = getattr(app.state, "voucher_store", None)
+    if store is None:
+        store = _VoucherStore.open()
+        app.state.voucher_store = store
+    return store
+
+
+class VoucherValidateRequest(BaseModel):
+    code: str
+    price_usd: float
+    class_id: str = ""
+
+
+class VoucherCreateRequest(BaseModel):
+    code: str
+    kind: str = "coupon"          # coupon | gift_code | free_pass
+    value: float = 0.0
+    max_uses: int = 1
+    expires_days: int | None = None
+    class_id: str | None = None
+    note: str = ""
+
+
+@app.post("/vouchers/validate")
+def validate_voucher(req: VoucherValidateRequest, _acct=Depends(current_account)) -> dict:
+    """Check if a voucher/coupon/gift code is valid for the given price. Does NOT consume it."""
+    try:
+        v, final_price, desc = _voucher_store().validate(
+            req.code, req.price_usd, class_id=req.class_id or None
+        )
+        return {
+            "valid": True,
+            "code": v.code,
+            "kind": v.kind,
+            "description": desc,
+            "original_price": req.price_usd,
+            "final_price": final_price,
+            "savings": req.price_usd - final_price,
+        }
+    except ValueError as exc:
+        return {"valid": False, "error": str(exc)}
+
+
+@app.post("/vouchers/admin/create", dependencies=[Depends(require_admin_account)])
+def admin_create_voucher(req: VoucherCreateRequest) -> dict:
+    """Admin: create a new voucher/coupon/gift code."""
+    try:
+        v = _voucher_store().create(
+            code=req.code, kind=req.kind, value=req.value,
+            max_uses=req.max_uses, expires_days=req.expires_days,
+            class_id=req.class_id, note=req.note,
+        )
+        from dataclasses import asdict
+        return {"created": True, "voucher": asdict(v)}
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+
+@app.get("/vouchers/admin/list", dependencies=[Depends(require_admin_account)])
+def admin_list_vouchers() -> dict:
+    from dataclasses import asdict
+    return {"vouchers": [asdict(v) for v in _voucher_store().list_all()]}
+
+
 @app.get("/admin/presence")
 def admin_presence(_acct=Depends(require_admin_account)) -> dict:
     """Return currently active users (seen within the last 5 minutes)."""

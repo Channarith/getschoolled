@@ -1618,12 +1618,38 @@ export async function checkoutGroupClass(
   classId: string,
   name: string,
   email = "",
-): Promise<{ checkout: { session_id: string; url: string; provider: string; method: string; payment_status: string } }> {
+  opts?: { payment_method?: string; voucher_code?: string },
+): Promise<{ checkout: { session_id: string; url: string; provider: string; method: string; payment_status: string; voucher_description?: string }; registration?: Record<string, unknown>; free?: boolean }> {
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/checkout`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ name, email }),
+      body: JSON.stringify({ name, email, payment_method: opts?.payment_method ?? "card", voucher_code: opts?.voucher_code ?? "" }),
+    })
+  );
+}
+
+export type VoucherValidateResult = {
+  valid: boolean;
+  code?: string;
+  kind?: string;
+  description?: string;
+  original_price?: number;
+  final_price?: number;
+  savings?: number;
+  error?: string;
+};
+
+export async function validateVoucher(
+  code: string,
+  priceUsd: number,
+  classId: string,
+): Promise<VoucherValidateResult> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/vouchers/validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ code, price_usd: priceUsd, class_id: classId }),
     })
   );
 }
@@ -3465,4 +3491,42 @@ export async function getAdminPresence(): Promise<{
   return jsonOrThrow(await fetch(`${IDENTITY_URL}/admin/presence`, {
     headers: tok ? { authorization: `Bearer ${tok}` } : {},
   }));
+}
+
+// ── Admin voucher management ────────────────────────────────────────────────
+
+export type VoucherRecord = {
+  code: string;
+  kind: string;
+  value: number;
+  max_uses: number;
+  uses: number;
+  expires_at: number | null;
+  class_id: string | null;
+  created_at: number;
+  note: string;
+};
+
+export async function adminListVouchers(): Promise<{ vouchers: VoucherRecord[] }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/vouchers/admin/list`, { headers: authHeaders(), cache: "no-store" })
+  );
+}
+
+export async function adminCreateVoucher(input: {
+  code: string;
+  kind: string;
+  value: number;
+  max_uses: number;
+  expires_days?: number | null;
+  class_id?: string | null;
+  note?: string;
+}): Promise<{ created: boolean; voucher: VoucherRecord }> {
+  return jsonOrThrow(
+    await fetch(`${IDENTITY_URL}/vouchers/admin/create`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(input),
+    })
+  );
 }
