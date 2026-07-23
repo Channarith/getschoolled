@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  explainLangWord,
   getLangCourse,
   getLearnLanguages,
   getToken,
@@ -13,6 +14,7 @@ import {
   type LangExercise,
   type LangInfo,
   type Pronounce,
+  type LangWordExplanation,
 } from "../lib/api";
 import { useT } from "../lib/i18n";
 
@@ -65,6 +67,9 @@ export default function LanguagesPage() {
   const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
   const mediaTimerRef = useRef<number | null>(null);
   const mediaRef = useRef<HTMLMediaElement | null>(null);
+  const [storyPageIndex, setStoryPageIndex] = useState(0);
+  const [wordHelp, setWordHelp] = useState<LangWordExplanation | null>(null);
+  const [wordHelpLoading, setWordHelpLoading] = useState(false);
 
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
@@ -103,6 +108,7 @@ export default function LanguagesPage() {
     setSkill(s); setEx(null); setDone(null); setPron(null); setAnswers({});
     setSelTerm(""); setHeard(""); setVerseIndex(0);
     setMediaSegmentIndex(0); setMediaAnswer(""); setMediaResults({}); setMediaPlaying(false);
+    setStoryPageIndex(0); setWordHelp(null);
     const n = s === "conversation" || s === "story" ? 20
       : s === "slang" || s === "idioms" ? 60
       : s === "media-listening" ? 10
@@ -141,6 +147,20 @@ export default function LanguagesPage() {
       speak(text, course.code);
     }
     mediaTimerRef.current = window.setTimeout(stopMediaClip, durationSec * 1000);
+  }
+
+  async function explainClickedWord(wordId: string) {
+    if (!course) return;
+    stopMediaClip();
+    setWordHelpLoading(true);
+    setError("");
+    try {
+      setWordHelp(await explainLangWord(course.code, wordId));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setWordHelpLoading(false);
+    }
   }
   async function finishSet(correct: number, total: number) {
     bumpStreak();
@@ -308,6 +328,76 @@ export default function LanguagesPage() {
 
           {/* grammar / culture */}
           {(ex.tip || ex.note) && <p style={{ fontSize: 16 }}>{ex.tip || ex.note}</p>}
+
+          {/* Three-page clickable reader with AI word coach */}
+          {ex.pages && (() => {
+            const page = ex.pages[Math.min(storyPageIndex, ex.pages.length - 1)];
+            return (
+              <div>
+                <h3 style={{ marginTop: 0 }}>📖 {ex.title}</h3>
+                <p className="muted">{ex.instructions}</p>
+                <div style={{ padding: 22, border: "1px solid var(--border)", borderRadius: 14, lineHeight: 2 }}>
+                  <div className="muted">Page {page.page_number} of {ex.pages.length}</div>
+                  <h3>{page.title}</h3>
+                  <div style={{ fontSize: 22 }}>
+                    {page.runs.map((run, index) => run.word_id ? (
+                      <button key={`${run.word_id}-${index}`} onClick={() => void explainClickedWord(run.word_id!)}
+                        style={{ display: "inline", padding: "2px 5px", margin: "0 2px",
+                          border: "0", borderBottom: "2px dotted #7c3aed", borderRadius: 4,
+                          background: "rgba(124,58,237,.12)", color: "inherit", fontSize: "inherit",
+                          cursor: "help" }}>
+                        {run.text}
+                      </button>
+                    ) : <span key={index}>{run.text}</span>)}
+                  </div>
+                  <div className="row" style={{ gap: 8, marginTop: 14 }}>
+                    <button onClick={() => speak(page.text, course.code)}>🔊 Read this page aloud</button>
+                    <button onClick={() => window.speechSynthesis.cancel()}>⏸ Pause reading</button>
+                  </div>
+                  <details style={{ marginTop: 12 }}>
+                    <summary>Show English translation</summary>
+                    <p className="muted">{page.translation_en}</p>
+                  </details>
+                </div>
+                {wordHelpLoading && <p className="muted">AI Word Coach is thinking…</p>}
+                {wordHelp && (
+                  <div style={{ marginTop: 14, padding: 16, border: "2px solid #7c3aed", borderRadius: 14 }}>
+                    <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
+                      <h3 style={{ margin: 0 }}>✨ AI Word Coach: {wordHelp.target}</h3>
+                      <button onClick={() => setWordHelp(null)}>Close</button>
+                    </div>
+                    {wordHelp.roman && <p className="muted">/{wordHelp.roman}/</p>}
+                    <p><strong>Meaning:</strong> {wordHelp.meaning}</p>
+                    <p>{wordHelp.explanation}</p>
+                    <p className="muted">🗣️ {wordHelp.pronunciation_tip}</p>
+                    <button onClick={() => speak(wordHelp.target, course.code)}>🔊 Hear this word</button>
+                    {wordHelp.examples.map((example) => (
+                      <div key={example.page} style={{ marginTop: 10, padding: 10, background: "var(--panel)", borderRadius: 8 }}>
+                        <strong>Example from page {example.page}</strong>
+                        <div>{example.target}</div>
+                        <div className="muted">{example.en}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="row" style={{ gap: 8, marginTop: 14 }}>
+                  <button disabled={storyPageIndex === 0} onClick={() => {
+                    window.speechSynthesis.cancel(); setWordHelp(null);
+                    setStoryPageIndex((index) => Math.max(0, index - 1));
+                  }}>← Previous page</button>
+                  {storyPageIndex < ex.pages.length - 1 ? (
+                    <button onClick={() => {
+                      window.speechSynthesis.cancel(); setWordHelp(null);
+                      setStoryPageIndex((index) => Math.min(ex.pages!.length - 1, index + 1));
+                    }}>Next page →</button>
+                  ) : (
+                    <button onClick={() => void finishSet(1, 1)}
+                      style={{ background: "#16a34a", color: "#fff" }}>Finish story</button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Ten-second listen, pause, and identify challenge */}
           {ex.study_words && ex.segments && (() => {

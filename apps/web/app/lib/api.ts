@@ -908,12 +908,20 @@ export type LangMediaOption = { id: string; target: string; roman?: string; en: 
 export type LangMediaSegment = { id: string; start_sec: number; end_sec: number;
   duration_sec: number; tts_text: string; question: string;
   options: LangMediaOption[]; answer_id: string };
+export type LangStoryRun = { text: string; word_id?: string; target?: string;
+  roman?: string; en?: string };
+export type LangStoryPage = { page_number: number; title: string; text: string;
+  translation_en: string; runs: LangStoryRun[] };
+export type LangWordExplanation = { found: boolean; word_id: string; target: string;
+  roman?: string; meaning: string; category: string; explanation: string;
+  pronunciation_tip: string; examples: { page: number; target: string; en: string }[] };
 export type LangExercise = { skill: string; language: string; items?: LangItem[];
   pairs?: { id: string; term: string; match: string }[]; target?: string; roman?: string;
   en?: string; mouth_tip?: string; tip?: string; note?: string;
   dialogues?: LangDialogue[]; entries?: LangSlang[]; songs?: LangSong[];
   title?: string; instructions?: string; media_type?: string; media_url?: string;
-  license?: string; study_words?: LangMediaOption[]; segments?: LangMediaSegment[] };
+  license?: string; study_words?: LangMediaOption[]; segments?: LangMediaSegment[];
+  story_id?: string; page_count?: number; pages?: LangStoryPage[] };
 export type Pronounce = { score: number; stars: number; passed: boolean; target: string;
   heard: string; missed_words: string[]; feedback: string; mouth_tip: string };
 
@@ -945,6 +953,14 @@ export async function newLangExercise(language: string, skill: string, n = 5): P
     await fetch(`${SPEECH_URL}/learn/exercise`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ language, skill, n }),
+    })
+  );
+}
+export async function explainLangWord(language: string, wordId: string): Promise<LangWordExplanation> {
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/learn/explain-word`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ language, word_id: wordId }),
     })
   );
 }

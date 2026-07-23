@@ -375,7 +375,6 @@ export class EnemyManager {
   // ── Enemy factory ────────────────────────────────────────────────────────
 
   private createEnemy(type: EnemyType, wx: number, wz: number): Enemy {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cfg  = ENEMY_CONFIGS[type] as any;
     const maxHp: number = cfg.hp ?? 50;
 
@@ -486,7 +485,6 @@ export class EnemyManager {
     for (const enemy of this.enemies) {
       if (enemy.state === 'dead') continue;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cfg     = ENEMY_CONFIGS[enemy.type] as any;
       const runtime = RUNTIME[enemy.type];
       const speed: number  = cfg.speed ?? 3;
@@ -607,7 +605,6 @@ export class EnemyManager {
 
           // Hit test against player
           if (proj.position.distanceTo(playerPosition) < 0.6) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             totalDamage += (ENEMY_CONFIGS['space_wraith'] as any).damage ?? 15;
             effects.push('wraith_projectile_hit');
             this.scene.remove(proj);
@@ -764,7 +761,6 @@ export class EnemyManager {
       enemy.state = 'dead';
 
       const drops  = this._rollDrops(enemy.type);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const xp: number = (ENEMY_CONFIGS[enemy.type] as any).xp ?? 10;
 
       // Delay mesh removal one frame to allow death VFX
@@ -832,7 +828,6 @@ export class EnemyManager {
   // ── Private utilities ────────────────────────────────────────────────────
 
   private _rollDrops(type: EnemyType): ItemType[] {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cfg   = ENEMY_CONFIGS[type] as any;
     const drops: ItemType[] = [];
 
