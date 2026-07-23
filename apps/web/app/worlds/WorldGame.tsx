@@ -53,6 +53,45 @@ const QUESTIONS = [
   { id: "h1", subject: "history",   emoji: "🏛", text: "Year World War II ended?",                   opts: ["1943","1944","1945","1946"],     correct: 2, xp: 15 },
   { id: "h2", subject: "history",   emoji: "🏛", text: "First person to walk on the Moon?",          opts: ["Buzz Aldrin","Neil Armstrong","Yuri Gagarin","John Glenn"], correct: 1, xp: 15 },
   { id: "h3", subject: "history",   emoji: "🏛", text: "Where were the first Olympics held?",        opts: ["Rome","Athens","Sparta","Olympia"], correct: 3, xp: 20 },
+  // Math extended
+  { id: "m7",  subject: "math",      emoji: "🧮", text: "Area of a circle with radius 5?",            opts: ["25π","10π","5π","15π"],                                          correct: 0, xp: 20 },
+  { id: "m8",  subject: "math",      emoji: "🧮", text: "What is 15 × 15?",                           opts: ["200","225","250","215"],                                         correct: 1, xp: 10 },
+  { id: "m9",  subject: "math",      emoji: "🧮", text: "What is 30% of 150?",                        opts: ["30","45","50","35"],                                             correct: 1, xp: 15 },
+  { id: "m10", subject: "math",      emoji: "🧮", text: "Degrees in a triangle?",                     opts: ["90","270","360","180"],                                          correct: 3, xp: 10 },
+  { id: "m11", subject: "math",      emoji: "🧮", text: "What is 2 to the power of 10?",              opts: ["512","1024","2048","256"],                                       correct: 1, xp: 20 },
+  { id: "m12", subject: "math",      emoji: "🧮", text: "Square root of 169?",                        opts: ["11","12","13","14"],                                             correct: 2, xp: 15 },
+  // Science extended
+  { id: "s7",  subject: "science",   emoji: "🔬", text: "Speed of light (approx)?",                  opts: ["3×10⁸ m/s","3×10⁶ m/s","3×10¹⁰ m/s","3×10⁴ m/s"],            correct: 0, xp: 20 },
+  { id: "s8",  subject: "science",   emoji: "🔬", text: "Planet with the most moons?",               opts: ["Jupiter","Saturn","Uranus","Neptune"],                           correct: 1, xp: 15 },
+  { id: "s9",  subject: "science",   emoji: "🔬", text: "What is H₂O?",                              opts: ["Hydrogen","Salt","Water","Oxygen"],                              correct: 2, xp: 10 },
+  { id: "s10", subject: "science",   emoji: "🔬", text: "Force keeping planets in orbit?",           opts: ["Magnetism","Gravity","Friction","Electricity"],                  correct: 1, xp: 15 },
+  { id: "s11", subject: "science",   emoji: "🔬", text: "Powerhouse of the cell?",                   opts: ["Nucleus","Ribosome","Mitochondria","Golgi body"],                correct: 2, xp: 15 },
+  { id: "s12", subject: "science",   emoji: "🔬", text: "Elements in the periodic table?",           opts: ["108","118","128","98"],                                          correct: 1, xp: 20 },
+  // Geography extended
+  { id: "g5",  subject: "geography", emoji: "🌍", text: "Capital of Japan?",                         opts: ["Osaka","Kyoto","Tokyo","Hiroshima"],                             correct: 2, xp: 10 },
+  { id: "g6",  subject: "geography", emoji: "🌍", text: "Largest country by area?",                  opts: ["China","USA","Canada","Russia"],                                 correct: 3, xp: 10 },
+  { id: "g7",  subject: "geography", emoji: "🌍", text: "Brazil is on which continent?",             opts: ["North America","Europe","Asia","South America"],                 correct: 3, xp: 10 },
+  { id: "g8",  subject: "geography", emoji: "🌍", text: "Tallest mountain on Earth?",                opts: ["K2","Mont Blanc","Everest","Kilimanjaro"],                       correct: 2, xp: 15 },
+  { id: "g9",  subject: "geography", emoji: "🌍", text: "Capital of Australia?",                     opts: ["Sydney","Melbourne","Canberra","Brisbane"],                      correct: 2, xp: 15 },
+  // History extended
+  { id: "h4",  subject: "history",   emoji: "🏛", text: "Year WW1 began?",                           opts: ["1912","1914","1916","1918"],                                     correct: 1, xp: 15 },
+  { id: "h5",  subject: "history",   emoji: "🏛", text: "Who invented the telephone?",               opts: ["Edison","Bell","Tesla","Marconi"],                               correct: 1, xp: 15 },
+  { id: "h6",  subject: "history",   emoji: "🏛", text: "Ancient wonder in Alexandria?",             opts: ["Colossus","Lighthouse","Pyramid","Gardens"],                     correct: 1, xp: 20 },
+  // Biology
+  { id: "b1",  subject: "biology",   emoji: "🧬", text: "What carries oxygen in blood?",             opts: ["White cells","Plasma","Platelets","Red cells"],                  correct: 3, xp: 15 },
+  { id: "b2",  subject: "biology",   emoji: "🧬", text: "Human chromosome count?",                   opts: ["23","46","44","48"],                                             correct: 1, xp: 20 },
+  { id: "b3",  subject: "biology",   emoji: "🧬", text: "Plants make food via?",                     opts: ["Respiration","Digestion","Photosynthesis","Osmosis"],            correct: 2, xp: 10 },
+  { id: "b4",  subject: "biology",   emoji: "🧬", text: "Largest organ in the human body?",          opts: ["Liver","Heart","Lung","Skin"],                                   correct: 3, xp: 15 },
+  { id: "b5",  subject: "biology",   emoji: "🧬", text: "DNA stands for?",                           opts: ["Deoxyribonucleic acid","Dinitrogen acid","Dexoribose acid","Dinucleic acid"], correct: 0, xp: 20 },
+  // Astronomy
+  { id: "a1",  subject: "astronomy", emoji: "🌌", text: "Planets in our solar system?",              opts: ["7","8","9","10"],                                                correct: 1, xp: 10 },
+  { id: "a2",  subject: "astronomy", emoji: "🌌", text: "Closest star to Earth?",                   opts: ["Sirius","Alpha Centauri","The Sun","Betelgeuse"],                correct: 2, xp: 10 },
+  { id: "a3",  subject: "astronomy", emoji: "🌌", text: "A light year measures?",                    opts: ["Distance","Time","Speed","Weight"],                              correct: 0, xp: 15 },
+  { id: "a4",  subject: "astronomy", emoji: "🌌", text: "What is a black hole?",                     opts: ["Dead star","Dense region where gravity traps light","Asteroid belt","Dark nebula"], correct: 1, xp: 20 },
+  { id: "a5",  subject: "astronomy", emoji: "🌌", text: "Hottest planet in solar system?",           opts: ["Mercury","Mars","Venus","Jupiter"],                              correct: 2, xp: 15 },
+  // Language extended
+  { id: "l4",  subject: "language",  emoji: "📚", text: "Antonym of 'ancient'?",                     opts: ["Old","Modern","Wise","Historic"],                                correct: 1, xp: 10 },
+  { id: "l5",  subject: "language",  emoji: "📚", text: "What is an alliteration?",                  opts: ["Same vowel sounds","Same starting consonants","Rhyming words","Silent letters"], correct: 1, xp: 15 },
 ] as const;
 
 type Question = (typeof QUESTIONS)[number];
@@ -115,6 +154,8 @@ const SUBJECT_COLORS: Record<string, string> = {
   language: "#f59e0b",
   geography: "#0ea5e9",
   history: "#ec4899",
+  biology: "#ec4899",
+  astronomy: "#8b5cf6",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,6 +171,8 @@ export default function WorldGame() {
 
   // ── React State ─────────────────────────────────────────────
   const [gameStarted, setGameStarted] = useState(false);
+  const isMobile = typeof window !== "undefined" && !!(window as any).__SALAREEN_NATIVE__;
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [webglError, setWebglError] = useState<string | null>(null);
 
   // Player stats
@@ -164,6 +207,10 @@ export default function WorldGame() {
 
   // Planet switch overlay
   const [switchingPlanet, setSwitchingPlanet] = useState(false);
+
+  // AI Opponent
+  const [aiXp, setAiXp] = useState(0);
+  const [aiMessage, setAiMessage] = useState("Race me to 100 XP! 🤖");
 
   // ── Refs to avoid stale closures ────────────────────────────
   const activeQRef = useRef<Question | null>(null);
@@ -332,6 +379,25 @@ export default function WorldGame() {
     const theoGlow = new THREE.PointLight(0xfbbf24, 0.5, 4);
     theoGroup.add(theoGlow);
     scene.add(theoGroup);
+
+    // ── AI Opponent (Theodore Bot) ────────────────────────────
+    const aiGroup = new THREE.Group();
+    const aiCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.5, 12, 10),
+      new THREE.MeshPhongMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, shininess: 100 }),
+    );
+    aiGroup.add(aiCore);
+    const aiHalo = new THREE.Mesh(
+      new THREE.RingGeometry(0.6, 0.75, 20),
+      new THREE.MeshBasicMaterial({ color: 0x7c3aed, side: THREE.DoubleSide }),
+    );
+    aiHalo.rotation.x = -Math.PI / 2;
+    aiGroup.add(aiHalo);
+    const aiStartH = getTerrainHeight(hmap, HALF + 5, HALF + 5, WORLD_SIZE);
+    aiGroup.position.set(5, aiStartH + 1, 5);
+    scene.add(aiGroup);
+
+    let aiTime = 0, aiNextMove = 3, aiTargetX = 8, aiTargetZ = 8;
 
     // ── World State ───────────────────────────────────────────
     let hmap = generateHeightMap(WORLD_SIZE, "earth");
@@ -979,6 +1045,36 @@ export default function WorldGame() {
         setTheoMessage(THEO_TIPS[theoTipIdx]);
       }
 
+      // ── AI opponent movement ──────────────────────────────────
+      aiTime += dt;
+      if (aiTime > aiNextMove) {
+        aiTime = 0;
+        aiNextMove = 2 + Math.random() * 4;
+        aiTargetX = (Math.random() - 0.5) * (WORLD_SIZE - 10);
+        aiTargetZ = (Math.random() - 0.5) * (WORLD_SIZE - 10);
+      }
+      const aiDx = aiTargetX - aiGroup.position.x;
+      const aiDz = aiTargetZ - aiGroup.position.z;
+      const aiDist = Math.sqrt(aiDx * aiDx + aiDz * aiDz);
+      if (aiDist > 0.5) {
+        aiGroup.position.x += (aiDx / aiDist) * 3.5 * dt;
+        aiGroup.position.z += (aiDz / aiDist) * 3.5 * dt;
+      }
+      const aiHx = Math.max(0, Math.min(WORLD_SIZE - 1, Math.round(aiGroup.position.x + HALF)));
+      const aiHz = Math.max(0, Math.min(WORLD_SIZE - 1, Math.round(aiGroup.position.z + HALF)));
+      aiGroup.position.y = getTerrainHeight(hmap, aiHx, aiHz, WORLD_SIZE) + 1;
+      aiCore.position.y = Math.sin(gameTime * 2.5) * 0.12;
+      // AI answers nearby question blocks
+      for (const qb of qblocks) {
+        if (!answeredRef.current.has(qb.id) && aiGroup.position.distanceTo(qb.mesh.position) < 2.5) {
+          const correct = Math.random() > 0.35;
+          const xpGain = correct ? 15 : 0;
+          setAiXp(prev => prev + xpGain);
+          setAiMessage(correct ? "I got it! +15 XP 😄" : "Hmm, tricky one! 🤔");
+          break;
+        }
+      }
+
       // ── Combat system update ──────────────────────────────────
       combatSystem.update(dt);
       combatSystem.tickShockwaves(dt);
@@ -1046,6 +1142,13 @@ export default function WorldGame() {
       window.removeEventListener("resize",      onResize);
     };
   }, [gameStarted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fullscreen listener ─────────────────────────────────────
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   // ─────────────────────────────────────────────────────────────
   // RENDER
@@ -1218,6 +1321,38 @@ export default function WorldGame() {
         />
       )}
 
+      {/* ── FULLSCREEN + QUIT BUTTONS (desktop) ──────────────── */}
+      {gameStarted && !isMobile && (
+        <>
+          <button onClick={() => isFullscreen ? document.exitFullscreen() : document.documentElement.requestFullscreen()}
+            style={{ position: 'absolute', top: 12, right: 68, zIndex: 20, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+            {isFullscreen ? '✕ Exit fullscreen' : '⛶ Fullscreen'}
+          </button>
+          <button onClick={() => { if (confirm('Quit game? Your progress is saved.')) window.location.href = '/arcade'; }}
+            style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, background: 'rgba(220,38,38,0.85)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+            ✕ Quit
+          </button>
+        </>
+      )}
+
+      {/* ── QUIT BUTTON (mobile) ──────────────────────────────── */}
+      {gameStarted && isMobile && (
+        <button onClick={() => {
+          if ((window as any).ReactNativeWebView) (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: 'exit_game', payload: null }));
+          else window.location.href = '/arcade';
+        }} style={{ position: 'absolute', top: 52, right: 12, zIndex: 20, background: 'rgba(220,38,38,0.85)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+          ✕ Quit
+        </button>
+      )}
+
+      {/* ── AI OPPONENT HUD ───────────────────────────────────── */}
+      {gameStarted && (
+        <div style={{ position: 'absolute', top: 60, left: 12, zIndex: 10, background: 'rgba(124,58,237,0.85)', color: '#fff', borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 700 }}>
+          🤖 Theodore Bot: {aiXp} XP
+          {aiMessage && <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{aiMessage}</div>}
+        </div>
+      )}
+
       {/* ── QUESTION MODAL ─────────────────────────────────────── */}
       {activeQ && (
         <div style={{
@@ -1359,6 +1494,36 @@ export default function WorldGame() {
           </div>
           <div style={{ color: "#334155", fontSize: 14 }}>Hold on tight!</div>
         </div>
+      )}
+
+      {/* ── MOBILE VIRTUAL D-PAD ─────────────────────────────── */}
+      {isMobile && gameStarted && !activeQ && (
+        <>
+          {/* Left D-pad */}
+          <div style={{ position: 'absolute', bottom: 32, left: 24, zIndex: 50, userSelect: 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+              <button onTouchStart={() => { keysRef.current['KeyW'] = true; }} onTouchEnd={() => { keysRef.current['KeyW'] = false; }}
+                style={{ width: 52, height: 52, borderRadius: 12, background: 'rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 20, cursor: 'pointer', touchAction: 'none' }}>▲</button>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button onTouchStart={() => { keysRef.current['KeyA'] = true; }} onTouchEnd={() => { keysRef.current['KeyA'] = false; }}
+                style={{ width: 52, height: 52, borderRadius: 12, background: 'rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 20, cursor: 'pointer', touchAction: 'none' }}>◀</button>
+              <button onTouchStart={() => { keysRef.current['KeyS'] = true; }} onTouchEnd={() => { keysRef.current['KeyS'] = false; }}
+                style={{ width: 52, height: 52, borderRadius: 12, background: 'rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 20, cursor: 'pointer', touchAction: 'none' }}>▼</button>
+              <button onTouchStart={() => { keysRef.current['KeyD'] = true; }} onTouchEnd={() => { keysRef.current['KeyD'] = false; }}
+                style={{ width: 52, height: 52, borderRadius: 12, background: 'rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 20, cursor: 'pointer', touchAction: 'none' }}>▶</button>
+            </div>
+          </div>
+          {/* Right action buttons */}
+          <div style={{ position: 'absolute', bottom: 32, right: 24, zIndex: 50, display: 'flex', flexDirection: 'column', gap: 8, userSelect: 'none' }}>
+            <button onTouchStart={() => { keysRef.current['Space'] = true; }} onTouchEnd={() => { keysRef.current['Space'] = false; }}
+              style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(99,102,241,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Jump</button>
+            <button onTouchStart={() => { keysRef.current['KeyE'] = true; }} onTouchEnd={() => { keysRef.current['KeyE'] = false; }}
+              style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(16,185,129,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Interact</button>
+            <button onTouchStart={() => { keysRef.current['KeyZ'] = true; }} onTouchEnd={() => { keysRef.current['KeyZ'] = false; }}
+              style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: 'rgba(239,68,68,0.85)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'none' }}>Attack</button>
+          </div>
+        </>
       )}
     </div>
   );
