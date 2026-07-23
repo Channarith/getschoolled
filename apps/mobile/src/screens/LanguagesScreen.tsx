@@ -5,8 +5,9 @@ import {
 
 import {
   explainLangWord, getLangCourse, getLearnLanguages, languagePractice,
-  newLangExercise, pronounce, type LangCourse, type LangExercise, type LangInfo,
-  type LangWordExplanation, type Pronounce,
+  newLangExercise, pronounce, scoreMusicVideoTranslation,
+  type LangCourse, type LangExercise, type LangInfo,
+  type LangWordExplanation, type MusicVideoScore, type Pronounce,
 } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
@@ -36,6 +37,11 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const [mediaPlaying, setMediaPlaying] = useState(false);
   const [mediaAnswer, setMediaAnswer] = useState("");
   const [mediaResults, setMediaResults] = useState<Record<string, boolean>>({});
+  const [mvIndex, setMvIndex] = useState(0);
+  const [mvDraft, setMvDraft] = useState("");
+  const [mvScore, setMvScore] = useState<MusicVideoScore | null>(null);
+  const [mvResults, setMvResults] = useState<Record<string, boolean>>({});
+  const [mvScoring, setMvScoring] = useState(false);
   const mediaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [storyPageIndex, setStoryPageIndex] = useState(0);
   const [wordHelp, setWordHelp] = useState<LangWordExplanation | null>(null);
@@ -93,9 +99,14 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setMediaResults({});
     setStoryPageIndex(0);
     setWordHelp(null);
+    setMvIndex(0);
+    setMvDraft("");
+    setMvScore(null);
+    setMvResults({});
+    setMvScoring(false);
     const n = s === "conversation" || s === "story" ? 20
       : s === "slang" || s === "idioms" ? 60
-      : s === "media-listening" ? 10
+      : s === "media-listening" || s === "music-video" ? 10
       : s === "match" ? 4 : 5;
     try {
       setEx(await newLangExercise(course.code, s, n));
@@ -169,6 +180,30 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
       setError((e as Error).message);
     } finally {
       setWordHelpLoading(false);
+    }
+  }
+
+  async function checkMusicVideoGist() {
+    if (!course || !ex?.sections?.length) return;
+    const section = ex.sections[Math.min(mvIndex, ex.sections.length - 1)];
+    const text = mvDraft.trim();
+    if (!text) {
+      setError("Type the gist of this section in English first.");
+      return;
+    }
+    setError("");
+    setMvScoring(true);
+    try {
+      const result = await scoreMusicVideoTranslation(
+        course.code, ex.video_id || "", section.id, text,
+      );
+      if (!mountedRef.current) return;
+      setMvScore(result);
+      setMvResults((prev) => ({ ...prev, [section.id]: result.passed }));
+    } catch (e) {
+      if (mountedRef.current) setError((e as Error).message);
+    } finally {
+      if (mountedRef.current) setMvScoring(false);
     }
   }
 
@@ -423,6 +458,77 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
                     Object.values(mediaResults).filter(Boolean).length,
                     ex.segments!.length,
                   )} variant="netflix" />
+                ) : null}
+              </GlassPanel>
+            );
+          })() : null}
+          {ex?.skill === "music-video" && ex.sections && ex.sections.length > 0 ? (() => {
+            const section = ex.sections[Math.min(mvIndex, ex.sections.length - 1)];
+            const scored = Boolean(mvScore && mvScore.section_id === section.id);
+            return (
+              <GlassPanel style={styles.card}>
+                <Text style={styles.sectionTitle}>🎬 {ex.title}</Text>
+                {ex.title_target ? <Text style={styles.songTarget}>{ex.title_target}</Text> : null}
+                <Text style={styles.tip}>{ex.instructions}</Text>
+                <Text style={styles.meta}>
+                  Section {mvIndex + 1} of {ex.sections.length} ·
+                  {" "}{section.start_sec}–{section.end_sec}s
+                </Text>
+                <View style={styles.verse}>
+                  <Text style={styles.songTarget}>{section.target}</Text>
+                  {section.roman ? <Text style={styles.meta}>/{section.roman}/</Text> : null}
+                </View>
+                <PrimaryButton
+                  label={mediaPlaying ? "▶ Playing section…" : "▶ Play this section"}
+                  onPress={() => playMediaClip(section.tts_text || section.target, section.duration_sec)}
+                  disabled={mediaPlaying}
+                  variant="brand"
+                />
+                {mediaPlaying ? (
+                  <PrimaryButton label="⏸ Pause & translate" onPress={stopMediaClip} variant="ghost" />
+                ) : null}
+                <Text style={styles.prompt}>{section.prompt}</Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 72 }]}
+                  value={mvDraft}
+                  onChangeText={setMvDraft}
+                  multiline
+                  placeholder="Type the meaning in English (gist is enough)…"
+                  placeholderTextColor={theme.colors.muted}
+                  editable={!scored || !mvScore?.passed}
+                />
+                <PrimaryButton
+                  label={mvScoring ? "Scoring…" : "Check gist (RAG)"}
+                  onPress={() => void checkMusicVideoGist()}
+                  disabled={mvScoring || !mvDraft.trim() || (scored && Boolean(mvScore?.passed))}
+                  variant="netflix"
+                />
+                {scored && mvScore ? (
+                  <>
+                    <Text style={[styles.feedback, { color: mvScore.passed ? "#22c55e" : "#ef4444" }]}>
+                      {mvScore.feedback} ({mvScore.score}/100)
+                    </Text>
+                    <Text style={styles.translation}>Reference: {mvScore.reference_en}</Text>
+                    {mvScore.explain_en ? <Text style={styles.tip}>💡 {mvScore.explain_en}</Text> : null}
+                  </>
+                ) : null}
+                {scored && mvIndex < ex.sections.length - 1 ? (
+                  <PrimaryButton label="Next section →" onPress={() => {
+                    stopMediaClip();
+                    setMvIndex((i) => i + 1);
+                    setMvDraft("");
+                    setMvScore(null);
+                  }} variant="brand" />
+                ) : null}
+                {scored && mvIndex === ex.sections.length - 1 && !done ? (
+                  <PrimaryButton
+                    label={`Finish music video (${Object.values(mvResults).filter(Boolean).length}/${ex.sections.length})`}
+                    onPress={() => void finishExercise(
+                      Object.values(mvResults).filter(Boolean).length,
+                      ex.sections!.length,
+                    )}
+                    variant="netflix"
+                  />
                 ) : null}
               </GlassPanel>
             );

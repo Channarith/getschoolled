@@ -5,14 +5,18 @@ from aoep_shared.language_learning import (
     RICH_LANGUAGES,
     SKILL_AREAS,
     assess_pronunciation,
+    assess_translation_gist,
     course_outline,
     dialogues_for,
     language_list,
     listening_exercise,
     match_exercise,
     mouth_shape_tip,
+    music_video_challenge,
+    music_videos_for,
     practice_xp,
     pronunciation_prompt,
+    score_music_video_section,
     songs_for,
     vocabulary_exercise,
 )
@@ -37,7 +41,7 @@ def test_skill_areas_cover_requested_domains():
                  "grammar", "slang", "phrases", "travel", "conversation"]:
         assert need in ids
     # plus fun extras
-    assert {"shadowing", "story", "culture"} <= ids
+    assert {"shadowing", "story", "culture", "songs", "media-listening", "music-video"} <= ids
 
 
 def test_every_language_is_a_full_course():
@@ -48,6 +52,7 @@ def test_every_language_is_a_full_course():
         assert {skill["id"] for skill in course["skills"]} == expected_skills
         assert course["dialogue_count"] >= 20
         assert course["song_count"] >= 1
+        assert course["music_video_count"] >= 1
 
 
 def test_vocabulary_exercise_has_correct_answer():
@@ -109,3 +114,60 @@ def test_every_language_has_dialogue_and_song_practice():
         song = songs_for(code)[0]
         assert len(song["verses"]) >= 1
         assert all(v["target"] and v["en"] and v["explain_en"] for v in song["verses"])
+
+
+def test_music_video_challenge_is_section_driven():
+    challenge = music_video_challenge("es")
+    assert challenge["skill"] == "music-video"
+    assert challenge["sections"]
+    assert all(
+        section["id"] and section["target"] and section["en"] and section["prompt"]
+        for section in challenge["sections"]
+    )
+    assert music_videos_for("km")[0]["video_id"] == "km-everyday-music-video"
+    km = music_video_challenge("km")
+    assert len(km["sections"]) >= 6
+    assert km["license"] == "original-salareen"
+
+
+def test_translation_gist_accepts_paraphrase_via_rag():
+    reference = "Hello, how are you? It is very nice to meet you."
+    explain = "A warm greeting: say hello, ask how someone is, and say you are happy to meet them."
+    paraphrases = [
+        "Greeting someone and saying nice to meet you",
+        "Hello and asking if they are well",
+    ]
+    gist = assess_translation_gist(
+        reference,
+        "saying hello and nice to meet you",
+        explain_en=explain,
+        paraphrases_en=paraphrases,
+        language="km",
+    )
+    assert gist["passed"] and gist["point"] == 1
+    assert gist["retrieved"]
+
+    exact = assess_translation_gist(reference, reference, paraphrases_en=paraphrases)
+    assert exact["passed"] and exact["score"] >= 80
+
+    wrong = assess_translation_gist(
+        reference,
+        "the bathroom is on the right and too expensive",
+        explain_en=explain,
+        paraphrases_en=paraphrases,
+    )
+    assert not wrong["passed"]
+
+
+def test_score_music_video_section_awards_point_for_gist():
+    challenge = music_video_challenge("km")
+    section = challenge["sections"][0]
+    result = score_music_video_section(
+        "km",
+        video_id=challenge["video_id"],
+        section_id=section["id"],
+        translation="hello how are you nice to meet you",
+    )
+    assert result["passed"] and result["point"] == 1
+    assert result["section_id"] == section["id"]
+    assert "hello" in result["reference_en"].lower() or "meet" in result["reference_en"].lower()

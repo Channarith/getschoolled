@@ -31,7 +31,7 @@ from typing import Dict, List
 
 KNOWN_KINDS = (
     "knowledge", "slang", "scenarios", "courses", "presentation", "market",
-    "phrases", "vocabulary", "dialogues", "songs",
+    "phrases", "vocabulary", "dialogues", "songs", "music_videos",
 )
 
 

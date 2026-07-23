@@ -128,3 +128,42 @@ def test_khmer_three_page_reader_and_word_coach():
     body = coach.json()
     assert body["meaning"] and body["explanation"]
     assert body["pronunciation_tip"] and body["examples"]
+def test_khmer_music_video_challenge_and_gist_score():
+    videos = client.get("/learn/km/music-videos").json()
+    assert videos["music_videos"]
+    assert len(videos["music_videos"][0]["sections"]) >= 6
+
+    challenge = client.get("/learn/km/music-video-challenge").json()
+    assert challenge["skill"] == "music-video"
+    assert challenge["sections"]
+    section = challenge["sections"][0]
+
+    exercise = client.post(
+        "/learn/exercise",
+        json={"language": "km", "skill": "music-video", "n": 10},
+    ).json()
+    assert exercise["skill"] == "music-video"
+    assert len(exercise["sections"]) >= 6
+
+    scored = client.post(
+        "/learn/music-video/score",
+        json={
+            "language": "km",
+            "video_id": challenge["video_id"],
+            "section_id": section["id"],
+            "translation": "hello, how are you? nice to meet you",
+        },
+    ).json()
+    assert scored["passed"] and scored["point"] == 1
+    assert scored["retrieved"]
+
+    miss = client.post(
+        "/learn/music-video/score",
+        json={
+            "language": "km",
+            "video_id": challenge["video_id"],
+            "section_id": section["id"],
+            "translation": "this dish is delicious and too expensive",
+        },
+    ).json()
+    assert not miss["passed"]

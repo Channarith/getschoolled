@@ -915,15 +915,28 @@ export type LangStoryPage = { page_number: number; title: string; text: string;
 export type LangWordExplanation = { found: boolean; word_id: string; target: string;
   roman?: string; meaning: string; category: string; explanation: string;
   pronunciation_tip: string; examples: { page: number; target: string; en: string }[] };
+export type LangMusicVideoSection = {
+  id: string; section_no: number; start_sec: number; end_sec: number; duration_sec: number;
+  target: string; roman?: string; tts_text?: string; prompt: string;
+  en?: string; explain_en?: string; paraphrases_en?: string[];
+};
 export type LangExercise = { skill: string; language: string; items?: LangItem[];
   pairs?: { id: string; term: string; match: string }[]; target?: string; roman?: string;
   en?: string; mouth_tip?: string; tip?: string; note?: string;
   dialogues?: LangDialogue[]; entries?: LangSlang[]; songs?: LangSong[];
-  title?: string; instructions?: string; media_type?: string; media_url?: string;
-  license?: string; study_words?: LangMediaOption[]; segments?: LangMediaSegment[];
-  story_id?: string; page_count?: number; pages?: LangStoryPage[] };
+  title?: string; title_target?: string; instructions?: string; media_type?: string;
+  media_url?: string; license?: string; source_url?: string; source_note?: string;
+  study_words?: LangMediaOption[]; segments?: LangMediaSegment[];
+  story_id?: string; page_count?: number; pages?: LangStoryPage[];
+  video_id?: string; sections?: LangMusicVideoSection[] };
 export type Pronounce = { score: number; stars: number; passed: boolean; target: string;
   heard: string; missed_words: string[]; feedback: string; mouth_tip: string };
+export type MusicVideoScore = {
+  score: number; stars: number; passed: boolean; point: number;
+  translation: string; reference_en: string; explain_en: string;
+  best_match: string; retrieved: string[]; coverage: number; similarity: number;
+  feedback: string; section_id: string; video_id: string; section_no?: number;
+};
 
 export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; count: number }> {
   return jsonOrThrow(await fetch(`${SPEECH_URL}/learn/languages`, { cache: "no-store" }));
@@ -969,6 +982,18 @@ export async function pronounce(target: string, heard: string, mouthOpenness?: n
     await fetch(`${SPEECH_URL}/learn/pronounce`, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ target, heard, mouth_openness: mouthOpenness ?? null }),
+    })
+  );
+}
+export async function scoreMusicVideoTranslation(
+  language: string, videoId: string, sectionId: string, translation: string,
+): Promise<MusicVideoScore> {
+  return jsonOrThrow(
+    await fetch(`${SPEECH_URL}/learn/music-video/score`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        language, video_id: videoId, section_id: sectionId, translation,
+      }),
     })
   );
 }

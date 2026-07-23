@@ -412,6 +412,24 @@ def learn_songs(language: str) -> dict:
     return {"language": language, "songs": songs_for(language)}
 
 
+@app.get("/learn/{language}/music-videos")
+def learn_music_videos(language: str) -> dict:
+    from aoep_shared.language_learning import music_videos_for
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return {"language": language, "music_videos": music_videos_for(language)}
+
+
+@app.get("/learn/{language}/music-video-challenge")
+def learn_music_video_challenge(language: str, video_id: str | None = None) -> dict:
+    from aoep_shared.language_learning import music_video_challenge
+
+    if language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return music_video_challenge(language, video_id=video_id)
+
+
 @app.get("/learn/{language}/media-challenge")
 def learn_media_challenge(language: str, study_size: int = 10, seed: int | None = None) -> dict:
     from aoep_shared.language_learning import media_listening_challenge
@@ -466,7 +484,7 @@ def learn_exercise(req: ExerciseRequest) -> dict:
             100
             if req.skill in ("conversation", "story", "slang", "idioms")
             else 10
-            if req.skill == "media-listening"
+            if req.skill in ("media-listening", "music-video")
             else 8,
         ),
     )
@@ -493,6 +511,8 @@ def learn_exercise(req: ExerciseRequest) -> dict:
         }
     if req.skill == "media-listening":
         return ll.media_listening_challenge(req.language, study_size=n)
+    if req.skill == "music-video":
+        return ll.music_video_challenge(req.language)
     return ll.vocabulary_exercise(req.language, n=n)
 
 
@@ -508,3 +528,25 @@ def learn_pronounce(req: PronounceRequest) -> dict:
     from aoep_shared.language_learning import assess_pronunciation
 
     return assess_pronunciation(req.target, req.heard, mouth_openness=req.mouth_openness)
+
+
+class MusicVideoScoreRequest(BaseModel):
+    language: str
+    video_id: str = ""
+    section_id: str
+    translation: str = ""
+
+
+@app.post("/learn/music-video/score")
+def learn_music_video_score(req: MusicVideoScoreRequest) -> dict:
+    """RAG-score a music-video section translation for gist (not word-for-word)."""
+    from aoep_shared.language_learning import score_music_video_section
+
+    if req.language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(status_code=404, detail="unsupported language")
+    return score_music_video_section(
+        req.language,
+        video_id=req.video_id,
+        section_id=req.section_id,
+        translation=req.translation,
+    )

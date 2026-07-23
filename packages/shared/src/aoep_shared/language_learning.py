@@ -111,6 +111,8 @@ SKILL_AREAS = [
      "desc": "Play one verse, understand it, then sing the whole song."},
     {"id": "media-listening", "name": "Catch words in media", "icon": "🎧",
      "desc": "Study 10 words, listen for 10 seconds, pause, and identify what you heard."},
+    {"id": "music-video", "name": "Music video translate", "icon": "🎬",
+     "desc": "Play one section, pause, and translate the gist — RAG scores meaning, not word-for-word."},
 ]
 
 
@@ -687,6 +689,305 @@ def explain_story_word(language: str, word_id: str) -> dict:
     }
 
 
+def music_videos_for(language: str) -> List[dict]:
+    """Return licensed/original music-video translation lessons.
+
+    Curated packs may include a real ``media_url``. When none exist, song verses
+    are promoted into a section-by-section music-video challenge with TTS audio
+    so every language stays practiceable without copyrighted commercial tracks.
+    """
+    try:
+        from .content_packs import load_records
+
+        curated = [
+            dict(rec) for rec in load_records("music_videos")
+            if rec.get("language") == language and rec.get("sections")
+        ]
+    except Exception:  # pragma: no cover
+        curated = []
+    if curated:
+        return curated
+
+    songs = songs_for(language)
+    if not songs:
+        return []
+    out = []
+    for song in songs:
+        sections = []
+        cursor = 0
+        for verse in song.get("verses") or []:
+            duration = 12
+            sections.append({
+                "section_no": int(verse.get("verse_no") or (len(sections) + 1)),
+                "start_sec": cursor,
+                "end_sec": cursor + duration,
+                "duration_sec": duration,
+                "target": verse.get("target", ""),
+                "roman": verse.get("roman", ""),
+                "en": verse.get("en", ""),
+                "explain_en": verse.get("explain_en", ""),
+                "tts_text": verse.get("tts_text") or verse.get("target", ""),
+                "paraphrases_en": [],
+            })
+            cursor += duration
+        out.append({
+            "language": language,
+            "video_id": f"{song.get('song_id', language)}-music-video",
+            "title_en": f"{song.get('title_en', 'Learning song')} (music video)",
+            "title_target": song.get("title_target", ""),
+            "license": song.get("license", "original-salareen"),
+            "media_type": "generated_audio",
+            "media_url": "",
+            "source_url": song.get("source_url", ""),
+            "source_note": song.get("source_note", ""),
+            "sections": sections,
+        })
+    return out
+
+
+def music_video_challenge(language: str, *, video_id: Optional[str] = None) -> dict:
+    """Build a play-section / pause / translate-the-gist challenge."""
+    videos = music_videos_for(language)
+    if not videos:
+        return {
+            "skill": "music-video",
+            "language": language,
+            "video_id": "",
+            "title": "Music video translate",
+            "instructions": "No music-video lesson is available for this language yet.",
+            "media_type": "generated_audio",
+            "media_url": "",
+            "license": "original-salareen",
+            "sections": [],
+        }
+    video = next((v for v in videos if v.get("video_id") == video_id), videos[0])
+    sections = []
+    for index, raw in enumerate(video.get("sections") or []):
+        duration = int(raw.get("duration_sec") or max(1, int(raw.get("end_sec", 0)) - int(raw.get("start_sec", 0))) or 12)
+        start = int(raw.get("start_sec", index * duration))
+        end = int(raw.get("end_sec", start + duration))
+        sections.append({
+            "id": f"sec-{index + 1:02d}",
+            "section_no": int(raw.get("section_no") or (index + 1)),
+            "start_sec": start,
+            "end_sec": end,
+            "duration_sec": duration,
+            "target": raw.get("target", ""),
+            "roman": raw.get("roman", ""),
+            "tts_text": raw.get("tts_text") or raw.get("target", ""),
+            "prompt": (
+                "Pause the video. In English, translate the gist of this section — "
+                "you do not need every word, just the meaning."
+            ),
+            # Kept for scoring + post-attempt reveal (same honesty model as MCQ keys).
+            "en": raw.get("en", ""),
+            "explain_en": raw.get("explain_en", ""),
+            "paraphrases_en": list(raw.get("paraphrases_en") or []),
+        })
+    return {
+        "skill": "music-video",
+        "language": language,
+        "video_id": video.get("video_id", ""),
+        "title": video.get("title_en") or "Music video translate",
+        "title_target": video.get("title_target", ""),
+        "instructions": (
+            "Play one section of the music video, pause, and translate the meaning. "
+            "RAG checks that you got the gist — not a word-for-word match. "
+            "Earn a point for each correct section, then continue to the end."
+        ),
+        "media_type": video.get("media_type") or ("video" if video.get("media_url") else "generated_audio"),
+        "media_url": video.get("media_url", ""),
+        "license": video.get("license", "original-salareen"),
+        "source_url": video.get("source_url", ""),
+        "source_note": video.get("source_note", ""),
+        "sections": sections,
+    }
+
+
+_GIST_STOPWORDS = frozenset({
+    "a", "an", "the", "and", "or", "but", "to", "of", "in", "on", "at", "for",
+    "is", "are", "was", "were", "be", "been", "it", "this", "that", "with",
+    "from", "as", "by", "you", "your", "me", "my", "we", "our", "they", "their",
+    "i", "am", "do", "does", "did", "not", "no", "yes", "very", "please",
+})
+
+
+def _content_tokens(text: str) -> List[str]:
+    return [
+        tok for tok in _normalize(text).split()
+        if tok and tok not in _GIST_STOPWORDS and len(tok) > 1
+    ]
+
+
+def _music_video_rag_corpus(
+    *,
+    reference_en: str,
+    explain_en: str = "",
+    paraphrases_en: Optional[List[str]] = None,
+    language: str = "",
+) -> List[str]:
+    """Build a small retrieval corpus for gist scoring.
+
+    Passages come from the section meaning, explanation, curated paraphrases, and
+    related phrasebook/vocabulary English glosses that share content words with
+    the reference — a lightweight RAG index without an external vector DB.
+    """
+    corpus: List[str] = []
+    for text in [reference_en, explain_en, *(paraphrases_en or [])]:
+        cleaned = (text or "").strip()
+        if cleaned and cleaned not in corpus:
+            corpus.append(cleaned)
+    ref_tokens = set(_content_tokens(reference_en))
+    if language and ref_tokens:
+        related: List[str] = []
+        for row in phrases_for(language) + vocabulary_for(language):
+            gloss = (row.get("en") or "").strip()
+            if not gloss:
+                continue
+            if set(_content_tokens(gloss)) & ref_tokens:
+                related.append(gloss)
+        # Keep the index small and relevant.
+        for gloss in related[:12]:
+            if gloss not in corpus:
+                corpus.append(gloss)
+    return corpus or [reference_en or ""]
+
+
+def _retrieve_rag_passages(query: str, corpus: List[str], *, top_k: int = 5) -> List[str]:
+    """Rank corpus passages by Jaccard overlap with the learner translation."""
+    qtoks = set(_content_tokens(query))
+    if not corpus:
+        return []
+    ranked = []
+    for passage in corpus:
+        ptoks = set(_content_tokens(passage))
+        if not ptoks and not qtoks:
+            score = 1.0 if _normalize(query) == _normalize(passage) else 0.0
+        else:
+            union = qtoks | ptoks
+            score = (len(qtoks & ptoks) / len(union)) if union else 0.0
+            # Soft boost for sequence similarity so near-paraphrases still rank.
+            score = 0.65 * score + 0.35 * difflib.SequenceMatcher(
+                None, _normalize(query), _normalize(passage)
+            ).ratio()
+        ranked.append((score, passage))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [passage for _, passage in ranked[: max(1, top_k)]]
+
+
+def assess_translation_gist(
+    reference_en: str,
+    translation: str,
+    *,
+    explain_en: str = "",
+    paraphrases_en: Optional[List[str]] = None,
+    language: str = "",
+) -> dict:
+    """Score a free-text translation for gist, not word-for-word accuracy.
+
+    Uses a tiny RAG retrieve-then-score loop: retrieve the best-matching meaning
+    passages, then blend sequence similarity with content-word coverage so
+    paraphrases still earn the point.
+    """
+    reference = (reference_en or "").strip()
+    attempt = (translation or "").strip()
+    corpus = _music_video_rag_corpus(
+        reference_en=reference,
+        explain_en=explain_en,
+        paraphrases_en=paraphrases_en,
+        language=language,
+    )
+    retrieved = _retrieve_rag_passages(attempt, corpus, top_k=5)
+    if reference and reference not in retrieved:
+        retrieved = [reference] + retrieved
+
+    best_sim = 0.0
+    best_passage = reference
+    for passage in retrieved or [reference]:
+        sim = difflib.SequenceMatcher(
+            None, _normalize(attempt), _normalize(passage)
+        ).ratio() if attempt and passage else 0.0
+        if sim >= best_sim:
+            best_sim = sim
+            best_passage = passage
+
+    ref_toks = set(_content_tokens(reference))
+    hyp_toks = set(_content_tokens(attempt))
+    # Also credit tokens matched against the best retrieved paraphrase.
+    best_toks = set(_content_tokens(best_passage))
+    coverage_ref = (len(ref_toks & hyp_toks) / len(ref_toks)) if ref_toks else 0.0
+    coverage_best = (len(best_toks & hyp_toks) / len(best_toks)) if best_toks else 0.0
+    coverage = max(coverage_ref, coverage_best)
+
+    score = round(100 * (0.4 * best_sim + 0.6 * coverage))
+    passed = bool(attempt) and (
+        score >= 45
+        or coverage >= 0.45
+        or (coverage >= 0.3 and best_sim >= 0.35)
+        or best_sim >= 0.55
+    )
+    stars = 3 if score >= 80 else 2 if score >= 60 else 1 if passed else 0
+    if not attempt:
+        feedback = "Type what you understood — the gist is enough."
+    elif passed and score >= 80:
+        feedback = "Excellent gist — you clearly got the meaning. +1 point"
+    elif passed:
+        feedback = "Nice! You caught the meaning (not every word is required). +1 point"
+    else:
+        feedback = (
+            "Not quite — replay the section and try again with the main idea, "
+            "not a word-for-word translation."
+        )
+    return {
+        "score": score,
+        "stars": stars,
+        "passed": passed,
+        "point": 1 if passed else 0,
+        "translation": attempt,
+        "reference_en": reference,
+        "explain_en": explain_en,
+        "best_match": best_passage,
+        "retrieved": retrieved[:4],
+        "coverage": round(coverage, 3),
+        "similarity": round(best_sim, 3),
+        "feedback": feedback,
+    }
+
+
+def score_music_video_section(
+    language: str,
+    *,
+    video_id: str,
+    section_id: str,
+    translation: str,
+) -> dict:
+    """Look up a music-video section and RAG-score the learner's gist translation."""
+    challenge = music_video_challenge(language, video_id=video_id or None)
+    section = next(
+        (row for row in challenge.get("sections") or [] if row.get("id") == section_id),
+        None,
+    )
+    if section is None:
+        return {
+            "score": 0, "stars": 0, "passed": False, "point": 0,
+            "translation": translation, "reference_en": "", "explain_en": "",
+            "best_match": "", "retrieved": [], "coverage": 0.0, "similarity": 0.0,
+            "feedback": "Unknown section — reload the music-video challenge.",
+            "section_id": section_id, "video_id": challenge.get("video_id", video_id),
+        }
+    result = assess_translation_gist(
+        section.get("en", ""),
+        translation,
+        explain_en=section.get("explain_en", ""),
+        paraphrases_en=list(section.get("paraphrases_en") or []),
+        language=language,
+    )
+    result["section_id"] = section_id
+    result["video_id"] = challenge.get("video_id", video_id)
+    result["section_no"] = section.get("section_no")
+    return result
+
+
 def course_outline(language: str) -> dict:
     meta = LANGUAGE_META.get(language, {"name": language, "native": language, "flag": "🏳️"})
     return {
@@ -697,6 +998,7 @@ def course_outline(language: str) -> dict:
         "dialogue_count": len(dialogues_for(language)),
         "slang_count": slang_count(language),
         "song_count": len(songs_for(language)),
+        "music_video_count": len(music_videos_for(language)),
         "grammar_tip": _GRAMMAR_TIPS.get(language, ""),
         "culture_note": _CULTURE_NOTES.get(language, ""),
     }
@@ -886,5 +1188,5 @@ def practice_xp(skill: str, correct: int, total: int) -> int:
     """XP for completing a practice set (feeds points/rewards)."""
     base = correct * 8
     bonus = 16 if total and correct == total else 0
-    hard = {"pronunciation", "writing", "conversation"}
+    hard = {"pronunciation", "writing", "conversation", "music-video"}
     return int((base + bonus) * (1.25 if skill in hard else 1.0))
