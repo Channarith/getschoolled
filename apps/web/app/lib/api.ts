@@ -904,10 +904,16 @@ export type LangVerse = { verse_no: number; target: string; roman?: string; en: 
   explain_en: string; tts_text?: string };
 export type LangSong = { song_id: string; title_en: string; title_target?: string; license: string;
   source_url?: string; source_note?: string; verses: LangVerse[] };
+export type LangMediaOption = { id: string; target: string; roman?: string; en: string };
+export type LangMediaSegment = { id: string; start_sec: number; end_sec: number;
+  duration_sec: number; tts_text: string; question: string;
+  options: LangMediaOption[]; answer_id: string };
 export type LangExercise = { skill: string; language: string; items?: LangItem[];
   pairs?: { id: string; term: string; match: string }[]; target?: string; roman?: string;
   en?: string; mouth_tip?: string; tip?: string; note?: string;
-  dialogues?: LangDialogue[]; entries?: LangSlang[]; songs?: LangSong[] };
+  dialogues?: LangDialogue[]; entries?: LangSlang[]; songs?: LangSong[];
+  title?: string; instructions?: string; media_type?: string; media_url?: string;
+  license?: string; study_words?: LangMediaOption[]; segments?: LangMediaSegment[] };
 export type Pronounce = { score: number; stars: number; passed: boolean; target: string;
   heard: string; missed_words: string[]; feedback: string; mouth_tip: string };
 
