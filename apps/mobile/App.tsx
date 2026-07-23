@@ -43,6 +43,8 @@ import LiveClassScreen from "./src/screens/LiveClassScreen";
 import LiveRoomsScreen from "./src/screens/LiveRoomsScreen";
 import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import ArcadeScreen from "./src/screens/ArcadeScreen";
+import CorporateScreen from "./src/screens/CorporateScreen";
+import KidsScreen from "./src/screens/KidsScreen";
 import WorldsScreen from "./src/screens/WorldsScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
@@ -97,6 +99,8 @@ function AppInner() {
   const [showLiveClass, setShowLiveClass] = useState(false);
   const [showLiveRooms, setShowLiveRooms] = useState(false);
   const [showArcade, setShowArcade] = useState(false);
+  const [showCorporate, setShowCorporate] = useState(false);
+  const [showKids, setShowKids] = useState(false);
   const [showWorlds, setShowWorlds] = useState(false);
   const [gameFromArcade, setGameFromArcade] = useState(false);
   const [gameTypeHint, setGameTypeHint] = useState<string | null>(null);
@@ -176,6 +180,8 @@ function AppInner() {
       setShowLiveClass(false);
       setShowLiveRooms(false);
       setShowArcade(false);
+      setShowCorporate(false);
+      setShowKids(false);
       setShowWorlds(false);
       setGameFromArcade(false);
       setGameTypeHint(null);
@@ -209,8 +215,9 @@ function AppInner() {
       duration: theme.motion.fadeDuration,
       useNativeDriver: true,
     }).start();
-  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, showArcade, liveRoomId, gameSubject,
-    activeLesson, showRewards, showAccount, showSecurity, showBilling, showLanguages, showBugReport, fade]);
+  }, [tab, showGroupClasses, showLiveClass, showLiveRooms, showArcade, showCorporate, showKids,
+    liveRoomId, gameSubject, activeLesson, showRewards, showAccount, showSecurity, showBilling,
+    showLanguages, showBugReport, fade]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -404,6 +411,8 @@ function AppInner() {
     setShowLiveClass(false);
     setShowLiveRooms(false);
     setShowArcade(false);
+    setShowCorporate(false);
+    setShowKids(false);
     setShowWorlds(false);
     setGameFromArcade(false);
     setGameTypeHint(null);
@@ -475,7 +484,7 @@ function AppInner() {
   }
 
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
-    && !showLiveRooms && !showArcade && !gameSubject && !activeLesson
+    && !showLiveRooms && !showArcade && !showCorporate && !showKids && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
     && !showSearch && !showBugReport && !showWorlds;
 
@@ -553,6 +562,20 @@ function AppInner() {
       <ArcadeScreen
         onOpenSubject={(subject, gameType) => openGame(subject, true, gameType)}
         onBack={() => setShowArcade(false)}
+      />
+    );
+  } else if (showCorporate) {
+    screen = (
+      <CorporateScreen
+        onOpenCourse={(id) => { setShowCorporate(false); openCourse(id); }}
+        onBack={() => setShowCorporate(false)}
+      />
+    );
+  } else if (showKids) {
+    screen = (
+      <KidsScreen
+        onOpenCourse={(id) => { setShowKids(false); openCourse(id); }}
+        onBack={() => setShowKids(false)}
       />
     );
   } else if (showWorlds) {
@@ -661,6 +684,8 @@ function AppInner() {
         onOpenLanguages={() => requireAuth(() => setShowLanguages(true))}
         onOpenRewards={() => requireAuth(() => setShowRewards(true))}
         onOpenSearch={() => setShowSearch(true)}
+        onOpenCorporate={() => setShowCorporate(true)}
+        onOpenKids={() => setShowKids(true)}
       />
     );
   } else if (tab === "drive") {

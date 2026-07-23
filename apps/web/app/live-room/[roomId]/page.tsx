@@ -786,6 +786,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const presenceProbeVideoRef = useRef<HTMLVideoElement | null>(null);
   const presenceEngineRef = useRef<VisionEngine | null>(null);
   const screenShareStreamRef = useRef<MediaStream | null>(null);
+  // Ref kept in sync with localStream state so the unmount cleanup can stop
+  // camera tracks without capturing a stale closure value.
+  const localStreamRef = useRef<MediaStream | null>(null);
   const pipVideoRef = useRef<HTMLVideoElement>(null);
   const presenceProbeBusyRef = useRef(false);
   const [presenceFaceCount, setPresenceFaceCount] = useState<number>(-1);
@@ -1168,6 +1171,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       /* best effort */
     }
     presenceEngineRef.current = null;
+  }, []);
+
+  // Keep the ref in sync with localStream state so unmount cleanup sees the
+  // current stream even after React has torn down closure scope.
+  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
+
+  // Stop camera tracks on unmount to release the camera indicator light.
+  useEffect(() => () => {
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
   }, []);
 
   async function handleJoin(nameOverride?: string, accountId?: string) {

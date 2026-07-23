@@ -513,10 +513,7 @@ def media_listening_challenge(
             "start_sec": index * 10,
             "end_sec": (index + 1) * 10,
             "duration_sec": 10,
-            "tts_text": (
-                f"ស្តាប់ពាក្យ។ {word['target']}។ "
-                f"ច្រៀងជាមួយខ្ញុំ។ {word['target']}។"
-            ),
+            "tts_text": f"{word['target']}. {word['target']}.",
             "question": (
                 f"Which vocabulary word did you hear during seconds "
                 f"{index * 10}–{(index + 1) * 10}?"
