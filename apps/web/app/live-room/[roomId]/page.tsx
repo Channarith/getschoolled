@@ -771,6 +771,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // can confirm ("yes") or ask a follow-up before the floor is released.
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const confirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Separate timer for narration-context cleanup — must NOT cancel the floor-release confirmationTimer
+  const narrationContextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pauseSubmitterRef = useRef<ReturnType<typeof createVoicePauseSubmitter> | null>(null);
   const triggerPauseSubmitRef = useRef<((spoken: string) => void) | null>(null);
   const doneSpeakingRef = useRef<() => void>(() => {});
@@ -1178,8 +1180,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
 
   // Stop camera tracks on unmount to release the camera indicator light.
+  // Also stop any active screen share stream.
   useEffect(() => () => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenShareStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenShareStreamRef.current = null;
   }, []);
 
   async function handleJoin(nameOverride?: string, accountId?: string) {
@@ -1863,11 +1868,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       });
     }
     return () => {
-      // Clear any trigger-phrase confirmation timer so it doesn't fire against
-      // a stale slide after a slide change.
-      if (confirmationTimerRef.current) {
-        clearTimeout(confirmationTimerRef.current);
-        confirmationTimerRef.current = null;
+      // Clear the narration-context timer only — NOT confirmationTimerRef which
+      // is owned by the hostAnswer floor-release flow and must not be cancelled here.
+      if (narrationContextTimerRef.current) {
+        clearTimeout(narrationContextTimerRef.current);
+        narrationContextTimerRef.current = null;
       }
     };
   }, [aiAudioOn, aiAudioUnlocked, classLive, slideIdx, slideTitle, slideNarration, slideBody, narrationLocale,
