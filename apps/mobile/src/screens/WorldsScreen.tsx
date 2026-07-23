@@ -87,8 +87,8 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         onMessage={handleMessage}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
-        onError={(e) => setError(e.nativeEvent.description)}
-        onHttpError={(e) => setError(`HTTP ${e.nativeEvent.statusCode}: ${e.nativeEvent.description}`)}
+        onError={(e: {nativeEvent: {description: string}}) => setError(e.nativeEvent.description)}
+        onHttpError={(e: {nativeEvent: {statusCode: number; description: string}}) => setError(`HTTP ${e.nativeEvent.statusCode}: ${e.nativeEvent.description}`)}
         javaScriptEnabled
         domStorageEnabled
         allowsFullscreenVideo
