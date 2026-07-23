@@ -182,6 +182,10 @@ FLAG_CATALOG: List[FlagSpec] = [
              options=("auto", "en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru",
                       "uk", "tr", "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja",
                       "ko", "vi", "th", "id", "sw", "el", "cs", "km")),
+    FlagSpec("ux.voice_pause_submit_ms", FlagType.INT, 4500, "ux",
+             "Milliseconds of microphone silence after the learner pauses before "
+             "auto-submitting the transcript (On the Go Ask, language Speak, web "
+             "Drive mic). Default 4500 (4.5s); tune in admin flags without a redeploy."),
 
     # --- operational kill-switches ------------------------------------------- #
     FlagSpec("ops.maintenance_mode", FlagType.BOOL, False, "ops",

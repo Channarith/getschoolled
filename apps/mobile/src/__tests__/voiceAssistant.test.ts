@@ -7,7 +7,7 @@
  * Sala gets the subject stripped.
  */
 
-import { hasWakeWord, stripWakeWords } from "../voiceAssistant";
+import { hasWakeWord, normalizeVoicePauseSubmitMs, stripWakeWords } from "../voiceAssistant";
 
 describe("hasWakeWord", () => {
   test.each([
@@ -51,5 +51,22 @@ describe("stripWakeWords", () => {
   // When the localization/grammar fix lands, flip this to the corrected value.
   test("PINNED DEFECT: strips Sala even when it is the question subject", () => {
     expect(stripWakeWords("who is sala")).toBe("who is");
+  });
+});
+
+describe("normalizeVoicePauseSubmitMs", () => {
+  test("defaults to 4.5 seconds", () => {
+    expect(normalizeVoicePauseSubmitMs(undefined)).toBe(4500);
+    expect(normalizeVoicePauseSubmitMs("nope")).toBe(4500);
+  });
+
+  test("accepts admin-tuned values within bounds", () => {
+    expect(normalizeVoicePauseSubmitMs(3000)).toBe(3000);
+    expect(normalizeVoicePauseSubmitMs("6000")).toBe(6000);
+  });
+
+  test("clamps extreme values", () => {
+    expect(normalizeVoicePauseSubmitMs(50)).toBe(500);
+    expect(normalizeVoicePauseSubmitMs(60000)).toBe(15000);
   });
 });

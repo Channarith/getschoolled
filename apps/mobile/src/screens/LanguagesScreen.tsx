@@ -12,6 +12,7 @@ import {
 import AnimatedPressable from "../components/AnimatedPressable";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
+import { useVoicePauseSubmitMs } from "../featureFlags";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { speakNatural, stopSpeech } from "../tts";
@@ -20,6 +21,7 @@ import { theme } from "../theme";
 
 export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
   const { t } = useT();
+  const pauseSubmitMs = useVoicePauseSubmitMs();
   useAndroidBackTo(onBack);
   const [langs, setLangs] = useState<LangInfo[]>([]);
   const [course, setCourse] = useState<LangCourse | null>(null);
@@ -218,6 +220,8 @@ export default function LanguagesScreen({ onBack }: { onBack: () => void }) {
     setListening(true);
     const ok = await startVoiceListening({
       locale: codeRef.current || "en",
+      pauseSubmitMs,
+      autoSubmitOnPause: true,
       onResult: (transcript) => {
         if (!mountedRef.current) return;
         setHeard(transcript);

@@ -1708,7 +1708,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       cancelSpeech();
       speakNaturally(welcome, base);
     });
-  }, [room, aiAudioOn, aiAudioUnlocked, narrationLocale]);
+  }, [room, aiAudioOn, aiAudioUnlocked, narrationLocale, canModerate]);
 
   // AI teacher voice: Theodore narrates each new slide out loud while presenting
   // (neural TTS via the speech service, on-device fallback). Keyed on the slide

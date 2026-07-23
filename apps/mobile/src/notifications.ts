@@ -76,7 +76,7 @@ export async function fireDrivingDetectedAlert(courseId?: string) {
   if (!s.notificationsEnabled || !s.driveDrivingAlerts) return;
   await fireImmediate(
     "Driving detected",
-    "Hands-free Drive Mode is ready. Tap to continue your class.",
+    "Hands-free On the Go is ready. Tap to continue your class.",
     { courseId, kind: "driving", deepLink: "aiclassroom://drive" },
   );
 }
@@ -98,7 +98,7 @@ export async function rescheduleDailyReminder(settings?: Settings) {
     identifier: DAILY_REMINDER_TAG,
     content: {
       title: "Your daily class is ready",
-      body: "Five minutes of audio, hands-free. Tap to open Drive Mode.",
+      body: "Five minutes of audio, hands-free. Tap to open On the Go.",
       data: { kind: "daily", deepLink: "aiclassroom://drive" },
     },
     trigger: {
