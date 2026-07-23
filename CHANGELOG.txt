@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-22 - v0.31.0 - Host-a-class: web schedule adds per-student price and PDF/PPTX upload; orchestrator imports host decks as curriculum lessons; authenticated host-only class start; 5-minute early check-in before teaching paid classes; zero-student practice runs without host payout; checkout confirm dialog before sandbox payment.
 - 2026-07-23 - v0.30.0 - Home page: inline email/password sign-in form replaces the redirect to /login; users can sign in or create an account directly on the landing page; toggle between sign-in and sign-up; forgot password link preserved.
 - 2026-07-23 - v0.29.10 - Fix CI: docker compose fails because config/local.env was removed from git (PR #395); add cp local.env.example local.env step to ci.yml compose job; remove obsolete version field from docker-compose.yml; change mobile pnpm install to --no-frozen-lockfile so CI does not break when lockfile lags package.json.
 - 2026-07-22 - v0.29.9 - Fix CI lockfile mismatch: pnpm-lock.yaml missing react-native-webview@13.8.6 causing mobile-tests to fail on main; fix WorldsScreen onError/onHttpError implicit-any with inline types; fix stale test assertions for kids maturity filter and lesson deep_link.

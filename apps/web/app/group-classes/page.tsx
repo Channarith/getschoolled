@@ -12,6 +12,7 @@ import {
   reviewGroupClass,
   scheduleGroupClass,
   startGroupClass,
+  uploadHostPresentation,
   type GroupClass,
   type GroupClassStart,
   type Lesson,
@@ -66,6 +67,7 @@ export default function GroupClassesPage() {
   const [started, setStarted] = useState<GroupClassStart | null>(null);
   const [loggedIn, setLoggedIn] = useState(true);   // resolved on mount
   const [isAdmin, setIsAdmin] = useState(false);    // platform admin can join a full class to monitor
+  const [myAccountId, setMyAccountId] = useState("");
 
   // schedule form
   const [title, setTitle] = useState("");
@@ -76,6 +78,8 @@ export default function GroupClassesPage() {
   const [duration, setDuration] = useState(60);
   const [capacity, setCapacity] = useState(5);
   const [roomSize, setRoomSize] = useState(6);
+  const [pricePerUser, setPricePerUser] = useState("");
+  const [presentationFile, setPresentationFile] = useState<File | null>(null);
 
   const offline = t("error.offline");
   const paidLabel = "Paid class";
@@ -92,7 +96,10 @@ export default function GroupClassesPage() {
   useEffect(() => {
     setLoggedIn(Boolean(getToken()));
     if (getToken()) {
-      void getMe().then((a) => setIsAdmin(Boolean(a.is_admin))).catch(() => setIsAdmin(false));
+      void getMe().then((a) => {
+        setIsAdmin(Boolean(a.is_admin));
+        setMyAccountId(a.id || "");
+      }).catch(() => { setIsAdmin(false); setMyAccountId(""); });
     }
     refresh();
     listLessons()
@@ -116,10 +123,23 @@ export default function GroupClassesPage() {
     setError("");
     setBusy(true);
     try {
+      let chosenLessonId = lessonId;
+      let presentationFilename = "";
       const lesson = lessons.find((l) => l.lesson_id === lessonId);
+      if (presentationFile) {
+        const imported = await uploadHostPresentation(presentationFile, {
+          title: title.trim() || lesson?.title,
+          language: lesson?.language ?? "en",
+        });
+        chosenLessonId = imported.lesson_id;
+        presentationFilename = imported.presentation_filename;
+        setLessons(await listLessons());
+      }
+      const priceRaw = Number(pricePerUser.trim());
+      const price = pricePerUser.trim() && !Number.isNaN(priceRaw) ? priceRaw : undefined;
       await scheduleGroupClass({
         title: title.trim() || (lesson ? lesson.title : "Group class"),
-        lesson_id: lessonId,
+        lesson_id: chosenLessonId,
         platform,
         meeting_url: meetingUrl.trim(),
         start_time: new Date(startTime).toISOString(),
@@ -127,9 +147,15 @@ export default function GroupClassesPage() {
         capacity: platform === "salareen" ? roomSize - 1 : capacity,
         room_size: platform === "salareen" ? roomSize : undefined,
         language: lesson?.language ?? "en",
+        price_per_user_usd: price,
+        payment_required: price != null && price > 0,
+        attendee_code_required: price != null && price > 0,
+        presentation_filename: presentationFilename || undefined,
       });
       setTitle("");
       setMeetingUrl("");
+      setPricePerUser("");
+      setPresentationFile(null);
       setShowForm(false);
       await refresh();
     } catch (e) {
@@ -139,11 +165,48 @@ export default function GroupClassesPage() {
     }
   }
 
-  // One button does it all: the first person to join opens the class (and hosts
-  // it); anyone joining an already-live class just drops into the running room.
-  // No separate register/start step — first join comes in.
+  function isHost(gc: GroupClass): boolean {
+    if (!myAccountId) return false;
+    return myAccountId === gc.instructor_account_id || myAccountId === gc.created_by_account_id;
+  }
+
+  async function openSalareenRoom(res: GroupClassStart, gc: GroupClass, asHost: boolean) {
+    const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
+    const attendeeCode = sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${gc.id}`) || "";
+    if (attendeeCode) {
+      sessionStorage.setItem(`${ATTENDEE_CODE_KEY}:${roomId}`, attendeeCode);
+    }
+    if (asHost && res.bridge.moderator_key) {
+      sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
+    }
+    if (!res.bridge.needs_bridge) {
+      window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
+      return;
+    }
+    setStarted(res);
+    await refresh();
+  }
+
+  async function onStartHost(gc: GroupClass) {
+    if (!requireAccount()) return;
+    setError("");
+    setBusy(true);
+    try {
+      const res = await startGroupClass(gc.id);
+      await openSalareenRoom(res, gc, true);
+    } catch (e) {
+      setError(friendlyError(e, offline));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onJoin(gc: GroupClass) {
     if (!requireAccount()) return;
+    if (isHost(gc)) {
+      await onStartHost(gc);
+      return;
+    }
     if (gc.needs_bridge && gc.meeting_url) {
       window.open(gc.meeting_url, "_blank", "noopener");
       return;
@@ -161,29 +224,22 @@ export default function GroupClassesPage() {
             me.display_name || me.email || "Learner",
             me.email || "",
           );
+          const priceLabel = gc.price_per_user_usd ? `$${gc.price_per_user_usd.toFixed(2)}` : "the listed price";
+          const proceed = window.confirm(`Pay ${priceLabel} per seat to attend this class?`);
+          if (!proceed) return;
           const paid = await confirmGroupClassPayment(gc.id, checkout.checkout.session_id);
           attendeeCode = paid.attendee_code;
           sessionStorage.setItem(codeKey, attendeeCode);
         }
       }
       const wasLive = gc.status === "live" || Boolean(gc.live_room_id);
-      const res = await startGroupClass(gc.id);   // idempotent: opens the room
-      const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
-      const attendeeCode = sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${gc.id}`) || "";
-      if (attendeeCode) {
-        sessionStorage.setItem(`${ATTENDEE_CODE_KEY}:${roomId}`, attendeeCode);
-      }
-      // Only the first joiner (class wasn't live yet) becomes the host/moderator;
-      // later arrivals join as learners.
-      if (!wasLive && res.bridge.moderator_key) {
-        sessionStorage.setItem(`salareen-live-moderator:${roomId}`, res.bridge.moderator_key);
-      }
-      if (!res.bridge.needs_bridge) {
+      if (wasLive) {
+        const roomId = gc.live_room_id || `class-${gc.id}`;
         window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
         return;
       }
-      setStarted(res);
-      await refresh();
+      const res = await startGroupClass(gc.id);
+      await openSalareenRoom(res, gc, false);
     } catch (e) {
       setError(friendlyError(e, offline));
     } finally {
@@ -324,21 +380,38 @@ export default function GroupClassesPage() {
                 <input type="number" min={5} step={5} style={{ width: "100%" }} value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))} />
               </label>
-              {platform !== "salareen" && (
-                <label style={{ width: 110 }}>
-                  <div className="muted">{t("group.fCapacity")}</div>
-                  <input type="number" min={1} style={{ width: "100%" }} value={capacity}
-                    onChange={(e) => setCapacity(Number(e.target.value))} />
-                </label>
-              )}
+            {platform !== "salareen" && (
+              <label style={{ width: 110 }}>
+                <div className="muted">{t("group.fCapacity")}</div>
+                <input type="number" min={1} style={{ width: "100%" }} value={capacity}
+                  onChange={(e) => setCapacity(Number(e.target.value))} />
+              </label>
+            )}
+            <label style={{ width: 140 }}>
+              <div className="muted">Price per student (USD)</div>
+              <input type="number" min={0} step={0.01} style={{ width: "100%" }} value={pricePerUser}
+                placeholder="0 = free"
+                onChange={(e) => setPricePerUser(e.target.value)} />
+            </label>
+          </div>
+          <label>
+            <div className="muted">Your presentation (PDF or PPTX)</div>
+            <input
+              type="file"
+              accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
+            />
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              Upload your deck to page through slide-by-slide in class, or pick a catalog lesson below.
             </div>
-            {platform === "salareen" && (
+          </label>
+          {platform === "salareen" && (
               <div className="muted" style={{ fontSize: 13 }}>
                 Salareen live room: Theodore hosts; learners join the multi-user grid.
               </div>
             )}
             <div className="row">
-              <button onClick={onSchedule} disabled={busy || !lessonId}
+              <button onClick={onSchedule} disabled={busy || (!lessonId && !presentationFile)}
                 style={{ background: "#111", color: "#fff" }}>
                 {t("group.scheduleSubmit")}
               </button>
@@ -405,10 +478,16 @@ export default function GroupClassesPage() {
                   </div>
                 )}
               </div>
-              <div className="group-class-actions">
-                {/* One button: first join opens (and hosts) the class; later
-                    joins drop into the running room. A full class is grayed out
-                    for everyone except the platform admin (who can monitor). */}
+            <div className="row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              {isHost(gc) ? (
+                <button
+                  onClick={() => void onStartHost(gc)}
+                  disabled={busy}
+                  style={{ background: "#6366f1", color: "#fff" }}
+                >
+                  🎓 Start My Class
+                </button>
+              ) : (
                 <button
                   onClick={() => onJoin(gc)}
                   disabled={busy || (gc.seats_left <= 0 && !isAdmin)}
@@ -417,10 +496,11 @@ export default function GroupClassesPage() {
                 >
                   {gc.seats_left <= 0 && !isAdmin ? t("group.full") : t("group.join")}
                 </button>
-                <button onClick={() => onRate(gc)} disabled={busy}>
-                  Rate instructor
-                </button>
-              </div>
+              )}
+              <button onClick={() => onRate(gc)} disabled={busy}>
+                Rate instructor
+              </button>
+            </div>
             </div>
           );
         })}
