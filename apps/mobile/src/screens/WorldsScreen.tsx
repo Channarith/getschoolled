@@ -73,6 +73,12 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
 
   return (
     <View style={styles.root}>
+      {/* iOS back button — visible on top-left since there is no hardware back */}
+      {Platform.OS === 'ios' && (
+        <Pressable style={styles.iosBackBtn} onPress={onBack}>
+          <Text style={styles.iosBackText}>← Back</Text>
+        </Pressable>
+      )}
       <WebView
         ref={webViewRef}
         source={{ uri: WORLDS_URL }}
@@ -81,7 +87,8 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         onMessage={handleMessage}
         onLoadStart={() => setLoading(true)}
         onLoadEnd={() => setLoading(false)}
-        onError={e => setError(e.nativeEvent.description)}
+        onError={(e) => setError(e.nativeEvent.description)}
+        onHttpError={(e) => setError(`HTTP ${e.nativeEvent.statusCode}: ${e.nativeEvent.description}`)}
         javaScriptEnabled
         domStorageEnabled
         allowsFullscreenVideo
@@ -91,14 +98,6 @@ export default function WorldsScreen({ onBack }: WorldsScreenProps) {
         overScrollMode="never"
         bounces={false}
         mixedContentMode="compatibility"
-        renderLoading={() => (
-          <View style={styles.loadingOverlay}>
-            <Text style={styles.loadingEmoji}>🌍</Text>
-            <Text style={styles.loadingTitle}>Loading Salareen Worlds...</Text>
-            <ActivityIndicator color="#6366f1" size="large" style={{ marginTop: 16 }} />
-          </View>
-        )}
-        startInLoadingState
       />
 
       {loading && (
@@ -135,6 +134,17 @@ const LOADING_TIPS = [
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#07080f" },
   webview: { flex: 1 },
+  iosBackBtn: {
+    position: "absolute",
+    top: 52,
+    left: 16,
+    zIndex: 20,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  iosBackText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#07080f",

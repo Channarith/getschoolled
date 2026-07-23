@@ -133,7 +133,7 @@ export class NPCManager {
       mesh,
       position: mesh.position.clone(),
       planet: cfg.planet,
-      dialogue: [...cfg.dialogue],
+      dialogue: [...(cfg.lines ?? [])],
       dialogueIndex: 0,
       animTime: Math.random() * Math.PI * 2,
       talkBubble: null,

@@ -176,6 +176,7 @@ function AppInner() {
       setShowLiveClass(false);
       setShowLiveRooms(false);
       setShowArcade(false);
+      setShowWorlds(false);
       setGameFromArcade(false);
       setGameTypeHint(null);
       setLiveRoomsOrigin(null);
@@ -403,6 +404,7 @@ function AppInner() {
     setShowLiveClass(false);
     setShowLiveRooms(false);
     setShowArcade(false);
+    setShowWorlds(false);
     setGameFromArcade(false);
     setGameTypeHint(null);
     setLiveRoomId(null);
@@ -475,7 +477,7 @@ function AppInner() {
   const mainTabsVisible = !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !showArcade && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
-    && !showSearch && !showBugReport;
+    && !showSearch && !showBugReport && !showWorlds;
 
   // Android hardware / gesture back: when no overlay screen owns the handler,
   // pop to Home from secondary tabs (standard Android tab UX). On Home, allow

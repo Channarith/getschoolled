@@ -22,7 +22,9 @@ export class PlanetSystem {
   private _skyMesh: THREE.Mesh | null = null;
   private _skyMat: THREE.ShaderMaterial | null = null;
   private _moons: THREE.Mesh[] = [];
+  private _clouds: THREE.Mesh[] = [];
   private _suns: THREE.Mesh[] = [];
+  private _lights: THREE.Light[] = [];
   private _saturnRing: THREE.Mesh | null = null;
   private _portal: PortalState | null = null;
   private _ambientParticles: THREE.Points | null = null;
@@ -92,7 +94,7 @@ export class PlanetSystem {
       cloud.scale.set(1.8, 0.6, 1.2);
       cloud.position.set(cx, cy, cz);
       scene.add(cloud);
-      this._moons.push(cloud); // reuse array for clouds
+      this._clouds.push(cloud);
     }
 
     // Portal (Earth side)
@@ -175,7 +177,9 @@ export class PlanetSystem {
     sun1.position.set(150, 60, 80);
     scene.add(sun1);
     this._suns.push(sun1);
-    scene.add(new THREE.PointLight(0xffcc44, 1.2, 300));
+    const sunLight1 = new THREE.PointLight(0xffcc44, 1.2, 300);
+    scene.add(sunLight1);
+    this._lights.push(sunLight1);
 
     const sunMat2 = new THREE.MeshStandardMaterial({
       color: 0xff6600,
@@ -190,6 +194,7 @@ export class PlanetSystem {
     const redSunLight = new THREE.PointLight(0xff6600, 0.8, 250);
     redSunLight.position.set(-120, 40, -100);
     scene.add(redSunLight);
+    this._lights.push(redSunLight);
 
     // Saturn-like rings
     const ringGeo = new THREE.RingGeometry(35, 60, 64);
@@ -304,11 +309,34 @@ export class PlanetSystem {
   }
 
   private _clearExtras(): void {
-    for (const m of this._moons) this.scene.remove(m);
-    for (const s of this._suns) this.scene.remove(s);
+    for (const m of this._moons) {
+      this.scene.remove(m);
+      m.geometry.dispose();
+      (m.material as THREE.Material).dispose();
+    }
+    for (const c of this._clouds) {
+      this.scene.remove(c);
+      c.geometry.dispose();
+      (c.material as THREE.Material).dispose();
+    }
+    for (const s of this._suns) {
+      this.scene.remove(s);
+      s.geometry.dispose();
+      (s.material as THREE.Material).dispose();
+    }
+    for (const l of this._lights) {
+      this.scene.remove(l);
+    }
     this._moons = [];
+    this._clouds = [];
     this._suns = [];
-    if (this._saturnRing) { this.scene.remove(this._saturnRing); this._saturnRing = null; }
+    this._lights = [];
+    if (this._saturnRing) {
+      this.scene.remove(this._saturnRing);
+      this._saturnRing.geometry.dispose();
+      (this._saturnRing.material as THREE.Material).dispose();
+      this._saturnRing = null;
+    }
     if (this._skyMesh) { this.scene.remove(this._skyMesh); }
     if (this._ambientParticles) { this.scene.remove(this._ambientParticles); this._ambientParticles = null; }
     if (this._portal) { this.scene.remove(this._portal.mesh); this._portal = null; }

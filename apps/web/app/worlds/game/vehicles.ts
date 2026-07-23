@@ -30,7 +30,9 @@ export class VehicleManager {
 
   private _getH(hmap: number[][], x: number, z: number, ws: number): number {
     const h = ws / 2;
-    return hmap[Math.max(0, Math.min(ws - 1, Math.round(x + h)))]?.[Math.max(0, Math.min(ws - 1, Math.round(z + h)))] ?? 2;
+    const xi = Math.max(0, Math.min(ws - 1, Math.round(x + h)));
+    const zi = Math.max(0, Math.min(ws - 1, Math.round(z + h)));
+    return hmap[zi]?.[xi] ?? 2;
   }
 
   private _spawn(planet: "earth" | "space", hmap: number[][], worldSize: number) {
