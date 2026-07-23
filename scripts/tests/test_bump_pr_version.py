@@ -25,6 +25,13 @@ def _setup(tmp_path, version: str, changelog: str):
     build_release.MOBILE_VERSION_FILE = tmp_path / "nope-mobile-version.ts"
     build_release.MOBILE_PACKAGE_JSON = tmp_path / "nope-mobile-package.json"
     build_release.MOBILE_APP_JSON = tmp_path / "nope-mobile-app.json"
+    sdk_pyproject = tmp_path / "packages" / "sdk" / "pyproject.toml"
+    sdk_pyproject.parent.mkdir(parents=True, exist_ok=True)
+    sdk_pyproject.write_text(
+        '[project]\nname = "aoep-sdk"\nversion = "' + version + '"\n',
+        encoding="utf-8",
+    )
+    build_release.SDK_PYPROJECT = sdk_pyproject
     bump_pr.br = build_release
 
 
@@ -156,6 +163,42 @@ def test_parse_version_helper():
     assert bump_pr._parse_version("") is None
 
 
+def test_bump_pr_version_syncs_sdk_pyproject(monkeypatch, tmp_path):
+    cl = """CHANGELOG
+=====
+
+[unreleased]
+- (no changes yet)
+
+[0.3.82] - 2026-06-23
+- prior
+"""
+    _setup(tmp_path, "0.3.82", cl)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert bump_pr.main([]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.3.83"
+    sdk_text = (tmp_path / "packages" / "sdk" / "pyproject.toml").read_text()
+    assert 'version = "0.3.83"' in sdk_text
+
+
+def test_build_release_syncs_sdk_pyproject(monkeypatch, tmp_path):
+    cl = """CHANGELOG
+=====
+
+[unreleased]
+- (no changes yet)
+
+[0.3.82] - 2026-06-23
+- prior
+"""
+    _setup(tmp_path, "0.3.82", cl)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    assert build_release.main([]) == 0
+    assert (tmp_path / "VERSION").read_text().strip() == "0.3.83"
+    sdk_text = (tmp_path / "packages" / "sdk" / "pyproject.toml").read_text()
+    assert 'version = "0.3.83"' in sdk_text
+
+
 def test_build_release_refresh_only(monkeypatch, tmp_path):
     cl = """CHANGELOG
 =====
@@ -171,3 +214,6 @@ def test_build_release_refresh_only(monkeypatch, tmp_path):
     assert build_release.main(["--refresh-only"]) == 0
     assert (tmp_path / "VERSION").read_text().strip() == "0.3.82"
     assert (tmp_path / "build-info.txt").exists()
+    assert 'version = "0.3.82"' in (
+        tmp_path / "packages" / "sdk" / "pyproject.toml"
+    ).read_text()

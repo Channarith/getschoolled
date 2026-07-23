@@ -197,7 +197,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     br.write_web_version(new_version)
     br.write_mobile_version(new_version)
-    print("wrote VERSION, build-info.txt, web and mobile version files")
+    br.write_sdk_version(new_version)
+    print("wrote VERSION, build-info.txt, web, mobile, and sdk version files")
     return 0
 
 
