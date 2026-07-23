@@ -37,6 +37,34 @@ from the browser through the ingress (infra/k8s/ingress.yaml).
 The Next.js web app (apps/web) is the browser client; it resolves each service
 base URL from NEXT_PUBLIC_*_URL or the page origin (apps/web/app/lib/api.ts).
 
+0.1 Python SDK
+----------------
+The installable packages/sdk distribution provides typed clients for the core
+teaching, identity, curriculum, and adaptive-memory workflows. It also exposes
+generic service clients so every current or future endpoint can be called before
+a typed convenience method is added.
+
+  pip install -e packages/shared
+  pip install -e packages/sdk
+
+  from aoep_sdk import AOEPClient
+
+  aoep = AOEPClient()  # reads AOEP_*_URL and AOEP_*_TOKEN environment variables
+  lessons = aoep.orchestrator.list_lessons(language="en")
+  session = aoep.orchestrator.start_session(lessons[0]["lesson_id"], class_type="solo")
+
+For an ingress deployment, set AOEP_BASE_URL=https://example.com and the SDK
+uses /orchestrator, /identity, /curriculum, and other service prefixes. Explicit
+AOEP_<SERVICE>_URL values override that shared origin. AOEP_BEARER_TOKEN supplies
+a user session, AOEP_INTERNAL_TOKEN supplies cross-service access, and
+AOEP_ADMIN_SECRET supplies admin access.
+
+Use aoep.authenticate(email, password) to obtain a user session and propagate it
+to all service clients. Import aoep_sdk.inprocess to embed provider factories,
+RAG, adaptive learning, harvesting, teaching, homework, meeting, and training
+agent capabilities directly in a Python application. Optional harvester,
+presenter, and vision dependencies remain aoep-shared extras.
+
 ============================================================================
 1. CONVENTIONS (apply to EVERY service)
 ============================================================================

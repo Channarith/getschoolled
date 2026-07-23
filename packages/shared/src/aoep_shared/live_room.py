@@ -1061,11 +1061,12 @@ class LiveRoomStore:
             # (which flips can_publish and lets the client fetch a publish token).
             can_publish=False,
         )
-        # The FIRST learner to join becomes the single class admin (can start the
-        # class and advance slides). Only one admin; if the current admin left, the
-        # next joiner inherits it.
+        host_acct = (room.creator_account_id or "").strip()
+        is_scheduled_host = bool(acct and host_acct and acct == host_acct)
+        # The scheduled instructor always becomes class admin when they join.
+        # Otherwise the first learner to join becomes admin (legacy flow).
         current_admin = room.participants.get(room.admin_participant_id)
-        if current_admin is None or current_admin.is_host:
+        if is_scheduled_host or current_admin is None or current_admin.is_host:
             room.admin_participant_id = participant.id
             participant.is_admin = True
         room.participants[participant.id] = participant

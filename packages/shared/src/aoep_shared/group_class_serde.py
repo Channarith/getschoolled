@@ -63,6 +63,9 @@ def group_class_from_dict(data: Dict[str, Any]) -> GroupClass:
         commission_rate=float(data.get("commission_rate") or 0.15),
         payment_required=bool(data.get("payment_required") or False),
         attendee_code_required=bool(data.get("attendee_code_required") or False),
+        presentation_filename=data.get("presentation_filename") or "",
+        host_checked_in_at=data.get("host_checked_in_at") or "",
+        host_payout_usd=float(data.get("host_payout_usd") or 0.0),
         max_faces_allowed=int(data.get("max_faces_allowed") or 1),
         require_liveness=bool(data.get("require_liveness") if data.get("require_liveness") is not None else True),
         recording_protection_required=bool(

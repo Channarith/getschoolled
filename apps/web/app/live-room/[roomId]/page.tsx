@@ -728,6 +728,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const [whiteboardStrokes, setWhiteboardStrokes] = useState<WhiteboardStroke[]>([]);
   // Lets the instructor preview the read-only "watch" view a student sees.
   const [previewAsStudent, setPreviewAsStudent] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
   // Design A shows everyone via the participant strip; "focus instructor" mode
   // is retired, so this stays false (kept as a const for the layout branches).
   const focusInstructor = false;
@@ -779,6 +780,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const viewerSetterRef = useRef<(n: number) => void>(() => {});
   const presenceProbeVideoRef = useRef<HTMLVideoElement | null>(null);
   const presenceEngineRef = useRef<VisionEngine | null>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
+  const pipVideoRef = useRef<HTMLVideoElement>(null);
   const presenceProbeBusyRef = useRef(false);
   const [presenceFaceCount, setPresenceFaceCount] = useState<number>(-1);
 
@@ -1022,6 +1025,24 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     await enableCamera();
   }
 
+  async function handleScreenShare() {
+    if (screenSharing) {
+      screenShareStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenShareStreamRef.current = null;
+      setScreenSharing(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      screenShareStreamRef.current = stream;
+      setScreenSharing(true);
+      stream.getTracks()[0]?.addEventListener("ended", () => {
+        screenShareStreamRef.current = null;
+        setScreenSharing(false);
+      });
+    } catch { /* user cancelled the picker */ }
+  }
+
   useEffect(() => {
     const el = presenceProbeVideoRef.current;
     if (!el) return;
@@ -1033,6 +1054,18 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
     el.srcObject = localStream;
     el.muted = true;
     el.playsInline = true;
+    void el.play().catch(() => undefined);
+  }, [localStream]);
+
+  // Attach localStream to the PiP video element (shown when host is presenting slides).
+  useEffect(() => {
+    const el = pipVideoRef.current;
+    if (!el) return;
+    if (!localStream) {
+      el.srcObject = null;
+      return;
+    }
+    el.srcObject = localStream;
     void el.play().catch(() => undefined);
   }, [localStream]);
 
@@ -2684,48 +2717,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </div>
       )}
 
-      {whiteboardOn && hasFloor && !canModerate ? (
-        <div
-          style={{
-            marginBottom: 10,
-            padding: "12px 16px",
-            borderRadius: 14,
-            textAlign: "center",
-            fontSize: 15,
-            fontWeight: 700,
-            color: "#7a5c12",
-            background: "color-mix(in srgb, " + STUDIO_GOLD + " 16%, var(--panel))",
-            border: "1px solid color-mix(in srgb, " + STUDIO_GOLD + " 45%, var(--border))",
-          }}
-        >
-          ✍️ You&apos;re up! Solve on the whiteboard — everyone can see you
-        </div>
-      ) : null}
-
-      {whiteboardOn ? (
-        <section
-          style={{
-            marginBottom: 12,
-            height: "min(62vh, 640px)",
-            padding: 12,
-            borderRadius: 14,
-            border: "1px solid var(--border)",
-            background: "var(--panel)",
-          }}
-        >
-          <Whiteboard
-            canDraw={(canModerate || hasFloor) && !previewAsStudent}
-            strokes={whiteboardStrokes}
-            drawerName={
-              learners.find((p) => p.id === room?.floor_participant_id)?.name || host?.name
-            }
-            onStroke={(s) => setWhiteboardStrokes((prev) => [...prev, s])}
-            onClear={() => setWhiteboardStrokes([])}
-            onUndo={() => setWhiteboardStrokes((prev) => prev.slice(0, -1))}
-            onExit={canModerate ? () => setWhiteboardOn(false) : undefined}
-          />
-        </section>
-      ) : null}
 
       <div
         className={isSolo ? undefined : "live-stage-grid"}
@@ -2769,13 +2760,35 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   : focusInstructor
                     ? "min(76vh, 820px)"
                     : "clamp(440px, 62vh, 720px)",
+                position: "relative",
               }}>
+                {whiteboardOn ? (
+                  <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: "inherit", gap: 8 }}>
+                    {hasFloor && !canModerate ? (
+                      <div style={{ padding: "12px 16px", borderRadius: 14, textAlign: "center", fontSize: 15, fontWeight: 700, color: "#7a5c12", background: "color-mix(in srgb, " + STUDIO_GOLD + " 16%, var(--panel))", border: "1px solid color-mix(in srgb, " + STUDIO_GOLD + " 45%, var(--border))" }}>
+                        ✍️ You&apos;re up! Solve on the whiteboard — everyone can see you
+                      </div>
+                    ) : null}
+                    <div style={{ flex: 1, minHeight: "min(62vh, 640px)", padding: 12, borderRadius: 14, border: "1px solid var(--border)", background: "var(--panel)" }}>
+                      <Whiteboard
+                        canDraw={(canModerate || hasFloor) && !previewAsStudent}
+                        strokes={whiteboardStrokes}
+                        drawerName={learners.find((p) => p.id === room?.floor_participant_id)?.name || host?.name}
+                        onStroke={(s) => setWhiteboardStrokes((prev) => [...prev, s])}
+                        onClear={() => setWhiteboardStrokes([])}
+                        onUndo={() => setWhiteboardStrokes((prev) => prev.slice(0, -1))}
+                        onExit={canModerate ? () => setWhiteboardOn(false) : undefined}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {!whiteboardOn && (
                 <ParticipantTile
                   p={host}
                   large
                   fill
                   fullscreen={isFullscreen}
-                  localStream={canModerate && cameraOn ? localStream : null}
+                  localStream={canModerate && cameraOn && !room?.slide ? localStream : null}
                   liveKitTrack={canModerate && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
@@ -3000,6 +3013,26 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     </>
                   }
                 />
+                )}
+                {canModerate && room?.slide && localStream && cameraOn && !whiteboardOn && (
+                  <video
+                    ref={pipVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{
+                      position: "absolute",
+                      bottom: 12,
+                      right: 12,
+                      width: 180,
+                      height: 135,
+                      borderRadius: 8,
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      objectFit: "cover",
+                      zIndex: 10,
+                    }}
+                  />
+                )}
               </div>
             )}
             {isSolo && learners.map((p) => (
@@ -4051,6 +4084,21 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <span style={{ fontSize: 18 }}>⛶</span>
             Fullscreen
           </button>
+          <button
+            onClick={() => void handleScreenShare()}
+            disabled={busy}
+            title={screenSharing ? "Stop screen share" : "Share your screen"}
+            style={{ ...deviceBtnStyle, borderColor: screenSharing ? "#ef4444" : "var(--border)", background: screenSharing ? "rgba(239,68,68,0.1)" : "var(--panel)" }}
+          >
+            <span style={{ fontSize: 18 }}>🖥</span>
+            {screenSharing ? "Stop" : "Share"}
+          </button>
+          {screenSharing && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#ef4444", fontWeight: 600, whiteSpace: "nowrap" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
+              Sharing screen
+            </div>
+          )}
         </div>
 
         {/* Center: primary CTA */}

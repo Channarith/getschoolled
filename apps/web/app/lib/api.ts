@@ -1485,10 +1485,15 @@ export type GroupClass = {
   audit_status?: string;
   instructor_name?: string;
   instructor_account_id?: string;
+  created_by_account_id?: string;
   price_per_user_usd?: number;
   commission_rate?: number;
   payment_required?: boolean;
   attendee_code_required?: boolean;
+  presentation_filename?: string;
+  host_checked_in_at?: string;
+  practice_session?: boolean;
+  host_payout_usd?: number;
   max_faces_allowed?: number;
   require_liveness?: boolean;
   recording_protection_required?: boolean;
@@ -1526,6 +1531,7 @@ export type ScheduleGroupClassInput = {
   commission_rate?: number;
   payment_required?: boolean;
   attendee_code_required?: boolean;
+  presentation_filename?: string;
   max_faces_allowed?: number;
   require_liveness?: boolean;
   recording_protection_required?: boolean;
@@ -1533,6 +1539,23 @@ export type ScheduleGroupClassInput = {
   camera_ingest_mode?: string;
   camera_sources?: Array<Record<string, unknown>>;
 };
+
+export async function uploadHostPresentation(
+  file: File,
+  opts?: { title?: string; language?: string },
+): Promise<{ lesson_id: string; title: string; slide_count: number; presentation_filename: string }> {
+  const body = new FormData();
+  body.append("file", file);
+  if (opts?.title) body.append("title", opts.title);
+  if (opts?.language) body.append("language", opts.language);
+  return jsonOrThrow(
+    await fetch(`${ORCHESTRATOR_URL}/api/group-classes/upload-presentation`, {
+      method: "POST",
+      headers: authHeaders(),
+      body,
+    }),
+  );
+}
 
 export type GroupClassStart = {
   class: GroupClass;
@@ -1564,7 +1587,7 @@ export async function scheduleGroupClass(input: ScheduleGroupClassInput): Promis
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/group-classes`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify(input),
     })
   );
@@ -1706,7 +1729,7 @@ export async function startGroupClass(classId: string): Promise<GroupClassStart>
   return jsonOrThrow(
     await fetch(`${ORCHESTRATOR_URL}/api/group-classes/${encodeURIComponent(classId)}/start`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders() },
     })
   );
 }
