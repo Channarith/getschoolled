@@ -59,7 +59,15 @@ def _startup_seed_accounts() -> None:
     _bootstrap_on_startup()
     import logging as _log
     _lg = _log.getLogger(__name__)
-    if os.environ.get("AUTH_SIGNING_KEY", _AUTH_KEY_DEFAULT) == _AUTH_KEY_DEFAULT:
+    _signing_key = os.environ.get("AUTH_SIGNING_KEY", "")
+    _deploy_mode = os.environ.get("DEPLOY_MODE", "local").lower()
+    _is_production = _deploy_mode not in ("local", "dev", "development")
+    if not _signing_key or _signing_key == _AUTH_KEY_DEFAULT:
+        if _is_production:
+            raise RuntimeError(
+                "AUTH_SIGNING_KEY must be set to a strong secret in cloud/production mode. "
+                "Set it via kubectl patch secret aoep-secrets or your deployment config."
+            )
         _lg.warning(
             "AUTH_SIGNING_KEY is not set — using the insecure development default. "
             "Set this environment variable before deploying."

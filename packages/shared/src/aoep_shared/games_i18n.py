@@ -82,6 +82,10 @@ SUBJECT_LABELS: Dict[str, Dict[str, str]] = {
                          ("fr", "Actions et argent"), ("de", "Aktien & Geld"),
                          ("zh", "股票与理财"), ("ja", "株式とお金"), ("ko", "주식과 돈"),
                          ("vi", "Chứng khoán & tiền"), ("km", "ភាគហ៊ុន និង លុយ")),
+    "workplace": _locales(("en", "Professional & Workplace"), ("es", "Profesional y trabajo"),
+                           ("fr", "Professionnel"), ("de", "Beruf & Arbeitsplatz"),
+                           ("zh", "职场专业"), ("ja", "職場・プロ"), ("ko", "직장·전문"),
+                           ("vi", "Nghề nghiệp"), ("km", "វិជ្ជាជីវៈ")),
 }
 
 
@@ -145,6 +149,10 @@ GAME_TYPE_LABELS: Dict[str, Dict[str, str]] = {
                            ("fr", "Défie l'IA"), ("de", "KI herausfordern"), ("zh", "挑战 AI"),
                            ("ja", "AIに挑戦"), ("ko", "AI에 도전"), ("vi", "Thách thức AI"),
                            ("km", "ប្រកួតជាមួយ AI")),
+    "scenario": _locales(("en", "What Would You Do?"), ("es", "¿Qué harías?"),
+                          ("fr", "Que feriez-vous ?"), ("de", "Was würden Sie tun?"),
+                          ("zh", "你会怎么做？"), ("ja", "あなたなら？"), ("ko", "당신이라면?"),
+                          ("vi", "Bạn sẽ làm gì?"), ("km", "តើអ្នកនឹងធ្វើអ្វី?")),
 }
 
 GAME_TYPE_DESCS: Dict[str, Dict[str, str]] = {
@@ -193,6 +201,11 @@ GAME_TYPE_DESCS: Dict[str, Dict[str, str]] = {
                            ("es", "Duelo contra la IA — mismas preguntas."),
                            ("zh", "与 AI 对决：同样题目比高分。"),
                            ("ja", "AIと対決。同じ問題で勝負。"), ("km", "ប្រកួតជាមួយ AI។")),
+    "scenario": _locales(("en", "Professional scenario drills — pick the compliant, safe action."),
+                           ("es", "Escenarios profesionales — elige la acción correcta."),
+                           ("zh", "职场情景演练——选择合规安全的做法。"),
+                           ("ja", "職場シナリオ — 正しい行動を選ぶ。"),
+                           ("km", "សenarioវិជ្ជាជីវៈ — ជ្រើសរើសឱ្យត្រឹមត្រូវ។")),
 }
 
 

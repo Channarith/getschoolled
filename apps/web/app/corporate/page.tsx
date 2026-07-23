@@ -113,6 +113,16 @@ export default function CorporatePage() {
       <h1>{t("corporate.title")}</h1>
       <p className="muted">{t("corporate.intro")}</p>
 
+      <div className="card" style={{ borderLeft: "4px solid #4338ca", marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>🎯 Test your judgment</h3>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Practice &quot;What would you do?&quot; scenario drills before your course assessments — compliance, safety, privacy, and more.
+        </p>
+        <Link href="/arcade/pro-scenarios">
+          <button style={{ background: "#4338ca", color: "#fff" }}>Play scenario drills →</button>
+        </Link>
+      </div>
+
       {/* Custom / bespoke Agentic courses for a specific company. */}
       <div
         className="card"
