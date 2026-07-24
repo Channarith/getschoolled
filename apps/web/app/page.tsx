@@ -170,7 +170,7 @@ export default function HomePage() {
           });
           res = await loginWithFacebook(token);
         } else {
-          const APPLE_SERVICES_ID = "com.aiclassroom.web";
+          const APPLE_SERVICES_ID = "com.aiclassroom.app";
           if (!(window as any).AppleID) {
             await new Promise<void>((resolve, reject) => {
               const s = document.createElement("script");

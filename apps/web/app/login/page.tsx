@@ -313,7 +313,7 @@ export default function LoginPage() {
                     }
                     // Apple Sign In for web — requires a Services ID registered at
                     // developer.apple.com → Certificates → Identifiers → Services IDs
-                    const APPLE_SERVICES_ID = "com.aiclassroom.web";
+                    const APPLE_SERVICES_ID = "com.aiclassroom.app";
                     if (!(window as any).AppleID) {
                       await new Promise<void>((resolve, reject) => {
                         const s = document.createElement("script");
