@@ -1,0 +1,119 @@
+SALAREEN STRATEGIC FUNDRAISING DOCUMENT
+=======================================
+Document Version 1.0  |  Platform build v0.44.0  |  Confidential  |  2026-07-24
+Brand: Salareen (product) · GetSchoolled (ecosystem / org surface)
+
+This file is the editable source. Rendered PDF:
+  docs/fundraising-strategy.pdf
+  python3 scripts/build_fundraising_strategy_pdf.py
+
+LEGAL / HONESTY NOTE
+--------------------
+Revenue figures, SAFE terms, and valuation caps in this document are fundraising
+assumptions provided by the founding team for outreach drafts. Have counsel
+review SAFE terms before sending. Product/tech claims below are grounded in the
+shipped monorepo (FastAPI microservices, Next.js, Expo, LiveKit, VKE).
+
+-----------------------------------------------------------------------------
+1. INVESTOR COLD EMAIL TEMPLATE
+-----------------------------------------------------------------------------
+Subject: Seed Stage: Multi-Agent AI EdTech ($1M+ Run-Rate) / 60-Day Deployment Runway
+
+Dear [Partner Name],
+
+Salareen is an enterprise-grade, multi-agent AI education platform running live
+on Kubernetes (Vultr VKE) with 600+ self-paced courses localized across 27
+languages. We are currently generating early seven-figure revenues through
+custom B2B corporate compliance tracks (OSHA/DMV) and instructor marketplace
+commissions.
+
+We have built 60% of our core consumer "Netflix-style" subscription engine. We
+are raising a Seed round via a SAFE note to secure a 60-day deployment runway
+to finalize feature qualification, complete comprehensive QA, and fund our Q3
+marketing launch.
+
+Why Salareen Wins:
+• Proprietary AI Tutor: Powered by our socratic AI agent (Theodore) utilizing an
+  LLM endpoint abstraction (NVIDIA Nemotron/GPT-4o).
+• Machine Vision Safeguards: Built-in opt-in computer vision microservice
+  (OpenCV YuNet/SFace) tracking student attention and securing anti-cheating
+  classroom authentication.
+• Adaptive Learning Engine: Real-time Bayesian Knowledge Tracing (BKT) that
+  automatically profiles student engagement and scales difficulty dynamically.
+• Gamified Ecosystem: Includes a 3D open-world educational RPG (Salareen Worlds)
+  built on Three.js to maximize student retention.
+
+We are giving select EdTech and AI investors a technical look at our deployment
+pipeline before our subscription layers go live. Are you open to a brief
+10-minute call next Tuesday to look at our live architecture and feature
+roadmap?
+
+Best regards,
+
+[Your Name]
+Founder & CEO, Salareen
+cvanthin@nvidia.com
+https://salareen.com
+
+-----------------------------------------------------------------------------
+2. PITCH DECK STRUCTURAL OUTLINE (4-SLIDE INVESTOR BRIEF)
+-----------------------------------------------------------------------------
+Slide 1 — Vision & Traction
+  Heading: Scaling World-Class AI Education Globally
+  Metrics: 600+ live courses, 27 languages, 40+ global payment methods
+  Visual: Interactive global map / localization
+
+Slide 2 — The Multi-Engine Business Model
+  Heading: Diversified Monetization Beyond Traditional SaaS
+  Pillars: B2B enterprise tracks, B2C subscriptions, marketplace commissions,
+           RPG / arcade gamification
+  Visual: Cash-flow matrix
+
+Slide 3 — Proprietary Technology Moat
+  Heading: Production-Grade Microservices Architecture
+  Core: Orchestrator, Perception (YuNet), Memory (BKT), Billing, Identity on K8s
+  Visual: FastAPI service topology
+
+Slide 4 — The 60-Day Deployment Phase (The Ask)
+  Heading: Subscription Engine Final QA & Launch
+  Use of funds: engineering payroll + targeted customer acquisition
+  Visual: 60-day sprint timeline
+
+-----------------------------------------------------------------------------
+3. MARKET WINDOW & READINESS
+-----------------------------------------------------------------------------
+• Valuation leverage before full consumer subscription go-live
+• Asset density: core stack, harvester, live rooms, Drive Mode already functional
+• De-risked path: active B2B enterprise revenue reduces early downside
+• SAFE instrument avoids premature priced round during QA
+• 60-day engineering firewall for feature qualification + launch marketing
+
+-----------------------------------------------------------------------------
+4. INVESTOR DIRECTORY
+-----------------------------------------------------------------------------
+Pure-Play EdTech VCs     Reach / Owl / GSV           $500K–$3M
+Applied AI & Deep Tech   Gradient / Precursor / Two Sigma  $250K–$1.5M
+Non-Dilutive             Lighter / Capchase / Pipe   $100K–$2M (revenue-backed)
+
+-----------------------------------------------------------------------------
+5. SAFE NOTE VALUATION CAP FRAMEWORK
+-----------------------------------------------------------------------------
+Assumptions:
+  Current run-rate: $1,000,000+ via B2B contracts
+  Round size: $500,000–$1,000,000 (60-day runway)
+  Cap range: $8M floor · $12M target · $15M upper (if backlog > $1.5M)
+
+Dilution at $12M cap:
+  $500K raise ≈ 4.17%
+  $1M raise ≈ 8.33%
+
+-----------------------------------------------------------------------------
+6. GETSCHOOLLED / SALAREEN ECOSYSTEM (PRODUCT MAP)
+-----------------------------------------------------------------------------
+Live AI classes (Theodore) · Group / solo LiveKit rooms · Drive Mode audio
+Corporate professional tracks · Arcade + Challenge the AI · Salareen Worlds
+Languages (27) · Kids Academy · Careers/jobs match · Homework grader
+HIL educator console · Rewards · Billing (Free/Standard/VIP) · Harvester
+Perception (opt-in vision) · Adaptive/BKT · Content packs · VKE deploy
+
+Rebuild PDF: python3 scripts/build_fundraising_strategy_pdf.py
