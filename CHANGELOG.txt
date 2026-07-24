@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-24 - v0.45.2 - Critical: identity service cross-pod account sync — when a valid token references an account not in the pod memory (created by a different replica), reload from Redis before returning 401. Fixes signup on pod A -> auth/me on pod B returning account not found.
 - 2026-07-24 - v0.45.1 - Onboarding: AUTH_EVENT listener rescues session mid-flow; clickable step pills (navigate back to visited steps); Back button on steps 1-3; maxStep tracking prevents skipping ahead.
 - 2026-07-23 - v0.45.0 - Add public legal pages /privacy, /terms, and /data-deletion (Salareen Privacy Policy, Terms of Service, data-deletion request); link them from the site footer and legal hub.
 - 2026-07-24 - v0.44.2 - Fix auth 401 cascade (token cleared on first 401 from transient error, locking user out of onboarding — now requires 2 consecutive 401s); fix forgot password link on home page (/login?mode=forgot → /forgot-password).
@@ -1027,6 +1028,7 @@ Format: newest first. No markdown per project convention.
   main-thread FAULT (check authorizationStatus first via
   ensureForegroundLocationPermission). CI: renamed duplicate test_run.py files that
   broke pytest collection. Release tooling: rolled the stale CHANGELOG [unreleased]
+- 2026-07-24 - v0.45.2 - Critical: identity service cross-pod account sync — when a valid token references an account not in the pod memory (created by a different replica), reload from Redis before returning 401. Fixes signup on pod A -> auth/me on pod B returning account not found.
 - 2026-07-24 - v0.45.1 - Onboarding: AUTH_EVENT listener rescues session mid-flow; clickable step pills (navigate back to visited steps); Back button on steps 1-3; maxStep tracking prevents skipping ahead.
 - 2026-07-24 - v0.44.2 - Fix auth 401 cascade (token cleared on first 401 from transient error, locking user out of onboarding — now requires 2 consecutive 401s); fix forgot password link on home page (/login?mode=forgot → /forgot-password).
 - 2026-07-23 - v0.44.1 - Fix billing page 404 (ingress routed /billing to billing service instead of web app; add Exact /billing → web before the prefix catch-all); fix social login invisible on signup page (Google/Facebook/Apple buttons were gated on mode==login, now show on both modes); add inline password validation feedback on signup; 36 comprehensive onboarding tests covering email/password signup, OAuth social login, forgot/reset password, onboarding profile/plan, and full end-to-end journeys.
@@ -3869,6 +3871,7 @@ Format: newest first. No markdown per project convention.
 [0.3.1] - 2026-06-18
 - fix(changelog): repair changelog rolling. build_release.py only recognized a
   dated "[unreleased]
+- 2026-07-24 - v0.45.2 - Critical: identity service cross-pod account sync — when a valid token references an account not in the pod memory (created by a different replica), reload from Redis before returning 401. Fixes signup on pod A -> auth/me on pod B returning account not found.
 - 2026-07-24 - v0.45.1 - Onboarding: AUTH_EVENT listener rescues session mid-flow; clickable step pills (navigate back to visited steps); Back button on steps 1-3; maxStep tracking prevents skipping ahead.
 - 2026-07-24 - v0.44.2 - Fix auth 401 cascade (token cleared on first 401 from transient error, locking user out of onboarding — now requires 2 consecutive 401s); fix forgot password link on home page (/login?mode=forgot → /forgot-password).
 - 2026-07-23 - v0.44.1 - Fix billing page 404 (ingress routed /billing to billing service instead of web app; add Exact /billing → web before the prefix catch-all); fix social login invisible on signup page (Google/Facebook/Apple buttons were gated on mode==login, now show on both modes); add inline password validation feedback on signup; 36 comprehensive onboarding tests covering email/password signup, OAuth social login, forgot/reset password, onboarding profile/plan, and full end-to-end journeys.
@@ -3892,6 +3895,7 @@ Format: newest first. No markdown per project convention.
 - 2026-07-22 - v0.29.1 - Salareen Worlds mobile integration: embed Three.js web game in mobile app via react-native-webview 13.8.6 with XP postMessage bridge; Worlds button added to HomeScreen action dock; WorldsScreen with loading tips, error state, and XP toast.
 - 2026-07-20 - v0.27.5 - Fix 8 voice-loop bugs: preserve awaitingConfirmation through SSE done event; decouple hasFloor cleanup from confirmation mic; clear awaitingConfirmation after finish_turn resolves; server-side 30s watchdog releases floor on client disconnect; clear stale trigger-phrase timer on slide change; read isFloorHolder from live ref at TTS-end time; rate-limit Theodore chat replies to 1 per 8s per participant; skip chat-reply TTS during active confirmation window. - <date>" header, so the bare "[unreleased]" header was
   never rolled into a release: real notes piled up under [unreleased]
+- 2026-07-24 - v0.45.2 - Critical: identity service cross-pod account sync — when a valid token references an account not in the pod memory (created by a different replica), reload from Redis before returning 401. Fixes signup on pod A -> auth/me on pod B returning account not found.
 - 2026-07-24 - v0.45.1 - Onboarding: AUTH_EVENT listener rescues session mid-flow; clickable step pills (navigate back to visited steps); Back button on steps 1-3; maxStep tracking prevents skipping ahead.
 - 2026-07-24 - v0.44.2 - Fix auth 401 cascade (token cleared on first 401 from transient error, locking user out of onboarding — now requires 2 consecutive 401s); fix forgot password link on home page (/login?mode=forgot → /forgot-password).
 - 2026-07-23 - v0.44.1 - Fix billing page 404 (ingress routed /billing to billing service instead of web app; add Exact /billing → web before the prefix catch-all); fix social login invisible on signup page (Google/Facebook/Apple buttons were gated on mode==login, now show on both modes); add inline password validation feedback on signup; 36 comprehensive onboarding tests covering email/password signup, OAuth social login, forgot/reset password, onboarding profile/plan, and full end-to-end journeys.
