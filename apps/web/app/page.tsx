@@ -237,6 +237,11 @@ export default function HomePage() {
                 required
                 style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 15, outline: "none", boxSizing: "border-box" }}
               />
+              {emailMode === "signup" && password.length > 0 && (password.length < 8 || !/[0-9]/.test(password)) && (
+                <p style={{ color: "#fca5a5", fontSize: 12, margin: "4px 0 0", textAlign: "left" }}>
+                  {password.length < 8 ? "At least 8 characters required" : "Must include at least one number"}
+                </p>
+              )}
               {emailError && <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>{emailError}</p>}
               <button
                 type="submit"

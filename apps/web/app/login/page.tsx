@@ -176,17 +176,25 @@ export default function LoginPage() {
             </label>
           )}
           {mode === "signup" && (
-            <p className="muted" style={{ fontSize: 12, marginTop: -2, marginBottom: 8 }}>
-              {t("login.passwordHint")}
-            </p>
+            <div style={{ marginTop: -2, marginBottom: 8 }}>
+              {password.length > 0 && password.length < 8 && (
+                <p style={{ fontSize: 12, color: "#ef4444", margin: "2px 0" }}>Password must be at least 8 characters</p>
+              )}
+              {password.length > 0 && !/[0-9]/.test(password) && (
+                <p style={{ fontSize: 12, color: "#ef4444", margin: "2px 0" }}>Password must contain at least one number</p>
+              )}
+              {(!password || (password.length >= 8 && /[0-9]/.test(password))) && (
+                <p className="muted" style={{ fontSize: 12, margin: "2px 0" }}>{t("login.passwordHint")}</p>
+              )}
+            </div>
           )}
           <button type="submit" disabled={busy}>
             {busy ? t("login.busy") : mfaToken ? "Verify 2FA" : mode === "login" ? t("login.submitSignIn") : t("login.submitSignUp")}
           </button>
         </form>
-        {mode === "login" && !mfaToken && (
+        {!mfaToken && (
           <>
-            <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>Or continue with</p>
+            <p className="muted" style={{ margin: "12px 0 8px", fontSize: 13 }}>{mode === "login" ? "Or sign in with" : "Or sign up with"}</p>
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
