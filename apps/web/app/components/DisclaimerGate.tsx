@@ -74,7 +74,9 @@ export default function DisclaimerGate() {
           By choosing <strong>&ldquo;I understand and consent&rdquo;</strong> you confirm you
           are taking this course voluntarily, fully aware of the associated legal
           terms, responsibilities, and liabilities, and that you agree to the{" "}
-          <Link href="/legal">Terms, Privacy Notice, and Acceptable Use Policy</Link>.
+          <Link href="/legal">Terms, Privacy Notice, and Acceptable Use Policy</Link>
+          {" "}(<Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy</Link>,{" "}
+          <Link href="/data-deletion">Data deletion</Link>).
           For minors, a parent/guardian or the school must have provided consent.
         </p>
         <div className="row" style={{ marginTop: 12, gap: 8 }}>

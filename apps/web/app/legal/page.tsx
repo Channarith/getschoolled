@@ -52,6 +52,13 @@ export default function LegalPage() {
     <main className="container">
       <h1>{t("legal.title")}</h1>
       <p className="muted">{t("legal.intro")}</p>
+      <p className="muted" style={{ fontSize: 14 }}>
+        <Link href="/privacy">Privacy Policy</Link>
+        {" · "}
+        <Link href="/terms">Terms of Service</Link>
+        {" · "}
+        <Link href="/data-deletion">Data deletion</Link>
+      </p>
 
       {error && (
         <div className="card" style={{ borderColor: "#ff6b6b" }}>
