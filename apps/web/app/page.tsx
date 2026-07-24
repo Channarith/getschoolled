@@ -178,7 +178,7 @@ export default function HomePage() {
               s.onload = () => resolve(); s.onerror = () => reject(new Error("Failed to load Apple")); document.head.appendChild(s);
             });
           }
-          (window as any).AppleID.auth.init({ clientId: APPLE_SERVICES_ID, scope: "name email", redirectURI: window.location.origin, usePopup: true });
+          (window as any).AppleID.auth.init({ clientId: APPLE_SERVICES_ID, scope: "name email", redirectURI: window.location.origin + "/login", usePopup: true });
           const data = await (window as any).AppleID.auth.signIn();
           res = await loginWithApple(data?.authorization?.id_token);
         }
