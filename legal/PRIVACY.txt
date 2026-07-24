@@ -69,4 +69,7 @@ BIPA/CUBI, and applicable state student-privacy laws. Counsel must finalize it.
    Where data crosses borders, we use lawful transfer mechanisms; deployments can
    be pinned to a region/boundary (local/edge mode) to keep data in-jurisdiction.
 
-CONTACT / DPO: privacy@example.org  (placeholder)
+CONTACT / DPO: privacy@salareen.com
+Web: https://www.salareen.com/privacy
+Data deletion: https://www.salareen.com/data-deletion
+Terms: https://www.salareen.com/terms

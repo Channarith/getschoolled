@@ -12,7 +12,10 @@ export default function SiteFooter() {
   return (
     <footer style={{ marginTop: 40, padding: "16px 24px", borderTop: "1px solid #333",
       fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-      <span>© 2026 AOEP ·</span>
+      <span>© 2026 Salareen ·</span>
+      <Link href="/privacy">{t("footer.privacy")}</Link>
+      <Link href="/terms">{t("footer.terms")}</Link>
+      <Link href="/data-deletion">{t("footer.dataDeletion")}</Link>
       <Link href="/legal">{t("footer.legal")}</Link>
       <span>· {t("footer.disclaimer")}</span>
       <Link href="/transparency">{t("footer.transparency")}</Link>
