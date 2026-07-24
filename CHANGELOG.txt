@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-23 - v0.43.0 - Add docs/platform-overview.pdf (architecture, feature catalog, capabilities, payments, screenshots) plus scripts/build_platform_overview_pdf.py; refresh architecture diagrams PDF.
 - 2026-07-23 - v0.42.1 - Fix 18 confirmed audit-v5 bugs: voucher consume endpoint + orchestrator integration; student-as-instructor (is_student_session field); confirm_group_class_payment auth enforced; submit button file-only unblocked; TOTP replay Redis-backed; WebGL context loss handler; handleInteract() extracted for mobile touch; touch tap one-frame-late fixed; screen share + camera unmount cleanup; confirmationTimerRef shared timer separated; start_group_class idempotency; VoucherStore._load() error logging; dead pageRef removed; Zelle creates PAYMENT_PENDING; changelog rolled over into released 0.42.0.
 
 [released 0.42.0 — 2026-07-23]

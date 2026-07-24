@@ -213,10 +213,14 @@ scripts/build_architecture_pdf.py (re-run it after any architecture change).
   README "Architecture" - logical service topology, the Kubernetes (VKE)
     deployment diagram, the in-cluster live-class request flow, the teaching-loop
     sequence, and the profile-sharing flow (all mermaid).
-  docs/architecture.pdf - compiled visual reference (9 pages): overview + service
+  docs/architecture.pdf - compiled visual reference: overview + service
     table, system topology, network traffic flow, accounts/auth/language, data
     flow & stores, live-class lifecycle, and VKE deployment. Source PNGs in
-    docs/diagrams/architecture/. Rebuild both with:
-      pip install matplotlib==3.11.0 reportlab==5.0.0
+    docs/diagrams/architecture/. Rebuild with:
+      pip install matplotlib==3.11.0 reportlab==5.0.0 Pillow==11.1.0
       python3 scripts/build_architecture_pdf.py
+  docs/platform-overview.pdf - broader product brief (architecture + feature
+    catalog + capabilities/providers + membership/payments + screenshots).
+    Rebuild with:
+      python3 scripts/build_platform_overview_pdf.py
   docs/diagrams/ also holds the analytics charts (latency, engagement, funnel).

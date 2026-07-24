@@ -103,3 +103,4 @@ coverage/
 apps/web/e2e/.auth/
 apps/web/playwright-report/
 apps/web/test-results/
+docs/diagrams/overview-screens/
