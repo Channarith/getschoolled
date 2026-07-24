@@ -258,7 +258,7 @@ export default function HomePage() {
                 >
                   {emailMode === "login" ? "New here? Create account" : "Already have an account? Sign in"}
                 </button>
-                <Link href="/login?mode=forgot" style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, textDecoration: "none" }}>
+                <Link href="/forgot-password" style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, textDecoration: "none" }}>
                   Forgot password?
                 </Link>
               </div>
