@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-23 - v0.45.0 - Add public legal pages /privacy, /terms, and /data-deletion (Salareen Privacy Policy, Terms of Service, data-deletion request); link them from the site footer and legal hub.
 - 2026-07-24 - v0.44.2 - Fix auth 401 cascade (token cleared on first 401 from transient error, locking user out of onboarding — now requires 2 consecutive 401s); fix forgot password link on home page (/login?mode=forgot → /forgot-password).
 - 2026-07-23 - v0.44.1 - Fix billing page 404 (ingress routed /billing to billing service instead of web app; add Exact /billing → web before the prefix catch-all); fix social login invisible on signup page (Google/Facebook/Apple buttons were gated on mode==login, now show on both modes); add inline password validation feedback on signup; 36 comprehensive onboarding tests covering email/password signup, OAuth social login, forgot/reset password, onboarding profile/plan, and full end-to-end journeys.
 - 2026-07-23 - v0.44.0 - Add Salareen/GetSchoolled strategic fundraising pack (cold email, 4-slide brief, investor directory, SAFE cap framework) as docs/fundraising-strategy.pdf + .txt; builder scripts/build_fundraising_strategy_pdf.py.

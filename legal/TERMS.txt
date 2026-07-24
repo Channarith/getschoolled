@@ -55,4 +55,7 @@ Processing Addendum (legal/DPA.txt). If you do not agree, do not use the Service
 9. GOVERNING LAW
    To be set per deployment jurisdiction before release.
 
-CONTACT: legal@example.org  (placeholder)
+CONTACT: legal@salareen.com
+Web: https://www.salareen.com/terms
+Privacy: https://www.salareen.com/privacy
+Data deletion: https://www.salareen.com/data-deletion

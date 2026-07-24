@@ -1,0 +1,58 @@
+SALAREEN — DATA DELETION REQUEST
+================================
+Version: 1.0   Effective: 2026-07-23
+URL: https://www.salareen.com/data-deletion
+
+This page explains how to request deletion of your Salareen personal data
+(account, learning records, optional biometrics, and related operational data),
+consistent with GDPR, CCPA/CPRA, COPPA, FERPA (via your institution), and similar
+laws.
+
+1. WHO CAN REQUEST DELETION
+   - An individual account holder (or parent/guardian for a child account)
+   - An authorized school/institution administrator for student records under
+     their control (school-official / DPA relationship)
+
+2. HOW TO SUBMIT A REQUEST
+   Option A — Email (preferred for audit trail):
+     To: privacy@salareen.com
+     Subject: Data deletion request
+     Include: the email on your Salareen account, full name, and whether you want
+     (i) full account deletion or (ii) specific data categories only.
+
+   Option B — In-app / account:
+     Sign in → Account → contact Support, or use Contact → Support with subject
+     "Data deletion request".
+
+   Option C — Institutional:
+     School admins should email privacy@salareen.com with institution name and
+     the student identifiers under their directory.
+
+3. WHAT WE DELETE
+   When a verified deletion request is approved we delete or anonymize, as
+   applicable:
+   - Account profile and authentication credentials
+   - Learning history, assessments, homework submissions, and mastery signals
+   - Rewards/points tied to the account (where not legally required to retain)
+   - Optional biometric embeddings and consent records for vision features
+   - Device/session tokens associated with the account
+
+4. WHAT WE MAY RETAIN (LIMITED)
+   We may retain narrowly scoped records when required by law or legitimate
+   dispute/fraud prevention (e.g. billing invoices, security logs) for the
+   minimum period required, then delete or anonymize them.
+
+5. TIMELINE
+   We acknowledge requests within 7 days and complete verified deletions within
+   30 days (or sooner where local law requires), unless a lawful extension
+   applies. Complex institutional requests may take longer; we will explain why.
+
+6. VERIFICATION
+   To protect against unauthorized deletion we may ask you to verify control of
+   the account email or provide institution authorization before acting.
+
+7. RELATED POLICIES
+   Privacy Policy: https://www.salareen.com/privacy
+   Terms of Service: https://www.salareen.com/terms
+   Legal hub: https://www.salareen.com/legal
+   Contact: privacy@salareen.com · support@salareen.com

@@ -1,0 +1,10 @@
+AOEP / SALAREEN - DATA DELETION REQUEST
+=======================================
+Version: 1.0   Effective: 2026-07-23
+Canonical web page: https://www.salareen.com/data-deletion
+
+How users request deletion of Salareen personal data (account, learning records,
+optional biometrics). See apps/web/content/legal/DATA_DELETION.txt for the
+user-facing copy served at /data-deletion.
+
+CONTACT: privacy@salareen.com

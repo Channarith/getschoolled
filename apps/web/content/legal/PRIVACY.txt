@@ -1,0 +1,73 @@
+SALAREEN — PRIVACY POLICY
+=========================
+Version: 1.0   Effective: 2026-07-23
+URL: https://www.salareen.com/privacy
+
+This Privacy Policy explains what data Salareen (also referred to as GetSchoolled /
+AOEP in parts of the product) processes, why, and your rights. It is designed to
+align with FERPA, COPPA, GDPR, CCPA/CPRA, BIPA, and applicable student-privacy
+laws. Counsel should finalize jurisdiction-specific wording before production use.
+
+1. DATA WE PROCESS
+   - Account/profile: name, email, role, institution, preferred language.
+   - Learning data: questions, answers, homework, quiz/assessment results,
+     mastery and adaptivity signals.
+   - Optional biometric data (face embeddings) ONLY with explicit consent.
+   - Engagement signals (attention) where permitted by regional policy.
+   - Operational logs, security telemetry, and billing/entitlement records.
+
+2. WHY (PURPOSES) & MINIMIZATION
+   To deliver and personalize instruction, assess learning, ensure safety and
+   academic integrity, and secure the Service. We collect only what is reasonably
+   necessary. We do NOT sell personal data.
+
+3. STUDENT DATA / FERPA & SCHOOL OFFICIAL EXCEPTION
+   When used by a school, Salareen acts as a "school official" / processor under
+   the institution's direction and uses student education records solely for the
+   use and benefit of the school. Institutions may review, export, correct, and
+   request deletion of student data. See the Data Processing Addendum.
+
+4. CHILDREN (COPPA) & MINORS
+   For users under 13 (US) or the applicable local age, we require verifiable
+   parental consent or valid school authorization. Biometric identifiers are
+   treated as personal information; we apply minimization, separate opt-in before
+   any third-party sharing, retention limits, and security safeguards.
+
+5. AI & AUTOMATED PROCESSING
+   AI assists instruction, grading, and (optionally) recognition. We provide AI
+   disclosure, citations/groundedness, human-in-the-loop review, and model cards.
+   You may request human review of AI decisions that significantly affect you.
+
+6. BIOMETRICS & ENGAGEMENT (region-restricted)
+   Face recognition is opt-in and consent-gated, with a name-only fallback;
+   embeddings are encrypted, kept within the configured boundary, and deletable.
+   Emotion recognition is DISABLED where prohibited (e.g. EU AI Act education
+   restrictions); regional Compliance policy enforces this.
+
+7. RETENTION & DELETION
+   Data is retained only as long as necessary or as set by your institution's
+   retention schedule, then deleted or anonymized. You (or your institution) may
+   request deletion at any time via https://www.salareen.com/data-deletion or
+   privacy@salareen.com.
+
+8. SHARING
+   With service providers under contract, with your institution, and as required
+   by law. No sale of personal data; no third-party sharing of children's data
+   without separate consent.
+
+9. SECURITY & BREACH NOTIFICATION
+   We apply technical and organizational safeguards (encryption, access control,
+   signed content/webhooks). Material breaches are notified per applicable law.
+
+10. YOUR RIGHTS
+   Access, correction, deletion, portability, objection/restriction, and consent
+   withdrawal (GDPR/CCPA/FERPA as applicable).
+
+11. INTERNATIONAL TRANSFERS
+   Where data crosses borders, we use lawful transfer mechanisms; deployments can
+   be pinned to a region/boundary (local/edge mode) to keep data in-jurisdiction.
+
+CONTACT / PRIVACY: privacy@salareen.com
+Data deletion requests: https://www.salareen.com/data-deletion
+Terms of Service: https://www.salareen.com/terms
+Legal hub: https://www.salareen.com/legal
