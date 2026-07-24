@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AUTH_EVENT,
   completeOnboarding,
   getMe,
   getOnboardingStatus,
@@ -70,7 +71,34 @@ export default function OnboardingPage() {
     }).catch(() => {});
   }, [router]);
 
+  // If the token gets cleared mid-session (e.g. by concurrent 401s), redirect to sign-in
+  // instead of leaving the user stuck on the onboarding page with no auth.
+  useEffect(() => {
+    const onAuthChange = () => {
+      if (!getToken()) {
+        localStorage.removeItem("onboarding_step");
+        localStorage.removeItem("onboarding_plan");
+        router.replace("/login?mode=signup");
+      }
+    };
+    window.addEventListener(AUTH_EVENT, onAuthChange);
+    return () => window.removeEventListener(AUTH_EVENT, onAuthChange);
+  }, [router]);
+
   const needsPayment = plan !== "free";
+  // Track the highest step reached so we know which pills are clickable
+  const [maxStep, setMaxStep] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    return Number(localStorage.getItem("onboarding_step") || 0);
+  });
+  useEffect(() => {
+    if (step > maxStep) setMaxStep(step);
+  }, [step, maxStep]);
+
+  function goToStep(i: number) {
+    // Only allow navigating to steps already reached
+    if (i <= maxStep) { setError(""); setStep(i); }
+  }
 
   async function nextFromInfo() {
     if (busyRef.current) return;
@@ -128,18 +156,29 @@ export default function OnboardingPage() {
       <h1 style={{ marginBottom: 4 }}>Welcome to Salareen</h1>
       <p className="muted">Set up your account in a few steps — just like Netflix.</p>
       <div style={{ display: "flex", gap: 8, margin: "16px 0 24px", flexWrap: "wrap" }}>
-        {STEPS.map((label, i) => (
-          <span
-            key={label}
-            style={{
-              padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-              background: i === step ? "#0ea5e9" : i < step ? "#164e63" : "#1e293b",
-              color: i === step ? "#001022" : "#94a3b8",
-            }}
-          >
-            {i + 1}. {label}
-          </span>
-        ))}
+        {STEPS.map((label, i) => {
+          const isClickable = i <= maxStep && i !== step;
+          const isCurrent = i === step;
+          const isDone = i < step;
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => goToStep(i)}
+              disabled={!isClickable}
+              style={{
+                padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                background: isCurrent ? "#0ea5e9" : isDone ? "#164e63" : "#1e293b",
+                color: isCurrent ? "#001022" : isDone ? "#7dd3fc" : "#94a3b8",
+                border: "none",
+                cursor: isClickable ? "pointer" : "default",
+                textDecoration: isClickable ? "underline" : "none",
+              }}
+            >
+              {isDone ? "✓ " : ""}{i + 1}. {label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="card">
@@ -192,6 +231,7 @@ export default function OnboardingPage() {
                 </button>
               ))}
             </div>
+            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
             <button type="button" className="btn primary" style={{ marginTop: 16 }} disabled={busy}
               onClick={() => void nextFromPlan()}>
               {needsPayment ? "Continue to payment" : "Continue"}
@@ -241,6 +281,7 @@ export default function OnboardingPage() {
                   style={{ padding: 8, width: 100 }} />
               </div>
             </div>
+            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
             <button type="button" className="btn primary" style={{ marginTop: 16 }} disabled={busy}
               onClick={() => void nextFromBilling()}>
               Validate &amp; continue
@@ -265,6 +306,7 @@ export default function OnboardingPage() {
                 <option value="adult">Adult</option>
               </select>
             </label>
+            <button type="button" onClick={() => goToStep(step - 1)} style={{ marginRight: 10, padding: "8px 18px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 600 }}>← Back</button>
             <button type="button" className="btn primary" disabled={busy} onClick={() => void finish()}>
               Start watching
             </button>
