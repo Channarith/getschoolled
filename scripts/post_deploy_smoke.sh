@@ -28,8 +28,14 @@ if [ -z "${TAG:-}" ]; then
   exit 1
 fi
 
-# Deployments whose rollout the deploy step waits on. Keep in sync with deploy.yml.
-SERVICES=(orchestrator speech perception memory curriculum billing integrations identity web)
+# Deployments to check. When SERVICES env var is set (space-separated list from
+# the workflow), only check those services — avoids false failures when a partial
+# deploy (e.g. "identity + web only") leaves other services on :latest tags.
+if [ -n "${SERVICES:-}" ]; then
+  read -ra SERVICES <<< "$SERVICES"
+else
+  SERVICES=(orchestrator speech perception memory curriculum billing integrations identity web)
+fi
 
 PASS=0
 FAIL=0
