@@ -21,6 +21,7 @@ import {
   loginWithFacebook,
   loginWithApple,
   setToken,
+  submitOnboardingProfile,
   type HomeRail,
 } from "./lib/api";
 import { friendlyError } from "./lib/errors";
@@ -89,6 +90,12 @@ export default function HomePage() {
         : await signup(email, password, displayName);
       setToken(res.token);
       if (emailMode === "signup") {
+        // Auto-submit the profile step using the display name from the email,
+        // then jump to step 1 (Choose Plan) — users already gave us their name.
+        try {
+          await submitOnboardingProfile({ display_name: displayName });
+          localStorage.setItem("onboarding_step", "1");
+        } catch { /* non-critical — onboarding page handles this */ }
         router.push("/onboarding");
       } else {
         try {
