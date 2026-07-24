@@ -103,6 +103,8 @@ jobs:
         env:
           TAG: ${{ github.event.inputs.tag || github.sha }}
           NS: aoep
+          # Only check the services actually deployed in this run, not all 9
+          SERVICES: ${{ needs.setup-matrix.outputs.services }}
         run: bash scripts/post_deploy_smoke.sh
 
       - name: Auto-rollback on smoke failure
