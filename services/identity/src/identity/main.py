@@ -107,6 +107,17 @@ def current_account(authorization: str = Header(default="")):
         raise HTTPException(status_code=401, detail="incomplete authentication")
     acct = app.state.accounts.by_id(claims.get("sub", ""))
     if acct is None:
+        # Account not in this pod's in-memory store — could have been created by
+        # another replica. Reload from Redis (the authoritative source) and retry.
+        # This handles the common case of: signup on pod A → auth/me lands on pod B.
+        import logging as _log
+        _log.getLogger(__name__).info(
+            "account %s not in local store, reloading from Redis", claims.get("sub")
+        )
+        from .persistence import load_from_redis
+        load_from_redis(app.state.accounts)
+        acct = app.state.accounts.by_id(claims.get("sub", ""))
+    if acct is None:
         raise HTTPException(status_code=401, detail="account not found")
     return acct
 
