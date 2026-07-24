@@ -46,9 +46,10 @@ export default function LoginPage() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("mode") === "signup") setMode("signup");
+    if (p.get("mode") === "forgot") router.replace("/forgot-password");
     const em = p.get("email");
     if (em) setEmail(em);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,7 +117,7 @@ export default function LoginPage() {
         setMode("login");
         setError("That email is already registered. Sign in instead, or use Forgot password.");
       } else {
-        setError(msg);
+        setError(msg.replace(/^\d{3}\s+/, ""));
       }
     } finally {
       setBusy(false);
@@ -183,8 +184,11 @@ export default function LoginPage() {
               {password.length > 0 && !/[0-9]/.test(password) && (
                 <p style={{ fontSize: 12, color: "#ef4444", margin: "2px 0" }}>Password must contain at least one number</p>
               )}
-              {(!password || (password.length >= 8 && /[0-9]/.test(password))) && (
+              {!password && (
                 <p className="muted" style={{ fontSize: 12, margin: "2px 0" }}>{t("login.passwordHint")}</p>
+              )}
+              {password.length >= 8 && /[0-9]/.test(password) && /[a-zA-Z]/.test(password) && (
+                <p style={{ fontSize: 12, color: "#10b981", margin: "2px 0" }}>✓ Password looks good</p>
               )}
             </div>
           )}
@@ -207,7 +211,7 @@ export default function LoginPage() {
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithGoogle(`sandbox_google_${em}`);
                         setToken(res.token);
-                        router.push("/");
+                        try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
                         return;
                       }
                       // Real Google sign-in via Google Identity Services one-tap
@@ -222,33 +226,29 @@ export default function LoginPage() {
                         });
                         gisRef.current = true;
                       }
-                      await new Promise<void>((resolve, reject) => {
-                        (window as any).google.accounts.id.initialize({
-                          client_id: GOOGLE_CLIENT_ID,
-                          callback: async (resp: { credential: string }) => {
-                            try {
-                              const res = await loginWithGoogle(resp.credential);
-                              setToken(res.token);
-                              router.push("/");
-                              resolve();
-                            } catch (e) { reject(e); }
-                          },
-                          auto_select: false,
-                          cancel_on_tap_outside: true,
-                        });
-                        (window as any).google.accounts.id.prompt((notification: any) => {
-                          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                            // Fallback: render a hidden button and click it
-                            const div = document.createElement("div");
-                            div.style.display = "none";
-                            document.body.appendChild(div);
-                            (window as any).google.accounts.id.renderButton(div, { type: "standard" });
-                            const btn = div.querySelector("div[role=button]") as HTMLElement | null;
-                            btn?.click();
-                            document.body.removeChild(div);
-                          }
-                        });
-                      });
+                      await Promise.race([
+                        new Promise<void>((resolve, reject) => {
+                          (window as any).google.accounts.id.initialize({
+                            client_id: GOOGLE_CLIENT_ID,
+                            callback: async (resp: { credential: string }) => {
+                              try {
+                                const res = await loginWithGoogle(resp.credential);
+                                setToken(res.token);
+                                try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
+                                resolve();
+                              } catch (e) { reject(e); }
+                            },
+                            auto_select: false,
+                            cancel_on_tap_outside: true,
+                          });
+                          (window as any).google.accounts.id.prompt((notification: any) => {
+                            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                              reject(new Error("Google sign-in was dismissed or not shown"));
+                            }
+                          });
+                        }),
+                        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Google sign-in timed out")), 30000)),
+                      ]);
                   } catch (e) { setError(String(e)); setBusy(false); }
                 }}
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
@@ -266,7 +266,7 @@ export default function LoginPage() {
                         if (!em) { setBusy(false); return; }
                         const res = await loginWithFacebook(`sandbox_facebook_${em}`);
                         setToken(res.token);
-                        router.push("/");
+                        try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
                         return;
                       }
                       const FACEBOOK_APP_ID = "1071803295271778";
@@ -290,7 +290,7 @@ export default function LoginPage() {
                       });
                       const res = await loginWithFacebook(accessToken);
                       setToken(res.token);
-                      router.push("/");
+                      try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
                   } catch (e) { setError(String(e)); setBusy(false); }
                 }}
                 style={{ display: "flex", alignItems: "center", gap: 8 }}
@@ -308,7 +308,7 @@ export default function LoginPage() {
                       if (!em) { setBusy(false); return; }
                       const res = await loginWithApple(`sandbox_apple_${em}`);
                       setToken(res.token);
-                      router.push("/");
+                      try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
                       return;
                     }
                     // Apple Sign In for web — requires a Services ID registered at
@@ -334,7 +334,7 @@ export default function LoginPage() {
                     if (!identityToken) throw new Error("Apple sign-in did not return an identity token");
                     const res = await loginWithApple(identityToken);
                     setToken(res.token);
-                    router.push("/");
+                    try { const st = await getOnboardingStatus(); router.push(st.completed ? "/" : "/onboarding"); } catch { router.push("/"); }
                   } catch (e: any) {
                     if (e?.error !== "popup_closed_by_user") setError(String(e?.message || e));
                     setBusy(false);

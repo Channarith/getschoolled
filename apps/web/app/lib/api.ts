@@ -1180,6 +1180,11 @@ export async function grantReward(grant: string):
   );
 }
 
+// Use a timestamp-based approach to detect truly invalid tokens (as opposed to
+// concurrent 401s from a pod restart, which would falsely clear a valid token
+// when multiple in-flight requests race to see a 401).
+let _lastSuccessfulAuthTime = 0;
+let _pendingAuthClear = false;
 // Track 401s per session — only clear the token after 2 consecutive rejections
 // to avoid clearing a valid token on a transient network error or pod restart.
 let _consecutive401s = 0;
@@ -1187,6 +1192,19 @@ let _consecutive401s = 0;
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && getToken()) {
+      // Only schedule a token clear once. A concurrent 401 burst (e.g. from a
+      // pod restart) won't fire a second clear — only a sustained absence of
+      // successful calls will actually clear the token.
+      if (!_pendingAuthClear) {
+        _pendingAuthClear = true;
+        setTimeout(() => {
+          // If still no successful auth after 3 seconds, the token is truly invalid
+          if (getToken() && Date.now() - _lastSuccessfulAuthTime > 3000) {
+            clearToken();
+          }
+          _pendingAuthClear = false;
+        }, 3000);
+      }
       _consecutive401s += 1;
       if (_consecutive401s >= 2) {
         // Two consecutive 401s with a stored token means the token is genuinely
@@ -1208,6 +1226,8 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
     }
     throw new Error(`${res.status} ${detail}`);
   }
+  _lastSuccessfulAuthTime = Date.now();
+  _pendingAuthClear = false;
   _consecutive401s = 0;  // successful call resets the counter
   return (await res.json()) as T;
 }

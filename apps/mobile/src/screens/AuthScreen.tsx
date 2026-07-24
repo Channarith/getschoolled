@@ -239,7 +239,7 @@ export default function AuthScreen() {
             disabled={busy}
             variant="netflix"
           />
-          <AnimatedPressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+          <AnimatedPressable onPress={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
             <Text style={styles.link}>
               {mode === "login" ? t("auth.createAccount") : t("auth.haveAccount")}
             </Text>

@@ -35,7 +35,10 @@ export default function OnboardingPage() {
   const busyRef = useRef(false);
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
-  const [plan, setPlan] = useState("free");
+  const [plan, setPlan] = useState<string>(() => {
+    if (typeof window === "undefined") return "free";
+    return localStorage.getItem("onboarding_plan") || "free";
+  });
   const [learnerName, setLearnerName] = useState("");
   const [ageBand, setAgeBand] = useState("adult");
   const [billing, setBilling] = useState({
@@ -47,6 +50,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     localStorage.setItem("onboarding_step", String(step));
   }, [step]);
+
+  // Persist plan so resuming mid-flow doesn't silently downgrade to free.
+  useEffect(() => {
+    localStorage.setItem("onboarding_plan", plan);
+  }, [plan]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -109,6 +117,7 @@ export default function OnboardingPage() {
     try {
       await completeOnboarding({ learner_name: learnerName, age_band: ageBand });
       localStorage.removeItem("onboarding_step");
+      localStorage.removeItem("onboarding_plan");
       router.push("/");
     } catch (e) { setError(String(e)); }
     finally { busyRef.current = false; setBusy(false); }
@@ -196,6 +205,9 @@ export default function OnboardingPage() {
             {/* SECURITY: This must be replaced with Stripe.js Elements before production.
                 Never send raw card data through your backend. Use Stripe.js tokenization
                 so card numbers are sent directly to Stripe and never touch this server. */}
+            <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#92400e" }}>
+              <strong>🔒 Demo mode:</strong> No real charge is made. For production, payment processing will use Stripe. Enter any test card (e.g. 4111 1111 1111 1111).
+            </div>
             <p className="muted" style={{ fontSize: 13 }}>
               Card is validated (Luhn + expiry). In production, payment runs through Stripe — we never store full card numbers.
             </p>
