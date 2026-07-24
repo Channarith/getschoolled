@@ -1180,13 +1180,22 @@ export async function grantReward(grant: string):
   );
 }
 
+// Track 401s per session — only clear the token after 2 consecutive rejections
+// to avoid clearing a valid token on a transient network error or pod restart.
+let _consecutive401s = 0;
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     if (res.status === 401 && getToken()) {
-      // A stored token was rejected (expired, or the server's auth signing key
-      // rotated on a redeploy). Drop it so the UI returns to a clean signed-out
-      // state and stops re-firing failing authenticated requests on every click.
-      clearToken();
+      _consecutive401s += 1;
+      if (_consecutive401s >= 2) {
+        // Two consecutive 401s with a stored token means the token is genuinely
+        // invalid (expired, signing key rotated). Clear it to return to sign-in.
+        clearToken();
+        _consecutive401s = 0;
+      }
+    } else if (res.ok) {
+      _consecutive401s = 0;
     }
     let detail = res.statusText;
     try {
@@ -1199,6 +1208,7 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
     }
     throw new Error(`${res.status} ${detail}`);
   }
+  _consecutive401s = 0;  // successful call resets the counter
   return (await res.json()) as T;
 }
 
