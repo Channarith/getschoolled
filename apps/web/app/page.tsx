@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppBadges from "./components/AppBadges";
 import AdSlot from "./components/AdSlot";
 import { Rail, Tile } from "./components/CourseRail";
@@ -12,6 +13,7 @@ import {
   AUTH_EVENT,
   getHomeFeed,
   getMe,
+  getOnboardingStatus,
   getToken,
   login,
   signup,
@@ -26,6 +28,7 @@ import { useT } from "./lib/i18n";
 
 export default function HomePage() {
   const { t, locale } = useT();
+  const router = useRouter();
   const carousels = useFlag<boolean>("ux.netflix_carousels", true);
   const [rails, setRails] = useState<HomeRail[] | null>(null);
   const [error, setError] = useState("");
@@ -85,14 +88,25 @@ export default function HomePage() {
         ? await login(email, password)
         : await signup(email, password, displayName);
       setToken(res.token);
-      window.dispatchEvent(new Event(AUTH_EVENT));
+      if (emailMode === "signup") {
+        router.push("/onboarding");
+      } else {
+        try {
+          const st = await getOnboardingStatus();
+          if (!st.completed) router.push("/onboarding");
+          else window.dispatchEvent(new Event(AUTH_EVENT));
+        } catch {
+          window.dispatchEvent(new Event(AUTH_EVENT));
+        }
+      }
     } catch (e: any) {
       const msg = e?.message || String(e);
       if (emailMode === "signup" && /already exists/i.test(msg)) {
         setEmailMode("login");
         setEmailError("Email already registered — signing you in instead.");
       } else {
-        setEmailError(friendlyError(msg, msg));
+        const cleanMsg = msg.replace(/^\d{3}\s+/, "");
+        setEmailError(friendlyError(cleanMsg, cleanMsg));
       }
     } finally {
       setEmailBusy(false);
@@ -169,6 +183,10 @@ export default function HomePage() {
           res = await loginWithApple(data?.authorization?.id_token);
         }
         setToken(res.token);
+        try {
+          const st = await getOnboardingStatus();
+          if (!st.completed) { router.push("/onboarding"); return; }
+        } catch { /* fall through to AUTH_EVENT */ }
         window.dispatchEvent(new Event(AUTH_EVENT));
       } catch (e: any) {
         if (e?.error !== "popup_closed_by_user") setSocialError(String(e?.message || e));
@@ -241,6 +259,9 @@ export default function HomePage() {
                 <p style={{ color: "#fca5a5", fontSize: 12, margin: "4px 0 0", textAlign: "left" }}>
                   {password.length < 8 ? "At least 8 characters required" : "Must include at least one number"}
                 </p>
+              )}
+              {emailMode === "signup" && password.length >= 8 && /[0-9]/.test(password) && /[a-zA-Z]/.test(password) && (
+                <p style={{ fontSize: 12, color: "#10b981", marginTop: 2 }}>✓ Password looks good</p>
               )}
               {emailError && <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>{emailError}</p>}
               <button
