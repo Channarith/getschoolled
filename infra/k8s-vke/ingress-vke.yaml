@@ -223,6 +223,26 @@ spec:
     # Bare LoadBalancer IP / any host: same-origin /identity, /memory, etc.
     - http:
         paths:
+          # Next.js UI pages — must come BEFORE service-prefix routes so the
+          # browser landing on /billing (etc.) gets the web app, not the API service.
+          - path: /billing
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /account
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /security
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /rewards
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /my-list
+            pathType: Exact
+            backend: { service: { name: web, port: { number: 80 } } }
+          - path: /onboarding
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /orchestrator(/|$)(.*)
             pathType: ImplementationSpecific
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
