@@ -220,6 +220,11 @@ export default function AuthScreen() {
             </Pressable>
           </View>
           ) : null}
+          {mode === "signup" && password.length > 0 && (password.length < 8 || !/[0-9]/.test(password)) && (
+            <Text style={styles.pwHint}>
+              {password.length < 8 ? "Password must be at least 8 characters" : "Password must include at least one number"}
+            </Text>
+          )}
           {error ? <Text style={[styles.error, error.includes("sent") || error.includes("Done") ? styles.ok : null]}>{error}</Text> : null}
           <PrimaryButton
             testID="auth-submit"
@@ -244,9 +249,9 @@ export default function AuthScreen() {
               <Text style={styles.link}>{t("auth.forgot")}</Text>
             </AnimatedPressable>
           ) : null}
-          {mode === "login" ? (
+          {(mode === "login" || mode === "signup") ? (
             <View style={styles.socialBlock}>
-              <Text style={styles.socialDivider}>or continue with</Text>
+              <Text style={styles.socialDivider}>{mode === "login" ? "or sign in with" : "or sign up with"}</Text>
               <View style={styles.socialRow}>
                 <Pressable
                   style={[styles.socialBtn, busy && styles.socialBtnDisabled]}
@@ -266,7 +271,7 @@ export default function AuthScreen() {
                 </Pressable>
                 {appleAvailable && Platform.OS === "ios" ? (
                   <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                    buttonType={mode === "login" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN : AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
                     buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                     cornerRadius={8}
                     style={styles.appleBtn}
@@ -420,6 +425,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   error: { color: theme.colors.netflix, fontSize: 13 },
+  pwHint: { color: "#f87171", fontSize: 12, marginTop: 2, marginBottom: 4 },
   ok: { color: theme.colors.success },
   link: { color: theme.colors.accent, textAlign: "center", marginTop: 4, fontWeight: "600" },
   hint: { color: theme.colors.muted, fontSize: 12 },
