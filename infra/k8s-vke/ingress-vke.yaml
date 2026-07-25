@@ -36,6 +36,10 @@ spec:
     - host: www.salareen.com
       http:
         paths:
+          # Next.js BFF admin routes — must precede /api/ (longest prefix wins).
+          - path: /api/admin/
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
@@ -64,6 +68,10 @@ spec:
     - host: salareen.com
       http:
         paths:
+          # Next.js BFF admin routes — must precede /api/ (longest prefix wins).
+          - path: /api/admin/
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }

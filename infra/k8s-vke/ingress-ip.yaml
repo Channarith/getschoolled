@@ -29,6 +29,11 @@ spec:
   rules:
     - http:
         paths:
+          # Next.js BFF admin routes must come BEFORE /api/ so nginx's longest-prefix
+          # match routes them to the web service instead of the orchestrator.
+          - path: /api/admin/
+            pathType: Prefix
+            backend: { service: { name: web, port: { number: 80 } } }
           - path: /api/
             pathType: Prefix
             backend: { service: { name: orchestrator, port: { number: 8000 } } }
