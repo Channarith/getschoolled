@@ -387,6 +387,7 @@ function ParticipantTile({
             height: "100%",
             objectFit: "cover",
             opacity: 0.85,
+            ...(isMe && { transform: "scaleX(-1)" }),
           }}
         />
       ) : isHost && slide ? (
@@ -3081,6 +3082,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       border: "2px solid rgba(255,255,255,0.3)",
                       objectFit: "cover",
                       zIndex: 10,
+                      transform: "scaleX(-1)",
                     }}
                   />
                 )}
