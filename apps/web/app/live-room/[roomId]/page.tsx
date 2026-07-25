@@ -3072,26 +3072,6 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 )}
               </div>
             )}
-            {/* Slide panel: when the teacher's camera fills the main tile, show the
-                current slide as a card below so the teacher and students can still
-                read the content. */}
-            {canModerate && room?.slide && cameraOn && !whiteboardOn && (
-              <div style={{
-                marginTop: 8,
-                padding: "14px 18px",
-                borderRadius: 14,
-                border: "1px solid var(--border)",
-                background: "var(--panel)",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
-                  Slide {(room.slide.index ?? 0) + 1}
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: room.slide.body ? 8 : 0 }}>{room.slide.title}</div>
-                {room.slide.body && (
-                  <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{room.slide.body}</div>
-                )}
-              </div>
-            )}
             {isSolo && learners.map((p) => (
               <div
                 key={p.id}
@@ -3225,88 +3205,79 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
 
           {!isSolo ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                padding: "12px 14px",
-                marginBottom: 12,
-                borderRadius: 16,
-                border: "1px solid var(--border)",
-                background: "var(--panel)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {learners.length > 0 ? `${learners.length} in class` : "Waiting for participants…"}
-                </span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, overflowX: "auto", paddingBottom: 2 }}>
-                  {studentLearners.slice(0, 8).map((p) => {
-                    const onFloor = p.id === room?.floor_participant_id;
-                    const selected = selectedParticipant === p.id;
-                    const clickable = canModerate && p.id !== me?.id;
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => (clickable ? setSelectedParticipant(selected ? "" : p.id) : undefined)}
-                        title={`${p.name}${p.hand_raised ? " — hand raised" : onFloor ? " — speaking" : ""}`}
-                        style={{
-                          position: "relative",
-                          width: 150,
-                          height: 86,
-                          flex: "0 0 auto",
-                          borderRadius: 12,
-                          outline: selected ? `2px solid ${STUDIO_GOLD}` : "none",
-                          outlineOffset: 1,
-                          cursor: clickable ? "pointer" : "default",
-                        }}
-                      >
-                        <ParticipantTile
-                          p={p}
-                          showAdminProfile={canModerate}
-                          fill
-                          localStream={p.id === me?.id && cameraOn ? localStream : null}
-                          liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
-                          hasFloor={onFloor}
-                          isMe={p.id === me?.id}
-                          presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
-                          cameraOn={p.id === me?.id ? cameraOn : undefined}
-                          onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
-                          audioMuted={locallyMutedIds.has(p.id)}
-                        />
-                      </div>
-                    );
-                  })}
-                  {studentLearners.length > 8 ? (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", flex: "0 0 auto" }}>
-                      +{studentLearners.length - 8}
-                    </span>
-                  ) : null}
-                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
-                    <span
-                      key={`ph-${i}`}
-                      aria-hidden
-                      style={{
-                        width: 150,
-                        height: 86,
-                        flex: "0 0 auto",
-                        borderRadius: 12,
-                        border: "1px dashed var(--border)",
-                        background: "color-mix(in srgb, var(--accent) 3%, var(--panel))",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "var(--muted)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
-                    >
-                      ＋ Open seat
-                    </span>
-                  ))}
+            <div style={{ marginTop: 8, marginBottom: 12 }}>
+              {studentLearners.length === 0 ? (
+                /* Silhouette placeholder — waiting for a student to join */
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  justifyContent: "center", minHeight: 220, borderRadius: 16,
+                  background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
+                  border: "1px dashed var(--border)", gap: 12, color: "var(--muted)",
+                }}>
+                  <svg width="76" height="76" viewBox="0 0 76 76" fill="currentColor" opacity="0.22" aria-hidden="true">
+                    <circle cx="38" cy="26" r="17" />
+                    <ellipse cx="38" cy="60" rx="29" ry="19" />
+                  </svg>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>Waiting for student to join…</div>
+                  <div style={{ fontSize: 12, opacity: 0.65 }}>Share the class link so they can sign in</div>
                 </div>
-              </div>
+              ) : (
+                /* First student: full-width tile */
+                <>
+                  <div
+                    style={{ position: "relative", borderRadius: 16, overflow: "hidden", minHeight: 220,
+                      outline: selectedParticipant === studentLearners[0].id ? `2px solid ${STUDIO_GOLD}` : "none",
+                      outlineOffset: 2, cursor: canModerate && studentLearners[0].id !== me?.id ? "pointer" : "default",
+                    }}
+                    onClick={() => canModerate && studentLearners[0].id !== me?.id
+                      ? setSelectedParticipant((prev) => prev === studentLearners[0].id ? "" : studentLearners[0].id)
+                      : undefined}
+                    title={studentLearners[0].name}
+                  >
+                    <ParticipantTile
+                      p={studentLearners[0]}
+                      fill
+                      large
+                      showAdminProfile={canModerate}
+                      localStream={studentLearners[0].id === me?.id && cameraOn ? localStream : null}
+                      liveKitTrack={studentLearners[0].id === me?.id && !cameraOn ? null : trackFor(studentLearners[0].id)}
+                      hasFloor={studentLearners[0].id === room?.floor_participant_id}
+                      isMe={studentLearners[0].id === me?.id}
+                      presenceFaceCount={studentLearners[0].id === me?.id ? presenceFaceCount : undefined}
+                      cameraOn={studentLearners[0].id === me?.id ? cameraOn : undefined}
+                      onToggleCamera={studentLearners[0].id === me?.id ? () => void toggleCamera() : undefined}
+                      audioMuted={locallyMutedIds.has(studentLearners[0].id)}
+                      onToggleAudio={studentLearners[0].id !== me?.id ? () => toggleLocalAudio(studentLearners[0].id) : undefined}
+                    />
+                  </div>
+                  {/* Additional students: small strip */}
+                  {studentLearners.length > 1 && (
+                    <div style={{ display: "flex", gap: 6, overflowX: "auto", marginTop: 6 }}>
+                      {studentLearners.slice(1, 8).map((p) => {
+                        const onFloor = p.id === room?.floor_participant_id;
+                        const selected = selectedParticipant === p.id;
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => canModerate && p.id !== me?.id ? setSelectedParticipant((prev) => prev === p.id ? "" : p.id) : undefined}
+                            title={p.name}
+                            style={{ width: 120, height: 72, flex: "0 0 auto", borderRadius: 10, overflow: "hidden",
+                              outline: selected ? `2px solid ${STUDIO_GOLD}` : "none", outlineOffset: 1,
+                              cursor: canModerate && p.id !== me?.id ? "pointer" : "default" }}
+                          >
+                            <ParticipantTile p={p} fill liveKitTrack={trackFor(p.id)} hasFloor={onFloor} audioMuted={locallyMutedIds.has(p.id)} />
+                          </div>
+                        );
+                      })}
+                      {studentLearners.length > 8 && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", alignSelf: "center", paddingLeft: 4 }}>
+                          +{studentLearners.length - 8}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               {canModerate && selectedParticipant
                 ? (() => {
                     const sel = learners.find((p) => p.id === selectedParticipant);
