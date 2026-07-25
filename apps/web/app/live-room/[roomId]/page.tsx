@@ -2126,6 +2126,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
   const isSolo = isSoloLiveRoom(roomId, room);
+  // In a group class the human teacher (the moderator) belongs in the main host
+  // tile, not in the student strip. Filter them out so only actual students appear
+  // in the participant row.
+  const studentLearners = canModerate ? learners.filter((p) => p.id !== me?.id) : learners;
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
   const toggleHostAudio = () => {
     if (!host) return;
@@ -3238,7 +3242,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   {learners.length > 0 ? `${learners.length} in class` : "Waiting for participants…"}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, overflowX: "auto", paddingBottom: 2 }}>
-                  {learners.slice(0, 8).map((p) => {
+                  {studentLearners.slice(0, 8).map((p) => {
                     const onFloor = p.id === room?.floor_participant_id;
                     const selected = selectedParticipant === p.id;
                     const clickable = canModerate && p.id !== me?.id;
@@ -3274,12 +3278,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       </div>
                     );
                   })}
-                  {learners.length > 8 ? (
+                  {studentLearners.length > 8 ? (
                     <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", flex: "0 0 auto" }}>
-                      +{learners.length - 8}
+                      +{studentLearners.length - 8}
                     </span>
                   ) : null}
-                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - learners.length)) }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
                     <span
                       key={`ph-${i}`}
                       aria-hidden
