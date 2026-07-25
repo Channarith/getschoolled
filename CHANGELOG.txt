@@ -3,6 +3,7 @@ CHANGELOG - Agentic Online Education Platform
 Format: newest first. No markdown per project convention.
 
 [unreleased]
+- 2026-07-24 - v0.45.7 - Fix selfie camera mirror in live room: local video preview now flips horizontally so it acts like a mirror (left hand appears on left side of screen). Also fix Redis healthcheck probe to authenticate with password so Redis pod stays Ready and orchestrator replicas can share live room/group class state via Redis.
 - 2026-07-24 - v0.45.6 - Remove duplicate Salareen Worlds banner on Arcade page.
 - 2026-07-24 - v0.45.5 - Skip onboarding step 1 (Your info) after home page signup: auto-submit profile with name from email prefix then jump to step 1 (Choose Plan) so users go directly to plan selection. Also fix: Redis pod was Pending for 2+ days due to PVC requesting 10GB (Vultr minimum is 40GB) causing all identity pods to run in-memory-only mode and cross-pod account-not-found 401s; fixed PVC to 40Gi and restored Redis connectivity.
 - 2026-07-24 - v0.45.4 - Fix Apple Sign In: com.aiclassroom.web is the correct Services ID (exists and Sign In with Apple enabled); home page redirectURI updated to /login to match registered Apple return URL; revert incorrect com.aiclassroom.app change.
