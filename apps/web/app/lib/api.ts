@@ -2846,7 +2846,7 @@ export async function resolveMascot(
 
 export async function adminListFlags(secret: string): Promise<FlagSpec[]> {
   const r = await jsonOrThrow<{ flags: FlagSpec[] }>(
-    await fetch(`${MEMORY_URL}/admin/flags`, {
+    await fetch("/api/admin/flags", {
       cache: "no-store", headers: { "X-Admin-Secret": secret },
     })
   );
@@ -2885,7 +2885,7 @@ export async function adminSetFlag(
   patch: { enabled?: boolean; value?: unknown; rollout_pct?: number; tiers?: string[] | null; clear_value?: boolean }
 ): Promise<FlagSpec> {
   return jsonOrThrow(
-    await fetch(`${MEMORY_URL}/admin/flags/${encodeURIComponent(key)}`, {
+    await fetch(`/api/admin/flags/${encodeURIComponent(key)}`, {
       method: "PUT",
       headers: { "content-type": "application/json", "X-Admin-Secret": secret },
       body: JSON.stringify(patch),

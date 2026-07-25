@@ -21,11 +21,14 @@ async function isOperatorAdmin(request: NextRequest): Promise<boolean> {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await isOperatorAdmin(request))) {
+  const operatorAdmin = await isOperatorAdmin(request);
+  const clientSecret = request.headers.get("x-admin-secret") || "";
+  if (!operatorAdmin && !clientSecret) {
     return NextResponse.json({ detail: "admin access required" }, { status: 403 });
   }
+  const secret = operatorAdmin ? ADMIN_SECRET : clientSecret;
   const r = await fetch(`${MEMORY_ORIGIN}/admin/flags`, {
-    headers: { "X-Admin-Secret": ADMIN_SECRET },
+    headers: { "X-Admin-Secret": secret },
     cache: "no-store",
   });
   const body = await r.text();
