@@ -41,6 +41,9 @@ LLM_API_KEY="${LLM_API_KEY:-}"
 BUG_REPORT_GITHUB_TOKEN="${BUG_REPORT_GITHUB_TOKEN:-}"
 DEFAULT_ADMIN_PASSWORD="${DEFAULT_ADMIN_PASSWORD:-88888888}"
 QA_ACCOUNTS_PASSWORD="${QA_ACCOUNTS_PASSWORD:-QaTest123}"
+# Admin secret for the memory-service feature-flag panel (/admin).
+# Defaults to the same value as the admin login password for convenience.
+ADMIN_SECRET="${ADMIN_SECRET:-88888888}"
 
 echo "Creating aoep-secrets in namespace '$NS'…"
 kubectl -n "$NS" create secret generic aoep-secrets \
@@ -54,6 +57,7 @@ kubectl -n "$NS" create secret generic aoep-secrets \
   --from-literal=LLM_API_KEY="$LLM_API_KEY" \
   --from-literal=BUG_REPORT_GITHUB_TOKEN="$BUG_REPORT_GITHUB_TOKEN" \
   --from-literal=DEFAULT_ADMIN_PASSWORD="$DEFAULT_ADMIN_PASSWORD" \
-  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD"
+  --from-literal=QA_ACCOUNTS_PASSWORD="$QA_ACCOUNTS_PASSWORD" \
+  --from-literal=ADMIN_SECRET="$ADMIN_SECRET"
 
 echo "OK: aoep-secrets created. Future 'kubectl apply -k' runs will NOT modify it."
