@@ -455,7 +455,8 @@ export default function ClassPage() {
         await awardVerifiedPass(result.pass_decision_token);
         // TODO: edge case — if summative passed but no survey, view may need explicit clearing (else { setView(null) })
         const surveyRes = await getPostClassSurvey().catch(() => null);
-        if (surveyRes?.enabled && surveyRes.template) {
+        if (surveyRes?.enabled && surveyRes.template
+            && !localStorage.getItem(`survey-done-${lessonId}`)) {
           setSurvey(surveyRes.template);
           setSurveyAnswers({});
           setSurveyDone(false);
@@ -613,7 +614,8 @@ export default function ClassPage() {
       }
       try {
         const res = await getPostClassSurvey();
-        if (res.enabled && res.template) {
+        if (res.enabled && res.template
+            && !localStorage.getItem(`survey-done-${lessonId}`)) {
           setSurvey(res.template);
           setSurveyAnswers({});
           setSurveyDone(false);
@@ -679,6 +681,7 @@ export default function ClassPage() {
         suggestion: (surveyAnswers["suggestion"] as string) ?? "",
       });
       setSurveyDone(true);
+      localStorage.setItem(`survey-done-${lessonId}`, "1");
     } catch (e) {
       setError(String(e));
     } finally {

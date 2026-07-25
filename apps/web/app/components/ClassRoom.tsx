@@ -365,7 +365,8 @@ export default function ClassRoom({
       completedCheckpointsRef.current = new Set(completedCheckpointsRef.current).add(checkpointId);
       await awardVerifiedPass(result.pass_decision_token);
       const surveyRes = await getPostClassSurvey().catch(() => null);
-      if (surveyRes?.enabled && surveyRes.template) {
+      if (surveyRes?.enabled && surveyRes.template
+          && !localStorage.getItem(`survey-done-${lessonId}`)) {
         setSurvey(surveyRes.template);
         setSurveyAnswers({});
         setSurveyDone(false);
@@ -843,7 +844,8 @@ export default function ClassRoom({
         await awardCompletion();
       }
       const res = await getPostClassSurvey();
-      if (res.enabled && res.template) {
+      if (res.enabled && res.template
+          && !localStorage.getItem(`survey-done-${lessonId}`)) {
         setSurvey(res.template);
         setSurveyAnswers({});
         setSurveyDone(false);
@@ -949,6 +951,7 @@ export default function ClassRoom({
         }
       }
       setSurveyDone(true);
+      localStorage.setItem(`survey-done-${lessonId}`, "1");
     } catch (e) {
       setError(String(e));
     } finally {
