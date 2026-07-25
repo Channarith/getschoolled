@@ -2126,6 +2126,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
   const isSolo = isSoloLiveRoom(roomId, room);
+  // In a group class the human teacher (the moderator) belongs in the main host
+  // tile, not in the student strip. Filter them out so only actual students appear
+  // in the participant row.
+  const studentLearners = canModerate ? learners.filter((p) => p.id !== me?.id) : learners;
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
   const toggleHostAudio = () => {
     if (!host) return;
@@ -2840,7 +2844,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   large
                   fill
                   fullscreen={isFullscreen}
-                  localStream={canModerate && cameraOn && !room?.slide ? localStream : null}
+                  localStream={canModerate && cameraOn ? localStream : null}
                   liveKitTrack={canModerate && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
@@ -3066,25 +3070,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   }
                 />
                 )}
-                {canModerate && room?.slide && localStream && cameraOn && !whiteboardOn && (
-                  <video
-                    ref={pipVideoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    style={{
-                      position: "absolute",
-                      bottom: 12,
-                      right: 12,
-                      width: 180,
-                      height: 135,
-                      borderRadius: 8,
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      objectFit: "cover",
-                      zIndex: 10,
-                      transform: "scaleX(-1)",
-                    }}
-                  />
+              </div>
+            )}
+            {/* Slide panel: when the teacher's camera fills the main tile, show the
+                current slide as a card below so the teacher and students can still
+                read the content. */}
+            {canModerate && room?.slide && cameraOn && !whiteboardOn && (
+              <div style={{
+                marginTop: 8,
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1px solid var(--border)",
+                background: "var(--panel)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
+                  Slide {(room.slide.index ?? 0) + 1}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: room.slide.body ? 8 : 0 }}>{room.slide.title}</div>
+                {room.slide.body && (
+                  <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{room.slide.body}</div>
                 )}
               </div>
             )}
@@ -3238,7 +3242,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   {learners.length > 0 ? `${learners.length} in class` : "Waiting for participants…"}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, overflowX: "auto", paddingBottom: 2 }}>
-                  {learners.slice(0, 8).map((p) => {
+                  {studentLearners.slice(0, 8).map((p) => {
                     const onFloor = p.id === room?.floor_participant_id;
                     const selected = selectedParticipant === p.id;
                     const clickable = canModerate && p.id !== me?.id;
@@ -3274,12 +3278,12 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       </div>
                     );
                   })}
-                  {learners.length > 8 ? (
+                  {studentLearners.length > 8 ? (
                     <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", flex: "0 0 auto" }}>
-                      +{learners.length - 8}
+                      +{studentLearners.length - 8}
                     </span>
                   ) : null}
-                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - learners.length)) }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
                     <span
                       key={`ph-${i}`}
                       aria-hidden
