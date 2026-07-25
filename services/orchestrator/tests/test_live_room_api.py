@@ -271,12 +271,21 @@ def test_advance_auto_calls_next_raised_hand():
     assert adv.json()["room"]["floor_participant_id"] == pid
 
 
-def test_first_joiner_is_admin_and_gets_moderator_key():
+def test_first_joiner_is_admin_but_not_host():
+    """The first learner to join a standard (no designated host) Salareen class
+    becomes is_admin=True so they can advance slides, but does NOT receive the
+    moderator_key — the key is only given to the scheduled class host.
+    This prevents a random first-joiner from appearing as the 'host teacher'
+    in the live room UI when joining Theodore's standard classes."""
     info = _start_salareen_class(6)
     room_id = info["room_id"]
     first = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Ada", "identity": "a1"}).json()
     second = client.post(f"/api/live-rooms/{room_id}/join", json={"name": "Bob", "identity": "b1"}).json()
-    assert first["is_admin"] is True and first["moderator_key"]      # admin gets the key
+    assert first["is_admin"] is True, "first joiner must be admin to advance slides"
+    assert first["moderator_key"] == "", (
+        "first-joiner must NOT get moderator_key for a class with no designated host — "
+        "only the scheduled host (account matches room.creator_account_id) gets the key"
+    )
     assert first["participant"]["is_admin"] is True
     assert second["is_admin"] is False and second["moderator_key"] == ""
 

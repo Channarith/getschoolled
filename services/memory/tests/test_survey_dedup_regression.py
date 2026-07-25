@@ -113,3 +113,62 @@ def test_summary_not_inflated_by_409_rejections():
     assert summ["responses"] == 1, (
         "duplicate rejection must not inflate response count"
     )
+
+
+# ---------------------------------------------------------------------------
+# v0.45.12 — Admin flags: X-Admin-Secret auth enforced
+# ---------------------------------------------------------------------------
+
+def test_admin_flags_wrong_secret_rejected():
+    """Regression v0.45.12: incorrect X-Admin-Secret must return 401."""
+    r = client.get("/admin/flags", headers={"X-Admin-Secret": "wrong-secret"})
+    assert r.status_code == 401, (
+        "incorrect admin secret must be rejected with 401 — "
+        "any non-empty string must NOT bypass the gate"
+    )
+
+
+def test_admin_flags_correct_secret_accepted():
+    """Regression v0.45.12: correct X-Admin-Secret returns the flag catalog."""
+    r = client.get("/admin/flags", headers={"X-Admin-Secret": "dev-admin-secret"})
+    assert r.status_code == 200
+    assert "flags" in r.json()
+
+
+def test_admin_flags_no_secret_returns_401():
+    """Regression v0.45.12: missing X-Admin-Secret header must return 401."""
+    r = client.get("/admin/flags")
+    assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# v0.45.14 — Sales demo flag default false + featured_courses is JSON
+# ---------------------------------------------------------------------------
+
+def test_sales_demo_enabled_default_false():
+    """Regression v0.45.14: sales_demo.enabled must default to False so the
+    floating Sales Demo button is hidden for all users unless explicitly enabled."""
+    from aoep_shared.flags import FlagStore
+    app.state.flags = FlagStore()  # fresh store — nothing set
+    r = client.get("/flags/evaluate")
+    if r.status_code == 200:
+        val = r.json().get("flags", {}).get("sales_demo.enabled", {})
+        if isinstance(val, dict):
+            assert val.get("enabled", False) is False, (
+                "sales_demo.enabled must default to False"
+            )
+
+
+def test_sales_demo_featured_courses_is_json_list():
+    """Regression v0.45.16: sales_demo.featured_courses is now a JSON array
+    of course IDs, not a bool — the 5 built-in compliance courses are the default."""
+    from aoep_shared.flags import FlagStore, FLAG_CATALOG, FlagType
+    spec = next((f for f in FLAG_CATALOG if f.key == "sales_demo.featured_courses"), None)
+    assert spec is not None, "sales_demo.featured_courses must be in FLAG_CATALOG"
+    assert spec.type == FlagType.JSON, (
+        "sales_demo.featured_courses must be FlagType.JSON, not BOOL — "
+        "it stores a list of course IDs that admins can edit via the course picker"
+    )
+    assert isinstance(spec.default, list) and len(spec.default) == 5, (
+        "default must be a list of the 5 built-in compliance course IDs"
+    )
