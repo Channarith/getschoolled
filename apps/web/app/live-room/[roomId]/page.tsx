@@ -2844,7 +2844,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   large
                   fill
                   fullscreen={isFullscreen}
-                  localStream={canModerate && cameraOn && !room?.slide ? localStream : null}
+                  localStream={canModerate && cameraOn ? localStream : null}
                   liveKitTrack={canModerate && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
@@ -3070,25 +3070,25 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   }
                 />
                 )}
-                {canModerate && room?.slide && localStream && cameraOn && !whiteboardOn && (
-                  <video
-                    ref={pipVideoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    style={{
-                      position: "absolute",
-                      bottom: 12,
-                      right: 12,
-                      width: 180,
-                      height: 135,
-                      borderRadius: 8,
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      objectFit: "cover",
-                      zIndex: 10,
-                      transform: "scaleX(-1)",
-                    }}
-                  />
+              </div>
+            )}
+            {/* Slide panel: when the teacher's camera fills the main tile, show the
+                current slide as a card below so the teacher and students can still
+                read the content. */}
+            {canModerate && room?.slide && cameraOn && !whiteboardOn && (
+              <div style={{
+                marginTop: 8,
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1px solid var(--border)",
+                background: "var(--panel)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
+                  Slide {(room.slide.index ?? 0) + 1}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: room.slide.body ? 8 : 0 }}>{room.slide.title}</div>
+                {room.slide.body && (
+                  <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{room.slide.body}</div>
                 )}
               </div>
             )}
