@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -e /app/packages/shared \
 
 COPY services/orchestrator /app/services/orchestrator
 COPY sample-curriculum /app/sample-curriculum
+RUN mkdir -p /app/sample-curriculum/host-uploads
 
 ENV PYTHONPATH=/app/services/orchestrator/src
 WORKDIR /app/services/orchestrator

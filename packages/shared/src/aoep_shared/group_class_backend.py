@@ -120,10 +120,9 @@ def build_group_class_backend() -> GroupClassBackend:
             client = redis.from_url(
                 redis_url,
                 decode_responses=True,
-                socket_connect_timeout=0.5,
-                socket_timeout=0.5,
+                socket_connect_timeout=2.0,
+                socket_timeout=2.0,
             )
-            client.ping()
             ttl = int(
                 os.environ.get(
                     "GROUP_CLASS_TTL_SECONDS", DEFAULT_GROUP_CLASS_TTL_SECONDS
