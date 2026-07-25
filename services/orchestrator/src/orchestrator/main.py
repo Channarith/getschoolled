@@ -2069,12 +2069,29 @@ def start_group_class(
         store.save(gc)
 
     sessions = get_sessions()
-    # Guard against concurrent start calls creating two sessions for the same class
-    if gc.status == "live" and gc.session_id:
-        # Already live — return the existing session rather than creating a duplicate
+    # If the class is already live, return the existing session so the host can
+    # reconnect after closing or navigating away — don't create a duplicate session.
+    if gc.status == "live" and gc.session_id and gc.live_room_id:
         existing = sessions.get_session(gc.session_id) if hasattr(sessions, 'get_session') else None
         if existing:
-            raise HTTPException(status_code=409, detail="class is already live — join the existing session")
+            room = gc.live_room_id
+            plan = dict(bridge_plan(gc, livekit_room=room))
+            live_room = _live_rooms().get(room)
+            moderator_key = live_room.moderator_key if live_room else ""
+            if moderator_key:
+                plan["moderator_key"] = moderator_key
+            media = app.state.factory.media()
+            token = media.issue_token(room=room, identity="aoep-teacher")
+            plan["livekit"] = {"room": token.room, "token": token.token, "url": token.url}
+            return {
+                "class": _group_class_payload(gc),
+                "session": SessionView(
+                    session=existing,
+                    lesson=sessions.lesson_for(existing.session_id),
+                    slide=sessions.current_slide(existing.session_id),
+                ).model_dump(),
+                "bridge": plan,
+            }
     try:
         state = sessions.start_session(gc.lesson_id, "group")
     except KeyError:
@@ -2737,10 +2754,19 @@ def join_live_room(
         "gift_balance": store.gift_balance_for(participant, authorization),
         "host_follower_count": store.host_follower_count(resolved_room_id),
         "following_host": store.is_following_host(resolved_room_id, participant.identity),
-        # The admin (first joiner) gets moderator powers: hand them the key so
-        # their client can start the class / advance slides / moderate.
         "is_admin": participant.is_admin,
-        "moderator_key": room.moderator_key if participant.is_admin else "",
+        # Only give the moderator_key to the scheduled class host (account matches
+        # the room's creator_account_id).  A first-joiner who becomes is_admin via
+        # the legacy flow (no designated host) must NOT get the key — otherwise any
+        # user who joins a Theodore standard class first would appear as the
+        # "host teacher" in the live-room UI, overriding the AI presenter.
+        "moderator_key": (
+            room.moderator_key
+            if participant.is_admin
+            and room.creator_account_id
+            and participant.account_id == room.creator_account_id
+            else ""
+        ),
     }
 
 

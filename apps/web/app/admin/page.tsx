@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   adminListFlags,
   adminListFlagsSession,
@@ -16,15 +16,18 @@ import {
   getServiceErrors,
   getServiceVersions,
   getToken,
+  listLessons,
   SERVICE_URLS,
   type AdRevenueReport,
   type FlagSpec,
+  type Lesson,
   type ServiceVersion,
   type TelemetryError,
   type TelemetrySummary,
   type BugReportRow,
   type VoucherRecord,
 } from "../lib/api";
+import { SALES_DEMO_COURSES } from "../lib/salesDemo";
 import MascotPreviewPanel from "../components/MascotPreviewPanel";
 import { EyeIcon } from "../components/EyeIcon";
 import { APP_VERSION } from "../lib/version";
@@ -48,6 +51,176 @@ const CATEGORY_LABELS: Record<string, string> = {
   ux: "UX Experiments",
   ops: "Operations (kill-switches)",
 };
+
+// ---------------------------------------------------------------------------
+// CoursePicker — searchable multi-select for sales_demo.featured_courses
+// ---------------------------------------------------------------------------
+
+function CoursePicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [allLessons, setAllLessons] = useState<Lesson[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  async function loadOnce() {
+    if (allLessons !== null || loading) return;
+    setLoading(true);
+    try { setAllLessons(await listLessons()); }
+    catch { setAllLessons([]); }
+    finally { setLoading(false); }
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (!dropRef.current?.contains(e.target as Node) &&
+          !inputRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const candidates = (allLessons ?? []).filter((l) => !value.includes(l.lesson_id));
+  const filtered = q
+    ? candidates.filter(
+        (l) => l.title.toLowerCase().includes(q) || l.lesson_id.toLowerCase().includes(q)
+      ).slice(0, 20)
+    : [];
+
+  function displayName(id: string): string {
+    const lesson = allLessons?.find((l) => l.lesson_id === id);
+    if (lesson) return lesson.title;
+    return SALES_DEMO_COURSES.find((c) => c.id === id)?.title ?? id;
+  }
+
+  function add(id: string) {
+    onChange([...value, id]);
+    setQuery("");
+    inputRef.current?.focus();
+  }
+
+  function remove(id: string) {
+    onChange(value.filter((v) => v !== id));
+  }
+
+  return (
+    <div style={{ width: "100%", maxWidth: 560 }}>
+      {/* Selected course chips */}
+      {value.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {value.map((id) => (
+            <span
+              key={id}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "4px 10px 4px 12px", borderRadius: 999,
+                background: "#e0e7ff", color: "#3730a3",
+                fontSize: 13, fontWeight: 600, maxWidth: 300,
+              }}
+              title={id}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {displayName(id)}
+              </span>
+              <button
+                type="button"
+                onClick={() => remove(id)}
+                aria-label={`Remove ${displayName(id)}`}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "#4338ca", fontSize: 16, lineHeight: 1, padding: 0,
+                  flexShrink: 0,
+                }}
+              >×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div style={{ position: "relative" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={`Search courses to add… (${(allLessons ?? []).length || "1000+"} available)`}
+          value={query}
+          onFocus={() => { setOpen(true); void loadOnce(); }}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); void loadOnce(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setQuery(""); setOpen(false); }
+            if (e.key === "Enter" && filtered.length === 1) add(filtered[0].lesson_id);
+          }}
+          style={{
+            width: "100%", padding: "8px 12px", boxSizing: "border-box",
+            border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14,
+            background: "#fafafa",
+          }}
+        />
+        {loading && (
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#9ca3af" }}>
+            Loading…
+          </span>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {open && query && (
+        <div
+          ref={dropRef}
+          style={{
+            position: "absolute", zIndex: 80,
+            background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
+            boxShadow: "0 6px 24px rgba(0,0,0,.12)", maxHeight: 300,
+            overflowY: "auto", marginTop: 4, width: "min(560px, 90vw)",
+          }}
+        >
+          {filtered.length === 0 ? (
+            <div style={{ padding: "12px 16px", fontSize: 13, color: "#6b7280" }}>
+              {loading ? "Loading courses…" : "No matching courses. Try a different keyword."}
+            </div>
+          ) : (
+            <>
+              {filtered.map((l) => (
+                <button
+                  key={l.lesson_id}
+                  type="button"
+                  onClick={() => add(l.lesson_id)}
+                  style={{
+                    display: "block", width: "100%", padding: "10px 16px",
+                    textAlign: "left", background: "none", border: "none",
+                    borderBottom: "1px solid #f3f4f6", cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget.style.background = "#f0f5ff"); }}
+                  onMouseLeave={(e) => { (e.currentTarget.style.background = "none"); }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{l.title}</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{l.lesson_id}</div>
+                </button>
+              ))}
+              {candidates.length > 20 && (
+                <div style={{ padding: "8px 16px", fontSize: 12, color: "#9ca3af", borderTop: "1px solid #e5e7eb" }}>
+                  Showing top 20 of {candidates.length} matches — refine your search for more.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
@@ -497,48 +670,65 @@ export default function AdminPage() {
           <h2 style={{ fontSize: 18, borderBottom: "2px solid #eee", paddingBottom: 6 }}>
             {CATEGORY_LABELS[cat] ?? cat}
           </h2>
-          {items.map((f) => (
-            <div key={f.key} style={{ display: "flex", gap: 14, alignItems: "center",
-              padding: "10px 0", borderBottom: "1px solid #f3f3f3", opacity: busy === f.key ? 0.5 : 1 }}>
-              <div style={{ flex: 1 }}>
-                <code style={{ fontWeight: 600 }}>{f.key}</code>
-                {f.admin_only && <span style={{ marginLeft: 8, fontSize: 11, background: "#fee2e2",
-                  color: "#991b1b", padding: "1px 6px", borderRadius: 4 }}>hidden</span>}
-                <div style={{ fontSize: 13, color: "#666" }}>{f.description}</div>
-              </div>
-
-              {(f.type === "bool") && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={Boolean(f.value)}
-                    onChange={(e) => patch(f.key, { enabled: true, value: e.target.checked })} />
-                  {f.value ? "On" : "Off"}
-                </label>
-              )}
-
-              {f.type === "percent" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 180 }}>
-                  <input type="range" min={0} max={100}
-                    defaultValue={f.rollout_pct ?? Number(f.value) ?? 0}
-                    onMouseUp={(e) => patch(f.key, { enabled: true, rollout_pct: Number((e.target as HTMLInputElement).value) })} />
-                  <span style={{ fontSize: 12, width: 36 }}>{f.rollout_pct ?? f.value as number}%</span>
+          {items.map((f) => {
+            const isJson = f.type === "json";
+            return (
+              <div key={f.key} style={{
+                display: "flex", flexDirection: isJson ? "column" : "row",
+                gap: isJson ? 10 : 14,
+                alignItems: isJson ? "flex-start" : "center",
+                padding: "10px 0", borderBottom: "1px solid #f3f3f3",
+                opacity: busy === f.key ? 0.5 : 1,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <code style={{ fontWeight: 600 }}>{f.key}</code>
+                  {f.admin_only && <span style={{ marginLeft: 8, fontSize: 11, background: "#fee2e2",
+                    color: "#991b1b", padding: "1px 6px", borderRadius: 4 }}>hidden</span>}
+                  <div style={{ fontSize: 13, color: "#666" }}>{f.description}</div>
                 </div>
-              )}
 
-              {f.type === "string" && (
-                <select value={String(f.value)}
-                  onChange={(e) => patch(f.key, { enabled: true, value: e.target.value })}
-                  style={{ padding: 6 }}>
-                  {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              )}
+                {f.type === "bool" && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="checkbox" checked={Boolean(f.value)}
+                      onChange={(e) => patch(f.key, { enabled: true, value: e.target.checked })} />
+                    {f.value ? "On" : "Off"}
+                  </label>
+                )}
 
-              {f.type === "int" && (
-                <input type="number" defaultValue={Number(f.value)}
-                  onBlur={(e) => patch(f.key, { enabled: true, value: Number(e.target.value) })}
-                  style={{ width: 80, padding: 6 }} />
-              )}
-            </div>
-          ))}
+                {f.type === "percent" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 180 }}>
+                    <input type="range" min={0} max={100}
+                      defaultValue={f.rollout_pct ?? Number(f.value) ?? 0}
+                      onMouseUp={(e) => patch(f.key, { enabled: true, rollout_pct: Number((e.target as HTMLInputElement).value) })} />
+                    <span style={{ fontSize: 12, width: 36 }}>{f.rollout_pct ?? f.value as number}%</span>
+                  </div>
+                )}
+
+                {f.type === "string" && (
+                  <select value={String(f.value)}
+                    onChange={(e) => patch(f.key, { enabled: true, value: e.target.value })}
+                    style={{ padding: 6 }}>
+                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                )}
+
+                {f.type === "int" && (
+                  <input type="number" defaultValue={Number(f.value)}
+                    onBlur={(e) => patch(f.key, { enabled: true, value: Number(e.target.value) })}
+                    style={{ width: 80, padding: 6 }} />
+                )}
+
+                {isJson && (
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <CoursePicker
+                      value={Array.isArray(f.value) ? (f.value as string[]) : []}
+                      onChange={(ids) => patch(f.key, { enabled: true, value: ids })}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </section>
       ))}
 

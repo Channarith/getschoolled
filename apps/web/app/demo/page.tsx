@@ -73,33 +73,59 @@ export default function SalesDemoPage() {
         </div>
       </section>
 
-      {enabled(SALES_DEMO_FLAGS.featuredCourses) ? (
-        <section style={{ marginTop: 34 }}>
-          <h2>Featured courses</h2>
-          <p className="muted">Workplace-ready learning paths powered by adaptive AI.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 16 }}>
-            {SALES_DEMO_COURSES.map((course, index) => (
-              <Link key={course.id} href="/browse" style={{ textDecoration: "none", color: "inherit" }}>
-                <article
-                  className="card sales-demo-card"
-                  style={{
-                    minHeight: 220,
-                    padding: 20,
-                    color: "#fff",
-                    background: `linear-gradient(145deg, ${course.colors[0]}, ${course.colors[1]})`,
-                    animationDelay: `${index * 70}ms`,
-                  }}
-                >
-                  <div style={{ fontSize: 40 }}>{course.emoji}</div>
-                  <small style={{ opacity: 0.8 }}>{course.category} · {course.duration}</small>
-                  <h3>{course.title}</h3>
-                  <p style={{ opacity: 0.82 }}>{course.description}</p>
-                </article>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {enabled(SALES_DEMO_FLAGS.featuredCourses) ? (() => {
+        // Read the admin-controlled course list from the flag value.
+        // Falls back to the 5 built-in courses if the flag value is missing/invalid.
+        const rawIds = flags[SALES_DEMO_FLAGS.featuredCourses];
+        const courseIds: string[] = Array.isArray(rawIds) && rawIds.length > 0
+          ? rawIds as string[]
+          : SALES_DEMO_COURSES.map((c) => c.id);
+
+        // Map each ID to display data: use rich metadata for the 5 built-in courses,
+        // fall back to a generic card for any admin-added lesson.
+        const displayCourses = courseIds.map((id) => {
+          const builtin = SALES_DEMO_COURSES.find((c) => c.id === id);
+          return builtin ?? {
+            id,
+            title: id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            category: "Course",
+            emoji: "📚",
+            duration: "",
+            description: "Explore this course with AI-powered instruction.",
+            colors: ["#4f46e5", "#7c3aed"] as [string, string],
+          };
+        });
+
+        return (
+          <section style={{ marginTop: 34 }}>
+            <h2>Featured courses</h2>
+            <p className="muted">Workplace-ready learning paths powered by adaptive AI.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 16 }}>
+              {displayCourses.map((course, index) => (
+                <Link key={course.id} href="/browse" style={{ textDecoration: "none", color: "inherit" }}>
+                  <article
+                    className="card sales-demo-card"
+                    style={{
+                      minHeight: 220,
+                      padding: 20,
+                      color: "#fff",
+                      background: `linear-gradient(145deg, ${course.colors[0]}, ${course.colors[1]})`,
+                      animationDelay: `${index * 70}ms`,
+                    }}
+                  >
+                    <div style={{ fontSize: 40 }}>{course.emoji}</div>
+                    <small style={{ opacity: 0.8 }}>
+                      {course.category}{course.duration ? ` · ${course.duration}` : ""}
+                    </small>
+                    <h3>{course.title}</h3>
+                    <p style={{ opacity: 0.82 }}>{course.description}</p>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })() : null}
 
       {features.length ? (
         <section style={{ marginTop: 38 }}>

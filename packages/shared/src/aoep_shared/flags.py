@@ -39,6 +39,7 @@ class FlagType(str, enum.Enum):
     PERCENT = "percent"    # gradual rollout; resolves to a bool via bucketing
     STRING = "string"      # multivariate (e.g. user-level variant)
     INT = "int"            # numeric tuning knob
+    JSON = "json"          # arbitrary JSON value (e.g. list of course IDs)
 
 
 @dataclass(frozen=True)
@@ -92,8 +93,13 @@ FLAG_CATALOG: List[FlagSpec] = [
     # --- sales demo --------------------------------------------------------- #
     FlagSpec("sales_demo.enabled", FlagType.BOOL, True, "sales_demo",
              "Expose the signed-in Sales Demo launcher on web and mobile."),
-    FlagSpec("sales_demo.featured_courses", FlagType.BOOL, True, "sales_demo",
-             "Show the featured compliance and workplace-training course cards."),
+    FlagSpec("sales_demo.featured_courses", FlagType.JSON,
+             ["demo-sexual-harassment", "demo-drivers-ed", "demo-fire-safety",
+              "demo-food-safety", "demo-osha"],
+             "sales_demo",
+             "Ordered list of course IDs shown in the Sales Demo carousel. "
+             "Defaults to the 5 built-in compliance / workplace courses. "
+             "Use the admin course-picker to add or remove courses."),
     FlagSpec("sales_demo.solo_ai", FlagType.BOOL, True, "sales_demo",
              "Show the Solo AI Session capability in the Sales Demo."),
     FlagSpec("sales_demo.drive_mode", FlagType.BOOL, True, "sales_demo",
