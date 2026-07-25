@@ -24,14 +24,17 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { key: string } },
 ) {
-  if (!(await isOperatorAdmin(request))) {
+  const operatorAdmin = await isOperatorAdmin(request);
+  const clientSecret = request.headers.get("x-admin-secret") || "";
+  if (!operatorAdmin && !clientSecret) {
     return NextResponse.json({ detail: "admin access required" }, { status: 403 });
   }
+  const secret = operatorAdmin ? ADMIN_SECRET : clientSecret;
   const body = await request.text();
   const r = await fetch(`${MEMORY_ORIGIN}/admin/flags/${encodeURIComponent(params.key)}`, {
     method: "PUT",
     headers: {
-      "X-Admin-Secret": ADMIN_SECRET,
+      "X-Admin-Secret": secret,
       "content-type": request.headers.get("content-type") || "application/json",
     },
     body,

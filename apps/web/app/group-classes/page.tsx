@@ -175,6 +175,7 @@ export default function GroupClassesPage() {
       setPricePerUser("");
       setPresentationFile(null);
       await refresh();
+      setActiveTab("join"); // show the host their newly scheduled class with the Start button
     } catch (e) {
       setError(friendlyError(e, offline));
     } finally {
@@ -296,6 +297,11 @@ export default function GroupClassesPage() {
       if (wasLive) {
         const roomId = gc.live_room_id || `class-${gc.id}`;
         window.location.href = `/live-room/${encodeURIComponent(roomId)}`;
+        return;
+      }
+      // Non-hosts cannot start a class — only the host can open the room.
+      if (!isHost(gc) && !isAdmin) {
+        setError("This class has not started yet. Please wait for the host to open the room, then try joining again.");
         return;
       }
       const res = await startGroupClass(gc.id);
