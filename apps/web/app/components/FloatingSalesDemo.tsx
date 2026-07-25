@@ -21,7 +21,7 @@ function clamp(point: Point): Point {
 }
 
 export default function FloatingSalesDemo() {
-  const enabled = useFlag<boolean>("sales_demo.enabled", true);
+  const enabled = useFlag<boolean>("sales_demo.enabled", false);
   const pathname = usePathname();
   const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
