@@ -106,7 +106,11 @@ test.describe("corporate catalog (CD-E1)", () => {
   test("no raw i18n keys or console errors on the catalog page", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg) => {
-      if (msg.type() === "error" && !/status of 401/.test(msg.text())) {
+      if (msg.type() === "error"
+        && !/status of 401/.test(msg.text())
+        // Next.js client-side RSC prefetch failures for other routes are noisy
+        // but harmless — they fall back to browser navigation automatically.
+        && !/Failed to fetch RSC payload/.test(msg.text())) {
         errors.push(msg.text());
       }
     });

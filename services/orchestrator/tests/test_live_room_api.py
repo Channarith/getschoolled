@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from orchestrator.main import app
+from orchestrator.teaching import Answer
 
 client = TestClient(app)
 
@@ -1053,11 +1055,15 @@ def test_chat_flood_returns_429():
         f"/api/live-rooms/{room_id}/join",
         json={"name": "Spammer", "identity": "spam-1"},
     ).json()["participant"]["id"]
-    # 5 messages allowed in the window, the 6th is rate-limited (429).
-    for i in range(5):
-        r = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": f"m{i}"})
-        assert r.status_code == 200, r.text
-    blocked = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": "flood"})
+    # Patch out Theodore's background reply so TestClient returns instantly.
+    # Without this, each chat blocks ~60 s (BackgroundTasks run synchronously
+    # in TestClient) and the 10-second rate window expires before msg 6.
+    with patch("orchestrator.main._chat_theodore_reply"):
+        # 5 messages allowed in the window, the 6th is rate-limited (429).
+        for i in range(5):
+            r = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": f"m{i}"})
+            assert r.status_code == 200, r.text
+        blocked = client.post(f"/api/live-rooms/{room_id}/chat", json={"participant_id": pid, "text": "flood"})
     assert blocked.status_code == 429, blocked.text
     assert "too fast" in blocked.json()["detail"].lower()
 
@@ -1084,10 +1090,16 @@ def test_ask_flood_returns_429():
         f"/api/live-rooms/{room_id}/join",
         json={"name": "Asker", "identity": "asker-1"},
     ).json()["participant"]["id"]
-    for i in range(3):
-        r = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": f"q{i}?"})
-        assert r.status_code == 200, r.text
-    blocked = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": "spam?"})
+    # Patch sessions.ask so the synchronous AI call returns instantly.
+    # Without this, each /ask blocks ~60 s and the 30-second rate window
+    # expires before the 4th question.
+    fast_answer = Answer(text="test answer")
+    with patch("orchestrator.main.get_sessions") as mock_gs:
+        mock_gs.return_value.ask.return_value = fast_answer
+        for i in range(3):
+            r = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": f"q{i}?"})
+            assert r.status_code == 200, r.text
+        blocked = client.post(f"/api/live-rooms/{room_id}/ask", json={"participant_id": pid, "question": "spam?"})
     assert blocked.status_code == 429, blocked.text
 
 

@@ -66,8 +66,9 @@ test.describe("corporate locked player (CD-E2)", () => {
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     // The learner's question shows in the transcript, followed by a
     // teacher answer. Assert shape, not exact text (offline answer is
-    // grounded in retrieved passages).
-    await expect(page.getByText(question)).toBeVisible();
+    // grounded in retrieved passages). Use exact:true to avoid matching the
+    // presenter bubble which also contains the question text as a substring.
+    await expect(page.getByText(question, { exact: true })).toBeVisible();
     await expect
       .poll(
         async () => {

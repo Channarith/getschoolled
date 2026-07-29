@@ -1,0 +1,9 @@
+# Local port-conflict override: removes host-side port bindings that clash
+# with other running compose projects (e.g. stf-postgres-1 on :5432).
+# Services inside the compose network talk to each other by service name,
+# so no host binding is needed for the E2E suite to work.
+services:
+  postgres:
+    ports: []
+  redis:
+    ports: []

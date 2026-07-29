@@ -59,7 +59,7 @@ test.describe("Drive Mode — Stop halts neural narration", () => {
     await expect(firstCourse).toBeVisible({ timeout: 20_000 });
     await firstCourse.click();
     // The player renders a Stop (⏹) control once a course is loaded.
-    await expect(page.getByRole("button", { name: "⏹" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /stop/i })).toBeVisible({ timeout: 20_000 });
   }
 
   test("stopping during an in-flight /tts fetch starts no audio", async ({ page }) => {
@@ -73,7 +73,7 @@ test.describe("Drive Mode — Stop halts neural narration", () => {
     await startFirstCourse(page);
     // Wait until the first segment's fetch is actually in flight, then Stop.
     await expect.poll(() => ttsRequests, { timeout: 20_000 }).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "⏹" }).click();
+    await page.getByRole("button", { name: /stop/i }).click();
 
     // Player closes...
     await expect(page.getByRole("button", { name: "⏹" })).toBeHidden();

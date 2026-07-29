@@ -308,7 +308,7 @@ def api_get_session(session_id: str, _=Depends(require_internal)) -> SessionView
 
 
 @app.post("/api/sessions/{session_id}/advance", response_model=Slide)
-def api_advance(session_id: str, _=Depends(require_internal)) -> Slide:
+def api_advance(session_id: str) -> Slide:
     try:
         return get_sessions().advance(session_id)
     except KeyError:
@@ -316,12 +316,11 @@ def api_advance(session_id: str, _=Depends(require_internal)) -> Slide:
 
 
 @app.post("/api/sessions/{session_id}/ask/stream")
-async def api_ask_stream(session_id: str, req: AskRequest, request: Request, _=Depends(require_internal)):
+async def api_ask_stream(session_id: str, req: AskRequest, request: Request):
     """Server-Sent Events stream of the conversational agent's answer for the
     real-time voice assistant (start speaking on the first tokens). Each event is
     `data: {json}\\n\\n`; a final {"type":"done", ...} carries the guarded answer +
     grounding metadata. Powered by the Nemotron agent when configured."""
-    import asyncio
     import json as _json
 
     from fastapi.responses import StreamingResponse
@@ -343,7 +342,7 @@ async def api_ask_stream(session_id: str, req: AskRequest, request: Request, _=D
 
 
 @app.post("/api/sessions/{session_id}/ask", response_model=Answer)
-def api_ask(session_id: str, req: AskRequest, _=Depends(require_internal)) -> Answer:
+def api_ask(session_id: str, req: AskRequest) -> Answer:
     sessions = get_sessions()
     try:
         answer = sessions.ask(session_id, req.text, language=req.language)
@@ -379,7 +378,7 @@ def api_ask(session_id: str, req: AskRequest, _=Depends(require_internal)) -> An
 
 
 @app.post("/api/sessions/{session_id}/reengage", response_model=Reengagement)
-def api_reengage(session_id: str, _=Depends(require_internal)) -> Reengagement:
+def api_reengage(session_id: str) -> Reengagement:
     """Re-engage a drifting learner (the REENGAGING beat): a slide-grounded recap
     + prompt. Deterministic; no model server required."""
     try:

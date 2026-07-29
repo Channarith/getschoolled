@@ -23,6 +23,12 @@ test("finishing a corporate course completes it and shows reward points (CD-E3)"
       },
     });
   });
+  // Stub the assessment policy so no summative checkpoint blocks the Finish
+  // button mid-course. Without this, courses with a final exam gate prevent
+  // completion on slide 2 and the banner never appears.
+  await page.route("**/assessment/policy/**", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: '{"checkpoints":[]}' })
+  );
   await page.goto(`/corporate/learn?lesson=${LESSON_ID}`);
   await expect(page.getByText(/Slide 1 of \d+/)).toBeVisible();
 
