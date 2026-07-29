@@ -11,9 +11,10 @@ test.describe("landing (WV-01) — signed out", () => {
   test("marketing hero with email capture and a sign-in path", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("h1").first()).toBeVisible();
-    // Email-capture form: the type=email input and the sign-in affordance are
-    // the locale-independent anchors of the logged-out hero.
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    // Email-capture form: the email/username input and the sign-in affordance are
+    // the locale-independent anchors of the logged-out hero. The input uses
+    // type="text" with an email/username placeholder (autocomplete=username).
+    await expect(page.locator('input[autocomplete="username"]')).toBeVisible();
     await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
   });
 

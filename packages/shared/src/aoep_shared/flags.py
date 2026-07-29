@@ -91,7 +91,7 @@ FLAG_CATALOG: List[FlagSpec] = [
              "Enabled by default for user-driven QA; disable for production when ready."),
 
     # --- sales demo --------------------------------------------------------- #
-    FlagSpec("sales_demo.enabled", FlagType.BOOL, True, "sales_demo",
+    FlagSpec("sales_demo.enabled", FlagType.BOOL, False, "sales_demo",
              "Expose the signed-in Sales Demo launcher on web and mobile."),
     FlagSpec("sales_demo.featured_courses", FlagType.JSON,
              ["demo-sexual-harassment", "demo-drivers-ed", "demo-fire-safety",

@@ -112,7 +112,6 @@ export default function ClassRoom({
   const startBtn = startLabel ?? t("class.startLabel");
   const back = backLabel ?? t("class.back");
   const locked = Boolean(lockedLessonId);
-  const mustVerifyPass = requireVerifiedPass ?? locked;
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [lessonId, setLessonId] = useState<string>(lockedLessonId ?? initialLessonId ?? "");
   const [classType, setClassType] = useState<string>("group");
@@ -188,6 +187,14 @@ export default function ClassRoom({
   const autoStartedRef = useRef(false);
   const completedCheckpointsRef = useRef<Set<string>>(new Set());
   const assessmentStartingRef = useRef(false);
+
+  // mustVerifyPass: only enforce the assessment gate when the course actually has
+  // a summative checkpoint in its policy. This keeps corporate (requireVerifiedPass)
+  // and self-paced (locked) courses consistent with class/page.tsx behaviour:
+  // if the server's policy is empty the gate is silently bypassed rather than
+  // blocking completion with a confusing "assessment required" error.
+  const hasSummativeInPolicy = assessmentPolicy.some((cp) => cp.stage === "summative");
+  const mustVerifyPass = (requireVerifiedPass ?? locked) && hasSummativeInPolicy;
 
   useEffect(() => {
     const signedIn = Boolean(getToken());
