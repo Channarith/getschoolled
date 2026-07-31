@@ -656,7 +656,7 @@ def harvest_drive_topic(
     Example:
         POST /admin/harvest-drive-topic?topic=Ancient+Egypt
     """
-    from aoep_shared.drive_topic_harvest import harvest_topic, get_cached_segments
+    from aoep_shared.drive_topic_harvest import harvest_topic
     from aoep_shared.audio_courses import build_catalog
 
     llm = None if no_llm else getattr(app.state, "factory", None)
@@ -724,7 +724,7 @@ def harvest_drive_all(
 @app.get("/admin/harvest-drive-status", dependencies=[Depends(require_internal)])
 def harvest_drive_status() -> dict:
     """Return the harvest status (cached topics, word counts, durations)."""
-    from aoep_shared.drive_topic_harvest import _db, _all_topics, MIN_SEGMENTS_TO_ACCEPT
+    from aoep_shared.drive_topic_harvest import _db, _all_topics
     try:
         con = _db()
         rows = con.execute(

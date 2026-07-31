@@ -14,7 +14,7 @@ placeholders so it works offline; an LLM polish layer can sit behind the same
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 

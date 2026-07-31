@@ -33,7 +33,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .harvest.composition import (
-    CATEGORY_INDEX,
     DEFAULT_SCORE_MODULUS,
     NODE_CATEGORIES,
     QUANT_RESOLUTION,

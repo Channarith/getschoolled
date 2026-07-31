@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Optional
 
-from aoep_shared.adaptive import AdaptivePolicy, LearnerSignals
+from aoep_shared.adaptive import AdaptivePolicy
 from aoep_shared.learner_adaptation import (
     LearnerAdaptation,
     detect_frustration,

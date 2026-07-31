@@ -5,12 +5,11 @@ from __future__ import annotations
 import json
 import random
 from functools import lru_cache
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .catalog_builder import default_catalog_path, scenario_from_dict
-from .models import ScenarioDefinition, ScenarioDomain
-from .tracks import TrainingTrack, get_track, list_tracks
+from .models import ScenarioDefinition
+from .tracks import TrainingTrack, get_track
 
 
 @lru_cache(maxsize=1)

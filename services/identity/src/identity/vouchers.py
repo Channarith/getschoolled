@@ -6,7 +6,9 @@ Three types:
   free_pass: grants free access to one specific class or tier
 """
 from __future__ import annotations
-import json, os, time, uuid
+import json
+import os
+import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -102,7 +104,7 @@ class VoucherStore:
         if not v.is_valid():
             raise ValueError(f"Code {code!r} has expired or reached its usage limit")
         if v.kind == "free_pass" and v.class_id and class_id and v.class_id != class_id:
-            raise ValueError(f"This free pass is not valid for this class")
+            raise ValueError("This free pass is not valid for this class")
         final, desc = v.apply_to_price(price_usd)
         return v, final, desc
 

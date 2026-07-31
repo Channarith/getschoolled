@@ -402,7 +402,7 @@ def analyse_threats(scenario_description: str, learner_threats: List[str]) -> TE
         if missing is ThreatCategory.ENVIRONMENTAL and any(
             w in lower_desc for w in ("weather", "terrain", "environment")
         ):
-            undetected.append(f"Environmental threat not identified — check scenario conditions")
+            undetected.append("Environmental threat not identified — check scenario conditions")
         elif missing is ThreatCategory.HUMAN_FACTORS:
             undetected.append("Human factors threats (fatigue, complacency, workload) not listed — always consider these")
 

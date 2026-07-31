@@ -761,7 +761,6 @@ class WeWorkRemotelyProvider(_LiveJobsProvider):
         return items[:max(limit, 1)]
 
     def _parse(self, rows) -> List[JobPosting]:
-        import xml.etree.ElementTree as ET
         NS = "https://weworkremotely.com/"
         out = []
         for item in rows:
@@ -955,7 +954,6 @@ class IndeedRssProvider(_LiveJobsProvider):
         return root.findall(".//item")
 
     def _parse(self, rows) -> List[JobPosting]:
-        import xml.etree.ElementTree as ET
         out = []
         for item in rows:
             def _t(tag: str) -> str:
@@ -991,7 +989,6 @@ class RemoteOkProvider(_LiveJobsProvider):
     source = "remoteok"
 
     def _fetch(self, query, location, limit):
-        from urllib.parse import urlencode
         tag = query.replace(" ", "-").lower() if query else ""
         url = f"https://remoteok.com/api{'?tags=' + tag if tag else ''}"
         data = _http_get_json(url, headers={"User-Agent": "salareen-jobs/1.0"})

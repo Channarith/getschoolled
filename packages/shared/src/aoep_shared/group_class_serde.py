@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from .group_classes import GroupClass, InstructorReview, Registration
 

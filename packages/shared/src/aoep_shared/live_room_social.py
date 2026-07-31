@@ -6,10 +6,9 @@ uses LiveRoomGiftLedger for point balances when identity is unavailable.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from .rewards import PointsLedger
 

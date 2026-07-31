@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 _EXAMPLE_CUE = re.compile(
     r"\b(for instance|consider|suppose|e\.g\.|such as|"

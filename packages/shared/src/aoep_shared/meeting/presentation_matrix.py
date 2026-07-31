@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from math import prod
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -91,7 +91,6 @@ _ARC_MATRICES: Dict[str, np.ndarray] = {}
 
 def _row(category: str, **weights: float) -> np.ndarray:
     row = np.zeros(NUM_TREATMENTS, dtype=np.float64)
-    idx = CATEGORY_INDEX.get(category, CATEGORY_INDEX["concept"])
     for t, w in weights.items():
         row[_TREATMENT_INDEX[t]] = w
     return row

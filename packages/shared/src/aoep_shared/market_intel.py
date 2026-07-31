@@ -22,8 +22,7 @@ Pure/stdlib-only and offline-testable.
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 _VERIFY = "Published reference estimate; verify against primary source before investor use."

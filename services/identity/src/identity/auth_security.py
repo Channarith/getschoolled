@@ -185,26 +185,26 @@ def _totp_mark_used(account_id: str, code: str) -> None:
             pass
     _used_totp[(account_id, code)] = _time.time()
 
-from aoep_shared.auth import sign_token, verify_token
-from aoep_shared.login_audit import login_context_from_headers
-from aoep_shared.oauth_login import (
+from aoep_shared.auth import sign_token, verify_token  # noqa: E402
+from aoep_shared.login_audit import login_context_from_headers  # noqa: E402
+from aoep_shared.oauth_login import (  # noqa: E402
     OAuthError,
     oauth_provider_status,
     verify_apple_identity_token,
     verify_facebook_access_token,
     verify_google_id_token,
 )
-from aoep_shared.passkeys import (
+from aoep_shared.passkeys import (  # noqa: E402
     credentials_public,
     new_login_challenge,
     new_registration_challenge,
     verify_login,
     verify_registration,
 )
-from aoep_shared.password_reset import issue_reset_token, verify_reset_token
-from aoep_shared.totp import generate_totp_secret, otpauth_uri, verify_totp
-from fastapi import Depends, HTTPException, Request
-from pydantic import BaseModel
+from aoep_shared.password_reset import issue_reset_token, verify_reset_token  # noqa: E402
+from aoep_shared.totp import generate_totp_secret, otpauth_uri, verify_totp  # noqa: E402
+from fastapi import Depends, HTTPException, Request  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 
 class LoginRequest(BaseModel):

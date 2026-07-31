@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from itertools import product
-from typing import Iterator, List, Optional, Sequence, Tuple, Optional, Sequence, Tuple
+from typing import Iterator, List, Optional, Sequence, Tuple
 
 from .models import ScenarioCue, ScenarioDefinition, ScenarioDomain
 

@@ -276,7 +276,6 @@ def evaluate_response(
             if not gentle else
             "Well done — that's a solid answer. " + question.follow_up
         )
-        next_bloom = next_bloom_level(question.bloom_level)
         gap = None
     elif score >= 0.45:
         feedback = (
@@ -284,7 +283,6 @@ def evaluate_response(
             if not gentle else
             "Good effort — here's something to think about further. " + question.challenge
         )
-        next_bloom = question.bloom_level
         gap = "reasoning_depth" if depth_score < 0.4 else "keyword_coverage"
     else:
         feedback = (
@@ -292,7 +290,6 @@ def evaluate_response(
             if not gentle else
             "No worries — let's approach it another way. " + question.hint
         )
-        next_bloom = question.bloom_level
         gap = "foundational_recall"
 
     if fallacies:
