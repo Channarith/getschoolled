@@ -2125,10 +2125,17 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
 
   const learners = (room?.participants ?? []).filter((p) => p.role !== "host");
   const host = room?.host;
+  // Am I the actual on-camera presenter? Only the room host presents; a mere
+  // moderator/admin previewing a Theodore-led class is a participant, not the
+  // presenter. (`learners` already excludes whoever is the host.)
+  const iAmHost = Boolean(me?.id && host?.id === me?.id);
   const isSolo = isSoloLiveRoom(roomId, room);
   // In a group class the human teacher (the moderator) belongs in the main host
   // tile, not in the student strip. Filter them out so only actual students appear
   // in the participant row.
+  // Students shown in the bottom "seat" row. A moderator/admin previewing the
+  // class is excluded here — they see their own camera as the corner self-cam
+  // PiP on the slide instead of taking a seat (matches the deployed layout).
   const studentLearners = canModerate ? learners.filter((p) => p.id !== me?.id) : learners;
   const emptySlots = Math.max(0, (room?.learner_capacity ?? 0) - learners.length);
   const toggleHostAudio = () => {
@@ -2844,8 +2851,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   large
                   fill
                   fullscreen={isFullscreen}
-                  localStream={canModerate && cameraOn ? localStream : null}
-                  liveKitTrack={canModerate && !cameraOn ? null : trackFor(host.id)}
+                  localStream={iAmHost && cameraOn ? localStream : null}
+                  liveKitTrack={iAmHost && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
                     title: "Welcome to Transparent AI",
@@ -3205,79 +3212,93 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           </div>
 
           {!isSolo ? (
-            <div style={{ marginTop: 8, marginBottom: 12 }}>
-              {studentLearners.length === 0 ? (
-                /* Silhouette placeholder — waiting for a student to join */
-                <div style={{
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", minHeight: 220, borderRadius: 16,
-                  background: "color-mix(in srgb, var(--accent) 4%, var(--panel))",
-                  border: "1px dashed var(--border)", gap: 12, color: "var(--muted)",
-                }}>
-                  <svg width="76" height="76" viewBox="0 0 76 76" fill="currentColor" opacity="0.22" aria-hidden="true">
-                    <circle cx="38" cy="26" r="17" />
-                    <ellipse cx="38" cy="60" rx="29" ry="19" />
-                  </svg>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>Waiting for student to join…</div>
-                  <div style={{ fontSize: 12, opacity: 0.65 }}>Share the class link so they can sign in</div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                padding: "12px 14px",
+                marginTop: 8,
+                marginBottom: 12,
+                borderRadius: 16,
+                border: "1px solid var(--border)",
+                background: "var(--panel)",
+              }}
+            >
+              {/* Count on its own line so it doesn't compete with the scrollable
+                  seat row for horizontal space (which caused a scrollbar). */}
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>
+                {learners.length > 0 ? `${learners.length} in class` : "Waiting for participants…"}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, overflowX: "auto", paddingBottom: 2 }}>
+                  {studentLearners.slice(0, 8).map((p) => {
+                    const onFloor = p.id === room?.floor_participant_id;
+                    const selected = selectedParticipant === p.id;
+                    const clickable = canModerate && p.id !== me?.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => (clickable ? setSelectedParticipant(selected ? "" : p.id) : undefined)}
+                        title={`${p.name}${p.hand_raised ? " — hand raised" : onFloor ? " — speaking" : ""}`}
+                        style={{
+                          position: "relative",
+                          width: 168,
+                          height: 96,
+                          flex: "0 0 auto",
+                          borderRadius: 12,
+                          overflow: "hidden",
+                          outline: selected ? `2px solid ${STUDIO_GOLD}` : "none",
+                          outlineOffset: 1,
+                          cursor: clickable ? "pointer" : "default",
+                        }}
+                      >
+                        <ParticipantTile
+                          p={p}
+                          showAdminProfile={canModerate}
+                          fill
+                          localStream={p.id === me?.id && cameraOn ? localStream : null}
+                          liveKitTrack={p.id === me?.id && !cameraOn ? null : trackFor(p.id)}
+                          hasFloor={onFloor}
+                          isMe={p.id === me?.id}
+                          presenceFaceCount={p.id === me?.id ? presenceFaceCount : undefined}
+                          cameraOn={p.id === me?.id ? cameraOn : undefined}
+                          onToggleCamera={p.id === me?.id ? () => void toggleCamera() : undefined}
+                          audioMuted={locallyMutedIds.has(p.id)}
+                          onToggleAudio={p.id !== me?.id ? () => toggleLocalAudio(p.id) : undefined}
+                        />
+                      </div>
+                    );
+                  })}
+                  {studentLearners.length > 8 ? (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", flex: "0 0 auto" }}>
+                      +{studentLearners.length - 8}
+                    </span>
+                  ) : null}
+                  {Array.from({ length: Math.max(0, Math.min(emptySlots, 5 - studentLearners.length)) }).map((_, i) => (
+                    <span
+                      key={`ph-${i}`}
+                      aria-hidden
+                      style={{
+                        width: 168,
+                        height: 96,
+                        flex: "0 0 auto",
+                        borderRadius: 12,
+                        border: "1px dashed var(--border)",
+                        background: "color-mix(in srgb, var(--accent) 3%, var(--panel))",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--muted)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      ＋ Open seat
+                    </span>
+                  ))}
                 </div>
-              ) : (
-                /* First student: full-width tile */
-                <>
-                  <div
-                    style={{ position: "relative", borderRadius: 16, overflow: "hidden", minHeight: 220,
-                      outline: selectedParticipant === studentLearners[0].id ? `2px solid ${STUDIO_GOLD}` : "none",
-                      outlineOffset: 2, cursor: canModerate && studentLearners[0].id !== me?.id ? "pointer" : "default",
-                    }}
-                    onClick={() => canModerate && studentLearners[0].id !== me?.id
-                      ? setSelectedParticipant((prev) => prev === studentLearners[0].id ? "" : studentLearners[0].id)
-                      : undefined}
-                    title={studentLearners[0].name}
-                  >
-                    <ParticipantTile
-                      p={studentLearners[0]}
-                      fill
-                      large
-                      showAdminProfile={canModerate}
-                      localStream={studentLearners[0].id === me?.id && cameraOn ? localStream : null}
-                      liveKitTrack={studentLearners[0].id === me?.id && !cameraOn ? null : trackFor(studentLearners[0].id)}
-                      hasFloor={studentLearners[0].id === room?.floor_participant_id}
-                      isMe={studentLearners[0].id === me?.id}
-                      presenceFaceCount={studentLearners[0].id === me?.id ? presenceFaceCount : undefined}
-                      cameraOn={studentLearners[0].id === me?.id ? cameraOn : undefined}
-                      onToggleCamera={studentLearners[0].id === me?.id ? () => void toggleCamera() : undefined}
-                      audioMuted={locallyMutedIds.has(studentLearners[0].id)}
-                      onToggleAudio={studentLearners[0].id !== me?.id ? () => toggleLocalAudio(studentLearners[0].id) : undefined}
-                    />
-                  </div>
-                  {/* Additional students: small strip */}
-                  {studentLearners.length > 1 && (
-                    <div style={{ display: "flex", gap: 6, overflowX: "auto", marginTop: 6 }}>
-                      {studentLearners.slice(1, 8).map((p) => {
-                        const onFloor = p.id === room?.floor_participant_id;
-                        const selected = selectedParticipant === p.id;
-                        return (
-                          <div
-                            key={p.id}
-                            onClick={() => canModerate && p.id !== me?.id ? setSelectedParticipant((prev) => prev === p.id ? "" : p.id) : undefined}
-                            title={p.name}
-                            style={{ width: 120, height: 72, flex: "0 0 auto", borderRadius: 10, overflow: "hidden",
-                              outline: selected ? `2px solid ${STUDIO_GOLD}` : "none", outlineOffset: 1,
-                              cursor: canModerate && p.id !== me?.id ? "pointer" : "default" }}
-                          >
-                            <ParticipantTile p={p} fill liveKitTrack={trackFor(p.id)} hasFloor={onFloor} audioMuted={locallyMutedIds.has(p.id)} />
-                          </div>
-                        );
-                      })}
-                      {studentLearners.length > 8 && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", alignSelf: "center", paddingLeft: 4 }}>
-                          +{studentLearners.length - 8}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+              </div>
               {canModerate && selectedParticipant
                 ? (() => {
                     const sel = learners.find((p) => p.id === selectedParticipant);
@@ -3433,6 +3454,55 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         </section>
 
         {!isSolo && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, alignSelf: "stretch" }}>
+          {/* Large self-view docked above the chat (Layout A). This is the biggest
+              consistently-visible feed of the local user's face — sized ~3:2 at the
+              full column width so a future presence/expression model has ample
+              pixels. Shown for the moderator/host, who has no seat in the row. */}
+          {canModerate && me ? (
+            <div
+              title="You"
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "3 / 2",
+                flex: "0 0 auto",
+                borderRadius: 16,
+                overflow: "hidden",
+                border: `2px solid ${STUDIO_GOLD}`,
+                background: "#0d0a16",
+                boxShadow: "0 8px 24px rgba(27,21,40,0.18)",
+              }}
+            >
+              <ParticipantTile
+                p={me}
+                fill
+                localStream={cameraOn ? localStream : null}
+                liveKitTrack={cameraOn ? null : trackFor(me.id)}
+                hasFloor={me.id === room?.floor_participant_id}
+                isMe
+                presenceFaceCount={presenceFaceCount}
+                cameraOn={cameraOn}
+                onToggleCamera={() => void toggleCamera()}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  top: 8,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#1b1528",
+                  padding: "2px 9px",
+                  borderRadius: 999,
+                  background: STUDIO_GOLD,
+                  pointerEvents: "none",
+                }}
+              >
+                You
+              </span>
+            </div>
+          ) : null}
         <aside
           aria-label="Group class chat and questions"
           style={{
@@ -3441,7 +3511,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             // the chat fills it and scrolls internally (no gap under the strip).
             position: "relative",
             overflow: "hidden",
-            minHeight: 380,
+            minHeight: 280,
+            flex: "1 1 auto",
             background: "var(--panel)",
             borderRadius: 16,
             border: "1px solid var(--border)",
@@ -3886,6 +3957,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           ) : null}
           </div>
         </aside>
+        </div>
         )}
       </div>
 
