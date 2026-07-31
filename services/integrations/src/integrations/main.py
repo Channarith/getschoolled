@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import os
-import socket
 import uuid
 from urllib.parse import urlparse
 

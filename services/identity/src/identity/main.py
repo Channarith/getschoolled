@@ -30,7 +30,7 @@ except Exception:
     pass  # startup event will retry via load_from_redis_with_retry
 
 
-_reseed_lock: "threading.Lock | None" = None
+_reseed_lock: "threading.Lock | None" = None  # noqa: F821  string annotation; threading imported where used
 
 
 def _bootstrap_on_startup() -> None:
@@ -562,7 +562,7 @@ def delete_enrollment(course_id: str, acct=Depends(current_account)) -> dict:
     """Remove a course from the learner's list entirely (e.g. un-save a bookmark)."""
     if course_id not in acct.enrollments:
         raise HTTPException(status_code=404, detail="enrollment not found")
-    removed = acct.enrollments.pop(course_id)
+    acct.enrollments.pop(course_id)
     # TODO: if removed.points_awarded is True, record course_id in a per-account
     # awarded-course set (e.g. acct._awarded_course_ids) so that re-enrollment cannot
     # re-award points for the same course. Without this guard, deleting and re-enrolling
@@ -883,7 +883,7 @@ def update_readiness(student_id: str, req: ReadinessUpdate, acct=Depends(current
             hints["physical_skill"] = max(0.0, min(1.0, float(req.physical_skill)))
         if req.lx_score is not None:
             hints["lx_score"] = float(req.lx_score)
-        prof = app.state.accounts.record_adaptation_event(
+        app.state.accounts.record_adaptation_event(
             acct.id, student_id, "readiness", hints,
         )
     except KeyError:
@@ -1392,7 +1392,7 @@ def presence_ping(req: PresencePingRequest, acct=Depends(current_account)) -> di
 
 
 # ── Voucher / Coupon / Gift Code system ─────────────────────────────────────
-from .vouchers import VoucherStore as _VoucherStore
+from .vouchers import VoucherStore as _VoucherStore  # noqa: E402
 
 
 def _voucher_store() -> _VoucherStore:

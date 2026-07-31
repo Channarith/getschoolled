@@ -14,10 +14,10 @@ import hashlib
 from dataclasses import dataclass
 from typing import Callable, Optional, Set, Union
 
-RawPayload = Union[str, bytes]
-
 from .queue import HarvestQueue
 from .sources import SourceSpec, is_allowed
+
+RawPayload = Union[str, bytes]
 
 
 @dataclass

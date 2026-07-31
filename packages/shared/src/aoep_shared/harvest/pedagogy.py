@@ -9,7 +9,7 @@ enriched) so the PPTX is usable even without a live tutor.
 from __future__ import annotations
 
 import re
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from ..presentation_skills import build_skill_plan, enrich_narration, sanitize_point
 from .composition import classify_section
@@ -56,10 +56,9 @@ def _expand_thin_content(title: str, sentences: List[str], category: str) -> Lis
     """Add teaching scaffolding when the source section is only a sentence or two."""
     if len(sentences) >= 4:
         return sentences
-    seed = sentences[0] if sentences else title
     extras: List[str] = []
     if category in ("concept", "definition", "introduction"):
-        extras.append(f"Why it matters: this connects to problems you will solve next.")
+        extras.append("Why it matters: this connects to problems you will solve next.")
         extras.append(f"Think of it like: a puzzle piece named \"{title[:60]}\".")
     elif category in ("example", "demo"):
         extras.append("Watch each step — copy the pattern, not just the answer.")
@@ -136,7 +135,7 @@ def build_teaching_slides(
     fmt: str = "lecture",
     subject: str = "general",
     profile=None,
-) -> List["GeneratedSlide"]:
+) -> List["GeneratedSlide"]:  # noqa: F821  forward ref; imported locally to avoid an import cycle
     """Build a full lesson deck from normalized (heading, body) sections."""
     from .generate import GeneratedSlide
     from ..meeting.presentation_matrix import PresentationProfile

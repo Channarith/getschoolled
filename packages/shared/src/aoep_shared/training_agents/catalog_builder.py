@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict
 
 from .catalog_generators import generate_all_scenarios
 from .models import ReferenceFact, ScenarioCue, ScenarioDefinition, ScenarioDomain

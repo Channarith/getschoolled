@@ -9,7 +9,7 @@ import threading
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from .base import PresentationPlan, PresentationStep
 from .presentation_assets import enrich_course_slides_for_deck, load_theme

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Tuple
 
 LEWIN_REFERENCE_URL = "https://youtu.be/sJG-rXBbmCc"
 

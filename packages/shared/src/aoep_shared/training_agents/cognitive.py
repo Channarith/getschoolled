@@ -126,7 +126,7 @@ def _rapid_to_scenarios() -> List[ScenarioDefinition]:
             cues=[ScenarioCue(cue_id="key_cue", text=d.cue_to_spot, priority="high")],
             decision_prompt=f"Decide fast — choose the best option: {options}",
             decision_time_limit_s=max(5, int(round(d.ideal_seconds * 2))),
-            foresight_prompts=[f"What is the recognition cue that short-circuits deliberation?"],
+            foresight_prompts=["What is the recognition cue that short-circuits deliberation?"],
             critical_thinking_prompts=[f"Common failure mode under pressure: {d.failure_mode}"],
             debrief_rubric=[
                 f"Spot the cue: {d.cue_to_spot}",

@@ -12,7 +12,6 @@ from aoep_shared.cognitive_trainer import (
     CognitiveTrainer,
 )
 from aoep_shared.dialect import get_dialect, humanize_narration, tutor_tone_hint
-from aoep_shared.mental_readiness import ReadinessExercise
 from aoep_shared.slang import default_lexicon
 
 from .simulation import AgentEvent, InboundChat, VideoFrameEvent

@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Dict, List
+from typing import Dict
 
 _WORD_RE = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
 _SENT_RE = re.compile(r"[.!?]+")
@@ -137,13 +137,13 @@ _BUILTIN_SIMPLE_MAP: Dict[str, str] = {
     "sufficient": "enough", "endeavor": "try", "endeavour": "try",
     "comprehend": "understand", "ascertain": "find out", "initiate": "start",
     "prioritize": "rank", "prioritise": "rank", "fundamental": "basic",
-    "approximately": "about", "accommodate": "fit", "anticipate": "expect",
+    "accommodate": "fit", "anticipate": "expect",
     "component": "part", "objective": "goal", "regarding": "about",
     "previously": "before", "currently": "now", "immediately": "right away",
     "assistance": "help", "individual": "person", "maintain": "keep",
     "modify": "change", "construct": "build", "eliminate": "remove",
-    "indicate": "show", "sufficient": "enough", "frequently": "often",
-    "approximately": "about", "in order to": "to", "due to the fact that": "because",
+    "indicate": "show", "frequently": "often",
+    "in order to": "to", "due to the fact that": "because",
     "a large number of": "many", "at this point in time": "now",
     "in the event that": "if", "with regard to": "about",
 }

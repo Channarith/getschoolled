@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Iterable, List, Optional
+from typing import Iterable, Optional
 
 from .corpus_store import HarvestCorpusStore
 from .queue import HarvestQueue, url_key

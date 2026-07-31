@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterator, List
+from typing import Iterator
 
 from .catalog_template import _cue, gen_cross_product
 from .models import ScenarioDefinition, ScenarioDomain

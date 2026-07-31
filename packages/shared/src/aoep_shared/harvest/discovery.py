@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 from typing import Iterable, List, Optional
-from urllib.parse import quote_plus
 
 from .sources import SourceSpec
 

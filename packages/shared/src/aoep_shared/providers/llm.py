@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import Iterable, Iterator, Optional, Sequence
+from typing import Iterable, Iterator, Sequence
 
 from ..config import AppConfig
 from .base import ChatMessage, Completion, LLMProvider, ProviderInfo

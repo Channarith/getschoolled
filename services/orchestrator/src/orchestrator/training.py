@@ -343,7 +343,7 @@ class GrowthStatusResponse(BaseModel):
 
 def training_capabilities() -> dict:
     """One unified view of the whole training+cognitive suite (consolidated)."""
-    from aoep_shared.training_agents import agent_roster_dict, catalog_capacity, catalog_meta
+    from aoep_shared.training_agents import catalog_capacity, catalog_meta
 
     roster = agent_roster_dict()
     by_category: dict[str, list] = {}
