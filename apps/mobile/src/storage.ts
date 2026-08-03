@@ -66,7 +66,7 @@ export type { TrainingLocale };
 export const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: true,
   dailyReminder: true,
-  dailyReminderHour: 18,
+  dailyReminderHour: 8,
   newContentAlerts: true,
   completionAlerts: true,
   studentId: "guest",
