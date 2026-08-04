@@ -1602,18 +1602,33 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setSpokenText(combined);
       submitter.updateTranscript(combined);
     };
+    // Whether the session ended intentionally (stopListening) vs. by the browser.
+    let intentionalStop = false;
     rec.onerror = (ev) => {
       const code = ev?.error || "";
       if (code === "not-allowed" || code === "service-not-allowed") {
         setMicNote("Microphone is blocked — allow it (address-bar icon) and use https://. You can type instead.");
+        intentionalStop = true;
         stopListening();
       } else if (code === "audio-capture") {
         setMicNote("No microphone found — check your device, or type your question below.");
+        intentionalStop = true;
         stopListening();
       }
-      // "no-speech"/"aborted" are transient; keep the session going.
+      // "no-speech"/"aborted" are transient — onend will auto-restart below.
     };
     rec.onend = () => {
+      // If the browser killed the session due to a no-speech timeout or a
+      // transient abort (not a real error), restart automatically so the user
+      // stays in "listening" mode until they explicitly tap "Done speaking".
+      if (!intentionalStop && recognitionRef.current === rec) {
+        try {
+          rec.start();
+          return; // keep listening — don't flush or clear state
+        } catch {
+          // Can't restart (e.g. permission revoked mid-session). Fall through.
+        }
+      }
       submitter.flush();
       setListening(false);
       recognitionRef.current = null;
