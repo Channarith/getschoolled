@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Theodore webcam lab — silhouette presence + Grok voice</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <div>
+          <h1>Theodore webcam lab</h1>
+          <p>Silhouette presence &amp; absence for solo and group classes, with xAI Grok voice agents</p>
+        </div>
+      </div>
+      <div class="status-pills">
+        <span id="pill-service" class="pill pill-idle">service: checking…</span>
+        <span id="pill-voice" class="pill pill-idle">voice: checking…</span>
+        <span id="pill-session" class="pill pill-idle">no session</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel controls">
+        <h2>Class</h2>
+        <div class="row">
+          <label>
+            Mode
+            <select id="mode">
+              <option value="solo">Solo — self-teaching</option>
+              <option value="group">Group class (3 learners)</option>
+            </select>
+          </label>
+          <label>
+            Camera source
+            <select id="source">
+              <option value="simulated">Simulated classroom</option>
+              <option value="webcam">Real webcam</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            Lesson
+            <input id="lesson" type="text" value="Fractions, part 2" />
+          </label>
+          <label>
+            Checkpoint
+            <input id="checkpoint" type="text" value="slide 7" />
+          </label>
+        </div>
+        <div class="row buttons">
+          <button id="btn-start" class="primary">Start session</button>
+          <button id="btn-recalibrate" disabled>Recalibrate background</button>
+          <button id="btn-end" disabled>End &amp; report</button>
+        </div>
+        <p class="hint" id="hint">
+          Calibration learns the empty scene first. Keep learners out of frame for the first
+          couple of seconds, then put them at the desk.
+        </p>
+      </section>
+
+      <section class="panel tiles-panel">
+        <h2>Cameras</h2>
+        <div id="tiles" class="tiles"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Theodore's reactions</h2>
+        <div id="attendance" class="attendance"></div>
+        <ul id="cue-log" class="cue-log">
+          <li class="empty">No cues yet — start a session.</li>
+        </ul>
+      </section>
+
+      <section class="panel voice">
+        <h2>Grok voice agent</h2>
+        <div id="voice-status" class="voice-status">Checking xAI configuration…</div>
+        <div class="row buttons">
+          <button id="btn-voice" disabled>Connect voice agent</button>
+          <button id="btn-voice-stop" disabled>Disconnect</button>
+        </div>
+        <div class="row">
+          <input id="ask" type="text" placeholder="Ask Theodore a question…" />
+          <button id="btn-ask" disabled>Send</button>
+        </div>
+        <ul id="voice-log" class="voice-log">
+          <li class="empty">Theodore is quiet.</li>
+        </ul>
+        <details class="session-config">
+          <summary>session.update sent to xAI</summary>
+          <pre id="voice-config">—</pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
