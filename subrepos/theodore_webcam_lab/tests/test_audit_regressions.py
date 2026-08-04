@@ -209,6 +209,32 @@ def test_voice_cache_is_scoped_per_session(monkeypatch):
     assert calls["count"] == 2
 
 
+def test_duplicate_turn_inside_a_live_session_is_deduped(monkeypatch):
+    """A real session always sends a session_id, so in-session dedup must work.
+
+    Recording history on a cache hit while also keying on that history made the key
+    change every turn, which silently disabled the latency cache for every real
+    session. The cache key intentionally excludes the running history.
+    """
+    agent = XaiVoiceAgent(api_key="test-key", cache_ttl_s=600)
+    calls = {"count": 0}
+
+    def _fake_transport(payload: dict, *, timeout_s=None) -> dict:
+        calls["count"] += 1
+        return {"choices": [{"message": {"content": "Reply."}}]}
+
+    monkeypatch.setattr(agent, "_transport", _fake_transport)
+    first = agent.respond(
+        learner_message="explain inertia", class_mode=ClassMode.SOLO, session_id="live-1"
+    )
+    repeat = agent.respond(
+        learner_message="explain inertia", class_mode=ClassMode.SOLO, session_id="live-1"
+    )
+    assert first.cache_hit is False
+    assert repeat.cache_hit is True
+    assert calls["count"] == 1
+
+
 def test_cache_hit_still_records_the_conversational_turn(monkeypatch):
     """A cached reply is a real turn; dropping it corrupts short-session memory."""
     agent = XaiVoiceAgent(api_key="test-key", cache_ttl_s=600)

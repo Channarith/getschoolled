@@ -134,7 +134,6 @@ class XaiVoiceAgent:
             language=language.code,
             context=context_text,
             fast_mode=fast_mode,
-            history=history,
         )
         cached = self._get_cached(cache_key, now_ms=started_ms)
         if cached is not None:
@@ -392,8 +391,14 @@ class XaiVoiceAgent:
         language: str,
         context: str,
         fast_mode: bool,
-        history: list[dict[str, str]],
     ) -> str:
+        """Key a reply by session + request content.
+
+        Deliberately excludes the running history: every recorded turn would change
+        the key, so a duplicate submit inside a live session could never be deduped
+        (and real sessions always carry a session_id). Within the short TTL an
+        identical turn is treated as a repeat of the same request.
+        """
         payload = {
             # Scoped per session so one learner never receives another learner's reply.
             "session_id": session_id,
@@ -402,7 +407,6 @@ class XaiVoiceAgent:
             "language": language,
             "context": context,
             "fast_mode": fast_mode,
-            "history": history,
         }
         return hashlib.sha256(
             json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
