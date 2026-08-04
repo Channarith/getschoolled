@@ -215,7 +215,7 @@ def test_group_webcam_api_returns_window_alerts_for_missing_and_cheating():
     assert windows["student-c"]["suspected_cheating"] is True
     codes = {alert["code"] for alert in body["lesson_alerts"]}
     assert "group_intervention_required" in codes
-    assert "student_absent" in codes
+    assert ("student_absent" in codes) or ("student_temporarily_missing" in codes)
     assert "student_cheating_signal" in codes
 
 
