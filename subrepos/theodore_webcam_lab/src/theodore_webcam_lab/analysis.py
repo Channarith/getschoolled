@@ -14,7 +14,7 @@ from .types import (
 @dataclass
 class AnalyzerPolicy:
     absence_grace_ms: int = 90_000
-    silhouette_foreground_threshold: float = 0.15
+    silhouette_foreground_threshold: float = 0.95
     silhouette_motion_threshold: float = 0.08
     silhouette_consecutive_frames: int = 3
     solo_max_faces: int = 1

@@ -113,3 +113,45 @@ def test_group_mode_marks_expected_missing_participants():
         expected_participant_ids=["alice", "bob"],
     )
     assert second.absent_participant_ids == ["bob"]
+
+
+def test_silhouette_requires_95_percent_foreground_fill():
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(
+            silhouette_foreground_threshold=0.95,
+            silhouette_motion_threshold=0.08,
+            silhouette_consecutive_frames=1,
+        )
+    )
+
+    below_threshold = analyzer.evaluate(
+        session_id="solo-95",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.94,
+                motion_score=0.01,
+            )
+        ],
+    )
+    assert below_threshold.participants[0].silhouette_detected is False
+
+    at_threshold = analyzer.evaluate(
+        session_id="solo-95",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_200,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.95,
+                motion_score=0.01,
+            )
+        ],
+    )
+    assert at_threshold.participants[0].silhouette_detected is True
