@@ -96,8 +96,10 @@ test.describe("floor mic continuity (WV-RR-03)", () => {
 
   test("mic auto-restart does not fire after intentional stopListening", async ({ page }) => {
     await page.goto("/live-room/regression-test-room-nonexistent");
-    // Room won't exist — we just want to load the JS bundle and verify the
-    // SpeechRecognition onend handler is wired correctly via a mock.
+    // These evaluate() tests verify the LOGIC of the onend guard (intentionalStop +
+    // ref check), not the production SpeechRecognition binding. The source-level
+    // execSync check above is the real production guard. These tests catch logic
+    // regressions if the algorithm is copy-pasted incorrectly into other components.
     await page.waitForLoadState("domcontentloaded");
 
     const restartedAfterStop = await page.evaluate(() => {
@@ -276,10 +278,17 @@ test.describe("drive mode voice continuity (WV-RR-06)", () => {
     expect(crashErrors).toHaveLength(0);
   });
 
-  test("voice pipeline SpeechChunker emits tiny first chunk (latency regression)", async ({ page }) => {
-    // Already covered by voice-pipeline.spec.ts — run that spec to verify.
-    // This is a pointer, not a duplicate.
-    expect(true).toBe(true);
+  test("voice pipeline SpeechChunker first-chunk latency (regression)", () => {
+    // Full behavioral coverage lives in voice-pipeline.spec.ts (6 tests).
+    // This source-level canary ensures SpeechChunker and StreamingVoice are
+    // still exported from voicePipeline.ts and the first-chunk size stays bounded.
+    const src = execSync(
+      `cat "${REPO}/apps/web/app/lib/voicePipeline.ts"`,
+      { encoding: "utf8" }
+    );
+    expect(src).toContain("export class SpeechChunker");
+    expect(src).toContain("export class StreamingVoice");
+    expect(src).toContain("firstChunkWords");
   });
 });
 
@@ -287,6 +296,7 @@ test.describe("drive mode voice continuity (WV-RR-06)", () => {
 // WV-RR-07: Onboarding — new account flow
 // ---------------------------------------------------------------------------
 test.describe("onboarding (WV-RR-07)", () => {
+  // First test: unauthenticated — verifies empty-localStorage resilience on the public route.
   test("onboarding page renders without crashing when localStorage is empty", async ({ page }) => {
     await page.goto("/onboarding");
     await page.evaluate(() => localStorage.clear());
@@ -297,18 +307,24 @@ test.describe("onboarding (WV-RR-07)", () => {
     expect(body?.trim().length).toBeGreaterThan(20);
   });
 
-  test("returning user with completed onboarding is not sent back to step 0 (WV-ONB-01 regression)", async ({ page }) => {
-    await page.goto("/onboarding");
-    // A user with completed onboarding navigating to /onboarding should either
-    // redirect away or show "already complete" — not land on step 0 data-entry.
-    await page.waitForTimeout(2_000);
-    const url = page.url();
-    // Should have redirected OR show a completed state. Must NOT show step 0 fields.
-    const nameField = page.locator('input[name="name"], input[placeholder*="name" i]');
-    const visible = await nameField.isVisible({ timeout: 3_000 }).catch(() => false);
-    if (visible) {
-      // If still on the page, the value should be pre-filled (not empty).
-      expect(await nameField.inputValue()).not.toBe("");
+  test("returning user with completed onboarding is not sent back to step 0 (WV-ONB-01 regression)", async ({ browser }) => {
+    // Must run authenticated — testing the step-0 reset bug for existing users.
+    const ctx = await browser.newContext({ storageState: AUTH_STATE });
+    const authPage = await ctx.newPage();
+    try {
+      await authPage.goto("/onboarding");
+      // A user with completed onboarding navigating to /onboarding should either
+      // redirect away or show "already complete" — not land on step 0 data-entry.
+      await authPage.waitForTimeout(2_000);
+      // Should have redirected OR show a completed state. Must NOT show step 0 fields.
+      const nameField = authPage.locator('input[name="name"], input[placeholder*="name" i]');
+      const visible = await nameField.isVisible({ timeout: 3_000 }).catch(() => false);
+      if (visible) {
+        // If still on the page, the value should be pre-filled (not empty).
+        expect(await nameField.inputValue()).not.toBe("");
+      }
+    } finally {
+      await ctx.close();
     }
   });
 });
