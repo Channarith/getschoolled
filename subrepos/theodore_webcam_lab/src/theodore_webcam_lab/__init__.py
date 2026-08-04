@@ -3,6 +3,7 @@
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .games import WebcamLearningGameEngine
 from .live_metrics import LiveMetricsStore
+from .training_orchestrator import Runbook, TrainingTask
 from .types import (
     AudioAnswerAssessment,
     ClassEvaluation,
@@ -37,8 +38,10 @@ __all__ = [
     "ParticipantMetricSeries",
     "PresenceState",
     "QualitySummary",
+    "Runbook",
     "SUPPORTED_LANGUAGES",
     "SupportedLanguage",
+    "TrainingTask",
     "VoiceQuestion",
     "WebcamGameResult",
     "WebcamGameType",

@@ -43,3 +43,12 @@ Run locally
    PYTHONPATH=subrepos/theodore_webcam_lab/src python3 -m uvicorn theodore_webcam_lab.main:app --port 8310
 3) Run tests:
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
+
+Training operations (24/7)
+--------------------------
+- SOTA and proprietary training blueprint:
+  subrepos/theodore_webcam_lab/VISION_TRAINING_OPERATIONS.txt
+- 24/7 agent runbook config:
+  subrepos/theodore_webcam_lab/training/vision_training_runbook.json
+- Training orchestrator:
+  PYTHONPATH=subrepos/theodore_webcam_lab/src python3 -m theodore_webcam_lab.training_orchestrator --runbook subrepos/theodore_webcam_lab/training/vision_training_runbook.json --dry-run --iterations 1
