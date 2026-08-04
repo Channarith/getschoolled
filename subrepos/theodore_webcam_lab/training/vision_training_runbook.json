@@ -1,0 +1,70 @@
+{
+  "loop_sleep_seconds": 30,
+  "tasks": [
+    {
+      "task_id": "quality-heartbeat",
+      "description": "Continuous regression heartbeat for webcam analyzer quality.",
+      "command": [
+        "python3",
+        "-m",
+        "pytest",
+        "subrepos/theodore_webcam_lab/tests/test_analysis.py",
+        "-q"
+      ],
+      "cadence_minutes": 30,
+      "timeout_seconds": 1800,
+      "enabled": true
+    },
+    {
+      "task_id": "collect-fresh-hard-negatives",
+      "description": "Mine false positives/negatives from production-like telemetry snapshots.",
+      "command": [
+        "python3",
+        "subrepos/theodore_webcam_lab/scripts/collect_hard_negatives.py",
+        "--window-hours",
+        "6"
+      ],
+      "cadence_minutes": 15,
+      "timeout_seconds": 1800,
+      "enabled": false
+    },
+    {
+      "task_id": "train-vision-multitask",
+      "description": "Run multitask training for detection, expression, gaze, and cheating signals.",
+      "command": [
+        "python3",
+        "subrepos/theodore_webcam_lab/scripts/train_multitask_vision.py",
+        "--config",
+        "subrepos/theodore_webcam_lab/training/configs/multitask_production.yaml"
+      ],
+      "cadence_minutes": 120,
+      "timeout_seconds": 14400,
+      "enabled": false
+    },
+    {
+      "task_id": "evaluate-candidate-model",
+      "description": "Evaluate latest candidate against gold and adversarial validation suites.",
+      "command": [
+        "python3",
+        "subrepos/theodore_webcam_lab/scripts/evaluate_model.py",
+        "--suite",
+        "gold+adversarial"
+      ],
+      "cadence_minutes": 60,
+      "timeout_seconds": 7200,
+      "enabled": false
+    },
+    {
+      "task_id": "safety-and-bias-audit",
+      "description": "Run demographic robustness and fairness audits before promotion.",
+      "command": [
+        "python3",
+        "subrepos/theodore_webcam_lab/scripts/run_bias_audit.py",
+        "--strict"
+      ],
+      "cadence_minutes": 240,
+      "timeout_seconds": 7200,
+      "enabled": false
+    }
+  ]
+}
