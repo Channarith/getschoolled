@@ -90,3 +90,57 @@ def test_integrity_challenge_fails_with_cheating_signals():
     assert result.total_score == 0
     assert result.streak == 0
     assert result.evaluation.suspected_cheating_participant_ids == ["learner"]
+
+
+def test_challenge_attempt_is_blocked_when_original_user_is_missing():
+    analyzer = WebcamSessionAnalyzer()
+    engine = WebcamLearningGameEngine(analyzer)
+    session_id = "game-original-lock"
+    # Establish the original learner for this session.
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner-main",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.1,
+            )
+        ],
+    )
+
+    challenge = engine.create_challenge(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        learning_prompt="Solve 5 + 7.",
+        preferred_game_type=WebcamGameType.FOCUS_STREAK,
+    )
+    result = engine.score_attempt(
+        challenge_id=challenge.challenge_id,
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner-other",
+                timestamp_ms=2_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.1,
+            ),
+            WebcamSignal(
+                participant_id="learner-other",
+                timestamp_ms=10_500,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.1,
+            ),
+        ],
+    )
+    assert result.passed is False
+    assert result.evaluation.training_paused is True
+    assert result.evaluation.pause_reason == "original_user_not_present"

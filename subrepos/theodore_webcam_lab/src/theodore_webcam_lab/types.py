@@ -69,6 +69,9 @@ class ClassEvaluation(BaseModel):
     no_one_present_for_ms: int = Field(default=0, ge=0)
     training_paused: bool = False
     pause_reason: str = ""
+    original_participant_id: str = ""
+    original_user_present: bool = False
+    unexpected_participant_ids: list[str] = Field(default_factory=list)
     expression_counts: dict[str, int]
     alerts: list[str]
 

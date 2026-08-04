@@ -66,6 +66,7 @@ class WebcamSessionAnalyzer:
         self._policy = policy or AnalyzerPolicy()
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
+        self._original_participant_id: dict[str, str] = {}
 
     def evaluate(
         self,
@@ -89,6 +90,9 @@ class WebcamSessionAnalyzer:
                 no_one_present_for_ms=0,
                 training_paused=False,
                 pause_reason="",
+                original_participant_id="",
+                original_user_present=False,
+                unexpected_participant_ids=[],
                 expression_counts={},
                 alerts=["no_signals_received"],
             )
@@ -129,6 +133,38 @@ class WebcamSessionAnalyzer:
         pause_reason = "no_learner_detected_over_4s" if training_paused else ""
         if training_paused:
             class_alerts.append("training_paused:no_learner_detected_over_4s")
+
+        live_present_ids = sorted(
+            {
+                s.participant_id
+                for s in signals
+                if s.face_count > 0 and s.liveness_state.strip().lower() not in {"spoof", "fake"}
+            }
+        )
+        original_participant_id = self._original_participant_id.get(session_id, "")
+        if not original_participant_id and live_present_ids:
+            original_participant_id = live_present_ids[0]
+            self._original_participant_id[session_id] = original_participant_id
+
+        original_user_present = bool(
+            original_participant_id and original_participant_id in live_present_ids
+        )
+        unexpected_participant_ids = sorted(
+            [pid for pid in live_present_ids if pid != original_participant_id]
+        )
+        if (
+            mode is ClassMode.SOLO
+            and original_participant_id
+            and live_present_ids
+            and not original_user_present
+        ):
+            training_paused = True
+            pause_reason = "original_user_not_present"
+            class_alerts.append("training_paused:original_user_not_present")
+            if unexpected_participant_ids:
+                class_alerts.append(
+                    "unexpected_user_present:" + ",".join(unexpected_participant_ids)
+                )
 
         evaluations: list[ParticipantEvaluation] = []
         for signal in sorted(signals, key=lambda item: item.participant_id):
@@ -177,6 +213,9 @@ class WebcamSessionAnalyzer:
             no_one_present_for_ms=no_one_present_for_ms,
             training_paused=training_paused,
             pause_reason=pause_reason,
+            original_participant_id=original_participant_id,
+            original_user_present=original_user_present,
+            unexpected_participant_ids=unexpected_participant_ids,
             expression_counts=expression_counts,
             alerts=class_alerts,
         )

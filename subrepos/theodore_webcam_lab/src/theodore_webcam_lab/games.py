@@ -157,6 +157,9 @@ class WebcamLearningGameEngine:
     ) -> tuple[bool, str]:
         if not evaluation.participants:
             return False, "No participants were detected for this challenge attempt."
+        if evaluation.training_paused:
+            reason = evaluation.pause_reason or "training_paused"
+            return False, f"Training is paused ({reason}); challenge attempt is blocked."
 
         timestamps = [s.timestamp_ms for s in signals]
         observed_ms = (max(timestamps) - min(timestamps)) if len(timestamps) >= 2 else 0

@@ -302,3 +302,73 @@ def test_webcam_api_pauses_training_after_no_presence_over_4_seconds():
     assert second_body["training_paused"] is True
     assert second_body["pause_reason"] == "no_learner_detected_over_4s"
     assert second_body["no_one_present_for_ms"] == 4_250
+
+
+def test_webcam_api_pauses_when_original_user_is_replaced():
+    baseline = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "original-user-api",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "student-main",
+                    "timestamp_ms": 1_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.3,
+                    "motion_score": 0.1,
+                }
+            ],
+        },
+    )
+    assert baseline.status_code == 200
+    body1 = baseline.json()
+    assert body1["training_paused"] is False
+    assert body1["original_participant_id"] == "student-main"
+
+    replaced = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "original-user-api",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "student-other",
+                    "timestamp_ms": 2_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.3,
+                    "motion_score": 0.1,
+                }
+            ],
+        },
+    )
+    assert replaced.status_code == 200
+    body2 = replaced.json()
+    assert body2["training_paused"] is True
+    assert body2["pause_reason"] == "original_user_not_present"
+    assert body2["original_user_present"] is False
+    assert body2["unexpected_participant_ids"] == ["student-other"]
+
+    resumed = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "original-user-api",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "student-main",
+                    "timestamp_ms": 3_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.3,
+                    "motion_score": 0.1,
+                }
+            ],
+        },
+    )
+    assert resumed.status_code == 200
+    body3 = resumed.json()
+    assert body3["training_paused"] is False
+    assert body3["original_user_present"] is True

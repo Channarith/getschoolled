@@ -399,3 +399,63 @@ def test_training_pauses_when_no_learner_present_for_over_4_seconds():
     assert second.training_paused is True
     assert second.pause_reason == "no_learner_detected_over_4s"
     assert second.no_one_present_for_ms == 4_001
+
+
+def test_training_pauses_if_different_user_replaces_original_user():
+    analyzer = WebcamSessionAnalyzer()
+    session_id = "original-user-lock-1"
+
+    baseline = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner-original",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+            )
+        ],
+    )
+    assert baseline.training_paused is False
+    assert baseline.original_participant_id == "learner-original"
+    assert baseline.original_user_present is True
+
+    replaced = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner-other",
+                timestamp_ms=2_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+            )
+        ],
+    )
+    assert replaced.training_paused is True
+    assert replaced.pause_reason == "original_user_not_present"
+    assert replaced.original_participant_id == "learner-original"
+    assert replaced.original_user_present is False
+    assert replaced.unexpected_participant_ids == ["learner-other"]
+
+    resumed = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner-original",
+                timestamp_ms=3_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.1,
+            )
+        ],
+    )
+    assert resumed.training_paused is False
+    assert resumed.original_user_present is True
