@@ -9,6 +9,7 @@ from .types import (
     LessonAlert,
     ParticipantEvaluation,
     PresenceState,
+    QualitySummary,
     WebcamSignal,
 )
 
@@ -69,6 +70,47 @@ class WebcamSessionAnalyzer:
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
         self._original_participant_id: dict[str, str] = {}
+
+    @staticmethod
+    def _clamp01(value: float) -> float:
+        if value < 0.0:
+            return 0.0
+        if value > 1.0:
+            return 1.0
+        return value
+
+    @classmethod
+    def _snr_to_quality(cls, snr_db: float | None) -> float | None:
+        if snr_db is None:
+            return None
+        return cls._clamp01((snr_db - 5.0) / 25.0)
+
+    @classmethod
+    def _noise_db_to_quality(cls, noise_db: float | None) -> float | None:
+        if noise_db is None:
+            return None
+        # 30dB is very clean, 70dB is very noisy.
+        return cls._clamp01((70.0 - noise_db) / 40.0)
+
+    @classmethod
+    def _estimate_distance_from_face_ratio(cls, ratio: float | None) -> float | None:
+        if ratio is None or ratio <= 0.0:
+            return None
+        distance = 0.20 / max(0.06, ratio)
+        distance = min(4.0, max(0.30, distance))
+        return round(distance, 2)
+
+    @staticmethod
+    def _avg(values: list[float]) -> float:
+        if not values:
+            return 0.0
+        return sum(values) / len(values)
+
+    @staticmethod
+    def _avg_optional(values: list[float]) -> float | None:
+        if not values:
+            return None
+        return sum(values) / len(values)
 
     def evaluate(
         self,
@@ -193,6 +235,21 @@ class WebcamSessionAnalyzer:
         suspected_cheating_participant_ids = sorted(
             e.participant_id for e in evaluations if e.suspected_cheating
         )
+        distance_values = [
+            p.distance_from_camera_m
+            for p in evaluations
+            if p.distance_from_camera_m is not None
+        ]
+        mic_quality_values = [
+            p.microphone_quality_score
+            for p in evaluations
+            if p.microphone_quality_score is not None
+        ]
+        noise_filter_values = [
+            p.noise_filter_effectiveness_score
+            for p in evaluations
+            if p.noise_filter_effectiveness_score is not None
+        ]
         expression_counts: dict[str, int] = {}
         for participant in evaluations:
             if participant.dominant_expression == "unknown":
@@ -200,6 +257,21 @@ class WebcamSessionAnalyzer:
             expression_counts[participant.dominant_expression] = (
                 expression_counts.get(participant.dominant_expression, 0) + 1
             )
+        quality_summary = QualitySummary(
+            participants_count=len(evaluations),
+            avg_distance_from_camera_m=self._avg_optional(distance_values),
+            avg_light_quality_score=self._avg(
+                [p.light_quality_score for p in evaluations]
+            ),
+            avg_image_detection_quality_score=self._avg(
+                [p.image_detection_quality_score for p in evaluations]
+            ),
+            avg_expression_behavior_score=self._avg(
+                [p.expression_behavior_score for p in evaluations]
+            ),
+            avg_microphone_quality_score=self._avg_optional(mic_quality_values),
+            avg_noise_filter_effectiveness_score=self._avg_optional(noise_filter_values),
+        )
         group_student_windows: list[GroupStudentWindowStatus] = []
         lesson_alerts: list[LessonAlert] = []
         if mode is ClassMode.GROUP:
@@ -301,6 +373,7 @@ class WebcamSessionAnalyzer:
             unexpected_participant_ids=unexpected_participant_ids,
             group_student_windows=group_student_windows,
             lesson_alerts=lesson_alerts,
+            quality_summary=quality_summary,
             expression_counts=expression_counts,
             alerts=class_alerts,
         )
@@ -369,6 +442,53 @@ class WebcamSessionAnalyzer:
         if keyboard_typing_audio_detected:
             cheating_reasons.append("keyboard_typing_audio")
 
+        distance_from_camera_m = self._estimate_distance_from_face_ratio(
+            signal.face_size_ratio
+        )
+        light_quality_score = (
+            signal.light_quality_score
+            if signal.light_quality_score is not None
+            else 0.5
+        )
+        detection_confidence = (
+            signal.image_detection_confidence
+            if signal.image_detection_confidence is not None
+            else (0.85 if has_live_face else 0.35)
+        )
+        image_detection_quality_score = self._clamp01(
+            0.6 * detection_confidence + 0.4 * (1.0 if has_live_face else 0.35)
+        )
+        expression_behavior_score = self._clamp01(
+            (0.35 if dominant_expression == "happy" else 0.2 if dominant_expression != "unknown" else 0.1)
+            + (0.35 if not long_eyes_away else 0.0)
+            + (0.30 if not suspected_cheating else 0.0)
+        )
+        noise_filter_effectiveness_score = (
+            signal.noise_filter_effectiveness_score
+            if signal.noise_filter_effectiveness_score is not None
+            else None
+        )
+        noise_quality = self._noise_db_to_quality(signal.audio_noise_level_db)
+        snr_quality = self._snr_to_quality(signal.audio_snr_db)
+        clipping_quality = (
+            None
+            if signal.mic_clipping_ratio is None
+            else self._clamp01(1.0 - signal.mic_clipping_ratio * 2.5)
+        )
+        mic_level_quality = signal.microphone_input_level_score
+        mic_parts = [
+            value
+            for value in [
+                noise_quality,
+                snr_quality,
+                clipping_quality,
+                mic_level_quality,
+                noise_filter_effectiveness_score,
+            ]
+            if value is not None
+        ]
+        microphone_quality_score = self._avg(mic_parts) if mic_parts else None
+
         if silhouette_candidate:
             participant_state.silhouette_streak += 1
         else:
@@ -427,6 +547,14 @@ class WebcamSessionAnalyzer:
             silhouette_detected=silhouette_detected,
             silhouette_streak=participant_state.silhouette_streak,
             face_count=signal.face_count,
+            distance_from_camera_m=distance_from_camera_m,
+            light_quality_score=light_quality_score,
+            image_detection_quality_score=image_detection_quality_score,
+            expression_behavior_score=expression_behavior_score,
+            audio_noise_level_db=signal.audio_noise_level_db,
+            audio_snr_db=signal.audio_snr_db,
+            microphone_quality_score=microphone_quality_score,
+            noise_filter_effectiveness_score=noise_filter_effectiveness_score,
             absent_for_ms=absent_for_ms,
             eyes_away_for_ms=eyes_away_for_ms,
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,

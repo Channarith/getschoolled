@@ -37,6 +37,14 @@ class WebcamSignal(BaseModel):
     phone_visible: bool = False
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
     keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    face_size_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    light_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    image_detection_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    noise_filter_effectiveness_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    microphone_input_level_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    audio_noise_level_db: float | None = None
+    audio_snr_db: float | None = None
+    mic_clipping_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ParticipantEvaluation(BaseModel):
@@ -45,6 +53,16 @@ class ParticipantEvaluation(BaseModel):
     silhouette_detected: bool
     silhouette_streak: int = Field(ge=0)
     face_count: int = Field(ge=0)
+    distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    light_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    image_detection_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    expression_behavior_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    audio_noise_level_db: float | None = None
+    audio_snr_db: float | None = None
+    microphone_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    noise_filter_effectiveness_score: float | None = Field(
+        default=None, ge=0.0, le=1.0
+    )
     absent_for_ms: int = Field(ge=0)
     eyes_away_for_ms: int = Field(ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
@@ -75,6 +93,18 @@ class LessonAlert(BaseModel):
     action: str = ""
 
 
+class QualitySummary(BaseModel):
+    participants_count: int = 0
+    avg_distance_from_camera_m: float | None = Field(default=None, ge=0.0)
+    avg_light_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    avg_image_detection_quality_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    avg_expression_behavior_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    avg_microphone_quality_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    avg_noise_filter_effectiveness_score: float | None = Field(
+        default=None, ge=0.0, le=1.0
+    )
+
+
 class ClassEvaluation(BaseModel):
     session_id: str
     mode: ClassMode
@@ -92,8 +122,33 @@ class ClassEvaluation(BaseModel):
     unexpected_participant_ids: list[str] = Field(default_factory=list)
     group_student_windows: list[GroupStudentWindowStatus] = Field(default_factory=list)
     lesson_alerts: list[LessonAlert] = Field(default_factory=list)
+    quality_summary: QualitySummary = Field(default_factory=QualitySummary)
     expression_counts: dict[str, int]
     alerts: list[str]
+
+
+class ParticipantMetricSeries(BaseModel):
+    participant_id: str
+    window_index: int = Field(ge=1)
+    timestamps_ms: list[int] = Field(default_factory=list)
+    distance_from_camera_m: list[float] = Field(default_factory=list)
+    light_quality_score: list[float] = Field(default_factory=list)
+    image_detection_quality_score: list[float] = Field(default_factory=list)
+    expression_behavior_score: list[float] = Field(default_factory=list)
+    microphone_quality_score: list[float] = Field(default_factory=list)
+    noise_filter_effectiveness_score: list[float] = Field(default_factory=list)
+    latest: ParticipantEvaluation
+
+
+class LiveSessionMetricsResponse(BaseModel):
+    session_id: str
+    updated_at_ms: int = Field(ge=0)
+    mode: ClassMode
+    training_paused: bool = False
+    pause_reason: str = ""
+    quality_summary: QualitySummary = Field(default_factory=QualitySummary)
+    lesson_alerts: list[LessonAlert] = Field(default_factory=list)
+    participants: list[ParticipantMetricSeries] = Field(default_factory=list)
 
 
 class VoiceResponse(BaseModel):

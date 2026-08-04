@@ -539,3 +539,43 @@ def test_training_pauses_if_different_user_replaces_original_user():
     )
     assert resumed.training_paused is False
     assert resumed.original_user_present is True
+
+
+def test_quality_metrics_include_distance_light_image_and_audio():
+    analyzer = WebcamSessionAnalyzer()
+    result = analyzer.evaluate(
+        session_id="quality-1",
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=10_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.1,
+                face_size_ratio=0.20,
+                light_quality_score=0.82,
+                image_detection_confidence=0.91,
+                expression_label="happy",
+                audio_noise_level_db=36.0,
+                audio_snr_db=24.0,
+                noise_filter_effectiveness_score=0.88,
+                microphone_input_level_score=0.78,
+                mic_clipping_ratio=0.02,
+            )
+        ],
+    )
+    p = result.participants[0]
+    assert p.distance_from_camera_m is not None
+    assert 0.8 <= p.distance_from_camera_m <= 1.2
+    assert p.light_quality_score == 0.82
+    assert p.image_detection_quality_score > 0.8
+    assert p.expression_behavior_score > 0.6
+    assert p.microphone_quality_score is not None
+    assert p.microphone_quality_score > 0.6
+    assert p.noise_filter_effectiveness_score == 0.88
+    summary = result.quality_summary
+    assert summary.participants_count == 1
+    assert summary.avg_light_quality_score == 0.82
+    assert summary.avg_image_detection_quality_score > 0.8

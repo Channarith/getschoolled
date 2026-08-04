@@ -2,14 +2,18 @@
 
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .games import WebcamLearningGameEngine
+from .live_metrics import LiveMetricsStore
 from .types import (
     AudioAnswerAssessment,
     ClassEvaluation,
     ClassMode,
     GroupStudentWindowStatus,
+    LiveSessionMetricsResponse,
     LessonAlert,
     ParticipantEvaluation,
+    ParticipantMetricSeries,
     PresenceState,
+    QualitySummary,
     SupportedLanguage,
     VoiceQuestion,
     WebcamGameResult,
@@ -26,9 +30,13 @@ __all__ = [
     "ClassEvaluation",
     "ClassMode",
     "GroupStudentWindowStatus",
+    "LiveSessionMetricsResponse",
     "LessonAlert",
+    "LiveMetricsStore",
     "ParticipantEvaluation",
+    "ParticipantMetricSeries",
     "PresenceState",
+    "QualitySummary",
     "SUPPORTED_LANGUAGES",
     "SupportedLanguage",
     "VoiceQuestion",

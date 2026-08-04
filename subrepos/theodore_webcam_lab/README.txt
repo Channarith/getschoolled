@@ -20,10 +20,14 @@ Feature scope
   focus streak, confidence smile, and integrity guard
 - Group-lesson student window monitoring with per-student intervention severity
   and lesson alerts/messages for missing or cheating learners
+- Live quality metrics + chart-ready series for every student window (distance,
+  light, image quality, expression/behavior, mic quality, noise filtering)
 
 API highlights
 --------------
 - POST /api/theodore/webcam/evaluate
+- GET  /api/theodore/webcam/live-metrics/{session_id}
+- GET  /theodore/webcam/live-monitor/{session_id}
 - POST /api/theodore/voice/respond
 - GET  /api/theodore/voice/languages
 - POST /api/theodore/voice/ask-question

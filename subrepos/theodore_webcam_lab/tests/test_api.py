@@ -219,6 +219,47 @@ def test_group_webcam_api_returns_window_alerts_for_missing_and_cheating():
     assert "student_cheating_signal" in codes
 
 
+def test_live_metrics_endpoint_and_monitor_page():
+    post = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "live-metrics-api-1",
+            "mode": "group",
+            "signals": [
+                {
+                    "participant_id": "student-a",
+                    "timestamp_ms": 10_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                    "face_size_ratio": 0.18,
+                    "light_quality_score": 0.7,
+                    "image_detection_confidence": 0.8,
+                    "microphone_input_level_score": 0.9,
+                    "noise_filter_effectiveness_score": 0.75,
+                }
+            ],
+        },
+    )
+    assert post.status_code == 200
+
+    metrics = client.get("/api/theodore/webcam/live-metrics/live-metrics-api-1")
+    assert metrics.status_code == 200
+    body = metrics.json()
+    assert body["session_id"] == "live-metrics-api-1"
+    assert body["participants"]
+    participant = body["participants"][0]
+    assert participant["light_quality_score"]
+    assert participant["image_detection_quality_score"]
+    assert participant["microphone_quality_score"]
+
+    page = client.get("/theodore/webcam/live-monitor/live-metrics-api-1")
+    assert page.status_code == 200
+    assert "Student Windows (Live Metrics)" in page.text
+    assert "live-metrics-api-1" in page.text
+
+
 def test_webcam_api_flags_long_eyes_away_phone_typing_pattern():
     resp = client.post(
         "/api/theodore/webcam/evaluate",
