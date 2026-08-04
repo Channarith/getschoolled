@@ -61,6 +61,8 @@ class SilhouetteConfig:
     close_kernel: int = 11
     human_score_threshold: float = 0.45
     max_silhouettes: int = 6
+    min_local_contrast: float = 14.0
+    heal_alpha: float = 0.25
 
 
 @dataclass
@@ -139,6 +141,8 @@ def load_config(env: Optional[Mapping[str, str]] = None) -> LabConfig:
         max_area_ratio=_float(src, "WEBCAM_LAB_MAX_AREA_RATIO", 0.92),
         human_score_threshold=_float(src, "WEBCAM_LAB_HUMAN_SCORE_THRESHOLD", 0.45),
         max_silhouettes=_int(src, "WEBCAM_LAB_MAX_SILHOUETTES", 6),
+        min_local_contrast=_float(src, "WEBCAM_LAB_MIN_LOCAL_CONTRAST", 14.0),
+        heal_alpha=_float(src, "WEBCAM_LAB_HEAL_ALPHA", 0.25),
     )
     presence = PresenceConfig(
         arrive_confirm_seconds=_float(src, "WEBCAM_LAB_ARRIVE_CONFIRM_SECONDS", 0.8),

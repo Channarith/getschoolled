@@ -40,6 +40,21 @@ What it does
    band (head over shoulders), and size. A light switching on and a chair
    being moved both score below threshold and are covered by tests.
 
+   Stale-background healing. If calibration runs while the learner is already
+   at their desk - the common case, since people sit down and then start the
+   class - they get baked into the reference, which inverts the sensor:
+   sitting there reads as absent, and standing up leaves a permanent
+   person-shaped ghost that reads as present. The tell is that a ghost's
+   pixels are the room itself, so it looks like its own surroundings, while a
+   real body is visibly distinct from the wall behind it. Every candidate blob
+   is checked for local contrast against a ring of current-frame pixels around
+   it; blobs that differ from the reference but match their surroundings are
+   stale background, so they are rejected AND the reference is healed
+   underneath them. A bad calibration then corrects itself within a few frames
+   instead of lying for the rest of the lesson. Regression-tested both ways:
+   the ghost never reports present, and a genuinely motionless learner is
+   still never absorbed.
+
 2. User absence (src/theodore_webcam/presence.py)
 
    Raw per-frame detection is jittery, so detection is debounced into a state

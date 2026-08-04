@@ -220,6 +220,18 @@ def create_app(config: Optional[LabConfig] = None) -> FastAPI:
     def voice_status() -> dict:
         return app.state.voice.status()
 
+    @app.get("/v1/voice/session-config")
+    def voice_session_config(session_id: str = "", participant_id: str = "") -> dict:
+        """The session.update payload, without minting a token to see it."""
+
+        context = _voice_context(session_id, participant_id)
+        return {
+            "url": app.state.voice.realtime_url(),
+            "session_update": app.state.voice.session_update(context),
+            "context": context,
+            "configured": app.state.voice.configured,
+        }
+
     @app.post("/v1/voice/session")
     def voice_session(req: VoiceSessionRequest) -> dict:
         context = _voice_context(req.session_id, req.participant_id)

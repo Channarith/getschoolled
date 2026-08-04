@@ -327,6 +327,17 @@ async function startSession() {
 
   if (state.timer) clearInterval(state.timer);
   state.timer = setInterval(pump, FRAME_INTERVAL_MS);
+
+  showVoiceConfig().catch(() => {});
+}
+
+async function showVoiceConfig() {
+  const params = new URLSearchParams({
+    session_id: state.sessionId,
+    participant_id: state.tiles.length ? state.tiles[0].participantId : "",
+  });
+  const plan = await api(`/v1/voice/session-config?${params.toString()}`);
+  el("voice-config").textContent = JSON.stringify(plan.session_update, null, 2);
 }
 
 async function pump() {

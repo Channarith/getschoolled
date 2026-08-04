@@ -72,6 +72,32 @@ def test_learner_leaving_frame_stops_detection():
     assert observation.count == 0
 
 
+def test_bad_calibration_does_not_invert_the_sensor():
+    """Calibrating while the learner is already seated must self-correct.
+
+    People sit down and then start the class, so the reference regularly gets
+    bootstrapped with a body in it. Left uncorrected that inverts everything:
+    sitting there reads as absent, and standing up leaves a person-shaped
+    ghost that reads as present for the rest of the lesson.
+    """
+
+    detector = SilhouetteDetector()
+    seated = _scene.person_scene()
+    for _ in range(14):
+        detector.observe(seated)
+
+    # The learner leaves. The hole they left must not be reported as a person.
+    for _ in range(14):
+        observation = detector.observe(_scene.empty_room())
+        assert observation.count == 0, "stale background reported as a learner"
+
+    # And the healed reference must detect them again when they sit back down.
+    for _ in range(6):
+        observation = detector.observe(seated)
+    assert observation.detected is True
+    assert observation.confidence >= 0.45
+
+
 def test_lighting_change_is_not_a_person():
     detector = calibrated_detector()
     observation = detector.observe(_scene.empty_room(brightness=60))

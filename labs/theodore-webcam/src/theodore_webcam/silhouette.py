@@ -18,6 +18,21 @@ absent while they are staring straight at the camera.
 Blobs are then scored for human-likeness from four shape cues (bbox fill,
 aspect, head-over-shoulders narrowing, and size), so a lamp switching on or a
 chair being moved does not read as a student.
+
+Stale-background healing
+------------------------
+If calibration happens while the learner is already at their desk (the common
+case, since people sit down and then start the class) they get baked into the
+reference. That inverts the sensor: sitting there reads as absent, and getting
+up leaves a permanent person-shaped "ghost" that reads as present.
+
+The tell is that a ghost's pixels are the room itself, so they look like their
+own surroundings, whereas a real body is visibly distinct from the wall behind
+it. Every candidate blob is therefore checked for local contrast against a ring
+of current-frame pixels around it. Blobs that differ from the reference but
+match their surroundings are stale background, not people: they are rejected
+and the reference is healed underneath them, so a bad calibration corrects
+itself within a few frames instead of lying for the rest of the class.
 """
 
 from __future__ import annotations
@@ -122,6 +137,30 @@ def human_score(
     return 0.34 * fill + 0.26 * aspect + 0.22 * head + 0.18 * size
 
 
+def local_contrast(
+    gray: np.ndarray, mask: np.ndarray, bbox: Tuple[int, int, int, int]
+) -> float:
+    """Mean luminance gap between a blob and the frame around it.
+
+    A body stands out from the wall behind it; a stale-background ghost is the
+    wall, so it blends into its own surroundings.
+    """
+
+    x, y, w, h = bbox
+    height, width = gray.shape[:2]
+    pad = max(6, int(0.3 * max(w, h)))
+    x0, y0 = max(0, x - pad), max(0, y - pad)
+    x1, y1 = min(width, x + w + pad), min(height, y + h + pad)
+    window = gray[y0:y1, x0:x1]
+    window_mask = mask[y0:y1, x0:x1]
+    inside = window[window_mask > 0]
+    ring = window[window_mask == 0]
+    if inside.size < 20 or ring.size < 20:
+        # Not enough surrounding frame to judge; do not reject on this basis.
+        return float("inf")
+    return abs(float(inside.mean()) - float(ring.mean()))
+
+
 def _head_shoulder_ratio(mask_crop: np.ndarray) -> float:
     """Width of the top 15% of the blob divided by its widest band."""
 
@@ -221,10 +260,13 @@ class SilhouetteDetector:
         coverage = float(np.count_nonzero(mask)) / frame_area
 
         silhouettes: List[Silhouette] = []
+        stale: List[Tuple[int, int, int, int]] = []
         if not calibrating:
-            silhouettes = self._score_blobs(mask, work_w, work_h, frame_area, scale)
+            silhouettes, stale = self._score_blobs(
+                mask, gray, work_w, work_h, frame_area, scale
+            )
 
-        self._update_reference(gray_f, mask, calibrating)
+        self._update_reference(gray_f, mask, calibrating, stale)
 
         return SilhouetteObservation(
             calibrating=calibrating,
@@ -237,14 +279,16 @@ class SilhouetteDetector:
     def _score_blobs(
         self,
         mask: np.ndarray,
+        gray: np.ndarray,
         work_w: int,
         work_h: int,
         frame_area: float,
         scale: float,
-    ) -> List[Silhouette]:
+    ) -> Tuple[List[Silhouette], List[Tuple[int, int, int, int]]]:
         cfg = self.config
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         found: List[Silhouette] = []
+        stale: List[Tuple[int, int, int, int]] = []
         for contour in contours:
             blob_area = float(cv2.contourArea(contour))
             area_ratio = blob_area / frame_area
@@ -252,6 +296,11 @@ class SilhouetteDetector:
                 continue
             x, y, w, h = cv2.boundingRect(contour)
             if w <= 1 or h <= 1:
+                continue
+            if local_contrast(gray, mask, (x, y, w, h)) < cfg.min_local_contrast:
+                # Differs from the reference but matches the room around it:
+                # this is background we learned wrongly, not a learner.
+                stale.append((x, y, w, h))
                 continue
             fill_ratio = blob_area / float(w * h)
             aspect_ratio = float(h) / float(w)
@@ -286,12 +335,17 @@ class SilhouetteDetector:
                 )
             )
         found.sort(key=lambda s: (s.human_score, s.area_ratio), reverse=True)
-        return found[: cfg.max_silhouettes]
+        return found[: cfg.max_silhouettes], stale
 
     def _update_reference(
-        self, gray_f: np.ndarray, mask: np.ndarray, calibrating: bool
+        self,
+        gray_f: np.ndarray,
+        mask: np.ndarray,
+        calibrating: bool,
+        stale: Optional[List[Tuple[int, int, int, int]]] = None,
     ) -> None:
-        """Learn the empty room fast, and what is under a body almost never."""
+        """Learn the empty room fast, what is under a body almost never, and
+        heal quickly wherever the reference is provably wrong."""
 
         cfg = self.config
         assert self._reference is not None
@@ -300,4 +354,7 @@ class SilhouetteDetector:
             return
         alpha = np.full(gray_f.shape, cfg.background_alpha, dtype=np.float32)
         alpha[mask > 0] = cfg.occluded_alpha
+        for x, y, w, h in stale or []:
+            region = alpha[y : y + h, x : x + w]
+            region[mask[y : y + h, x : x + w] > 0] = cfg.heal_alpha
         self._reference += (gray_f - self._reference) * alpha

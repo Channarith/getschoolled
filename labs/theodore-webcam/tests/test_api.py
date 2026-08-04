@@ -183,6 +183,12 @@ def test_voice_endpoints_degrade_without_an_api_key(client):
         json={"participant_id": "learner-1", "detected": True, "confidence": 0.9, "count": 1},
     )
 
+    config = client.get(
+        f"/v1/voice/session-config?session_id={session_id}&participant_id=learner-1"
+    ).json()
+    assert config["session_update"]["session"]["turn_detection"]["type"] == "server_vad"
+    assert config["context"]["presence"] == "present"
+
     voice = client.post(
         "/v1/voice/session",
         json={"session_id": session_id, "participant_id": "learner-1"},
