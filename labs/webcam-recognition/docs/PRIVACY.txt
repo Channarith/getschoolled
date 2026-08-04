@@ -1,0 +1,14 @@
+Webcam recognition lab — privacy notes
+======================================
+
+- Face recognition and engagement signals are consent-gated. The lab never
+  enrolls or identifies a learner without an explicit consented_student_ids
+  (or local consent flag) path.
+- Silhouette / absence detection uses body-shape and motion heuristics. It does
+  not store biometrics; it only emits present / silhouette_only / absent /
+  multi_person summaries.
+- When bridging to Salareen live rooms, only the presence-report payload is
+  sent (present, face_count, liveness_state, liveness_score, reason, source).
+- xAI Voice Agents: audio is streamed to xAI only when XAI_API_KEY is set and
+  the operator starts a voice session. Offline mock mode keeps all audio local.
+- Do not commit API keys. Copy .env.example -> .env (gitignored via root .env*).
