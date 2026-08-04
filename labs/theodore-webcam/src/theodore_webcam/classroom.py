@@ -95,6 +95,9 @@ class ClassSession:
         self.participants: Dict[str, Participant] = {}
         self.lesson_paused = False
         self.class_held = False
+        # An attendance hold is for people leaving mid-class, not for the room
+        # filling up, so quorum is not enforced until it has been met once.
+        self.class_started = False
         self.cue_log: List[dict] = []
         self.event_log: List[dict] = []
         self._policy = CuePolicy(
@@ -265,7 +268,12 @@ class ClassSession:
             return []
         present = sum(1 for p in learners if p.tracker.snapshot().present)
         ratio = present / float(len(learners))
-        should_hold = ratio < self.config.classroom.group_min_present_ratio
+        quorum = self.config.classroom.group_min_present_ratio
+        if not self.class_started:
+            if ratio >= quorum:
+                self.class_started = True
+            return []
+        should_hold = ratio < quorum
         if should_hold == self.class_held:
             return []
         cue = self._policy.for_quorum_change(
@@ -306,6 +314,7 @@ class ClassSession:
             "checkpoint": self.checkpoint,
             "lesson_paused": self.lesson_paused,
             "class_held": self.class_held,
+            "class_started": self.class_started,
             "uptime_seconds": round(now - self.created_at, 2),
             "attendance": self.attendance(),
             "participants": [p.as_dict(now) for p in self.participants.values()],

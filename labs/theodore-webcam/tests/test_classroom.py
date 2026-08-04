@@ -119,6 +119,38 @@ def test_group_class_keeps_teaching_until_quorum_breaks(clock):
     assert [c for c in session.cue_log if c["action"] == CueAction.RELEASE_HOLD.value]
 
 
+def test_class_does_not_hold_while_the_room_is_still_filling_up(clock):
+    """No attendance hold before the class has gathered.
+
+    Otherwise every group class opens by announcing a hold at 0/3 and telling
+    an empty room to wait for people to come back.
+    """
+
+    registry = make_registry(clock, WEBCAM_LAB_GROUP_MIN_PRESENT_RATIO="0.6")
+    session = registry.create(mode=ClassMode.GROUP, lesson_title="Photosynthesis")
+    for pid in ("a", "b", "c"):
+        session.add_participant(pid, pid.upper())
+
+    # Learners trickle in one at a time.
+    for pid in ("a", "b"):
+        for _ in range(4):
+            clock.advance(0.5)
+            session.observe_signals(pid, detected=True, confidence=0.9, count=1)
+        assert session.class_held is False
+
+    actions = [c["action"] for c in session.cue_log]
+    assert CueAction.HOLD_CLASS.value not in actions
+    assert CueAction.RELEASE_HOLD.value not in actions
+    assert session.class_started is True
+
+    # Now that class has gathered, dropping under quorum does hold it.
+    for _ in range(16):
+        clock.advance(0.5)
+        session.observe_signals("a", detected=False)
+        session.observe_signals("b", detected=False)
+    assert session.class_held is True
+
+
 def test_on_device_signal_path_matches_frame_path(clock):
     registry = make_registry(clock)
     session = registry.create(mode=ClassMode.SOLO, lesson_title="Algebra")
