@@ -200,4 +200,106 @@ def test_expression_detection_tracks_happiness_and_summary_counts():
     assert by_id["carol"].dominant_expression == "happy"
     assert by_id["bob"].dominant_expression == "sad"
     assert result.happy_participant_ids == ["alice", "carol"]
+    assert result.suspected_cheating_participant_ids == []
     assert result.expression_counts == {"happy": 2, "sad": 1}
+
+
+def test_long_gaze_away_with_phone_or_typing_flags_suspected_cheating():
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(
+            gaze_away_grace_ms=1_000,
+            gaze_frontal_min_threshold=0.4,
+            gaze_down_min_threshold=0.7,
+            typing_activity_min_threshold=0.8,
+        )
+    )
+    session_id = "cheat-1"
+    first = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.5,
+                motion_score=0.2,
+                gaze_frontal=0.2,
+                gaze_down_score=0.85,
+                phone_visible=False,
+                typing_activity_score=0.2,
+            )
+        ],
+    )
+    p1 = first.participants[0]
+    assert p1.eyes_away_for_ms == 0
+    assert p1.suspected_cheating is False
+
+    second = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=2_300,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.5,
+                motion_score=0.2,
+                gaze_frontal=0.15,
+                gaze_down_score=0.9,
+                phone_visible=True,
+                typing_activity_score=0.85,
+            )
+        ],
+    )
+    p2 = second.participants[0]
+    assert p2.eyes_away_for_ms == 1_300
+    assert p2.suspected_cheating is True
+    assert p2.cheating_reasons == [
+        "eyes_away_long",
+        "phone_visible",
+        "typing_activity_high",
+    ]
+    assert second.suspected_cheating_participant_ids == ["learner"]
+
+
+def test_gaze_away_timer_resets_when_learner_refocuses_on_screen():
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy(gaze_away_grace_ms=500))
+    session_id = "cheat-reset"
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=100,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.3,
+                gaze_frontal=0.1,
+                gaze_down_score=0.9,
+            )
+        ],
+    )
+    focused = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.3,
+                gaze_frontal=0.9,
+                gaze_down_score=0.0,
+            )
+        ],
+    )
+    p = focused.participants[0]
+    assert p.eyes_away_for_ms == 0
+    assert p.suspected_cheating is False

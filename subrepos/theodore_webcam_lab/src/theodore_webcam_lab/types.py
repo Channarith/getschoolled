@@ -26,6 +26,10 @@ class WebcamSignal(BaseModel):
     attention: float | None = Field(default=None, ge=0.0, le=1.0)
     expression_label: str = Field(default="unknown")
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_frontal: float | None = Field(default=None, ge=0.0, le=1.0)
+    gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    phone_visible: bool = False
+    typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ParticipantEvaluation(BaseModel):
@@ -35,9 +39,12 @@ class ParticipantEvaluation(BaseModel):
     silhouette_streak: int = Field(ge=0)
     face_count: int = Field(ge=0)
     absent_for_ms: int = Field(ge=0)
+    eyes_away_for_ms: int = Field(ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
     dominant_expression: str = "unknown"
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    suspected_cheating: bool = False
+    cheating_reasons: list[str] = Field(default_factory=list)
     reason: str = ""
     alerts: list[str] = Field(default_factory=list)
 
@@ -49,6 +56,7 @@ class ClassEvaluation(BaseModel):
     absent_participant_ids: list[str]
     silhouette_participant_ids: list[str]
     happy_participant_ids: list[str]
+    suspected_cheating_participant_ids: list[str]
     expression_counts: dict[str, int]
     alerts: list[str]
 

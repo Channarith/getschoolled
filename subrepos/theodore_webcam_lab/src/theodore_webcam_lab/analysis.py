@@ -43,6 +43,10 @@ class AnalyzerPolicy:
     silhouette_motion_threshold: float = 0.08
     silhouette_consecutive_frames: int = 3
     solo_max_faces: int = 1
+    gaze_away_grace_ms: int = 45_000
+    gaze_frontal_min_threshold: float = 0.35
+    gaze_down_min_threshold: float = 0.6
+    typing_activity_min_threshold: float = 0.7
 
 
 @dataclass
@@ -50,6 +54,7 @@ class _ParticipantState:
     last_live_timestamp_ms: int | None = None
     absent_since_ms: int | None = None
     silhouette_streak: int = 0
+    gaze_away_started_ms: int | None = None
 
 
 class WebcamSessionAnalyzer:
@@ -76,6 +81,7 @@ class WebcamSessionAnalyzer:
                 absent_participant_ids=[],
                 silhouette_participant_ids=[],
                 happy_participant_ids=[],
+                suspected_cheating_participant_ids=[],
                 expression_counts={},
                 alerts=["no_signals_received"],
             )
@@ -118,6 +124,9 @@ class WebcamSessionAnalyzer:
         happy_participant_ids = sorted(
             e.participant_id for e in evaluations if e.dominant_expression == "happy"
         )
+        suspected_cheating_participant_ids = sorted(
+            e.participant_id for e in evaluations if e.suspected_cheating
+        )
         expression_counts: dict[str, int] = {}
         for participant in evaluations:
             if participant.dominant_expression == "unknown":
@@ -135,6 +144,7 @@ class WebcamSessionAnalyzer:
             absent_participant_ids=absent_participant_ids,
             silhouette_participant_ids=silhouette_participant_ids,
             happy_participant_ids=happy_participant_ids,
+            suspected_cheating_participant_ids=suspected_cheating_participant_ids,
             expression_counts=expression_counts,
             alerts=class_alerts,
         )
@@ -161,6 +171,39 @@ class WebcamSessionAnalyzer:
             and signal.foreground_ratio >= self._policy.silhouette_foreground_threshold
             and signal.motion_score <= self._policy.silhouette_motion_threshold
         )
+        gaze_down_score = signal.gaze_down_score if signal.gaze_down_score is not None else 0.0
+        gaze_frontal = signal.gaze_frontal if signal.gaze_frontal is not None else 1.0
+        eyes_away = (
+            signal.face_count > 0
+            and (
+                gaze_down_score >= self._policy.gaze_down_min_threshold
+                or gaze_frontal < self._policy.gaze_frontal_min_threshold
+            )
+        )
+        if eyes_away:
+            if participant_state.gaze_away_started_ms is None:
+                participant_state.gaze_away_started_ms = signal.timestamp_ms
+        else:
+            participant_state.gaze_away_started_ms = None
+
+        eyes_away_for_ms = 0
+        if participant_state.gaze_away_started_ms is not None:
+            eyes_away_for_ms = max(
+                0, signal.timestamp_ms - participant_state.gaze_away_started_ms
+            )
+        long_eyes_away = eyes_away_for_ms >= self._policy.gaze_away_grace_ms
+        typing_active = (
+            signal.typing_activity_score is not None
+            and signal.typing_activity_score >= self._policy.typing_activity_min_threshold
+        )
+        suspected_cheating = long_eyes_away and (signal.phone_visible or typing_active)
+        cheating_reasons: list[str] = []
+        if long_eyes_away:
+            cheating_reasons.append("eyes_away_long")
+        if signal.phone_visible:
+            cheating_reasons.append("phone_visible")
+        if typing_active:
+            cheating_reasons.append("typing_activity_high")
 
         if silhouette_candidate:
             participant_state.silhouette_streak += 1
@@ -204,6 +247,13 @@ class WebcamSessionAnalyzer:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
         if dominant_expression != "unknown":
             alerts.append(f"expression:{signal.participant_id}:{dominant_expression}")
+        if long_eyes_away:
+            alerts.append(f"eyes_away_long:{signal.participant_id}")
+        if suspected_cheating:
+            alerts.append(
+                "potential_cheating:"
+                f"{signal.participant_id}:{'+'.join(sorted(cheating_reasons))}"
+            )
 
         return ParticipantEvaluation(
             participant_id=signal.participant_id,
@@ -212,9 +262,12 @@ class WebcamSessionAnalyzer:
             silhouette_streak=participant_state.silhouette_streak,
             face_count=signal.face_count,
             absent_for_ms=absent_for_ms,
+            eyes_away_for_ms=eyes_away_for_ms,
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
             dominant_expression=dominant_expression,
             expression_confidence=signal.expression_confidence,
+            suspected_cheating=suspected_cheating,
+            cheating_reasons=sorted(cheating_reasons),
             reason=reason,
             alerts=alerts,
         )
