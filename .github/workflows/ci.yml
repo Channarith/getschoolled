@@ -30,13 +30,14 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -e "packages/shared[test,harvest]"
           python3 -m pip install -e "packages/sdk[test]"
+          python3 -m pip install -e "packages/webcam-vision[test]"
           for pkg in services/orchestrator services/speech \
             services/perception services/memory services/curriculum \
             services/billing apps/agent-runtime; do
             python3 -m pip install -e "$pkg[test]"
           done
       - name: Run tests
-        run: python3 -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
+        run: python3 -m pytest packages/shared/tests packages/sdk/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests -q
 
   web:
     runs-on: ubuntu-latest

@@ -524,6 +524,7 @@ transcript all run without it.
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
+| `packages/webcam-vision` | Private: webcam image recognition for solo/group classes — silhouette + absence detection, presence state machine, Theodore/self-teaching policies, xAI Grok realtime voice agent client (`docs/webcam-vision.txt`) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
 | `services/curriculum` | Catalog, RAG, decks, jobs, homework, audio courses, notifications |
 | `services/identity` | Auth, students, rewards, profile sharing |
