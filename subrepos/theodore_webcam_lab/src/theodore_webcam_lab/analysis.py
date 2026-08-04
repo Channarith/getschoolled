@@ -48,6 +48,7 @@ class AnalyzerPolicy:
     gaze_down_min_threshold: float = 0.6
     typing_activity_min_threshold: float = 0.7
     keyboard_typing_audio_min_threshold: float = 0.65
+    pause_training_no_presence_ms: int = 4_000
 
 
 @dataclass
@@ -64,6 +65,7 @@ class WebcamSessionAnalyzer:
     def __init__(self, policy: AnalyzerPolicy | None = None) -> None:
         self._policy = policy or AnalyzerPolicy()
         self._state: dict[str, dict[str, _ParticipantState]] = {}
+        self._no_presence_started_ms: dict[str, int | None] = {}
 
     def evaluate(
         self,
@@ -84,6 +86,9 @@ class WebcamSessionAnalyzer:
                 happy_participant_ids=[],
                 keyboard_typing_audio_participant_ids=[],
                 suspected_cheating_participant_ids=[],
+                no_one_present_for_ms=0,
+                training_paused=False,
+                pause_reason="",
                 expression_counts={},
                 alerts=["no_signals_received"],
             )
@@ -106,6 +111,24 @@ class WebcamSessionAnalyzer:
                     motion_score=0.0,
                 )
             )
+
+        any_live_face_in_frame = any(
+            s.face_count > 0 and s.liveness_state.strip().lower() not in {"spoof", "fake"}
+            for s in signals
+        )
+        if any_live_face_in_frame:
+            self._no_presence_started_ms[session_id] = None
+            no_one_present_for_ms = 0
+        else:
+            started = self._no_presence_started_ms.get(session_id)
+            if started is None:
+                started = now_ms
+                self._no_presence_started_ms[session_id] = started
+            no_one_present_for_ms = max(0, now_ms - started)
+        training_paused = no_one_present_for_ms > self._policy.pause_training_no_presence_ms
+        pause_reason = "no_learner_detected_over_4s" if training_paused else ""
+        if training_paused:
+            class_alerts.append("training_paused:no_learner_detected_over_4s")
 
         evaluations: list[ParticipantEvaluation] = []
         for signal in sorted(signals, key=lambda item: item.participant_id):
@@ -151,6 +174,9 @@ class WebcamSessionAnalyzer:
             happy_participant_ids=happy_participant_ids,
             keyboard_typing_audio_participant_ids=keyboard_typing_audio_participant_ids,
             suspected_cheating_participant_ids=suspected_cheating_participant_ids,
+            no_one_present_for_ms=no_one_present_for_ms,
+            training_paused=training_paused,
+            pause_reason=pause_reason,
             expression_counts=expression_counts,
             alerts=class_alerts,
         )

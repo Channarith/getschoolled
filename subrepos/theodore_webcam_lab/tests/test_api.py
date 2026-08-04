@@ -256,3 +256,49 @@ def test_webcam_game_attempt_returns_404_for_unknown_challenge():
         },
     )
     assert resp.status_code == 404
+
+
+def test_webcam_api_pauses_training_after_no_presence_over_4_seconds():
+    first = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "pause-api-1",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "learner-p",
+                    "timestamp_ms": 2_000,
+                    "face_count": 0,
+                    "liveness_state": "missing",
+                    "foreground_ratio": 0.0,
+                    "motion_score": 0.0,
+                }
+            ],
+        },
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["training_paused"] is False
+
+    second = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "pause-api-1",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "learner-p",
+                    "timestamp_ms": 6_250,
+                    "face_count": 0,
+                    "liveness_state": "missing",
+                    "foreground_ratio": 0.0,
+                    "motion_score": 0.0,
+                }
+            ],
+        },
+    )
+    assert second.status_code == 200
+    second_body = second.json()
+    assert second_body["training_paused"] is True
+    assert second_body["pause_reason"] == "no_learner_detected_over_4s"
+    assert second_body["no_one_present_for_ms"] == 4_250

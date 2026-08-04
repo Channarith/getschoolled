@@ -66,6 +66,9 @@ class ClassEvaluation(BaseModel):
     happy_participant_ids: list[str]
     keyboard_typing_audio_participant_ids: list[str]
     suspected_cheating_participant_ids: list[str]
+    no_one_present_for_ms: int = Field(default=0, ge=0)
+    training_paused: bool = False
+    pause_reason: str = ""
     expression_counts: dict[str, int]
     alerts: list[str]
 

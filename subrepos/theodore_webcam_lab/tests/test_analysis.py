@@ -358,3 +358,44 @@ def test_keyboard_typing_audio_detection_flags_cheating_after_long_eyes_away():
     assert p.cheating_reasons == ["eyes_away_long", "keyboard_typing_audio"]
     assert second.keyboard_typing_audio_participant_ids == ["learner"]
     assert second.suspected_cheating_participant_ids == ["learner"]
+
+
+def test_training_pauses_when_no_learner_present_for_over_4_seconds():
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(pause_training_no_presence_ms=4_000)
+    )
+    session_id = "pause-1"
+    first = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=1_000,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+            )
+        ],
+    )
+    assert first.training_paused is False
+    assert first.no_one_present_for_ms == 0
+
+    second = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=5_001,
+                face_count=0,
+                liveness_state="missing",
+                foreground_ratio=0.0,
+                motion_score=0.0,
+            )
+        ],
+    )
+    assert second.training_paused is True
+    assert second.pause_reason == "no_learner_detected_over_4s"
+    assert second.no_one_present_for_ms == 4_001
