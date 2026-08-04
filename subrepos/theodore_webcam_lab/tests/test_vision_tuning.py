@@ -348,3 +348,13 @@ def test_imaging_analyze_endpoint():
         ).status_code
         == 422
     )
+
+
+def test_monitor_page_exposes_the_tuning_panel():
+    page = client.get("/theodore/webcam/live-monitor/tuning-demo")
+    assert page.status_code == 200
+    assert "Recognition Tuning" in page.text
+    assert 'id="preset"' in page.text
+    assert 'id="knobs"' in page.text
+    assert "sobel_binary_threshold" in page.text
+    assert "Failed gates (class)" in page.text

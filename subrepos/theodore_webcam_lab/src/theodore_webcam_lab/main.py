@@ -119,6 +119,11 @@ _MONITOR_CSS = """
     .kv { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
     progress { width: 100%; height: 9px; }
     .alerts li { margin-bottom: 6px; font-size: 12px; }
+    select, button, input[type=range] { font-size: 12px; }
+    button { cursor: pointer; background: #334155; color: #e2e8f0;
+             border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; }
+    .knob { display: grid; grid-template-columns: 1.5fr 2fr 0.6fr; gap: 6px;
+            align-items: center; font-size: 11px; margin: 2px 0; }
     canvas { width: 100%; height: 72px; background: #0b1220; border-radius: 6px; margin-top: 8px; }
 """
 
@@ -209,6 +214,12 @@ _MONITOR_JS = """
           <div class="v">${num(s.avg_noise_filter_effectiveness_score)}</div></div>
       `;
 
+      const gates = (data.quality_summary || {}).quality_flag_counts || {};
+      const gateText = Object.keys(gates).length
+        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ')
+        : 'none';
+      document.getElementById('gatecounts').textContent = gateText;
+
       const alerts = data.lesson_alerts || [];
       document.getElementById('alerts').innerHTML = alerts.length
         ? alerts.map(a => `<li><strong>[${esc(a.level)}]</strong> ${esc(a.message)} ` +
@@ -262,6 +273,89 @@ _MONITOR_JS = """
         );
       });
     }
+    // Knobs surfaced as live sliders: the ones operators reach for first when
+    // detection quality looks wrong in the room they are actually in.
+    const TUNABLE = [
+      ['light_min_quality', 0, 1, 0.01],
+      ['light_underexposed_luma', 0, 1, 0.01],
+      ['light_overexposed_luma', 0, 1, 0.01],
+      ['sobel_binary_threshold', 0, 1, 0.01],
+      ['sobel_min_edge_density', 0, 0.5, 0.005],
+      ['sharpness_min_quality', 0, 1, 0.01],
+      ['distance_reference_face_ratio', 0.02, 0.6, 0.01],
+      ['distance_too_far_m', 0.5, 4, 0.05],
+      ['gaze_down_min_threshold', 0, 1, 0.01],
+      ['typing_activity_min_threshold', 0, 1, 0.01],
+      ['keyboard_typing_audio_min_threshold', 0, 1, 0.01],
+      ['audio_min_mic_quality', 0, 1, 0.01],
+      ['audio_max_noise_level_db', 20, 100, 1],
+      ['audio_min_snr_db', 0, 40, 0.5],
+    ];
+
+    function setStatus(text) {
+      document.getElementById('tuning-status').textContent = text;
+    }
+
+    async function patchKnob(name, value) {
+      const res = await fetch('/api/theodore/vision/tuning', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ knobs: { [name]: Number(value) } }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        setStatus(`rejected: ${esc(detail.detail || res.status)}`);
+        return false;
+      }
+      setStatus(`${name} = ${value}`);
+      return true;
+    }
+
+    function renderKnobs(knobs) {
+      const host = document.getElementById('knobs');
+      host.innerHTML = TUNABLE.map(([name, min, max, step]) => `
+        <div class="knob">
+          <span title="${esc(name)}">${esc(name)}</span>
+          <input type="range" data-knob="${esc(name)}" min="${min}" max="${max}"
+                 step="${step}" value="${knobs[name]}" />
+          <strong data-knob-value="${esc(name)}">${knobs[name]}</strong>
+        </div>
+      `).join('');
+      host.querySelectorAll('input[data-knob]').forEach((input) => {
+        input.addEventListener('input', (event) => {
+          const name = event.target.dataset.knob;
+          const readout = host.querySelector(`[data-knob-value="${name}"]`);
+          if (readout) readout.textContent = event.target.value;
+        });
+        input.addEventListener('change', async (event) => {
+          await patchKnob(event.target.dataset.knob, event.target.value);
+        });
+      });
+    }
+
+    async function loadTuning() {
+      const res = await fetch('/api/theodore/vision/tuning', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const select = document.getElementById('preset');
+      if (!select.options.length) {
+        select.innerHTML = (data.presets || [])
+          .map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      }
+      renderKnobs(data.knobs || {});
+    }
+
+    document.getElementById('apply-preset').addEventListener('click', async () => {
+      const name = document.getElementById('preset').value;
+      const res = await fetch(
+        `/api/theodore/vision/tuning/preset/${encodeURIComponent(name)}`,
+        { method: 'POST' }
+      );
+      setStatus(res.ok ? `preset applied: ${name}` : `preset failed: ${res.status}`);
+      if (res.ok) await loadTuning();
+    });
+
+    loadTuning();
     refresh();
     setInterval(refresh, 1000);
 """
@@ -287,6 +381,17 @@ _MONITOR_PAGE_TEMPLATE = (
     <div class="panel">
       <h2>Lesson Alerts</h2>
       <ul class="alerts" id="alerts"></ul>
+      <h2 style="margin-top:12px;">Recognition Tuning</h2>
+      <div class="kv">
+        <span>Preset</span>
+        <span>
+          <select id="preset"></select>
+          <button id="apply-preset" type="button">Apply</button>
+        </span>
+      </div>
+      <div id="knobs"></div>
+      <div class="kv"><span>Failed gates (class)</span><strong id="gatecounts">-</strong></div>
+      <div class="kv"><span id="tuning-status"></span></div>
     </div>
   </div>
   <div class="panel" style="margin:0 12px 12px 12px;">

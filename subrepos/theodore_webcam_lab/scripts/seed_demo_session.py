@@ -31,11 +31,59 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8015"
 DEFAULT_SESSION_ID = "demo-session"
 
 
-def build_payload(*, session_id: str, step: int) -> dict:
+def build_payload(*, session_id: str, step: int, degraded: bool = False) -> dict:
     timestamp_ms = 10_000 + step * 1_000
     # Drop student-a's audio inputs entirely on every 3rd frame so the resulting
     # microphone-quality sample is genuinely absent rather than merely low.
     mic_present = step % 3 != 0
+    if degraded:
+        # Dim, soft-focus, noisy room: trips the lighting/sharpness/audio gates so
+        # tuning knobs visibly change the verdict.
+        return {
+            "session_id": session_id,
+            "mode": "group",
+            "expected_participant_ids": ["student-a", "student-b"],
+            "signals": [
+                {
+                    "participant_id": "student-a",
+                    "timestamp_ms": timestamp_ms,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.40,
+                    "motion_score": 0.2,
+                    "face_size_ratio": 0.085,
+                    "light_quality_score": 0.18,
+                    "mean_luminance": 0.12,
+                    "image_detection_confidence": 0.52,
+                    "sharpness_score": 0.14,
+                    "edge_density": 0.010,
+                    "expression_label": "neutral",
+                    "microphone_input_level_score": 0.28,
+                    "noise_filter_effectiveness_score": 0.30,
+                    "audio_noise_level_db": 66.0,
+                    "audio_snr_db": 6.0,
+                },
+                {
+                    "participant_id": "student-b",
+                    "timestamp_ms": timestamp_ms,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.35,
+                    "motion_score": 0.28,
+                    "face_size_ratio": 0.30,
+                    "light_quality_score": 0.90,
+                    "mean_luminance": 0.88,
+                    "image_detection_confidence": 0.80,
+                    "sharpness_score": 0.55,
+                    "edge_density": 0.12,
+                    "expression_label": "neutral",
+                    "microphone_input_level_score": 0.70,
+                    "noise_filter_effectiveness_score": 0.62,
+                    "audio_noise_level_db": 44.0,
+                    "audio_snr_db": 18.0,
+                },
+            ],
+        }
     return {
         "session_id": session_id,
         "mode": "group",
@@ -84,10 +132,12 @@ def build_payload(*, session_id: str, step: int) -> dict:
     }
 
 
-def post_frame(*, base_url: str, session_id: str, step: int) -> None:
+def post_frame(*, base_url: str, session_id: str, step: int, degraded: bool = False) -> None:
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/theodore/webcam/evaluate",
-        data=json.dumps(build_payload(session_id=session_id, step=step)).encode("utf-8"),
+        data=json.dumps(
+            build_payload(session_id=session_id, step=step, degraded=degraded)
+        ).encode("utf-8"),
         headers={"content-type": "application/json"},
         method="POST",
     )
@@ -101,6 +151,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--session-id", default=DEFAULT_SESSION_ID)
     parser.add_argument("--frames", type=int, default=60, help="Frames for a one-shot seed.")
     parser.add_argument(
+        "--degraded",
+        action="store_true",
+        help="Send dim/soft-focus/noisy frames so recognition quality gates fire.",
+    )
+    parser.add_argument(
         "--rolling",
         action="store_true",
         help="Keep posting one frame per second until interrupted.",
@@ -112,7 +167,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         for step in range(args.frames):
-            post_frame(base_url=args.base_url, session_id=args.session_id, step=step)
+            post_frame(
+                base_url=args.base_url,
+                session_id=args.session_id,
+                step=step,
+                degraded=args.degraded,
+            )
     except urllib.error.URLError as exc:
         print(f"Could not reach {args.base_url}: {exc.reason}")
         print("Start the lab API first (see subrepos/theodore_webcam_lab/README.txt).")
@@ -128,7 +188,12 @@ def main(argv: list[str] | None = None) -> int:
     step = args.frames
     try:
         while True:
-            post_frame(base_url=args.base_url, session_id=args.session_id, step=step)
+            post_frame(
+                base_url=args.base_url,
+                session_id=args.session_id,
+                step=step,
+                degraded=args.degraded,
+            )
             step += 1
             time.sleep(1)
     except KeyboardInterrupt:

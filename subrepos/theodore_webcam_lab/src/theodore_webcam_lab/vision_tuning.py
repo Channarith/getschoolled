@@ -226,14 +226,17 @@ PRESETS: dict[str, dict[str, Any]] = {
     "balanced": {},
     # Dim rooms / evening classes: tolerate darker frames and softer edges before
     # complaining, but demand a cleaner microphone to compensate.
+    # Dim rooms genuinely produce softer frames: longer exposure plus sensor
+    # denoising smooths fine detail, so the sharpness and edge gates have to relax
+    # far enough to accept a correctly-exposed dark room, not just a slightly dim one.
     "low_light": {
-        "light_underexposed_luma": 0.14,
-        "light_max_clipped_black_ratio": 0.30,
-        "light_min_quality": 0.25,
-        "sobel_binary_threshold": 0.12,
-        "sobel_min_edge_density": 0.022,
-        "sharpness_min_quality": 0.22,
-        "image_min_quality": 0.38,
+        "light_underexposed_luma": 0.08,
+        "light_max_clipped_black_ratio": 0.45,
+        "light_min_quality": 0.15,
+        "sobel_binary_threshold": 0.10,
+        "sobel_min_edge_density": 0.008,
+        "sharpness_min_quality": 0.12,
+        "image_min_quality": 0.35,
     },
     # Bright/backlit rooms: clamp down on blown highlights.
     "bright_room": {
