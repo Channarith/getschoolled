@@ -18,6 +18,8 @@ Feature scope
 - Webcam-audio transcript absorption for answer understanding + feedback
 - Webcam reinforcement games/challenges scored from live signals:
   focus streak, confidence smile, and integrity guard
+- Group-lesson student window monitoring with per-student intervention severity
+  and lesson alerts/messages for missing or cheating learners
 
 API highlights
 --------------

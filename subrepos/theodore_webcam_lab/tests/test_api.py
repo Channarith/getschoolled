@@ -139,6 +139,86 @@ def test_webcam_expression_api_returns_happy_summary():
     assert body["expression_counts"] == {"happy": 1, "neutral": 1}
 
 
+def test_group_webcam_api_returns_window_alerts_for_missing_and_cheating():
+    first = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "group-window-alert-api",
+            "mode": "group",
+            "signals": [
+                {
+                    "participant_id": "student-a",
+                    "timestamp_ms": 1_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                },
+                {
+                    "participant_id": "student-b",
+                    "timestamp_ms": 1_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                },
+                {
+                    "participant_id": "student-c",
+                    "timestamp_ms": 1_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                    "gaze_frontal": 0.1,
+                    "gaze_down_score": 0.9,
+                    "phone_visible": True,
+                },
+            ],
+            "expected_participant_ids": ["student-a", "student-b", "student-c"],
+        },
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "group-window-alert-api",
+            "mode": "group",
+            "signals": [
+                {
+                    "participant_id": "student-a",
+                    "timestamp_ms": 52_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                },
+                {
+                    "participant_id": "student-c",
+                    "timestamp_ms": 52_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.2,
+                    "gaze_frontal": 0.1,
+                    "gaze_down_score": 0.9,
+                    "phone_visible": True,
+                },
+            ],
+            "expected_participant_ids": ["student-a", "student-b", "student-c"],
+        },
+    )
+    assert second.status_code == 200
+    body = second.json()
+    windows = {item["participant_id"]: item for item in body["group_student_windows"]}
+    assert windows["student-b"]["needs_intervention"] is True
+    assert windows["student-c"]["suspected_cheating"] is True
+    codes = {alert["code"] for alert in body["lesson_alerts"]}
+    assert "group_intervention_required" in codes
+    assert "student_absent" in codes
+    assert "student_cheating_signal" in codes
+
+
 def test_webcam_api_flags_long_eyes_away_phone_typing_pattern():
     resp = client.post(
         "/api/theodore/webcam/evaluate",

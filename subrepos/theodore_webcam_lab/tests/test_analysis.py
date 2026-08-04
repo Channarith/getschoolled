@@ -115,6 +115,86 @@ def test_group_mode_marks_expected_missing_participants():
     assert second.absent_participant_ids == ["bob"]
 
 
+def test_group_mode_builds_student_window_alerts_for_cheating_and_missing():
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(absence_grace_ms=500, gaze_away_grace_ms=500)
+    )
+    session_id = "group-alerts-1"
+
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.GROUP,
+        signals=[
+            WebcamSignal(
+                participant_id="alice",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+            ),
+            WebcamSignal(
+                participant_id="bob",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+            ),
+            WebcamSignal(
+                participant_id="carol",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+                gaze_frontal=0.1,
+                gaze_down_score=0.9,
+                phone_visible=True,
+            ),
+        ],
+        expected_participant_ids=["alice", "bob", "carol"],
+    )
+
+    second = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.GROUP,
+        signals=[
+            WebcamSignal(
+                participant_id="alice",
+                timestamp_ms=1_700,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+            ),
+            WebcamSignal(
+                participant_id="carol",
+                timestamp_ms=1_700,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.3,
+                motion_score=0.2,
+                gaze_frontal=0.1,
+                gaze_down_score=0.9,
+                phone_visible=True,
+            ),
+        ],
+        expected_participant_ids=["alice", "bob", "carol"],
+    )
+    windows = {window.participant_id: window for window in second.group_student_windows}
+    assert windows["alice"].needs_intervention is False
+    assert windows["bob"].severity == "medium"
+    assert windows["bob"].needs_intervention is True
+    assert windows["carol"].severity == "high"
+    assert windows["carol"].suspected_cheating is True
+
+    alert_codes = {alert.code for alert in second.lesson_alerts}
+    assert "group_intervention_required" in alert_codes
+    assert "student_absent" in alert_codes
+    assert "student_cheating_signal" in alert_codes
+
+
 def test_silhouette_requires_95_percent_foreground_fill():
     analyzer = WebcamSessionAnalyzer(
         policy=AnalyzerPolicy(

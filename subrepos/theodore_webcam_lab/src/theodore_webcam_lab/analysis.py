@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from .types import (
     ClassEvaluation,
     ClassMode,
+    GroupStudentWindowStatus,
+    LessonAlert,
     ParticipantEvaluation,
     PresenceState,
     WebcamSignal,
@@ -198,6 +200,87 @@ class WebcamSessionAnalyzer:
             expression_counts[participant.dominant_expression] = (
                 expression_counts.get(participant.dominant_expression, 0) + 1
             )
+        group_student_windows: list[GroupStudentWindowStatus] = []
+        lesson_alerts: list[LessonAlert] = []
+        if mode is ClassMode.GROUP:
+            for index, participant in enumerate(evaluations, start=1):
+                severity = "none"
+                message = "Student window looks healthy."
+                needs_intervention = False
+                if participant.suspected_cheating:
+                    severity = "high"
+                    needs_intervention = True
+                    message = (
+                        "Possible cheating signals detected; privately message this learner."
+                    )
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="high",
+                            code="student_cheating_signal",
+                            participant_id=participant.participant_id,
+                            message=(
+                                f"Possible cheating signals for {participant.participant_id}."
+                            ),
+                            action="notify_student_privately_and_reinforce_integrity",
+                        )
+                    )
+                elif participant.state is PresenceState.ABSENT:
+                    severity = "medium"
+                    needs_intervention = True
+                    message = "Student appears absent; alert lesson and request rejoin."
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="medium",
+                            code="student_absent",
+                            participant_id=participant.participant_id,
+                            message=f"{participant.participant_id} is absent from the webcam.",
+                            action="alert_lesson_and_request_student_rejoin",
+                        )
+                    )
+                elif participant.state is PresenceState.TEMPORARILY_MISSING:
+                    severity = "low"
+                    needs_intervention = True
+                    message = "Student temporarily missing; watch this window."
+                    lesson_alerts.append(
+                        LessonAlert(
+                            level="low",
+                            code="student_temporarily_missing",
+                            participant_id=participant.participant_id,
+                            message=(
+                                f"{participant.participant_id} may have stepped away briefly."
+                            ),
+                            action="monitor_and_prompt_if_state_persists",
+                        )
+                    )
+                group_student_windows.append(
+                    GroupStudentWindowStatus(
+                        participant_id=participant.participant_id,
+                        window_index=index,
+                        state=participant.state,
+                        suspected_cheating=participant.suspected_cheating,
+                        needs_intervention=needs_intervention,
+                        severity=severity,
+                        message=message,
+                    )
+                )
+            intervention_count = sum(
+                1 for window in group_student_windows if window.needs_intervention
+            )
+            if intervention_count > 0:
+                lesson_alerts.insert(
+                    0,
+                    LessonAlert(
+                        level="medium",
+                        code="group_intervention_required",
+                        message=(
+                            f"{intervention_count} student window(s) need intervention."
+                        ),
+                        action="review_flagged_windows",
+                    ),
+                )
+                class_alerts.append(
+                    f"group_intervention_required:{intervention_count}_window(s)"
+                )
         for participant in evaluations:
             class_alerts.extend(participant.alerts)
 
@@ -216,6 +299,8 @@ class WebcamSessionAnalyzer:
             original_participant_id=original_participant_id,
             original_user_present=original_user_present,
             unexpected_participant_ids=unexpected_participant_ids,
+            group_student_windows=group_student_windows,
+            lesson_alerts=lesson_alerts,
             expression_counts=expression_counts,
             alerts=class_alerts,
         )

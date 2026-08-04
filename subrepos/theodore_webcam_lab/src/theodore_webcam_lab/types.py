@@ -57,6 +57,24 @@ class ParticipantEvaluation(BaseModel):
     alerts: list[str] = Field(default_factory=list)
 
 
+class GroupStudentWindowStatus(BaseModel):
+    participant_id: str
+    window_index: int = Field(ge=1)
+    state: PresenceState
+    suspected_cheating: bool = False
+    needs_intervention: bool = False
+    severity: str = "none"
+    message: str = ""
+
+
+class LessonAlert(BaseModel):
+    level: str
+    code: str
+    message: str
+    participant_id: str = ""
+    action: str = ""
+
+
 class ClassEvaluation(BaseModel):
     session_id: str
     mode: ClassMode
@@ -72,6 +90,8 @@ class ClassEvaluation(BaseModel):
     original_participant_id: str = ""
     original_user_present: bool = False
     unexpected_participant_ids: list[str] = Field(default_factory=list)
+    group_student_windows: list[GroupStudentWindowStatus] = Field(default_factory=list)
+    lesson_alerts: list[LessonAlert] = Field(default_factory=list)
     expression_counts: dict[str, int]
     alerts: list[str]
 
