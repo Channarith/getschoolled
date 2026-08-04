@@ -19,6 +19,14 @@ data:
   VISION_BASE_URL: "http://perception:8000"
   # CosyVoice 2 GPU TTS (vLLM-accelerated) in-cluster; see infra/k8s/cosyvoice.yaml.
   COSYVOICE_URL: "http://cosyvoice:9880"
+  # xAI Grok realtime voice agent (Theodore's natural voice in solo/group
+  # classes; packages/webcam-vision). Add XAI_API_KEY to aoep-secrets to enable;
+  # empty -> platform speech-chain fallback (ElevenLabs -> edge-tts -> device).
+  XAI_BASE_URL: "https://api.x.ai/v1"
+  XAI_REALTIME_URL: "wss://api.x.ai/v1/realtime"
+  XAI_VOICE_MODEL: "grok-voice-latest"
+  XAI_TEXT_MODEL: "grok-3-latest"
+  XAI_VOICE: "eve"
   # LiveKit Cloud project URL (managed — NOT the self-hosted infra/k8s/livekit.yaml
   # server, which is unused when on Cloud). The orchestrator stamps this URL into
   # every join token, so clients connect here. It MUST belong to the same LiveKit

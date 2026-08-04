@@ -165,6 +165,17 @@ class AppConfig(BaseModel):
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
     cosyvoice_url: str = ""
     cosyvoice_api_key: str = ""
+    # xAI Grok realtime voice agent (natural spoken communication for Theodore,
+    # the AI teacher). Server-side duplex audio over wss://api.x.ai/v1/realtime;
+    # browser/mobile clients get ephemeral tokens minted server-side so the API
+    # key never ships to a device. Empty key => callers fall back to the
+    # platform speech chain (ElevenLabs -> edge-tts -> on-device).
+    xai_api_key: str = ""
+    xai_base_url: str = "https://api.x.ai/v1"
+    xai_realtime_url: str = "wss://api.x.ai/v1/realtime"
+    xai_voice_model: str = "grok-voice-latest"
+    xai_text_model: str = "grok-3-latest"
+    xai_voice: str = "eve"
     # Embodiment: screen avatar (default) or a humanoid robot (Phases 14-15).
     embodiment: str = "screen"   # screen | robot
     robot_endpoint: str = ""
@@ -254,6 +265,12 @@ def load_config(
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
         cosyvoice_url=get("COSYVOICE_URL", ""),
         cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
+        xai_api_key=get_stripped("XAI_API_KEY", ""),
+        xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
+        xai_realtime_url=get("XAI_REALTIME_URL", "wss://api.x.ai/v1/realtime"),
+        xai_voice_model=get("XAI_VOICE_MODEL", "grok-voice-latest"),
+        xai_text_model=get("XAI_TEXT_MODEL", "grok-3-latest"),
+        xai_voice=get("XAI_VOICE", "eve"),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
         embodiment=get("EMBODIMENT", "screen"),
         robot_endpoint=get("ROBOT_ENDPOINT", ""),
