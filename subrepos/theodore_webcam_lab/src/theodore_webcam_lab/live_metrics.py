@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from .types import (
     ClassEvaluation,
     LiveSessionMetricsResponse,
-    ParticipantMetricSeries,
     ParticipantEvaluation,
+    ParticipantMetricSeries,
 )
 
 
@@ -25,11 +25,23 @@ class _MetricPoint:
 class LiveMetricsStore:
     """Keeps rolling participant quality metrics for live charting."""
 
-    def __init__(self, max_points: int = 120) -> None:
+    def __init__(self, max_points: int = 120, max_sessions: int = 512) -> None:
         self._max_points = max_points
+        self._max_sessions = max(1, max_sessions)
         self._history: dict[str, dict[str, deque[_MetricPoint]]] = {}
         self._last_eval: dict[str, ClassEvaluation] = {}
         self._last_updated_ms: dict[str, int] = {}
+
+    def _evict_stale_sessions(self, session_id: str) -> None:
+        """Keep the most recently updated sessions only, so memory stays bounded."""
+        for store in (self._history, self._last_eval, self._last_updated_ms):
+            if session_id in store:
+                store[session_id] = store.pop(session_id)
+        while len(self._history) > self._max_sessions:
+            oldest = next(iter(self._history))
+            self._history.pop(oldest, None)
+            self._last_eval.pop(oldest, None)
+            self._last_updated_ms.pop(oldest, None)
 
     def record(
         self, *, session_id: str, evaluation: ClassEvaluation, updated_at_ms: int
@@ -52,10 +64,16 @@ class LiveMetricsStore:
             )
         self._last_eval[session_id] = evaluation
         self._last_updated_ms[session_id] = updated_at_ms
+        self._evict_stale_sessions(session_id)
 
     @staticmethod
-    def _series(values: list[float | None]) -> list[float]:
-        return [round(v, 4) for v in values if v is not None]
+    def _series(values: list[float | None]) -> list[float | None]:
+        """Keep one entry per recorded frame so every series lines up with timestamps_ms.
+
+        Missing samples stay None (rendered as a gap) instead of being dropped, which
+        would shift later points onto the wrong timestamp in the charts.
+        """
+        return [None if value is None else round(value, 4) for value in values]
 
     @staticmethod
     def _window_index_for(

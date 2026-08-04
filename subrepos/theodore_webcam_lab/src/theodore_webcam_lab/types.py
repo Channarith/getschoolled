@@ -130,13 +130,14 @@ class ClassEvaluation(BaseModel):
 class ParticipantMetricSeries(BaseModel):
     participant_id: str
     window_index: int = Field(ge=1)
+    # Every series is index-aligned with timestamps_ms; None marks a missing sample.
     timestamps_ms: list[int] = Field(default_factory=list)
-    distance_from_camera_m: list[float] = Field(default_factory=list)
-    light_quality_score: list[float] = Field(default_factory=list)
-    image_detection_quality_score: list[float] = Field(default_factory=list)
-    expression_behavior_score: list[float] = Field(default_factory=list)
-    microphone_quality_score: list[float] = Field(default_factory=list)
-    noise_filter_effectiveness_score: list[float] = Field(default_factory=list)
+    distance_from_camera_m: list[float | None] = Field(default_factory=list)
+    light_quality_score: list[float | None] = Field(default_factory=list)
+    image_detection_quality_score: list[float | None] = Field(default_factory=list)
+    expression_behavior_score: list[float | None] = Field(default_factory=list)
+    microphone_quality_score: list[float | None] = Field(default_factory=list)
+    noise_filter_effectiveness_score: list[float | None] = Field(default_factory=list)
     latest: ParticipantEvaluation
 
 

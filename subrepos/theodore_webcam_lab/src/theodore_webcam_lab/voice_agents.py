@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -75,6 +76,8 @@ class XaiVoiceAgent:
         fast_timeout_s: float = 6.0,
         cache_ttl_s: float = 20.0,
         max_history_turns: int = 4,
+        max_cache_entries: int = 512,
+        max_tracked_sessions: int = 512,
     ) -> None:
         self._api_key = (api_key or "").strip()
         self._base_url = base_url.rstrip("/")
@@ -84,11 +87,13 @@ class XaiVoiceAgent:
         self._fast_timeout_s = fast_timeout_s
         self._cache_ttl_ms = int(max(1.0, cache_ttl_s) * 1000)
         self._max_history_turns = max(1, max_history_turns)
+        self._max_cache_entries = max(1, max_cache_entries)
+        self._max_tracked_sessions = max(1, max_tracked_sessions)
         self._response_cache: dict[str, _CachedResponse] = {}
         self._session_history: dict[str, list[dict[str, str]]] = {}
 
     @classmethod
-    def from_env(cls) -> "XaiVoiceAgent":
+    def from_env(cls) -> XaiVoiceAgent:
         return cls(
             api_key=os.environ.get("XAI_API_KEY", ""),
             base_url=os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1"),
@@ -98,6 +103,8 @@ class XaiVoiceAgent:
             fast_timeout_s=float(os.environ.get("XAI_FAST_TIMEOUT_S", "6")),
             cache_ttl_s=float(os.environ.get("XAI_CACHE_TTL_S", "20")),
             max_history_turns=int(os.environ.get("XAI_MAX_HISTORY_TURNS", "4")),
+            max_cache_entries=int(os.environ.get("XAI_MAX_CACHE_ENTRIES", "512")),
+            max_tracked_sessions=int(os.environ.get("XAI_MAX_TRACKED_SESSIONS", "512")),
         )
 
     @staticmethod
@@ -121,6 +128,7 @@ class XaiVoiceAgent:
         session_key = self._normalize_text(session_id)
         history = self._history_for_session(session_key)
         cache_key = self._build_cache_key(
+            session_id=session_key,
             learner_text=learner_text,
             class_mode=class_mode,
             language=language.code,
@@ -130,6 +138,9 @@ class XaiVoiceAgent:
         )
         cached = self._get_cached(cache_key, now_ms=started_ms)
         if cached is not None:
+            # A cached reply is still a real conversational turn: record it so the
+            # session keeps a faithful history instead of silently skipping a turn.
+            self._remember_turn(session_key, learner_text, cached.message)
             return VoiceResponse(
                 provider=cached.provider,
                 message=cached.message,
@@ -151,7 +162,6 @@ class XaiVoiceAgent:
         if not self._api_key:
             response = self._fallback_response(
                 learner_message=learner_text,
-                language_code=language.code,
                 language_name=language.name,
                 latency_ms=self._elapsed_ms(started_ms),
             )
@@ -175,7 +185,6 @@ class XaiVoiceAgent:
         if not message:
             response = self._fallback_response(
                 learner_message=learner_text,
-                language_code=language.code,
                 language_name=language.name,
                 latency_ms=self._elapsed_ms(started_ms),
             )
@@ -367,11 +376,17 @@ class XaiVoiceAgent:
         bucket.append({"role": "assistant", "content": assistant_message})
         max_messages = self._max_history_turns * 2
         if len(bucket) > max_messages:
-            self._session_history[session_id] = bucket[-max_messages:]
+            bucket = bucket[-max_messages:]
+        # Re-insert so this session counts as most-recently used for eviction.
+        self._session_history.pop(session_id, None)
+        self._session_history[session_id] = bucket
+        while len(self._session_history) > self._max_tracked_sessions:
+            self._session_history.pop(next(iter(self._session_history)), None)
 
     @staticmethod
     def _build_cache_key(
         *,
+        session_id: str,
         learner_text: str,
         class_mode: ClassMode,
         language: str,
@@ -380,6 +395,8 @@ class XaiVoiceAgent:
         history: list[dict[str, str]],
     ) -> str:
         payload = {
+            # Scoped per session so one learner never receives another learner's reply.
+            "session_id": session_id,
             "learner_text": learner_text,
             "class_mode": class_mode.value,
             "language": language,
@@ -387,10 +404,9 @@ class XaiVoiceAgent:
             "fast_mode": fast_mode,
             "history": history,
         }
-        digest = hashlib.sha256(
+        return hashlib.sha256(
             json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
         ).hexdigest()
-        return digest
 
     def _get_cached(self, key: str, *, now_ms: int) -> _CachedResponse | None:
         row = self._response_cache.get(key)
@@ -409,6 +425,19 @@ class XaiVoiceAgent:
             communication_style=response.communication_style,
             created_ms=now_ms,
         )
+        self._prune_cache(now_ms=now_ms)
+
+    def _prune_cache(self, *, now_ms: int) -> None:
+        """Drop expired entries eagerly, then cap the cache so it cannot grow forever."""
+        expired = [
+            key
+            for key, row in self._response_cache.items()
+            if now_ms - row.created_ms > self._cache_ttl_ms
+        ]
+        for key in expired:
+            self._response_cache.pop(key, None)
+        while len(self._response_cache) > self._max_cache_entries:
+            self._response_cache.pop(next(iter(self._response_cache)), None)
 
     def _build_prompt(
         self,
@@ -480,7 +509,8 @@ class XaiVoiceAgent:
         user = (
             f"Language code: {language.code} ({language.name}). "
             f"Class mode: {mode_text}. Question: {question}. "
-            f"Learner transcript: {transcript}. Expected answer: {expected_answer or 'not provided'}. "
+            f"Learner transcript: {transcript}. "
+            f"Expected answer: {expected_answer or 'not provided'}. "
             f"Context: {context.strip() or 'none'}."
         )
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
@@ -506,10 +536,8 @@ class XaiVoiceAgent:
                 raw = response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             detail = ""
-            try:
+            with contextlib.suppress(Exception):
                 detail = exc.read().decode("utf-8", errors="replace")[:200]
-            except Exception:
-                pass
             raise XaiVoiceAgentError(f"xAI HTTP {exc.code}: {detail}") from exc
         except urllib.error.URLError as exc:
             raise XaiVoiceAgentError(f"xAI unreachable: {exc.reason}") from exc
@@ -561,7 +589,6 @@ class XaiVoiceAgent:
     def _fallback_response(
         *,
         learner_message: str,
-        language_code: str,
         language_name: str,
         latency_ms: int = 0,
     ) -> VoiceResponse:
@@ -571,8 +598,8 @@ class XaiVoiceAgent:
         return VoiceResponse(
             provider="local-fallback",
             message=(
-                f"[{language_name}] I hear you. We'll break this into one step at a time, then I will "
-                f"check understanding after each step. First focus: {cleaned}"
+                f"[{language_name}] I hear you. We'll break this into one step at a time, "
+                f"then I will check understanding after each step. First focus: {cleaned}"
             ),
             communication_style="natural_conversational_realtime",
             fallback_used=True,

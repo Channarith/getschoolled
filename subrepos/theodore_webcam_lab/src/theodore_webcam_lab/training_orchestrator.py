@@ -18,7 +18,7 @@ class TrainingTask:
     enabled: bool = True
 
     @classmethod
-    def from_dict(cls, raw: dict[str, object]) -> "TrainingTask":
+    def from_dict(cls, raw: dict[str, object]) -> TrainingTask:
         task_id = str(raw.get("task_id", "")).strip()
         description = str(raw.get("description", "")).strip()
         command_raw = raw.get("command", [])
@@ -52,7 +52,7 @@ class Runbook:
     tasks: list[TrainingTask]
 
     @classmethod
-    def from_dict(cls, raw: dict[str, object]) -> "Runbook":
+    def from_dict(cls, raw: dict[str, object]) -> Runbook:
         loop_sleep_seconds = int(raw.get("loop_sleep_seconds", 30))
         if loop_sleep_seconds <= 0:
             raise ValueError("loop_sleep_seconds must be > 0")
@@ -187,7 +187,12 @@ def run_forever(
 ) -> int:
     runbook = load_runbook(runbook_path)
     state = load_state(state_path)
-    loop_sleep = sleep_override_seconds or runbook.loop_sleep_seconds
+    # 0 is a legitimate override (tight loop), so test for None rather than falsiness.
+    loop_sleep = (
+        sleep_override_seconds
+        if sleep_override_seconds is not None
+        else runbook.loop_sleep_seconds
+    )
     count = 0
     while True:
         now_ms = int(time.time() * 1000)

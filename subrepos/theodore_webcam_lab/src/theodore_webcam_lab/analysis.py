@@ -52,6 +52,8 @@ class AnalyzerPolicy:
     typing_activity_min_threshold: float = 0.7
     keyboard_typing_audio_min_threshold: float = 0.65
     pause_training_no_presence_ms: int = 4_000
+    # Caps retained per-session state so a long-lived server cannot grow without bound.
+    max_tracked_sessions: int = 512
 
 
 @dataclass
@@ -70,6 +72,18 @@ class WebcamSessionAnalyzer:
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
         self._original_participant_id: dict[str, str] = {}
+
+    def _touch_session(self, session_id: str) -> None:
+        """Mark a session as most-recently used and evict the oldest ones past the cap."""
+        for store in (self._state, self._no_presence_started_ms, self._original_participant_id):
+            if session_id in store:
+                store[session_id] = store.pop(session_id)
+        limit = max(1, self._policy.max_tracked_sessions)
+        while len(self._state) > limit:
+            oldest = next(iter(self._state))
+            self._state.pop(oldest, None)
+            self._no_presence_started_ms.pop(oldest, None)
+            self._original_participant_id.pop(oldest, None)
 
     @staticmethod
     def _clamp01(value: float) -> float:
@@ -121,6 +135,9 @@ class WebcamSessionAnalyzer:
         expected_participant_ids: list[str] | None = None,
     ) -> ClassEvaluation:
         expected = {p.strip() for p in (expected_participant_ids or []) if p.strip()}
+        # Never mutate the caller's list: synthetic "missing" heartbeats are appended below,
+        # and callers legitimately reuse the same list across evaluate() calls.
+        signals = list(signals)
         if not signals and not expected:
             return ClassEvaluation(
                 session_id=session_id,
@@ -185,17 +202,29 @@ class WebcamSessionAnalyzer:
                 if s.face_count > 0 and s.liveness_state.strip().lower() not in {"spoof", "fake"}
             }
         )
-        original_participant_id = self._original_participant_id.get(session_id, "")
-        if not original_participant_id and live_present_ids:
-            original_participant_id = live_present_ids[0]
-            self._original_participant_id[session_id] = original_participant_id
-
-        original_user_present = bool(
-            original_participant_id and original_participant_id in live_present_ids
-        )
-        unexpected_participant_ids = sorted(
-            [pid for pid in live_present_ids if pid != original_participant_id]
-        )
+        # The original-learner lock is a solo-session concept. In a group class every
+        # enrolled classmate is legitimate, so locking onto the first face seen would
+        # wrongly report the rest of the class as unexpected intruders.
+        if mode is ClassMode.SOLO:
+            original_participant_id = self._original_participant_id.get(session_id, "")
+            if not original_participant_id and live_present_ids:
+                original_participant_id = live_present_ids[0]
+                self._original_participant_id[session_id] = original_participant_id
+            original_user_present = bool(
+                original_participant_id and original_participant_id in live_present_ids
+            )
+            unexpected_participant_ids = sorted(
+                pid for pid in live_present_ids if pid != original_participant_id
+            )
+        else:
+            original_participant_id = ""
+            original_user_present = bool(live_present_ids)
+            # Only a roster (expected_participant_ids) can define who is unexpected here.
+            unexpected_participant_ids = (
+                sorted(pid for pid in live_present_ids if pid not in expected)
+                if expected
+                else []
+            )
         if (
             mode is ClassMode.SOLO
             and original_participant_id
@@ -209,6 +238,9 @@ class WebcamSessionAnalyzer:
                 class_alerts.append(
                     "unexpected_user_present:" + ",".join(unexpected_participant_ids)
                 )
+
+        self._state.setdefault(session_id, {})
+        self._touch_session(session_id)
 
         evaluations: list[ParticipantEvaluation] = []
         for signal in sorted(signals, key=lambda item: item.participant_id):
@@ -458,8 +490,14 @@ class WebcamSessionAnalyzer:
         image_detection_quality_score = self._clamp01(
             0.6 * detection_confidence + 0.4 * (1.0 if has_live_face else 0.35)
         )
+        if dominant_expression == "happy":
+            expression_component = 0.35
+        elif dominant_expression != "unknown":
+            expression_component = 0.2
+        else:
+            expression_component = 0.1
         expression_behavior_score = self._clamp01(
-            (0.35 if dominant_expression == "happy" else 0.2 if dominant_expression != "unknown" else 0.1)
+            expression_component
             + (0.35 if not long_eyes_away else 0.0)
             + (0.30 if not suspected_cheating else 0.0)
         )
