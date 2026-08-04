@@ -14,6 +14,12 @@ Public surface:
 from .engagement import EngagementSignals, GestureRecognizer, estimate_engagement
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
+from .silhouette import (
+    SilhouetteDetection,
+    SilhouetteSignals,
+    estimate_body_presence,
+    fuse_face_and_silhouette,
+)
 
 __all__ = [
     "DetectedFace",
@@ -23,4 +29,8 @@ __all__ = [
     "EngagementSignals",
     "GestureRecognizer",
     "estimate_engagement",
+    "SilhouetteDetection",
+    "SilhouetteSignals",
+    "estimate_body_presence",
+    "fuse_face_and_silhouette",
 ]

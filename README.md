@@ -522,6 +522,7 @@ transcript all run without it.
 | `apps/web` | Next.js web app and admin/user surfaces |
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
+| `labs/webcam-recognition` | Private lab: webcam recognition, silhouette/absence, Theodore + xAI voice (solo/group) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
