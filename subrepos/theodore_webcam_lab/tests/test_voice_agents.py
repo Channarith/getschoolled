@@ -54,12 +54,10 @@ def test_respond_uses_short_ttl_cache_for_repeated_turn(monkeypatch):
     first = agent.respond(
         learner_message="Explain photosynthesis quickly",
         class_mode=ClassMode.SOLO,
-        session_id="session-1",
     )
     second = agent.respond(
         learner_message="Explain photosynthesis quickly",
         class_mode=ClassMode.SOLO,
-        session_id="session-1",
     )
     assert first.message == "Fast response."
     assert second.message == "Fast response."
