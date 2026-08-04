@@ -10,6 +10,7 @@ from theodore_webcam_lab.imaging import analyze_luminance_grid
 from theodore_webcam_lab.main import app
 from theodore_webcam_lab.types import ClassMode, WebcamSignal
 from theodore_webcam_lab.vision_tuning import PRESETS, VisionTuning
+from theodore_webcam_lab.voice_agents import XaiVoiceAgent
 
 client = TestClient(app)
 
@@ -350,11 +351,110 @@ def test_imaging_analyze_endpoint():
     )
 
 
-def test_monitor_page_exposes_the_tuning_panel():
+def test_monitor_page_shows_camera_and_tuning_together():
+    """The camera feed and the knobs must be on screen at the same time."""
     page = client.get("/theodore/webcam/live-monitor/tuning-demo")
     assert page.status_code == 200
-    assert "Recognition Tuning" in page.text
-    assert 'id="preset"' in page.text
-    assert 'id="knobs"' in page.text
+    # Camera panel
+    assert '<video id="cam"' in page.text
+    assert 'id="cam-start"' in page.text
+    assert 'id="cam-pattern"' in page.text
+    # Compact, scrollable tuning panel with both knob sets
+    assert 'class="stage"' in page.text
+    assert 'class="knobscroll"' in page.text
+    assert 'id="tab-vision"' in page.text
+    assert 'id="tab-voice"' in page.text
     assert "sobel_binary_threshold" in page.text
+    assert "reply_temperature_fast" in page.text
     assert "Failed gates (class)" in page.text
+
+
+# -------------------------------------------------------------- voice tuning
+def test_voice_tuning_defaults_env_and_presets():
+    from theodore_webcam_lab.voice_tuning import PRESETS as VOICE_PRESETS
+    from theodore_webcam_lab.voice_tuning import VoiceTuning
+
+    default = VoiceTuning()
+    assert default.reply_max_sentences == 2
+    assert VoiceTuning(**default.to_dict()) == default
+
+    from_env = VoiceTuning.from_env(
+        {"XAI_TUNE_REPLY_TEMPERATURE_FAST": "0.9", "XAI_TUNE_REPLY_MAX_SENTENCES": "4"}
+    )
+    assert from_env.reply_temperature_fast == 0.9
+    assert from_env.reply_max_sentences == 4
+
+    for name in VOICE_PRESETS:
+        VoiceTuning.preset(name).validate()
+    assert VoiceTuning.preset("snappy").reply_max_sentences == 1
+    assert VoiceTuning.preset("thorough").max_history_turns == 8
+
+    with pytest.raises(ValueError, match="between 0.0 and 2.0"):
+        VoiceTuning(reply_temperature_fast=3.0)
+    with pytest.raises(ValueError, match="at least 16 tokens"):
+        VoiceTuning(reply_max_tokens_fast=4)
+    with pytest.raises(ValueError, match="must not exceed"):
+        VoiceTuning(fast_timeout_s=30.0, full_timeout_s=10.0)
+
+
+def test_voice_tuning_actually_drives_the_request_payload(monkeypatch):
+    """Temperature/token budget were hardcoded before; they must follow the knobs."""
+    from theodore_webcam_lab.voice_tuning import VoiceTuning
+
+    agent = XaiVoiceAgent(api_key="test-key")
+    agent.tuning = VoiceTuning(
+        reply_temperature_fast=0.11, reply_max_tokens_fast=77, reply_max_sentences=5
+    )
+    seen: dict[str, object] = {}
+
+    def _fake_transport(payload: dict, *, timeout_s=None) -> dict:
+        seen.update(payload)
+        seen["timeout_s"] = timeout_s
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setattr(agent, "_transport", _fake_transport)
+    agent.respond(learner_message="hi", class_mode=ClassMode.SOLO, fast_mode=True)
+    assert seen["temperature"] == 0.11
+    assert seen["max_tokens"] == 77
+    system_prompt = seen["messages"][0]["content"]
+    assert "at most 5 short sentence" in system_prompt
+
+
+def test_voice_tuning_endpoints():
+    baseline = client.get("/api/theodore/voice/tuning")
+    assert baseline.status_code == 200
+    body = baseline.json()
+    assert "reply_temperature_fast" in body["knobs"]
+    assert body["env_prefix"] == "XAI_TUNE_"
+    assert "snappy" in body["presets"]
+    assert set(body["model"]) == {"fast", "full"}
+
+    patched = client.patch(
+        "/api/theodore/voice/tuning", json={"knobs": {"reply_max_sentences": 3}}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["knobs"]["reply_max_sentences"] == 3
+
+    assert (
+        client.patch(
+            "/api/theodore/voice/tuning", json={"knobs": {"reply_temperature_fast": 9}}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.patch("/api/theodore/voice/tuning", json={"knobs": {"nope": 1}}).status_code
+        == 422
+    )
+
+    assert client.post("/api/theodore/voice/tuning/preset/snappy").status_code == 200
+    assert client.post("/api/theodore/voice/tuning/preset/nope").status_code == 404
+    assert client.post("/api/theodore/voice/tuning/preset/balanced").status_code == 200
+
+
+def test_voice_preset_applies_to_live_agent_timeouts():
+    from theodore_webcam_lab.voice_tuning import VoiceTuning
+
+    agent = XaiVoiceAgent(api_key="")
+    agent.tuning = VoiceTuning.preset("snappy")
+    assert agent._fast_timeout_s == 4.0
+    assert agent._max_history_turns == VoiceTuning.preset("snappy").max_history_turns

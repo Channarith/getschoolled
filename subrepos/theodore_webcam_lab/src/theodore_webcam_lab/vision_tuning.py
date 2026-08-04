@@ -24,9 +24,10 @@ Named presets give a fast starting point for common rooms; see PRESETS.
 
 from __future__ import annotations
 
-import os
-from dataclasses import asdict, dataclass, fields, replace
+from dataclasses import asdict, dataclass
 from typing import Any
+
+from .tuning_base import env_overrides, patch_knobs
 
 _ENV_PREFIX = "AOEP_VISION_"
 
@@ -179,27 +180,11 @@ class VisionTuning:
 
     def patched(self, overrides: dict[str, Any]) -> VisionTuning:
         """Return a new tuning with `overrides` applied (validated)."""
-        known = {f.name: f for f in fields(self)}
-        unknown = sorted(set(overrides) - set(known))
-        if unknown:
-            raise ValueError(f"Unknown tuning knob(s): {', '.join(unknown)}")
-        coerced: dict[str, Any] = {}
-        for key, raw in overrides.items():
-            if raw is None:
-                continue
-            coerced[key] = _coerce(known[key].type, raw, key)
-        return replace(self, **coerced)
+        return patch_knobs(self, overrides)
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> VisionTuning:
-        env = os.environ if environ is None else environ
-        overrides: dict[str, Any] = {}
-        for field in fields(cls):
-            raw = env.get(_ENV_PREFIX + field.name.upper())
-            if raw is None or not str(raw).strip():
-                continue
-            overrides[field.name] = _coerce(field.type, raw, field.name)
-        return cls(**overrides)
+        return cls(**env_overrides(cls, _ENV_PREFIX, environ))
 
     @classmethod
     def preset(cls, name: str) -> VisionTuning:
@@ -208,16 +193,6 @@ class VisionTuning:
             available = ", ".join(sorted(PRESETS))
             raise ValueError(f"Unknown preset '{name}'. Available: {available}")
         return cls(**PRESETS[key])
-
-
-def _coerce(declared_type: Any, raw: Any, field_name: str) -> Any:
-    """Coerce an env string / JSON value to the field's declared type."""
-    wants_int = declared_type is int or declared_type == "int"
-    try:
-        return int(raw) if wants_int else float(raw)
-    except (TypeError, ValueError) as exc:
-        kind = "an integer" if wants_int else "a number"
-        raise ValueError(f"{field_name} must be {kind} (got {raw!r})") from exc
 
 
 # Presets are partial: unspecified knobs keep their default.

@@ -10,6 +10,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from .voice_tuning import VoiceTuning
 from .types import (
     AudioAnswerAssessment,
     ClassMode,
@@ -78,7 +79,9 @@ class XaiVoiceAgent:
         max_history_turns: int = 4,
         max_cache_entries: int = 512,
         max_tracked_sessions: int = 512,
+        tuning: VoiceTuning | None = None,
     ) -> None:
+        self._tuning = tuning or VoiceTuning()
         self._api_key = (api_key or "").strip()
         self._base_url = base_url.rstrip("/")
         self._model = model
@@ -105,7 +108,30 @@ class XaiVoiceAgent:
             max_history_turns=int(os.environ.get("XAI_MAX_HISTORY_TURNS", "4")),
             max_cache_entries=int(os.environ.get("XAI_MAX_CACHE_ENTRIES", "512")),
             max_tracked_sessions=int(os.environ.get("XAI_MAX_TRACKED_SESSIONS", "512")),
+            tuning=VoiceTuning.from_env(),
         )
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    @property
+    def fast_model(self) -> str:
+        return self._fast_model
+
+    @property
+    def tuning(self) -> VoiceTuning:
+        return self._tuning
+
+    @tuning.setter
+    def tuning(self, value: VoiceTuning) -> None:
+        self._tuning = value
+        # Timing knobs are read through the tuning object so a live PATCH applies
+        # to the very next turn instead of only to newly constructed agents.
+        self._fast_timeout_s = value.fast_timeout_s
+        self._timeout_s = value.full_timeout_s
+        self._cache_ttl_ms = int(max(1.0, value.cache_ttl_s) * 1000)
+        self._max_history_turns = max(1, value.max_history_turns)
 
     @staticmethod
     def supported_languages() -> list[SupportedLanguage]:
@@ -168,11 +194,16 @@ class XaiVoiceAgent:
             self._remember_turn(session_key, learner_text, response.message)
             return response
 
+        tuning = self._tuning
         payload = {
             "model": self._fast_model if fast_mode else self._model,
             "messages": prompt,
-            "temperature": 0.45 if fast_mode else 0.55,
-            "max_tokens": 140 if fast_mode else 240,
+            "temperature": (
+                tuning.reply_temperature_fast if fast_mode else tuning.reply_temperature_full
+            ),
+            "max_tokens": (
+                tuning.reply_max_tokens_fast if fast_mode else tuning.reply_max_tokens_full
+            ),
             "stream": False,
         }
         try:
@@ -228,8 +259,8 @@ class XaiVoiceAgent:
             payload = {
                 "model": self._model,
                 "messages": prompt,
-                "temperature": 0.6,
-                "max_tokens": 280,
+                "temperature": self._tuning.question_temperature,
+                "max_tokens": self._tuning.question_max_tokens,
                 "stream": False,
                 "response_format": {"type": "json_object"},
             }
@@ -299,8 +330,8 @@ class XaiVoiceAgent:
             payload = {
                 "model": self._model,
                 "messages": prompt,
-                "temperature": 0.4,
-                "max_tokens": 320,
+                "temperature": self._tuning.assessment_temperature,
+                "max_tokens": self._tuning.assessment_max_tokens,
                 "stream": False,
                 "response_format": {"type": "json_object"},
             }
@@ -456,7 +487,8 @@ class XaiVoiceAgent:
             "You are Theodore, an educational AI teacher. Reply in clear, warm "
             "speech-ready language that sounds natural when spoken aloud. "
             f"Always reply in {language.name} (code: {language.code}). "
-            "Keep feedback actionable and concise in 1-2 short sentences unless asked for more."
+            "Keep feedback actionable and concise in at most "
+            f"{self._tuning.reply_max_sentences} short sentence(s) unless asked for more."
         )
         mode_text = "group class" if class_mode is ClassMode.GROUP else "solo session"
         user_parts = [
