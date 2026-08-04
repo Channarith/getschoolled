@@ -249,15 +249,10 @@ export function getNotificationsFeed(opts: {
 }
 
 export async function getHomeRails(kids = false, locale?: string): Promise<HomeRail[]> {
-  try {
-    const p = new URLSearchParams({ kids: kids ? "true" : "false" });
-    if (locale) p.set("locale", locale);
-    const r = await get<{ rails: HomeRail[] }>(
-      CURRICULUM_URL, `/home?${p.toString()}`);
-    return r.rails || [];
-  } catch {
-    return [];
-  }
+  const p = new URLSearchParams({ kids: kids ? "true" : "false" });
+  if (locale) p.set("locale", locale);
+  const r = await get<{ rails: HomeRail[] }>(CURRICULUM_URL, `/home?${p.toString()}`);
+  return r.rails || [];
 }
 
 export function searchLearnable(params: Record<string, string> = {}) {

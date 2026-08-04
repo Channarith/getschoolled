@@ -1614,6 +1614,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setMicNote("No microphone found — check your device, or type your question below.");
         intentionalStop = true;
         stopListening();
+      } else if (code !== "no-speech" && code !== "aborted") {
+        // network / service-unavailable / bad-grammar / language-not-supported:
+        // non-transient — stop rather than loop.
+        intentionalStop = true;
+        stopListening();
       }
       // "no-speech"/"aborted" are transient — onend will auto-restart below.
     };

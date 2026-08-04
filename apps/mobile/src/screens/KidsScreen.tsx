@@ -5,8 +5,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 import { getHomeRails, type HomeRail } from "../api";
-import { CourseCard } from "../components/Rail";
-import Rail from "../components/Rail";
+import Rail, { CourseCard } from "../components/Rail";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
