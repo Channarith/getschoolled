@@ -231,7 +231,7 @@ export default function SettingsScreen({
   }));
   const selectedTrainingLocale = trainingLocaleOptions.find((loc) => loc.key === s.trainingLocale)
     ?? trainingLocaleOptions[0];
-  const reminderHours = [7, 9, 12, 15, 18, 20, 21];
+  const reminderHours = [7, 8, 9, 12, 15, 18, 20, 21];
   const selectedReminderHour = `${pad(s.dailyReminderHour)}:00`;
 
   return (
