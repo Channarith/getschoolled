@@ -160,6 +160,12 @@ class AppConfig(BaseModel):
     # then to the browser's on-device voice.
     elevenlabs_api_key: str = ""
     elevenlabs_model: str = "eleven_multilingual_v2"
+    # xAI Grok Voice Agent (Speech-to-Speech realtime). Used by the private
+    # webcam-lab for Theodore + self-teach natural conversation. Blank key ->
+    # ephemeral token mint returns an offline mock so demos still run.
+    xai_api_key: str = ""
+    xai_voice_model: str = "grok-voice-latest"
+    xai_voice_id: str = "eve"
     # CosyVoice 2 (self-hosted, FunAudioLLM): a streaming multilingual neural TTS
     # you run yourself. When COSYVOICE_URL points at your inference server the
     # speech gateway prefers it over ElevenLabs/edge-tts for narration.
@@ -252,6 +258,9 @@ def load_config(
         ocr_api_key=get("OCR_API_KEY", ""),
         elevenlabs_api_key=get("ELEVENLABS_API_KEY", ""),
         elevenlabs_model=get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
+        xai_api_key=get("XAI_API_KEY", ""),
+        xai_voice_model=get("XAI_VOICE_MODEL", "grok-voice-latest"),
+        xai_voice_id=get("XAI_VOICE_ID", "eve"),
         cosyvoice_url=get("COSYVOICE_URL", ""),
         cosyvoice_api_key=get("COSYVOICE_API_KEY", ""),
         ocr_endpoint=get("OCR_ENDPOINT", ""),
