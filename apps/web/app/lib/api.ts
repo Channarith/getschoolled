@@ -55,11 +55,15 @@ export const SPEECH_URL = serviceUrl(
 export const PERCEPTION_URL = serviceUrl(
   process.env.NEXT_PUBLIC_PERCEPTION_URL, "/perception", "http://localhost:8003");
 
+export const WEBCAM_URL = serviceUrl(
+  process.env.NEXT_PUBLIC_WEBCAM_URL, "/webcam", "http://localhost:8300");
+
 // All backend services keyed by name -> base URL (each exposes /version + /health).
 export const SERVICE_URLS: Record<string, string> = {
   orchestrator: ORCHESTRATOR_URL,
   speech: SPEECH_URL,
   perception: PERCEPTION_URL,
+  webcam: WEBCAM_URL,
   memory: MEMORY_URL,
   curriculum: CURRICULUM_URL,
   billing: BILLING_URL,
@@ -3560,4 +3564,146 @@ export async function adminCreateVoucher(input: {
       body: JSON.stringify(input),
     })
   );
+}
+
+// -------------------------------------------------------------------------- //
+// Webcam Vision Service (presence, silhouette, xAI voice)
+// -------------------------------------------------------------------------- //
+
+export type WebcamSessionInfo = {
+  session_id: string;
+  class_type: string;
+  student_ids: string[];
+};
+
+export type FrameAnalysis = {
+  session_id: string;
+  participant_id: string;
+  face_present: boolean;
+  silhouette_present: boolean;
+  silhouette_method: string;
+  silhouette_absence_confidence: number;
+  largest_silhouette_coverage: number;
+  attention: number | null;
+  presence_state: "unknown" | "present" | "away" | "absent";
+  presence_event: string | null;
+  away_duration_s: number;
+  consecutive_absent_frames: number;
+  frame_count: number;
+};
+
+export type PresenceSummary = {
+  session_id: string;
+  class_type: string;
+  solo_status: {
+    participant_id: string;
+    state: string;
+    attention: number;
+    away_duration_s: number;
+  } | null;
+  group_summary: {
+    total_participants: number;
+    present_count: number;
+    away_count: number;
+    absent_count: number;
+    unknown_count: number;
+    quorum_met: boolean;
+    average_attention: number;
+    present_ratio: number;
+    absent_ids: string[];
+    away_ids: string[];
+  } | null;
+  participant_statuses: Array<{
+    participant_id: string;
+    state: string;
+    face_present: boolean;
+    silhouette_present: boolean;
+    attention: number;
+    away_duration_s: number;
+    consecutive_absent_frames: number;
+  }>;
+};
+
+export type VoiceAgentResponse = {
+  session_id: string;
+  participant_id: string;
+  text: string;
+  has_audio: boolean;
+  audio_b64: string | null;
+  model: string;
+  fallback: boolean;
+};
+
+export async function createWebcamSession(params: {
+  class_type?: string;
+  student_ids?: string[];
+  lesson_context?: string;
+}): Promise<WebcamSessionInfo> {
+  return jsonOrThrow(
+    await fetch(`${WEBCAM_URL}/sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify(params),
+    })
+  );
+}
+
+export async function endWebcamSession(sessionId: string): Promise<void> {
+  await fetch(`${WEBCAM_URL}/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+}
+
+export async function submitWebcamFrame(
+  sessionId: string,
+  frameBlob: Blob,
+  opts: { participantId?: string; facePresent?: boolean; attention?: number }
+): Promise<FrameAnalysis> {
+  const form = new FormData();
+  form.append("file", frameBlob, "frame.jpg");
+  form.append("participant_id", opts.participantId ?? "student");
+  form.append("face_present", String(opts.facePresent ?? false));
+  form.append("attention", String(opts.attention ?? -1));
+  return jsonOrThrow(
+    await fetch(`${WEBCAM_URL}/sessions/${encodeURIComponent(sessionId)}/frame`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: form,
+    })
+  );
+}
+
+export async function getWebcamPresence(sessionId: string): Promise<PresenceSummary> {
+  return jsonOrThrow(
+    await fetch(
+      `${WEBCAM_URL}/sessions/${encodeURIComponent(sessionId)}/presence`,
+      { headers: authHeaders(), cache: "no-store" }
+    )
+  );
+}
+
+export async function askVoiceAgent(
+  sessionId: string,
+  params: { text: string; participantId?: string; audio?: boolean; agentType?: string }
+): Promise<VoiceAgentResponse> {
+  return jsonOrThrow(
+    await fetch(`${WEBCAM_URL}/sessions/${encodeURIComponent(sessionId)}/voice`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({
+        participant_id: params.participantId ?? "student",
+        text: params.text,
+        audio: params.audio ?? false,
+        agent_type: params.agentType ?? "teacher",
+      }),
+    })
+  );
+}
+
+export function openWebcamWebSocket(
+  sessionId: string
+): WebSocket {
+  const base = WEBCAM_URL.replace(/^https?/, (p) => (p === "https" ? "wss" : "ws"));
+  return new WebSocket(`${base}/sessions/${encodeURIComponent(sessionId)}/ws`);
 }
