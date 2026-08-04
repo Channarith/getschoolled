@@ -14,6 +14,8 @@ Feature scope
 - Learner absence detection with grace periods
 - xAI voice-agent response integration (OpenAI-compatible API), plus local
   fallback when keys/network are unavailable
+- Realtime-optimized chat/audio turn handling with short-session memory, fast
+  response mode, response caching, and latency metadata for low-lag conversations
 - 26-language voice-agent support for multilingual teaching
 - Webcam-audio transcript absorption for answer understanding + feedback
 - Webcam reinforcement games/challenges scored from live signals:

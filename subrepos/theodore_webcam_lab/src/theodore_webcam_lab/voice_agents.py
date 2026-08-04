@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from typing import Any
 
 from .types import (
@@ -49,6 +52,15 @@ class XaiVoiceAgentError(RuntimeError):
     """Raised when the xAI voice-agent endpoint call fails."""
 
 
+@dataclass
+class _CachedResponse:
+    provider: str
+    message: str
+    fallback_used: bool
+    communication_style: str
+    created_ms: int
+
+
 class XaiVoiceAgent:
     """xAI-backed Theodore conversational responder with local fallback."""
 
@@ -58,12 +70,22 @@ class XaiVoiceAgent:
         api_key: str = "",
         base_url: str = "https://api.x.ai/v1",
         model: str = "grok-4",
+        fast_model: str = "grok-4",
         timeout_s: float = 25.0,
+        fast_timeout_s: float = 6.0,
+        cache_ttl_s: float = 20.0,
+        max_history_turns: int = 4,
     ) -> None:
         self._api_key = (api_key or "").strip()
         self._base_url = base_url.rstrip("/")
         self._model = model
+        self._fast_model = fast_model or model
         self._timeout_s = timeout_s
+        self._fast_timeout_s = fast_timeout_s
+        self._cache_ttl_ms = int(max(1.0, cache_ttl_s) * 1000)
+        self._max_history_turns = max(1, max_history_turns)
+        self._response_cache: dict[str, _CachedResponse] = {}
+        self._session_history: dict[str, list[dict[str, str]]] = {}
 
     @classmethod
     def from_env(cls) -> "XaiVoiceAgent":
@@ -71,7 +93,11 @@ class XaiVoiceAgent:
             api_key=os.environ.get("XAI_API_KEY", ""),
             base_url=os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1"),
             model=os.environ.get("XAI_MODEL", "grok-4"),
+            fast_model=os.environ.get("XAI_FAST_MODEL", os.environ.get("XAI_MODEL", "grok-4")),
             timeout_s=float(os.environ.get("XAI_TIMEOUT_S", "25")),
+            fast_timeout_s=float(os.environ.get("XAI_FAST_TIMEOUT_S", "6")),
+            cache_ttl_s=float(os.environ.get("XAI_CACHE_TTL_S", "20")),
+            max_history_turns=int(os.environ.get("XAI_MAX_HISTORY_TURNS", "4")),
         )
 
     @staticmethod
@@ -85,46 +111,92 @@ class XaiVoiceAgent:
         class_mode: ClassMode,
         language_code: str = "en",
         context: str = "",
+        session_id: str = "",
+        fast_mode: bool = True,
     ) -> VoiceResponse:
+        started_ms = self._now_ms()
         language = self._resolve_language(language_code)
+        learner_text = self._normalize_text(learner_message)
+        context_text = self._normalize_text(context)
+        session_key = self._normalize_text(session_id)
+        history = self._history_for_session(session_key)
+        cache_key = self._build_cache_key(
+            learner_text=learner_text,
+            class_mode=class_mode,
+            language=language.code,
+            context=context_text,
+            fast_mode=fast_mode,
+            history=history,
+        )
+        cached = self._get_cached(cache_key, now_ms=started_ms)
+        if cached is not None:
+            return VoiceResponse(
+                provider=cached.provider,
+                message=cached.message,
+                communication_style=cached.communication_style,
+                fallback_used=cached.fallback_used,
+                latency_ms=self._elapsed_ms(started_ms),
+                cache_hit=True,
+                tts_voice_style="warm_clear",
+                tts_engine_chain=["elevenlabs", "edge-tts", "device"],
+                should_stream_audio=True,
+            )
         prompt = self._build_prompt(
-            learner_message=learner_message,
+            learner_message=learner_text,
             class_mode=class_mode,
             language=language,
-            context=context,
+            context=context_text,
+            history=history,
         )
         if not self._api_key:
-            return self._fallback_response(
-                learner_message=learner_message,
+            response = self._fallback_response(
+                learner_message=learner_text,
                 language_code=language.code,
                 language_name=language.name,
+                latency_ms=self._elapsed_ms(started_ms),
             )
+            self._set_cached(cache_key, response, now_ms=started_ms)
+            self._remember_turn(session_key, learner_text, response.message)
+            return response
 
         payload = {
-            "model": self._model,
+            "model": self._fast_model if fast_mode else self._model,
             "messages": prompt,
-            "temperature": 0.5,
-            "max_tokens": 240,
+            "temperature": 0.45 if fast_mode else 0.55,
+            "max_tokens": 140 if fast_mode else 240,
             "stream": False,
         }
         try:
-            body = self._transport(payload)
+            timeout_s = self._fast_timeout_s if fast_mode else self._timeout_s
+            body = self._transport(payload, timeout_s=timeout_s)
             message = self._extract_message(body)
         except XaiVoiceAgentError:
             message = ""
         if not message:
-            return self._fallback_response(
-                learner_message=learner_message,
+            response = self._fallback_response(
+                learner_message=learner_text,
                 language_code=language.code,
                 language_name=language.name,
+                latency_ms=self._elapsed_ms(started_ms),
             )
+            self._set_cached(cache_key, response, now_ms=started_ms)
+            self._remember_turn(session_key, learner_text, response.message)
+            return response
 
-        return VoiceResponse(
+        response = VoiceResponse(
             provider="xai",
             message=message,
-            communication_style="natural_conversational",
+            communication_style="natural_conversational_realtime",
             fallback_used=False,
+            latency_ms=self._elapsed_ms(started_ms),
+            cache_hit=False,
+            tts_voice_style="warm_clear",
+            tts_engine_chain=["elevenlabs", "edge-tts", "device"],
+            should_stream_audio=True,
         )
+        self._set_cached(cache_key, response, now_ms=started_ms)
+        self._remember_turn(session_key, learner_text, response.message)
+        return response
 
     def ask_question(
         self,
@@ -135,6 +207,7 @@ class XaiVoiceAgent:
         difficulty: str = "medium",
         context: str = "",
     ) -> VoiceQuestion:
+        started_ms = self._now_ms()
         language = self._resolve_language(language_code)
         prompt = self._build_question_prompt(
             class_mode=class_mode,
@@ -153,7 +226,7 @@ class XaiVoiceAgent:
                 "response_format": {"type": "json_object"},
             }
             try:
-                body = self._transport(payload)
+                body = self._transport(payload, timeout_s=self._fast_timeout_s)
                 parsed = self._extract_json_message(body)
                 if parsed:
                     question = (parsed.get("question") or "").strip()
@@ -166,6 +239,7 @@ class XaiVoiceAgent:
                             question=question,
                             hint=hint or "Think about the key concept and answer briefly.",
                             fallback_used=False,
+                            latency_ms=self._elapsed_ms(started_ms),
                         )
             except XaiVoiceAgentError:
                 pass
@@ -174,6 +248,7 @@ class XaiVoiceAgent:
             language_name=language.name,
             topic=topic,
             difficulty=difficulty,
+            latency_ms=self._elapsed_ms(started_ms),
         )
 
     def absorb_audio_answer(
@@ -186,6 +261,7 @@ class XaiVoiceAgent:
         expected_answer: str = "",
         context: str = "",
     ) -> AudioAnswerAssessment:
+        started_ms = self._now_ms()
         language = self._resolve_language(language_code)
         transcript = (audio_transcript or "").strip()
         if not transcript:
@@ -200,6 +276,7 @@ class XaiVoiceAgent:
                 feedback_message="I could not hear your answer clearly. Please repeat.",
                 follow_up_question=question,
                 fallback_used=True,
+                latency_ms=self._elapsed_ms(started_ms),
             )
 
         prompt = self._build_audio_assessment_prompt(
@@ -220,7 +297,7 @@ class XaiVoiceAgent:
                 "response_format": {"type": "json_object"},
             }
             try:
-                body = self._transport(payload)
+                body = self._transport(payload, timeout_s=self._fast_timeout_s)
                 parsed = self._extract_json_message(body)
                 if parsed:
                     understood = bool(parsed.get("understood", True))
@@ -245,6 +322,7 @@ class XaiVoiceAgent:
                         feedback_message=feedback,
                         follow_up_question=follow_up,
                         fallback_used=False,
+                        latency_ms=self._elapsed_ms(started_ms),
                     )
             except XaiVoiceAgentError:
                 pass
@@ -254,6 +332,82 @@ class XaiVoiceAgent:
             question=question,
             transcript=transcript,
             expected_answer=expected_answer,
+            latency_ms=self._elapsed_ms(started_ms),
+        )
+
+    @staticmethod
+    def _now_ms() -> int:
+        return int(time.perf_counter() * 1000)
+
+    def _elapsed_ms(self, started_ms: int) -> int:
+        return max(0, self._now_ms() - started_ms)
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return (value or "").strip()
+
+    def _history_for_session(self, session_id: str) -> list[dict[str, str]]:
+        if not session_id:
+            return []
+        rows = self._session_history.get(session_id, [])
+        if not rows:
+            return []
+        max_messages = self._max_history_turns * 2
+        return list(rows[-max_messages:])
+
+    def _remember_turn(
+        self, session_id: str, learner_message: str, assistant_message: str
+    ) -> None:
+        if not session_id:
+            return
+        if not learner_message or not assistant_message:
+            return
+        bucket = self._session_history.setdefault(session_id, [])
+        bucket.append({"role": "user", "content": learner_message})
+        bucket.append({"role": "assistant", "content": assistant_message})
+        max_messages = self._max_history_turns * 2
+        if len(bucket) > max_messages:
+            self._session_history[session_id] = bucket[-max_messages:]
+
+    @staticmethod
+    def _build_cache_key(
+        *,
+        learner_text: str,
+        class_mode: ClassMode,
+        language: str,
+        context: str,
+        fast_mode: bool,
+        history: list[dict[str, str]],
+    ) -> str:
+        payload = {
+            "learner_text": learner_text,
+            "class_mode": class_mode.value,
+            "language": language,
+            "context": context,
+            "fast_mode": fast_mode,
+            "history": history,
+        }
+        digest = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
+        return digest
+
+    def _get_cached(self, key: str, *, now_ms: int) -> _CachedResponse | None:
+        row = self._response_cache.get(key)
+        if row is None:
+            return None
+        if now_ms - row.created_ms > self._cache_ttl_ms:
+            self._response_cache.pop(key, None)
+            return None
+        return row
+
+    def _set_cached(self, key: str, response: VoiceResponse, *, now_ms: int) -> None:
+        self._response_cache[key] = _CachedResponse(
+            provider=response.provider,
+            message=response.message,
+            fallback_used=response.fallback_used,
+            communication_style=response.communication_style,
+            created_ms=now_ms,
         )
 
     def _build_prompt(
@@ -263,12 +417,13 @@ class XaiVoiceAgent:
         class_mode: ClassMode,
         language: SupportedLanguage,
         context: str,
+        history: list[dict[str, str]] | None = None,
     ) -> list[dict[str, str]]:
         system = (
             "You are Theodore, an educational AI teacher. Reply in clear, warm "
             "speech-ready language that sounds natural when spoken aloud. "
             f"Always reply in {language.name} (code: {language.code}). "
-            "Keep feedback actionable and concise."
+            "Keep feedback actionable and concise in 1-2 short sentences unless asked for more."
         )
         mode_text = "group class" if class_mode is ClassMode.GROUP else "solo session"
         user_parts = [
@@ -277,10 +432,11 @@ class XaiVoiceAgent:
         ]
         if context.strip():
             user_parts.append(f"Context: {context.strip()}")
-        return [
-            {"role": "system", "content": system},
-            {"role": "user", "content": " ".join(user_parts)},
-        ]
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        if history:
+            messages.extend(history)
+        messages.append({"role": "user", "content": " ".join(user_parts)})
+        return messages
 
     def _build_question_prompt(
         self,
@@ -329,7 +485,7 @@ class XaiVoiceAgent:
         )
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
-    def _transport(self, payload: dict) -> dict:
+    def _transport(self, payload: dict, *, timeout_s: float | None = None) -> dict:
         if not self._base_url:
             raise XaiVoiceAgentError("XAI_BASE_URL is empty")
         url = f"{self._base_url}/chat/completions"
@@ -343,7 +499,10 @@ class XaiVoiceAgent:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout_s) as response:
+            with urllib.request.urlopen(
+                req,
+                timeout=(timeout_s if timeout_s is not None else self._timeout_s),
+            ) as response:
                 raw = response.read().decode("utf-8")
         except urllib.error.HTTPError as exc:
             detail = ""
@@ -400,7 +559,11 @@ class XaiVoiceAgent:
 
     @staticmethod
     def _fallback_response(
-        *, learner_message: str, language_code: str, language_name: str
+        *,
+        learner_message: str,
+        language_code: str,
+        language_name: str,
+        latency_ms: int = 0,
     ) -> VoiceResponse:
         cleaned = (learner_message or "").strip()
         if not cleaned:
@@ -411,8 +574,13 @@ class XaiVoiceAgent:
                 f"[{language_name}] I hear you. We'll break this into one step at a time, then I will "
                 f"check understanding after each step. First focus: {cleaned}"
             ),
-            communication_style="natural_conversational",
+            communication_style="natural_conversational_realtime",
             fallback_used=True,
+            latency_ms=latency_ms,
+            cache_hit=False,
+            tts_voice_style="warm_clear",
+            tts_engine_chain=["elevenlabs", "edge-tts", "device"],
+            should_stream_audio=True,
         )
 
     @staticmethod
@@ -422,6 +590,7 @@ class XaiVoiceAgent:
         language_name: str,
         topic: str,
         difficulty: str,
+        latency_ms: int = 0,
     ) -> VoiceQuestion:
         q = (
             f"[{language_name}] In one or two sentences, explain: {topic}. "
@@ -434,6 +603,7 @@ class XaiVoiceAgent:
             question=q,
             hint=f"[{language_name}] Start with the main idea, then add one supporting detail.",
             fallback_used=True,
+            latency_ms=latency_ms,
         )
 
     @staticmethod
@@ -444,6 +614,7 @@ class XaiVoiceAgent:
         question: str,
         transcript: str,
         expected_answer: str,
+        latency_ms: int = 0,
     ) -> AudioAnswerAssessment:
         words = [part for part in transcript.split() if part.strip()]
         understood = len(words) >= 3
@@ -487,4 +658,5 @@ class XaiVoiceAgent:
             feedback_message=feedback,
             follow_up_question=follow_up,
             fallback_used=True,
+            latency_ms=latency_ms,
         )

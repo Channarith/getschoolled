@@ -42,6 +42,8 @@ def test_voice_endpoint_falls_back_without_xai_key():
         json={
             "class_mode": "group",
             "learner_message": "Can I get help with this biology topic?",
+            "session_id": "chat-fast-1",
+            "fast_mode": True,
             "context": "Group revision",
         },
     )
@@ -49,6 +51,9 @@ def test_voice_endpoint_falls_back_without_xai_key():
     body = resp.json()
     assert body["provider"] == "local-fallback"
     assert body["fallback_used"] is True
+    assert body["latency_ms"] >= 0
+    assert body["cache_hit"] is False
+    assert body["should_stream_audio"] is True
 
 
 def test_voice_languages_endpoint_lists_26_supported_languages():
@@ -73,6 +78,7 @@ def test_voice_ask_question_and_absorb_audio_answer_endpoints():
     question_body = question_resp.json()
     assert question_body["language_code"] == "de"
     assert question_body["question"]
+    assert question_body["latency_ms"] >= 0
 
     absorb_resp = client.post(
         "/api/theodore/voice/absorb-audio-answer",
@@ -88,6 +94,7 @@ def test_voice_ask_question_and_absorb_audio_answer_endpoints():
     absorb_body = absorb_resp.json()
     assert absorb_body["language_code"] == "de"
     assert absorb_body["absorbed_transcript"]
+    assert absorb_body["latency_ms"] >= 0
     assert absorb_body["understood"] is True
 
 

@@ -48,6 +48,8 @@ class VoiceRequest(BaseModel):
     class_mode: ClassMode = ClassMode.SOLO
     learner_message: str = Field(min_length=1)
     language_code: str = Field(default="en", min_length=2, max_length=8)
+    session_id: str = ""
+    fast_mode: bool = True
     context: str = ""
 
 
@@ -307,6 +309,8 @@ def voice_respond(req: VoiceRequest) -> VoiceResponse:
             learner_message=req.learner_message,
             class_mode=req.class_mode,
             language_code=req.language_code,
+            session_id=req.session_id,
+            fast_mode=req.fast_mode,
             context=req.context,
         )
     except ValueError as exc:

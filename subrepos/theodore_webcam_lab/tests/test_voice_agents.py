@@ -13,12 +13,15 @@ def test_local_fallback_when_no_api_key():
     assert response.provider == "local-fallback"
     assert response.fallback_used is True
     assert "math" in response.message
+    assert response.latency_ms >= 0
+    assert response.tts_engine_chain == ["elevenlabs", "edge-tts", "device"]
+    assert response.should_stream_audio is True
 
 
 def test_xai_response_when_transport_succeeds(monkeypatch):
     agent = XaiVoiceAgent(api_key="test-key", model="grok-4")
 
-    def _fake_transport(payload: dict) -> dict:
+    def _fake_transport(payload: dict, *, timeout_s=None) -> dict:
         assert payload["model"] == "grok-4"
         return {
             "choices": [
@@ -35,6 +38,34 @@ def test_xai_response_when_transport_succeeds(monkeypatch):
     assert response.provider == "xai"
     assert response.fallback_used is False
     assert response.message.startswith("Great question.")
+    assert response.latency_ms >= 0
+    assert response.cache_hit is False
+
+
+def test_respond_uses_short_ttl_cache_for_repeated_turn(monkeypatch):
+    agent = XaiVoiceAgent(api_key="test-key", model="grok-4", cache_ttl_s=60)
+    calls = {"count": 0}
+
+    def _fake_transport(payload: dict, *, timeout_s=None) -> dict:
+        calls["count"] += 1
+        return {"choices": [{"message": {"content": "Fast response."}}]}
+
+    monkeypatch.setattr(agent, "_transport", _fake_transport)
+    first = agent.respond(
+        learner_message="Explain photosynthesis quickly",
+        class_mode=ClassMode.SOLO,
+        session_id="session-1",
+    )
+    second = agent.respond(
+        learner_message="Explain photosynthesis quickly",
+        class_mode=ClassMode.SOLO,
+        session_id="session-1",
+    )
+    assert first.message == "Fast response."
+    assert second.message == "Fast response."
+    assert first.cache_hit is False
+    assert second.cache_hit is True
+    assert calls["count"] == 1
 
 
 def test_supported_languages_cover_26_language_codes():
@@ -57,6 +88,7 @@ def test_ask_question_fallback_for_supported_language():
     assert result.language_code == "es"
     assert result.fallback_used is True
     assert "gravity" in result.question
+    assert result.latency_ms >= 0
 
 
 def test_absorb_audio_answer_fallback_scores_transcript():
@@ -72,6 +104,7 @@ def test_absorb_audio_answer_fallback_scores_transcript():
     assert result.language_code == "fr"
     assert result.understood is True
     assert result.correctness_score > 0.35
+    assert result.latency_ms >= 0
 
 
 def test_rejects_unsupported_language_code():

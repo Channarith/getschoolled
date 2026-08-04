@@ -156,6 +156,13 @@ class VoiceResponse(BaseModel):
     message: str
     communication_style: str
     fallback_used: bool
+    latency_ms: int = Field(default=0, ge=0)
+    cache_hit: bool = False
+    tts_voice_style: str = "warm_clear"
+    tts_engine_chain: list[str] = Field(
+        default_factory=lambda: ["elevenlabs", "edge-tts", "device"]
+    )
+    should_stream_audio: bool = True
 
 
 class SupportedLanguage(BaseModel):
@@ -170,6 +177,7 @@ class VoiceQuestion(BaseModel):
     question: str
     hint: str
     fallback_used: bool
+    latency_ms: int = Field(default=0, ge=0)
 
 
 class AudioAnswerAssessment(BaseModel):
@@ -183,6 +191,7 @@ class AudioAnswerAssessment(BaseModel):
     feedback_message: str
     follow_up_question: str
     fallback_used: bool
+    latency_ms: int = Field(default=0, ge=0)
 
 
 class WebcamLearningChallenge(BaseModel):
