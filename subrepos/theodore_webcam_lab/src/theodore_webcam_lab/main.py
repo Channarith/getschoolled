@@ -25,6 +25,8 @@ from .types import (
     WebcamSignal,
 )
 from .vision_tuning import PRESETS, VisionTuning
+from .voice_tuning import PRESETS as VOICE_PRESETS
+from .voice_tuning import VoiceTuning
 from .voice_agents import XaiVoiceAgent
 
 app = FastAPI(
@@ -119,11 +121,32 @@ _MONITOR_CSS = """
     .kv { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
     progress { width: 100%; height: 9px; }
     .alerts li { margin-bottom: 6px; font-size: 12px; }
-    select, button, input[type=range] { font-size: 12px; }
+    select, button, input[type=range] { font-size: 11px; }
     button { cursor: pointer; background: #334155; color: #e2e8f0;
              border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; }
-    .knob { display: grid; grid-template-columns: 1.5fr 2fr 0.6fr; gap: 6px;
-            align-items: center; font-size: 11px; margin: 2px 0; }
+    /* Camera beside tuning: video on the left, knobs on the right, both visible. */
+    .stage { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(340px, 1fr);
+             gap: 12px; padding: 12px; align-items: start; }
+    #cam { width: 100%; max-height: 300px; background: #000; border-radius: 6px;
+           object-fit: cover; transform: scaleX(-1); }
+    .camrow { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .pill { font-size: 10px; padding: 1px 6px; border-radius: 999px;
+            background: #1f2937; border: 1px solid #334155; }
+    .pill.bad { background: #7f1d1d; border-color: #b91c1c; }
+    .pill.good { background: #14532d; border-color: #166534; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 6px; }
+    .tabs button.active { background: #1d4ed8; border-color: #3b82f6; }
+    /* Compact: knobs scroll inside a fixed height so the camera stays on screen. */
+    .knobscroll { max-height: 300px; overflow-y: auto; padding-right: 4px; }
+    .knob { display: grid; grid-template-columns: 1.35fr 1.6fr 0.45fr; gap: 5px;
+            align-items: center; font-size: 10px; margin: 1px 0; }
+    .knob input[type=range] { height: 12px; }
+    details > summary { cursor: pointer; font-size: 11px; margin: 4px 0 2px;
+                        color: #93c5fd; }
+    .gatesblock { margin-top: 6px; border-top: 1px solid #334155; padding-top: 5px; }
+    .gateslabel { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
+    #cam-gates, #gatecounts { font-size: 11px; font-weight: bold; word-break: break-word; }
+    .statusline { font-size: 10px; color: #93c5fd; min-height: 13px; margin-top: 4px; }
     canvas { width: 100%; height: 72px; background: #0b1220; border-radius: 6px; margin-top: 8px; }
 """
 
@@ -274,8 +297,9 @@ _MONITOR_JS = """
       });
     }
     // Knobs surfaced as live sliders: the ones operators reach for first when
-    // detection quality looks wrong in the room they are actually in.
-    const TUNABLE = [
+    // detection quality looks wrong in the room they are actually in. Grouped so
+    // the panel stays short enough to sit beside the camera.
+    const VISION_TUNABLE = [
       ['light_min_quality', 0, 1, 0.01],
       ['light_underexposed_luma', 0, 1, 0.01],
       ['light_overexposed_luma', 0, 1, 0.01],
@@ -292,12 +316,30 @@ _MONITOR_JS = """
       ['audio_min_snr_db', 0, 40, 0.5],
     ];
 
+    const VOICE_TUNABLE = [
+      ['reply_temperature_fast', 0, 2, 0.05],
+      ['reply_max_tokens_fast', 16, 512, 8],
+      ['reply_max_sentences', 1, 8, 1],
+      ['question_temperature', 0, 2, 0.05],
+      ['assessment_temperature', 0, 2, 0.05],
+      ['fast_timeout_s', 1, 30, 0.5],
+      ['cache_ttl_s', 1, 120, 1],
+      ['max_history_turns', 1, 12, 1],
+    ];
+
+    // Which knob set the panel is editing: 'vision' or 'voice'.
+    let tuningScope = 'vision';
+    const scopeConfig = {
+      vision: { base: '/api/theodore/vision/tuning', knobs: VISION_TUNABLE },
+      voice: { base: '/api/theodore/voice/tuning', knobs: VOICE_TUNABLE },
+    };
+
     function setStatus(text) {
       document.getElementById('tuning-status').textContent = text;
     }
 
     async function patchKnob(name, value) {
-      const res = await fetch('/api/theodore/vision/tuning', {
+      const res = await fetch(scopeConfig[tuningScope].base, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ knobs: { [name]: Number(value) } }),
@@ -313,7 +355,7 @@ _MONITOR_JS = """
 
     function renderKnobs(knobs) {
       const host = document.getElementById('knobs');
-      host.innerHTML = TUNABLE.map(([name, min, max, step]) => `
+      host.innerHTML = scopeConfig[tuningScope].knobs.map(([name, min, max, step]) => `
         <div class="knob">
           <span title="${esc(name)}">${esc(name)}</span>
           <input type="range" data-knob="${esc(name)}" min="${min}" max="${max}"
@@ -334,26 +376,178 @@ _MONITOR_JS = """
     }
 
     async function loadTuning() {
-      const res = await fetch('/api/theodore/vision/tuning', { cache: 'no-store' });
+      const res = await fetch(scopeConfig[tuningScope].base, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
-      if (!select.options.length) {
-        select.innerHTML = (data.presets || [])
-          .map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-      }
+      // Re-rendering the list must not silently reset the visible choice, or the
+      // dropdown ends up disagreeing with the preset that is actually applied.
+      const keep = select.value;
+      select.innerHTML = (data.presets || [])
+        .map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      if (keep && (data.presets || []).includes(keep)) select.value = keep;
       renderKnobs(data.knobs || {});
     }
+
+    function selectScope(scope) {
+      tuningScope = scope;
+      document.getElementById('tab-vision').classList.toggle('active', scope === 'vision');
+      document.getElementById('tab-voice').classList.toggle('active', scope === 'voice');
+      loadTuning();
+    }
+    document.getElementById('tab-vision')
+      .addEventListener('click', () => selectScope('vision'));
+    document.getElementById('tab-voice')
+      .addEventListener('click', () => selectScope('voice'));
 
     document.getElementById('apply-preset').addEventListener('click', async () => {
       const name = document.getElementById('preset').value;
       const res = await fetch(
-        `/api/theodore/vision/tuning/preset/${encodeURIComponent(name)}`,
+        `${scopeConfig[tuningScope].base}/preset/${encodeURIComponent(name)}`,
         { method: 'POST' }
       );
       setStatus(res.ok ? `preset applied: ${name}` : `preset failed: ${res.status}`);
       if (res.ok) await loadTuning();
     });
+
+    // ---------------- Camera -> luminance grid -> live gates ----------------
+    // Frames are downsampled to a small grid and posted to /evaluate, so the very
+    // same Sobel/exposure knobs being dragged above are applied to real video.
+    const GRID_W = 48;
+    const GRID_H = 36;
+    const camVideo = document.getElementById('cam');
+    const grab = document.getElementById('grab');
+    let camStream = null;
+    let camTimer = null;
+    let patternPhase = 0;
+    let usingPattern = false;
+
+    function setCamState(text, kind) {
+      const el = document.getElementById('cam-state');
+      el.textContent = text;
+      el.className = 'pill' + (kind ? ' ' + kind : '');
+    }
+
+    function luminanceGrid() {
+      grab.width = GRID_W;
+      grab.height = GRID_H;
+      const ctx = grab.getContext('2d', { willReadFrequently: true });
+      if (usingPattern) {
+        // Deterministic moving bars: lets tuning be exercised where no camera
+        // exists (CI boxes, VMs) without pretending a camera is present.
+        patternPhase = (patternPhase + 1) % GRID_W;
+        for (let x = 0; x < GRID_W; x++) {
+          const on = ((x + patternPhase) % 8) < 4;
+          ctx.fillStyle = on ? '#d8d8d8' : '#202020';
+          ctx.fillRect(x, 0, 1, GRID_H);
+        }
+      } else {
+        if (!camVideo.videoWidth) return null;
+        ctx.drawImage(camVideo, 0, 0, GRID_W, GRID_H);
+      }
+      const data = ctx.getImageData(0, 0, GRID_W, GRID_H).data;
+      const rows = [];
+      for (let y = 0; y < GRID_H; y++) {
+        const row = [];
+        for (let x = 0; x < GRID_W; x++) {
+          const i = (y * GRID_W + x) * 4;
+          // Rec. 601 luma keeps the reading comparable to what a client would send.
+          row.push((0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255);
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    async function sampleFrame() {
+      const grid = luminanceGrid();
+      if (!grid) return;
+      const body = {
+        session_id: sessionId,
+        mode: 'solo',
+        signals: [{
+          participant_id: 'camera-local',
+          timestamp_ms: Date.now() % 100000000,
+          face_count: 1,
+          liveness_state: 'live',
+          foreground_ratio: 0.4,
+          motion_score: 0.2,
+          luminance_grid: grid,
+        }],
+      };
+      let res;
+      try {
+        res = await fetch('/api/theodore/webcam/evaluate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        setCamState('post failed', 'bad');
+        return;
+      }
+      if (!res.ok) { setCamState('evaluate ' + res.status, 'bad'); return; }
+      const data = await res.json();
+      const p = (data.participants || []).find((x) => x.participant_id === 'camera-local');
+      if (!p) return;
+      document.getElementById('cam-readings').innerHTML = [
+        ['sharpness', num(p.sharpness_score)],
+        ['edge density', num(p.edge_density, 3)],
+        ['light', pct(p.light_quality_score)],
+        ['image q', pct(p.image_detection_quality_score)],
+        ['confidence', pct(p.recognition_confidence)],
+      ].map(([k, v]) => `<span class="pill">${esc(k)}: ${esc(v)}</span>`).join(' ');
+      const gates = p.quality_flags || [];
+      const gateEl = document.getElementById('cam-gates');
+      gateEl.textContent = gates.length ? gates.join(', ') : 'all passing';
+      gateEl.style.color = gates.length ? '#fca5a5' : '#86efac';
+    }
+
+    function startSampling() {
+      if (camTimer) clearInterval(camTimer);
+      camTimer = setInterval(sampleFrame, 500);
+    }
+
+    function stopCamera() {
+      if (camTimer) { clearInterval(camTimer); camTimer = null; }
+      if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+      camVideo.srcObject = null;
+      usingPattern = false;
+      setCamState('idle');
+    }
+
+    document.getElementById('cam-start').addEventListener('click', async () => {
+      stopCamera();
+      setCamState('requesting...');
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }, audio: false,
+        });
+      } catch (err) {
+        // No camera / permission denied is expected on servers and CI boxes.
+        setCamState('camera unavailable', 'bad');
+        document.getElementById('cam-note').textContent =
+          'getUserMedia failed (' + (err && err.name ? err.name : 'error') +
+          '). Use "Test pattern" to tune without a camera.';
+        return;
+      }
+      camVideo.srcObject = camStream;
+      usingPattern = false;
+      setCamState('live', 'good');
+      document.getElementById('cam-note').textContent = '';
+      startSampling();
+    });
+
+    document.getElementById('cam-pattern').addEventListener('click', () => {
+      stopCamera();
+      usingPattern = true;
+      setCamState('test pattern', 'good');
+      document.getElementById('cam-note').textContent =
+        'Synthetic moving bars: exercises the same Sobel/exposure path as a camera.';
+      startSampling();
+    });
+
+    document.getElementById('cam-stop').addEventListener('click', stopCamera);
 
     loadTuning();
     refresh();
@@ -381,7 +575,34 @@ _MONITOR_PAGE_TEMPLATE = (
     <div class="panel">
       <h2>Lesson Alerts</h2>
       <ul class="alerts" id="alerts"></ul>
-      <h2 style="margin-top:12px;">Recognition Tuning</h2>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="panel">
+      <h2>Camera</h2>
+      <video id="cam" autoplay muted playsinline></video>
+      <canvas id="grab" style="display:none;"></canvas>
+      <div class="camrow">
+        <button id="cam-start" type="button">Start camera</button>
+        <button id="cam-stop" type="button">Stop</button>
+        <button id="cam-pattern" type="button">Test pattern</button>
+        <span class="pill" id="cam-state">idle</span>
+      </div>
+      <div class="camrow" id="cam-readings"></div>
+      <div class="gatesblock">
+        <div class="gateslabel">Live gates</div>
+        <div id="cam-gates">-</div>
+      </div>
+      <div class="kv"><span id="cam-note" style="font-size:10px;color:#94a3b8;"></span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Tuning</h2>
+      <div class="tabs">
+        <button id="tab-vision" class="active" type="button">Vision</button>
+        <button id="tab-voice" type="button">Voice (xAI)</button>
+      </div>
       <div class="kv">
         <span>Preset</span>
         <span>
@@ -389,9 +610,12 @@ _MONITOR_PAGE_TEMPLATE = (
           <button id="apply-preset" type="button">Apply</button>
         </span>
       </div>
-      <div id="knobs"></div>
-      <div class="kv"><span>Failed gates (class)</span><strong id="gatecounts">-</strong></div>
-      <div class="kv"><span id="tuning-status"></span></div>
+      <div class="knobscroll" id="knobs"></div>
+      <div id="tuning-status" class="statusline"></div>
+      <div class="gatesblock">
+        <div class="gateslabel">Failed gates (class)</div>
+        <div id="gatecounts">-</div>
+      </div>
     </div>
   </div>
   <div class="panel" style="margin:0 12px 12px 12px;">
@@ -443,6 +667,37 @@ def apply_vision_preset(name: str) -> dict[str, object]:
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     _analyzer.tuning = preset
+    return {"preset": name.strip().lower(), "knobs": preset.to_dict()}
+
+
+@app.get("/api/theodore/voice/tuning")
+def get_voice_tuning() -> dict[str, object]:
+    return {
+        "knobs": _voice_agent.tuning.to_dict(),
+        "presets": sorted(VOICE_PRESETS),
+        "env_prefix": "XAI_TUNE_",
+        "model": {"fast": _voice_agent.fast_model, "full": _voice_agent.model},
+    }
+
+
+@app.patch("/api/theodore/voice/tuning")
+def patch_voice_tuning(req: TuningPatchRequest) -> dict[str, object]:
+    """Adjust xAI generation/latency knobs live, without restarting the service."""
+    try:
+        updated = _voice_agent.tuning.patched(req.knobs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _voice_agent.tuning = updated
+    return {"knobs": updated.to_dict(), "applied": sorted(req.knobs)}
+
+
+@app.post("/api/theodore/voice/tuning/preset/{name}")
+def apply_voice_preset(name: str) -> dict[str, object]:
+    try:
+        preset = VoiceTuning.preset(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _voice_agent.tuning = preset
     return {"preset": name.strip().lower(), "knobs": preset.to_dict()}
 
 
