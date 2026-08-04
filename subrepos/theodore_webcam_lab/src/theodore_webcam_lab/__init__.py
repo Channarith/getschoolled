@@ -2,6 +2,7 @@
 
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .games import WebcamLearningGameEngine
+from .imaging import ImagingAnalysis, analyze_luminance_grid
 from .live_metrics import LiveMetricsStore
 from .types import (
     AudioAnswerAssessment,
@@ -22,6 +23,7 @@ from .types import (
     VoiceResponse,
     WebcamSignal,
 )
+from .vision_tuning import PRESETS, VisionTuning
 from .voice_agents import SUPPORTED_LANGUAGES, XaiVoiceAgent
 
 __all__ = [
@@ -30,11 +32,13 @@ __all__ = [
     "ClassEvaluation",
     "ClassMode",
     "GroupStudentWindowStatus",
+    "ImagingAnalysis",
     "LiveSessionMetricsResponse",
     "LessonAlert",
     "LiveMetricsStore",
     "ParticipantEvaluation",
     "ParticipantMetricSeries",
+    "PRESETS",
     "PresenceState",
     "QualitySummary",
     "SUPPORTED_LANGUAGES",
@@ -44,8 +48,10 @@ __all__ = [
     "WebcamGameType",
     "WebcamLearningChallenge",
     "WebcamLearningGameEngine",
+    "VisionTuning",
     "VoiceResponse",
     "WebcamSessionAnalyzer",
     "WebcamSignal",
     "XaiVoiceAgent",
+    "analyze_luminance_grid",
 ]

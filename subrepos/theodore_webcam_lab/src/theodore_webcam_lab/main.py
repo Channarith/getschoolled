@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
+from .imaging import analyze_luminance_grid
 from .games import WebcamLearningGameEngine
 from .live_metrics import LiveMetricsStore
 from .types import (
@@ -23,6 +24,7 @@ from .types import (
     WebcamLearningChallenge,
     WebcamSignal,
 )
+from .vision_tuning import PRESETS, VisionTuning
 from .voice_agents import XaiVoiceAgent
 
 app = FastAPI(
@@ -34,7 +36,9 @@ app = FastAPI(
     ),
 )
 
-_analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy())
+_analyzer = WebcamSessionAnalyzer(
+    policy=AnalyzerPolicy.from_env(), tuning=VisionTuning.from_env()
+)
 _game_engine = WebcamLearningGameEngine(_analyzer)
 _live_metrics_store = LiveMetricsStore()
 _voice_agent = XaiVoiceAgent.from_env()
@@ -295,6 +299,74 @@ _MONITOR_PAGE_TEMPLATE = (
 </body>
 </html>"""
 )
+
+
+class TuningPatchRequest(BaseModel):
+    """Partial tuning update; omitted knobs keep their current value."""
+
+    knobs: dict[str, float] = Field(default_factory=dict)
+
+
+class ImagingAnalyzeRequest(BaseModel):
+    luminance_grid: list[list[float]] = Field(min_length=3)
+
+
+@app.get("/api/theodore/vision/tuning")
+def get_vision_tuning() -> dict[str, object]:
+    return {
+        "knobs": _analyzer.tuning.to_dict(),
+        "presets": sorted(PRESETS),
+        "env_prefix": "AOEP_VISION_",
+    }
+
+
+@app.patch("/api/theodore/vision/tuning")
+def patch_vision_tuning(req: TuningPatchRequest) -> dict[str, object]:
+    """Adjust recognition knobs live, without restarting the service."""
+    try:
+        updated = _analyzer.tuning.patched(req.knobs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _analyzer.tuning = updated
+    return {"knobs": updated.to_dict(), "applied": sorted(req.knobs)}
+
+
+@app.post("/api/theodore/vision/tuning/preset/{name}")
+def apply_vision_preset(name: str) -> dict[str, object]:
+    try:
+        preset = VisionTuning.preset(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _analyzer.tuning = preset
+    return {"preset": name.strip().lower(), "knobs": preset.to_dict()}
+
+
+@app.post("/api/theodore/vision/imaging/analyze")
+def analyze_imaging(req: ImagingAnalyzeRequest) -> dict[str, object]:
+    """Run Sobel edge + exposure analysis on a luminance grid using active tuning."""
+    try:
+        analysis = analyze_luminance_grid(req.luminance_grid, tuning=_analyzer.tuning)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "width": analysis.width,
+        "height": analysis.height,
+        "backend": analysis.backend,
+        "mean_luminance": analysis.mean_luminance,
+        "underexposed_ratio": analysis.underexposed_ratio,
+        "overexposed_ratio": analysis.overexposed_ratio,
+        "mean_gradient": analysis.mean_gradient,
+        "percentile_gradient": analysis.percentile_gradient,
+        "edge_density": analysis.edge_density,
+        "sharpness_score": analysis.sharpness_score,
+        "light_quality_score": analysis.light_quality_score,
+        "blurry": analysis.blurry,
+        "low_edge_detail": analysis.low_edge_detail,
+        "underexposed": analysis.underexposed,
+        "overexposed": analysis.overexposed,
+        "flags": analysis.flags,
+        "signal_fields": analysis.to_signal_fields(),
+    }
 
 
 @app.get("/health")

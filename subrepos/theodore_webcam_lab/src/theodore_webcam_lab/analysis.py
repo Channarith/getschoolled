@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, fields as dc_fields
 
+from .imaging import analyze_luminance_grid
+from .vision_tuning import VisionTuning
 from .types import (
     ClassEvaluation,
     ClassMode,
@@ -55,6 +58,23 @@ class AnalyzerPolicy:
     # Caps retained per-session state so a long-lived server cannot grow without bound.
     max_tracked_sessions: int = 512
 
+    @classmethod
+    def from_env(cls, environ: dict[str, str] | None = None) -> AnalyzerPolicy:
+        """Load timing/session knobs from AOEP_VISION_* environment variables."""
+        env = os.environ if environ is None else environ
+        overrides: dict[str, object] = {}
+        for field_def in dc_fields(cls):
+            raw = env.get("AOEP_VISION_" + field_def.name.upper())
+            if raw is None or not str(raw).strip():
+                continue
+            try:
+                overrides[field_def.name] = (
+                    int(raw) if field_def.type in (int, "int") else float(raw)
+                )
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{field_def.name} must be numeric (got {raw!r})") from exc
+        return cls(**overrides)  # type: ignore[arg-type]
+
 
 @dataclass
 class _ParticipantState:
@@ -67,11 +87,28 @@ class _ParticipantState:
 class WebcamSessionAnalyzer:
     """Stateful analyzer for solo/group webcam teaching sessions."""
 
-    def __init__(self, policy: AnalyzerPolicy | None = None) -> None:
+    def __init__(
+        self,
+        policy: AnalyzerPolicy | None = None,
+        tuning: VisionTuning | None = None,
+    ) -> None:
         self._policy = policy or AnalyzerPolicy()
+        self._tuning = tuning or VisionTuning()
         self._state: dict[str, dict[str, _ParticipantState]] = {}
         self._no_presence_started_ms: dict[str, int | None] = {}
         self._original_participant_id: dict[str, str] = {}
+
+    @property
+    def tuning(self) -> VisionTuning:
+        return self._tuning
+
+    @tuning.setter
+    def tuning(self, value: VisionTuning) -> None:
+        self._tuning = value
+
+    @property
+    def policy(self) -> AnalyzerPolicy:
+        return self._policy
 
     def _touch_session(self, session_id: str) -> None:
         """Mark a session as most-recently used and evict the oldest ones past the cap."""
@@ -93,25 +130,29 @@ class WebcamSessionAnalyzer:
             return 1.0
         return value
 
-    @classmethod
-    def _snr_to_quality(cls, snr_db: float | None) -> float | None:
+    def _snr_to_quality(self, snr_db: float | None) -> float | None:
         if snr_db is None:
             return None
-        return cls._clamp01((snr_db - 5.0) / 25.0)
+        tuning = self._tuning
+        return self._clamp01((snr_db - tuning.audio_snr_floor_db) / tuning.audio_snr_span_db)
 
-    @classmethod
-    def _noise_db_to_quality(cls, noise_db: float | None) -> float | None:
+    def _noise_db_to_quality(self, noise_db: float | None) -> float | None:
         if noise_db is None:
             return None
-        # 30dB is very clean, 70dB is very noisy.
-        return cls._clamp01((70.0 - noise_db) / 40.0)
+        tuning = self._tuning
+        span = tuning.audio_noise_loud_db - tuning.audio_noise_clean_db
+        return self._clamp01((tuning.audio_noise_loud_db - noise_db) / span)
 
-    @classmethod
-    def _estimate_distance_from_face_ratio(cls, ratio: float | None) -> float | None:
+    def _estimate_distance_from_face_ratio(self, ratio: float | None) -> float | None:
+        """Convert an observed face-box ratio to metres using the calibration knobs."""
         if ratio is None or ratio <= 0.0:
             return None
-        distance = 0.20 / max(0.06, ratio)
-        distance = min(4.0, max(0.30, distance))
+        tuning = self._tuning
+        effective_ratio = max(tuning.distance_min_face_ratio, ratio)
+        distance = tuning.distance_reference_metres * (
+            tuning.distance_reference_face_ratio / effective_ratio
+        )
+        distance = min(tuning.distance_max_metres, max(tuning.distance_min_metres, distance))
         return round(distance, 2)
 
     @staticmethod
@@ -282,6 +323,10 @@ class WebcamSessionAnalyzer:
             for p in evaluations
             if p.noise_filter_effectiveness_score is not None
         ]
+        quality_flag_counts: dict[str, int] = {}
+        for participant in evaluations:
+            for flag in participant.quality_flags:
+                quality_flag_counts[flag] = quality_flag_counts.get(flag, 0) + 1
         expression_counts: dict[str, int] = {}
         for participant in evaluations:
             if participant.dominant_expression == "unknown":
@@ -303,6 +348,10 @@ class WebcamSessionAnalyzer:
             ),
             avg_microphone_quality_score=self._avg_optional(mic_quality_values),
             avg_noise_filter_effectiveness_score=self._avg_optional(noise_filter_values),
+            avg_recognition_confidence=self._avg(
+                [p.recognition_confidence for p in evaluations]
+            ),
+            quality_flag_counts=quality_flag_counts,
         )
         group_student_windows: list[GroupStudentWindowStatus] = []
         lesson_alerts: list[LessonAlert] = []
@@ -432,6 +481,7 @@ class WebcamSessionAnalyzer:
             and signal.foreground_ratio >= self._policy.silhouette_foreground_threshold
             and signal.motion_score <= self._policy.silhouette_motion_threshold
         )
+        tuning = self._tuning
         gaze_down_score = signal.gaze_down_score if signal.gaze_down_score is not None else 0.0
         gaze_frontal = signal.gaze_frontal if signal.gaze_frontal is not None else 1.0
         eyes_away = (
@@ -480,26 +530,32 @@ class WebcamSessionAnalyzer:
         light_quality_score = (
             signal.light_quality_score
             if signal.light_quality_score is not None
-            else 0.5
+            else tuning.light_default_quality
         )
         detection_confidence = (
             signal.image_detection_confidence
             if signal.image_detection_confidence is not None
-            else (0.85 if has_live_face else 0.35)
+            else (
+                tuning.image_default_confidence_with_face
+                if has_live_face
+                else tuning.image_default_confidence_no_face
+            )
         )
         image_detection_quality_score = self._clamp01(
-            0.6 * detection_confidence + 0.4 * (1.0 if has_live_face else 0.35)
+            tuning.image_detection_confidence_weight * detection_confidence
+            + tuning.image_liveness_weight
+            * (1.0 if has_live_face else tuning.image_no_face_penalty)
         )
         if dominant_expression == "happy":
-            expression_component = 0.35
+            expression_component = tuning.behavior_happy_weight
         elif dominant_expression != "unknown":
-            expression_component = 0.2
+            expression_component = tuning.behavior_known_expression_weight
         else:
-            expression_component = 0.1
+            expression_component = tuning.behavior_unknown_expression_weight
         expression_behavior_score = self._clamp01(
             expression_component
-            + (0.35 if not long_eyes_away else 0.0)
-            + (0.30 if not suspected_cheating else 0.0)
+            + (tuning.behavior_focus_weight if not long_eyes_away else 0.0)
+            + (tuning.behavior_integrity_weight if not suspected_cheating else 0.0)
         )
         noise_filter_effectiveness_score = (
             signal.noise_filter_effectiveness_score
@@ -511,7 +567,7 @@ class WebcamSessionAnalyzer:
         clipping_quality = (
             None
             if signal.mic_clipping_ratio is None
-            else self._clamp01(1.0 - signal.mic_clipping_ratio * 2.5)
+            else self._clamp01(1.0 - signal.mic_clipping_ratio * tuning.audio_clipping_penalty)
         )
         mic_level_quality = signal.microphone_input_level_score
         mic_parts = [
@@ -579,6 +635,93 @@ class WebcamSessionAnalyzer:
                 f"{signal.participant_id}:{'+'.join(sorted(cheating_reasons))}"
             )
 
+        # --- tuning-driven quality gates -----------------------------------
+        sharpness_score = signal.sharpness_score
+        edge_density = signal.edge_density
+        mean_luminance = signal.mean_luminance
+        underexposed_ratio = signal.underexposed_ratio
+        overexposed_ratio = signal.overexposed_ratio
+        quality_flags: list[str] = []
+
+        if signal.luminance_grid:
+            # Client sent raw pixels: derive Sobel/exposure readings server-side so a
+            # thin client still benefits from the active calibration.
+            imaging = analyze_luminance_grid(signal.luminance_grid, tuning=tuning)
+            sharpness_score = (
+                imaging.sharpness_score if sharpness_score is None else sharpness_score
+            )
+            edge_density = imaging.edge_density if edge_density is None else edge_density
+            mean_luminance = (
+                imaging.mean_luminance if mean_luminance is None else mean_luminance
+            )
+            underexposed_ratio = (
+                imaging.underexposed_ratio
+                if underexposed_ratio is None
+                else underexposed_ratio
+            )
+            overexposed_ratio = (
+                imaging.overexposed_ratio if overexposed_ratio is None else overexposed_ratio
+            )
+            if signal.light_quality_score is None:
+                light_quality_score = imaging.light_quality_score
+
+        if light_quality_score < tuning.light_min_quality:
+            quality_flags.append("lighting_below_min_quality")
+        if mean_luminance is not None:
+            if mean_luminance <= tuning.light_underexposed_luma:
+                quality_flags.append("lighting_underexposed")
+            elif mean_luminance >= tuning.light_overexposed_luma:
+                quality_flags.append("lighting_overexposed")
+        if (
+            underexposed_ratio is not None
+            and underexposed_ratio > tuning.light_max_clipped_black_ratio
+        ):
+            quality_flags.append("shadow_clipping")
+        if (
+            overexposed_ratio is not None
+            and overexposed_ratio > tuning.light_max_clipped_white_ratio
+        ):
+            quality_flags.append("highlight_clipping")
+        if sharpness_score is not None and sharpness_score < tuning.sharpness_min_quality:
+            quality_flags.append("image_blurry")
+        if edge_density is not None and edge_density < tuning.sobel_min_edge_density:
+            quality_flags.append("low_edge_detail")
+        if image_detection_quality_score < tuning.image_min_quality:
+            quality_flags.append("detection_quality_low")
+        if distance_from_camera_m is not None:
+            if distance_from_camera_m < tuning.distance_too_close_m:
+                quality_flags.append("too_close_to_camera")
+            elif distance_from_camera_m > tuning.distance_too_far_m:
+                quality_flags.append("too_far_from_camera")
+        if (
+            microphone_quality_score is not None
+            and microphone_quality_score < tuning.audio_min_mic_quality
+        ):
+            quality_flags.append("microphone_quality_low")
+        if (
+            noise_filter_effectiveness_score is not None
+            and noise_filter_effectiveness_score < tuning.audio_min_noise_filter_effectiveness
+        ):
+            quality_flags.append("noise_filter_weak")
+        if (
+            signal.audio_noise_level_db is not None
+            and signal.audio_noise_level_db > tuning.audio_max_noise_level_db
+        ):
+            quality_flags.append("high_background_noise")
+        if signal.audio_snr_db is not None and signal.audio_snr_db < tuning.audio_min_snr_db:
+            quality_flags.append("low_audio_snr")
+
+        # Recognition confidence blends the visual gates that actually govern whether
+        # a frame is usable, then penalises each failed gate.
+        confidence_parts = [image_detection_quality_score, light_quality_score]
+        if sharpness_score is not None:
+            confidence_parts.append(sharpness_score)
+        recognition_confidence = self._clamp01(
+            self._avg(confidence_parts) * (1.0 - 0.1 * len(quality_flags))
+        )
+        for flag in quality_flags:
+            alerts.append(f"{flag}:{signal.participant_id}")
+
         return ParticipantEvaluation(
             participant_id=signal.participant_id,
             state=state,
@@ -593,6 +736,10 @@ class WebcamSessionAnalyzer:
             audio_snr_db=signal.audio_snr_db,
             microphone_quality_score=microphone_quality_score,
             noise_filter_effectiveness_score=noise_filter_effectiveness_score,
+            sharpness_score=sharpness_score,
+            edge_density=edge_density,
+            quality_flags=quality_flags,
+            recognition_confidence=recognition_confidence,
             absent_for_ms=absent_for_ms,
             eyes_away_for_ms=eyes_away_for_ms,
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
