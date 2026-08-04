@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "salareen-webcam-classroom"
+version = "0.1.0"
+description = "Private lab: webcam image recognition (silhouette + user-absence) and xAI (Grok) voice agents for Theodore-led and self-teaching solo/group classes."
+requires-python = ">=3.11"
+# Self-contained sub-repo. Reuses the platform's self-hosted face engine/engagement
+# heuristics from aoep-shared when installed, but the silhouette/absence/xAI logic
+# runs standalone and offline-safe (no GPU, no network, no API key required).
+dependencies = [
+  "aoep-shared",
+]
+
+[project.optional-dependencies]
+# Real webcam frame decoding + fast array ops. Optional: the core detectors accept
+# pre-decoded arrays / structured readings and degrade to a pure-python path.
+image = [
+  "numpy>=1.26",
+  "opencv-contrib-python-headless>=4.10,<5",
+]
+test = [
+  "pytest>=8.2,<9",
+  "numpy>=1.26",
+]
+
+[project.scripts]
+webcam-classroom-demo = "webcam_classroom.demo:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
