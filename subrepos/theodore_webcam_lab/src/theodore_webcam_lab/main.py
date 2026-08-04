@@ -6,9 +6,12 @@ from pydantic import BaseModel, Field
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
 from .games import WebcamLearningGameEngine
 from .types import (
+    AudioAnswerAssessment,
     ClassEvaluation,
     ClassMode,
+    SupportedLanguage,
     VoiceResponse,
+    VoiceQuestion,
     WebcamGameResult,
     WebcamGameType,
     WebcamLearningChallenge,
@@ -40,6 +43,24 @@ class WebcamEvaluationRequest(BaseModel):
 class VoiceRequest(BaseModel):
     class_mode: ClassMode = ClassMode.SOLO
     learner_message: str = Field(min_length=1)
+    language_code: str = Field(default="en", min_length=2, max_length=8)
+    context: str = ""
+
+
+class VoiceQuestionRequest(BaseModel):
+    class_mode: ClassMode = ClassMode.SOLO
+    language_code: str = Field(default="en", min_length=2, max_length=8)
+    topic: str = Field(min_length=1)
+    difficulty: str = Field(default="medium")
+    context: str = ""
+
+
+class AudioAnswerRequest(BaseModel):
+    class_mode: ClassMode = ClassMode.SOLO
+    language_code: str = Field(default="en", min_length=2, max_length=8)
+    question: str = Field(min_length=1)
+    audio_transcript: str = Field(min_length=1)
+    expected_answer: str = ""
     context: str = ""
 
 
@@ -62,6 +83,11 @@ class ChallengeAttemptRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"service": "theodore-webcam-lab", "status": "ok"}
+
+
+@app.get("/api/theodore/voice/languages", response_model=list[SupportedLanguage])
+def voice_languages() -> list[SupportedLanguage]:
+    return _voice_agent.supported_languages()
 
 
 @app.post("/api/theodore/webcam/evaluate", response_model=ClassEvaluation)
@@ -107,8 +133,44 @@ def attempt_challenge(req: ChallengeAttemptRequest) -> WebcamGameResult:
 
 @app.post("/api/theodore/voice/respond", response_model=VoiceResponse)
 def voice_respond(req: VoiceRequest) -> VoiceResponse:
-    return _voice_agent.respond(
-        learner_message=req.learner_message,
-        class_mode=req.class_mode,
-        context=req.context,
-    )
+    try:
+        return _voice_agent.respond(
+            learner_message=req.learner_message,
+            class_mode=req.class_mode,
+            language_code=req.language_code,
+            context=req.context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.post("/api/theodore/voice/ask-question", response_model=VoiceQuestion)
+def voice_ask_question(req: VoiceQuestionRequest) -> VoiceQuestion:
+    try:
+        return _voice_agent.ask_question(
+            class_mode=req.class_mode,
+            language_code=req.language_code,
+            topic=req.topic,
+            difficulty=req.difficulty,
+            context=req.context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.post(
+    "/api/theodore/voice/absorb-audio-answer",
+    response_model=AudioAnswerAssessment,
+)
+def voice_absorb_audio_answer(req: AudioAnswerRequest) -> AudioAnswerAssessment:
+    try:
+        return _voice_agent.absorb_audio_answer(
+            class_mode=req.class_mode,
+            language_code=req.language_code,
+            question=req.question,
+            audio_transcript=req.audio_transcript,
+            expected_answer=req.expected_answer,
+            context=req.context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))

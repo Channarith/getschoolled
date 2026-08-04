@@ -51,6 +51,58 @@ def test_voice_endpoint_falls_back_without_xai_key():
     assert body["fallback_used"] is True
 
 
+def test_voice_languages_endpoint_lists_26_supported_languages():
+    resp = client.get("/api/theodore/voice/languages")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 26
+    assert body[0]["code"] == "en"
+
+
+def test_voice_ask_question_and_absorb_audio_answer_endpoints():
+    question_resp = client.post(
+        "/api/theodore/voice/ask-question",
+        json={
+            "class_mode": "solo",
+            "language_code": "de",
+            "topic": "water cycle",
+            "difficulty": "easy",
+        },
+    )
+    assert question_resp.status_code == 200
+    question_body = question_resp.json()
+    assert question_body["language_code"] == "de"
+    assert question_body["question"]
+
+    absorb_resp = client.post(
+        "/api/theodore/voice/absorb-audio-answer",
+        json={
+            "class_mode": "solo",
+            "language_code": "de",
+            "question": question_body["question"],
+            "audio_transcript": "Water evaporates, forms clouds, and falls as rain.",
+            "expected_answer": "evaporation condensation precipitation",
+        },
+    )
+    assert absorb_resp.status_code == 200
+    absorb_body = absorb_resp.json()
+    assert absorb_body["language_code"] == "de"
+    assert absorb_body["absorbed_transcript"]
+    assert absorb_body["understood"] is True
+
+
+def test_voice_endpoints_reject_unsupported_language():
+    resp = client.post(
+        "/api/theodore/voice/ask-question",
+        json={
+            "class_mode": "group",
+            "language_code": "xx",
+            "topic": "algebra",
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_webcam_expression_api_returns_happy_summary():
     resp = client.post(
         "/api/theodore/webcam/evaluate",

@@ -83,6 +83,33 @@ class VoiceResponse(BaseModel):
     fallback_used: bool
 
 
+class SupportedLanguage(BaseModel):
+    code: str
+    name: str
+
+
+class VoiceQuestion(BaseModel):
+    provider: str
+    language_code: str
+    language_name: str
+    question: str
+    hint: str
+    fallback_used: bool
+
+
+class AudioAnswerAssessment(BaseModel):
+    provider: str
+    language_code: str
+    language_name: str
+    absorbed_transcript: str
+    understood: bool
+    understanding_confidence: float = Field(ge=0.0, le=1.0)
+    correctness_score: float = Field(ge=0.0, le=1.0)
+    feedback_message: str
+    follow_up_question: str
+    fallback_used: bool
+
+
 class WebcamLearningChallenge(BaseModel):
     challenge_id: str
     session_id: str
