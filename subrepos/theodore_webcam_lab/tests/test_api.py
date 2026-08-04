@@ -199,3 +199,60 @@ def test_webcam_api_detects_keyboard_typing_audio_pattern():
         "keyboard_typing_audio",
     ]
     assert body["keyboard_typing_audio_participant_ids"] == ["learner-k"]
+
+
+def test_webcam_game_challenge_and_attempt_flow():
+    challenge_resp = client.post(
+        "/api/theodore/webcam/games/challenge",
+        json={
+            "session_id": "game-api-1",
+            "mode": "solo",
+            "learning_prompt": "Explain photosynthesis in one sentence.",
+            "preferred_game_type": "confidence_smile",
+            "participant_ids": ["learner-g"],
+        },
+    )
+    assert challenge_resp.status_code == 200
+    challenge = challenge_resp.json()
+    assert challenge["game_type"] == "confidence_smile"
+    assert challenge["challenge_id"]
+
+    attempt_resp = client.post(
+        "/api/theodore/webcam/games/attempt",
+        json={
+            "challenge_id": challenge["challenge_id"],
+            "session_id": "game-api-1",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "learner-g",
+                    "timestamp_ms": 10_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.4,
+                    "motion_score": 0.1,
+                    "expression_label": "happy",
+                    "expression_confidence": 0.95,
+                }
+            ],
+        },
+    )
+    assert attempt_resp.status_code == 200
+    result = attempt_resp.json()
+    assert result["passed"] is True
+    assert result["score_delta"] == 12
+    assert result["total_score"] >= 12
+    assert result["evaluation"]["happy_participant_ids"] == ["learner-g"]
+
+
+def test_webcam_game_attempt_returns_404_for_unknown_challenge():
+    resp = client.post(
+        "/api/theodore/webcam/games/attempt",
+        json={
+            "challenge_id": "challenge-missing",
+            "session_id": "unknown-game",
+            "mode": "solo",
+            "signals": [],
+        },
+    )
+    assert resp.status_code == 404

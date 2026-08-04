@@ -14,6 +14,15 @@ Feature scope
 - Learner absence detection with grace periods
 - xAI voice-agent response integration (OpenAI-compatible API), plus local
   fallback when keys/network are unavailable
+- Webcam reinforcement games/challenges scored from live signals:
+  focus streak, confidence smile, and integrity guard
+
+API highlights
+--------------
+- POST /api/theodore/webcam/evaluate
+- POST /api/theodore/voice/respond
+- POST /api/theodore/webcam/games/challenge
+- POST /api/theodore/webcam/games/attempt
 
 Run locally
 -----------

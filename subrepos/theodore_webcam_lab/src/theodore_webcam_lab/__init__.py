@@ -1,11 +1,15 @@
 """Theodore webcam + voice prototype package."""
 
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
+from .games import WebcamLearningGameEngine
 from .types import (
     ClassEvaluation,
     ClassMode,
     ParticipantEvaluation,
     PresenceState,
+    WebcamGameResult,
+    WebcamGameType,
+    WebcamLearningChallenge,
     VoiceResponse,
     WebcamSignal,
 )
@@ -17,6 +21,10 @@ __all__ = [
     "ClassMode",
     "ParticipantEvaluation",
     "PresenceState",
+    "WebcamGameResult",
+    "WebcamGameType",
+    "WebcamLearningChallenge",
+    "WebcamLearningGameEngine",
     "VoiceResponse",
     "WebcamSessionAnalyzer",
     "WebcamSignal",

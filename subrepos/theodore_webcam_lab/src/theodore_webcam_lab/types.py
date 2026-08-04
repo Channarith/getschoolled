@@ -10,6 +10,12 @@ class ClassMode(str, Enum):
     GROUP = "group"
 
 
+class WebcamGameType(str, Enum):
+    FOCUS_STREAK = "focus_streak"
+    CONFIDENCE_SMILE = "confidence_smile"
+    INTEGRITY_GUARD = "integrity_guard"
+
+
 class PresenceState(str, Enum):
     PRESENT = "present"
     TEMPORARILY_MISSING = "temporarily_missing"
@@ -69,3 +75,25 @@ class VoiceResponse(BaseModel):
     message: str
     communication_style: str
     fallback_used: bool
+
+
+class WebcamLearningChallenge(BaseModel):
+    challenge_id: str
+    session_id: str
+    mode: ClassMode
+    game_type: WebcamGameType
+    title: str
+    instruction: str
+    learning_prompt: str
+    target_duration_ms: int = Field(ge=0)
+    participant_ids: list[str] = Field(default_factory=list)
+
+
+class WebcamGameResult(BaseModel):
+    challenge_id: str
+    passed: bool
+    score_delta: int
+    total_score: int
+    streak: int
+    feedback: str
+    evaluation: ClassEvaluation
