@@ -181,7 +181,15 @@ charts and lesson alerts. The right-hand screenshot shows a deliberate
 | --- | --- |
 | <img src="docs/screens/theodore_webcam_live_monitor.webp" alt="Theodore webcam live monitor with summary metric cards, lesson alerts, and two student windows each showing quality bars and a live detection chart" /> | <img src="docs/screens/theodore_webcam_monitor_xss_escaped.webp" alt="Live monitor heading showing an injection payload rendered as literal escaped text with no alert dialog" /> |
 
-How to run and test this yourself: `subrepos/theodore_webcam_lab/README.txt`.
+Recognition accuracy is tunable live - lighting/exposure limits, Sobel sharpness
+thresholds, distance calibration, detection thresholds and audio noise gates are
+all named knobs with room presets, adjustable while watching the failed-gate list
+respond:
+
+<img src="docs/screens/theodore_vision_tuning_panel.webp" alt="Recognition Tuning panel with preset selector and live sliders for lighting, Sobel sharpness, distance and audio knobs, beside the failed quality-gate list" />
+
+How to run and test this yourself: `subrepos/theodore_webcam_lab/README.txt`
+(see its RECOGNITION TUNING section for every knob).
 
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
 crown, and S-with-bodhi-leaf medallion):

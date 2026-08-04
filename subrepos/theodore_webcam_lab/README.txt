@@ -24,6 +24,10 @@ Feature scope
   and lesson alerts/messages for missing or cheating learners
 - Live quality metrics + chart-ready series for every student window (distance,
   light, image quality, expression/behavior, mic quality, noise filtering)
+- Tunable recognition accuracy: every threshold, calibration and scoring weight is
+  a named knob (env, live API, or room preset) - see RECOGNITION TUNING below
+- Sobel binary-edge imaging for sharpness/blur and exposure analysis, computed
+  on-device or server-side from a posted luminance grid
 
 API highlights
 --------------
@@ -36,12 +40,113 @@ API highlights
 - POST /api/theodore/voice/absorb-audio-answer
 - POST /api/theodore/webcam/games/challenge
 - POST /api/theodore/webcam/games/attempt
+- GET   /api/theodore/vision/tuning                    (read all knobs + presets)
+- PATCH /api/theodore/vision/tuning                    (change knobs live)
+- POST  /api/theodore/vision/tuning/preset/{name}      (apply a room preset)
+- POST  /api/theodore/vision/imaging/analyze           (Sobel + exposure report)
 
 Screens
 -------
 - docs/screens/theodore_webcam_live_monitor.webp        (live monitor dashboard)
 - docs/screens/theodore_webcam_monitor_xss_escaped.webp (escaped-injection check)
 - docs/demos/theodore_webcam_live_monitor_demo.mp4      (walkthrough recording)
+
+RECOGNITION TUNING
+==================
+Nothing about recognition accuracy is hardcoded any more. Every threshold,
+calibration constant and scoring weight lives in VisionTuning
+(src/theodore_webcam_lab/vision_tuning.py) and can be set three ways:
+
+  1. Environment - AOEP_VISION_<KNOB_NAME_UPPERCASE>, e.g.
+       AOEP_VISION_SOBEL_BINARY_THRESHOLD=0.22
+       AOEP_VISION_LIGHT_UNDEREXPOSED_LUMA=0.18
+       AOEP_VISION_AUDIO_MAX_NOISE_LEVEL_DB=68
+     Timing/session knobs use the same prefix via AnalyzerPolicy.from_env(),
+     e.g. AOEP_VISION_GAZE_AWAY_GRACE_MS=20000.
+  2. Live API - PATCH /api/theodore/vision/tuning with {"knobs": {...}}. Takes
+     effect on the next frame; no restart. Unknown knobs and out-of-range values
+     are rejected with 422 rather than silently ignored.
+  3. Room presets - POST /api/theodore/vision/tuning/preset/{name}:
+       balanced            shipping defaults
+       low_light           dim rooms: accepts darker, softer frames
+       bright_room         backlit rooms: clamps blown highlights
+       noisy_room          shared spaces: relaxes the noise ceiling but DEMANDS
+                           effective noise suppression, and raises the
+                           keyboard-audio bar so chatter is not read as cheating
+       high_accuracy       proctoring: crisp, well-lit, well-framed video only
+       wide_angle_laptop   laptop FOV: re-calibrates the face-ratio to metres
+
+Knob groups
+-----------
+Lighting / exposure   light_underexposed_luma, light_overexposed_luma,
+                      light_max_clipped_black_ratio, light_max_clipped_white_ratio,
+                      light_min_quality, light_default_quality
+Sharpness (Sobel)     sobel_binary_threshold, sobel_min_edge_density,
+                      sharpness_reference_gradient, sharpness_min_quality,
+                      sharpness_gradient_percentile
+Distance calibration  distance_reference_face_ratio, distance_reference_metres,
+                      distance_min_face_ratio, distance_min_metres,
+                      distance_max_metres, distance_too_close_m, distance_too_far_m
+Detection thresholds  silhouette_foreground_threshold, silhouette_motion_threshold,
+                      silhouette_consecutive_frames, gaze_frontal_min_threshold,
+                      gaze_down_min_threshold, typing_activity_min_threshold,
+                      keyboard_typing_audio_min_threshold
+Detection scoring     image_detection_confidence_weight, image_liveness_weight,
+                      image_no_face_penalty, image_default_confidence_with_face,
+                      image_default_confidence_no_face, image_min_quality
+Behaviour scoring     behavior_happy_weight, behavior_known_expression_weight,
+                      behavior_unknown_expression_weight, behavior_focus_weight,
+                      behavior_integrity_weight
+Audio / noise         audio_snr_floor_db, audio_snr_span_db, audio_noise_clean_db,
+                      audio_noise_loud_db, audio_clipping_penalty,
+                      audio_min_mic_quality, audio_min_noise_filter_effectiveness,
+                      audio_max_noise_level_db, audio_min_snr_db
+
+Sobel binary imaging
+--------------------
+A 3x3 Sobel Gx/Gy pass produces per-pixel gradient magnitudes, normalised to
+0..1 and thresholded by sobel_binary_threshold into an edge mask. edge_density is
+the fraction of interior pixels above that threshold. Sharpness reads a HIGH
+PERCENTILE of the gradient (sharpness_gradient_percentile, default 95) rather
+than the mean, because a mean cannot separate a sharp frame whose detail sits on
+a few percent of pixels from an evenly blurred one - measured on synthetic grids,
+the mean gave 0.289 vs 0.269 (useless) while the p95 gives a ~5x separation.
+Blur and low detail stay SEPARATE verdicts: a sharp but low-contrast frame is
+reported as low_edge_detail, not image_blurry.
+
+It runs with numpy when available and falls back to a pure-standard-library
+kernel otherwise (both paths produce identical numbers). Send readings yourself
+on WebcamSignal (sharpness_score, edge_density, mean_luminance,
+underexposed_ratio, overexposed_ratio), or post a luminance_grid (0..1 or 0..255,
+auto-scaled) and the server derives them with the active tuning.
+
+Quality gates
+-------------
+Each frame reports quality_flags plus a 0..1 recognition_confidence, and the
+class rolls them up into quality_summary.quality_flag_counts /
+avg_recognition_confidence. Gate names: lighting_below_min_quality,
+lighting_underexposed, lighting_overexposed, shadow_clipping, highlight_clipping,
+image_blurry, low_edge_detail, detection_quality_low, too_close_to_camera,
+too_far_from_camera, microphone_quality_low, noise_filter_weak,
+high_background_noise, low_audio_snr.
+
+Tuning workflow (what we actually ran)
+--------------------------------------
+   # 1. reproduce a bad room
+   python3 subrepos/theodore_webcam_lab/scripts/seed_demo_session.py --degraded
+   # 2. see which gates fail
+   curl -s http://127.0.0.1:8015/api/theodore/webcam/live-metrics/demo-session \
+     | python3 -c "import json,sys; q=json.load(sys.stdin)['quality_summary']; \
+print(q['quality_flag_counts'], q['avg_recognition_confidence'])"
+   # 3. tune, then re-post the SAME frames and compare
+   curl -s -X POST http://127.0.0.1:8015/api/theodore/vision/tuning/preset/low_light
+
+On the seeded degraded feed that sequence moves 10 failing gates / 0.367
+confidence -> 6 gates / 0.436 (the remaining ones are audio and framing, which
+the lighting preset is not meant to fix). The live monitor page has the same
+controls as sliders under "Recognition Tuning", so you can watch the failed-gate
+list change as you drag.
+
 
 HOW TO TEST
 ===========
@@ -59,7 +164,8 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 --------------------------------------------------------------
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 
-   EXPECT: "54 passed". These cover the analyzer, games, voice agent, the API,
+   EXPECT: "77 passed". These cover the analyzer, games, voice agent, the API,
+   the recognition tuning knobs, Sobel imaging, the quality gates,
    the 24/7 training orchestrator, and one regression test per audited bug fix
    (see tests/test_audit_regressions.py).
 
@@ -83,7 +189,9 @@ Step 3 - seed demo webcam frames
 
    EXPECT: "Seeded 'demo-session' with 60 frames." plus the monitor URL.
    Add --rolling to keep posting one frame per second so the dashboard animates
-   while you watch it (Ctrl-C to stop).
+   while you watch it (Ctrl-C to stop). Add --degraded to send dim, soft-focus,
+   noisy frames so the recognition quality gates fire and you can practise tuning
+   them (see RECOGNITION TUNING above).
 
    Keep the default 60 frames: student-b's cheating signal only trips after the
    sustained gaze-away window (45s of simulated time), so a shorter seed will

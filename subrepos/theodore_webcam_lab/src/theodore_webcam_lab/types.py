@@ -45,6 +45,14 @@ class WebcamSignal(BaseModel):
     audio_noise_level_db: float | None = None
     audio_snr_db: float | None = None
     mic_clipping_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Sobel/exposure readings. Either send them pre-computed, or send
+    # luminance_grid and the server derives them with the active tuning.
+    sharpness_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    edge_density: float | None = Field(default=None, ge=0.0, le=1.0)
+    mean_luminance: float | None = Field(default=None, ge=0.0, le=1.0)
+    underexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    overexposed_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    luminance_grid: list[list[float]] | None = None
 
 
 class ParticipantEvaluation(BaseModel):
@@ -63,6 +71,13 @@ class ParticipantEvaluation(BaseModel):
     noise_filter_effectiveness_score: float | None = Field(
         default=None, ge=0.0, le=1.0
     )
+    sharpness_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    edge_density: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Which tuning gates this frame failed, e.g. lighting_underexposed, image_blurry,
+    # too_far_from_camera, high_background_noise.
+    quality_flags: list[str] = Field(default_factory=list)
+    # Overall 0..1 confidence that this frame is good enough to recognise from.
+    recognition_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     absent_for_ms: int = Field(ge=0)
     eyes_away_for_ms: int = Field(ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
@@ -103,6 +118,8 @@ class QualitySummary(BaseModel):
     avg_noise_filter_effectiveness_score: float | None = Field(
         default=None, ge=0.0, le=1.0
     )
+    avg_recognition_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    quality_flag_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class ClassEvaluation(BaseModel):

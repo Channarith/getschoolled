@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from .analysis import AnalyzerPolicy, WebcamSessionAnalyzer
+from .imaging import analyze_luminance_grid
 from .games import WebcamLearningGameEngine
 from .live_metrics import LiveMetricsStore
 from .types import (
@@ -23,6 +24,7 @@ from .types import (
     WebcamLearningChallenge,
     WebcamSignal,
 )
+from .vision_tuning import PRESETS, VisionTuning
 from .voice_agents import XaiVoiceAgent
 
 app = FastAPI(
@@ -34,7 +36,9 @@ app = FastAPI(
     ),
 )
 
-_analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy())
+_analyzer = WebcamSessionAnalyzer(
+    policy=AnalyzerPolicy.from_env(), tuning=VisionTuning.from_env()
+)
 _game_engine = WebcamLearningGameEngine(_analyzer)
 _live_metrics_store = LiveMetricsStore()
 _voice_agent = XaiVoiceAgent.from_env()
@@ -115,6 +119,11 @@ _MONITOR_CSS = """
     .kv { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
     progress { width: 100%; height: 9px; }
     .alerts li { margin-bottom: 6px; font-size: 12px; }
+    select, button, input[type=range] { font-size: 12px; }
+    button { cursor: pointer; background: #334155; color: #e2e8f0;
+             border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; }
+    .knob { display: grid; grid-template-columns: 1.5fr 2fr 0.6fr; gap: 6px;
+            align-items: center; font-size: 11px; margin: 2px 0; }
     canvas { width: 100%; height: 72px; background: #0b1220; border-radius: 6px; margin-top: 8px; }
 """
 
@@ -205,6 +214,12 @@ _MONITOR_JS = """
           <div class="v">${num(s.avg_noise_filter_effectiveness_score)}</div></div>
       `;
 
+      const gates = (data.quality_summary || {}).quality_flag_counts || {};
+      const gateText = Object.keys(gates).length
+        ? Object.entries(gates).map(([k, v]) => `${k}=${v}`).join(', ')
+        : 'none';
+      document.getElementById('gatecounts').textContent = gateText;
+
       const alerts = data.lesson_alerts || [];
       document.getElementById('alerts').innerHTML = alerts.length
         ? alerts.map(a => `<li><strong>[${esc(a.level)}]</strong> ${esc(a.message)} ` +
@@ -258,6 +273,89 @@ _MONITOR_JS = """
         );
       });
     }
+    // Knobs surfaced as live sliders: the ones operators reach for first when
+    // detection quality looks wrong in the room they are actually in.
+    const TUNABLE = [
+      ['light_min_quality', 0, 1, 0.01],
+      ['light_underexposed_luma', 0, 1, 0.01],
+      ['light_overexposed_luma', 0, 1, 0.01],
+      ['sobel_binary_threshold', 0, 1, 0.01],
+      ['sobel_min_edge_density', 0, 0.5, 0.005],
+      ['sharpness_min_quality', 0, 1, 0.01],
+      ['distance_reference_face_ratio', 0.02, 0.6, 0.01],
+      ['distance_too_far_m', 0.5, 4, 0.05],
+      ['gaze_down_min_threshold', 0, 1, 0.01],
+      ['typing_activity_min_threshold', 0, 1, 0.01],
+      ['keyboard_typing_audio_min_threshold', 0, 1, 0.01],
+      ['audio_min_mic_quality', 0, 1, 0.01],
+      ['audio_max_noise_level_db', 20, 100, 1],
+      ['audio_min_snr_db', 0, 40, 0.5],
+    ];
+
+    function setStatus(text) {
+      document.getElementById('tuning-status').textContent = text;
+    }
+
+    async function patchKnob(name, value) {
+      const res = await fetch('/api/theodore/vision/tuning', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ knobs: { [name]: Number(value) } }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        setStatus(`rejected: ${esc(detail.detail || res.status)}`);
+        return false;
+      }
+      setStatus(`${name} = ${value}`);
+      return true;
+    }
+
+    function renderKnobs(knobs) {
+      const host = document.getElementById('knobs');
+      host.innerHTML = TUNABLE.map(([name, min, max, step]) => `
+        <div class="knob">
+          <span title="${esc(name)}">${esc(name)}</span>
+          <input type="range" data-knob="${esc(name)}" min="${min}" max="${max}"
+                 step="${step}" value="${knobs[name]}" />
+          <strong data-knob-value="${esc(name)}">${knobs[name]}</strong>
+        </div>
+      `).join('');
+      host.querySelectorAll('input[data-knob]').forEach((input) => {
+        input.addEventListener('input', (event) => {
+          const name = event.target.dataset.knob;
+          const readout = host.querySelector(`[data-knob-value="${name}"]`);
+          if (readout) readout.textContent = event.target.value;
+        });
+        input.addEventListener('change', async (event) => {
+          await patchKnob(event.target.dataset.knob, event.target.value);
+        });
+      });
+    }
+
+    async function loadTuning() {
+      const res = await fetch('/api/theodore/vision/tuning', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const select = document.getElementById('preset');
+      if (!select.options.length) {
+        select.innerHTML = (data.presets || [])
+          .map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      }
+      renderKnobs(data.knobs || {});
+    }
+
+    document.getElementById('apply-preset').addEventListener('click', async () => {
+      const name = document.getElementById('preset').value;
+      const res = await fetch(
+        `/api/theodore/vision/tuning/preset/${encodeURIComponent(name)}`,
+        { method: 'POST' }
+      );
+      setStatus(res.ok ? `preset applied: ${name}` : `preset failed: ${res.status}`);
+      if (res.ok) await loadTuning();
+    });
+
+    loadTuning();
     refresh();
     setInterval(refresh, 1000);
 """
@@ -283,6 +381,17 @@ _MONITOR_PAGE_TEMPLATE = (
     <div class="panel">
       <h2>Lesson Alerts</h2>
       <ul class="alerts" id="alerts"></ul>
+      <h2 style="margin-top:12px;">Recognition Tuning</h2>
+      <div class="kv">
+        <span>Preset</span>
+        <span>
+          <select id="preset"></select>
+          <button id="apply-preset" type="button">Apply</button>
+        </span>
+      </div>
+      <div id="knobs"></div>
+      <div class="kv"><span>Failed gates (class)</span><strong id="gatecounts">-</strong></div>
+      <div class="kv"><span id="tuning-status"></span></div>
     </div>
   </div>
   <div class="panel" style="margin:0 12px 12px 12px;">
@@ -295,6 +404,74 @@ _MONITOR_PAGE_TEMPLATE = (
 </body>
 </html>"""
 )
+
+
+class TuningPatchRequest(BaseModel):
+    """Partial tuning update; omitted knobs keep their current value."""
+
+    knobs: dict[str, float] = Field(default_factory=dict)
+
+
+class ImagingAnalyzeRequest(BaseModel):
+    luminance_grid: list[list[float]] = Field(min_length=3)
+
+
+@app.get("/api/theodore/vision/tuning")
+def get_vision_tuning() -> dict[str, object]:
+    return {
+        "knobs": _analyzer.tuning.to_dict(),
+        "presets": sorted(PRESETS),
+        "env_prefix": "AOEP_VISION_",
+    }
+
+
+@app.patch("/api/theodore/vision/tuning")
+def patch_vision_tuning(req: TuningPatchRequest) -> dict[str, object]:
+    """Adjust recognition knobs live, without restarting the service."""
+    try:
+        updated = _analyzer.tuning.patched(req.knobs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _analyzer.tuning = updated
+    return {"knobs": updated.to_dict(), "applied": sorted(req.knobs)}
+
+
+@app.post("/api/theodore/vision/tuning/preset/{name}")
+def apply_vision_preset(name: str) -> dict[str, object]:
+    try:
+        preset = VisionTuning.preset(name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _analyzer.tuning = preset
+    return {"preset": name.strip().lower(), "knobs": preset.to_dict()}
+
+
+@app.post("/api/theodore/vision/imaging/analyze")
+def analyze_imaging(req: ImagingAnalyzeRequest) -> dict[str, object]:
+    """Run Sobel edge + exposure analysis on a luminance grid using active tuning."""
+    try:
+        analysis = analyze_luminance_grid(req.luminance_grid, tuning=_analyzer.tuning)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "width": analysis.width,
+        "height": analysis.height,
+        "backend": analysis.backend,
+        "mean_luminance": analysis.mean_luminance,
+        "underexposed_ratio": analysis.underexposed_ratio,
+        "overexposed_ratio": analysis.overexposed_ratio,
+        "mean_gradient": analysis.mean_gradient,
+        "percentile_gradient": analysis.percentile_gradient,
+        "edge_density": analysis.edge_density,
+        "sharpness_score": analysis.sharpness_score,
+        "light_quality_score": analysis.light_quality_score,
+        "blurry": analysis.blurry,
+        "low_edge_detail": analysis.low_edge_detail,
+        "underexposed": analysis.underexposed,
+        "overexposed": analysis.overexposed,
+        "flags": analysis.flags,
+        "signal_fields": analysis.to_signal_fields(),
+    }
 
 
 @app.get("/health")
