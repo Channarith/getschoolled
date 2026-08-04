@@ -11,4 +11,4 @@ Webcam recognition lab — privacy notes
   sent (present, face_count, liveness_state, liveness_score, reason, source).
 - xAI Voice Agents: audio is streamed to xAI only when XAI_API_KEY is set and
   the operator starts a voice session. Offline mock mode keeps all audio local.
-- Do not commit API keys. Copy .env.example -> .env (gitignored via root .env*).
+- Do not commit API keys. Copy env.example -> .env (gitignored via root .env*).
