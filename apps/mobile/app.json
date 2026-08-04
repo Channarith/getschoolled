@@ -1,9 +1,9 @@
 {
   "expo": {
     "name": "Salareen",
-    "slug": "getschoolled",
+    "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.45.21",
+    "version": "0.46.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -67,7 +67,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.45.21"
+      "buildNumber": "0.46.0"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -85,7 +85,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 4521
+      "versionCode": 4600
     },
     "extra": {
       "deployMode": "cloud",
@@ -95,30 +95,9 @@
       "identityUrl": "http://localhost:8008",
       "memoryUrl": "http://localhost:8004",
       "eas": {
-        "projectId": "f5d9dfc1-825c-47eb-a8e5-f4b01f06299d"
-      },
-      "qaTestAccounts": [
-        {
-          "label": "QA Pro",
-          "email": "qa-pro@salareen.com",
-          "password": "QaTest123"
-        },
-        {
-          "label": "QA3",
-          "email": "qa3",
-          "password": "QaTest123"
-        },
-        {
-          "label": "Admin",
-          "email": "admin@salareen.com",
-          "password": "88888888"
-        }
-      ],
-      "admobBannerAndroid": "ca-app-pub-3940256099942544/6300978111",
-      "admobBannerIos": "ca-app-pub-3940256099942544/2934735716",
-      "admobInterstitialAndroid": "ca-app-pub-3940256099942544/1033173712",
-      "admobInterstitialIos": "ca-app-pub-3940256099942544/4411468910"
+        "projectId": "0525481d-f3ca-4ae1-9665-2a18b993d4e7"
+      }
     },
-    "owner": "chankrisnacheas-team"
+    "owner": "cvanthin978"
   }
 }
