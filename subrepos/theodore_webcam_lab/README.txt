@@ -59,7 +59,7 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 --------------------------------------------------------------
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 
-   EXPECT: "53 passed". These cover the analyzer, games, voice agent, the API,
+   EXPECT: "54 passed". These cover the analyzer, games, voice agent, the API,
    the 24/7 training orchestrator, and one regression test per audited bug fix
    (see tests/test_audit_regressions.py).
 
@@ -186,11 +186,12 @@ Troubleshooting
 - ModuleNotFoundError for fastapi/pytest: re-run Step 0 inside the venv.
 - Charts look flat: seed with --rolling so new frames keep arriving.
 
-Training operations (24/7)
---------------------------
-- SOTA and proprietary training blueprint:
-  subrepos/theodore_webcam_lab/VISION_TRAINING_OPERATIONS.txt
-- 24/7 agent runbook config:
-  subrepos/theodore_webcam_lab/training/vision_training_runbook.json
-- Training orchestrator:
-  PYTHONPATH=subrepos/theodore_webcam_lab/src python3 -m theodore_webcam_lab.training_orchestrator --runbook subrepos/theodore_webcam_lab/training/vision_training_runbook.json --dry-run --iterations 1
+Reference
+---------
+- VISION_TRAINING_OPERATIONS.txt - SOTA/proprietary training blueprint and the
+  continuous 24/7 launch procedure (Step 8 above is the dry run only).
+- training/vision_training_runbook.json - the 24/7 agent runbook. Enable tasks by
+  flipping "enabled": true as each training script lands.
+- scripts/seed_demo_session.py - the demo frame seeder used in Step 3.
+- tests/ - executable specifications; test_audit_regressions.py documents each
+  fixed bug with a reproduction.
