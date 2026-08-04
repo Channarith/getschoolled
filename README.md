@@ -186,7 +186,11 @@ thresholds, distance calibration, detection thresholds and audio noise gates are
 all named knobs with room presets, adjustable while watching the failed-gate list
 respond:
 
-<img src="docs/screens/theodore_vision_tuning_panel.webp" alt="Recognition Tuning panel with preset selector and live sliders for lighting, Sobel sharpness, distance and audio knobs, beside the failed quality-gate list" />
+<img src="docs/screens/theodore_camera_and_tuning.webp" alt="Live camera preview on the left with sharpness, light and confidence readings and a live failing-gate line, beside a compact tuning panel with Vision and Voice tabs and sliders" />
+
+The xAI voice agent is tuned the same way (Voice tab): sampling temperature,
+token budget, spoken reply length, timeouts and memory depth, with presets for
+snappy live turns, thorough explanations, precise assessment, or storytelling.
 
 How to run and test this yourself: `subrepos/theodore_webcam_lab/README.txt`
 (see its RECOGNITION TUNING section for every knob).

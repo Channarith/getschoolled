@@ -143,6 +143,10 @@ _MONITOR_CSS = """
     .knob input[type=range] { height: 12px; }
     details > summary { cursor: pointer; font-size: 11px; margin: 4px 0 2px;
                         color: #93c5fd; }
+    .gatesblock { margin-top: 6px; border-top: 1px solid #334155; padding-top: 5px; }
+    .gateslabel { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
+    #cam-gates, #gatecounts { font-size: 11px; font-weight: bold; word-break: break-word; }
+    .statusline { font-size: 10px; color: #93c5fd; min-height: 13px; margin-top: 4px; }
     canvas { width: 100%; height: 72px; background: #0b1220; border-radius: 6px; margin-top: 8px; }
 """
 
@@ -376,8 +380,12 @@ _MONITOR_JS = """
       if (!res.ok) return;
       const data = await res.json();
       const select = document.getElementById('preset');
+      // Re-rendering the list must not silently reset the visible choice, or the
+      // dropdown ends up disagreeing with the preset that is actually applied.
+      const keep = select.value;
       select.innerHTML = (data.presets || [])
         .map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      if (keep && (data.presets || []).includes(keep)) select.value = keep;
       renderKnobs(data.knobs || {});
     }
 
@@ -582,7 +590,10 @@ _MONITOR_PAGE_TEMPLATE = (
         <span class="pill" id="cam-state">idle</span>
       </div>
       <div class="camrow" id="cam-readings"></div>
-      <div class="kv"><span>Live gates</span><strong id="cam-gates">-</strong></div>
+      <div class="gatesblock">
+        <div class="gateslabel">Live gates</div>
+        <div id="cam-gates">-</div>
+      </div>
       <div class="kv"><span id="cam-note" style="font-size:10px;color:#94a3b8;"></span></div>
     </div>
 
@@ -600,8 +611,11 @@ _MONITOR_PAGE_TEMPLATE = (
         </span>
       </div>
       <div class="knobscroll" id="knobs"></div>
-      <div class="kv"><span>Failed gates (class)</span><strong id="gatecounts">-</strong></div>
-      <div class="kv"><span id="tuning-status" style="font-size:10px;"></span></div>
+      <div id="tuning-status" class="statusline"></div>
+      <div class="gatesblock">
+        <div class="gateslabel">Failed gates (class)</div>
+        <div id="gatecounts">-</div>
+      </div>
     </div>
   </div>
   <div class="panel" style="margin:0 12px 12px 12px;">

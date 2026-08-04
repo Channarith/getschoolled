@@ -40,6 +40,9 @@ API highlights
 - POST /api/theodore/voice/absorb-audio-answer
 - POST /api/theodore/webcam/games/challenge
 - POST /api/theodore/webcam/games/attempt
+- GET   /api/theodore/voice/tuning                     (read xAI voice knobs)
+- PATCH /api/theodore/voice/tuning                     (change voice knobs live)
+- POST  /api/theodore/voice/tuning/preset/{name}       (apply a voice preset)
 - GET   /api/theodore/vision/tuning                    (read all knobs + presets)
 - PATCH /api/theodore/vision/tuning                    (change knobs live)
 - POST  /api/theodore/vision/tuning/preset/{name}      (apply a room preset)
@@ -130,6 +133,60 @@ image_blurry, low_edge_detail, detection_quality_low, too_close_to_camera,
 too_far_from_camera, microphone_quality_low, noise_filter_weak,
 high_background_noise, low_audio_snr.
 
+Camera panel (see the video and the knobs together)
+---------------------------------------------------
+The live monitor puts a Camera panel beside the tuning panel so you can watch the
+picture and the knobs at the same time:
+
+  Start camera   getUserMedia preview. Frames are downsampled to a 48x36
+                 luminance grid and POSTed to /api/theodore/webcam/evaluate, so
+                 the Sobel/exposure knobs you drag are applied to real video.
+  Test pattern   Synthetic moving bars for boxes with no camera (servers, CI,
+                 VMs). Same analysis path, no device required.
+  Stop           Releases the camera and stops sampling.
+
+Under the video: sharpness, edge density, light, image quality and recognition
+confidence, plus a "Live gates" line that turns red and names the failing gates.
+Drag sharpness_min_quality up and image_blurry appears within a second; drag it
+back and it clears. The tuning panel is compact and scrolls internally so the
+video never gets pushed off screen.
+
+Camera access needs a secure context: http://127.0.0.1 and https both qualify,
+a plain http://<lan-ip> does not (use the test pattern there).
+
+
+XAI VOICE-AGENT TUNING
+======================
+The voice agent is tuned the same three ways as vision - environment, live API,
+or preset - using the XAI_TUNE_ prefix:
+
+  Reply generation   reply_temperature_fast, reply_temperature_full,
+                     reply_max_tokens_fast, reply_max_tokens_full,
+                     reply_max_sentences
+  Question asking    question_temperature, question_max_tokens
+  Answer assessment  assessment_temperature, assessment_max_tokens
+  Latency/transport  fast_timeout_s, full_timeout_s, cache_ttl_s,
+                     max_history_turns
+
+reply_max_sentences is injected into the system prompt: a reply that reads fine
+on screen is tiring to listen to, so spoken turns are capped explicitly.
+
+Presets: balanced, snappy (1-sentence turns, 4s timeout - live back-and-forth),
+thorough (longer warmer answers, 8 remembered turns), precise (near-deterministic
+for assessment/proctoring), storyteller (expressive, for young learners).
+
+   curl -s http://127.0.0.1:8015/api/theodore/voice/tuning | python3 -m json.tool
+   curl -s -X PATCH http://127.0.0.1:8015/api/theodore/voice/tuning \
+     -H 'content-type: application/json' \
+     -d '{"knobs": {"reply_max_sentences": 1, "reply_temperature_fast": 0.2}}'
+   curl -s -X POST http://127.0.0.1:8015/api/theodore/voice/tuning/preset/snappy
+
+Connection settings stay separate as plain env vars (XAI_API_KEY, XAI_BASE_URL,
+XAI_MODEL, XAI_FAST_MODEL) since they are deployment config, not per-room tuning.
+Timeout/cache/history knobs are re-read when a patch lands, so a change applies
+to the very next turn rather than only to newly created agents.
+
+
 Tuning workflow (what we actually ran)
 --------------------------------------
    # 1. reproduce a bad room
@@ -164,8 +221,8 @@ Step 1 - automated tests (fastest confidence check, ~1 second)
 --------------------------------------------------------------
    python3 -m pytest subrepos/theodore_webcam_lab/tests -q
 
-   EXPECT: "77 passed". These cover the analyzer, games, voice agent, the API,
-   the recognition tuning knobs, Sobel imaging, the quality gates,
+   EXPECT: "81 passed". These cover the analyzer, games, voice agent, the API,
+   the vision and voice tuning knobs, Sobel imaging, the quality gates,
    the 24/7 training orchestrator, and one regression test per audited bug fix
    (see tests/test_audit_regressions.py).
 
