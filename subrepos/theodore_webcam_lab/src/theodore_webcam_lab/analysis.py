@@ -10,6 +10,31 @@ from .types import (
     WebcamSignal,
 )
 
+_EXPRESSION_ALIASES = {
+    "happy": "happy",
+    "joy": "happy",
+    "joyful": "happy",
+    "smile": "happy",
+    "smiling": "happy",
+    "neutral": "neutral",
+    "calm": "neutral",
+    "sad": "sad",
+    "upset": "sad",
+    "angry": "angry",
+    "mad": "angry",
+    "surprised": "surprised",
+    "surprise": "surprised",
+    "fearful": "fearful",
+    "fear": "fearful",
+    "disgusted": "disgusted",
+    "disgust": "disgusted",
+    "confused": "confused",
+    "confusion": "confused",
+    "tired": "tired",
+    "sleepy": "tired",
+    "drowsy": "tired",
+}
+
 
 @dataclass
 class AnalyzerPolicy:
@@ -50,6 +75,8 @@ class WebcamSessionAnalyzer:
                 participants=[],
                 absent_participant_ids=[],
                 silhouette_participant_ids=[],
+                happy_participant_ids=[],
+                expression_counts={},
                 alerts=["no_signals_received"],
             )
 
@@ -88,6 +115,16 @@ class WebcamSessionAnalyzer:
         silhouette_participant_ids = sorted(
             e.participant_id for e in evaluations if e.silhouette_detected
         )
+        happy_participant_ids = sorted(
+            e.participant_id for e in evaluations if e.dominant_expression == "happy"
+        )
+        expression_counts: dict[str, int] = {}
+        for participant in evaluations:
+            if participant.dominant_expression == "unknown":
+                continue
+            expression_counts[participant.dominant_expression] = (
+                expression_counts.get(participant.dominant_expression, 0) + 1
+            )
         for participant in evaluations:
             class_alerts.extend(participant.alerts)
 
@@ -97,8 +134,17 @@ class WebcamSessionAnalyzer:
             participants=evaluations,
             absent_participant_ids=absent_participant_ids,
             silhouette_participant_ids=silhouette_participant_ids,
+            happy_participant_ids=happy_participant_ids,
+            expression_counts=expression_counts,
             alerts=class_alerts,
         )
+
+    @staticmethod
+    def _normalize_expression(raw: str) -> str:
+        key = (raw or "").strip().lower()
+        if not key:
+            return "unknown"
+        return _EXPRESSION_ALIASES.get(key, "unknown")
 
     def _evaluate_signal(
         self, *, session_id: str, mode: ClassMode, signal: WebcamSignal
@@ -109,6 +155,7 @@ class WebcamSessionAnalyzer:
 
         liveness = signal.liveness_state.strip().lower()
         has_live_face = signal.face_count > 0 and liveness not in {"spoof", "fake"}
+        dominant_expression = self._normalize_expression(signal.expression_label)
         silhouette_candidate = (
             signal.face_count == 0
             and signal.foreground_ratio >= self._policy.silhouette_foreground_threshold
@@ -155,6 +202,8 @@ class WebcamSessionAnalyzer:
             alerts.append(f"silhouette_detected:{signal.participant_id}")
         if mode is ClassMode.SOLO and signal.face_count > self._policy.solo_max_faces:
             alerts.append(f"solo_mode_multiple_faces:{signal.participant_id}")
+        if dominant_expression != "unknown":
+            alerts.append(f"expression:{signal.participant_id}:{dominant_expression}")
 
         return ParticipantEvaluation(
             participant_id=signal.participant_id,
@@ -164,6 +213,8 @@ class WebcamSessionAnalyzer:
             face_count=signal.face_count,
             absent_for_ms=absent_for_ms,
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
+            dominant_expression=dominant_expression,
+            expression_confidence=signal.expression_confidence,
             reason=reason,
             alerts=alerts,
         )

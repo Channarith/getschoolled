@@ -24,6 +24,8 @@ class WebcamSignal(BaseModel):
     foreground_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
     motion_score: float = Field(default=0.0, ge=0.0, le=1.0)
     attention: float | None = Field(default=None, ge=0.0, le=1.0)
+    expression_label: str = Field(default="unknown")
+    expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ParticipantEvaluation(BaseModel):
@@ -34,6 +36,8 @@ class ParticipantEvaluation(BaseModel):
     face_count: int = Field(ge=0)
     absent_for_ms: int = Field(ge=0)
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
+    dominant_expression: str = "unknown"
+    expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     reason: str = ""
     alerts: list[str] = Field(default_factory=list)
 
@@ -44,6 +48,8 @@ class ClassEvaluation(BaseModel):
     participants: list[ParticipantEvaluation]
     absent_participant_ids: list[str]
     silhouette_participant_ids: list[str]
+    happy_participant_ids: list[str]
+    expression_counts: dict[str, int]
     alerts: list[str]
 
 

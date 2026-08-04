@@ -155,3 +155,49 @@ def test_silhouette_requires_95_percent_foreground_fill():
         ],
     )
     assert at_threshold.participants[0].silhouette_detected is True
+
+
+def test_expression_detection_tracks_happiness_and_summary_counts():
+    analyzer = WebcamSessionAnalyzer(policy=AnalyzerPolicy())
+    result = analyzer.evaluate(
+        session_id="expr-1",
+        mode=ClassMode.GROUP,
+        signals=[
+            WebcamSignal(
+                participant_id="alice",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.2,
+                expression_label="happy",
+                expression_confidence=0.97,
+            ),
+            WebcamSignal(
+                participant_id="bob",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.2,
+                expression_label="sad",
+                expression_confidence=0.85,
+            ),
+            WebcamSignal(
+                participant_id="carol",
+                timestamp_ms=1_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.2,
+                motion_score=0.2,
+                expression_label="smiling",
+                expression_confidence=0.88,
+            ),
+        ],
+    )
+    by_id = {item.participant_id: item for item in result.participants}
+    assert by_id["alice"].dominant_expression == "happy"
+    assert by_id["carol"].dominant_expression == "happy"
+    assert by_id["bob"].dominant_expression == "sad"
+    assert result.happy_participant_ids == ["alice", "carol"]
+    assert result.expression_counts == {"happy": 2, "sad": 1}
