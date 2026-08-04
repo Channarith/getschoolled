@@ -47,6 +47,7 @@ class AnalyzerPolicy:
     gaze_frontal_min_threshold: float = 0.35
     gaze_down_min_threshold: float = 0.6
     typing_activity_min_threshold: float = 0.7
+    keyboard_typing_audio_min_threshold: float = 0.65
 
 
 @dataclass
@@ -81,6 +82,7 @@ class WebcamSessionAnalyzer:
                 absent_participant_ids=[],
                 silhouette_participant_ids=[],
                 happy_participant_ids=[],
+                keyboard_typing_audio_participant_ids=[],
                 suspected_cheating_participant_ids=[],
                 expression_counts={},
                 alerts=["no_signals_received"],
@@ -124,6 +126,9 @@ class WebcamSessionAnalyzer:
         happy_participant_ids = sorted(
             e.participant_id for e in evaluations if e.dominant_expression == "happy"
         )
+        keyboard_typing_audio_participant_ids = sorted(
+            e.participant_id for e in evaluations if e.keyboard_typing_audio_detected
+        )
         suspected_cheating_participant_ids = sorted(
             e.participant_id for e in evaluations if e.suspected_cheating
         )
@@ -144,6 +149,7 @@ class WebcamSessionAnalyzer:
             absent_participant_ids=absent_participant_ids,
             silhouette_participant_ids=silhouette_participant_ids,
             happy_participant_ids=happy_participant_ids,
+            keyboard_typing_audio_participant_ids=keyboard_typing_audio_participant_ids,
             suspected_cheating_participant_ids=suspected_cheating_participant_ids,
             expression_counts=expression_counts,
             alerts=class_alerts,
@@ -192,18 +198,26 @@ class WebcamSessionAnalyzer:
                 0, signal.timestamp_ms - participant_state.gaze_away_started_ms
             )
         long_eyes_away = eyes_away_for_ms >= self._policy.gaze_away_grace_ms
-        typing_active = (
+        keyboard_typing_audio_detected = (
+            signal.keyboard_typing_audio_score is not None
+            and signal.keyboard_typing_audio_score
+            >= self._policy.keyboard_typing_audio_min_threshold
+        )
+        typing_activity_high = (
             signal.typing_activity_score is not None
             and signal.typing_activity_score >= self._policy.typing_activity_min_threshold
         )
+        typing_active = typing_activity_high or keyboard_typing_audio_detected
         suspected_cheating = long_eyes_away and (signal.phone_visible or typing_active)
         cheating_reasons: list[str] = []
         if long_eyes_away:
             cheating_reasons.append("eyes_away_long")
         if signal.phone_visible:
             cheating_reasons.append("phone_visible")
-        if typing_active:
+        if typing_activity_high:
             cheating_reasons.append("typing_activity_high")
+        if keyboard_typing_audio_detected:
+            cheating_reasons.append("keyboard_typing_audio")
 
         if silhouette_candidate:
             participant_state.silhouette_streak += 1
@@ -249,6 +263,8 @@ class WebcamSessionAnalyzer:
             alerts.append(f"expression:{signal.participant_id}:{dominant_expression}")
         if long_eyes_away:
             alerts.append(f"eyes_away_long:{signal.participant_id}")
+        if keyboard_typing_audio_detected:
+            alerts.append(f"keyboard_typing_audio:{signal.participant_id}")
         if suspected_cheating:
             alerts.append(
                 "potential_cheating:"
@@ -266,6 +282,7 @@ class WebcamSessionAnalyzer:
             last_live_timestamp_ms=participant_state.last_live_timestamp_ms,
             dominant_expression=dominant_expression,
             expression_confidence=signal.expression_confidence,
+            keyboard_typing_audio_detected=keyboard_typing_audio_detected,
             suspected_cheating=suspected_cheating,
             cheating_reasons=sorted(cheating_reasons),
             reason=reason,

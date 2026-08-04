@@ -303,3 +303,58 @@ def test_gaze_away_timer_resets_when_learner_refocuses_on_screen():
     p = focused.participants[0]
     assert p.eyes_away_for_ms == 0
     assert p.suspected_cheating is False
+
+
+def test_keyboard_typing_audio_detection_flags_cheating_after_long_eyes_away():
+    analyzer = WebcamSessionAnalyzer(
+        policy=AnalyzerPolicy(
+            gaze_away_grace_ms=1_000,
+            keyboard_typing_audio_min_threshold=0.6,
+        )
+    )
+    session_id = "audio-cheat-1"
+    analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=10_000,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.4,
+                motion_score=0.3,
+                gaze_frontal=0.1,
+                gaze_down_score=0.8,
+                keyboard_typing_audio_score=0.8,
+                phone_visible=False,
+                typing_activity_score=0.1,
+            )
+        ],
+    )
+
+    second = analyzer.evaluate(
+        session_id=session_id,
+        mode=ClassMode.SOLO,
+        signals=[
+            WebcamSignal(
+                participant_id="learner",
+                timestamp_ms=11_500,
+                face_count=1,
+                liveness_state="live",
+                foreground_ratio=0.4,
+                motion_score=0.3,
+                gaze_frontal=0.1,
+                gaze_down_score=0.85,
+                keyboard_typing_audio_score=0.8,
+                phone_visible=False,
+                typing_activity_score=0.1,
+            )
+        ],
+    )
+    p = second.participants[0]
+    assert p.keyboard_typing_audio_detected is True
+    assert p.suspected_cheating is True
+    assert p.cheating_reasons == ["eyes_away_long", "keyboard_typing_audio"]
+    assert second.keyboard_typing_audio_participant_ids == ["learner"]
+    assert second.suspected_cheating_participant_ids == ["learner"]

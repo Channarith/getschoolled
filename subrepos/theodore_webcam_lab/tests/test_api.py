@@ -143,3 +143,59 @@ def test_webcam_api_flags_long_eyes_away_phone_typing_pattern():
     assert p2["suspected_cheating"] is True
     assert body2["suspected_cheating_participant_ids"] == ["learner-z"]
     assert p2["eyes_away_for_ms"] == 47_000
+
+
+def test_webcam_api_detects_keyboard_typing_audio_pattern():
+    first = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "audio-cheat-api",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "learner-k",
+                    "timestamp_ms": 1_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.5,
+                    "motion_score": 0.2,
+                    "gaze_frontal": 0.1,
+                    "gaze_down_score": 0.9,
+                    "keyboard_typing_audio_score": 0.88,
+                }
+            ],
+        },
+    )
+    assert first.status_code == 200
+    assert first.json()["participants"][0]["suspected_cheating"] is False
+
+    second = client.post(
+        "/api/theodore/webcam/evaluate",
+        json={
+            "session_id": "audio-cheat-api",
+            "mode": "solo",
+            "signals": [
+                {
+                    "participant_id": "learner-k",
+                    "timestamp_ms": 50_000,
+                    "face_count": 1,
+                    "liveness_state": "live",
+                    "foreground_ratio": 0.5,
+                    "motion_score": 0.2,
+                    "gaze_frontal": 0.1,
+                    "gaze_down_score": 0.9,
+                    "keyboard_typing_audio_score": 0.88,
+                }
+            ],
+        },
+    )
+    assert second.status_code == 200
+    body = second.json()
+    participant = body["participants"][0]
+    assert participant["keyboard_typing_audio_detected"] is True
+    assert participant["suspected_cheating"] is True
+    assert participant["cheating_reasons"] == [
+        "eyes_away_long",
+        "keyboard_typing_audio",
+    ]
+    assert body["keyboard_typing_audio_participant_ids"] == ["learner-k"]

@@ -30,6 +30,7 @@ class WebcamSignal(BaseModel):
     gaze_down_score: float | None = Field(default=None, ge=0.0, le=1.0)
     phone_visible: bool = False
     typing_activity_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    keyboard_typing_audio_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ParticipantEvaluation(BaseModel):
@@ -43,6 +44,7 @@ class ParticipantEvaluation(BaseModel):
     last_live_timestamp_ms: int | None = Field(default=None, ge=0)
     dominant_expression: str = "unknown"
     expression_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    keyboard_typing_audio_detected: bool = False
     suspected_cheating: bool = False
     cheating_reasons: list[str] = Field(default_factory=list)
     reason: str = ""
@@ -56,6 +58,7 @@ class ClassEvaluation(BaseModel):
     absent_participant_ids: list[str]
     silhouette_participant_ids: list[str]
     happy_participant_ids: list[str]
+    keyboard_typing_audio_participant_ids: list[str]
     suspected_cheating_participant_ids: list[str]
     expression_counts: dict[str, int]
     alerts: list[str]
