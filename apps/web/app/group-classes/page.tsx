@@ -219,6 +219,15 @@ export default function GroupClassesPage() {
     return myAccountId === gc.instructor_account_id || myAccountId === gc.created_by_account_id;
   }
 
+  /** A person teaches this class (an instructor scheduled it), so Theodore is not in the room. */
+  function isHumanTaught(gc: GroupClass): boolean {
+    return Boolean((gc.instructor_account_id || "").trim());
+  }
+
+  function instructorLabel(gc: GroupClass): string {
+    return (gc.instructor_name || "").trim() || (gc.host || "").trim() || "your instructor";
+  }
+
   async function openSalareenRoom(res: GroupClassStart, gc: GroupClass, asHost: boolean) {
     const roomId = res.bridge.live_room_id || res.bridge.livekit?.room || `class-${gc.id}`;
     const attendeeCode = sessionStorage.getItem(`${ATTENDEE_CODE_KEY}:${gc.id}`) || "";
@@ -656,10 +665,20 @@ export default function GroupClassesPage() {
                 <button
                   onClick={() => onJoin(gc)}
                   disabled={busy || (gc.seats_left <= 0 && !isAdmin)}
-                  title={gc.seats_left <= 0 && !isAdmin ? t("group.full") : undefined}
+                  title={
+                    gc.seats_left <= 0 && !isAdmin
+                      ? t("group.full")
+                      : isHumanTaught(gc)
+                        ? `${instructorLabel(gc)} teaches this class live`
+                        : undefined
+                  }
                   style={{ background: "#0ea5e9", color: "#fff" }}
                 >
-                  {gc.seats_left <= 0 && !isAdmin ? t("group.full") : t("group.join")}
+                  {gc.seats_left <= 0 && !isAdmin
+                    ? t("group.full")
+                    : isHumanTaught(gc)
+                      ? `Attend Human Taught Class by "${instructorLabel(gc)}"`
+                      : t("group.join")}
                 </button>
               )}
               <button onClick={() => onRate(gc)} disabled={busy}>
@@ -853,9 +872,13 @@ export default function GroupClassesPage() {
                   onClick={async () => {
                     // Record Zelle payment intent (best-effort, admin will verify manually)
                     try {
+                      const _tok = getToken();
                       await fetch(`${window.location.origin}/orchestrator/api/group-classes/${encodeURIComponent(checkoutTarget!.id)}/checkout`, {
                         method: 'POST',
-                        headers: { 'content-type': 'application/json' },
+                        headers: {
+                          'content-type': 'application/json',
+                          ...(_tok ? { 'authorization': `Bearer ${_tok}` } : {}),
+                        },
                         body: JSON.stringify({ name: '', email: '', payment_method: 'zelle', voucher_code: '' })
                       });
                     } catch { /* best-effort */ }
