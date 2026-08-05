@@ -12,11 +12,28 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 import type { NotificationItem } from "./api";
-import { DEFAULT_SETTINGS, getSettings, type Settings } from "./storage";
+import {
+  DEFAULT_SETTINGS,
+  getContentAlertDay,
+  getLastOpenAt,
+  getNotifiedCourses,
+  getSettings,
+  rememberNotifiedCourses,
+  setContentAlertDay,
+  type Settings,
+} from "./storage";
 
 const CHANNEL_ID = "aiclassroom-default";
 const DAILY_REMINDER_TAG = "daily-reminder";
 const NEW_CONTENT_TAG_PREFIX = "new-content:";
+/** One slot for everything new, so content never arrives at a random hour. */
+const CONTENT_DIGEST_TAG = "new-content-digest";
+/**
+ * A learner who opened the app inside this window is "current": they have
+ * already seen what is on the shelf, so only genuinely new classes are worth a
+ * notification. Lapsed users can still get a recommendation nudge.
+ */
+const RECENTLY_ACTIVE_HOURS = 36;
 
 let _handlerInstalled = false;
 
@@ -109,34 +126,149 @@ export async function rescheduleDailyReminder(settings?: Settings) {
   });
 }
 
-// Schedule local "new content" notifications for items the server returned
-// in the inbox. We stagger them over the next few hours and dedupe so an
-// item is only scheduled once even across app restarts.
-export async function scheduleAlertsFor(items: NotificationItem[],
-                                        settings?: Settings) {
-  const s = settings || (await getSettings());
-  if (!s.notificationsEnabled || !s.newContentAlerts) return;
-  await ensureChannel();
-  const existing = await Notifications.getAllScheduledNotificationsAsync();
-  const seen = new Set(existing.map((n) => n.identifier));
-  let i = 0;
-  for (const item of items) {
-    if (item.kind !== "new_class" && item.kind !== "recommended") continue;
-    const identifier = `${NEW_CONTENT_TAG_PREFIX}${item.id}`;
-    if (seen.has(identifier)) continue;
-    const seconds = 60 * 30 * (i + 1) + 60; // 31 min, 61 min, ...
-    i += 1;
-    if (i > 5) break;
-    await Notifications.scheduleNotificationAsync({
-      identifier,
-      content: {
-        title: item.title,
-        body: item.body,
-        data: { id: item.id, deepLink: item.deep_link, kind: item.kind },
-      },
-      trigger: { seconds, repeats: false } as Notifications.TimeIntervalTriggerInput,
-    });
+/**
+ * Drain alerts queued by the previous scheme.
+ *
+ * Older builds queued one "new-content:<item id>" notification per item on a
+ * 31/61/91-minute offset. Those are already sitting in the OS queue on an
+ * upgraded install and would keep arriving at odd hours after this change, so
+ * clear them out before scheduling the routine digest.
+ */
+async function cancelLegacyContentAlerts(): Promise<void> {
+  try {
+    const pending = await Notifications.getAllScheduledNotificationsAsync();
+    await Promise.all(
+      pending
+        .filter((n) => String(n.identifier || "").startsWith(NEW_CONTENT_TAG_PREFIX))
+        .map((n) => cancelByIdentifier(n.identifier)),
+    );
+  } catch {
+    /* best effort: never block scheduling on cleanup */
   }
+}
+
+/** Local YYYY-MM-DD, used to hold the digest to one per calendar day. */
+function localDayKey(at: Date): string {
+  const y = at.getFullYear();
+  const m = String(at.getMonth() + 1).padStart(2, "0");
+  const d = String(at.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** The next time the clock reads `hour`:`minute`, today or tomorrow. */
+export function nextOccurrence(hour: number, minute: number, now: Date): Date {
+  const at = new Date(now);
+  at.setHours(Math.max(0, Math.min(23, hour | 0)), Math.max(0, Math.min(59, minute | 0)), 0, 0);
+  if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+  return at;
+}
+
+export function isRecentlyActive(lastOpenAt: string, now: Date): boolean {
+  const last = Date.parse(lastOpenAt || "");
+  if (!Number.isFinite(last)) return false;
+  return now.getTime() - last <= RECENTLY_ACTIVE_HOURS * 3600 * 1000;
+}
+
+/** Stable per-course key: server item ids rotate daily and would re-alert forever. */
+function contentKey(item: NotificationItem): string {
+  return (item.course_id || "").trim() || item.id;
+}
+
+/**
+ * Pick what is worth telling the learner about.
+ *
+ * A learner who has been in the app recently already saw the shelf, so they get
+ * new classes only. Someone who has been away also gets recommendations.
+ */
+export function selectAlertableItems(
+  items: NotificationItem[],
+  opts: { alreadyNotified: Set<string>; recentlyActive: boolean },
+): NotificationItem[] {
+  const kinds = opts.recentlyActive
+    ? new Set(["new_class"])
+    : new Set(["new_class", "recommended"]);
+  const picked: NotificationItem[] = [];
+  const seenKeys = new Set<string>();
+  for (const item of items) {
+    if (!kinds.has(item.kind)) continue;
+    const key = contentKey(item);
+    if (opts.alreadyNotified.has(key) || seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    picked.push(item);
+  }
+  return picked;
+}
+
+export function digestContent(items: NotificationItem[]): { title: string; body: string } {
+  if (items.length === 1) {
+    return { title: items[0].title, body: items[0].body };
+  }
+  const names = items.slice(0, 3).map((i) => i.title).join(", ");
+  const more = items.length > 3 ? ` +${items.length - 3} more` : "";
+  return {
+    title: `${items.length} new classes for you`,
+    body: `${names}${more}. Tap to browse.`,
+  };
+}
+
+/**
+ * Queue ONE notification for new content, at the learner's routine hour.
+ *
+ * This replaces per-item alerts fired 31/61/91… minutes after whenever the app
+ * happened to run, which is what made notifications arrive at unpredictable
+ * times and several times a day. Now: at most one content notification per
+ * calendar day, always in the same slot as the daily reminder.
+ */
+export async function scheduleAlertsFor(items: NotificationItem[],
+                                        settings?: Settings,
+                                        now: Date = new Date()) {
+  const s = settings || (await getSettings());
+  await cancelLegacyContentAlerts();
+  if (!s.notificationsEnabled || !s.newContentAlerts) {
+    await cancelByIdentifier(CONTENT_DIGEST_TAG);
+    return;
+  }
+
+  // One per calendar day: later app opens must not re-queue or re-time it.
+  const today = localDayKey(now);
+  if ((await getContentAlertDay()) === today) return;
+
+  const [alreadyNotified, lastOpenAt] = await Promise.all([
+    getNotifiedCourses(),
+    getLastOpenAt(),
+  ]);
+  const picked = selectAlertableItems(items, {
+    alreadyNotified: new Set(alreadyNotified),
+    recentlyActive: isRecentlyActive(lastOpenAt, now),
+  });
+  if (picked.length === 0) return;
+
+  await ensureChannel();
+  await cancelByIdentifier(CONTENT_DIGEST_TAG);
+
+  // Sit just after the daily reminder so the two never collide.
+  const at = nextOccurrence(s.dailyReminderHour | 0, 5, now);
+  const { title, body } = digestContent(picked);
+  await Notifications.scheduleNotificationAsync({
+    identifier: CONTENT_DIGEST_TAG,
+    content: {
+      title,
+      body,
+      data: {
+        kind: "new_content_digest",
+        count: picked.length,
+        deepLink: picked.length === 1 ? picked[0].deep_link : "aiclassroom://browse",
+      },
+    },
+    // expo-notifications 0.28 takes a plain { date } object here; the typed
+    // SchedulableTriggerInputTypes discriminator only exists in later SDKs.
+    trigger: { date: at } as Notifications.DateTriggerInput,
+  });
+
+  await Promise.all([
+    rememberNotifiedCourses(picked.map(contentKey)),
+    setContentAlertDay(today),
+  ]);
 }
 
 export async function cancelAll() {

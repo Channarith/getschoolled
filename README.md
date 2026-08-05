@@ -144,6 +144,13 @@ Mobile preview tour:
 
 Full-quality video (with audio): [docs/demos/mobile_preview_walkthrough.mp4](docs/demos/mobile_preview_walkthrough.mp4)
 
+Theodore webcam live monitor (per-student quality metrics and detection charts,
+plus the escaped-injection security check):
+
+![Theodore webcam live monitor walkthrough](docs/demos/theodore_webcam_live_monitor_demo.gif)
+
+Full-quality video: [docs/demos/theodore_webcam_live_monitor_demo.mp4](docs/demos/theodore_webcam_live_monitor_demo.mp4)
+
 ### More recorded flows (animated)
 
 | Live AI class | Drive Mode audio | Netflix catalog | Learning arcade |
@@ -164,6 +171,27 @@ inline; matching `.mp4` files hold the full-quality recordings).
 | Salareen mobile — Android home | Drive Mode (mockup) |
 | --- | --- |
 | <img src="docs/screens/mobile_android_home.webp" alt="Salareen mobile app home on Android — bodhi-tree hero, Careers CTA, Netflix-style course rails, bottom tabs" width="320" /> | <img src="docs/screens/mobile_app_mockup.webp" alt="Salareen mobile Drive Mode audio player" width="320" /> |
+
+Theodore webcam live monitor — always-on per-student metrics (distance, light,
+image quality, behaviour, mic quality, noise filtering) with live detection
+charts and lesson alerts. The right-hand screenshot shows a deliberate
+`<img src=x onerror=alert(1)>` session id rendered as inert escaped text:
+
+| Live monitor (2 student windows) | Injected session id stays escaped |
+| --- | --- |
+| <img src="docs/screens/theodore_webcam_live_monitor.webp" alt="Theodore webcam live monitor with summary metric cards, lesson alerts, and two student windows each showing quality bars and a live detection chart" /> | <img src="docs/screens/theodore_webcam_monitor_xss_escaped.webp" alt="Live monitor heading showing an injection payload rendered as literal escaped text with no alert dialog" /> |
+
+Recognition accuracy is tunable live - lighting/exposure limits, Sobel sharpness
+thresholds, distance calibration, detection thresholds and audio noise gates are
+all named knobs with room presets, adjustable while watching the failed-gate list
+respond:
+
+<img src="docs/screens/theodore_vision_tuning_panel.webp" alt="Recognition Tuning panel with preset selector and live sliders for lighting, Sobel sharpness, distance and audio knobs, beside the failed quality-gate list" />
+
+How to run and test this yourself: **[`subrepos/theodore_webcam_lab/README.md`](subrepos/theodore_webcam_lab/README.md)**
+— an illustrated five-step walkthrough with a one-command health check that
+names any broken piece. Full knob and endpoint reference lives beside it in
+`README.txt`.
 
 Per-language Bayon Buddy mascots (distinct colour + physique/pose, same face,
 crown, and S-with-bodhi-leaf medallion):
@@ -522,7 +550,6 @@ transcript all run without it.
 | `apps/web` | Next.js web app and admin/user surfaces |
 | `apps/mobile` | Expo React Native mobile app |
 | `apps/agent-runtime` | LiveKit agent runtime and edge packaging |
-| `labs/webcam-recognition` | Private lab: webcam recognition, silhouette/absence, Theodore + xAI voice (solo/group) |
 | `packages/shared` | Provider interfaces, settings, schemas, adaptive/assessment/compliance engines |
 | `packages/sdk` | Installable Python SDK for safely extending AOEP (`AOEPClient.local()`, in-process APIs) |
 | `services/orchestrator` | Teaching Director, sessions, Tutor Q&A, HIL, assessment |
