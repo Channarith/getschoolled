@@ -34,6 +34,27 @@ def account_from_authorization(authorization: str, *, timeout_s: float = 5.0) ->
     return str(data.get("id") or "").strip() or None
 
 
+def display_name_from_authorization(
+    authorization: str, *, timeout_s: float = 5.0
+) -> Optional[str]:
+    """Resolve the account's display name via identity ``/auth/me``.
+
+    Used to label a human-taught class with the instructor's real name instead of
+    the "Salareen AI" default, which would be actively misleading there.
+    """
+    auth = (authorization or "").strip()
+    if not auth.lower().startswith("bearer "):
+        return None
+    url = f"{identity_base_url()}/auth/me"
+    req = urllib.request.Request(url, headers={"Authorization": auth})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+        return None
+    return str(data.get("display_name") or "").strip() or None
+
+
 def is_admin_from_authorization(authorization: str, *, timeout_s: float = 5.0) -> bool:
     """True when the Bearer session token belongs to a platform admin account
     (identity ``/auth/me`` -> is_admin). Lets admin@salareen.com moderate ANY
