@@ -1,11 +1,13 @@
 # Web Playwright E2E suite (apps/web/e2e) against the real compose stack.
 #
-# Non-blocking by design: nightly + manual dispatch, NOT a required PR check yet.
-# Rationale mirrors ci-followup/demo-check.yml — automerge.yml merges any green
-# PR without human review, so a full-stack browser suite stays advisory until it
-# has stability history. Promotion path: once flake < 2% over ~2 weeks, lift
-# these steps into a `web-e2e` job in ci.yml (see docs/vv-master-plan.md UI
-# dimension §6, gate 1) so they gate merges.
+# Gate architecture (as of v0.46.15):
+#   Tier 1 — ci.yml `mobile` job:       mobile Jest unit tests (~2 s, required)
+#   Tier 2 — ci.yml `regression-canary`: source-level checks, no stack (~20 s, required)
+#   Tier 3 — THIS FILE:                  full browser + stack (45 min, nightly advisory)
+#
+# Tier 2 covers the regression patterns found in v0.45.x without needing Docker.
+# Tier 3 stays nightly until flake < 2% over ~2 weeks, then promote to ci.yml
+# as a required `web-e2e` job (see docs/vv-master-plan.md UI dimension §6, gate 1).
 name: web-e2e
 
 on:

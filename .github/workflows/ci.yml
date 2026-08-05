@@ -84,6 +84,42 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Typecheck mobile app
         run: bash scripts/mobile-typecheck.sh
+      - name: Mobile Jest unit tests
+        # ~2 s. Guards mobile regressions: Kids section API, notification
+        # default hour, mic session logic, driving detection, LK audio routing.
+        # Previously ran in mobile-tests.yml (advisory) — now a required gate.
+        run: npx jest --no-coverage --ci
+
+  regression-canary:
+    # Source-level checks that verify critical patterns exist in the codebase
+    # without needing the full Docker stack (~20 s). These catch the class of
+    # regression found in v0.45.x: silent behavior changes that pass typecheck
+    # but break a feature (wrong default, swallowed error, missing guard).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - name: Install Playwright (chromium only, no stack needed)
+        run: npx playwright install --with-deps chromium
+      - name: Regression canary — source-level checks
+        # Runs the subset of e2e specs that use execSync to inspect source files
+        # rather than driving a browser against a live stack. No compose needed.
+        # Covers: notification default, KidsScreen API, mic restart pattern,
+        # Zelle auth header, webcam module integrity, camera permission test,
+        # language locale map, teach-flow source guards.
+        run: |
+          npx playwright test \
+            e2e/core/release-regression.spec.ts \
+            e2e/core/camera-recognition.spec.ts \
+            e2e/core/teach-flow.spec.ts \
+            e2e/core/languages.spec.ts \
+            --reporter=line
 
   gate-meta:
     runs-on: ubuntu-latest
