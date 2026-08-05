@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69.5.1", "wheel>=0.43.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-vision-lab"
+version = "0.1.0"
+description = "Private-ready webcam recognition lab for Theodore solo and group teaching experiments."
+license = { text = "LicenseRef-AOEP-Proprietary" }
+requires-python = ">=3.11"
+dependencies = [
+    "aoep-shared>=0.2.0,<1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.2.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

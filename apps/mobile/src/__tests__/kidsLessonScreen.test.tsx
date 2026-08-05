@@ -51,6 +51,8 @@ describe("KidsLessonScreen", () => {
     mockGetKidsLesson.mockResolvedValue(lesson);
   });
 
+  // 6 chained findBy/waitFor calls (× up to 1 s each) + render overhead can
+  // exceed the 5 s Jest default in CI. 15 s is safe and still catches real hangs.
   it("plays a lesson end to end and reports the score", async () => {
     const onBack = jest.fn();
     render(<KidsLessonScreen courseId="kids-abc-adventures" onBack={onBack} />);
@@ -78,7 +80,7 @@ describe("KidsLessonScreen", () => {
 
     expect(await screen.findByText("Great job!")).toBeTruthy();
     expect(screen.getByText(/got 1 of 2 right/)).toBeTruthy();
-  });
+  }, 15_000);
 
   it("requests the lesson it was asked for", async () => {
     render(<KidsLessonScreen courseId="kids-first-words" onBack={jest.fn()} />);
