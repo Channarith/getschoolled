@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Salareen Webcam Lab (PRIVATE)</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --paper: #f3efe6;
+      --accent: #0d6e6e;
+      --warn: #a34a2c;
+      --line: #c9c0b0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 20% 0%, #dfe9e6 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 10%, #e8dcc8 0%, transparent 45%),
+        var(--paper);
+      min-height: 100vh;
+    }
+    header {
+      padding: 2.5rem 1.5rem 1rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .brand {
+      font-size: clamp(2.2rem, 6vw, 3.4rem);
+      letter-spacing: -0.02em;
+      margin: 0;
+      font-weight: 700;
+    }
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.72rem;
+      color: var(--accent);
+      margin: 0 0 0.5rem;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    .lead {
+      max-width: 36rem;
+      font-size: 1.05rem;
+      line-height: 1.45;
+      margin: 0.75rem 0 0;
+      opacity: 0.85;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1rem 1.5rem 3rem;
+      display: grid;
+      gap: 1.5rem;
+    }
+    .stage {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.25rem;
+    }
+    @media (max-width: 800px) {
+      .stage { grid-template-columns: 1fr; }
+    }
+    video, canvas {
+      width: 100%;
+      background: #0f171c;
+      aspect-ratio: 4/3;
+      display: block;
+    }
+    .panel {
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+    label {
+      display: block;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+      opacity: 0.7;
+    }
+    select, input, button, textarea {
+      font: inherit;
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.55);
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: #f7faf9;
+      border: none;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+    #status {
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      min-height: 6rem;
+      border-left: 3px solid var(--accent);
+      padding-left: 0.75rem;
+    }
+    #status.hold { border-left-color: var(--warn); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Private lab · not public ingress</p>
+    <h1 class="brand">Salareen Webcam Lab</h1>
+    <p class="lead">
+      Build and test webcam recognition for Theodore teaching and self-teach —
+      face + silhouette, user absence, and xAI voice agents.
+    </p>
+  </header>
+  <main>
+    <section class="stage">
+      <div>
+        <video id="cam" playsinline autoplay muted></video>
+        <canvas id="snap" hidden></canvas>
+      </div>
+      <div class="panel">
+        <label for="mode">Teaching mode</label>
+        <select id="mode">
+          <option value="solo">Solo — Theodore teaches</option>
+          <option value="group">Group — Theodore hosts</option>
+          <option value="self_teach">Self-teach — learner leads</option>
+        </select>
+        <label for="lesson">Lesson context</label>
+        <textarea id="lesson" rows="3" placeholder="e.g. Intro to fractions, slide 3"></textarea>
+        <div class="row">
+          <button id="startCam" type="button">Start camera</button>
+          <button id="createSession" type="button" class="secondary">Create session</button>
+        </div>
+        <div class="row">
+          <button id="tickPresence" type="button">Report presence</button>
+          <button id="mintVoice" type="button" class="secondary">Mint xAI voice token</button>
+        </div>
+        <div id="status">Idle. Start the camera, create a session, then report presence.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const statusEl = document.getElementById("status");
+    const video = document.getElementById("cam");
+    const canvas = document.getElementById("snap");
+    let session = null;
+    let participantId = null;
+
+    function setStatus(text, hold = false) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("hold", !!hold);
+    }
+
+    document.getElementById("startCam").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+        video.srcObject = stream;
+        setStatus("Camera live.");
+      } catch (err) {
+        setStatus("Camera error: " + err.message);
+      }
+    };
+
+    document.getElementById("createSession").onclick = async () => {
+      const mode = document.getElementById("mode").value;
+      const lesson_context = document.getElementById("lesson").value;
+      const res = await fetch("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          lesson_context,
+          host_name: "Lab Learner",
+          title: mode + " lab",
+        }),
+      });
+      session = await res.json();
+      if (!res.ok) {
+        setStatus("Create failed: " + JSON.stringify(session));
+        return;
+      }
+      participantId = session.participants[0].participant_id;
+      setStatus(
+        "Session " + session.session_id + " (" + session.mode + ")\n" +
+        "participant " + participantId + "\n" +
+        "voice persona: " + (session.voice && session.voice.persona)
+      );
+    };
+
+    async function captureBlob() {
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 480;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, w, h);
+      return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+    }
+
+    document.getElementById("tickPresence").onclick = async () => {
+      if (!session || !participantId) {
+        setStatus("Create a session first.");
+        return;
+      }
+      let analysis = { face_count: 0, attention: 0, silhouette_present: false };
+      if (video.srcObject) {
+        const blob = await captureBlob();
+        const fd = new FormData();
+        fd.append("file", blob, "frame.jpg");
+        const ar = await fetch("/analyze/frame", { method: "POST", body: fd });
+        analysis = await ar.json();
+      }
+      const body = {
+        face_count: analysis.face_count || 0,
+        attention: analysis.attention || 0,
+        gaze_frontal: analysis.gaze_frontal || 0,
+        silhouette_present: !!(analysis.silhouette && analysis.silhouette.present),
+        silhouette_confidence: (analysis.silhouette && analysis.silhouette.confidence) || 0,
+        expression: analysis.expression || "unknown",
+      };
+      const res = await fetch(
+        "/sessions/" + session.session_id + "/participants/" + participantId + "/presence",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
+      const data = await res.json();
+      const d = data.decision || {};
+      setStatus(
+        "engine=" + (analysis.engine || "n/a") +
+        "\nstate=" + d.state +
+        " faces=" + d.face_count +
+        " sil=" + d.silhouette_present +
+        "\nattention=" + d.attention +
+        " absent_for=" + d.absent_for_seconds + "s" +
+        "\nhold=" + data.session_hold +
+        " reengage=" + d.should_reengage +
+        "\nreason=" + d.reason,
+        data.session_hold
+      );
+    };
+
+    document.getElementById("mintVoice").onclick = async () => {
+      const mode = document.getElementById("mode").value;
+      const lesson_context = document.getElementById("lesson").value;
+      const res = await fetch("/voice/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          lesson_context,
+          session_id: session && session.session_id,
+        }),
+      });
+      const data = await res.json();
+      setStatus(
+        "xAI configured: " + data.xai_configured +
+        "\nmock token: " + (data.token && data.token.mock) +
+        "\nws: " + (data.token && data.token.websocket_url) +
+        "\npersona instructions ready (" +
+        ((data.session_update && data.session_update.session &&
+          data.session_update.session.instructions) || "").slice(0, 120) + "…)"
+      );
+    };
+
+    // Subtle entrance motion
+    const hdr = document.querySelector("header");
+    hdr.style.opacity = "0";
+    hdr.style.transform = "translateY(12px)";
+    requestAnimationFrame(() => {
+      hdr.style.transition = "opacity 500ms ease, transform 500ms ease";
+      hdr.style.opacity = "1";
+      hdr.style.transform = "translateY(0)";
+    });
+  </script>
+</body>
+</html>
