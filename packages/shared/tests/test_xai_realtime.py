@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from aoep_shared import xai_realtime as xai_voice as xv
+from aoep_shared import xai_realtime as xv
 
 
 def test_mock_ephemeral_token_without_key(monkeypatch):
