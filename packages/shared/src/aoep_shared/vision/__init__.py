@@ -29,6 +29,11 @@ from .engagement import EngagementSignals, GestureRecognizer, estimate_engagemen
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
 from .silhouette import SilhouetteDetector, SilhouetteResult, estimate_silhouette_from_fraction
+from .silhouette_fusion import (
+    SilhouetteDetection,
+    estimate_body_presence,
+    fuse_face_and_silhouette,
+)
 from .silhouette_signals import (
     SilhouetteObservation,
     SilhouetteSignals,
@@ -48,6 +53,9 @@ __all__ = [
     "SilhouetteDetector",
     "SilhouetteResult",
     "estimate_silhouette_from_fraction",
+    "SilhouetteDetection",
+    "estimate_body_presence",
+    "fuse_face_and_silhouette",
     "SilhouetteObservation",
     "SilhouetteSignals",
     "detect_silhouette",
