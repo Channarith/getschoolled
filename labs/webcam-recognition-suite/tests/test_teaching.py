@@ -1,7 +1,7 @@
 """Theodore teaching vs self-teaching mode tests."""
 
-from webcam_lab.presence import PresenceVerdict
-from webcam_lab.teaching import TeachingMode, plan_teaching_turn, teaching_script
+from webcam_recognition_suite.presence import PresenceVerdict
+from webcam_recognition_suite.teaching import TeachingMode, plan_teaching_turn, teaching_script
 
 
 def test_theodore_teach_default():

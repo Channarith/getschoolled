@@ -13,7 +13,7 @@ for _p in (_SRC, _SHARED):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from webcam_lab.lab import main  # noqa: E402
+from webcam_recognition_suite.lab import main  # noqa: E402
 
 if __name__ == "__main__":
     raise SystemExit(main())

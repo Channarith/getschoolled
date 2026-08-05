@@ -43,7 +43,7 @@ def _check(results: List[tuple], label: str, ok: bool) -> None:
     results.append((label, bool(ok)))
 
 
-def run_webcam_lab(
+def run_webcam_recognition_suite(
     *,
     class_mode: str = "solo",
     teaching_mode: str = "theodore_teach",
@@ -188,7 +188,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--json", action="store_true", help="Print full JSON result")
     args = parser.parse_args(argv)
 
-    result = run_webcam_lab(
+    result = run_webcam_recognition_suite(
         class_mode=args.class_mode,
         teaching_mode=args.mode,
         room_size=args.size,

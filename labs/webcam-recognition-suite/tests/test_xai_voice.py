@@ -2,7 +2,7 @@
 
 import pytest
 
-from webcam_lab.xai_voice import (
+from webcam_recognition_suite.xai_voice import (
     MockXaiVoiceAgent,
     XaiVoiceConfig,
     build_session_update,

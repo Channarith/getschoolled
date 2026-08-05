@@ -4,7 +4,7 @@ Builds and tests: face recognition signals, body silhouette detection, user
 absence, Theodore (AI) teaching vs self-teaching, and xAI Grok voice agents.
 """
 
-from .lab import WebcamLabResult, run_webcam_lab
+from .lab import WebcamLabResult, run_webcam_recognition_suite
 from .presence import AbsencePolicy, PresenceFusion, PresenceVerdict
 from .recognition import ClassRecognitionFrame, recognize_frame
 from .session import ClassMode, ClassSession, RoomSize
@@ -31,5 +31,5 @@ __all__ = [
     "detect_silhouettes",
     "plan_teaching_turn",
     "recognize_frame",
-    "run_webcam_lab",
+    "run_webcam_recognition_suite",
 ]

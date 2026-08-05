@@ -1,7 +1,7 @@
 """Silhouette + body-presence tests (offline, no OpenCV required)."""
 
-from webcam_lab.frames import absent_learner, body_only_learner, present_learner
-from webcam_lab.silhouette import SilhouetteDetection, SilhouetteDetector, estimate_body_presence
+from webcam_recognition_suite.frames import absent_learner, body_only_learner, present_learner
+from webcam_recognition_suite.silhouette import SilhouetteDetection, SilhouetteDetector, estimate_body_presence
 
 
 def test_estimate_body_presence_empty():

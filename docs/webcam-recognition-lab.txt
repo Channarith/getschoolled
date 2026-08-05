@@ -1,7 +1,7 @@
 Webcam recognition lab (private sub-repo)
 =========================================
 
-Location: labs/webcam-recognition/  (PRIVATE — see PRIVATE.txt)
+Location: labs/webcam-recognition-suite/  (PRIVATE — see PRIVATE.txt)
 
 What it covers
   - Webcam image recognition for solo (room_size=2) and group (4/6/9) classes
@@ -15,6 +15,6 @@ Shared promotion
   fuse_face_and_silhouette. Config: XAI_API_KEY / XAI_VOICE_* in AppConfig.
 
 Quick start
-  python3 labs/webcam-recognition/scripts/run_lab.py
-  python3 labs/webcam-recognition/scripts/run_lab.py --mode self_teach --class-mode group --size 6
-  cd labs/webcam-recognition && PYTHONPATH=src:../../packages/shared/src python3 -m pytest -q
+  python3 labs/webcam-recognition-suite/scripts/run_lab.py
+  python3 labs/webcam-recognition-suite/scripts/run_lab.py --mode self_teach --class-mode group --size 6
+  cd labs/webcam-recognition-suite && PYTHONPATH=src:../../packages/shared/src python3 -m pytest -q

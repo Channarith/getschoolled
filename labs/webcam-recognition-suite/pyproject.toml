@@ -23,7 +23,7 @@ voice = [
 ]
 
 [project.scripts]
-webcam-lab = "webcam_lab.lab:main"
+webcam-lab = "webcam_recognition_suite.lab:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

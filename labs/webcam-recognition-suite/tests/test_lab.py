@@ -2,10 +2,10 @@
 
 import pytest
 
-from webcam_lab.frames import present_learner
-from webcam_lab.lab import run_webcam_lab
-from webcam_lab.session import ClassMode, ClassSession, RoomSize
-from webcam_lab.teaching import TeachingMode
+from webcam_recognition_suite.frames import present_learner
+from webcam_recognition_suite.lab import run_webcam_recognition_suite
+from webcam_recognition_suite.session import ClassMode, ClassSession, RoomSize
+from webcam_recognition_suite.teaching import TeachingMode
 
 LAB_MODES = [
     ("solo", "theodore_teach", 2),
@@ -17,7 +17,7 @@ LAB_MODES = [
 
 @pytest.mark.parametrize("class_mode,teaching_mode,size", LAB_MODES)
 def test_lab_modes(class_mode, teaching_mode, size):
-    result = run_webcam_lab(
+    result = run_webcam_recognition_suite(
         class_mode=class_mode,
         teaching_mode=teaching_mode,
         room_size=size,

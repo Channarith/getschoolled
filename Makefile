@@ -66,7 +66,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition-suite/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -110,8 +110,8 @@ meeting-agents-lab:
 
 # Private webcam recognition lab (solo/group, silhouette/absence, Theodore + xAI voice).
 webcam-lab:
-	PYTHONPATH=labs/webcam-recognition/src:packages/shared/src $(VENV_PY) labs/webcam-recognition/scripts/run_lab.py --mode theodore_teach --class-mode solo
-	PYTHONPATH=labs/webcam-recognition/src:packages/shared/src $(VENV_PY) labs/webcam-recognition/scripts/run_lab.py --mode self_teach --class-mode group --size 6
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode theodore_teach --class-mode solo
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode self_teach --class-mode group --size 6
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:

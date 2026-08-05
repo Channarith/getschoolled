@@ -1,6 +1,6 @@
 """Presence fusion + absence hold tests."""
 
-from webcam_lab.presence import AbsencePolicy, PresenceFusion, fuse_batch
+from webcam_recognition_suite.presence import AbsencePolicy, PresenceFusion, fuse_batch
 
 
 def test_face_or_silhouette_keeps_present():

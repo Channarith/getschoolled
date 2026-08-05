@@ -19,7 +19,7 @@ Capabilities exercised here
      mock so tests never need XAI_API_KEY.
 
 Layout
-  src/webcam_lab/     lab package
+  src/webcam_recognition_suite/     lab package
   tests/              offline pytest suite (no network required)
   scripts/run_lab.py  one-shot offline demo harness
   pyproject.toml      installable as webcam-lab (private)

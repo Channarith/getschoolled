@@ -188,7 +188,7 @@ respond:
 
 <img src="docs/screens/theodore_vision_tuning_panel.webp" alt="Recognition Tuning panel with preset selector and live sliders for lighting, Sobel sharpness, distance and audio knobs, beside the failed quality-gate list" />
 
-How to run and test this yourself: **[`subrepos/theodore_webcam_lab/README.md`](subrepos/theodore_webcam_lab/README.md)**
+How to run and test this yourself: **[`subrepos/theodore_webcam_recognition_suite/README.md`](subrepos/theodore_webcam_recognition_suite/README.md)**
 — an illustrated five-step walkthrough with a one-command health check that
 names any broken piece. Full knob and endpoint reference lives beside it in
 `README.txt`.

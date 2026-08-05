@@ -38,7 +38,7 @@ class PresenceVerdict:
     silhouette_count: int = 0
     silhouette_confidence: float = 0.0
     reason: str = ""
-    source: str = "webcam_lab"
+    source: str = "webcam_recognition_suite"
     hold_recommended: bool = False
     absent_for_seconds: float = 0.0
 
