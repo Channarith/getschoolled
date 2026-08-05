@@ -291,6 +291,7 @@ function ParticipantTile({
   fill,
   showAdminProfile,
   presenceFaceCount,
+  aiHost = true,
 }: {
   p: LiveParticipant;
   large?: boolean;
@@ -316,6 +317,8 @@ function ParticipantTile({
   showAdminProfile?: boolean;
   /** Face count from on-device presence probe; -1 = not probed, 0 = absent, >0 = present. Only set for isMe tile. */
   presenceFaceCount?: number;
+  /** False when a person teaches this class, so the host tile must never show Theodore. */
+  aiHost?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -432,10 +435,14 @@ function ParticipantTile({
                   boxShadow: "0 14px 34px rgba(0,0,0,0.38)",
                 }}
               >
-                🎓
+                {aiHost ? "🎓" : (p.name || "?").trim().charAt(0).toUpperCase()}
               </div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>Theodore</div>
-              <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>AI teacher</div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>
+                {aiHost ? "Theodore" : p.name}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12 }}>
+                {aiHost ? "AI teacher" : "Instructor · camera off"}
+              </div>
             </div>
           ) : null}
           <div
@@ -2095,7 +2102,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         <p className="muted">
           {isSoloLiveRoom(roomId, room)
             ? "Your private 1:1 session with Theodore. The class starts automatically once you enter."
-            : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
+            : room?.human_taught
+              ? `Join ${room?.human_host_name || "your instructor"}'s live class — up to ${room?.room_size ?? 6} seats in the grid.`
+              : `Join Theodore's multi-user class — up to ${room?.room_size ?? 6} seats in the grid.`}
         </p>
         {room && (
           <div className="card" style={{ marginBottom: 12 }}>
@@ -2149,6 +2158,10 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
   // moderator/admin previewing a Theodore-led class is a participant, not the
   // presenter. (`learners` already excludes whoever is the host.)
   const iAmHost = Boolean(me?.id && host?.id === me?.id);
+  // "Teach a class": a person presents, so Theodore is absent from the room
+  // entirely and the instructor owns the main tile.
+  const humanTaught = Boolean(room?.human_taught);
+  const hostLabel = humanTaught ? (room?.human_host_name || host?.name || "Instructor") : "Theodore";
   const isSolo = isSoloLiveRoom(roomId, room);
   // In a group class the human teacher (the moderator) belongs in the main host
   // tile, not in the student strip. Filter them out so only actual students appear
@@ -2695,7 +2708,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             flexWrap: "wrap",
           }}
         >
-          <span>🎓 Tap to hear Theodore narrate this slide (browser blocks autoplay until you interact).</span>
+          <span>🎓 Tap to hear {hostLabel} narrate this slide (browser blocks autoplay until you interact).</span>
           <button
             type="button"
             onClick={() => {
@@ -2870,6 +2883,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   p={host}
                   large
                   fill
+                  aiHost={!humanTaught}
                   fullscreen={isFullscreen}
                   localStream={iAmHost && cameraOn ? localStream : null}
                   liveKitTrack={iAmHost && !cameraOn ? null : trackFor(host.id)}
