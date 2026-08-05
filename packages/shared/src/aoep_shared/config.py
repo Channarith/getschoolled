@@ -181,13 +181,8 @@ class AppConfig(BaseModel):
     # Webcam vision service (presence + silhouette + voice agent hub).
     webcam_base_url: str = "http://webcam:8300"
 
-    # xAI Grok voice agent (Theodore AI teaching persona + frame analysis).
-    # Set XAI_API_KEY to enable; leave blank to fall back to the existing LLM
-    # provider for text Q&A (vision/frame analysis will be unavailable).
-    xai_api_key: str = ""
-    xai_base_url: str = "https://api.x.ai/v1"
-    xai_model: str = "grok-2-1212"           # text model
-    xai_vision_model: str = "grok-2-vision-1212"  # multimodal / frame analysis
+    # Multimodal model used for frame analysis by the vision-agent service.
+    xai_vision_model: str = "grok-2-vision-1212"
 
     # Vision-agent service (webcam session manager).
     # absence_threshold_s: seconds without face+silhouette before ABSENT fires.
@@ -309,9 +304,6 @@ def load_config(
         yoomoney_api_key=get("YOOMONEY_API_KEY", ""),
         toss_api_key=get("TOSS_API_KEY", ""),
         local_psp_api_key=get("LOCAL_PSP_API_KEY", ""),
-        xai_api_key=get("XAI_API_KEY", ""),
-        xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
-        xai_model=get("XAI_MODEL", "grok-2-1212"),
         xai_vision_model=get("XAI_VISION_MODEL", "grok-2-vision-1212"),
         vision_agent_absence_threshold_s=float(
             get("VISION_AGENT_ABSENCE_THRESHOLD_S", "5.0") or "5.0"
