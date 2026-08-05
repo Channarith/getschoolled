@@ -248,16 +248,39 @@ export function getNotificationsFeed(opts: {
   return get<NotificationFeed>(CURRICULUM_URL, `/notifications/feed${qs ? `?${qs}` : ""}`);
 }
 
+export type KidsScene = {
+  title: string;
+  instruction: string;
+  pictures: string[];
+  labels?: string[];
+  question: string;
+  choices: string[];
+  answer: string;
+};
+
+export type KidsLesson = {
+  id: string;
+  title: string;
+  emoji: string;
+  color: string;
+  scenes: KidsScene[];
+};
+
+/** Picture-lesson content, shared with web via the curriculum service. */
+export async function getKidsLesson(courseId: string): Promise<KidsLesson> {
+  return get<KidsLesson>(CURRICULUM_URL, `/kids/lessons/${encodeURIComponent(courseId)}`);
+}
+
+export async function listKidsLessons(): Promise<KidsLesson[]> {
+  const r = await get<{ lessons: KidsLesson[] }>(CURRICULUM_URL, "/kids/lessons");
+  return r.lessons || [];
+}
+
 export async function getHomeRails(kids = false, locale?: string): Promise<HomeRail[]> {
-  try {
-    const p = new URLSearchParams({ kids: kids ? "true" : "false" });
-    if (locale) p.set("locale", locale);
-    const r = await get<{ rails: HomeRail[] }>(
-      CURRICULUM_URL, `/home?${p.toString()}`);
-    return r.rails || [];
-  } catch {
-    return [];
-  }
+  const p = new URLSearchParams({ kids: kids ? "true" : "false" });
+  if (locale) p.set("locale", locale);
+  const r = await get<{ rails: HomeRail[] }>(CURRICULUM_URL, `/home?${p.toString()}`);
+  return r.rails || [];
 }
 
 export function searchLearnable(params: Record<string, string> = {}) {

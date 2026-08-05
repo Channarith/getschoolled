@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-webcam-lab"
+version = "0.1.0"
+description = "Private webcam recognition lab for Theodore solo/group classes (silhouette, absence, xAI voice)."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+vision = [
+  "numpy>=1.26,<3",
+  "opencv-contrib-python-headless>=4.9,<5",
+]
+voice = [
+  "websockets>=12,<16",
+]
+server = [
+  "fastapi>=0.111,<1",
+  "uvicorn>=0.30,<1",
+]
+test = [
+  "pytest>=8.2,<9",
+  "numpy>=1.26,<3",
+]
+
+[project.scripts]
+webcam-lab = "webcam_lab.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

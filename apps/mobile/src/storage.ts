@@ -18,6 +18,12 @@ const KEYS = {
   authToken: "@aic/auth-token.v1",  // identity JWT
   potionBest: "@aic/potionlab-best.v1", // number (Potion Lab arcade high score)
   previewMode: "@aic/preview.v1",   // guest browse without login
+  // Notification routine: which courses we have already alerted about, when the
+  // app was last opened, and which day the content digest last went out. These
+  // keep alerts to one predictable slot instead of one per item per app launch.
+  notifiedCourses: "@aic/notified-courses.v1",  // string[]
+  lastOpenAt: "@aic/last-open.v1",              // ISO timestamp
+  contentAlertDay: "@aic/content-alert-day.v1", // YYYY-MM-DD
 } as const;
 
 /** In-memory auth cache (AsyncStorage is async; API client reads sync). */
@@ -66,7 +72,7 @@ export type { TrainingLocale };
 export const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: true,
   dailyReminder: true,
-  dailyReminderHour: 18,
+  dailyReminderHour: 8,
   newContentAlerts: true,
   completionAlerts: true,
   studentId: "guest",
@@ -155,6 +161,43 @@ export async function markAllRead(allIds: string[]): Promise<void> {
   const ids = new Set(await getReadIds());
   for (const i of allIds) ids.add(i);
   await writeJSON(KEYS.inboxRead, Array.from(ids));
+}
+
+/**
+ * Courses the user has already been alerted about.
+ *
+ * The server rotates a new_class item id every day, so deduping on the item id
+ * re-alerts the same course indefinitely. Course ids are stable, so we remember
+ * those instead. Capped so the list cannot grow without bound.
+ */
+const MAX_NOTIFIED_COURSES = 300;
+
+export async function getNotifiedCourses(): Promise<string[]> {
+  return readJSON<string[]>(KEYS.notifiedCourses, []);
+}
+
+export async function rememberNotifiedCourses(keys: string[]): Promise<void> {
+  const merged = [...(await getNotifiedCourses()), ...keys.filter(Boolean)];
+  const unique = Array.from(new Set(merged));
+  await writeJSON(KEYS.notifiedCourses, unique.slice(-MAX_NOTIFIED_COURSES));
+}
+
+/** When the app was last opened, used to tell a returning user from a lapsed one. */
+export async function getLastOpenAt(): Promise<string> {
+  return readJSON<string>(KEYS.lastOpenAt, "");
+}
+
+export async function setLastOpenAt(iso: string): Promise<void> {
+  await writeJSON(KEYS.lastOpenAt, iso);
+}
+
+/** Local calendar day (YYYY-MM-DD) the content digest was last scheduled for. */
+export async function getContentAlertDay(): Promise<string> {
+  return readJSON<string>(KEYS.contentAlertDay, "");
+}
+
+export async function setContentAlertDay(day: string): Promise<void> {
+  await writeJSON(KEYS.contentAlertDay, day);
 }
 
 export type Streak = { days: number; lastDayISO: string };

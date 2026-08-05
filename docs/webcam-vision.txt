@@ -1,0 +1,86 @@
+WEBCAM VISION (packages/webcam-vision) — private sub-package
+=============================================================
+
+Webcam image recognition for solo and group classes: silhouette detection,
+user-absence detection, and presence-driven teaching behavior for both
+Theodore-led (AI) classes and user self-teaching, plus the xAI Grok realtime
+voice agent client used for natural spoken responses.
+
+Status: PRIVATE/internal (LicenseRef-AOEP-Proprietary). Built and tested in
+the monorepo; not published to any package index.
+
+Install (dev):
+    python3 -m pip install -e "packages/webcam-vision[test]"     # tests + OpenCV
+    python3 -m pip install -e "packages/webcam-vision[voice]"    # realtime ws client
+
+Modules (import package: aoep_webcam_vision)
+--------------------------------------------
+- silhouette.py  SilhouetteDetector: privacy-preserving "a person is in frame"
+                 WITHOUT face biometrics. Two CPU/offline detectors: OpenCV's
+                 built-in HOG people detector (no model download) and a MOG2
+                 motion-silhouette fallback (learns the static room; slow 0.01
+                 learning rate so a seated, still learner stays "present" for
+                 minutes). Frames are decoded, analyzed, discarded.
+- presence.py    PresenceTracker / PresenceMonitor: per-participant state
+                 machine — present (face visible) / silhouette (person, no
+                 face) / absent (nobody in frame). Anti-flicker grace periods:
+                 WEBCAM_SILHOUETTE_GRACE_S (default 5s) before a lost face
+                 demotes to silhouette, WEBCAM_ABSENCE_GRACE_S (default 10s)
+                 before an empty frame declares absence. Emits user_present /
+                 user_silhouette / user_absent / user_returned events.
+- monitor.py     WebcamMonitor: fuses consent-gated face observations (the
+                 perception service's YuNet+SFace VisionProvider — identity
+                 matching stays behind the platform consent/region gates) with
+                 silhouette detections into per-frame FrameAnalysis. Works for
+                 one local participant (solo) or one track per learner
+                 (group). Degrades to silhouette-only when no face backend is
+                 reachable.
+- modes.py       Teaching policies (pure: events in, actions out):
+                 TheodoreTeachingPolicy — pauses the lesson only when EVERY
+                 learner is absent, resumes + welcomes back on return, offers
+                 a recap after long absences, nudges a learner stuck in
+                 silhouette-only (person in frame, no face) after 45s.
+                 SelfTeachingPolicy — no narration to pause; accrues focused /
+                 in-room / away time and offers a recap after long breaks.
+- xai_voice.py   XAIVoiceAgent: xAI Grok realtime voice client (OpenAI
+                 Realtime-compatible). Server-side duplex audio at
+                 wss://api.x.ai/v1/realtime?model=<model> with Bearer
+                 XAI_API_KEY; browser/mobile clients mint ephemeral tokens via
+                 POST {XAI_BASE_URL}/realtime/client_secrets and connect with
+                 the xai-client-secret.<token> websocket subprotocol, so the
+                 API key never ships to a device. respond() is a text
+                 fallback over OpenAI-compatible chat completions. Without
+                 XAI_API_KEY, configured() is False and callers fall back to
+                 the platform speech chain (ElevenLabs -> edge-tts -> device).
+- session.py     WebcamTeachingSession: the harness tying monitor + policy +
+                 voice together. Constructors: solo_theodore(learner_id),
+                 group_theodore(learner_ids), self_teaching(learner_id).
+                 ingest_frame(participant_id, image) -> SessionUpdate
+                 (presence events + teaching actions); tick() for periodic
+                 nudges/stats; spoken_lines(update) for what to voice.
+
+Configuration (aoep_shared.config.AppConfig / env)
+--------------------------------------------------
+    XAI_API_KEY=                  # empty => voice fallback chain
+    XAI_BASE_URL=https://api.x.ai/v1
+    XAI_REALTIME_URL=wss://api.x.ai/v1/realtime
+    XAI_VOICE_MODEL=grok-voice-latest
+    XAI_TEXT_MODEL=grok-3-latest
+    XAI_VOICE=eve
+    WEBCAM_SILHOUETTE_GRACE_S=5
+    WEBCAM_ABSENCE_GRACE_S=10
+
+Privacy / compliance
+--------------------
+Silhouette detection carries no identity and no biometrics. Face-based
+presence reuses the platform's consent-gated VisionProvider, so the existing
+consent + EU AI Act region gates apply unchanged; raw frames are never stored
+or returned.
+
+Tests
+-----
+    python3 -m pytest packages/webcam-vision/tests -q
+71 tests: synthetic-frame silhouette detection (real OpenCV, no downloads),
+deterministic presence state machine, monitor with stub pipelines, both
+teaching policies, xAI client with mocked HTTP transport, and end-to-end
+solo/group session arcs.
