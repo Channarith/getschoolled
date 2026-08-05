@@ -38,6 +38,25 @@ jobs:
       - name: Run tests
         run: python3 -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_recognition_suite/tests -q
 
+  webcam-lab:
+    # labs/theodore-webcam is a self-contained private sub-repo: it is not in
+    # the monorepo pytest glob above, so it gets its own build + test job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: labs/theodore-webcam
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the lab (editable)
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[test]"
+      - name: Run lab tests
+        run: python3 -m pytest -q
+
   web:
     runs-on: ubuntu-latest
     defaults:
@@ -84,6 +103,34 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Typecheck mobile app
         run: bash scripts/mobile-typecheck.sh
+      - name: Mobile Jest unit tests
+        # ~2 s. Guards mobile regressions: Kids section API, notification
+        # default hour, mic session logic, driving detection, LK audio routing.
+        # Previously ran in mobile-tests.yml (advisory) — now a required gate.
+        run: npx jest --no-coverage --ci
+
+  regression-canary:
+    # Source-level checks that verify critical patterns exist in the codebase
+    # without needing the full Docker stack (~20 s). These catch the class of
+    # regression found in v0.45.x: silent behavior changes that pass typecheck
+    # but break a feature (wrong default, swallowed error, missing guard).
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - name: Install Playwright (chromium only, no stack needed)
+        run: npx playwright install --with-deps chromium
+      - name: Regression canary — source-level checks
+        # Uses playwright.canary.config.ts which has NO globalSetup, so there
+        # is no stack health check and no auth sign-in. Tests in e2e/canary/
+        # are pure execSync source reads — no browser navigation, no server.
+        run: npx playwright test --config playwright.canary.config.ts
 
   gate-meta:
     runs-on: ubuntu-latest

@@ -8,18 +8,16 @@ Public surface:
 - ``FaceRecognitionEngine`` - detect faces and compute embeddings.
 - ``FaceGallery``           - enroll embeddings and match (1:N) with a threshold.
 - ``DetectedFace``          - a detected face (bbox, score, embedding).
+- ``SilhouetteDetector``    - body presence via MOG2 background subtraction.
+- ``WebcamPresenceTracker`` - debounced absence/presence tracking per session.
 - model helpers in ``aoep_shared.vision.models``.
 """
 
 from .engagement import EngagementSignals, GestureRecognizer, estimate_engagement
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
-from .silhouette import (
-    SilhouetteDetection,
-    SilhouetteSignals,
-    estimate_body_presence,
-    fuse_face_and_silhouette,
-)
+from .silhouette import SilhouetteDetector, SilhouetteResult, estimate_silhouette_from_fraction
+from .webcam_presence import PresenceFrame, PresenceMetrics, PresenceState, WebcamPresenceTracker
 
 __all__ = [
     "DetectedFace",
@@ -29,8 +27,11 @@ __all__ = [
     "EngagementSignals",
     "GestureRecognizer",
     "estimate_engagement",
-    "SilhouetteDetection",
-    "SilhouetteSignals",
-    "estimate_body_presence",
-    "fuse_face_and_silhouette",
+    "SilhouetteDetector",
+    "SilhouetteResult",
+    "estimate_silhouette_from_fraction",
+    "PresenceFrame",
+    "PresenceMetrics",
+    "PresenceState",
+    "WebcamPresenceTracker",
 ]
