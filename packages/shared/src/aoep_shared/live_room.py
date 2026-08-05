@@ -33,6 +33,9 @@ from .live_room_social import (
 # 2 = solo 1:1 (AI host + one learner); 4/6/9 = small/medium/large group grids.
 ROOM_SIZES: tuple = (2, 4, 6, 9)
 AI_HOST_ID = "theodore-ai"
+# Placeholder host slot for a human-taught class, held until the instructor joins
+# and takes it over. It keeps LiveRoom.host() valid before they arrive.
+HUMAN_HOST_ID = "human-host"
 AI_HOST_NAME = "Theodore (AI Host)"
 AI_HOST_ROLE = "host"
 LEARNER_ROLE = "learner"
@@ -44,6 +47,15 @@ PRE_CLASS_WELCOME = (
     "and questions are always welcome. Please make yourself comfortable—we'll "
     "begin learning together shortly."
 )
+
+
+def human_class_welcome(instructor: str) -> str:
+    """Waiting-room text for a class a person teaches (no AI host present)."""
+    who = (instructor or "").strip() or "Your instructor"
+    return (
+        f"Welcome. {who} is teaching this class live. "
+        "The session will begin when your instructor starts it."
+    )
 
 RECORDING_IDLE = "idle"
 RECORDING_ACTIVE = "recording"
@@ -450,6 +462,11 @@ class LiveRoom:
     longitude: float = 0.0
     creator_name: str = ""
     creator_account_id: str = ""
+    # Human-taught ("teach a class") mode: a person teaches, so Theodore is not
+    # added to the room at all and the instructor holds the host/presenter slot.
+    human_taught: bool = False
+    human_host_account_id: str = ""
+    human_host_name: str = ""
     # Presentation lifecycle: the room opens in a "waiting" state; the AI starts
     # presenting when the room fills, 5 min after the scheduled time, or when the
     # admin starts it. Then it auto-advances slides on a timer.
@@ -508,7 +525,21 @@ class LiveRoom:
         for p in self.participants.values():
             if p.is_host:
                 return p
-        raise LiveRoomError("room is missing AI host")
+        raise LiveRoomError("room is missing a host")
+
+    def system_host_identity(self) -> tuple[str, str]:
+        """Who automated room notices are attributed to.
+
+        A human-taught class has no Theodore, so notices come from the
+        instructor's host slot rather than from an AI that is not in the room.
+        """
+        if self.human_taught:
+            try:
+                host = self.host()
+            except LiveRoomError:
+                return HUMAN_HOST_ID, self.human_host_name or "Instructor"
+            return host.id, host.name
+        return AI_HOST_ID, AI_HOST_NAME
 
     def get_participant(self, participant_id: str) -> Participant:
         p = self.participants.get(participant_id)
@@ -585,6 +616,8 @@ class LiveRoom:
             "status": self.status,
             "opened_at": self.opened_at,
             "host": self.host().to_dict(),
+            "human_taught": self.human_taught,
+            "human_host_name": self.human_host_name,
             "participants": [p.to_dict() for p in self.participants.values()],
             "chat": [asdict(m) for m in self.chat[-200:]],
             "recording": self.recording.to_dict(),
@@ -752,6 +785,9 @@ class LiveRoomStore:
         longitude: float = 0.0,
         creator_name: str = "",
         creator_account_id: str = "",
+        human_taught: bool = False,
+        human_host_account_id: str = "",
+        human_host_name: str = "",
         scheduled_start: str = "",
         duration_seconds: int = 0,
         presence_enabled: bool = True,
@@ -821,13 +857,31 @@ class LiveRoomStore:
                 max_faces_allowed=presence_max_faces_allowed,
             ),
         )
-        host = Participant(id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True)
+        if human_taught:
+            # A person is teaching: no Theodore in the room at all. The host slot
+            # is a placeholder until the instructor joins and takes it over.
+            instructor = (human_host_name or creator_name or "Instructor").strip()
+            room.human_taught = True
+            room.human_host_account_id = (human_host_account_id or creator_account_id or "").strip()
+            room.human_host_name = instructor
+            room.welcome_message = human_class_welcome(instructor)
+            host = Participant(
+                id=HUMAN_HOST_ID,
+                name=instructor,
+                role=AI_HOST_ROLE,
+                account_id=room.human_host_account_id,
+                can_publish=True,
+            )
+        else:
+            host = Participant(
+                id=AI_HOST_ID, name=AI_HOST_NAME, role=AI_HOST_ROLE, can_publish=True
+            )
         room.participants[host.id] = host
         welcome = ChatMessage(
             id=uuid.uuid4().hex[:10],
-            from_id=AI_HOST_ID,
-            from_name=AI_HOST_NAME,
-            text=PRE_CLASS_WELCOME,
+            from_id=host.id,
+            from_name=host.name,
+            text=room.welcome_message,
         )
         room.chat.append(welcome)
         self._commit(room)
@@ -1063,6 +1117,13 @@ class LiveRoomStore:
         )
         host_acct = (room.creator_account_id or "").strip()
         is_scheduled_host = bool(acct and host_acct and acct == host_acct)
+        if room.human_taught and acct and acct == (room.human_host_account_id or host_acct):
+            # The instructor IS the presenter: take over the host slot so their
+            # camera fills the main tile and they can publish immediately.
+            room.participants.pop(HUMAN_HOST_ID, None)
+            participant.role = AI_HOST_ROLE
+            participant.can_publish = True
+            room.human_host_name = participant.name
         # The scheduled instructor always becomes class admin when they join.
         # Otherwise the first learner to join becomes admin (legacy flow).
         current_admin = room.participants.get(room.admin_participant_id)
@@ -1086,12 +1147,22 @@ class LiveRoomStore:
     def leave(self, room_id: str, participant_id: str) -> None:
         room = self.require(room_id)
         p = room.get_participant(participant_id)
-        if p.is_host:
+        if p.is_host and not room.human_taught:
             raise LiveRoomError("the AI host cannot leave")
+        restore_host_slot = p.is_host and room.human_taught
         name = p.name
         self._remove_from_queue(room, participant_id)
         self._clear_rate(room_id, participant_id)
         del room.participants[participant_id]
+        if restore_host_slot:
+            # Keep a host slot so the room still renders while the instructor is away.
+            room.participants[HUMAN_HOST_ID] = Participant(
+                id=HUMAN_HOST_ID,
+                name=room.human_host_name or "Instructor",
+                role=AI_HOST_ROLE,
+                account_id=room.human_host_account_id,
+                can_publish=True,
+            )
         room.viewer_count = room.learner_count
         room.chat.append(
             ChatMessage(
@@ -1273,8 +1344,8 @@ class LiveRoomStore:
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
+                from_id=room.system_host_identity()[0],
+                from_name=room.system_host_identity()[1],
                 text=(
                     f"🎤 {speaker.name}, you're up! "
                     + (f'Your question: "{next_entry.question}". ' if next_entry.question else "")
@@ -1328,8 +1399,8 @@ class LiveRoomStore:
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
+                from_id=room.system_host_identity()[0],
+                from_name=room.system_host_identity()[1],
                 text=f"🎤 {speaker.name}, the floor is yours — go ahead, we're listening.",
             )
         )
@@ -1384,8 +1455,8 @@ class LiveRoomStore:
             room.chat.append(
                 ChatMessage(
                     id=start_msg_id,
-                    from_id=AI_HOST_ID,
-                    from_name=AI_HOST_NAME,
+                    from_id=room.system_host_identity()[0],
+                    from_name=room.system_host_identity()[1],
                     text=text,
                 )
             )
@@ -1398,8 +1469,15 @@ class LiveRoomStore:
         Theodore first gets a short, guaranteed pre-class window to welcome the
         audience and disclose clearly that he is an AI host. After that, a class
         runs whenever at least one learner is present and it is full, instant,
-        or has reached its scheduled start time."""
+        or has reached its scheduled start time.
+
+        A human-taught class never auto-starts: the instructor decides when to
+        begin by clicking "Start my class"."""
         from datetime import timedelta
+
+        room_check = self._backend.get(room_id)
+        if room_check is not None and room_check.human_taught:
+            return False
 
         room = self.require(room_id)
         if room.presence_hold_active:
@@ -1525,8 +1603,8 @@ class LiveRoomStore:
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
+                from_id=room.system_host_identity()[0],
+                from_name=room.system_host_identity()[1],
                 text=(
                     f"⏸️ Presence hold: pausing class because {participant_name or 'a learner'} "
                     "is not visually present. We'll resume automatically once they return."
@@ -1548,8 +1626,8 @@ class LiveRoomStore:
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
+                from_id=room.system_host_identity()[0],
+                from_name=room.system_host_identity()[1],
                 text=(
                     f"▶️ Presence restored for {participant_name or 'the learner'} — "
                     "resuming class."
@@ -2334,8 +2412,8 @@ class LiveRoomStore:
         room.chat.append(
             ChatMessage(
                 id=uuid.uuid4().hex[:10],
-                from_id=AI_HOST_ID,
-                from_name=AI_HOST_NAME,
+                from_id=room.system_host_identity()[0],
+                from_name=room.system_host_identity()[1],
                 text=text,
             )
         )

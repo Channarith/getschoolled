@@ -1,0 +1,14 @@
+# Keep raw camera captures and local model/runtime outputs out of git.
+captures/
+frames/
+recordings/
+model-cache/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.mp4
+*.mov
+*.onnx
+*.sqlite
+*.db

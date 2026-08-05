@@ -1835,6 +1835,9 @@ export type LiveRoomState = {
   seats_left: number;
   status: string;
   host: LiveParticipant;
+  /** True when a person teaches this class, so there is no Theodore in the room. */
+  human_taught?: boolean;
+  human_host_name?: string;
   participants: LiveParticipant[];
   chat: LiveRoomChatMessage[];
   recording: { status: string; started_at?: string; stopped_at?: string; recording_id?: string; note?: string };

@@ -47,6 +47,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "aoep_shared.training_agents" = ["data/*.json"]
 "aoep_shared" = [
+    "data/*.json",
     "data/content_packs/*/*.json",
     "data/content_packs/*/*.jsonl",
 ]
