@@ -56,12 +56,12 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from aoep_shared.service import create_service
-from fastapi import Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 app = create_service("vision_agent")

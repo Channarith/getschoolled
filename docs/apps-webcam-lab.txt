@@ -15,8 +15,8 @@ solo and group classes:
 Run
   pip install -e 'labs/webcam-recognition[vision,voice,server,test]'
   cd labs/webcam-recognition && PYTHONPATH=src python3 -m pytest -q
-  PYTHONPATH=src python3 -m webcam_lab demo
-  PYTHONPATH=src python3 -m webcam_lab server   # http://localhost:8093
+  PYTHONPATH=src python3 -m webcam_lab_app demo
+  PYTHONPATH=src python3 -m webcam_lab_app server   # http://localhost:8093
 
 Extract as a standalone private GitHub repo (requires a token that can create
 repos under the org/user):
