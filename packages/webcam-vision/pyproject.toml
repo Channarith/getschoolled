@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69.5.1", "wheel>=0.43.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-webcam-vision"
+version = "0.1.0"
+description = "PRIVATE/internal sub-package: webcam image recognition for solo and group classes (silhouette detection, presence/absence tracking, Theodore AI-led and self-teaching modes) plus the xAI Grok realtime voice agent client. Not for publication."
+license = { text = "LicenseRef-AOEP-Proprietary" }
+requires-python = ">=3.11"
+dependencies = [
+    "aoep-shared>=0.2.0,<1",
+]
+
+[project.optional-dependencies]
+# Silhouette/person detection runs on OpenCV (HOG people detector is built in,
+# no model download) + numpy. Same pinned stack as aoep-shared[vision].
+vision = [
+    "opencv-contrib-python-headless==4.10.0.84",
+    "numpy==1.26.4",
+]
+# Realtime websocket transport for the xAI voice agent (server-side).
+voice = [
+    "websockets==12.0",
+]
+test = [
+    "pytest==8.2.2",
+    "opencv-contrib-python-headless==4.10.0.84",
+    "numpy==1.26.4",
+]
+
+# Private: never uploaded to an index. Marked so an accidental `twine upload`
+# is the only way this could leave the building; CI/build never publishes it.
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

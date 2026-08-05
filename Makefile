@@ -3,7 +3,8 @@
 PY ?= python3
 VENV ?= .venv
 VENV_PY := $(VENV)/bin/python
-PYTHON_PKGS := packages/shared packages/sdk packages/vision-lab services/orchestrator services/speech \
+PYTHON_PKGS := packages/shared packages/sdk packages/vision-lab packages/webcam-vision \
+	services/orchestrator services/speech \
 	services/perception services/memory services/curriculum services/billing \
 	apps/agent-runtime apps/webcam-lab
 COMPOSE := infra/compose/docker-compose.yml
@@ -12,7 +13,8 @@ COMPOSE := infra/compose/docker-compose.yml
 	compose-config k8s-build up down clean qa stress coverage lint regression \
 	mobile-install mobile-typecheck mobile-build mobile-prebuild mobile-setup \
 	loadtest scale-up scale-down k8s-build-vke k8s-apply-vke bump-version check-version \
-	run-identity run-memory run-orchestrator run-livekit validate-pipeline dev-all dev-down dev-status
+	run-identity run-memory run-orchestrator run-livekit validate-pipeline webcam-lab \
+	dev-all dev-down dev-status
 
 help:
 	@echo "Targets:"
@@ -21,6 +23,7 @@ help:
 	@echo "  test           Run all Python tests"
 	@echo "  test-inventory Count tests + map to the 16 sub-apps (MIN=N to gate)"
 	@echo "  validate-pipeline  E2E smoke: harvest -> teach -> present (offline)"
+	@echo "  webcam-lab     Private webcam recognition lab (Theodore + xAI voice)"
 	@echo "  coverage       Run tests with coverage (needs pytest-cov)"
 	@echo "  lint           Ruff lint the Python sources (needs ruff)"
 	@echo "  stress         Stress/perf the running APIs (start services first)"
@@ -64,7 +67,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests labs/*/tests private/*/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests labs/*/tests private/*/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -106,13 +109,18 @@ homework-grade:
 meeting-agents-lab:
 	$(VENV_PY) scripts/meeting_agents_lab.py --all --dialect us_ca
 
+# Private webcam recognition lab (solo/group, silhouette/absence, Theodore + xAI voice).
+webcam-lab:
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode theodore_teach --class-mode solo
+	PYTHONPATH=labs/webcam-recognition-suite/src:packages/shared/src $(VENV_PY) labs/webcam-recognition-suite/scripts/run_lab.py --mode self_teach --class-mode group --size 6
+
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests labs/*/tests private/*/tests -q \
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests packages/webcam-vision/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests subrepos/theodore_webcam_lab/tests labs/*/tests private/*/tests -q \
 		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
 
 lint:
-	$(VENV_PY) -m ruff check packages/shared/src packages/sdk/src packages/vision-lab/src services/*/src apps/webcam-lab/src qa training
+	$(VENV_PY) -m ruff check packages/shared/src packages/sdk/src packages/vision-lab/src packages/webcam-vision/src services/*/src apps/webcam-lab/src qa training
 
 # Stress/perf the running APIs (start services first, e.g. `make up`).
 stress:

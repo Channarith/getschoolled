@@ -70,3 +70,18 @@ def test_invalid_mode_raises():
 
     with pytest.raises(ValueError):
         load_config(env={"DEPLOY_MODE": "hybrid"})
+
+
+def test_xai_voice_config_from_env():
+    cfg = load_config(
+        env={
+            "XAI_API_KEY": "xai-test",
+            "XAI_VOICE_MODEL": "grok-voice-think-fast-2.0",
+            "XAI_VOICE_NAME": "ara",
+            "XAI_VOICE_WS_URL": "wss://api.x.ai/v1/realtime",
+        }
+    )
+    assert cfg.xai_api_key == "xai-test"
+    assert "2.0" in cfg.xai_voice_model
+    assert cfg.xai_voice_name == "ara"
+    assert "api.x.ai" in cfg.xai_voice_ws_url
