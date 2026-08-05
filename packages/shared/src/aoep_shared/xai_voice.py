@@ -1,346 +1,463 @@
-"""xAI Grok voice agent client for AOEP.
+"""xAI Grok voice agent client for natural communication in teaching sessions.
 
-Wraps xAI's OpenAI-compatible REST API (https://api.x.ai/v1) for:
-- Text responses (grok-2-1212 / grok-3-mini)
-- Vision analysis of webcam frames (grok-2-vision-1212)
-- Persona-aware teaching responses as Theodore AI
+Integrates xAI's Grok model (https://docs.x.ai/api) as a conversational voice
+agent inside webcam teaching sessions. Grok handles natural dialogue responses
+for both Theodore (AI teacher) and self-teaching scenarios.
 
-The xAI API is fully OpenAI-compatible so this uses the same stdlib urllib
-pattern as ``elevenlabs_tts.py`` — no extra dependencies.
+The module is deliberately thin (stdlib urllib only, no third-party deps) so it
+can run inside any service without adding heavy packages. Audio synthesis falls
+back gracefully to the platform's existing ElevenLabs → edge-tts chain when the
+xAI audio endpoint is not available (or the key is not set).
 
-Voice agent lifecycle for a teaching session:
-  1. Create a ``GrokVoiceAgent`` with the session context.
-  2. Call ``respond_to_frame`` to let Theodore react to the learner's webcam
-     frame (engagement check, greeting, encouragement).
-  3. Call ``respond_to_query`` whenever the student asks a question (text or
-     STT-transcribed speech).
-  4. Call ``generate_absence_prompt`` when the presence tracker fires on_absent.
+Architecture:
+- ``XAIVoiceClient``   — HTTP client wrapping the xAI Chat Completions API.
+- ``VoiceAgentSession`` — stateful conversation session for one participant.
+- ``TeacherVoiceAgent`` — Theodore-specific wrapper with teaching persona.
+- ``SelfTeachVoiceAgent`` — student self-teaching Socratic coach wrapper.
 
-Graceful degradation
---------------------
-When ``XAI_API_KEY`` is not set the methods raise ``NotImplementedError`` with a
-clear message so the caller can fall back to the existing LLM provider.  The
-service sets ``xai_available()`` to let clients probe once.
+Audio
+-----
+xAI's beta audio endpoint (model ``grok-2-audio-*``) returns both a text
+transcript and a base64-encoded audio segment (MP3) in a single call. When the
+audio endpoint is not reachable the client falls back to text-only and the caller
+is expected to run TTS via the platform speech gateway.
 
-Theodore persona
-----------------
-The default system prompt casts the assistant as Theodore, Salareen's AI teacher:
-calm, encouraging, culturally aware, and direct. The prompt is injected once as
-the system role and reused across turns in a session so token usage stays bounded.
+Configuration (env):
+- XAI_API_KEY      — secret; enables the Grok voice agent path.
+- XAI_BASE_URL     — override API root (default https://api.x.ai/v1).
+- XAI_MODEL        — model slug (default grok-2-1212).
+- XAI_AUDIO_MODEL  — audio model slug (default grok-2-audio; empty to disable).
+- XAI_MAX_TOKENS   — default 512.
 """
 
 from __future__ import annotations
 
 import base64
 import json
-import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Iterator, List, Optional
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-XAI_DEFAULT_BASE_URL = "https://api.x.ai/v1"
-XAI_DEFAULT_MODEL = "grok-2-1212"
-XAI_VISION_MODEL = "grok-2-vision-1212"
-
-# Theodore's persona system prompt (injected once per session).
-THEODORE_SYSTEM_PROMPT = (
-    "You are Theodore, the AI teaching assistant for Salareen — an adaptive online "
-    "education platform. You are calm, warm, encouraging, and direct. You adapt to "
-    "each learner: beginner-friendly analogies for novices, technical depth for "
-    "advanced students. You celebrate effort, not just answers. Keep responses "
-    "concise (1–3 sentences) unless the student asks for detail. When you notice "
-    "the student is absent or distracted, gently invite them back. Never scold; "
-    "always motivate. You support both solo self-study sessions and group classes "
-    "where multiple students attend simultaneously."
-)
-
-# Prompt used when analysing a webcam frame for engagement feedback.
-FRAME_ANALYSIS_PROMPT = (
-    "Briefly describe the student's engagement (1 sentence). "
-    "Note if they appear focused, distracted, confused, or absent. "
-    "Suggest one concrete encouragement for Theodore to say. "
-    "Do not include any personal biometric details or identity guesses."
-)
-
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- #
+# Data types
+# --------------------------------------------------------------------------- #
 
 @dataclass
-class GrokMessage:
-    role: str      # "system" | "user" | "assistant"
-    content: Any   # str or list[dict] for vision
+class VoiceAgentResponse:
+    """Response from a single voice agent turn."""
+
+    text: str                        # The agent's text response.
+    audio_b64: Optional[str] = None  # Base64 MP3 audio (when audio endpoint used).
+    model: str = ""
+    finish_reason: str = "stop"
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def has_audio(self) -> bool:
+        return bool(self.audio_b64)
+
+    def audio_bytes(self) -> Optional[bytes]:
+        """Decode audio_b64 to raw MP3 bytes (or None)."""
+        if self.audio_b64:
+            return base64.b64decode(self.audio_b64)
+        return None
 
 
 @dataclass
-class GrokResponse:
-    text: str
-    model: str
-    usage_prompt_tokens: int
-    usage_completion_tokens: int
-    latency_ms: float
+class ConversationMessage:
+    role: str   # "system" | "user" | "assistant"
+    content: str
 
 
-# ---------------------------------------------------------------------------
-# Availability check
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- #
+# Low-level HTTP client
+# --------------------------------------------------------------------------- #
 
-def xai_available(api_key: str) -> bool:
-    """Return True when the xAI API key is present and non-empty."""
-    return bool(api_key and api_key.strip())
+class XAIVoiceClient:
+    """Thin wrapper around the xAI Chat Completions API.
 
-
-# ---------------------------------------------------------------------------
-# Low-level HTTP (isolated for mocking in tests)
-# ---------------------------------------------------------------------------
-
-def _http_post(url: str, payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
-    """POST JSON to xAI and return the parsed response dict.
-
-    Raises ``urllib.error.HTTPError`` on 4xx/5xx or ``NotImplementedError``
-    when the API key is absent.
+    Uses stdlib ``urllib`` only — no ``requests`` or ``httpx`` dependency.
     """
-    if not xai_available(api_key):
-        raise NotImplementedError(
-            "XAI_API_KEY is not set. Set it to enable the xAI Grok voice agent."
+
+    _DEFAULT_BASE = "https://api.x.ai/v1"
+    _DEFAULT_MODEL = "grok-2-1212"
+    _DEFAULT_AUDIO_MODEL = "grok-2-audio"
+    _DEFAULT_MAX_TOKENS = 512
+    _TIMEOUT_S = 30
+
+    def __init__(
+        self,
+        api_key: str = "",
+        base_url: str = "",
+        model: str = "",
+        audio_model: str = "",
+        max_tokens: int = 0,
+    ) -> None:
+        self._api_key = api_key
+        self._base_url = (base_url or self._DEFAULT_BASE).rstrip("/")
+        self._model = model or self._DEFAULT_MODEL
+        self._audio_model = audio_model if audio_model is not None else self._DEFAULT_AUDIO_MODEL
+        self._max_tokens = max_tokens or self._DEFAULT_MAX_TOKENS
+
+    @property
+    def available(self) -> bool:
+        return bool(self._api_key)
+
+    def chat(
+        self,
+        messages: List[ConversationMessage],
+        *,
+        audio: bool = False,
+        temperature: float = 0.7,
+    ) -> VoiceAgentResponse:
+        """Send a chat request and return a ``VoiceAgentResponse``.
+
+        When ``audio=True`` and ``XAI_AUDIO_MODEL`` is set, attempts the audio
+        endpoint for a combined text+audio response. Falls back to text-only on
+        any error.
+
+        Raises ``NotImplementedError`` when no API key is configured.
+        """
+        if not self.available:
+            raise NotImplementedError(
+                "xAI API key not configured (XAI_API_KEY). "
+                "Set the key to enable the Grok voice agent; without it "
+                "Theodore uses the platform's built-in LLM + TTS chain."
+            )
+        use_audio = audio and bool(self._audio_model)
+        try:
+            return self._call_api(messages, use_audio=use_audio, temperature=temperature)
+        except NotImplementedError:
+            raise
+        except Exception:  # noqa: BLE001
+            if use_audio:
+                # Audio failed — retry text-only.
+                return self._call_api(messages, use_audio=False, temperature=temperature)
+            raise
+
+    def stream_chat(
+        self,
+        messages: List[ConversationMessage],
+        *,
+        temperature: float = 0.7,
+    ) -> Iterator[str]:
+        """Stream a text response token by token (Server-Sent Events).
+
+        Yields text delta strings. Audio is not available in streaming mode.
+        Raises ``NotImplementedError`` when no key configured.
+        """
+        if not self.available:
+            raise NotImplementedError("xAI API key not configured (XAI_API_KEY).")
+
+        payload = {
+            "model": self._model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "max_tokens": self._max_tokens,
+            "temperature": temperature,
+            "stream": True,
+        }
+        url = f"{self._base_url}/chat/completions"
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
         )
-    body = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode())
+        try:
+            with urllib.request.urlopen(req, timeout=self._TIMEOUT_S) as resp:
+                for raw_line in resp:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data: "):
+                        continue
+                    chunk = line[6:]
+                    if chunk == "[DONE]":
+                        break
+                    try:
+                        obj = json.loads(chunk)
+                        delta = (
+                            obj.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
+                        if delta:
+                            yield delta
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+        except urllib.error.URLError as exc:
+            raise ConnectionError(f"xAI API unreachable: {exc}") from exc
+
+    # ------------------------------------------------------------------ #
+    # Internal helpers
+    # ------------------------------------------------------------------ #
+
+    def _call_api(
+        self,
+        messages: List[ConversationMessage],
+        *,
+        use_audio: bool,
+        temperature: float,
+    ) -> VoiceAgentResponse:
+        model = self._audio_model if use_audio else self._model
+        payload: dict = {
+            "model": model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "max_tokens": self._max_tokens,
+            "temperature": temperature,
+        }
+        if use_audio:
+            payload["audio"] = {"format": "mp3"}
+
+        url = f"{self._base_url}/chat/completions"
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self._TIMEOUT_S) as resp:
+                body = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            err_body = exc.read().decode("utf-8", errors="replace")
+            raise ConnectionError(
+                f"xAI API error {exc.code}: {err_body}"
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise ConnectionError(f"xAI API unreachable: {exc}") from exc
+
+        choice = body.get("choices", [{}])[0]
+        message = choice.get("message", {})
+        text = message.get("content") or message.get("text") or ""
+
+        audio_b64: Optional[str] = None
+        if use_audio:
+            audio_block = message.get("audio", {})
+            audio_b64 = audio_block.get("data") if isinstance(audio_block, dict) else None
+
+        usage = body.get("usage", {})
+        return VoiceAgentResponse(
+            text=text,
+            audio_b64=audio_b64,
+            model=body.get("model", model),
+            finish_reason=choice.get("finish_reason", "stop"),
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+        )
 
 
-# ---------------------------------------------------------------------------
-# Voice agent
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- #
+# Conversation session
+# --------------------------------------------------------------------------- #
 
-class GrokVoiceAgent:
-    """Theodore-persona voice agent backed by xAI Grok.
+class VoiceAgentSession:
+    """Stateful multi-turn conversation session for one participant.
 
-    One instance per teaching session. Maintains a lightweight conversation
-    history so follow-up questions retain context (capped at ``max_history``
-    turns to keep token usage bounded).
-
-    Parameters
-    ----------
-    api_key:
-        xAI API key (XAI_API_KEY env).
-    base_url:
-        xAI API base URL (defaults to https://api.x.ai/v1).
-    model:
-        Text model slug (default grok-2-1212).
-    vision_model:
-        Vision model slug (default grok-2-vision-1212).
-    session_context:
-        Optional dict with session metadata (class_type, lesson_title,
-        student_name) to inject into the system prompt.
-    max_history:
-        Maximum number of user/assistant turn pairs to retain.
+    Maintains conversation history and provides a simple ``reply()`` interface
+    that returns a ``VoiceAgentResponse``.
     """
 
     def __init__(
         self,
-        *,
-        api_key: str,
-        base_url: str = XAI_DEFAULT_BASE_URL,
-        model: str = XAI_DEFAULT_MODEL,
-        vision_model: str = XAI_VISION_MODEL,
-        session_context: Optional[Dict[str, str]] = None,
-        max_history: int = 10,
+        client: XAIVoiceClient,
+        system_prompt: str = "",
+        max_history_turns: int = 20,
     ) -> None:
-        self._api_key = api_key
-        self._base_url = base_url.rstrip("/")
-        self._model = model
-        self._vision_model = vision_model
-        self._max_history = max_history
-        self._history: List[GrokMessage] = []
-        self._system = self._build_system_prompt(session_context or {})
+        self._client = client
+        self._system = system_prompt
+        self._max_turns = max_history_turns
+        self._history: List[ConversationMessage] = []
 
-    # ---- public API ------------------------------------------------------- #
-
-    def respond_to_query(
+    def reply(
         self,
-        student_query: str,
+        user_text: str,
         *,
-        language: str = "en",
-    ) -> GrokResponse:
-        """Generate a teaching response to a student's text or voice query.
-
-        Parameters
-        ----------
-        student_query:
-            The student's question or statement (transcribed from speech or typed).
-        language:
-            BCP-47 language tag; appended to the system prompt so Theodore
-            responds in the student's language when non-English.
-        """
-        system = self._system
-        if language and language.lower() not in ("en", "en-us", "en-gb"):
-            system += f" Respond in language: {language}."
-
-        messages = self._build_messages(
-            system=system,
-            user_content=student_query,
+        audio: bool = False,
+        temperature: float = 0.7,
+    ) -> VoiceAgentResponse:
+        """Append user turn, get assistant response, update history."""
+        self._history.append(ConversationMessage(role="user", content=user_text))
+        messages = self._build_messages()
+        response = self._client.chat(messages, audio=audio, temperature=temperature)
+        self._history.append(
+            ConversationMessage(role="assistant", content=response.text)
         )
-        return self._call(messages, model=self._model)
+        # Trim history to avoid context bloat.
+        if len(self._history) > self._max_turns * 2:
+            self._history = self._history[-(self._max_turns * 2):]
+        return response
 
-    def respond_to_frame(
+    def stream_reply(
         self,
-        frame_bytes: bytes,
+        user_text: str,
         *,
-        presence_state: str = "present_face",
-        face_count: int = 0,
-        attention: float = 0.0,
-    ) -> GrokResponse:
-        """Analyse a webcam frame and generate an engagement-aware response.
+        temperature: float = 0.7,
+    ) -> Iterator[str]:
+        """Stream a reply token-by-token; history is updated when complete."""
+        self._history.append(ConversationMessage(role="user", content=user_text))
+        messages = self._build_messages()
+        full = ""
+        for token in self._client.stream_chat(messages, temperature=temperature):
+            full += token
+            yield token
+        self._history.append(ConversationMessage(role="assistant", content=full))
 
-        The raw frame is sent to Grok Vision (grok-2-vision-1212) so Theodore
-        can comment on visible engagement cues without needing the perception
-        service's structured output. The frame is base64-encoded in the request;
-        no biometric identification is requested.
+    def clear(self) -> None:
+        self._history.clear()
 
-        Parameters
-        ----------
-        frame_bytes:
-            JPEG or PNG bytes of the current webcam frame.
-        presence_state:
-            PresenceState string from the presence tracker.
-        face_count:
-            Number of faces detected (from the perception service).
-        attention:
-            Average attention score (0..1) from the perception service.
-        """
-        b64 = base64.b64encode(frame_bytes).decode()
-        context_hint = (
-            f"[Session context: presence={presence_state}, "
-            f"face_count={face_count}, attention_score={attention:.2f}]"
-        )
-        user_content = [
-            {
-                "type": "text",
-                "text": f"{context_hint}\n{FRAME_ANALYSIS_PROMPT}",
-            },
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-            },
-        ]
-        messages = self._build_messages(
-            system=self._system,
-            user_content=user_content,
-        )
-        return self._call(messages, model=self._vision_model)
-
-    def generate_absence_prompt(
-        self,
-        absence_duration_s: float,
-        *,
-        lesson_title: str = "",
-    ) -> GrokResponse:
-        """Generate a gentle prompt to invite the student back after absence.
-
-        Parameters
-        ----------
-        absence_duration_s:
-            How long the student has been absent (seconds).
-        lesson_title:
-            Current lesson title for context (optional).
-        """
-        lesson_ctx = f" We're in the middle of '{lesson_title}'." if lesson_title else ""
-        msg = (
-            f"The student has been away for {absence_duration_s:.0f} seconds.{lesson_ctx} "
-            "Write a single warm, non-judgmental sentence to invite them back to the lesson."
-        )
-        messages = self._build_messages(system=self._system, user_content=msg)
-        resp = self._call(messages, model=self._model)
-        # Do NOT pollute conversation history with absence prompts (they are
-        # context-specific one-shots, not part of the Q&A thread). Remove
-        # the user+assistant pair that _call just appended.
-        if len(self._history) >= 2:
-            self._history.pop()  # assistant
-            self._history.pop()  # user
-        elif self._history:
-            self._history.pop()
-        return resp
-
-    def clear_history(self) -> None:
-        """Clear the conversation history (e.g. when the lesson topic changes)."""
-        self._history = []
-
-    # ---- internal --------------------------------------------------------- #
-
-    def _build_system_prompt(self, ctx: Dict[str, str]) -> str:
-        parts = [THEODORE_SYSTEM_PROMPT]
-        if ctx.get("class_type") == "group":
-            parts.append(
-                "This is a GROUP class; multiple students may be visible. "
-                "Address the group collectively unless singling someone out is warranted."
-            )
-        elif ctx.get("class_type") == "solo":
-            parts.append("This is a SOLO session; address the single student directly.")
-        if ctx.get("lesson_title"):
-            parts.append(f"Current lesson: {ctx['lesson_title']}.")
-        if ctx.get("student_name"):
-            parts.append(f"Student name: {ctx['student_name']}.")
-        return " ".join(parts)
-
-    def _build_messages(
-        self, *, system: str, user_content: Any
-    ) -> List[Dict[str, Any]]:
-        msgs: List[Dict[str, Any]] = [{"role": "system", "content": system}]
-        for h in self._history[-self._max_history * 2:]:
-            msgs.append({"role": h.role, "content": h.content})
-        msgs.append({"role": "user", "content": user_content})
+    def _build_messages(self) -> List[ConversationMessage]:
+        msgs: List[ConversationMessage] = []
+        if self._system:
+            msgs.append(ConversationMessage(role="system", content=self._system))
+        msgs.extend(self._history)
         return msgs
 
-    def _call(
-        self, messages: List[Dict[str, Any]], *, model: str
-    ) -> GrokResponse:
-        t0 = time.monotonic()
-        payload = {
-            "model": model,
-            "messages": messages,
-            "max_tokens": 300,
-            "temperature": 0.7,
-            "stream": False,
-        }
-        data = _http_post(
-            f"{self._base_url}/chat/completions",
-            payload,
-            self._api_key,
+
+# --------------------------------------------------------------------------- #
+# Teaching personas
+# --------------------------------------------------------------------------- #
+
+_THEODORE_SYSTEM = """\
+You are Theodore, an AI teacher powered by Grok on the Salareen education platform.
+Your role is to guide learners through course content with warmth, clarity, and
+encouragement. You speak naturally and concisely — like a knowledgeable, patient
+tutor speaking aloud (not writing an essay). Keep responses under 3 sentences
+unless a thorough explanation is explicitly requested.
+
+Context: you are in a live webcam session. You can see whether the student is
+present, their engagement level, and whether they appear confused or disengaged.
+React naturally — if they step away, offer to pause; if they seem confused, ask
+a check-in question. Never be robotic or use jargon without explanation.
+"""
+
+_SELF_TEACH_SYSTEM = """\
+You are a Socratic coaching assistant powered by Grok on the Salareen platform.
+Your role is to help a self-teaching student reason through problems and deepen
+understanding — not to give direct answers. Ask clarifying questions, offer hints,
+and celebrate effort. Speak naturally and concisely as if talking face-to-face.
+Keep responses under 4 sentences unless working through a multi-step problem.
+"""
+
+
+class TeacherVoiceAgent:
+    """Theodore as a Grok-powered voice agent for live teaching sessions.
+
+    This is the production surface consumed by the webcam service and the
+    orchestrator when XAI_API_KEY is configured.
+    """
+
+    def __init__(
+        self,
+        client: XAIVoiceClient,
+        extra_context: str = "",
+    ) -> None:
+        system = _THEODORE_SYSTEM
+        if extra_context:
+            system = f"{system}\n\nLesson context:\n{extra_context}"
+        self._session = VoiceAgentSession(client, system_prompt=system)
+        self._client = client
+
+    def speak(
+        self,
+        text: str,
+        *,
+        audio: bool = True,
+        temperature: float = 0.65,
+    ) -> VoiceAgentResponse:
+        """Generate Theodore's response to ``text`` (student utterance or event)."""
+        return self._session.reply(text, audio=audio, temperature=temperature)
+
+    def stream_speak(
+        self, text: str, *, temperature: float = 0.65
+    ) -> Iterator[str]:
+        return self._session.stream_reply(text, temperature=temperature)
+
+    def on_student_absent(self, away_s: float) -> VoiceAgentResponse:
+        """Generate a natural 'pause + wait' message when the student steps away."""
+        prompt = (
+            f"The student stepped away from their webcam {int(away_s)} seconds ago. "
+            "Generate a brief, warm message to let them know I noticed and that "
+            "I'll be here when they return. Keep it under 2 sentences."
         )
-        latency_ms = (time.monotonic() - t0) * 1000
-        choice = data["choices"][0]["message"]
-        text = choice.get("content") or ""
-        usage = data.get("usage", {})
-        resp = GrokResponse(
-            text=text.strip(),
-            model=data.get("model", model),
-            usage_prompt_tokens=usage.get("prompt_tokens", 0),
-            usage_completion_tokens=usage.get("completion_tokens", 0),
-            latency_ms=round(latency_ms, 1),
+        return self._session.reply(prompt, audio=True, temperature=0.5)
+
+    def on_student_returned(self, away_s: float) -> VoiceAgentResponse:
+        """Generate a welcoming re-engagement message when the student returns."""
+        prompt = (
+            f"The student was away for about {int(away_s)} seconds and just returned "
+            "to the webcam. Generate a brief, warm welcome-back message that smoothly "
+            "resumes where we left off. Keep it under 2 sentences."
         )
-        # Append to rolling history (text-only content for efficiency).
-        user_text = (
-            messages[-1]["content"]
-            if isinstance(messages[-1]["content"], str)
-            else "[frame]"
+        return self._session.reply(prompt, audio=True, temperature=0.6)
+
+    def on_low_engagement(self, attention: float, slide_title: str = "") -> VoiceAgentResponse:
+        """Generate a re-engagement nudge when attention drops."""
+        ctx = f" on slide '{slide_title}'" if slide_title else ""
+        prompt = (
+            f"The student's engagement score dropped to {attention:.0%}{ctx}. "
+            "Generate a short, encouraging check-in question or comment to re-engage them. "
+            "Sound natural and conversational."
         )
-        self._history.append(GrokMessage(role="user", content=user_text))
-        self._history.append(GrokMessage(role="assistant", content=text))
-        if len(self._history) > self._max_history * 2:
-            self._history = self._history[-(self._max_history * 2):]
-        return resp
+        return self._session.reply(prompt, audio=True, temperature=0.7)
+
+    def reset(self) -> None:
+        self._session.clear()
+
+
+class SelfTeachVoiceAgent:
+    """Socratic self-teaching coach powered by Grok.
+
+    Activated when a student is in solo self-teaching mode (no live teacher).
+    """
+
+    def __init__(
+        self,
+        client: XAIVoiceClient,
+        topic: str = "",
+    ) -> None:
+        system = _SELF_TEACH_SYSTEM
+        if topic:
+            system = f"{system}\n\nCurrent topic: {topic}"
+        self._session = VoiceAgentSession(client, system_prompt=system)
+
+    def ask(
+        self, user_text: str, *, audio: bool = True
+    ) -> VoiceAgentResponse:
+        return self._session.reply(user_text, audio=audio)
+
+    def stream_ask(self, user_text: str) -> Iterator[str]:
+        return self._session.stream_reply(user_text)
+
+    def on_stuck(self, duration_s: float) -> VoiceAgentResponse:
+        """Offer a hint when the student appears stuck (no interaction for a while)."""
+        prompt = (
+            f"The student hasn't interacted for {int(duration_s)} seconds and "
+            "may be stuck. Offer a gentle Socratic hint to nudge them forward "
+            "without giving the answer away."
+        )
+        return self._session.reply(prompt, audio=True, temperature=0.7)
+
+    def reset(self) -> None:
+        self._session.clear()
+
+
+# --------------------------------------------------------------------------- #
+# Factory helper
+# --------------------------------------------------------------------------- #
+
+def make_client_from_config(config) -> XAIVoiceClient:  # type: ignore[return]
+    """Construct an ``XAIVoiceClient`` from an ``AppConfig`` instance."""
+    return XAIVoiceClient(
+        api_key=getattr(config, "xai_api_key", ""),
+        base_url=getattr(config, "xai_base_url", ""),
+        model=getattr(config, "xai_model", ""),
+        audio_model=getattr(config, "xai_audio_model", ""),
+        max_tokens=int(getattr(config, "xai_max_tokens", 0) or 0),
+    )

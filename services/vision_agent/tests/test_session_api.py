@@ -199,7 +199,7 @@ def test_voice_query_no_key_returns_503_message(client):
 
 def test_voice_query_with_mock_key(client, monkeypatch):
     """Test voice endpoint with a mocked xAI key and mocked HTTP."""
-    from aoep_shared import xai_voice
+    from aoep_shared import xai_grok_voice as xai_voice
     monkeypatch.setattr(
         app.state.config, "xai_api_key", "xai-fake"
     )
@@ -229,7 +229,7 @@ def test_frame_chat_no_key_returns_degraded(client):
 
 
 def test_frame_chat_with_mock_key(client, monkeypatch):
-    from aoep_shared import xai_voice
+    from aoep_shared import xai_grok_voice as xai_voice
     monkeypatch.setattr(app.state.config, "xai_api_key", "xai-fake")
     monkeypatch.setattr(xai_voice, "_http_post", lambda *a, **kw: {
         "choices": [{"message": {"content": "Student looks engaged and attentive."}}],

@@ -170,6 +170,16 @@ class AppConfig(BaseModel):
     robot_endpoint: str = ""
     # Deployment region for the compliance policy engine (us | eu | us_il | other).
     region: str = "us"
+    # xAI Grok voice agent (webcam teaching sessions). When XAI_API_KEY is set
+    # Theodore and the self-teach coach use Grok for natural dialogue + audio.
+    # Leave empty to fall back to the platform LLM + ElevenLabs/edge-tts chain.
+    xai_api_key: str = ""
+    xai_base_url: str = "https://api.x.ai/v1"
+    xai_model: str = "grok-2-1212"
+    xai_audio_model: str = "grok-2-audio"
+    xai_max_tokens: int = 512
+    # Webcam vision service (presence + silhouette + voice agent hub).
+    webcam_base_url: str = "http://webcam:8300"
 
     # xAI Grok voice agent (Theodore AI teaching persona + frame analysis).
     # Set XAI_API_KEY to enable; leave blank to fall back to the existing LLM
@@ -318,4 +328,10 @@ def load_config(
         brave_search_key=get("BRAVE_SEARCH_KEY", ""),
         kagi_api_key=get("KAGI_API_KEY", ""),
         baidu_api_key=get("BAIDU_API_KEY", ""),
+        xai_api_key=get("XAI_API_KEY", ""),
+        xai_base_url=get("XAI_BASE_URL", "https://api.x.ai/v1"),
+        xai_model=get("XAI_MODEL", "grok-2-1212"),
+        xai_audio_model=get("XAI_AUDIO_MODEL", "grok-2-audio"),
+        xai_max_tokens=int(get("XAI_MAX_TOKENS", "512") or "512"),
+        webcam_base_url=get("WEBCAM_BASE_URL", "http://webcam:8300"),
     )

@@ -120,7 +120,7 @@ class SessionState:
 
     def get_voice_agent(self, cfg):
         if self._voice_agent is None:
-            from aoep_shared.xai_voice import GrokVoiceAgent, xai_available
+            from aoep_shared.xai_grok_voice import GrokVoiceAgent, xai_available
             if not xai_available(cfg.xai_api_key):
                 return None
             self._voice_agent = GrokVoiceAgent(
@@ -612,7 +612,7 @@ def capabilities() -> CapabilityResponse:
     except Exception:
         pass
 
-    from aoep_shared.xai_voice import xai_available
+    from aoep_shared.xai_grok_voice import xai_available
     return CapabilityResponse(
         silhouette_detection=silhouette_ok,
         face_recognition=face_ok,
