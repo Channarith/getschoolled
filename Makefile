@@ -5,7 +5,7 @@ VENV ?= .venv
 VENV_PY := $(VENV)/bin/python
 PYTHON_PKGS := packages/shared packages/sdk packages/vision-lab services/orchestrator services/speech \
 	services/perception services/memory services/curriculum services/billing \
-	apps/agent-runtime
+	apps/agent-runtime apps/webcam-lab
 COMPOSE := infra/compose/docker-compose.yml
 
 .PHONY: help venv install git-setup test test-py test-inventory web-install web-typecheck web-build \
@@ -64,7 +64,7 @@ install: venv
 	done
 
 test test-py:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition/tests -q
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests packages/vision-lab/tests labs/webcam-recognition/tests -q
 
 # Count collected tests + map them to the 16 ecosystem sub-apps (release gate).
 # MIN ratchets the per-sub-app minimum upward over time (0 = report only).
@@ -108,11 +108,7 @@ meeting-agents-lab:
 
 # --- QA / regression / stress --------------------------------------------- #
 coverage:
-	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests packages/vision-lab/tests services/*/tests apps/agent-runtime/tests training/tests scripts/tests qa/tests labs/webcam-recognition/tests -q \
-		--cov=packages/shared/src/aoep_shared --cov-report=term-missing:skip-covered
-
-lint:
-	$(VENV_PY) -m ruff check packages/shared/src packages/sdk/src packages/vision-lab/src services/*/src qa training
+	$(VENV_PY) -m pytest packages/shared/tests packages/sdk/tests services/*/tests apps/agent-runtime/tests apps/webcam-lab/tests training/tests scripts/tests qa/tests packages/shared/src/aoep_shared packages/shared/src packages/sdk/src services/*/src apps/webcam-lab/src qa training packages/vision-lab/tests labs/webcam-recognition/tests packages/vision-lab/src
 
 # Stress/perf the running APIs (start services first, e.g. `make up`).
 stress:
