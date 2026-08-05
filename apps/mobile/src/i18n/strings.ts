@@ -31,6 +31,8 @@ export type StringKey =
   | "drive.hint" | "drive.drivingBadge"
   | "drive.assistantWake" | "drive.assistantEngineHint"
   | "drive.ask" | "drive.listening" | "drive.pauseAsk" | "drive.pauseAskStatus"
+  | "drive.stopListening" | "drive.handsFreeOn" | "drive.handsFreeOff"
+  | "drive.handsFreeListening" | "drive.noSpeechHeard"
   | "drive.openGoogle" | "drive.assistantTitle" | "drive.mic" | "drive.resume"
   | "drive.stayPaused" | "drive.listeningWake" | "drive.listeningQuestion"
   | "drive.voiceUnavailable" | "drive.voicePermissionDenied" | "drive.voiceError"
@@ -345,6 +347,11 @@ const EN: Record<StringKey, string> = {
   "drive.assistantWake": "Hands-free: say “Hey Sala” or ask a question ({engine})",
   "drive.assistantEngineHint": "Mobile microphone active while this screen is open. Your phone does not let apps verify its separate Hey Siri/Google setting.",
   "drive.ask": "Ask",
+  "drive.stopListening": "Stop listening",
+  "drive.handsFreeOn": "Hands-free on",
+  "drive.handsFreeOff": "Hands-free off",
+  "drive.handsFreeListening": "Listening — say Hey {engine}",
+  "drive.noSpeechHeard": "I did not hear anything. Tap Ask and speak, or type your question.",
   "drive.listening": "Listening…",
   "drive.pauseAsk": "Pause + Ask",
   "drive.pauseAskStatus": "Paused. Ask a question or tap Resume.",

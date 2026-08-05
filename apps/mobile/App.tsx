@@ -26,8 +26,7 @@ import {
   applyVoicePrefsToTts, voicePrefsFromSettings,
 } from "./src/narrationTts";
 import {
-  getMyList, getReadIds, getSettings, listContinue,
-} from "./src/storage";
+  getMyList, getReadIds, getSettings, listContinue, setLastOpenAt } from "./src/storage";
 import AuthScreen, { AuthLoadingScreen, MfaAuthScreen } from "./src/screens/AuthScreen";
 import { AuthProvider, useAuth } from "./src/auth/AuthContext";
 import AudioCoursesScreen from "./src/screens/AudioCoursesScreen";
@@ -45,6 +44,8 @@ import LiveRoomScreen from "./src/screens/LiveRoomScreen";
 import ArcadeScreen from "./src/screens/ArcadeScreen";
 import CorporateScreen from "./src/screens/CorporateScreen";
 import KidsScreen from "./src/screens/KidsScreen";
+import KidsLessonScreen from "./src/screens/KidsLessonScreen";
+import { routeForCatalogItem } from "./src/catalogRouting";
 import WorldsScreen from "./src/screens/WorldsScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
@@ -101,6 +102,7 @@ function AppInner() {
   const [showArcade, setShowArcade] = useState(false);
   const [showCorporate, setShowCorporate] = useState(false);
   const [showKids, setShowKids] = useState(false);
+  const [kidsLessonId, setKidsLessonId] = useState<string | null>(null);
   const [showWorlds, setShowWorlds] = useState(false);
   const [gameFromArcade, setGameFromArcade] = useState(false);
   const [gameTypeHint, setGameTypeHint] = useState<string | null>(null);
@@ -381,6 +383,9 @@ function AppInner() {
       const readSet = new Set(read);
       setUnreadCount(feed.items.filter((i) => !readSet.has(i.id)).length);
       try { await scheduleAlertsFor(feed.items, settings); } catch {}
+      // Stamp the visit AFTER scheduling: a returning learner should be judged
+      // on their previous visit, not the one happening right now.
+      try { await setLastOpenAt(new Date().toISOString()); } catch {}
     } catch {}
   }
 
@@ -390,6 +395,27 @@ function AppInner() {
     if (!authenticated) return;
     setOpenCourseId(id);
     setTab("drive");
+  };
+
+  /**
+   * Open a catalog card the way its deep link says to. Kids picture lessons and
+   * arcade games are not audio courses, so routing everything to Drive left
+   * them unopenable.
+   */
+  const openCatalogItem = (id: string, deepLink?: string) => {
+    if (!authenticated) return;
+    const route = routeForCatalogItem(id, deepLink);
+    if (route.kind === "kidsLesson") {
+      setShowKids(false);
+      setKidsLessonId(route.courseId);
+      return;
+    }
+    if (route.kind === "game") {
+      setShowKids(false);
+      openGame(route.subject, true);
+      return;
+    }
+    openCourse(route.courseId);
   };
   const openCategory = (category: string) => {
     setBrowseCategory(category); setOpenCourseId(null); setTab("drive");
@@ -571,10 +597,17 @@ function AppInner() {
         onBack={() => setShowCorporate(false)}
       />
     );
+  } else if (kidsLessonId) {
+    screen = (
+      <KidsLessonScreen
+        courseId={kidsLessonId}
+        onBack={() => { setKidsLessonId(null); setShowKids(true); }}
+      />
+    );
   } else if (showKids) {
     screen = (
       <KidsScreen
-        onOpenCourse={(id) => { setShowKids(false); openCourse(id); }}
+        onOpenCourse={(id, deepLink) => openCatalogItem(id, deepLink)}
         onBack={() => setShowKids(false)}
       />
     );
