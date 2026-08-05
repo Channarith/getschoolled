@@ -749,6 +749,24 @@ def harvest_drive_status() -> dict:
     }
 
 
+@app.get("/kids/lessons")
+def kids_lessons() -> dict:
+    """Every kids picture lesson, so mobile and web render the same adventures."""
+    from aoep_shared.kids_lessons import list_kids_lessons
+
+    return {"lessons": list_kids_lessons()}
+
+
+@app.get("/kids/lessons/{course_id}")
+def kids_lesson(course_id: str) -> dict:
+    from aoep_shared.kids_lessons import get_kids_lesson
+
+    lesson = get_kids_lesson(course_id)
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="unknown kids lesson")
+    return lesson
+
+
 @app.get("/home")
 def home_feed(kids: bool = False, per_rail: int = 12, locale: str = "en") -> dict:
     """Netflix-style home feed from the unified learnable index."""
