@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoep-webcam-lab"
+version = "0.1.0"
+description = "Private lab for webcam recognition, silhouette/absence, and xAI voice agents (Theodore + self-teach)."
+requires-python = ">=3.11"
+dependencies = [
+  "aoep-shared",
+  "fastapi>=0.111,<1",
+  "uvicorn>=0.30,<1",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+vision = ["aoep-shared[vision]"]
+test = ["pytest>=8.2,<9", "httpx>=0.27,<1"]
+
+[project.scripts]
+webcam-lab = "webcam_lab.main:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

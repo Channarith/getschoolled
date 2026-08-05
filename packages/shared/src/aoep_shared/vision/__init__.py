@@ -13,15 +13,27 @@ Public surface:
 - model helpers in ``aoep_shared.vision.models``.
 """
 
+from .absence import (
+    PRESENCE_ABSENT,
+    PRESENCE_LIVE,
+    PRESENCE_SILHOUETTE,
+    PRESENCE_SPOOF,
+    PRESENCE_STATES,
+    PRESENCE_UNKNOWN,
+    AbsenceDecision,
+    AbsencePolicy,
+    AbsenceTracker,
+    FramePresenceInput,
+)
 from .engagement import EngagementSignals, GestureRecognizer, estimate_engagement
 from .engine import DetectedFace, FaceRecognitionEngine
 from .gallery import FaceGallery, Match
 from .silhouette import SilhouetteDetector, SilhouetteResult, estimate_silhouette_from_fraction
-from .silhouette_fusion import (
-    SilhouetteDetection,
+from .silhouette_signals import (
+    SilhouetteObservation,
     SilhouetteSignals,
-    estimate_body_presence,
-    fuse_face_and_silhouette,
+    detect_silhouette,
+    silhouette_from_counts,
 )
 from .webcam_presence import PresenceFrame, PresenceMetrics, PresenceState, WebcamPresenceTracker
 
@@ -36,10 +48,20 @@ __all__ = [
     "SilhouetteDetector",
     "SilhouetteResult",
     "estimate_silhouette_from_fraction",
-    "SilhouetteDetection",
+    "SilhouetteObservation",
     "SilhouetteSignals",
-    "estimate_body_presence",
-    "fuse_face_and_silhouette",
+    "detect_silhouette",
+    "silhouette_from_counts",
+    "AbsenceTracker",
+    "AbsencePolicy",
+    "AbsenceDecision",
+    "FramePresenceInput",
+    "PRESENCE_LIVE",
+    "PRESENCE_SILHOUETTE",
+    "PRESENCE_ABSENT",
+    "PRESENCE_UNKNOWN",
+    "PRESENCE_SPOOF",
+    "PRESENCE_STATES",
     "PresenceFrame",
     "PresenceMetrics",
     "PresenceState",
