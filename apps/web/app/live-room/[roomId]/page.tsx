@@ -1431,11 +1431,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setAskThread((prev) =>
           prev.map((e) =>
             e.id === entryId
-              ? { ...e, done: true, queued: true, answer: e.answer || "Theodore will call on you in turn." }
+              ? { ...e, done: true, queued: true, answer: e.answer || `${hostLabel} will call on you in turn.` }
               : e,
           ),
         );
-        setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. Theodore will call on you in turn.`);
+        setNotice(`You're #${res.queue_position ?? myQueuePos} in the Q&A queue. ${hostLabel} will call on you in turn.`);
       } else {
         const finalText = res.text || res.host_message?.text || "";
         // Record the mirrored chat copies BEFORE applying the room so Theodore's
@@ -1454,7 +1454,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       setError(friendlyError(e, "Question failed"));
       setAskThread((prev) =>
         prev.map((e) =>
-          e.id === entryId ? { ...e, done: true, answer: e.answer || "Couldn't reach Theodore — try again." } : e,
+          e.id === entryId ? { ...e, done: true, answer: e.answer || `Couldn't reach ${hostLabel} — try again.` } : e,
         ),
       );
     } finally {
@@ -1708,7 +1708,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
         setRoom(await liveRoomFinishTurn(roomId, pid, moderatorKey));
       }
     } catch (e) {
-      setError(friendlyError(e, "Couldn't send your question to Theodore"));
+      setError(friendlyError(e, `Couldn't send your question to ${hostLabel}`));
     } finally {
       setBusy(false);
     }
@@ -2100,7 +2100,9 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
       <main className="container" style={{ maxWidth: 480 }}>
         <h1>Salareen Live Room</h1>
         <p className="muted">
-          {isSoloLiveRoom(roomId, room)
+          {room?.human_taught && isSoloLiveRoom(roomId, room)
+            ? `Your private 1:1 session with ${room?.human_host_name || "your instructor"}. It starts when your instructor begins the class.`
+            : isSoloLiveRoom(roomId, room)
             ? "Your private 1:1 session with Theodore. The class starts automatically once you enter."
             : room?.human_taught
               ? `Join ${room?.human_host_name || "your instructor"}'s live class — up to ${room?.room_size ?? 6} seats in the grid.`
@@ -2114,7 +2116,11 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 {room.learner_count}/{room.learner_capacity} learners · {room.seats_left} seats left
               </div>
             ) : (
-              <div className="muted">Just you and Theodore — camera and mic ready when you join.</div>
+              <div className="muted">
+                {room?.human_taught
+                  ? `Just you and ${room?.human_host_name || "your instructor"} — camera and mic ready when you join.`
+                  : "Just you and Theodore — camera and mic ready when you join."}
+              </div>
             )}
           </div>
         )}
@@ -2249,7 +2255,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 {isSolo ? "Start game" : "Start for everyone"} · 25 points
               </button>
             </div>
-          ) : <p>Waiting for Theodore or the class admin to start a game.</p>
+          ) : <p>Waiting for {hostLabel} or the class admin to start a game.</p>
         ) : (
           <div style={{ display: "grid", gap: 12, textAlign: "center" }}>
             <div style={{ fontSize: 13, color: "#c4b5fd", textTransform: "uppercase" }}>
@@ -2636,7 +2642,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 : ""}
             </div>
             <div style={{ opacity: 0.78, marginTop: 4 }}>
-              Private administrator view. Theodore uses anonymous class aggregates
+              Private administrator view. {hostLabel} uses anonymous class aggregates
               when adapting explanations and Q&amp;A; authored slide text itself is
               unchanged.
             </div>
@@ -2660,8 +2666,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             color: "var(--muted)",
           }}
         >
-          🔇 Live audio/video for participants is unavailable right now — the AI
-          teacher’s narration, chat and Q&amp;A continue as normal.
+          🔇 Live audio/video for participants is unavailable right now —{" "}
+          {humanTaught ? "chat and Q&A continue as normal." : "the AI teacher’s narration, chat and Q&A continue as normal."}
         </div>
       )}
 
@@ -2799,7 +2805,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             <h2 style={{ marginTop: 0 }}>Ready to join live audio &amp; video?</h2>
             <p className="muted" style={{ marginBottom: 16 }}>
-              Your browser requires a tap before WebRTC audio can start. The AI teacher,
+              Your browser requires a tap before WebRTC audio can start. {humanTaught ? "Your instructor" : "The AI teacher"},
               chat and slides are already running — tap below to hear other participants.
             </p>
             <button
@@ -2889,7 +2895,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   liveKitTrack={iAmHost && !cameraOn ? null : trackFor(host.id)}
                   slide={!room?.presenting && room?.welcome_message ? {
                     index: 0,
-                    title: "Welcome to Transparent AI",
+                    title: humanTaught ? `Welcome to ${room.title}` : "Welcome to Transparent AI",
                     body: room.welcome_message,
                     narration: room.welcome_message,
                   } : room?.slide}
@@ -2962,7 +2968,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                       {hasFloor ? (
                         <>
                           <div style={{ fontSize: "clamp(14px, 2.8vw, 20px)", fontWeight: 700, textAlign: "center" }}>
-                            {listening ? "🎙️ Listening — ask Theodore out loud" : "🎤 You have the floor"}
+                            {listening ? `🎙️ Listening — ask ${hostLabel} out loud` : "🎤 You have the floor"}
                           </div>
                           {spokenText ? (
                             <div
@@ -3005,7 +3011,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                                 background: "#059669", color: "#fff", fontWeight: 800,
                               }}
                             >
-                              ✓ Done — ask Theodore
+                              ✓ Done — ask {hostLabel}
                             </button>
                           </div>
                         </>
@@ -3031,7 +3037,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                           </button>
                           {inQueue ? (
                             <div style={{ fontSize: 13, opacity: 0.9, textAlign: "center" }}>
-                              Stay fullscreen. Your microphone opens when Theodore gives you the floor.
+                              Stay fullscreen. Your microphone opens when {hostLabel} gives you the floor.
                             </div>
                           ) : null}
                         </>
@@ -3405,7 +3411,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 ) : null}
               </div>
               <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--muted)" }}>
-                Theodore is listening. Speak naturally, then tap “Done — ask Theodore”. You can also type it below.
+                {hostLabel} is listening. Speak naturally, then tap “Done — ask {hostLabel}”. You can also type it below.
               </p>
               <div
                 style={{
@@ -3443,7 +3449,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                   disabled={busy}
                   style={{ background: "#059669", color: "#fff" }}
                 >
-                  Done — ask Theodore
+                  Done — ask {hostLabel}
                 </button>
               </div>
             </div>
@@ -3567,7 +3573,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           {/* Underline tabs: class chat vs. asking Theodore directly (Design A). */}
           <div
             role="tablist"
-            aria-label="Chat or Ask Theodore"
+            aria-label={humanTaught ? `Chat or Ask ${hostLabel}` : "Chat or Ask Theodore"}
             style={{
               display: "flex",
               gap: 8,
@@ -3590,7 +3596,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               onClick={() => setPanelTab("ask")}
               style={panelTabStyle(panelTab === "ask")}
             >
-              🎓 Ask Theodore
+              🎓 Ask {hostLabel}
             </button>
           </div>
 
@@ -3616,12 +3622,15 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                 // identical chat text.
                 if (!askMineRef.current.has(m.text)) return true;
                 const fromMe = m.from_id === me?.id;
-                const fromTheodore = /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+                const fromTheodore = !humanTaught && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
                 return !(fromMe || fromTheodore);
               })
               .map((m) => {
               const isSystem = m.from_id === "system";
-              const isTheodore = !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
+              // In a human-taught class nobody is Theodore — and the instructor's
+              // placeholder id ("human-host") would otherwise match this heuristic.
+              const isTheodore =
+                !humanTaught && !isSystem && /theodore|teacher|host/i.test(`${m.from_id} ${m.from_name}`);
               return (
                 <div key={m.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span
@@ -3821,7 +3830,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
           >
             {askThread.length === 0 ? (
               <p className="muted" style={{ fontSize: 12.5, margin: "4px 0", lineHeight: 1.5 }}>
-                Ask Theodore anything about the lesson — your questions and his answers
+                Ask {hostLabel} anything about the lesson — your questions and the answers
                 stay here in this tab. You can also raise your hand on your tile to ask by voice.
               </p>
             ) : (
@@ -3860,7 +3869,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700 }}>
-                        Theodore · AI teacher
+                        {humanTaught ? hostLabel : "Theodore · AI teacher"}
                         {!e.done ? " · answering…" : ""}
                       </div>
                       <div
@@ -3890,7 +3899,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder="Ask Theodore a question…"
+              placeholder={humanTaught ? `Ask ${hostLabel} a question…` : "Ask Theodore a question…"}
               style={{ flex: 1, borderRadius: 999, border: "1px solid var(--border)", padding: "10px 14px", background: "var(--panel)", color: "var(--text)" }}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
@@ -3898,8 +3907,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button
               onClick={() => void askQuestion()}
               disabled={busy}
-              aria-label="Ask Theodore"
-              title="Ask Theodore"
+              aria-label={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
+              title={humanTaught ? `Ask ${hostLabel}` : "Ask Theodore"}
               style={{
                 flex: "0 0 auto",
                 width: 42,
@@ -4035,7 +4044,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               {learnerCtx.learnerCategory && learnerCtx.learnerCategory !== "skipped" ? (
                 <> · {learnerCtx.learnerCategory.replace(/_/g, " ")}</>
               ) : null}
-              <span className="muted"> — Theodore uses this to adapt your Q&amp;A.</span>
+              <span className="muted"> — {hostLabel} uses this to adapt your Q&amp;A.</span>
             </div>
           ) : null}
           {/* A short horizontal transcript preserves vertical space for video. */}
@@ -4071,7 +4080,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
               </div>
             )) : (
               <span className="muted" style={{ alignSelf: "center", fontSize: 12 }}>
-                Chat and Theodore’s answers appear here.
+                Chat and {hostLabel}’s answers appear here.
               </span>
             )}
             <div ref={chatEndRef} />
@@ -4131,8 +4140,8 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <input
               value={askDraft}
               onChange={(e) => setAskDraft(e.target.value)}
-              placeholder="Ask Theodore…"
-              aria-label="Question for Theodore"
+              placeholder={humanTaught ? `Ask ${hostLabel}…` : "Ask Theodore…"}
+              aria-label={humanTaught ? `Question for ${hostLabel}` : "Question for Theodore"}
               onKeyDown={(e) => e.key === "Enter" && void askQuestion()}
               disabled={busy}
               style={{ flex: "1 1 180px", minWidth: 150, padding: "7px 9px" }}
@@ -4241,7 +4250,7 @@ export default function LiveRoomPage({ params }: { params: { roomId: string } })
             <button
               onClick={() => void doneSpeaking()}
               disabled={busy}
-              title="Send your spoken (or typed) question to Theodore and hand back the floor"
+              title={`Send your spoken (or typed) question to ${hostLabel} and hand back the floor`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",

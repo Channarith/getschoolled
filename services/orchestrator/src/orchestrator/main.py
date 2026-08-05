@@ -1629,6 +1629,17 @@ def schedule_group_class(
         payload["created_by_account_id"] = account_id
         # A signed-in user scheduling a non-student session is teaching it.
         payload["human_taught"] = True
+        # Label it with the person's name: the "Salareen AI" default would claim an
+        # AI teaches a class that a human actually teaches.
+        from aoep_shared.live_room_rewards import display_name_from_authorization
+
+        teacher_name = (payload.get("instructor_name") or "").strip() or (
+            display_name_from_authorization(authorization) or ""
+        )
+        if teacher_name:
+            payload["instructor_name"] = teacher_name
+            if not (req.host or "").strip() or req.host == "Salareen AI":
+                payload["host"] = teacher_name
     if req.marketplace_listing:
         payload["instructor_account_id"] = account_id
         payload["audit_required"] = True
